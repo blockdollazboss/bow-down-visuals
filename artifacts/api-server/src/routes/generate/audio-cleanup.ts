@@ -13,7 +13,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
 const router = Router();

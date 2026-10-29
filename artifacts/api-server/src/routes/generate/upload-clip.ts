@@ -8,7 +8,7 @@ import {
   SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
-import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 
 const router = Router();
 

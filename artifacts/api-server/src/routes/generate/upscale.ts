@@ -14,7 +14,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);

@@ -31,7 +31,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage"";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
 const router = Router();
