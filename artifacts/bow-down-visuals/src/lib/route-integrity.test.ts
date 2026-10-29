@@ -18,6 +18,12 @@
  *      a declared route (an alias to nowhere is still a dead link).
  *   3. The seven incident paths stay aliased to live routes (pinned via
  *      ROUTE_MATRIX, the same census the gate consumes).
+ *   4. Bare /shop stays front-doored to /storefronts (stack700): the
+ *      class again — storefronts live at /shop/:slug, their addresses
+ *      are displayed as "/shop/{handle}", and profile-shop-link.ts
+ *      already falls back to /storefronts when there is no handle —
+ *      yet the bare name itself had no route and served the 404
+ *      (owner screenshot, Oct 29, 2026).
  *
  * Scope notes (deliberate, not gaps):
  *   - Test files are excluded: fixtures are data, not navigation (the
@@ -197,5 +203,21 @@ describe("route integrity — no literal internal link points at a non-route", (
         `${p} -> ${entry!.redirectTo} must land on a real route`,
       ).toBe(true);
     }
+  });
+
+  it("bare /shop stays front-doored to the storefronts hub", () => {
+    const entry = ROUTE_MATRIX.find((e) => e.path === "/shop");
+    expect(entry, "/shop must be classified in ROUTE_MATRIX").toBeDefined();
+    expect(entry!.disposition).toBe("redirect");
+    // The exact target is pinned, not just "a live route": /storefronts
+    // is the public directory where /shop/:slug storefronts are
+    // discovered, and the fallback lib/profile-shop-link.ts encodes.
+    expect(entry!.redirectTo).toBe("/storefronts");
+    expect(entry!.targetDisposition).toBe("public");
+    // The alias itself must exist in the real route table, aimed at the hub.
+    expect(appSource).toContain(
+      '<Route path="/shop"><Redirect to="/storefronts" /></Route>',
+    );
+    expect(resolvesToRoute("/storefronts")).toBe(true);
   });
 });

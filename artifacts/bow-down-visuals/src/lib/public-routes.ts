@@ -296,6 +296,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/saved", disposition: "locked" },
   { path: "/post/:id", disposition: "locked" },
   { path: "/tips/:handle", disposition: "public" },
+  { path: "/shop", disposition: "redirect", redirectTo: "/storefronts", targetDisposition: "public" },
   { path: "/shop/:slug", disposition: "public" },
   { path: "/storefront/product/:id", disposition: "public" },
   { path: "/interview-prep", disposition: "locked" },
