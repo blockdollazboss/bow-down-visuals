@@ -9,7 +9,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 
 /* ─── /sponsors/post — brands post a sponsorship deal ─────────────────────
-   Money rule: posting a deal is 5 credits (a business listing that can
+   Money rule: posting a deal is 500 credits (a business listing that can
    close real money). Charged BEFORE the save, auto-refunded on failure. */
 
 const POST_COST = 500;

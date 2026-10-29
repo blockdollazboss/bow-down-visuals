@@ -1279,7 +1279,7 @@ function PipelineTab() {
    creators apply with a pitch — Bow Down Visuals takes 15% of every
    released deal.
    Money rules: browsing is free (pure UI); the AI deal matcher is 1 credit;
-   posting a deal lives on /sponsors/post (5 credits).
+   posting a deal lives on /sponsors/post (500 credits).
    Endpoints: GET /api/sponsors/deals, POST /api/sponsors/match. */
 
 interface MarketplaceDeal {

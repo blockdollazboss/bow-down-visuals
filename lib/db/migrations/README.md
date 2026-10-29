@@ -85,6 +85,36 @@ ledger, and is a harmless no-op on staging.
   stalls loudly and Render keeps the previous healthy version serving.
   Check the deploy logs for `[migrate-boot]` lines.
 
+## In-place repairs — known exceptions
+
+Rule 5 above ("never edit a file after it has been applied") stands. The
+runner tracks applied files **by filename** in `data_migrations` and never
+re-runs a recorded name, so an in-place edit is inert on every database
+that already applied the file — it only changes what a *fresh* database
+sees. Three deliberate repairs were made under exactly that reasoning on
+2026-10-25, and they are documented here as the known exceptions:
+
+- `6886feecd` — `0057`, `0067_mashup_sources`, `0069_albums`: added
+  `IF NOT EXISTS` guards so the files' ALTERs cannot FATAL on databases
+  where a baseline-skipped predecessor never ran. No-op on databases
+  that already applied them; the guarded path is the safe path on fresh
+  databases.
+- `fe9c539a0` — `0207_co_posts`: same guard family, same reasoning.
+- `11eecb49c` — `0216_public_api_keys`: dropped a foreign key referencing
+  the nonexistent `users` table; the original file could never have
+  executed successfully anywhere, so no database carries its effects.
+  (If a database were ever proven to have applied the original, the cure
+  is an idempotent `DROP CONSTRAINT IF EXISTS` in a new numbered file.)
+
+These are exceptions, not a precedent. Future repairs ship as **new
+numbered files**. An in-place edit is tolerated only when the change is
+provably inert on every database that already applied the file
+(`IF NOT EXISTS` guards, or removal of statements that could never have
+executed). There is deliberately no checksum ledger: the runner compares
+filenames, not bytes, and seeding a ledger with today's bytes would
+assert false history for files like the original `0057`, whose first
+body is what production actually applied.
+
 ## Retired
 
 `drizzle-kit push` is retired for deploys (2026-10-06): it requires a TTY for
