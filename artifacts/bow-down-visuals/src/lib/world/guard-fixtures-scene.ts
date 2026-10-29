@@ -49,6 +49,7 @@ import {
   fixtureNormalization,
   fixturePortraitPanelSize,
   fixtureRotY,
+  fixtureStandinArtPlan,
   fixtureSway,
   type FixtureBodyDef,
   type FixtureBodyId,
@@ -94,6 +95,34 @@ function softShadowTexture(): THREE.Texture {
   return tex;
 }
 
+/**
+ * Load a stand-in texture (a guard matte, the King's portrait)
+ * walking the shared fixture source plan — CDN first, the same
+ * art on the site origin next, alternating with the bodies' own
+ * backoff (guard-fixtures.fixtureStandinArtPlan). Until Oct 28
+ * this was a single CDN shot: with the CDN leg down, every post's
+ * art failed inside seconds and the bare gold capsule armed at
+ * all six posts, even though the art sits on the origin and the
+ * bodies themselves landed through it. onFail runs only after
+ * the whole plan is spent — the capsule is the last resort
+ * again, not the first failure's answer.
+ */
+function loadStandinTexture(
+  src: string,
+  onLoad: (tex: THREE.Texture) => void,
+  onFail: () => void,
+): void {
+  const attempt = (url: string) =>
+    new Promise<THREE.Texture>((resolve, reject) => {
+      new THREE.TextureLoader().load(url, resolve, undefined, reject);
+    });
+  void attemptLoadPlan(
+    fixtureStandinArtPlan(mediaUrl(src), src),
+    attempt,
+    (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  ).then(onLoad, onFail);
+}
+
 function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Group {
   const body = FIXTURE_BODIES[def.body];
   const fallback = fixtureFallbackFor(def.body);
@@ -120,8 +149,8 @@ function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Gro
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, body.height), mat);
     mesh.position.y = body.height / 2;
     group.add(mesh);
-    new THREE.TextureLoader().load(
-      mediaUrl(fallback.src),
+    loadStandinTexture(
+      fallback.src,
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
@@ -135,10 +164,9 @@ function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Gro
         mat.map = tex;
         mat.needsUpdate = true;
       },
-      undefined,
       () => {
-        /* Matte failed too: the gold capsule stands instead — a post
-         * is never empty. */
+        /* Matte failed on every source: the gold capsule stands
+         * instead — a post is never empty. */
         mesh.visible = false;
         group.add(buildCapsule(body.height, 0xc9a227));
       },
@@ -197,8 +225,8 @@ function buildPortraitStandin(group: THREE.Group, bodyHeight: number, src: strin
   group.add(frame);
   group.add(panel);
   group.add(post);
-  new THREE.TextureLoader().load(
-    mediaUrl(src),
+  loadStandinTexture(
+    src,
     (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 4;
@@ -209,10 +237,9 @@ function buildPortraitStandin(group: THREE.Group, bodyHeight: number, src: strin
       panelMat.map = tex;
       panelMat.needsUpdate = true;
     },
-    undefined,
     () => {
-      /* Portrait art failed too: the gold capsule stands instead —
-       * the last resort, never the plan. */
+      /* Portrait art failed on every source: the gold capsule
+       * stands instead — the last resort, never the plan. */
       frame.visible = false;
       panel.visible = false;
       post.visible = false;

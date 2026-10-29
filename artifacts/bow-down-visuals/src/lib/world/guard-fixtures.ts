@@ -382,6 +382,24 @@ export function fixtureLoadPlan(cdnUrl: string, originPath: string): string[] {
   return [cdnUrl, originPath, cdnUrl, originPath];
 }
 
+/**
+ * The sources a post's STAND-IN ART (the guard mattes, the King's
+ * portrait) walks — the same alternating plan as the bodies. Until
+ * Oct 28 the art loaded from the CDN alone, one shot: the bodies
+ * had an origin leg and the art did not, so in any session where
+ * the CDN leg failed, the bodies could still land via the origin
+ * while every post's fallback had already degraded to the bare
+ * gold capsule — and in a session where both legs failed, there
+ * was no dignified stand-in left at all, only capsules (the
+ * owner's "placeholder yellow thing", proven at the bench by
+ * killing the CDN leg: six posts, six capsules, zero art landed).
+ * A figure of the person beats a placeholder shape; the art now
+ * walks the same plan as the body it stands in for.
+ */
+export function fixtureStandinArtPlan(cdnUrl: string, originPath: string): string[] {
+  return fixtureLoadPlan(cdnUrl, originPath);
+}
+
 /** Backoff before attempt `attemptIndex` (0-based); attempt 0 is immediate. */
 export function fixtureRetryDelayMs(attemptIndex: number): number {
   const schedule = [0, 400, 1500, 3500];
