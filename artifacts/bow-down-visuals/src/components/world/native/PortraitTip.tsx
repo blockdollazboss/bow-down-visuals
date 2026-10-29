@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { HandCoins, Heart, Loader2 } from "lucide-react";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import {
   apiErrorLine,
   parseTipPage,
@@ -19,8 +20,11 @@ import {
    tip page's (pages/tip-page.tsx), verbatim on its rails:
    GET /api/tips/page/:handle for the creator's own suggested
    amounts, goal and the API's honesty notice (rendered as-is);
-   sending tries POST /api/tips/:handle/checkout first — its hosted
-   checkout opens in a NEW TAB (the sanctioned exit) — and a 503
+   sending tries POST /api/tips/:handle/checkout first — asking for
+   the embedded session whenever a publishable key is present, so
+   the payment form mounts right in the card and the fan never
+   leaves the palace (its hosted checkout opens in a NEW TAB only
+   as the no-key / hosted-answer fallback) — and a 503
    (payments not configured in this environment) falls back to
    recording the tip intent on POST /api/tips/:handle/tip, exactly
    the page's own fallback, saying so plainly. A creator with the
@@ -39,6 +43,9 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<"checkout" | "intent" | null>(null);
+  /* The embedded session's clientSecret, when the rail answers one —
+     the payment form mounts in the card under the send button. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,15 +78,32 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
     if (problem) { setError(problem); return; }
     setSending(true);
     setError(null);
+    setEmbeddedSecret(null);
     try {
       /* Real checkout first — the page's own order. */
       const co = await fetch(tipCheckoutPath(page.handle), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(tipSendPayload(effective as number, fanName, message)),
+        body: JSON.stringify({
+          ...tipSendPayload(effective as number, fanName, message),
+          /* Ask for the embedded presentation when this device can
+             mount it (publishable key configured) — the server
+             answers a clientSecret instead of a hosted URL and the
+             fan pays right here. Otherwise the hosted rail below
+             remains the fallback. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       if (co.ok) {
-        const url = tipCheckoutUrl(await co.json().catch(() => ({})));
+        const data = (await co.json().catch(() => ({}))) as Record<string, unknown>;
+        /* The clientSecret branch precedes the tab fallback: an
+           embedded answer mounts the payment form in the card and
+           the fan never leaves the World. */
+        if (typeof data["clientSecret"] === "string" && data["clientSecret"]) {
+          setEmbeddedSecret(data["clientSecret"]);
+          return;
+        }
+        const url = tipCheckoutUrl(data);
         if (url) {
           window.open(url, "_blank", "noopener,noreferrer");
           setSent("checkout");
@@ -175,6 +199,18 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
             {sending ? "Sending…" : `Send tip${effective && effective > 0 ? ` — $${effective.toFixed(2)}` : ""}`}
           </button>
         </>
+      )}
+      {embeddedSecret && (
+        <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-portrait-tip-embedded-checkout">
+          <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
+            Your payment form is right here — the tip lands the moment the payment confirms.
+          </p>
+          <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+          <button type="button" onClick={() => setEmbeddedSecret(null)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+            Close — nothing is charged until you complete the form
+          </button>
+        </div>
       )}
       {page.notice && (
         <p className={`mt-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-2.5 text-[11px] ${isLight ? "text-[#92600a]" : "text-amber-200/85"}`}>{page.notice}</p>
