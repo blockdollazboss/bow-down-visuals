@@ -29,7 +29,9 @@ import {
   refundCheckoutSessionPayment,
   checkoutBaseUrl,
   isCheckoutTestMode,
+  type PaymentCheckoutInput,
 } from "../../lib/stripe-checkout";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 
 /* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
    re-hosted into permanent storage at listing time; reads serve fresh
@@ -55,6 +57,12 @@ const beatLicenseSchema = z.object({
      durable acceptance of the terms snapshot exactly as rendered in
      plain words. Absent/false keeps the legacy purchase behavior. */
   plainTermsAgreed: z.boolean().optional(),
+  /* Embedded checkout (owner law 2026-10-26: never leave the site):
+     "embedded" asks createPaymentCheckout for the session's
+     clientSecret so the World BeatsDesk mounts the payment form
+     in-panel; absent/"hosted" keeps the hosted-URL shape. Honored
+     only while the EMBEDDED_CHECKOUT kill switch is on. */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 }).refine((v) => (v.tier === undefined) !== (v.templateId === undefined), {
   message: "Choose exactly one of tier or templateId.",
 });
@@ -916,10 +924,17 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
     }).returning();
     const license = inserted[0]!;
 
-    let session: { sessionId: string; url: string };
+    /* Embedded presentation is asked for per-request and honored only
+       while the EMBEDDED_CHECKOUT kill switch is on — the session,
+       metadata, idempotency key and every money figure are identical
+       either way; only the presentation differs. */
+    const embeddedRequested =
+      parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
+
+    let session: { sessionId: string; url: string } | { sessionId: string; clientSecret: string };
     try {
       const baseUrl = checkoutBaseUrl(req);
-      session = await createPaymentCheckout({
+      const checkoutInput: PaymentCheckoutInput = {
         amountCents: priceCents,
         productName: `${beat.title} — ${termsSnapshot.name} license`,
         description: `Beat license (${termsSnapshot.name})`,
@@ -942,7 +957,10 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
         },
         /* A beat license is a digital audio work (lib/stripe-tax.ts). */
         taxKind: "store-audio",
-      });
+      };
+      session = embeddedRequested
+        ? await createPaymentCheckout({ ...checkoutInput, uiMode: "embedded" })
+        : await createPaymentCheckout(checkoutInput);
     } catch (err) {
       /* No checkout → no dangling payable license; remove the intent row. */
       await db.delete(beatLicensesTable).where(eq(beatLicensesTable.id, license.id));
@@ -954,13 +972,23 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       .where(eq(beatLicensesTable.id, license.id))
       .returning();
 
+    const checkoutUrl = "url" in session ? session.url : null;
+    const clientSecret = "clientSecret" in session ? session.clientSecret : null;
+
     res.status(201).json({
       license: toLicenseJson(bound ?? license),
-      checkoutUrl: session.url,
+      /* Embedded sessions have no hosted URL to hand back — the
+         clientSecret is what the in-World desk mounts in-panel (null
+         on the hosted shape, mirroring routes/storefront.ts). */
+      checkoutUrl,
+      clientSecret,
+      uiMode: embeddedRequested ? "embedded" : "hosted",
       sessionId: session.sessionId,
       paymentStatus: "pending_payment",
       testMode: isCheckoutTestMode(),
-      message: "License reserved — complete checkout to activate it. No charge has been made yet.",
+      message: embeddedRequested
+        ? "License reserved — complete checkout right here to activate it. No charge has been made yet."
+        : "License reserved — complete checkout to activate it. No charge has been made yet.",
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to start license checkout";

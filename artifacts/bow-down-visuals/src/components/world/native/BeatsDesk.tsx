@@ -4,6 +4,7 @@ import {
   BadgeDollarSign, Check, Disc3, Loader2, LogIn, Pause, Pencil, Play, Plus, Search, Trash2, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import {
   NativeCard, NativeEmptyState, NativeErrorState, NativeLoadingState,
 } from "@/components/world/native";
@@ -51,8 +52,11 @@ import { BEAT_GENRES } from "@/lib/world/money-desks-2";
    browse/preview on GET /api/beats (its filters, its limit/offset),
    licensing on POST /api/beats/:id/license naming exactly one offer
    — a Basic/Premium/Exclusive tier or one of the producer's custom
-   templates — with the hosted checkout opening in a NEW TAB (the
-   sanctioned exit) and the license confirmed on return through
+   templates — asking for the embedded session whenever a publishable
+   key is present, so the payment form mounts right in the panel and
+   the buyer never leaves the palace (the hosted checkout opening in
+   a NEW TAB remains only as the no-key / hosted-answer fallback)
+   and the license confirmed on return through
    POST /api/beats/licenses/verify, the very call the page makes
    when it lands back with a session id. Selling is the page's free
    POST /api/beats; the seller dashboard is GET
@@ -114,6 +118,9 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   const [licensing, setLicensing] = useState(false);
   const [licenseNote, setLicenseNote] = useState<string | null>(null);
   const [licenseError, setLicenseError] = useState<string | null>(null);
+  /* The embedded session's clientSecret, when the rail answers one —
+     the payment form mounts in the panel below the buy button. */
+  const [licenseSecret, setLicenseSecret] = useState<string | null>(null);
   const [myLicenses, setMyLicenses] = useState<BeatSale[] | null>(null);
   const pendingSessionRef = useRef<string | null>(null);
 
@@ -167,6 +174,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
     setLicensing(true);
     setLicenseNote(null);
     setLicenseError(null);
+    setLicenseSecret(null);
     try {
       const isTemplate = offerKey.startsWith("tpl:");
       const payload = isTemplate
@@ -175,10 +183,27 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       const res = await fetch(beatLicensePath(licenseBeat.id), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          /* Ask for the embedded presentation when this device can
+             mount it (publishable key configured) — the server
+             answers a clientSecret instead of a hosted URL and the
+             buyer pays right here. Otherwise the hosted rail below
+             remains the fallback. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) throw new Error(apiErrorLine(data, "That license couldn't be reserved."));
+      /* The clientSecret branch precedes the tab fallback: an
+         embedded answer mounts the payment form in the panel and
+         the buyer never leaves the World. */
+      if (typeof data["clientSecret"] === "string" && data["clientSecret"]) {
+        pendingSessionRef.current = beatCheckoutSessionId(data);
+        setLicenseSecret(data["clientSecret"]);
+        setLicenseNote("Your payment form is right here — finish paying without leaving the World, and your license activates the moment the payment confirms.");
+        return;
+      }
       const url = beatCheckoutUrl(data);
       if (url) {
         pendingSessionRef.current = beatCheckoutSessionId(data);
@@ -365,7 +390,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                     </span>
                     <span className="text-xs font-bold text-[#d4af37]">from {moneyCents(beat.basicPriceCents)}</span>
                     {isGuest ? null : (
-                      <button type="button" data-testid="world-beats-license-open" onClick={() => { setLicenseBeat(licenseBeat?.id === beat.id ? null : beat); setOfferKey("basic"); setLicenseError(null); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                      <button type="button" data-testid="world-beats-license-open" onClick={() => { setLicenseBeat(licenseBeat?.id === beat.id ? null : beat); setOfferKey("basic"); setLicenseError(null); setLicenseNote(null); setLicenseSecret(null); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
                         License
                       </button>
                     )}
@@ -408,6 +433,14 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                         {licensing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeDollarSign className="h-3.5 w-3.5" />}
                         {licensing ? "Reserving…" : "License this beat"}
                       </button>
+                      {licenseSecret && (
+                        <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-beats-embedded-checkout">
+                          <EmbeddedSessionCheckout clientSecret={licenseSecret} />
+                          <button type="button" onClick={() => setLicenseSecret(null)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                            Close — the license stays reserved as pending
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </NativeCard>

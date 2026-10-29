@@ -6,6 +6,13 @@
  * redirect and only then grant the entitlement — idempotently, keyed on
  * the session id.
  *
+ * PRESENTATION (owner law 2026-10-26: "we should never have to leave
+ * my site"): hosted is the default and stays byte-identical for
+ * existing callers. A caller that passes uiMode: "embedded" (gated on
+ * lib/embedded-checkout's kill switch, like every other rail) gets
+ * the SAME session in embedded_page ui_mode and its clientSecret
+ * back, for the on-page/in-World <EmbeddedSessionCheckout> mount.
+ *
  * TEST MODE ONLY (standing owner rule for this stack): if the configured
  * key is not a test key, every call fails closed. Live mode needs its own
  * explicit approval — it is never enabled by swapping an env var here.
@@ -56,6 +63,21 @@ export interface PaymentCheckoutInput {
   /** Member + rail + purchase-intent scope for the Stripe create key. */
   idempotency: CheckoutSessionIdempotencyScope;
   /**
+   * Presentation mode. "embedded" creates the SAME session in
+   * embedded_page ui_mode and answers its clientSecret instead of a
+   * hosted URL — same amount, metadata and idempotency key; only the
+   * presentation differs. Absent/"hosted" keeps the legacy hosted
+   * shape exactly. Callers gate "embedded" on the
+   * lib/embedded-checkout kill switch and their own key presence.
+   */
+  uiMode?: "embedded" | "hosted";
+  /**
+   * Where Stripe sends the buyer when an embedded session completes.
+   * Embedded mode only; defaults to successUrl (the rails' success
+   * pages already verify the session on landing).
+   */
+  returnUrl?: string;
+  /**
    * Stripe Tax kind for this rail's line item (lib/stripe-tax.ts).
    * Only takes effect when STRIPE_TAX_ENABLED is on; defaults to the
    * generic electronically-supplied-services code.
@@ -65,13 +87,20 @@ export interface PaymentCheckoutInput {
 
 /** Create a one-time payment Checkout Session for an exact amount. */
 export async function createPaymentCheckout(
+  input: PaymentCheckoutInput & { uiMode: "embedded" },
+): Promise<{ sessionId: string; clientSecret: string }>;
+export async function createPaymentCheckout(
   input: PaymentCheckoutInput,
-): Promise<{ sessionId: string; url: string }> {
+): Promise<{ sessionId: string; url: string }>;
+export async function createPaymentCheckout(
+  input: PaymentCheckoutInput,
+): Promise<{ sessionId: string; url: string } | { sessionId: string; clientSecret: string }> {
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
     throw new Error("Checkout amount must be a positive integer of cents");
   }
   const stripe = getCheckoutStripe();
   const idempotencyKey = buildCheckoutSessionIdempotencyKey(input.idempotency);
+  const embedded = input.uiMode === "embedded";
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     ...stripeTaxSessionFields(),
@@ -91,10 +120,31 @@ export async function createPaymentCheckout(
         quantity: 1,
       },
     ],
-    success_url: input.successUrl,
-    cancel_url: input.cancelUrl,
+    /* Embedded ui_mode: an embedded session takes a return_url
+       instead of success/cancel URLs and never carries a hosted URL
+       to demand — its client_secret is the mount key. The return
+       path is fixed server-side by the caller (no client input
+       reaches it), so there is no open-redirect surface. */
+    ...(embedded
+      ? {
+          ui_mode: "embedded_page" as const,
+          return_url: input.returnUrl ?? input.successUrl,
+        }
+      : {
+          success_url: input.successUrl,
+          cancel_url: input.cancelUrl,
+        }),
     metadata: input.metadata,
   }, { idempotencyKey });
+  if (embedded) {
+    /* An embedded session without a client secret cannot be mounted
+       anywhere — treat it exactly like a failed creation so callers
+       run their no-session cleanup instead of stranding a buyer. */
+    if (!session.client_secret) {
+      throw new Error("Checkout session did not return a client secret");
+    }
+    return { sessionId: session.id, clientSecret: session.client_secret };
+  }
   if (!session.url) throw new Error("Checkout session did not return a URL");
   return { sessionId: session.id, url: session.url };
 }
