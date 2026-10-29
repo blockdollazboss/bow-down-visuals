@@ -245,6 +245,10 @@ describe("App.tsx wiring (source pin)", () => {
     const src = readFileSync(appPath, "utf8");
     expect(src).toContain("reportBoundaryTrip(");
     expect(src).toContain("buildBoundaryReport(");
+    /* The report is stamped with the bundle's build id (VITE_BUILD_ID,
+       stamped by the production Docker build — pinned on the API side
+       in build-id-stamp.test.ts) so a trip names the build it hit. */
+    expect(src).toContain("VITE_BUILD_ID");
     expect(src).toContain("tryChunkAutoReload(");
     expect(src).toContain("clearChunkReloadGuard(");
     /* The fallback screen itself is unchanged. */
