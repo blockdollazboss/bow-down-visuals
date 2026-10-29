@@ -21,6 +21,7 @@ import {
   type WorldRole,
 } from "@/lib/world/bindings";
 import { firstGamepad } from "@/lib/world/gamepad";
+import { usePanelPadNav } from "@/hooks/use-panel-pad-nav";
 import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
 import {
   ACTION_BY_ID,
@@ -1325,6 +1326,17 @@ export default function WorldPage() {
     toggleFs();
   };
 
+  /* Closing a station panel — one door for every way out (the
+   * sheet's own close button, Escape inside it, and now the
+   * controller's B through the pad-nav hook below) so the ways
+   * out can never drift apart. */
+  const closeStation = () => {
+    setPanelTarget(null);
+    /* A station visit is where tutorial steps land (the drop
+       claim, the quest claim) — re-read the line. */
+    void refreshTutorial();
+  };
+
   /* The recovery's other half: while a platform exit has the
      recovery armed, the next click anywhere on the page re-enters
      fullscreen. Capture-phase and never interfering — the click
@@ -1382,6 +1394,53 @@ export default function WorldPage() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [fsArmed]);
+
+  /* The panels' pad navigation (stack700) — the layer the
+     owner's controller-first walk proved missing. Every panel
+     the World opens is DOM; the scene's pad poll speaks only
+     avatar, so a panel the pad opened could not be worked by
+     the pad at all — no selection, no confirm, no back. Each
+     surface below gets the same reader (use-panel-pad-nav):
+     D-pad/stick moves DOM focus, A activates, B closes through
+     the surface's own close path. Station sheets and the desk
+     step-throughs are one family (their roots carry the three
+     testids the resolver looks up); the three strips resolve by
+     their own. */
+  usePanelPadNav({
+    active: panelTarget !== null && status === "inside",
+    resolveContainer: () =>
+      document.querySelector(
+        '[data-testid="world-station-panel"], [data-testid="world-station-stepthrough"], [data-testid="world-studio-stepthrough"]',
+      ),
+    onClose: closeStation,
+  });
+  usePanelPadNav({
+    active: charPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-char-panel"]'),
+    onClose: () => setCharPanelOpen(false),
+  });
+  usePanelPadNav({
+    active: screenPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-screen-panel"]'),
+    onClose: () => setScreenPanelOpen(false),
+  });
+  usePanelPadNav({
+    active: hostPanelOpen && status === "inside",
+    resolveContainer: () => document.querySelector('[data-testid="world-host-panel"]'),
+    onClose: () => setHostPanelOpen(false),
+  });
+
+  /* The scene's side of the same bargain: while any of those
+   * panels is open, the scene's pad poll keeps its edges fresh
+   * but discards every intent — the stick must not walk the
+   * avatar behind an open sheet, and no dance may fire under a
+   * desk. Derived from the page's real panel states, the same
+   * states the hooks above key on; never a second truth. */
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
 
   /* Controller presence: a paired gamepad announces itself; the
      scene polls it for input (left stick walks, right stick looks,
@@ -3736,7 +3795,7 @@ export default function WorldPage() {
           opened from inside (the pick rides the same verified
           presence frame; the figure swaps when the room confirms). */}
       {charPanelOpen && user && status === "inside" && (
-        <div className={`relative z-20 border-t ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`}>
+        <div className={`relative z-20 border-t ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/25"}`} data-testid="world-char-panel">
           <WalkInAsPicker
             characters={vaultChars}
             loadFailed={vaultLoadFailed}
@@ -4138,12 +4197,7 @@ export default function WorldPage() {
           target={panelTarget}
           isLight={isLight}
           isGuest={isGuest}
-          onClose={() => {
-            setPanelTarget(null);
-            /* A station visit is where tutorial steps land (the
-               drop claim, the quest claim) — re-read the line. */
-            void refreshTutorial();
-          }}
+          onClose={closeStation}
           directory={directory}
           currentRoomId={roomId}
           kingLine={kingStripLine(kingMoment, Date.now(), isGuest)}
