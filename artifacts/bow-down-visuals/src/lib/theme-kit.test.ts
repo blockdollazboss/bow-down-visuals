@@ -132,6 +132,11 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
+  // Explicit 30s budget: this test sha256-hashes 540 files (~16 MB) and
+  // runs at ~2.5s on a calm box — over half of vitest's 5s default — so
+  // under multi-lane contention it used to TIME OUT and read as an asset
+  // regression (stack600 reconciliation: the assets and manifest were
+  // never wrong; the budget was). Assertions are unchanged.
   it("kit-vs-manifest: all 500 designed files + 10 app icons exist with the pinned hashes", () => {
     const assets = JSON.parse(
       readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
@@ -168,7 +173,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
       expect([w.width, w.height]).toEqual([size.width, size.height]);
       expect(deviceWallpaperPath(w.pack, w.mode as "light" | "dark", w.device as never)).toBe(w.path);
     }
-  });
+  }, 30000);
 
   it("the same icon is a DIFFERENT designed file in every pack (no shared set)", () => {
     const assets = JSON.parse(
