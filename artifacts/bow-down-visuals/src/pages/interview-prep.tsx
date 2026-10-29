@@ -14,11 +14,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
    Media training with AI. Pick an interview type, describe the artist, and
    get a prep session: likely questions (with handling tips) + talking
    points. Practice mode scores your answers with AI feedback.
-   POST /api/interview-prep/session → 2 credits.
-   POST /api/interview-prep/feedback → 1 credit per answer. */
+   POST /api/interview-prep/session → 200 credits.
+   POST /api/interview-prep/feedback → 100 credits per answer. */
 
-const SESSION_COST = 2;
-const FEEDBACK_COST = 1;
+const SESSION_COST = 200;
+const FEEDBACK_COST = 100;
 
 type InterviewType = "podcast" | "press" | "red-carpet" | "live-stream";
 type QuestionCategory = "warmup" | "craft" | "story" | "tough" | "rapid-fire";

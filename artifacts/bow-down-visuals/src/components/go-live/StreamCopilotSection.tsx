@@ -10,14 +10,14 @@ import LiveStageDesk from "@/components/go-live/LiveStageDesk";
 /* ── Stream Copilot ───────────────────────────────────────────────────────
    Live hub (/go-live) tab. (1) Pre-stream: AI generates a setup
        checklist, talking points/segment plan, and "clip watch-fors" —
-       moment types to watch for that make good clips. 1 VB.
+       moment types to watch for that make good clips. 100 VB.
    (2) Post-stream: paste a recap with timestamps; AI identifies the
-       most clip-worthy moments with titles + descriptions. 1 VB.
+       most clip-worthy moments with titles + descriptions. 100 VB.
    Real-time co-hosting lives in the Live Stage Desk docked below
    (#166 Stage Manager + #172 Auto-Highlights + #153 Classes). */
 
-const PREP_COST = 1;
-const CLIP_COST = 1;
+const PREP_COST = 100;
+const CLIP_COST = 100;
 
 interface PrepResult {
   checklist: string[];

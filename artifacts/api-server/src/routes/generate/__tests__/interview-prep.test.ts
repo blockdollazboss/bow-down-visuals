@@ -17,11 +17,11 @@ import {
 } from "../interview-prep";
 
 describe("credit costs", () => {
-  it("charges 2 credits per prep session", () => {
+  it("charges 200 credits per prep session", () => {
     expect(INTERVIEW_PREP_CREDIT_COST).toBe(200);
   });
 
-  it("charges 1 credit per answer feedback", () => {
+  it("charges 100 credits per answer feedback", () => {
     expect(INTERVIEW_FEEDBACK_CREDIT_COST).toBe(100);
   });
 

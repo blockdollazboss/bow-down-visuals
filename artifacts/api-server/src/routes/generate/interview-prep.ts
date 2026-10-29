@@ -13,13 +13,13 @@ const router = Router();
    questions (with category + handling tips) plus talking points for one of
    four interview types. Practice mode lets the artist rehearse answers and
    get scored AI feedback per answer.
-   2 credits per prep session; 1 credit per practice-answer feedback. */
+   200 credits per prep session; 100 credits per practice-answer feedback. */
 
-/* 2 credits per session — env-overridable. One session is a single GPT-6 Sol
+/* 200 credits per session — env-overridable. One session is a single GPT-6 Sol
    completion (questions + talking points); ~pennies in provider fees, so the
    2-credit price holds a deep margin while staying an impulse buy. */
 export const INTERVIEW_PREP_CREDIT_COST = Number(process.env["INTERVIEW_PREP_CREDIT_COST"]) || 200;
-/* 1 credit per answer feedback — env-overridable. One scored GPT-6 Sol
+/* 100 credits per answer feedback — env-overridable. One scored GPT-6 Sol
    completion per answer, same cost profile as a chat message. */
 export const INTERVIEW_FEEDBACK_CREDIT_COST = Number(process.env["INTERVIEW_FEEDBACK_CREDIT_COST"]) || 100;
 
@@ -208,7 +208,7 @@ async function refund(userId: string, cost: number) {
 }
 
 /* POST /api/interview-prep/session → 200 { session, creditsUsed, creditsRemaining }
-   Paid: 2 credits per prep session. Charge-before-generate; auto-refund on
+   Paid: 200 credits per prep session. Charge-before-generate; auto-refund on
    provider failure or unusable model output. */
 router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = sessionSchema.safeParse(req.body ?? {});
@@ -276,7 +276,7 @@ router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req
 });
 
 /* POST /api/interview-prep/feedback → 200 { feedback, creditsUsed, creditsRemaining }
-   Paid: 1 credit per answer feedback. Charge-before-generate; auto-refund on
+   Paid: 100 credits per answer feedback. Charge-before-generate; auto-refund on
    provider failure or unusable model output. */
 router.post("/interview-prep/feedback", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = feedbackSchema.safeParse(req.body ?? {});

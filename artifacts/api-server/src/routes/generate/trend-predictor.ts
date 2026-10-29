@@ -12,9 +12,9 @@ import {
 } from "../../lib/credits";
 
 /* ─── Trend Predictor ────────────────────────────────────────────────────
-   /api/trend-predictor/forecast — 2 credits: AI analyzes the creator's niche
+   /api/trend-predictor/forecast — 200 credits: AI analyzes the creator's niche
    and predicts 5 upcoming viral trends with confidence scores + reasoning.
-   /api/trend-predictor/ideas — 1 credit: 10 content ideas for one trend.
+   /api/trend-predictor/ideas — 100 credits: 10 content ideas for one trend.
    Trend tracking (the watchlist) is free — it's pure UI state, no compute.
 
    Honest framing is mandatory: these are predictions based on pattern
@@ -25,12 +25,12 @@ const router = Router();
 
 const PLATFORMS = ["youtube", "tiktok", "instagram"] as const;
 
-/* 2 credits per forecast — env-overridable without a deploy. A forecast is a
-   long structured GPT-6 Sol completion; 2 credits holds a deep margin while
+/* 200 credits per forecast — env-overridable without a deploy. A forecast is a
+   long structured GPT-6 Sol completion; 200 credits holds a deep margin while
    staying an impulse buy — and honors the standing rule that every AI
    feature costs a fee. */
 const FORECAST_CREDITS = Number(process.env["TREND_PREDICTOR_FORECAST_CREDITS"]) || 200;
-/* 1 credit per 10-idea pack — short completion, same margin logic. */
+/* 100 credits per 10-idea pack — short completion, same margin logic. */
 const IDEAS_CREDITS = Number(process.env["TREND_PREDICTOR_IDEAS_CREDITS"]) || 100;
 
 const forecastSchema = z.object({
@@ -91,7 +91,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/trend-predictor/forecast { niche, platforms?, audienceSize? }
    → 200 { trends[5], disclaimer, creditsUsed, creditsRemaining }
-   Paid: 2 credits. Auth required; credits deducted BEFORE the model call.
+   Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = forecastSchema.safeParse(req.body ?? {});
@@ -209,7 +209,7 @@ router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (r
 
 /* POST /api/trend-predictor/ideas { niche, trend, trendWhy? }
    → 200 { ideas[10], creditsUsed, creditsRemaining }
-   Paid: 1 credit per 10-idea pack. Same charge-then-refund-on-failure flow. */
+   Paid: 100 credits per 10-idea pack. Same charge-then-refund-on-failure flow. */
 router.post("/trend-predictor/ideas", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = ideasSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

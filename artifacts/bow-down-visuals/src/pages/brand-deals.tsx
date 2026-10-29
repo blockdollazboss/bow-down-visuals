@@ -76,8 +76,8 @@ const NICHE_DEFS: { value: string; labelKey: string }[] = [
   { value: "Lifestyle", labelKey: "lifestyle" },
 ];
 
-const SEARCH_COST = 2;
-const OUTREACH_COST = 1;
+const SEARCH_COST = 200;
+const OUTREACH_COST = 100;
 
 interface BrandDeal {
   brand: string;
@@ -756,14 +756,14 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
 
 /* ════════════════════════════════════════════════════════════════════════
    PITCH KIT TAB — the full /sponsorship-outreach page, absorbed as a tab.
-   AI-crafted pitch kit: POST /api/outreach → 2 credits per kit (pitch email
+   AI-crafted pitch kit: POST /api/outreach → 200 credits per kit (pitch email
    + DM version + media kit summary + 3-step follow-up sequence). Generated
    kits auto-save into the free tracker (localStorage, shared with the Deal
    Pipeline tab). Handoffs preserved: ?bio= from the press kit, rate card
    from the brand calculator, creator identity from the vault, and the
    → /sponsors marketplace tip. */
 
-const PITCH_KIT_COST = 2;
+const PITCH_KIT_COST = 200;
 
 const OUTREACH_PLATFORMS = ["tiktok", "instagram", "youtube", "twitch", "twitter", "facebook"];
 
@@ -914,7 +914,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        overrideCost: PITCH_KIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideCost: PITCH_KIT_COST, // the rail (OUTREACH_CREDIT_COST) and the registry agree at 200
         overrideFeature: "Outreach",
         body: JSON.stringify({
           creatorName: creatorName.trim(),

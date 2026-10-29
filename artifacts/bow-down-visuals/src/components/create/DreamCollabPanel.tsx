@@ -9,9 +9,9 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 /* ── Dream Collab ─────────────────────────────────────────────────────────
    Create hub panel. "What if I collabed with X?" — AI generates a style-blend
    video concept: logline, full concept, prompt-level video generation
-   prompts for the existing video pipeline, and a song concept. 2 credits. */
+   prompts for the existing video pipeline, and a song concept. 200 credits. */
 
-const COST = 2;
+const COST = 200;
 
 interface CollabConcept {
   logline: string;

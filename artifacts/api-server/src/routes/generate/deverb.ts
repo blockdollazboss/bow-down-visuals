@@ -18,7 +18,7 @@
  * ─────────────────────────────────────────────────────────────────────
  *
  * ── PRICING: PLACEHOLDER — NOT APPROVED ──────────────────────────────
- * DEVERB_CREDIT_COST (default 1000 credits = 10 Visual Bucs) is a
+ * DEVERB_CREDIT_COST (default 1000 Visual Bucs) is a
  * PROPOSAL. DEVERB_PRICING_APPROVED is false until the user explicitly
  * approves the price in a reviewed commit — never flip as a drive-by.
  * While false, the server refuses every deverb request BEFORE any

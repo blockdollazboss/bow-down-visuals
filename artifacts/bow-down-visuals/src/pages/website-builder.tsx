@@ -23,11 +23,11 @@ import {
 /* ─── AI Website Builder ─────────────────────────────────────────────────
    Export model: describe a site → AI builds a complete static site package
    (HTML/CSS/JS + README with deploy guides) → private preview → pay a
-   one-time 30-credit build fee → download the zip → host it on your own
+   one-time 3,000-credit build fee → download the zip → host it on your own
    domain. NOTHING is ever published or hosted on bowdownvisuals.com.
 
    Creator-niche templates: artist site, press kit, link-in-bio-plus,
-   tour page. Conversational edits at 2 credits each.
+   tour page. Conversational edits at 200 credits each.
 
    Persistence (migration 0196): every build is saved to the member's
    account server-side as a project; re-generations and edits append
@@ -36,8 +36,8 @@ import {
    No preview image is stored: cards say the preview renders live on
    open, because it does (the same iframe the builder already uses). */
 
-const BUILD_COST = 30;
-const EDIT_COST = 2;
+const BUILD_COST = 3000;
+const EDIT_COST = 200;
 
 const TEMPLATES = [
   {

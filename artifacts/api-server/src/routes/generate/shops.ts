@@ -9,7 +9,7 @@
  * The AI layer costs credits (it burns compute):
  *   POST /api/shops/ai/shop-description     1 credit (GPT-6)
  *   POST /api/shops/ai/product-description  1 credit (GPT-6)
- *   POST /api/shops/ai/product-image        1 credit standard / 2 credits premium
+ *   POST /api/shops/ai/product-image        100 credits standard / 200 credits premium
  *                                            (OpenAI image model, synchronous)
  *
  * Money rules (standing): charge BEFORE the provider call, 402 on
@@ -1778,7 +1778,7 @@ router.post("/shops/ai/product-description", publicApiLimiter, requireAuth, asyn
   }
 });
 
-/* ── AI: product image — 1 credit standard / 2 credits premium ────────────── */
+/* ── AI: product image — 100 credits standard / 200 credits premium ────────────── */
 router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = productImageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

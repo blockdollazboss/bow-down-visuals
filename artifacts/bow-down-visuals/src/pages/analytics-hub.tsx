@@ -74,7 +74,7 @@ interface PlatformData {
 type HubState = Record<PlatformKey, PlatformData>;
 
 const STORAGE_KEY = "analytics-hub-v1";
-const INSIGHT_COST = 2;
+const INSIGHT_COST = 200;
 const COMPETITOR_COST = 200;
 const COACH_COST = 100;
 const MAX_COACH_POSTS = 8;
@@ -2471,7 +2471,7 @@ export default function AnalyticsHub() {
         {/* ── CONNECTED ACCOUNTS ─────────────────────────────────────────
             Live connected-account stats (Instagram / TikTok / Facebook via
             /api/analytics/overview) plus the AI Insights + What-to-make-next
-            layer (1cr each via /api/analytics/insights and
+            layer (100cr each via /api/analytics/insights and
             /api/analytics/suggestions). Merged from the old /analytics page —
             no new page, no new sidebar item; this tab is its only home. */}
         {hubTab === "connected" && (

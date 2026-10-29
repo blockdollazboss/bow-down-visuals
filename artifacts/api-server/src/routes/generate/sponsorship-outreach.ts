@@ -11,11 +11,11 @@ const router = Router();
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
    AI-crafted outreach to brands for sponsorships. Pairs with the Sponsor
    Marketplace (brands list campaigns there; creators pitch them here).
-   2 credits per outreach kit. The tracker is free client-side state. */
+   200 credits per outreach kit. The tracker is free client-side state. */
 
-/* 2 credits per outreach kit — env-overridable without a deploy. One kit is
+/* 200 credits per outreach kit — env-overridable without a deploy. One kit is
    a single structured GPT-6 Sol completion (pitch email + DM + media kit +
-   follow-ups), a fraction of a cent in provider fees, so 2 credits holds a
+   follow-ups), a fraction of a cent in provider fees, so 200 credits holds a
    deep margin while staying an impulse buy — and honors the standing rule
    that every AI feature costs a fee. */
 export const OUTREACH_CREDIT_COST = Number(process.env["OUTREACH_CREDIT_COST"]) || 200;
@@ -107,7 +107,7 @@ export function parseOutreachKit(raw: string): OutreachKit | null {
 }
 
 /* POST /api/outreach { creator..., brand... } → 200 { kit, creditsUsed, creditsRemaining }
-   Paid: 2 credits per outreach kit. Auth required; credits are deducted BEFORE
+   Paid: 200 credits per outreach kit. Auth required; credits are deducted BEFORE
    the model call, with automatic refund on provider failure or unusable output. */
 router.post("/outreach", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = outreachSchema.safeParse(req.body ?? {});

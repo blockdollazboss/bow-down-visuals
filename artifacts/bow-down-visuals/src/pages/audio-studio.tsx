@@ -807,7 +807,7 @@ function VocalOnlyPreset() {
         </span>
         <div>
           <h1 className="text-2xl font-black">{t("vocalRemoval.pageTitle")}</h1>
-          <p className="text-sm text-white/45">{t("vocalRemoval.pageSub", { cost: VOCAL_CREDIT_COST })}</p>
+          <p className="text-sm text-white/45">{t("vocalRemoval.pageSub", { cost: VOCAL_CREDIT_COST * 100 })}</p>
         </div>
       </div>
 
@@ -902,7 +902,7 @@ function VocalOnlyPreset() {
             disabled={!file || !user}
             className={`w-full rounded-2xl px-6 py-4 font-bold transition disabled:cursor-not-allowed ${!file || !user ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-primary text-black hover:brightness-110"}`}
           >
-            {t("vocalRemoval.removeButton", { cost: VOCAL_CREDIT_COST })}
+            {t("vocalRemoval.removeButton", { cost: VOCAL_CREDIT_COST * 100 })}
           </button>
           {creditsRemaining != null && (
             <p className="text-center text-xs text-white/35">{t("vocalRemoval.creditsRemaining", { count: creditsRemaining })}</p>

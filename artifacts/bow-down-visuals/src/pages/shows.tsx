@@ -45,8 +45,8 @@ const DATE_WINDOWS = [
 
 const GENRE_PRESETS = ["Hip-Hop", "R&B", "Pop", "Afrobeats", "Latin", "EDM", "Rock", "Country", "Jazz", "Gospel"];
 
-const SEARCH_COST = 2;
-const PITCH_COST = 1;
+const SEARCH_COST = 200;
+const PITCH_COST = 100;
 
 interface ShowOpportunity {
   title: string;

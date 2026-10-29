@@ -37,11 +37,11 @@ const router = Router();
    playlists: song analysis (genre/mood/energy/comparable artists) +
    a professional pitch email + a short DM version, tailored per kit.
 
-   Pricing: 2 credits per pitch kit (analysis + pitch draft). The curator
+   Pricing: 200 credits per pitch kit (analysis + pitch draft). The curator
    directory and the pitch tracker are free — pure data, no compute. */
 
-/* 2 credits per pitch kit — env-overridable without a deploy. One GPT-6 Sol
-   JSON completion per kit; the margin holds comfortably at 2 credits. */
+/* 200 credits per pitch kit — env-overridable without a deploy. One GPT-6 Sol
+   JSON completion per kit; the margin holds comfortably at 200 credits. */
 export const PLAYLIST_PITCH_CREDIT_COST =
   Number(process.env["PLAYLIST_PITCH_CREDIT_COST"]) || 200;
 

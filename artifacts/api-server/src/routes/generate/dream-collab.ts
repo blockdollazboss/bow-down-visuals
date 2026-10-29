@@ -12,7 +12,7 @@ import {
 } from "../../lib/credits";
 
 /* ─── Dream Collab ────────────────────────────────────────────────────────
-   /api/dream-collab/concept — 2 credits: "what if I collabed with X" —
+   /api/dream-collab/concept — 200 credits: "what if I collabed with X" —
    the AI generates a full video concept: logline, full concept, style
    blend of the creator's style with the collaborator's, AI video
    generation prompts (prompt-level, ready for the existing video pipeline),
@@ -20,9 +20,9 @@ import {
 
 const router = Router();
 
-/* 2 credits per concept — env-overridable without a deploy. A full concept
+/* 200 credits per concept — env-overridable without a deploy. A full concept
    package with generation prompts is a long structured GPT-6 Sol
-   completion; 2 credits holds a deep margin — and honors the standing rule
+   completion; 200 credits holds a deep margin — and honors the standing rule
    that every AI feature costs a fee. */
 const CONCEPT_CREDITS = Number(process.env["DREAM_COLLAB_CONCEPT_CREDITS"]) || 200;
 
@@ -62,7 +62,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/dream-collab/concept { collaborator, userStyle, songTheme? }
    → 200 { logline, concept, styleBlend, videoPrompts[], songConcept, creditsUsed, creditsRemaining }
-   Paid: 2 credits. Auth required; credits deducted BEFORE the model call.
+   Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/dream-collab/concept", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = conceptSchema.safeParse(req.body ?? {});

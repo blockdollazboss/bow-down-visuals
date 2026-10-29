@@ -10,9 +10,9 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    Audio Studio tab. Upload a mix — the server measures REAL audio stats
    (loudness, true peak, clipping, stereo correlation via ffmpeg) and AI
    turns those measurements into specific fix-it coaching notes.
-   Coaching only — your audio is never modified. 1 VB. */
+   Coaching only — your audio is never modified. 100 VB. */
 
-const COST = 1;
+const COST = 100;
 
 interface Measurements {
   integratedLufs?: number;

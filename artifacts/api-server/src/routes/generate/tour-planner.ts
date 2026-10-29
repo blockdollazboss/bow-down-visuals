@@ -19,7 +19,7 @@ import {
      pricing rule.
    - POST /api/tour/optimize runs GPT-6 over the user's dates to produce an
      optimal routing order (minimize travel) plus a budget estimate (travel,
-     venue, crew). 3 credits per plan (env-overridable). Credits are charged
+     venue, crew). 300 credits per plan (env-overridable). Credits are charged
      BEFORE the model call and refunded if the provider call fails.
    - Honest framing: routing and budget are AI estimates, not guarantees —
      the frontend carries the disclaimer.
@@ -284,7 +284,7 @@ router.delete("/tour/dates/:id", publicApiLimiter, requireAuth, async (req, res)
   }
 });
 
-/* POST /api/tour/optimize — AI routing + budget (3 credits).
+/* POST /api/tour/optimize — AI routing + budget (300 credits).
    Body: { home_base, transport?, crew_size?, date_ids[] }
    Returns: { stops: OptimizedStop[], budget: BudgetBreakdown, routing_notes,
               creditsUsed, creditsRemaining } */

@@ -12,8 +12,8 @@ const router = Router();
 /* ─── Show Finder ───────────────────────────────────────────────────────────
    AI-curated performance opportunities so creators GET NOTICED: open mics,
    showcases, festivals, venue gigs, radio guest spots, podcast appearances.
-   - POST /api/show-finder        → 2 credits per search
-   - POST /api/show-finder/pitch  → 1 credit per pitch draft
+   - POST /api/show-finder        → 200 credits per search
+   - POST /api/show-finder/pitch  → 100 credits per pitch draft
    Honest framing: the model has no live event database. It must prefer
    well-known, recurring opportunities (established festivals, long-running
    open-mic nights, major stations with public submission programs), attach
@@ -21,9 +21,9 @@ const router = Router();
    that dates/contacts must be verified before acting. Never present
    specifics as verified fact. */
 
-/* 2 credits per finder search — env-overridable without a deploy. One search
+/* 200 credits per finder search — env-overridable without a deploy. One search
    is a single structured GPT-6 Sol completion (a fraction of a cent in
-   provider fees), so 2 credits holds a deep margin while staying an impulse
+   provider fees), so 200 credits holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
 export const SHOW_FINDER_CREDIT_COST =
   Number(process.env["SHOW_FINDER_CREDIT_COST"]) || 200;
@@ -147,7 +147,7 @@ async function refund(userId: string, cost: number, action: string) {
 
 /* POST /api/show-finder { location, genre, opportunityTypes, dateWindow, artistBio }
    → 200 { opportunities[], disclaimer, creditsUsed, creditsRemaining }
-   Paid: 2 credits per search. Auth required; credits are deducted BEFORE the
+   Paid: 200 credits per search. Auth required; credits are deducted BEFORE the
    model call and refunded if generation fails. */
 router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = finderSchema.safeParse(req.body ?? {});
@@ -239,7 +239,7 @@ router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
 
 /* POST /api/show-finder/pitch { opportunityTitle, opportunityType, organizer, creatorName, genre, artistBio, location }
    → 200 { pitch: { subject, body }, tips[], creditsUsed, creditsRemaining }
-   Paid: 1 credit per pitch draft. Auth required; refunded on failure. */
+   Paid: 100 credits per pitch draft. Auth required; refunded on failure. */
 router.post("/show-finder/pitch", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = pitchSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

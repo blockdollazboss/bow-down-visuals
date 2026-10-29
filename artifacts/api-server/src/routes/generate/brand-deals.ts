@@ -16,8 +16,8 @@ const router = Router();
    (brands posting campaigns lives in /sponsors; that's a later phase).
    Pairs with sponsorship-outreach: once a creator picks a brand here, they
    can build a full outreach kit there.
-   - POST /api/brand-deals           → 2 credits per search
-   - POST /api/brand-deals/outreach  → 1 credit per outreach draft
+   - POST /api/brand-deals           → 200 credits per search
+   - POST /api/brand-deals/outreach  → 100 credits per outreach draft
    Honest framing: the model has no live brand-deals database. It must
    prefer brands with real, public creator programs (affiliate programs,
    ambassador programs, known sponsorship-friendly categories), attach a
@@ -25,9 +25,9 @@ const router = Router();
    programs and payouts must be verified on the brand's official pages.
    Never present specifics as verified fact. */
 
-/* 2 credits per finder search — env-overridable without a deploy. One search
+/* 200 credits per finder search — env-overridable without a deploy. One search
    is a single structured GPT-6 Sol completion (a fraction of a cent in
-   provider fees), so 2 credits holds a deep margin while staying an impulse
+   provider fees), so 200 credits holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
 export const BRAND_DEAL_CREDIT_COST =
   Number(process.env["BRAND_DEAL_CREDIT_COST"]) || 200;
@@ -166,7 +166,7 @@ async function refund(userId: string, cost: number, action: string) {
 
 /* POST /api/brand-deals { niche, audienceSize, platforms, contentStyle, dealTypes }
    → 200 { deals[], disclaimer, creditsUsed, creditsRemaining }
-   Paid: 2 credits per search. Auth required; credits are deducted BEFORE the
+   Paid: 200 credits per search. Auth required; credits are deducted BEFORE the
    model call and refunded if generation fails. */
 router.post("/brand-deals", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = finderSchema.safeParse(req.body ?? {});
@@ -259,7 +259,7 @@ router.post("/brand-deals", publicApiLimiter, requireAuth, async (req, res) => {
 
 /* POST /api/brand-deals/outreach { brand, dealType, creatorName, niche, audienceSize, platforms, contentStyle }
    → 200 { outreach: { subject, message }, tips[], creditsUsed, creditsRemaining }
-   Paid: 1 credit per outreach draft. Auth required; refunded on failure. */
+   Paid: 100 credits per outreach draft. Auth required; refunded on failure. */
 router.post("/brand-deals/outreach", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = outreachSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

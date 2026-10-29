@@ -45,8 +45,8 @@ const AUDIENCE_OPTS = [
 ] as const;
 type AudienceKey = (typeof AUDIENCE_OPTS)[number]["key"];
 
-const FORECAST_CREDITS = 2;
-const IDEAS_CREDITS = 1;
+const FORECAST_CREDITS = 200;
+const IDEAS_CREDITS = 100;
 const WATCHLIST_KEY = "bdv-trend-watchlist";
 
 interface TrendItem {
@@ -187,7 +187,7 @@ export default function TrendPredictor() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        overrideCost: FORECAST_CREDITS, // registry is stale at 1; backend + UI agree on 2
+        overrideCost: FORECAST_CREDITS, // the rail (FORECAST_CREDITS) and the registry agree at 200
         overrideFeature: "Trend Predictor",
         body: JSON.stringify({
           niche: finalNiche,

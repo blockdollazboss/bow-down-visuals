@@ -10,10 +10,10 @@ import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
 /* ── Finish My Song ───────────────────────────────────────────────────────
    Audio Studio tab. Upload an unfinished demo / voice memo — AI analyzes
    what's there, writes the missing parts (verse/chorus/bridge), and produces
-   the completed song via the existing music pipeline. 4 VB on success
+   the completed song via the existing music pipeline. 400 VB on success
    (priced like song generation); analysis + upload are part of the flow. */
 
-const COST = 4;
+const COST = 400;
 
 interface FinishResult {
   songUrl: string;

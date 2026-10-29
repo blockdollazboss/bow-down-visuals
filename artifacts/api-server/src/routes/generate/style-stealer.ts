@@ -12,7 +12,7 @@ import {
 } from "../../lib/credits";
 
 /* ─── Style Stealer ───────────────────────────────────────────────────────
-   /api/style-stealer/analyze — 2 credits: the creator pastes a URL and
+   /api/style-stealer/analyze — 200 credits: the creator pastes a URL and
    DESCRIBES what they saw in a viral video; the AI reverse-engineers the
    viral formula from that TEXT description and produces an actionable
    "edit recipe" they can apply to their own timeline.
@@ -30,9 +30,9 @@ import {
 
 const router = Router();
 
-/* 2 credits per analysis — env-overridable without a deploy. A full
+/* 200 credits per analysis — env-overridable without a deploy. A full
    formula + edit-recipe teardown is a long structured GPT-6 Sol completion;
-   2 credits holds a deep margin — and honors the standing rule that every
+   200 credits holds a deep margin — and honors the standing rule that every
    AI feature costs a fee. */
 const ANALYZE_CREDITS = Number(process.env["STYLE_STEALER_ANALYZE_CREDITS"]) || 200;
 
@@ -154,7 +154,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/style-stealer/analyze { videoUrl, description, niche? }
    → 200 { formula{hook,pacing,cutPattern,captionStyle,audioCues,whyItWorks}, editRecipe{name,steps[]}, creditsUsed, creditsRemaining }
-   Paid: 2 credits. Auth required; credits deducted BEFORE the model call.
+   Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/style-stealer/analyze", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = analyzeSchema.safeParse(req.body ?? {});

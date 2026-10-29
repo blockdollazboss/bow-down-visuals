@@ -12,7 +12,7 @@ import {
 } from "../../lib/credits";
 
 /* ─── Link to Hit ─────────────────────────────────────────────────────────
-   /api/link-to-hit/analyze — 3 credits: the creator pastes a link (or
+   /api/link-to-hit/analyze — 300 credits: the creator pastes a link (or
    just describes the video) plus top comments. The server tries public
    oEmbed (YouTube + TikTok only — Instagram needs a token, so it's
    skipped) with a 6s timeout; on ANY failure the source is null and the
@@ -32,9 +32,9 @@ import {
 
 const router = Router();
 
-/* 3 credits per analysis — env-overridable without a deploy. A full comedy
+/* 300 credits per analysis — env-overridable without a deploy. A full comedy
    package (concept + segments + full song lyrics + music prompt) is the
-   longest structured GPT-6 Sol completion in this batch; 3 credits holds a
+   longest structured GPT-6 Sol completion in this batch; 300 credits holds a
    deep margin — and honors the standing rule that every AI feature costs
    a fee. */
 const ANALYZE_CREDITS = Number(process.env["LINK_TO_HIT_ANALYZE_CREDITS"]) || 300;
@@ -133,7 +133,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
 
 /* POST /api/link-to-hit/analyze { url?, description, comments?, genre? }
    → 200 { source|null, comedyConcept, segments[{type,description,prompt?}], songTitle, hook, songLyrics, musicPrompt, creditsUsed, creditsRemaining }
-   Paid: 3 credits. Auth required; credits deducted BEFORE the model call.
+   Paid: 300 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
 router.post("/link-to-hit/analyze", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = analyzeSchema.safeParse(req.body ?? {});

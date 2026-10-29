@@ -15,10 +15,10 @@ import { PlainWordsDeals } from "@/components/contracts/PlainWordsDeals";
    AI contract review for creators: paste a record deal, brand deal, sync
    license, or management agreement → GPT-6 Sol returns risk score, red
    flags, key terms, negotiation tips, and missing protections.
-   POST /api/contracts/analyze at 3 credits, charge-before-generate with
+   POST /api/contracts/analyze at 300 credits, charge-before-generate with
    auto-refund on failure. Always framed as AI reading, not legal advice. */
 
-const CREDIT_COST = 3;
+const CREDIT_COST = 300;
 
 const CONTRACT_TYPES = [
   { key: "record-deal", label: "Record Deal" },

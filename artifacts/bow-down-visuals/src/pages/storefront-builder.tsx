@@ -132,7 +132,7 @@ export default function StorefrontBuilder() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shopName: name.trim(), tagline: tagline.trim(), niche: niche.trim(), products: products.map((p) => p.name).filter(Boolean).join(", ") }),
-      overrideCost: 1, overrideFeature: t("storefrontBuilder.aiShopDescriptionFeature"),
+      overrideCost: 100, overrideFeature: t("storefrontBuilder.aiShopDescriptionFeature"),
     });
     if (!res) return; // user cancelled
     const data = await res.json().catch(() => ({}));

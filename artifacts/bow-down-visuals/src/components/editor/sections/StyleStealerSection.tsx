@@ -11,9 +11,9 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    saw; AI reverse-engineers the formula (hook, pacing, cut pattern — TEXT
    analysis, we never download or watch the video) and produces an edit
    recipe. One-click Apply maps the machine-actionable hints (caption style,
-   effects, overlays) onto the timeline via setSettings. 2 credits. */
+   effects, overlays) onto the timeline via setSettings. 200 credits. */
 
-const COST = 2;
+const COST = 200;
 
 const KNOWN_CAPTION_STYLES: CaptionStylePreset[] = [
   "clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts",
