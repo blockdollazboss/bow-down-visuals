@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { X, Puzzle, Download, Smartphone } from "lucide-react";
 import { Link } from "wouter";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePopupSlot } from "@/hooks/use-popup-slot";
 import {
  shouldShowPromoModal,
  markPromoModalShown,
@@ -21,33 +23,46 @@ export default function ExtensionPromoModal() {
  const isLight = useIsLightTheme();
  const accentTx = isLight ? "text-[#7A5A12]" : "text-[#e8c86a]";
  const boxCls = isLight ? "border-[#C9A84C]/30 bg-white/50" : "border-white/10 bg-white/[0.03]";
- const [open, setOpen] = useState(false);
+ const { user } = useAuth();
+ const [wantsOpen, setWantsOpen] = useState(false);
  const { canInstall, isInstalled, promptInstall } = usePwaInstall();
  const [pwaDone, setPwaDone] = useState(false);
+
+ /* First-session coordinator (QC G10): this is an upsell — it claims
+    the pop-up slot only when no announcement (e.g. the away digest)
+    holds it, at most once per session, and at most once per day for
+    the same person. Its own gates below (downloaded / opted out /
+    once per calendar day) still apply first. */
+ const open = usePopupSlot("extension-promo", user?.id ?? "guest", wantsOpen);
 
  useEffect(() => {
  if (!shouldShowPromoModal()) return;
  const t = window.setTimeout(() => {
- setOpen(true);
- markPromoModalShown();
+ setWantsOpen(true);
  }, 12000); // let the page settle first
  return () => window.clearTimeout(t);
  }, []);
 
+ // The once-per-day memory stamps when the modal is actually SHOWN
+ // (the coordinator may hold it behind an announcement first).
+ useEffect(() => {
+ if (open) markPromoModalShown();
+ }, [open ]);
+
  // If the extension gets downloaded while the modal is open, close it.
  useEffect(() => {
  if (!open) return;
- const close = () => setOpen(false);
+ const close = () => setWantsOpen(false);
  window.addEventListener("bdv-extension-downloaded", close);
  return () => window.removeEventListener("bdv-extension-downloaded", close);
  }, [open ]);
 
  if (!open) return null;
 
- const close = () => setOpen(false);
+ const close = () => setWantsOpen(false);
  const stopAll = () => {
  optOutExtensionPromo();
- setOpen(false);
+ setWantsOpen(false);
  };
 
  const installApp = async () => {
@@ -93,7 +108,7 @@ export default function ExtensionPromoModal() {
  download
  onClick={() => {
  markExtensionDownloaded();
- setOpen(false);
+ setWantsOpen(false);
  }}
  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-6 py-3.5 font-bold text-black hover:brightness-110 transition"
  >
