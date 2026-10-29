@@ -675,7 +675,7 @@ export default function Beats() {
                           <span className="text-white/70 capitalize">{s.terms?.name ?? t("beats.licenseRow", { tier: s.tier })}</span>
                           <span className="text-white/40">{centsToDollars(s.price_cents)}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-[#C9A84C]/15 text-[#E3C566]"}`}>
-                            {s.status === "pending_payment" ? t("beats.paymentComingSoon") : s.status}
+                            {s.status === "completed" ? t("beats.saleStatusPaid") : s.status === "pending_payment" ? t("beats.saleStatusPending") : t("beats.saleStatusUnknown")}
                           </span>
                         </div>
                         {/* The terms exactly as sold — from the license's

@@ -347,11 +347,15 @@ export function parseMyLicenses(payload: unknown): BeatSale[] {
   return (payload["licenses"] as unknown[]).map(parseBeatSale).filter((s): s is BeatSale => s !== null);
 }
 
-/** A sale's status in the page's dress: pending_payment reads as
- *  the page's "payment coming soon" state token — here, plainly
- *  "Pending payment"; completed stays "completed". */
+/** A sale's status in plain words (stack800 lane 3, QC Q15 family):
+ *  pending_payment is a reserved license whose checkout hasn't been
+ *  paid — "Pending payment"; completed means the payment confirmed
+ *  and the license activated — "Paid". Any other internal token is
+ *  never passed through raw. */
 export function beatSaleStatusLabel(status: string): string {
-  return status === "pending_payment" ? "Pending payment" : status;
+  if (status === "pending_payment") return "Pending payment";
+  if (status === "completed") return "Paid";
+  return "Status unavailable";
 }
 
 /* The sell form — the page's defaults and its exact POST body. */
@@ -707,9 +711,14 @@ export function parseTipJarDashboard(payload: unknown): TipJarDashboard | null {
 }
 
 /** A feed row's status in the dashboard's words: pending_payment
- *  is intent recorded, never money received. */
+ *  is intent recorded, never money received (every tip-jar intent
+ *  carries it by design); a settled tip ("paid" on the tip rail,
+ *  "completed" elsewhere) is "Received". Any other internal token
+ *  is never passed through raw (stack800 lane 3, QC Q15 family). */
 export function tipFeedStatusLabel(status: string): string {
-  return status === "pending_payment" ? "Intent recorded" : status;
+  if (status === "pending_payment") return "Intent recorded";
+  if (status === "paid" || status === "completed") return "Received";
+  return "Status unavailable";
 }
 
 /* ─── 67 · Money management: permanence + Content-ID claims ──────── */
