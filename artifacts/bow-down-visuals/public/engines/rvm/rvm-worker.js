@@ -29,7 +29,7 @@
  *        { type: "frame", seq, step, bitmap: ImageBitmap }
  *        { type: "step", step } | { type: "reset" }
  *        { type: "dispose" }
- *   out: { type: "ready", provider: "webgpu" | "wasm" }
+ *   out: { type: "ready", provider: "wasm" }
  *        { type: "init-error", message }
  *        { type: "matte", seq, alpha: ArrayBuffer (transferred),
  *          width, height, ms }

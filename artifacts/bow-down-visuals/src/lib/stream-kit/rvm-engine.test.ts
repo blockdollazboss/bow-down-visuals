@@ -328,10 +328,16 @@ describe("vendored worker script (source contract)", () => {
        whole init died — even with good runtime copies at the next
        bases. Now each base gets its own full attempt (script +
        provider × model chain) and init only fails when EVERY
-       base's chain has failed. */
+       base's chain has failed. The WebGPU adapter probe and its
+       attemptBase argument went away Oct 29, 2026: the vendored
+       runtime's WebGPU provider cannot run this graph at all
+       (see the FP16 TYPE CONTRACT note in the worker and
+       rvm-model-contract.test.ts), so there is no adapter left
+       to probe for. */
     expect(src).toContain("function attemptBase(");
-    expect(src).toContain("return attemptBase(base, modelUrls, msg.threads, webgpu)");
+    expect(src).toContain("return attemptBase(base, modelUrls, msg.threads)");
     expect(src).toContain('type: "init-error"');
+    expect(src).not.toContain("webgpuAdapterAvailable");
   });
 
   it("every session create races a deadline — a hung create cannot eat the init budget (Stack-100 #3 Lane C)", () => {
