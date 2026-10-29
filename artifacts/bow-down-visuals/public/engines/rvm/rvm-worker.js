@@ -29,7 +29,7 @@
  *        { type: "frame", seq, step, bitmap: ImageBitmap }
  *        { type: "step", step } | { type: "reset" }
  *        { type: "dispose" }
- *   out: { type: "ready", provider: "webgpu" | "wasm" }
+ *   out: { type: "ready", provider: "wasm" }
  *        { type: "init-error", message }
  *        { type: "matte", seq, alpha: ArrayBuffer (transferred),
  *          width, height, ms }
@@ -61,6 +61,35 @@
  * its race is released, never adopted. The assets are the same
  * version-pinned vendored build at every base, so a later base's
  * WASM may serve a runtime script an earlier base loaded.
+ *
+ * THE FP16 TYPE CONTRACT + PROVIDER RULING (Oct 29, 2026): the
+ * vendored model's graph declares its own tensor types — src
+ * and the four recurrent states are float16, downsample_ratio
+ * is float32, and every output (fgr, pha, r1o–r4o) is float16
+ * (read straight out of the shipped .onnx). The feeds MUST be
+ * built in those types: ONNX Runtime checks feed types at run
+ * time and rejects the call, so float32 feeds against this
+ * model fail EVERY frame on EVERY provider ("Unexpected input
+ * data type. Actual: (tensor(float)), expected:
+ * (tensor(float16))") — the session creates fine, which is why
+ * load-only checks never saw it, and the first matte never
+ * lands, which is why the studio parked the engine and ran the
+ * camera plain. Feeding the model means speaking float16, and
+ * the runtime's float16 tensors ride in Float16Array — a
+ * browser without it cannot feed this model at all, so init
+ * says so up front instead of dying frame by frame. The matte
+ * comes back float16 and is decoded to the float32 the
+ * page-side client contract carries before it is transferred.
+ *
+ * Sessions are created on the WASM provider ONLY. The WebGPU
+ * execution provider in the vendored runtime (1.20.1) cannot
+ * run this graph: its first run rejects with "using ceil() in
+ * shape computation is not yet supported for AveragePool" —
+ * a support check inside the runtime, not a driver quirk
+ * (bench-proven under the production CSP, Oct 29, 2026, across
+ * feed shapes and steps). A provider that cannot produce one
+ * frame is never selected; if a future vendored runtime clears
+ * that path, re-bench before re-adding it here.
  */
 
 var RVM_STEPS = [
@@ -81,26 +110,6 @@ function ratioFor(stepDef, feedLongSide) {
   if (stepDef.ratio !== "auto") return stepDef.ratio;
   var r = 480 / Math.max(1, feedLongSide);
   return Math.min(0.6, Math.max(0.3, r));
-}
-
-function webgpuAdapterAvailable() {
-  var gpu = self.navigator && self.navigator.gpu;
-  if (!gpu || typeof gpu.requestAdapter !== "function") return Promise.resolve(false);
-  return Promise.race([
-    gpu.requestAdapter(),
-    new Promise(function (resolve) {
-      setTimeout(function () {
-        resolve(null);
-      }, 2500);
-    }),
-  ]).then(
-    function (adapter) {
-      return !!adapter;
-    },
-    function () {
-      return false;
-    },
-  );
 }
 
 /* One session create may take this long before it counts as
@@ -146,7 +155,7 @@ function createSession(url, provider) {
    stands. Resolves true when a session was created and "ready"
    posted; false when this base's chain failed outright and the
    next base deserves its attempt. */
-function attemptBase(base, modelUrls, threads, webgpu) {
+function attemptBase(base, modelUrls, threads) {
   if (!self.ort) {
     try {
       importScripts(base + "/ort.all.min.js");
@@ -159,9 +168,9 @@ function attemptBase(base, modelUrls, threads, webgpu) {
   ort.env.logLevel = "warning";
   ort.env.wasm.wasmPaths = base + "/";
   ort.env.wasm.numThreads = Math.max(1, Math.min(4, threads || 1));
-  var providers = [];
-  if (webgpu) providers.push("webgpu");
-  providers.push("wasm");
+  /* WASM only — the WebGPU provider cannot run this graph in
+     the vendored runtime (see the FP16 TYPE CONTRACT note). */
+  var providers = ["wasm"];
   var chain = Promise.resolve(false);
   providers.forEach(function (provider) {
     modelUrls.forEach(function (url) {
@@ -185,30 +194,41 @@ function attemptBase(base, modelUrls, threads, webgpu) {
 }
 
 function init(msg) {
+  /* Feeding the fp16 model rides in Float16Array (see the FP16
+     TYPE CONTRACT note): without it this worker cannot serve
+     its model at all, so init refuses up front — an honest
+     engine-down at load time, never thirty doomed frames. */
+  if (typeof Float16Array !== "function") {
+    self.postMessage({
+      type: "init-error",
+      message: "The Pro background engine could not be loaded.",
+    });
+    return Promise.resolve();
+  }
   var bases = msg.ortBases || [];
   var modelUrls = msg.modelUrls || [];
-  return webgpuAdapterAvailable().then(function (webgpu) {
-    var chain = Promise.resolve(false);
-    bases.forEach(function (base) {
-      chain = chain.then(function (done) {
-        if (done) return true;
-        return attemptBase(base, modelUrls, msg.threads, webgpu);
+  var chain = Promise.resolve(false);
+  bases.forEach(function (base) {
+    chain = chain.then(function (done) {
+      if (done) return true;
+      return attemptBase(base, modelUrls, msg.threads);
+    });
+  });
+  return chain.then(function (done) {
+    if (!done) {
+      self.postMessage({
+        type: "init-error",
+        message: "The Pro background engine could not be loaded.",
       });
-    });
-    return chain.then(function (done) {
-      if (!done) {
-        self.postMessage({
-          type: "init-error",
-          message: "The Pro background engine could not be loaded.",
-        });
-      }
-    });
+    }
   });
 }
 
 function zeroStates() {
   return [0, 1, 2, 3].map(function () {
-    return new ort.Tensor("float32", new Float32Array(1), [1, 1, 1, 1]);
+    /* The recurrent states are float16-typed in the model's
+       graph (see the FP16 TYPE CONTRACT note). */
+    return new ort.Tensor("float16", new Float16Array(1), [1, 1, 1, 1]);
   });
 }
 
@@ -273,18 +293,39 @@ function frame(msg) {
     buf[plane + i] = pixels[j + 1] / 255;
     buf[2 * plane + i] = pixels[j + 2] / 255;
   }
-  if (!states) states = zeroStates();
-  var ratio = ratioFor(stepDef, Math.max(fw, fh));
-  var feeds = {
-    src: new ort.Tensor("float32", buf, [1, 3, fh, fw]),
-    r1i: states[0],
-    r2i: states[1],
-    r3i: states[2],
-    r4i: states[3],
-    downsample_ratio: new ort.Tensor("float32", new Float32Array([ratio]), [1]),
-  };
+  /* Feeds are built in the model's declared types (see the
+     FP16 TYPE CONTRACT note): src and the recurrent states are
+     float16; downsample_ratio stays float32 because the graph
+     declares it float32. A runtime that rejects a tensor
+     construction throws synchronously, inside the message chain
+     that absorbs it — catch, so a bad build is an honest frame
+     error the client can count, not a silent hang the client
+     only learns about from its frame timeout. */
+  var feeds;
   var t0 = performance.now();
-  return session.run(feeds).then(
+  try {
+    if (!states) states = zeroStates();
+    var ratio = ratioFor(stepDef, Math.max(fw, fh));
+    feeds = {
+      src: new ort.Tensor("float16", Float16Array.from(buf), [1, 3, fh, fw]),
+      r1i: states[0],
+      r2i: states[1],
+      r3i: states[2],
+      r4i: states[3],
+      downsample_ratio: new ort.Tensor("float32", new Float32Array([ratio]), [1]),
+    };
+  } catch (err) {
+    fail(err);
+    return Promise.resolve();
+  }
+  var run;
+  try {
+    run = session.run(feeds);
+  } catch (err) {
+    fail(err);
+    return Promise.resolve();
+  }
+  return run.then(
     function (outputs) {
       var ms = performance.now() - t0;
       var next = [outputs.r1o, outputs.r2o, outputs.r3o, outputs.r4o];
@@ -292,20 +333,23 @@ function frame(msg) {
       var pha = outputs.pha;
       var alpha = pha && pha.data;
       var send = function (data) {
-        // Detach from the runtime's own buffer before transferring.
-        var copy = new Float32Array(data);
+        // The matte leaves the model float16-typed and the
+        // page-side client contract carries float32 — decode
+        // here, and detach from the runtime's own buffer before
+        // transferring.
+        var copy = data instanceof Float32Array ? new Float32Array(data) : Float32Array.from(data);
         self.postMessage(
           { type: "matte", seq: seq, alpha: copy.buffer, width: fw, height: fh, ms: ms },
           [copy.buffer],
         );
       };
-      if (alpha instanceof Float32Array) {
+      if (alpha instanceof Float32Array || alpha instanceof Float16Array) {
         send(alpha);
       } else if (pha && typeof pha.getData === "function") {
-        // WebGPU tensors keep their data on the GPU until asked.
+        // GPU-side tensors keep their data on the GPU until asked.
         pha.getData().then(
           function (data) {
-            if (data instanceof Float32Array) send(data);
+            if (data instanceof Float32Array || data instanceof Float16Array) send(data);
             else fail(new Error("The Pro engine returned no matte."));
           },
           function (err) {
