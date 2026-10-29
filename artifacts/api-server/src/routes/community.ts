@@ -36,6 +36,7 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { queueDmEmailCapture } from "../lib/keyword-automations";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { severVideoCallsForConversation } from "./video-calls";
 import {
   refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl,
@@ -289,6 +290,75 @@ async function notify(opts: { userId: string; kind: string; title: string; body?
   } catch (err) {
     // Notifications are fire-and-forget: never fail the main action.
     console.error("[community] notify failed", err);
+  }
+}
+
+/* ── DM-received push (push wiring #6) ───────────────────────────────────
+   A landed DM in an accepted (inbox) thread pings the other
+   participant's devices through the one event door (bell always lands;
+   the ping obeys the recipient's "messages" preference). The send is
+   the authoritative moment — the message row has landed exactly once.
+   Request threads are NOT wired here: their first message already
+   fired the dm_request bell + ping when the conversation was started,
+   and a send in a request thread is that same first message. */
+export function buildDmReceivedEvent(opts: {
+  partnerId: string;
+  senderName: string;
+  body: string;
+  hasAttachment: boolean;
+}): UserEventInput {
+  const excerpt = opts.body.trim().slice(0, 120);
+  return {
+    userId: opts.partnerId,
+    category: "messages",
+    kind: "dm",
+    title: `💬 ${opts.senderName} sent you a message`,
+    body: excerpt || (opts.hasAttachment ? "Sent you an attachment." : ""),
+    link: "/messages",
+  };
+}
+
+type DmEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _dmEventNotifier: DmEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setDmEventNotifier(fn: DmEventNotifier | null): void {
+  _dmEventNotifier = fn ?? notifyUserEvent;
+}
+
+/** Best-effort: a ping failure never fails the send that landed. */
+export async function notifyDmReceived(opts: {
+  partnerId: string;
+  senderName: string;
+  body: string;
+  hasAttachment: boolean;
+}): Promise<void> {
+  try {
+    await _dmEventNotifier(buildDmReceivedEvent(opts));
+  } catch (err) {
+    console.error("[community] DM push failed", err);
+  }
+}
+
+/** The message-request announcement, through the same door (category
+ *  "messages", the caller's kind preserved). Best-effort. */
+export async function notifyDmRequest(opts: {
+  userId: string;
+  kind: string;
+  title: string;
+  body?: string;
+  link?: string;
+}): Promise<void> {
+  try {
+    await _dmEventNotifier({
+      userId: opts.userId,
+      category: "messages",
+      kind: opts.kind,
+      title: opts.title,
+      body: opts.body ?? "",
+      link: opts.link ?? "/messages",
+    });
+  } catch (err) {
+    console.error("[community] DM request push failed", err);
   }
 }
 
@@ -1705,7 +1775,10 @@ router.post("/dm/start", requireAuth, async (req, res) => {
     if (status === "request") {
       const myCard = await profileCards([userId]);
       const who = myCard[userId]?.displayName ?? "Someone";
-      await notify({
+      /* Push wiring #6: the request announcement rides the one event
+         door too (bell + a "messages"-gated device ping) — the local
+         bell-only helper left requests invisible off-tab. */
+      await notifyDmRequest({
         userId: targetId,
         kind: "dm_request",
         title: `🦈 ${who} sent you a message request`,
@@ -1976,6 +2049,19 @@ router.post("/dm/:id/send", requireAuth, dmSendLimiter, async (req, res) => {
       await clearOwnDraft(conv.id, userId);
     } catch (draftErr) {
       console.error("[community] send landed but the draft clear failed", draftErr);
+    }
+    /* Push wiring #6: the message has landed — ping the other
+       participant (inbox threads only; request threads were already
+       announced by dm_request at conversation start). Best-effort. */
+    if (conv.status === "inbox") {
+      const partnerId = otherParticipant(conv, userId);
+      const myCard = await profileCards([userId]);
+      await notifyDmReceived({
+        partnerId,
+        senderName: myCard[userId]?.displayName ?? "Someone",
+        body,
+        hasAttachment: !!settled,
+      });
     }
     /* Keyword automations (Wave 4 #32): if this sender is a fan with
        a pending email capture in this thread and the message carries
