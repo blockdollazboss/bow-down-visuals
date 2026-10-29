@@ -259,10 +259,25 @@ export async function handleTierSubscriptionEvent(subscription: Stripe.Subscript
   logger.info({ subId: subscription.id, profileId, tier, status }, "creator tier synced from subscription event");
 }
 
-/** invoice.payment_failed — flag the row so gating degrades honestly. */
+/** invoice.payment_failed — flag the row so gating degrades honestly.
+    Scoped to the invoice's OWN subscription (Gate #4 sibling): this
+    handler used to mark BOTH the tier row and the hosting row past_due
+    BY CUSTOMER for every failed invoice the webhook received — a
+    failed invoice for a different subscription on the same customer
+    (a dangling sub's retry, the member's other plan) degraded the
+    live plan, and a tier failure falsely degraded hosting too. The
+    scope check mirrors handleTierInvoicePaid below exactly: extract
+    the invoice's subscription the same way, and skip a row only when
+    BOTH ids are known and differ — unknowable identity (invoice
+    carries no subscription, row records none) keeps the legacy
+    by-customer behavior, the same non-trigger the tier guard uses. */
 export async function handleTierInvoiceFailed(invoice: Stripe.Invoice): Promise<void> {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
   if (!customerId) return;
+  const invSubId =
+    typeof (invoice as unknown as { subscription?: unknown }).subscription === "string"
+      ? ((invoice as unknown as { subscription: string }).subscription)
+      : null;
   const [subRow] = await db
     .select({
       profileId: creatorSubscriptionsTable.profileId,
@@ -272,15 +287,33 @@ export async function handleTierInvoiceFailed(invoice: Stripe.Invoice): Promise<
     .from(creatorSubscriptionsTable)
     .where(eq(creatorSubscriptionsTable.stripeCustomerId, customerId))
     .limit(1);
-  await db
-    .update(creatorSubscriptionsTable)
-    .set({ status: "past_due", updatedAt: new Date() })
-    .where(eq(creatorSubscriptionsTable.stripeCustomerId, customerId));
-  await db
-    .update(creatorHostingTable)
-    .set({ status: "past_due", updatedAt: new Date() })
-    .where(eq(creatorHostingTable.stripeCustomerId, customerId));
-  if (subRow) {
+  const [hostingRow] = await db
+    .select({
+      profileId: creatorHostingTable.profileId,
+      stripeSubscriptionId: creatorHostingTable.stripeSubscriptionId,
+    })
+    .from(creatorHostingTable)
+    .where(eq(creatorHostingTable.stripeCustomerId, customerId))
+    .limit(1);
+  const foreignTo = (rowSubscriptionId: string | null | undefined): boolean =>
+    !!(invSubId && rowSubscriptionId && invSubId !== rowSubscriptionId);
+  if (subRow && foreignTo(subRow.stripeSubscriptionId)) {
+    logger.warn(
+      {
+        invoiceId: invoice.id,
+        invSubId,
+        rowSubscriptionId: subRow.stripeSubscriptionId,
+        customerId,
+      },
+      "invoice.payment_failed ignored for tier row: invoice belongs to a different subscription",
+    );
+  }
+  let tierMarked = false;
+  if (subRow && !foreignTo(subRow.stripeSubscriptionId)) {
+    await db
+      .update(creatorSubscriptionsTable)
+      .set({ status: "past_due", updatedAt: new Date() })
+      .where(eq(creatorSubscriptionsTable.profileId, subRow.profileId));
     await recordSubscriptionReceipt({
       profileId: subRow.profileId,
       kind: "payment_failed",
@@ -293,8 +326,17 @@ export async function handleTierInvoiceFailed(invoice: Stripe.Invoice): Promise<
       stripeObjectId: invoice.id,
       idempotencyKey: `invoice_failed:${invoice.id}`,
     });
+    tierMarked = true;
   }
-  logger.info({ customerId }, "creator tier marked past_due after failed invoice");
+  if (hostingRow && !foreignTo(hostingRow.stripeSubscriptionId)) {
+    await db
+      .update(creatorHostingTable)
+      .set({ status: "past_due", updatedAt: new Date() })
+      .where(eq(creatorHostingTable.profileId, hostingRow.profileId));
+  }
+  if (tierMarked) {
+    logger.info({ customerId }, "creator tier marked past_due after failed invoice");
+  }
 }
 
 /** invoice.paid — the recurring renewal receipt, exactly once per invoice.
@@ -426,6 +468,46 @@ export async function handleHostingSubscriptionEvent(subscription: Stripe.Subscr
   if (!profileId) {
     logger.warn({ subId: subscription.id }, "hosting subscription event: no creator profile for customer");
     return;
+  }
+  const [prior] = await db
+    .select({
+      status: creatorHostingTable.status,
+      stripeSubscriptionId: creatorHostingTable.stripeSubscriptionId,
+    })
+    .from(creatorHostingTable)
+    .where(eq(creatorHostingTable.profileId, profileId))
+    .limit(1);
+  /* ── Current-subscription guard (Gate #4 sibling — same discipline
+     as handleTierSubscriptionEvent's guard in b3e5943be) ─────────────
+     The hosting row is the same single-row upsert: one row per
+     profile, but a profile can carry SEVERAL hosting subscriptions
+     over time (an abandoned purchase, a re-buy). Resolving by the
+     stamped profile_id narrows the event to the right profile but
+     does not stop one hosting sub's event from overwriting another
+     hosting sub's row — a late customer.subscription.deleted for a
+     dead dangling hosting sub would rewrite a live entitlement to
+     canceled exactly the way the tier corpse reverted Gate #4's Pro.
+     Identity — not timing — is the guard, with the same semantics:
+       · same subscription as the row records → apply (its lifecycle);
+       · a DIFFERENT subscription may write only to adopt a dead row
+         when it is itself live (the closed-tab rescue);
+       · every other foreign-subscription event is ignored. */
+  if (prior?.stripeSubscriptionId && prior.stripeSubscriptionId !== subscription.id) {
+    const rowLive = prior.status === "active" || prior.status === "trialing";
+    const eventLive = subscription.status === "active" || subscription.status === "trialing";
+    if (rowLive || !eventLive) {
+      logger.warn(
+        {
+          subId: subscription.id,
+          profileId,
+          rowSubscriptionId: prior.stripeSubscriptionId,
+          rowStatus: prior.status,
+          eventStatus: subscription.status,
+        },
+        "hosting subscription event ignored: not the profile's current subscription",
+      );
+      return;
+    }
   }
   await upsertHosting({
     profileId,
