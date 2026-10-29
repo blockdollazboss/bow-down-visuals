@@ -166,7 +166,7 @@ describe("dashboard.tsx wiring (source pins)", () => {
 
   it("all four section endpoints are still the ones being fetched", () => {
     expect(pageSource).toContain('fetch("/api/projects"');
-    expect(pageSource).toContain('fetch("/api/wave8/sponsors/deals"');
+    expect(pageSource).toContain('fetch("/api/sponsors/pipeline/deals"');
     expect(pageSource).toContain('fetch("/api/credits/history"');
     expect(pageSource).toContain('fetch("/api/bonus/status"');
   });

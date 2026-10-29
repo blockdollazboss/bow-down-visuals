@@ -1,13 +1,14 @@
 /**
- * Wave-3 #11 (sponsors dedupe) — characterization of the wave8 pipeline's
- * CHARGED surface, written before any consolidation work:
+ * Sponsor pipeline follow-up — characterization of the pipeline's CHARGED
+ * surface, carried over unchanged from the retired wave8 rail
+ * (stack800 Lane 2 consolidation):
  *
- *   POST /api/wave8/sponsors/followup — 50 Visual Bucs AI follow-up draft.
+ *   POST /api/sponsors/pipeline/followup — 50 Visual Bucs AI follow-up draft.
  *
- * This was the one money-moving sponsor behavior with no test coverage
- * (sponsors-divergence-characterization.test.ts pins the free CRUD +
- * mark-paid; generate/__tests__ pins the marketplace). These tests pin
- * the follow-up's actual current behavior exactly as-is:
+ * (Originally pinned as POST /api/wave8/sponsors/followup before the
+ * consolidation; sponsors-pipeline-parity.test.ts pins the free CRUD +
+ * mark-paid; generate/__tests__ pins the marketplace.) These tests pin
+ * the follow-up's behaviour exactly as-is on the surviving rail:
  *
  *   - AI unconfigured → 503 ai_unavailable BEFORE any charge
  *   - balance < 50   → 402 out_of_credits, no charge attempted
@@ -17,8 +18,12 @@
  *   - foreign deal   → charge happened, then 404, then a full refund
  *                      (the handler charges BEFORE the ownership lookup)
  *   - provider error → 502, full refund, last_followup_at NOT stamped
+ *   - credit lockdown → chargeCredits' CreditsDisabledError escapes the
+ *                      handler untouched (no charge, no refund, no draft)
+ *                      — the lockdown behaviour is identical to the old
+ *                      rail, where the app-level handler answers it
  *
- * Plus the wave8 CRUD validation edges the divergence suite did not pin
+ * Plus the pipeline CRUD validation edges the parity suite does not pin
  * (create/patch 400 shapes, foreign mark-paid 404 with no money entry).
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
@@ -34,6 +39,8 @@ const h = vi.hoisted(() => ({
   charges: [] as Array<{ userId: string; cost: number; action?: string }>,
   refunds: [] as Array<{ userId: string; cost: number; action?: string }>,
   aiMode: "ok" as "ok" | "missing" | "fail",
+  chargeMode: "ok" as "ok" | "disabled",
+  escaped: [] as Array<{ name: string; status?: number }>,
 }));
 
 function collectEq(node: any, out: Record<string, unknown>): void {
@@ -118,20 +125,32 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: fakeDb() };
 });
 
-vi.mock("../../lib/credits", () => ({
-  chargeCredits: vi.fn(async (u: string, cost: number, opts?: { action?: string }) => {
-    h.charges.push({ userId: u, cost, action: opts?.action });
-    h.userCredits -= cost;
-    return h.userCredits;
-  }),
-  refundCredits: vi.fn(async (u: string, cost: number, opts?: { action?: string }) => {
-    h.refunds.push({ userId: u, cost, action: opts?.action });
-    h.userCredits += cost;
-    return h.userCredits;
-  }),
-  OutOfCreditsError: class OutOfCreditsError extends Error {},
-  LedgerWriteError: class LedgerWriteError extends Error {},
-}));
+vi.mock("../../lib/credits", () => {
+  class CreditsDisabledError extends Error {
+    readonly status = 403;
+    constructor() {
+      super("credits_disabled");
+      this.name = "CreditsDisabledError";
+    }
+  }
+  return {
+    chargeCredits: vi.fn(async (u: string, cost: number, opts?: { action?: string }) => {
+      if (h.chargeMode === "disabled") throw new CreditsDisabledError();
+      h.charges.push({ userId: u, cost, action: opts?.action });
+      h.userCredits -= cost;
+      return h.userCredits;
+    }),
+    refundCredits: vi.fn(async (u: string, cost: number, opts?: { action?: string }) => {
+      h.refunds.push({ userId: u, cost, action: opts?.action });
+      h.userCredits += cost;
+      return h.userCredits;
+    }),
+    canUseCredits: vi.fn(async () => h.chargeMode !== "disabled"),
+    OutOfCreditsError: class OutOfCreditsError extends Error {},
+    CreditsDisabledError,
+    LedgerWriteError: class LedgerWriteError extends Error {},
+  };
+});
 
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(() => {
@@ -161,7 +180,7 @@ vi.mock("../../lib/ai-clients", () => ({
   getTextModel: vi.fn(() => "gpt-6-sol"),
 }));
 
-import wave8Router from "../wave8-sponsors";
+import sponsorsRouter from "../generate/sponsors";
 
 const realFetch = globalThis.fetch;
 let server: any; let baseUrl: string;
@@ -172,7 +191,13 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use((req: any, _res: any, next: any) => { req.log = { error: () => {}, info: () => {} }; next(); });
-  app.use(wave8Router);
+  app.use(sponsorsRouter);
+  /* Records errors the handlers let escape (the app-level handler's job
+     in production) so the lockdown test can pin the escape itself. */
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    h.escaped.push({ name: err?.name ?? "?", status: err?.status });
+    res.status(599).json({ escaped: err?.name ?? "?" });
+  });
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((r) => server.on("listening", r));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -186,6 +211,8 @@ beforeEach(() => {
   h.charges = [];
   h.refunds = [];
   h.aiMode = "ok";
+  h.chargeMode = "ok";
+  h.escaped = [];
 });
 
 async function req(method: string, path: string, body?: unknown) {
@@ -197,18 +224,31 @@ async function req(method: string, path: string, body?: unknown) {
 }
 
 async function seedDeal(): Promise<string> {
-  const created = await req("POST", "/wave8/sponsors/deals", {
+  const created = await req("POST", "/sponsors/pipeline/deals", {
     sponsorName: "Shoe Co", dealValueCents: 50000, contact: "a@b.co", notes: "n",
   });
   expect(created.status).toBe(201);
   return created.json.deal.id;
 }
 
-describe("POST /wave8/sponsors/followup — the 50 VB draft, characterized", () => {
+describe("POST /sponsors/pipeline/followup — the 50 VB draft, characterized", () => {
+  it("credit lockdown → CreditsDisabledError escapes untouched: no charge recorded, no refund, no draft", async () => {
+    const id = await seedDeal();
+    h.chargeMode = "disabled";
+    const { status } = await req("POST", "/sponsors/pipeline/followup", { dealId: id });
+    expect(status).toBe(599); // reached the harness error recorder = escaped the handler
+    expect(h.escaped).toEqual([{ name: "CreditsDisabledError", status: 403 }]);
+    expect(h.charges).toHaveLength(0);
+    expect(h.refunds).toHaveLength(0);
+    expect(h.userCredits).toBe(100000);
+    const list = await req("GET", "/sponsors/pipeline/deals");
+    expect(list.json.deals[0].lastFollowupAt).toBeNull();
+  });
+
   it("AI unconfigured → 503 ai_unavailable and NO charge is attempted", async () => {
     const id = await seedDeal();
     h.aiMode = "missing";
-    const { status, json } = await req("POST", "/wave8/sponsors/followup", { dealId: id });
+    const { status, json } = await req("POST", "/sponsors/pipeline/followup", { dealId: id });
     expect(status).toBe(503);
     expect(json.error).toBe("ai_unavailable");
     expect(h.charges).toHaveLength(0);
@@ -219,21 +259,21 @@ describe("POST /wave8/sponsors/followup — the 50 VB draft, characterized", () 
   it("balance below 50 → 402 out_of_credits, no charge attempted", async () => {
     const id = await seedDeal();
     h.userCredits = 10;
-    const { status, json } = await req("POST", "/wave8/sponsors/followup", { dealId: id });
+    const { status, json } = await req("POST", "/sponsors/pipeline/followup", { dealId: id });
     expect(status).toBe(402);
     expect(json.error).toBe("out_of_credits");
     expect(h.charges).toHaveLength(0);
   });
 
   it("missing dealId → 400 before any charge", async () => {
-    const { status } = await req("POST", "/wave8/sponsors/followup", {});
+    const { status } = await req("POST", "/sponsors/pipeline/followup", {});
     expect(status).toBe(400);
     expect(h.charges).toHaveLength(0);
   });
 
   it("happy path → charges exactly 50 once, returns the draft, stamps last_followup_at", async () => {
     const id = await seedDeal();
-    const { status, json } = await req("POST", "/wave8/sponsors/followup", { dealId: id });
+    const { status, json } = await req("POST", "/sponsors/pipeline/followup", { dealId: id });
     expect(status).toBe(200);
     expect(json.subject).toBe("Quick check-in");
     expect(json.body).toContain("circling back");
@@ -241,14 +281,14 @@ describe("POST /wave8/sponsors/followup — the 50 VB draft, characterized", () 
     expect(json.creditsRemaining).toBe(100000 - 50);
     expect(h.charges).toEqual([{ userId: USER, cost: 50, action: "Sponsor Follow-up Draft" }]);
     expect(h.refunds).toHaveLength(0);
-    const list = await req("GET", "/wave8/sponsors/deals");
+    const list = await req("GET", "/sponsors/pipeline/deals");
     expect(list.json.deals[0].lastFollowupAt).not.toBeNull();
   });
 
   it("foreign deal → 404, and the upfront charge is fully refunded", async () => {
     const id = await seedDeal();
     h.userId = OTHER;
-    const { status, json } = await req("POST", "/wave8/sponsors/followup", { dealId: id });
+    const { status, json } = await req("POST", "/sponsors/pipeline/followup", { dealId: id });
     expect(status).toBe(404);
     expect(json.error).toBe("Sponsor deal not found.");
     expect(h.charges).toHaveLength(1);
@@ -261,19 +301,19 @@ describe("POST /wave8/sponsors/followup — the 50 VB draft, characterized", () 
   it("provider failure → 502, full refund, last_followup_at NOT stamped", async () => {
     const id = await seedDeal();
     h.aiMode = "fail";
-    const { status } = await req("POST", "/wave8/sponsors/followup", { dealId: id });
+    const { status } = await req("POST", "/sponsors/pipeline/followup", { dealId: id });
     expect(status).toBe(502);
     expect(h.charges).toHaveLength(1);
     expect(h.refunds).toHaveLength(1);
     expect(h.userCredits).toBe(100000);
-    const list = await req("GET", "/wave8/sponsors/deals");
+    const list = await req("GET", "/sponsors/pipeline/deals");
     expect(list.json.deals[0].lastFollowupAt).toBeNull();
   });
 });
 
-describe("wave8 CRUD validation edges (not pinned by the divergence suite)", () => {
+describe("pipeline CRUD validation edges (not pinned by the parity suite)", () => {
   it("create with an empty sponsor name → 400 with field details, nothing stored", async () => {
-    const { status, json } = await req("POST", "/wave8/sponsors/deals", { sponsorName: "  " });
+    const { status, json } = await req("POST", "/sponsors/pipeline/deals", { sponsorName: "  " });
     expect(status).toBe(400);
     expect(json.error).toBe("Invalid sponsor deal.");
     expect(Array.isArray(json.details)).toBe(true);
@@ -282,21 +322,21 @@ describe("wave8 CRUD validation edges (not pinned by the divergence suite)", () 
 
   it("PATCH with an empty body → 400 (nothing to update)", async () => {
     const id = await seedDeal();
-    const { status, json } = await req("PATCH", `/wave8/sponsors/deals/${id}`, {});
+    const { status, json } = await req("PATCH", `/sponsors/pipeline/deals/${id}`, {});
     expect(status).toBe(400);
     expect(json.error).toBe("Invalid sponsor deal update.");
   });
 
   it("PATCH with an unknown stage → 400", async () => {
     const id = await seedDeal();
-    const { status } = await req("PATCH", `/wave8/sponsors/deals/${id}`, { stage: "bogus" });
+    const { status } = await req("PATCH", `/sponsors/pipeline/deals/${id}`, { stage: "bogus" });
     expect(status).toBe(400);
   });
 
   it("mark-paid by a non-owner → 404 and NO money entry is posted", async () => {
     const id = await seedDeal();
     h.userId = OTHER;
-    const { status } = await req("POST", `/wave8/sponsors/deals/${id}/mark-paid`);
+    const { status } = await req("POST", `/sponsors/pipeline/deals/${id}/mark-paid`);
     expect(status).toBe(404);
     expect(rowsOf(h.tables.moneyEntriesTable)).toHaveLength(0);
   });

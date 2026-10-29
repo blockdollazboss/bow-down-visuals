@@ -10,8 +10,8 @@ import { useTranslation } from "react-i18next";
 
 /* ─── Sponsor Deal Pipeline (Wave 8) ──────────────────────────────────────
    Docked on the Sponsorship Outreach page (/outreach), after the invoice
-   generator. Deal CRUD is free (/api/wave8/sponsors/deals); the AI
-   follow-up draft costs 50 Visual Bucs (/api/wave8/sponsors/followup).
+   generator. Deal CRUD is free (/api/sponsors/pipeline/deals); the AI
+   follow-up draft costs 50 Visual Bucs (/api/sponsors/pipeline/followup).
    "Mark Paid" moves a closed deal to Paid and logs the deal value to the
    income ledger via the free /api/money route. */
 
@@ -110,7 +110,7 @@ export default function SponsorPipeline() {
     setLoading(true);
     setError(null);
     try {
-      const res = await confirmedFetch("/api/wave8/sponsors/deals", { skipConfirm: true });
+      const res = await confirmedFetch("/api/sponsors/pipeline/deals", { skipConfirm: true });
       if (!res) {
         setLoading(false);
         return;
@@ -131,7 +131,7 @@ export default function SponsorPipeline() {
   }, [user]);
 
   async function patchDeal(id: string, body: Record<string, unknown>): Promise<Deal | null> {
-    const res = await confirmedFetch(`/api/wave8/sponsors/deals/${id}`, {
+    const res = await confirmedFetch(`/api/sponsors/pipeline/deals/${id}`, {
       skipConfirm: true,
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -150,7 +150,7 @@ export default function SponsorPipeline() {
     try {
       const dollars = parseFloat(fValue);
       const valueCents = Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : 0;
-      const res = await confirmedFetch("/api/wave8/sponsors/deals", {
+      const res = await confirmedFetch("/api/sponsors/pipeline/deals", {
         skipConfirm: true,
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -202,7 +202,7 @@ export default function SponsorPipeline() {
     setDraftingId(deal.id);
     clearCardMsg(deal.id);
     try {
-      const res = await confirmedFetch("/api/wave8/sponsors/followup", {
+      const res = await confirmedFetch("/api/sponsors/pipeline/followup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dealId: deal.id }),
@@ -243,7 +243,7 @@ export default function SponsorPipeline() {
     setPayingId(deal.id);
     clearCardMsg(deal.id);
     try {
-      const res = await confirmedFetch(`/api/wave8/sponsors/deals/${deal.id}/mark-paid`, {
+      const res = await confirmedFetch(`/api/sponsors/pipeline/deals/${deal.id}/mark-paid`, {
         skipConfirm: true,
         method: "POST",
       });
