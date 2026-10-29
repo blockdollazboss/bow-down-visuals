@@ -145,6 +145,48 @@ describe("monument-board painter", () => {
     }
   });
 
+  it("the title shrinks to fit the stone instead of overrunning both edges", () => {
+    /* Georgia bold caps measure ~0.72em per char, so at the old
+     * flat 96px the 17-char title ran ~1,175px wide on a 1,024px
+     * plate — the owner's Oct 29 frame read "HE KINGDOM BOAR".
+     * This fake measures at that realistic width and records the
+     * font in effect for every lettered line. */
+    const fills: Array<{ text: string; font: string }> = [];
+    const ctx = {
+      canvas: { width: MONUMENT_PLATE_W, height: MONUMENT_PLATE_H },
+      fillStyle: null as unknown,
+      strokeStyle: null as unknown,
+      lineWidth: 1,
+      font: "10px Georgia",
+      textAlign: "center",
+      textBaseline: "middle",
+      createLinearGradient: () => ({ addColorStop: () => undefined }),
+      fillRect: () => undefined,
+      strokeRect: () => undefined,
+      beginPath: () => undefined,
+      moveTo: () => undefined,
+      lineTo: () => undefined,
+      closePath: () => undefined,
+      fill: () => undefined,
+      arc: () => undefined,
+      fillText: (t: string) => { fills.push({ text: t, font: ctx.font }); },
+      measureText: (t: string) => {
+        const size = Number(/(\d+(?:\.\d+)?)px/.exec(ctx.font)?.[1] ?? 10);
+        return { width: t.length * size * 0.72 };
+      },
+    } as unknown as MonumentPlateCtx;
+    const data = monumentBoardData({ directory: DIRECTORY, leaderboard: LEADERBOARD, events: EVENTS, nowMs: NOW });
+    drawMonumentBoardPlate(ctx, "light", data);
+    const title = fills.find((f) => f.text === "THE KINGDOM BOARD");
+    /* The full name is lettered — never ellipsized — at a size
+     * whose measure fits the plate. */
+    expect(title).toBeDefined();
+    const px = Number(/(\d+(?:\.\d+)?)px/.exec(title!.font)?.[1] ?? 0);
+    expect(px).toBeGreaterThan(40);
+    expect(px).toBeLessThan(96);
+    expect("THE KINGDOM BOARD".length * px * 0.72).toBeLessThanOrEqual(MONUMENT_PLATE_W - 120);
+  });
+
   it("hall-scene hangs the plate on all four faces with a data seam (source pins)", () => {
     const src = read("./hall-scene.ts");
     expect(src).toContain("setMonumentBoardData");

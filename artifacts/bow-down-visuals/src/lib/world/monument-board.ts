@@ -225,7 +225,17 @@ export function drawMonumentBoardPlate(g: MonumentPlateCtx, theme: "light" | "da
   g.fillStyle = ink;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.font = "700 96px Georgia, 'Times New Roman', serif";
+  /* The title is the one line that must never ellipsize — and at a
+   * flat 96px it overran the stone on BOTH sides (owner's frame,
+   * Oct 29 2026: the monument read "HE KINGDOM BOAR"). Every line
+   * below goes through fitLine; the title instead SHRINKS its font
+   * until the whole name fits the plate's measure. */
+  let titlePx = 96;
+  g.font = `700 ${titlePx}px Georgia, 'Times New Roman', serif`;
+  while (titlePx > 40 && g.measureText("THE KINGDOM BOARD").width > W - 120) {
+    titlePx -= 4;
+    g.font = `700 ${titlePx}px Georgia, 'Times New Roman', serif`;
+  }
   g.fillText("THE KINGDOM BOARD", cx, 380);
   g.fillStyle = accent;
   g.font = "600 34px Georgia, serif";

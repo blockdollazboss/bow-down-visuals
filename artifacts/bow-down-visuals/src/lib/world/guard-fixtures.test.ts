@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   FIXTURE_ATTEMPT_TIMEOUT_MS,
   FIXTURE_BODIES,
+  GUARD_GRAFT_TARGETS,
+  GUARD_GRAFT_TINT,
   FIXTURE_HEAL_VISIBILITY_RECHECK_MS,
   FixtureBeaconLedger,
   FixtureHealLoop,
@@ -24,6 +26,7 @@ import {
   fixtureSway,
   fixtureSwayPhase,
   fixtureTextureRepairPlan,
+  guardGraftTintFor,
   withFixtureAttemptTimeout,
   type WorldFixtureDef,
 } from "./guard-fixtures";
@@ -782,5 +785,83 @@ describe("FixtureBeaconLedger — once per post per session", () => {
     expect(ledger.claim("hall-king")).toBe(false);
     expect(ledger.claim("hall-guard-male")).toBe(true);
     expect(ledger.claim("hall-guard-male")).toBe(false);
+  });
+});
+
+describe("guardGraftTintFor — STOPGAP (Oct 29, 2026): guard backs read dark until the asset repair", () => {
+  it("tints exactly the two named graft pairs on both guard bodies when they arrive untextured", () => {
+    for (const body of ["guard-male", "guard-female"] as const) {
+      expect(
+        guardGraftTintFor(body, ["dorsal_fin_model_mesh"], "dorsal_fin_model_mat", false),
+      ).toBe(GUARD_GRAFT_TINT);
+      expect(guardGraftTintFor(body, ["tail_model_mesh"], "tail_model_mat", false)).toBe(
+        GUARD_GRAFT_TINT,
+      );
+    }
+  });
+
+  it("accepts the node-name spelling of the graft meshes too", () => {
+    expect(
+      guardGraftTintFor("guard-male", ["dorsal_fin_model"], "dorsal_fin_model_mat", false),
+    ).toBe(GUARD_GRAFT_TINT);
+    expect(guardGraftTintFor("guard-female", ["tail_model"], "tail_model_mat", false)).toBe(
+      GUARD_GRAFT_TINT,
+    );
+  });
+
+  it("never tints the King — not even a part wearing a graft's names", () => {
+    expect(
+      guardGraftTintFor("king", ["dorsal_fin_model_mesh"], "dorsal_fin_model_mat", false),
+    ).toBeNull();
+    expect(guardGraftTintFor("king", ["tail_model_mesh"], "tail_model_mat", false)).toBeNull();
+  });
+
+  it("never tints a textured material — the real repair retires the stopgap by itself", () => {
+    expect(
+      guardGraftTintFor("guard-male", ["dorsal_fin_model_mesh"], "dorsal_fin_model_mat", true),
+    ).toBeNull();
+    expect(
+      guardGraftTintFor("guard-female", ["tail_model_mesh"], "tail_model_mat", true),
+    ).toBeNull();
+  });
+
+  it("never tints the textured body's own material or any other part of the guard", () => {
+    expect(guardGraftTintFor("guard-male", ["geometry_0"], "Material_0", false)).toBeNull();
+    expect(
+      guardGraftTintFor("guard-male", ["skull_cap_v4_mesh"], "Material_0", false),
+    ).toBeNull();
+    expect(
+      guardGraftTintFor("guard-female", ["jacket_back_v4_mesh"], "Material_0", false),
+    ).toBeNull();
+  });
+
+  it("requires the mesh and material names to pair up — one matching name is not enough", () => {
+    expect(
+      guardGraftTintFor("guard-male", ["tail_model_mesh"], "dorsal_fin_model_mat", false),
+    ).toBeNull();
+    expect(
+      guardGraftTintFor("guard-male", ["dorsal_fin_model_mesh"], "tail_model_mat", false),
+    ).toBeNull();
+    expect(guardGraftTintFor("guard-male", ["some_other_mesh"], "tail_model_mat", false)).toBeNull();
+    expect(
+      guardGraftTintFor("guard-male", ["dorsal_fin_model_mesh"], "some_other_mat", false),
+    ).toBeNull();
+  });
+
+  it("the tint is a darkening multiply, strictly inside (0, 1)", () => {
+    expect(GUARD_GRAFT_TINT).toBeGreaterThan(0);
+    expect(GUARD_GRAFT_TINT).toBeLessThan(1);
+  });
+
+  it("names exactly two graft targets — the fin and the tail", () => {
+    expect(GUARD_GRAFT_TARGETS).toHaveLength(2);
+    expect(GUARD_GRAFT_TARGETS.map((t) => t.materialName).sort()).toEqual([
+      "dorsal_fin_model_mat",
+      "tail_model_mat",
+    ]);
+    expect(GUARD_GRAFT_TARGETS.map((t) => t.meshName).sort()).toEqual([
+      "dorsal_fin_model_mesh",
+      "tail_model_mesh",
+    ]);
   });
 });

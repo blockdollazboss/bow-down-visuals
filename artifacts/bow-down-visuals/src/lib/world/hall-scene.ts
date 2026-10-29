@@ -1630,7 +1630,10 @@ export class KingsHallScene {
   private stepDustCol = new Float32Array(STEP_DUST_CAPACITY * 3);
   /** My own mover's step counter as the dust hook last read it. */
   private selfLastStepCount = 0;
-  private viewMode: HallViewMode = "first";
+  /* Third person by default (view-mode.ts, Oct 29 2026): the page
+   * wires the stored preference in at mount; until then the scene
+   * already stands on the view that shows the walker their figure. */
+  private viewMode: HallViewMode = "third";
   private keys = new Set<string>();
   /** Gamepad edge state carried between polls (toggle buttons fire
    *  once per press). */

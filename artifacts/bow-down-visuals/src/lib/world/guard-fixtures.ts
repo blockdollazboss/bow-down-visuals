@@ -824,3 +824,100 @@ export class FixtureHealLoop {
     );
   }
 }
+
+/* ── STOPGAP (Oct 29, 2026): the guard graft tint ──────────────────
+   The guard bodies are multi-part assemblies (proven from the
+   shipped GLBs themselves, stack700/world-figures-reaudit §7): the
+   body + skull cap ride the textured Material_0, but the grafted
+   dorsal fin and tail ride their own materials with NO texture and
+   NO baseColorFactor — vertex colours only. Under the scene's
+   light those raw vertex tones read as a pale slab + cone down
+   the back against the dark uniform (the owner's Oct 29 frames).
+   The texture-honesty check cannot see it: the broken parts have
+   no textures to check.
+ *
+   The owner ruled a stopgap the same day: darken the grafts at
+   load so the backs read as part of the uniform UNTIL THE REAL
+   REPAIR. The real repair is the guard-asset program's work —
+   re-graft the fin and tail in the GLB files WITH UVs and a real
+   texture — and this tint stands in for exactly that repair and
+   nothing else. It also retires itself: a graft material that
+   arrives WITH a texture gets no tint (guardGraftTintFor), so
+   repaired files are never darkened by the stopgap that waited
+   for them. When the repaired GLBs land and this section comes
+   out, nothing else changes — the honesty check, the load plan
+   and the standins never knew it was here.
+ *
+   The factor is measured, not guessed: a Blender Cycles bench
+   (.bench-guard/measure3.py + candidates.py) renders the shipped
+   guard-gen.glb from behind under a sun, multiplies the grafts'
+   vertex colour by k (the same multiply the scene applies as
+   material.color -- with no map bound, base colour = colour x
+   vertex colour), and reads the result two ways: the grafts'
+   diffuse luminance meets the torso's at k ~ 0.08-0.12, and the
+   rendered candidates bracket the choice -- 0.22 still reads
+   blue-grey, 0.05 buys no visible darkness over 0.10 (what
+   remains is the parts' specular sheen at roughness 0.55, which
+   no colour multiply can retire) while costing shape. k = 0.10.
+   Numbers and renders: the lane report
+   (stack700-guard-backs-stopgap-report.md). */
+
+/** The multiply the guard graft materials' colour takes at load:
+ *  their vertex colour × this factor, nothing else touched. */
+export const GUARD_GRAFT_TINT = 0.1;
+
+export interface GuardGraftTarget {
+  /** glTF mesh name of the grafted part (what three names the
+   *  parsed Mesh — GLTFLoader names it after the mesh def). */
+  meshName: string;
+  /** The part's glTF node name — accepted too, so the scope holds
+   *  whichever spelling a future export leaves on the object. */
+  nodeName: string;
+  /** glTF material name — unique to the part in both guard files. */
+  materialName: string;
+}
+
+/** The two grafted parts, by the names BOTH shipped guard GLBs
+ *  carry (verified in Blender against guard-gen.glb and
+ *  guard-gen-female.glb, Oct 29): the dorsal fin and the tail. */
+export const GUARD_GRAFT_TARGETS: readonly GuardGraftTarget[] = [
+  {
+    meshName: "dorsal_fin_model_mesh",
+    nodeName: "dorsal_fin_model",
+    materialName: "dorsal_fin_model_mat",
+  },
+  {
+    meshName: "tail_model_mesh",
+    nodeName: "tail_model",
+    materialName: "tail_model_mat",
+  },
+];
+
+/**
+ * The stopgap's whole decision: the tint a parsed material gets,
+ * or null for none. ALL of these must hold —
+ *  - the body is a GUARD body (the King is a single fully-textured
+ *    mesh and is never tinted, even by a part wearing a graft's
+ *    names);
+ *  - the material is one of the two named graft materials AND the
+ *    mesh wearing it is that graft's named mesh (either spelling)
+ *    — one matching name alone is not enough;
+ *  - the material arrived UNTEXURED (any bound texture slot steps
+ *    the stopgap aside — see the section head).
+ */
+export function guardGraftTintFor(
+  body: FixtureBodyId,
+  meshNames: readonly string[],
+  materialName: string,
+  materialHasTexture: boolean,
+): number | null {
+  if (body !== "guard-male" && body !== "guard-female") return null;
+  if (materialHasTexture) return null;
+  for (const t of GUARD_GRAFT_TARGETS) {
+    if (t.materialName !== materialName) continue;
+    if (meshNames.includes(t.meshName) || meshNames.includes(t.nodeName)) {
+      return GUARD_GRAFT_TINT;
+    }
+  }
+  return null;
+}

@@ -1,7 +1,9 @@
 /**
  * The World — view mode tests (lib/world/view-mode).
- * First person is the default and the fallback for anything
- * unrecognized; third person is remembered on the device.
+ * Third person is the default (Oct 29 2026 — the owner walked a
+ * fresh window blind to his own character under the old first-
+ * person default); first person survives only as an explicitly
+ * stored choice, and both modes are remembered on the device.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -14,12 +16,12 @@ import {
 } from "./view-mode";
 
 describe("view mode", () => {
-  it("normalizes: only 'third' is third person", () => {
+  it("normalizes: only an explicit 'first' is first person", () => {
     expect(normalizeViewMode("third")).toBe("third");
     expect(normalizeViewMode("first")).toBe("first");
-    expect(normalizeViewMode("orbit")).toBe("first");
-    expect(normalizeViewMode(null)).toBe("first");
-    expect(normalizeViewMode(undefined)).toBe("first");
+    expect(normalizeViewMode("orbit")).toBe("third");
+    expect(normalizeViewMode(null)).toBe("third");
+    expect(normalizeViewMode(undefined)).toBe("third");
   });
 
   it("toggles both ways", () => {
@@ -35,20 +37,25 @@ describe("view mode", () => {
     expect(selfPlateVisible("first")).toBe(true);
   });
 
-  it("round-trips through device memory; first person is the clean default", () => {
+  it("round-trips through device memory; third person is the fresh default", () => {
     const map = new Map<string, string>();
     const storage = {
       getItem: (k: string) => map.get(k) ?? null,
       setItem: (k: string, v: string) => void map.set(k, v),
       removeItem: (k: string) => void map.delete(k),
     };
-    expect(loadViewMode(storage)).toBe("first");
+    /* A fresh window (his Incognito walks) has nothing stored and
+     * must land in third person — the view that shows his figure. */
+    expect(loadViewMode(storage)).toBe("third");
     storeViewMode("third", storage);
     expect(map.get(WORLD_VIEW_STORAGE_KEY)).toBe("third");
     expect(loadViewMode(storage)).toBe("third");
+    /* First person is stored EXPLICITLY now — absence means
+     * "never chose" (third), so a deliberate first-person choice
+     * has to survive as its own value, not as a missing key. */
     storeViewMode("first", storage);
-    expect(map.has(WORLD_VIEW_STORAGE_KEY)).toBe(false);
+    expect(map.get(WORLD_VIEW_STORAGE_KEY)).toBe("first");
     expect(loadViewMode(storage)).toBe("first");
-    expect(loadViewMode(null)).toBe("first");
+    expect(loadViewMode(null)).toBe("third");
   });
 });
