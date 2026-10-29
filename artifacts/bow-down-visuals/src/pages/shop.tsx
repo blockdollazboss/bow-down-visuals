@@ -639,7 +639,19 @@ export default function ShopStorefront() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="mt-4 flex-1 overflow-y-auto space-y-3">
+            {/* ONE scroll region for everything under the header —
+                cart items, totals, the embedded Stripe checkout and
+                the done state all live inside it. Gate Pass 2
+                (Oct 28) found the Stripe Pay button clipped below
+                the drawer's fold with no scroll path to it when the
+                checkout blocks were non-scrollable siblings under an
+                items-only scroller: their height (the iframe renders
+                at full content height) spilled past the bottom of
+                this fixed, full-height drawer. min-h-0 is
+                load-bearing — without it the flex child will not
+                shrink below content height and cannot scroll. */}
+            <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
+              <div className="space-y-3">
               {cartDetailed.length === 0 ? (
                 <p className="text-sm text-white/40 text-center py-12">{t("shop.cartEmpty")}</p>
               ) : (
@@ -698,7 +710,7 @@ export default function ShopStorefront() {
                   </div>
                 ))
               )}
-            </div>
+              </div>
             {cartDetailed.length > 0 && !orderDone && !embeddedSecret && (
               <div className="mt-4 border-t border-white/10 pt-4">
                 {bumpTotalCents > 0 && (
@@ -830,6 +842,7 @@ export default function ShopStorefront() {
                 </button>
               </div>
             )}
+            </div>
           </aside>
         </div>
       )}
