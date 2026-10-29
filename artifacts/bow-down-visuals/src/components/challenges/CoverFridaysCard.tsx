@@ -3,6 +3,11 @@ import { Link } from "wouter";
 import { Crown, Music2, Play, Sparkles, Upload } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  formatCount,
+  normalizeCoverFridaysPayload,
+  type CoverFridaysData,
+} from "./cover-fridays-data";
 
 /**
  * Cover Fridays card (N19) — the house's weekly cover ritual,
@@ -20,44 +25,6 @@ import { useAuth } from "@/contexts/AuthContext";
  * read hides it instead of showing an invented theme.
  */
 
-interface CoverTheme {
-  key: string;
-  title: string;
-  description: string;
-  hashtag: string;
-}
-
-interface CrownedCover {
-  weekKey: string;
-  themeTitle: string;
-  videoId: string;
-  videoTitle: string;
-  thumbnailUrl: string | null;
-  creatorUserId: string;
-  displayName: string;
-  slug: string;
-  viewCount: number;
-  likeCount: number;
-  crownedAt: string;
-}
-
-interface CoverFridaysData {
-  weekKey: string;
-  theme: CoverTheme;
-  challenge: {
-    slug: string;
-    status: string;
-    deadline: string;
-    entryCount: number;
-  } | null;
-  featured: CrownedCover | null;
-  pastCrowns: CrownedCover[];
-}
-
-function fmtCount(n: number): string {
-  return n.toLocaleString("en-US");
-}
-
 export function CoverFridaysCard() {
   const isLight = useIsLightTheme();
   const { user } = useAuth();
@@ -67,8 +34,12 @@ export function CoverFridaysCard() {
     let cancelled = false;
     fetch("/api/challenges/cover-fridays")
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: CoverFridaysData | null) => {
-        if (!cancelled && json && json.theme) setData(json);
+      /* The wire is not the view model — the normalizer is the one
+         contract door (see cover-fridays-data.ts). It returns null
+         when the payload carries no theme, which keeps the card's
+         rule: a failed or empty read hides the card. */
+      .then((json: unknown) => {
+        if (!cancelled) setData(normalizeCoverFridaysPayload(json));
       })
       .catch(() => {});
     return () => {
@@ -125,7 +96,7 @@ export function CoverFridaysCard() {
         </span>
         {data.challenge && (
           <span className={`text-xs font-semibold ${sub}`}>
-            {fmtCount(data.challenge.entryCount)}{" "}
+            {formatCount(data.challenge.entryCount)}{" "}
             {data.challenge.entryCount === 1 ? "cover" : "covers"} in this week
           </span>
         )}
@@ -194,7 +165,7 @@ export function CoverFridaysCard() {
                 ) : (
                   featured.displayName
                 )}{" "}
-                · {fmtCount(featured.viewCount)} plays
+                · {formatCount(featured.viewCount)} plays
               </div>
             </div>
           </div>
