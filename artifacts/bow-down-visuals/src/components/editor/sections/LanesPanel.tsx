@@ -126,7 +126,7 @@ export function LanesPanel({ settings, setSettings }: {
                       (left) => ({ ...left, id: newLaneItemId("ov"), overlay: { ...left.overlay, id: newLaneItemId("ov") } })))}>
                     <Scissors className="h-3 w-3" /> Split
                   </button>
-                  <button type="button" className={rowBtn} title="Delete item"
+                  <button type="button" className={rowBtn} aria-label="Delete item" title="Delete item"
                     onClick={() => patchOverlayLane(lane.id, deleteLaneItem(lane.items, it.id))}>
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -157,7 +157,7 @@ export function LanesPanel({ settings, setSettings }: {
                     (left) => ({ ...left, id: newLaneItemId("cap"), line: { ...left.line, id: newLaneItemId("cap") } })))}>
                   <Scissors className="h-3 w-3" /> Split
                 </button>
-                <button type="button" className={rowBtn} title="Delete caption block"
+                <button type="button" className={rowBtn} aria-label="Delete caption block" title="Delete caption block"
                   onClick={() => patchCaptions(deleteLaneItem(lanes.captionLane.items, it.id))}>
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -222,7 +222,7 @@ export function LanesPanel({ settings, setSettings }: {
                   <TimeFields start={it.startSec} end={it.endSec}
                     onStart={(v) => patchAdjustment(moveLaneItem(lanes.adjustmentLane.items, it.id, v))}
                     onEnd={(v) => patchAdjustment(trimLaneItem(lanes.adjustmentLane.items, it.id, "end", v))} />
-                  <button type="button" className={rowBtn} title="Delete adjustment clip"
+                  <button type="button" className={rowBtn} aria-label="Delete adjustment clip" title="Delete adjustment clip"
                     onClick={() => patchAdjustment(deleteLaneItem(lanes.adjustmentLane.items, it.id))}>
                     <Trash2 className="h-3 w-3" />
                   </button>

@@ -1918,6 +1918,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                   <Switch
                     checked={c[key]}
                     onCheckedChange={(v) => setCaption(key, v)}
+                    aria-label={label}
                     data-testid={`caption-toggle-${key}`}
                   />
                 </div>
@@ -1933,6 +1934,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                 <Switch
                   checked={c.showArtistName}
                   onCheckedChange={(v) => setCaption("showArtistName", v)}
+                  aria-label="Show Artist Name"
                   data-testid="caption-toggle-artist"
                 />
               </div>
@@ -1952,6 +1954,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                 <Switch
                   checked={c.showSongTitle}
                   onCheckedChange={(v) => setCaption("showSongTitle", v)}
+                  aria-label="Show Song Title"
                   data-testid="caption-toggle-title"
                 />
               </div>
@@ -1984,6 +1987,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
               <Switch
                 checked={c.showSafeArea ?? false}
                 onCheckedChange={(v) => setCaption("showSafeArea", v)}
+                aria-label="Show Caption Safe Area"
                 data-testid="caption-toggle-safe-area"
               />
             </div>
@@ -2305,6 +2309,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                     />
                     <button
                       type="button"
+                      aria-label="Delete caption line"
                       onClick={(e) => { e.stopPropagation(); deleteLine(line.id); if (isSelected) onSelectCaption?.(null); }}
                       data-testid={`caption-line-${i}-delete`}
                       className="text-white/20 hover:text-red-400 transition-colors p-1 opacity-0 group-hover:opacity-100"

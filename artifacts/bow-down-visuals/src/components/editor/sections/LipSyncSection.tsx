@@ -228,6 +228,8 @@ function Toggle({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={value}
       onClick={() => onChange(!value)}
       className="flex items-center justify-between gap-3 w-full py-1.5 group"
     >
@@ -1602,6 +1604,7 @@ export function LipSyncSection({
                     type="button"
                     onClick={() => setDemoMode(false)}
                     className="ml-auto text-white/50 hover:text-white/60 transition-colors"
+                    aria-label="Exit demo mode"
                     title="Exit demo mode"
                   >
                     <X className="h-3 w-3" />
@@ -3095,6 +3098,7 @@ export function LipSyncSection({
                       : <><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Done · {processState.total} clips processed</>}
                   <button
                     type="button"
+                    aria-label="Dismiss"
                     onClick={() => setProcessState(null)}
                     className="ml-auto text-white/50 hover:text-white/60"
                   >
@@ -3151,6 +3155,9 @@ export function LipSyncSection({
                     </div>
                     <button
                       type="button"
+                      role="switch"
+                      aria-checked={selectedClipEdit.useLipSync}
+                      aria-label="Use Lip Sync Result"
                       onClick={() => selectedClipEdit.useLipSync ? detachFromPlayer() : attachStoredResult()}
                       className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${selectedClipEdit.useLipSync ? "bg-green-500" : "bg-white/10"}`}
                     >
@@ -3917,6 +3924,7 @@ export function LipSyncSection({
                           type="button"
                           onClick={() => clearLipSync(scene.id)}
                           className="text-white/20 hover:text-red-400 transition-colors ml-1"
+                          aria-label="Clear lip sync"
                           title="Clear lip sync"
                         >
                           <X className="h-3 w-3" />

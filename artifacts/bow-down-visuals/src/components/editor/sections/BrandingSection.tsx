@@ -179,6 +179,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
             <Switch
               checked={ic.enabled}
               onCheckedChange={(v) => setIntro({ enabled: v })}
+              aria-label="Enable Intro Card"
               data-testid="branding-intro-toggle"
             />
           </div>
@@ -252,6 +253,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
             <Switch
               checked={oc.enabled}
               onCheckedChange={(v) => setOutro({ enabled: v })}
+              aria-label="Enable Outro Card"
               data-testid="branding-outro-toggle"
             />
           </div>
@@ -336,6 +338,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
             <Switch
               checked={wm.enabled}
               onCheckedChange={(v) => setWm({ enabled: v })}
+              aria-label="Enable Watermark"
               data-testid="branding-wm-toggle"
             />
           </div>
@@ -351,6 +354,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                 <Switch
                   checked={wm.bdvWatermark}
                   onCheckedChange={(v) => setWm({ bdvWatermark: v })}
+                  aria-label="Bow Down Visuals watermark"
                   data-testid="branding-wm-bdv"
                 />
               </div>
@@ -367,6 +371,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
                     />
                     <button
                       type="button"
+                      aria-label="Remove custom logo"
                       onClick={() => setWm({ customLogoUrl: null })}
                       className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center hover:bg-red-500/20"
                     >
@@ -474,6 +479,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
               <Switch
                 checked={to.showArtistName}
                 onCheckedChange={(v) => setTitle({ showArtistName: v })}
+                aria-label="Show Artist Name"
                 data-testid="branding-title-artist-toggle"
               />
             </div>
@@ -497,6 +503,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
               <Switch
                 checked={to.showSongTitle}
                 onCheckedChange={(v) => setTitle({ showSongTitle: v })}
+                aria-label="Show Song Title"
                 data-testid="branding-title-song-toggle"
               />
             </div>

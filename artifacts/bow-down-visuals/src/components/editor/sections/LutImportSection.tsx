@@ -419,6 +419,7 @@ export function LutImportSection({
                     <button
                       onClick={() => void handleDeleteSaved(l.id)}
                       className="p-1 rounded text-white/25 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      aria-label="Delete this LUT"
                       title="Delete this LUT"
                     >
                       <Trash2 className="h-3 w-3" />
