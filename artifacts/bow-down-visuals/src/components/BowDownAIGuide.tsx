@@ -27,19 +27,52 @@ export function guidePeekPx(coarsePointer: boolean): number {
 type SnapPt = "TL" | "TC" | "TR" | "RC" | "BR" | "BC" | "BL" | "LC";
 const ALL_SNAPS: SnapPt[] = ["TL", "TC", "TR", "RC", "BR", "BC", "BL", "LC"];
 
+/* ─── Top-left floating-chrome keep-out ─────────────────────────
+   The shell's top-left chrome stack (corner budget, Stack-28 #58,
+   extended stack700 — ONE composed budget, join700 reconciliation),
+   all fixed and all ABOVE this widget's z-9990:
+   - jackpot banner band: ~57px at document top (in-flow);
+   - language switcher / theme toggle / pack picker: top 68, 44 tall
+     (z-9000/9999) — bottom edge 112 (the row dropped below the
+     banner band in stack700);
+   - "Enter the World" pill (lib/world-entry.ts): left-4,
+     top-[7.5rem] = 120, py-3 (24) + text-sm line (20) + border (2)
+     = 46 tall, ≈170 wide (right edge ≈186), z-[9998] — bottom 166.
+   The pill is the LOWEST top-left chrome. The stack500 TL fix (+56,
+   y=76) was measured against the toggle row alone and stopped 38px
+   short of the pill: at TL the pill painted over the open panel's
+   grip + header (owner screenshot, Oct 28). The two stack700 lanes
+   then moved the chrome (toggle row 16→68, pill 68→120) and the
+   panel seat independently; the join composed them here: a top
+   snap whose span reaches into the chrome column
+   (x < TOP_CHROME_RIGHT) seats below the pill at 174, which also
+   clears the toggle row (112). Desktop-wide TC/TR spans start past
+   the column and keep the plain margin. */
+const TOP_CHROME_PILL_BOTTOM = 120 + 46;                   // 166
+const TOP_CHROME_CLEAR_Y     = TOP_CHROME_PILL_BOTTOM + 8; // 174
+const TOP_CHROME_RIGHT       = 190; // pill right edge ≈186, rounded up
+
+/** Y for a top snap: clear of the top-left chrome column when the
+    panel's left edge reaches into it, the plain margin otherwise. */
+function topSnapY(x: number, m: number): number {
+  return x < TOP_CHROME_RIGHT ? TOP_CHROME_CLEAR_Y : m;
+}
+
 function snapPos(pt: SnapPt, w: number, h: number) {
   const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const m = SNAP_M;
   const cx = Math.round((vw - w) / 2), cy = Math.round((vh - h) / 2);
   const map: Record<SnapPt, { x: number; y: number }> = {
-    /* TL drops +108: the floating theme toggles (fixed, z-9999, top:68,
-       44 tall — the row dropped below the jackpot banner band in
-       stack700) own the top-left corner — at plain m the open panel's
-       header slid underneath them and its title was covered. */
-    TL: { x: m,          y: m + 108    },
-    TC: { x: cx,         y: m          },
-    TR: { x: vw - w - m, y: m          },
+    /* Top snaps route through topSnapY: TL always reaches into the
+       chrome column; TC/TR only on viewports narrow enough that
+       their span reaches it (phone widths). The column seat (174)
+       subsumes the jackpot lane's TL +108 toggle-row clearance —
+       the pill hangs lower than the row, so clearing the pill
+       clears both. */
+    TL: { x: m,          y: topSnapY(m, m)          },
+    TC: { x: cx,         y: topSnapY(cx, m)         },
+    TR: { x: vw - w - m, y: topSnapY(vw - w - m, m) },
     RC: { x: vw - w - m, y: cy         },
     BR: { x: vw - w - m, y: vh - h - m },
     BC: { x: cx,         y: vh - h - m },

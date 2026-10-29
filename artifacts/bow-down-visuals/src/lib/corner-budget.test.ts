@@ -33,10 +33,18 @@ describe("corner budget (Stack-28 #58)", () => {
   });
   it("top-left row clears the jackpot banner band (stack700)", () => {
     /* The banner is the first in-flow band (~57px tall). No T1/T2 slot
-       may start inside it, and the guide's TL snap must clear T1's
-       112px floor by its 16px margin (SNAP_M 20 + 108 = 128). */
+       may start inside it. The guide's top snaps route through its
+       chrome keep-out (join700 composition of the jackpot + playlist
+       lanes): a span reaching into the column seats at 174 — below
+       T2's bottom (120 + 46 = 166) with an 8px gap, which also clears
+       T1's 112px floor. The jackpot lane's intermediate TL offset
+       (+108 = y 128, measured against T1 alone) must not survive:
+       128 sits under the moved pill. Full arithmetic is pinned in
+       guide-snap-position.test.ts. */
     expect(css).toContain("slot T1 (top 68px");
-    expect(guide).toContain("y: m + 108");
+    expect(guide).toContain("TOP_CHROME_CLEAR_Y");
+    expect(guide).toContain("topSnapY(m, m)");
+    expect(guide).not.toContain("y: m + 108");
     expect(toggle).not.toContain(": { top: 16, left: 72 }");
     expect(worldEntry).not.toContain("top-[4.25rem]");
   });
