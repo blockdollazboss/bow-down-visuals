@@ -18,6 +18,7 @@
  *                  /creator-pricing, where /pricing links)
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { pricingCardCta } from "../lib/pricing-card-state";
 import type { CreatorTierId } from "../lib/pricing-plans";
 
@@ -45,5 +46,40 @@ describe("pricingCardCta — the paid cards", () => {
         expect(pricingCardCta(plan, viewer)).toBe("go");
       }
     }
+  });
+});
+
+describe("/pricing page wiring — the cards render the derivation", () => {
+  const page = readFileSync(new URL("./pricing.tsx", import.meta.url), "utf8");
+
+  it("the page reads the ONE tier source (useCreatorTier)", () => {
+    expect(page).toContain('from "@/hooks/use-creator-tier"');
+    expect(page).toContain("useCreatorTier()");
+    expect(page).toContain("me?.tier ?? null");
+  });
+
+  it("card CTAs are derived through pricingCardCta", () => {
+    expect(page).toContain('from "@/lib/pricing-card-state"');
+    expect(page).toContain("pricingCardCta(plan.tier, currentTier)");
+  });
+
+  it("the your-plan state renders the established marker, non-actionable", () => {
+    expect(page).toContain('data-testid="pricing-plan-current"');
+    expect(page).toContain("Your current plan");
+    const marker = page.slice(
+      page.indexOf('cta === "your-plan"'),
+      page.indexOf('cta === "none"'),
+    );
+    expect(marker).not.toContain("<Link");
+    expect(marker).not.toContain("<Button");
+  });
+
+  it("the none state exists for a paid member's Free card", () => {
+    expect(page).toContain('cta === "none"');
+  });
+
+  it("the visitor Start free door survives", () => {
+    expect(page).toContain("Start free");
+    expect(page).toContain('href="/dashboard"');
   });
 });
