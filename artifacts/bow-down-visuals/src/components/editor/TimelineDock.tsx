@@ -1181,6 +1181,7 @@ export function TimelineDock({
       <div className="flex items-center gap-2 px-3 md:px-6 py-1.5 border-b border-white/10 bg-black">
         <button type="button" onClick={onRestart}
           className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+          aria-label="Restart from 0:00"
           title="Restart from 0:00">
           <SkipBack className="h-3.5 w-3.5" />
         </button>
@@ -1272,12 +1273,12 @@ export function TimelineDock({
         </span>
 
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} disabled={zoom <= 1}
+          <button type="button" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} disabled={zoom <= 1}
             className="p-1 rounded text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 disabled:opacity-20 transition-colors">
             <ZoomOut className="h-3 w-3" />
           </button>
           <span className="text-[9px] font-mono text-muted-foreground w-7 text-center">{zoom}×</span>
-          <button type="button" onClick={() => setZoom((z) => Math.min(8, z + 0.5))} disabled={zoom >= 8}
+          <button type="button" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(8, z + 0.5))} disabled={zoom >= 8}
             className="p-1 rounded text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 disabled:opacity-20 transition-colors">
             <ZoomIn className="h-3 w-3" />
           </button>
@@ -1285,6 +1286,7 @@ export function TimelineDock({
 
         <button type="button" onClick={() => setSettings({ ...settings, timelineDockHidden: true })}
           data-testid="timeline-dock-hide"
+          aria-label="Hide Timeline Dock"
           title="Hide Timeline Dock"
           className="flex items-center gap-1 p-1.5 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors">
           <ChevronDown className="h-3.5 w-3.5" />

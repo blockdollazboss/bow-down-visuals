@@ -91,7 +91,7 @@ export function StemFxChainEditor({
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"
-                title="Move earlier in the chain"
+                aria-label="Move earlier in the chain" title="Move earlier in the chain"
                 onClick={() => onChange(moveStemFxStep(chain, step.id, idx - 1))}
                 className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white"
               >
@@ -99,7 +99,7 @@ export function StemFxChainEditor({
               </button>
               <button
                 type="button"
-                title="Move later in the chain"
+                aria-label="Move later in the chain" title="Move later in the chain"
                 onClick={() => onChange(moveStemFxStep(chain, step.id, idx + 1))}
                 className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white"
               >
@@ -113,7 +113,7 @@ export function StemFxChainEditor({
               </Chip>
               <button
                 type="button"
-                title="Remove step"
+                aria-label="Remove step" title="Remove step"
                 onClick={() => onChange(removeFxStep(chain, step.id))}
                 className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-red-300 hover:text-red-200"
               >
@@ -166,7 +166,7 @@ export function StemFxChainEditor({
                   </Field>
                   <button
                     type="button"
-                    title="Remove band"
+                    aria-label="Remove band" title="Remove band"
                     onClick={() => onChange(removeEqBand(chain, step.id, bi))}
                     className="text-red-300/70 hover:text-red-200 text-xs font-bold px-1"
                   >
