@@ -38,6 +38,11 @@ function dims(w: unknown, h: unknown): string | null {
  * to creators verbatim — and neither is the model name behind the
  * default route. Creators see the friendly feature name ("Lip Sync");
  * the internal ids/keys stay unchanged everywhere else.
+ *
+ * Stack800 lane 3: the default branch used to pass an UNKNOWN id
+ * through verbatim — any future provider id would have leaked raw
+ * onto a status row. Unknown ids now fall back to the feature name;
+ * a raw provider id can never reach a status row through this label.
  */
 export function lipSyncProviderLabel(provider: string | null | undefined): string {
   switch ((provider ?? "").trim().toLowerCase()) {
@@ -54,8 +59,10 @@ export function lipSyncProviderLabel(provider: string | null | undefined): strin
       return "WaveSpeed";
     case "hedra":
       return "Hedra";
+    case "heygen":
+      return "HeyGen";
     default:
-      return provider?.trim() ? provider.trim() : "Lip Sync";
+      return "Lip Sync";
   }
 }
 

@@ -945,7 +945,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-400 uppercase tracking-widest">
-            <CheckCircle2 className="h-3 w-3" /> Clip Ready — {scene.provider === "Runway" ? "Scene Clip" : scene.provider ?? "Scene Clip"}
+            <CheckCircle2 className="h-3 w-3" /> Clip Ready — Scene Clip
           </span>
           {referenceLabel(scene.referenceSource ?? referenceSource) && (
             <span
