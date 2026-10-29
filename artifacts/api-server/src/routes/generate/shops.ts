@@ -24,6 +24,7 @@ import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import { isAdminEmail } from "../../lib/admin";
 import { logger } from "../../lib/logger";
 import { isUniqueViolation, isUndefinedTable, pgErrorText } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -1896,6 +1897,10 @@ export function meetsProTier(plan: string | null | undefined): boolean {
 }
 
 export function requireProTier(req: any, res: any, next: any) {
+  /* Owner exemption (Oct 29, 2026): the owner's account is never
+     plan-gated — shops and custom domains open for an admin on any
+     plan. Members see the exact same gate as before. */
+  if (isAdminEmail(req.userEmail)) return next();
   if (meetsProTier(req.userPlan)) return next();
   res.status(403).json({
     error: "PRO_TIER_REQUIRED",

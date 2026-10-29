@@ -8,6 +8,7 @@ import {
   type CreatorTier,
 } from "./platform-fees";
 import { logger } from "./logger";
+import { isAdminUserId } from "./admin";
 
 /* ── "The profile IS the website" — shared model (Stack 3) ───────────────
    The data/engine layer behind the profile-as-website stack:
@@ -743,6 +744,10 @@ export async function resolveProfileTier(profileId: string, userId: string): Pro
 
 export async function resolvePaidPlan(profileId: string, userId: string): Promise<boolean> {
   try {
+    /* Owner exemption (Oct 29, 2026): the owner's own profile always
+       reads as paid — no "Powered by" mark on his page, clean branding
+       everywhere this definition feeds. */
+    if (await isAdminUserId(userId)) return true;
     if ((await resolveProfileTier(profileId, userId)) !== "free") return true;
     const [hosting] = await db
       .select({ status: creatorHostingTable.status })
@@ -756,7 +761,7 @@ export async function resolvePaidPlan(profileId: string, userId: string): Promis
   }
 }
 
-export type HostingEntitlementSource = "hosting" | "elite" | null;
+export type HostingEntitlementSource = "hosting" | "elite" | "admin" | null;
 
 export interface HostingEntitlement {
   entitled: boolean;
@@ -780,6 +785,15 @@ export async function resolveHostingEntitlement(
   userId: string,
 ): Promise<HostingEntitlement> {
   try {
+    /* Owner exemption (Oct 29, 2026): the owner's page is hosted,
+       full stop — no $9/mo Hosting subscription and no Elite
+       subscription stands between him and his own site. This grants
+       the entitlement only; it creates no Stripe row and no charge
+       (the checkout route answers an entitled caller with a 409
+       before Stripe is ever touched). */
+    if (await isAdminUserId(userId)) {
+      return { entitled: true, status: "active", currentPeriodEnd: null, source: "admin" };
+    }
     const [row] = await db
       .select({ status: creatorHostingTable.status, currentPeriodEnd: creatorHostingTable.currentPeriodEnd })
       .from(creatorHostingTable)
