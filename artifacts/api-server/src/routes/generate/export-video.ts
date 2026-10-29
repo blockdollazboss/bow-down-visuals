@@ -532,6 +532,24 @@ async function probeVideo(filePath: string): Promise<VideoInfo> {
   }
 }
 
+/** Probe a still image's codec for the feed pre-scale identity gate
+ *  (§4.5 watermark, §4.6 overlay images): the first video stream's
+ *  codec_name ("png", "mjpeg", "webp", …), or "" when the probe
+ *  fails — callers treat "" as outside the byte-identical class and
+ *  feed the full-size original (fail-safe toward today's behavior). */
+async function probeStillImageCodec(filePath: string): Promise<string> {
+  try {
+    const probe = await execFileAsync(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "csv=p=0", filePath],
+      { timeout: 10_000 },
+    );
+    return probe.stdout.trim().split("\n")[0] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /** Normalize one clip to target resolution/fps/codec so all clips are concat-compatible.
  *  `crf` parameterizes the encode quality (default 20 = legacy behavior);
  *  the quality dialog passes deliveryCrf + 2 for a slightly cleaner intermediate. */
@@ -2523,21 +2541,45 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
      * byte-identical (md5-verified locally against the full-size
      * feed) — and drops the measured peak to ~205 MB. Best-effort:
      * any failure here feeds the original image; the render itself
-     * is never put at risk for a memory optimisation. */
+     * is never put at risk for a memory optimisation.
+     *
+     * IDENTITY GATE (stack700 watermark-png-gate) — only PNG sources
+     * are pre-scaled, the §4.6 discipline applied to this leg. The
+     * byte-identity above was proven for PNG sources; the watermark
+     * leg also accepts lossy sources — the dark house mark itself is
+     * WebP (bdv-watermark.webp) and custom logos download as .jpg /
+     * .webp (§2b/§2d) — and for those the in-graph scaler negotiates
+     * a different intermediate format than a standalone pre-scale,
+     * so the pre-scaled render DRIFTS from today's bytes (md5-
+     * verified locally on the actual dark mark: full-size feed and
+     * pre-scaled feed produce different output; the PNG light mark
+     * is byte-identical). Lossy sources therefore keep the full-size
+     * feed EXACTLY — the pre-stack700 render path, no output change —
+     * and the skip is logged so the residual memory exposure (the
+     * dark mark's queue leg) stays visible rather than silently
+     * trading quality for headroom. */
     let wmFeedPath: string | null = activeWmPath;
     if (wmInputIdx >= 0 && activeWmPath && wmDisplayWidth > 0) {
-      const scaledWmPath = path.join(tmpDir, `bdv-wm-feed-${exportId}.png`);
-      try {
-        await execFileAsync(
-          "ffmpeg",
-          ["-y", "-i", activeWmPath, "-vf", `scale=${wmDisplayWidth}:-2`, "-pix_fmt", "rgba", scaledWmPath],
-          { timeout: 30_000 },
+      const wmCodec = await probeStillImageCodec(activeWmPath);
+      if (wmCodec !== "png") {
+        ctx.log.info(
+          { wmCodec: wmCodec || "unknown" },
+          "[export] watermark not pre-scaled — source format outside the byte-identical class (feeding full-size)",
         );
-        tmpFiles.push(scaledWmPath);
-        wmFeedPath = scaledWmPath;
-        ctx.log.info({ wmDisplayWidth }, "[export] watermark pre-scaled to display width for the render feed");
-      } catch (e) {
-        ctx.log.warn({ err: String(e) }, "[export] watermark pre-scale failed — feeding the full-size image (render unaffected)");
+      } else {
+        const scaledWmPath = path.join(tmpDir, `bdv-wm-feed-${exportId}.png`);
+        try {
+          await execFileAsync(
+            "ffmpeg",
+            ["-y", "-i", activeWmPath, "-vf", `scale=${wmDisplayWidth}:-2`, "-pix_fmt", "rgba", scaledWmPath],
+            { timeout: 30_000 },
+          );
+          tmpFiles.push(scaledWmPath);
+          wmFeedPath = scaledWmPath;
+          ctx.log.info({ wmDisplayWidth }, "[export] watermark pre-scaled to display width for the render feed");
+        } catch (e) {
+          ctx.log.warn({ err: String(e) }, "[export] watermark pre-scale failed — feeding the full-size image (render unaffected)");
+        }
       }
     }
 
@@ -2575,18 +2617,9 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       const srcPath = overlayImagePaths[i];
       const feedW = overlayImgWidths[i] ?? 0;
       if (!srcPath || feedW <= 0) continue;
-      let srcCodec = "";
-      try {
-        const probe = await execFileAsync(
-          "ffprobe",
-          ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "csv=p=0", srcPath],
-          { timeout: 10_000 },
-        );
-        srcCodec = probe.stdout.trim().split("\n")[0] ?? "";
-      } catch {
-        // Probe failure → srcCodec stays "" → the item feeds its
-        // original below (fail-safe toward today's behavior).
-      }
+      // Probe failure → "" → the item feeds its original below
+      // (fail-safe toward today's behavior).
+      const srcCodec = await probeStillImageCodec(srcPath);
       if (srcCodec !== "png") {
         ctx.log.info(
           { idx: i, srcCodec: srcCodec || "unknown" },
