@@ -11,7 +11,10 @@
  *      endpoint's composition (profile-derived fallback), the spend
  *      dialog gains the sub-line only while a temporary part exists,
  *      and the sidebar keeps its single total with the temporary part
- *      named under it;
+ *      named under it — and (stack700 remainder) the dashboard top-up
+ *      chip, the World Packs desk, and the World Account desk name
+ *      the same split (Permanent line + temporary-with-expiry line)
+ *      from the same composition;
  *  (c) the locale honesty state: the new keys exist in en only — the
  *      other nine catalogs fall back to English for them until the
  *      translation wave lands (payment copy is never guessed).
@@ -141,6 +144,40 @@ describe("surface wiring", () => {
     expect(board).toContain("TemporaryBucsNote");
     expect(board).toContain('mode="label"');
     expect(board).toContain("profile.balance_composition ?? balanceComposition(profile)");
+  });
+
+  it("the dashboard top-up chip names the split under the stat row while a temporary part exists", () => {
+    const page = read("../pages/dashboard.tsx");
+    expect(page).toContain("TemporaryBucsNote");
+    expect(page).toContain('data-testid="dashboard-balance-split"');
+    expect(page).toContain("profile.balance_composition ?? balanceComposition(profile)");
+    expect(page).toContain('t("balance.permanent_amount"');
+    expect(page).toContain("balanceComp.temporaryCredits > 0");
+    /* The chip's single total is untouched. */
+    expect(page).toContain("{formatVB(balance)}");
+  });
+
+  it("the World's Packs desk names the split under its balance line", () => {
+    const desk = read("./world/native/PacksDesk.tsx");
+    expect(desk).toContain("TemporaryBucsNote");
+    expect(desk).toContain('data-testid="world-packs-balance-split"');
+    expect(desk).toContain("profile.balance_composition ?? balanceComposition(profile)");
+    expect(desk).toContain('t("balance.permanent_amount"');
+    expect(desk).toContain("composition.temporaryCredits > 0");
+    /* The desk's single total still renders. */
+    expect(desk).toContain("Your balance: {balance.toLocaleString(\"en-US\")} Visual Bucs");
+  });
+
+  it("the World's Account desk names the split inside its Visual Bucs field", () => {
+    const desk = read("./world/native/TailDesks.tsx");
+    expect(desk).toContain("TemporaryBucsNote");
+    expect(desk).toContain('data-testid="world-account-balance-split"');
+    expect(desk).toContain("profile.balance_composition ?? balanceComposition(profile)");
+    expect(desk).toContain('t("balance.permanent_amount"');
+    expect(desk).toContain("balanceComp.temporaryCredits > 0");
+    /* The field's single total still renders. */
+    expect(desk).toContain('label: "Visual Bucs"');
+    expect(desk).toContain("profile.credits.toLocaleString(\"en-US\")");
   });
 
   it("AuthContext composes the split before the spendable fold", () => {
