@@ -5097,6 +5097,7 @@
     "errorDescription": "Deal का वर्णन करें।",
     "errorNiche": "आपको किस niche के creator की आवश्यकता है?",
     "errorPostDeal": "आपकी deal पोस्ट नहीं हो सकी।",
+    "errorSpendingPaused": "इस खाते पर क्रेडिट खर्च अभी रुका हुआ है — कोई शुल्क नहीं लिया गया है।",
     "eyebrow": "Brands · deal पोस्ट करें",
     "nicheLabel": "आवश्यक creator niche",
     "nichePlaceholder": "e.g. Music, Gaming, Fitness",

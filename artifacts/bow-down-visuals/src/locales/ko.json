@@ -5097,6 +5097,7 @@
     "errorDescription": "딜을 설명해 주세요.",
     "errorNiche": "어떤 니치의 크리에이터가 필요하신가요?",
     "errorPostDeal": "딜을 게시할 수 없었습니다.",
+    "errorSpendingPaused": "이 계정은 현재 크레딧 사용이 일시 중지되어 있습니다 — 청구된 금액이 없습니다.",
     "eyebrow": "브랜드 · 딜 게시",
     "nicheLabel": "필요한 크리에이터 니치",
     "nichePlaceholder": "예: Music, Gaming, Fitness",

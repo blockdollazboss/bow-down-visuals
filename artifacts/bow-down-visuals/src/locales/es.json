@@ -5109,6 +5109,7 @@
     "errorDescription": "Describe el trato.",
     "errorNiche": "¿Qué nicho de creador necesitas?",
     "errorPostDeal": "No se pudo publicar tu trato.",
+    "errorSpendingPaused": "El gasto de créditos está pausado en esta cuenta por ahora — no se cobró nada.",
     "eyebrow": "Marcas · publica un trato",
     "nicheLabel": "Nicho de creador necesario",
     "nichePlaceholder": "p. ej. Música, Gaming, Fitness",

@@ -5097,6 +5097,7 @@
     "errorDescription": "Beschreiben Sie den Deal.",
     "errorNiche": "Welche Creator-Nische brauchen Sie?",
     "errorPostDeal": "Ihr Deal konnte nicht gepostet werden.",
+    "errorSpendingPaused": "Kreditausgaben sind für dieses Konto derzeit pausiert — es wurde nichts belastet.",
     "eyebrow": "Marken · Deal posten",
     "nicheLabel": "Benötigte Creator-Nische",
     "nichePlaceholder": "z. B. Musik, Gaming, Fitness",

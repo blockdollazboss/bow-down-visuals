@@ -5097,6 +5097,7 @@
     "errorDescription": "案件内容を説明してください。",
     "errorNiche": "どんなジャンルのクリエイターが必要ですか?",
     "errorPostDeal": "案件を投稿できませんでした。",
+    "errorSpendingPaused": "このアカウントでは現在クレジットの利用が一時停止中です — 請求は発生していません。",
     "eyebrow": "ブランド向け · 案件を投稿",
     "nicheLabel": "必要なクリエイターのジャンル",
     "nichePlaceholder": "例: 音楽、ゲーム、フィットネス",

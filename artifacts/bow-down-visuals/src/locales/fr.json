@@ -5267,6 +5267,7 @@
     "errorDescription": "Décris le deal.",
     "errorNiche": "De quelle niche de créateur as-tu besoin ?",
     "errorPostDeal": "Impossible de publier ton deal.",
+    "errorSpendingPaused": "Les dépenses de crédits sont en pause sur ce compte pour le moment — rien n'a été facturé.",
     "eyebrow": "Marques · publier un deal",
     "nicheLabel": "Niche de créateur recherchée",
     "nichePlaceholder": "ex. Musique, Gaming, Fitness",

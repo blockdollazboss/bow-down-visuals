@@ -5109,6 +5109,7 @@
     "errorDescription": "Descreva o acordo.",
     "errorNiche": "De que nicho de criador você precisa?",
     "errorPostDeal": "Não foi possível publicar seu acordo.",
+    "errorSpendingPaused": "O gasto de créditos está pausado nesta conta no momento — nada foi cobrado.",
     "eyebrow": "Marcas · publique um acordo",
     "nicheLabel": "Nicho de criador necessário",
     "nichePlaceholder": "ex. Música, Games, Fitness",
