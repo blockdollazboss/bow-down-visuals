@@ -9,6 +9,8 @@ import {
   Sparkles, AlertCircle, CreditCard, Lock, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCreatorTier } from "@/hooks/use-creator-tier";
+import { pricingCardCta } from "@/lib/pricing-card-state";
 import { ExpressPayButton } from "@/components/ExpressPayButton";
 import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -216,6 +218,15 @@ export default function Pricing() {
   const isLight = useIsLightTheme();
   usePageTitle(t("pricing.pageTitle"), t("pricing.pageDescription"));
 
+  /* stack700 pricing-free-state: the plan cards read the ONE tier
+     source (useCreatorTier — the same hook the sidebar badge,
+     Settings → Billing and /creator-pricing read) so a member is
+     told their own plan here too. Null = signed out or still
+     loading: the cards render the visitor state until the tier
+     lands, exactly as /creator-pricing does. */
+  const me = useCreatorTier();
+  const currentTier = me?.tier ?? null;
+
   const PRICING_JSON_LD = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -348,6 +359,7 @@ export default function Pricing() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 gap-y-10 lux-stagger pt-8">
             {CREATOR_PLANS.map((plan) => {
               const featured = plan.tier === "pro";
+              const cta = pricingCardCta(plan.tier, currentTier);
               return (
                 <div key={plan.tier} className="relative transition-all duration-300 hover:-translate-y-1">
                   {featured && (
@@ -387,8 +399,28 @@ export default function Pricing() {
                       </div>
                     </div>
 
-                    {/* CTA — plan checkout lives on /creator-pricing (test mode) */}
-                    {plan.tier === "free" ? (
+                    {/* CTA — plan checkout lives on /creator-pricing (test mode).
+                        stack700 pricing-free-state: the Free card's CTA is
+                        derived from the member's real tier (pricingCardCta).
+                        A free member gets the non-actionable "Your current
+                        plan" marker — the same pattern /creator-pricing's
+                        cards use — never an actionable Start free; a paid
+                        member gets no Free-card action at all (Free is not
+                        a tier-change target: leaving a paid plan is the
+                        Billing cancel-and-glide path, so the slot stays
+                        empty to keep the cards aligned); visitors keep
+                        the Start free door. */}
+                    {cta === "your-plan" ? (
+                      <div
+                        data-testid="pricing-plan-current"
+                        aria-current="true"
+                        className={`mb-6 flex h-10 w-full items-center justify-center rounded-md border text-sm font-bold opacity-60 ${isLight ? "border-[#C9A84C]/60 text-[#2A1E07]" : "border-white/25 text-white"}`}
+                      >
+                        Your current plan
+                      </div>
+                    ) : cta === "none" ? (
+                      <div className="mb-6 h-10" aria-hidden="true" />
+                    ) : plan.tier === "free" ? (
                       <Link href="/dashboard" className="mb-6">
                         <Button className="w-full font-bold h-10 gap-2" variant="outline">
                           <Sparkles className="h-3.5 w-3.5" /> Start free
