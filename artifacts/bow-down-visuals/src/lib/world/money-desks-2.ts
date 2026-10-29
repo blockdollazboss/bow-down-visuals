@@ -959,6 +959,10 @@ export function planPriceLabel(plan: SitePlan): string {
    - "embedded": the confirmation secret arrived; mount the form.
    - "changed": the tier change applied in place (the intent's own
      answer for it); no payment page exists.
+   - "change": a subscriber picked a DIFFERENT tier and the intent
+     answered mode "change" with the proration preview (stack600
+     plan-tier-change) — nothing charged yet; the desk shows the
+     confirm panel and applies via POST /creator-tiers/change.
    - "error": STOP with this honest line — the server's own message
      when it sent one (its 502 text already carries the
      nothing-charged line; its 409 names the manage path), else the
@@ -968,7 +972,56 @@ export function planPriceLabel(plan: SitePlan): string {
 export type PlanIntentOutcome =
   | { kind: "embedded"; clientSecret: string; subscriptionId: string; label: string }
   | { kind: "changed" }
+  | { kind: "change"; preview: PlanChangePreview }
   | { kind: "error"; message: string };
+
+/** The proration preview the intent's mode:"change" answer carries
+ *  (the server's TierChangePreviewView, mirrored field for field).
+ *  These are the PINNED numbers the confirm panel shows: Stripe
+ *  priced the swap at the same proration instant the apply call
+ *  uses, so what the walker confirms is what gets charged — the
+ *  desk displays them verbatim and never recomputes them. */
+export interface PlanChangePreview {
+  fromTier: string;
+  fromPlanName: string;
+  toTier: string;
+  toPlanName: string;
+  /** Charged to the saved card today (0 on a net-credit downgrade). */
+  amountDueTodayCents: number;
+  /** Credit toward future invoices (0 unless the swap nets negative). */
+  creditCents: number;
+  currency: string;
+  /** When the current period ends — a swap never moves it. */
+  renewalDate: string | null;
+  /** True when a cancel was pending: changing plans clears it. */
+  clearsPendingCancel: boolean;
+}
+
+/** Parse a changePreview payload; null when any pinned number is
+ *  missing or mistyped — a change the desk cannot price honestly
+ *  is never offered for confirmation. */
+export function parsePlanChangePreview(
+  payload: unknown,
+  toPlanNameFallback?: string,
+): PlanChangePreview | null {
+  if (!isObj(payload)) return null;
+  const fromTier = str(payload["fromTier"]);
+  const toTier = str(payload["toTier"]);
+  const amountDueTodayCents = num(payload["amountDueTodayCents"]);
+  const creditCents = num(payload["creditCents"]);
+  if (!fromTier || !toTier || amountDueTodayCents === null || creditCents === null) return null;
+  return {
+    fromTier,
+    fromPlanName: str(payload["fromPlanName"]) ?? fromTier,
+    toTier,
+    toPlanName: str(payload["toPlanName"]) ?? toPlanNameFallback ?? toTier,
+    amountDueTodayCents,
+    creditCents,
+    currency: str(payload["currency"]) ?? "usd",
+    renewalDate: str(payload["renewalDate"]),
+    clearsPendingCancel: payload["clearsPendingCancel"] === true,
+  };
+}
 
 export function planIntentOutcome(
   result: { ok: boolean; status: number; data: unknown },
@@ -977,6 +1030,12 @@ export function planIntentOutcome(
   const { ok, status, data } = result;
   if (ok && isObj(data)) {
     if (data["changed"] === true) return { kind: "changed" };
+    if (data["mode"] === "change") {
+      /* A change with no usable preview is NOT a confirmable
+         change — it falls through to the honest OK stop below. */
+      const preview = parsePlanChangePreview(data["changePreview"], planName);
+      if (preview) return { kind: "change", preview };
+    }
     const clientSecret = str(data["clientSecret"]);
     const subscriptionId = str(data["subscriptionId"]);
     if (clientSecret && subscriptionId) {
@@ -1002,6 +1061,83 @@ export function planIntentOutcome(
       data,
       checkoutFailureCopy(
         new CheckoutTransportError("Subscription intent failed", status),
+      ),
+    ),
+  };
+}
+
+/* ─── The tier-change confirm (stack600 plansdesk-change) ──────────
+   The confirm panel's lines are the creator-pricing page's own
+   words for the same preview (its change-confirm panel), built
+   from the preview's pinned numbers only — the desk never prices
+   a swap itself. */
+
+/** What today's money does: the prorated charge on an upgrade, the
+ *  $0-due + credit sentence on a downgrade, or the plain
+ *  nothing-charged line when the swap nets to zero. */
+export function planChangeChargeLine(preview: PlanChangePreview): string {
+  if (preview.amountDueTodayCents > 0) {
+    return `Your saved card will be charged ${moneyCents(preview.amountDueTodayCents)} today — the prorated difference between ${preview.fromPlanName} and ${preview.toPlanName} for the rest of this billing period.`;
+  }
+  if (preview.creditCents > 0) {
+    return `Nothing is charged today. The unused time on ${preview.fromPlanName} becomes a ${moneyCents(preview.creditCents)} credit toward your next invoices.`;
+  }
+  return "Nothing is charged today.";
+}
+
+/** When the new tier starts + the renewal-date-unchanged note. */
+export function planChangeStartLine(preview: PlanChangePreview): string {
+  const renewal = preview.renewalDate
+    ? `, and your renewal date stays ${new Date(preview.renewalDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+    : ", same renewal date";
+  return `${preview.toPlanName} starts right away — same subscription, same card${renewal}.`;
+}
+
+/** Shown when the preview says a cancel was pending: changing
+ *  plans clears it, and the walker hears that BEFORE confirming. */
+export const PLAN_CHANGE_CLEARS_CANCEL_LINE =
+  "You had a cancellation pending. Switching plans clears it — you're staying, so your plan keeps renewing.";
+
+/** POST /creator-tiers/change's verdict, in the intent verdict's
+ *  honesty shape: a landed change (including the
+ *  already-applied answer a double-click replays into) is "done"
+ *  with the amounts the response itself reports; anything else
+ *  STOPS in the desk with the server's own message when it sent
+ *  one (its 409 already-on-tier line, its 502 change-failed text),
+ *  else the shared failure copy naming the HTTP status + nothing
+ *  charged. An OK answer that applied nothing is the honest
+ *  nothing-charged stop, never a success the desk invented. */
+export type PlanChangeOutcome =
+  | { kind: "done"; alreadyApplied: boolean; amountDueTodayCents: number; creditCents: number }
+  | { kind: "error"; message: string };
+
+export function planChangeOutcome(
+  result: { ok: boolean; status: number; data: unknown },
+): PlanChangeOutcome {
+  const { ok, status, data } = result;
+  if (ok && isObj(data) && data["changed"] === true) {
+    return {
+      kind: "done",
+      alreadyApplied: data["alreadyApplied"] === true,
+      amountDueTodayCents: num(data["amountDueTodayCents"]) ?? 0,
+      creditCents: num(data["creditCents"]) ?? 0,
+    };
+  }
+  if (ok) {
+    return {
+      kind: "error",
+      message: apiErrorLine(
+        data,
+        "That plan change didn't go through — nothing was charged. Try again in a minute.",
+      ),
+    };
+  }
+  return {
+    kind: "error",
+    message: apiErrorLine(
+      data,
+      checkoutFailureCopy(
+        new CheckoutTransportError("Plan change failed", status),
       ),
     ),
   };
