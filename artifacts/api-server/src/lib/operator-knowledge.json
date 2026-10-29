@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "edfae7807f4ed80aec304037f36eeedf156cfa07",
+  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -20,7 +20,11 @@
     "desks": 5,
     "takeoverOffers": 2,
     "withDescriptions": 238,
-    "withoutDescriptions": 10
+    "withoutDescriptions": 10,
+    "serverRouteFiles": 427,
+    "serverEndpoints": 1703,
+    "serverEndpointsVisible": 1003,
+    "serverFilesClassified": 128
   },
   "packs": [
     {
@@ -4067,10 +4071,10 @@
         "/api/sponsor-read",
         "/api/sponsors/deals",
         "/api/sponsors/match",
-        "/api/wave8/sponsors/deals",
-        "/api/wave8/sponsors/deals/:param",
-        "/api/wave8/sponsors/deals/:param/mark-paid",
-        "/api/wave8/sponsors/followup"
+        "/api/sponsors/pipeline/deals",
+        "/api/sponsors/pipeline/deals/:param",
+        "/api/sponsors/pipeline/deals/:param/mark-paid",
+        "/api/sponsors/pipeline/followup"
       ],
       "prices": [
         {
@@ -4118,7 +4122,7 @@
         {
           "feature": "Sponsor Follow-up Draft",
           "vb": 50,
-          "endpoint": "/api/wave8/sponsors/followup",
+          "endpoint": "/api/sponsors/pipeline/followup",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4157,10 +4161,10 @@
         "/api/sponsor-read",
         "/api/sponsors/deals",
         "/api/sponsors/match",
-        "/api/wave8/sponsors/deals",
-        "/api/wave8/sponsors/deals/:param",
-        "/api/wave8/sponsors/deals/:param/mark-paid",
-        "/api/wave8/sponsors/followup"
+        "/api/sponsors/pipeline/deals",
+        "/api/sponsors/pipeline/deals/:param",
+        "/api/sponsors/pipeline/deals/:param/mark-paid",
+        "/api/sponsors/pipeline/followup"
       ],
       "prices": [
         {
@@ -4208,7 +4212,7 @@
         {
           "feature": "Sponsor Follow-up Draft",
           "vb": 50,
-          "endpoint": "/api/wave8/sponsors/followup",
+          "endpoint": "/api/sponsors/pipeline/followup",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -4243,10 +4247,10 @@
         "/api/sponsor-read",
         "/api/sponsors/deals",
         "/api/sponsors/match",
-        "/api/wave8/sponsors/deals",
-        "/api/wave8/sponsors/deals/:param",
-        "/api/wave8/sponsors/deals/:param/mark-paid",
-        "/api/wave8/sponsors/followup"
+        "/api/sponsors/pipeline/deals",
+        "/api/sponsors/pipeline/deals/:param",
+        "/api/sponsors/pipeline/deals/:param/mark-paid",
+        "/api/sponsors/pipeline/followup"
       ],
       "prices": [
         {
@@ -4294,7 +4298,7 @@
         {
           "feature": "Sponsor Follow-up Draft",
           "vb": 50,
-          "endpoint": "/api/wave8/sponsors/followup",
+          "endpoint": "/api/sponsors/pipeline/followup",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -7037,7 +7041,7 @@
         "/api/retention/shark-drop/claim",
         "/api/retention/streak",
         "/api/retention/streak/claim",
-        "/api/wave8/sponsors/deals"
+        "/api/sponsors/pipeline/deals"
       ],
       "prices": [],
       "guide": {
@@ -10231,6 +10235,7 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/creator-tiers/me",
         "/api/credits/claim-trial",
         "/api/embedded-checkout/credit-pack/intent",
         "/api/embedded-checkout/credit-pack/verify",
@@ -10994,7 +10999,6 @@
         "/api/content-id/claims",
         "/api/content-id/claims/:param",
         "/api/creator-profiles/me",
-        "/api/creator-tiers/billing",
         "/api/creator-tiers/cancel",
         "/api/creator-tiers/change",
         "/api/creator-tiers/change/preview",
@@ -11389,6 +11393,7 @@
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
         "/api/referrals/apply",
+        "/api/sponsors/can-spend",
         "/api/sponsors/deals"
       ],
       "prices": [
@@ -16544,5 +16549,4024 @@
       "key": "artifacts/bow-down-visuals/src/pages/voiceover.tsx",
       "reason": "Legacy standalone page — route /voiceover now redirects to /audio-studio?tab=voiceover; the live feature is covered by the target's knowledge entry."
     }
-  ]
+  ],
+  "serverSurface": {
+    "files": [
+      {
+        "file": "artifacts/api-server/src/routes/account.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/activity-feed.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/admin.ts",
+        "endpoints": 21,
+        "visible": 14,
+        "unseen": [
+          "/api/admin/export-my-artists",
+          "/api/admin/operator-actions",
+          "/api/admin/payment-reversals",
+          "/api/admin/remove-duplicate-shark",
+          "/api/admin/users/:id/ban",
+          "/api/admin/users/:id/unban",
+          "/api/admin/users/lookup"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/affiliates.ts",
+        "endpoints": 6,
+        "visible": 4,
+        "unseen": [
+          "/api/affiliates/codes/:id/deactivate",
+          "/api/affiliates/resolve/:code"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/ai-page-designer.ts",
+        "endpoints": 5,
+        "visible": 5,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/albums.ts",
+        "endpoints": 4,
+        "visible": 2,
+        "unseen": [
+          "/api/album-publish/:id",
+          "/api/albums/public/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/analytics.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/analyze-sections.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/arcade.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/artist-outfits.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/artist-vault-identity.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/artist-vaults/:vaultId/identity-photos/select"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/artist-vaults.ts",
+        "endpoints": 11,
+        "visible": 10,
+        "unseen": [
+          "/api/artist-vaults/:id/reference-video/attach"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/artist-voices.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/asset-library.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/bio-pages.ts",
+        "endpoints": 8,
+        "visible": 6,
+        "unseen": [
+          "/api/bio-pages/public/:slug",
+          "/api/bio-pages/public/:slug/click"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/bonus.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/books.ts",
+        "endpoints": 14,
+        "visible": 8,
+        "unseen": [
+          "/api/books/:id/export/epub",
+          "/api/books/:id/export/pdf",
+          "/api/books/print/orders",
+          "/api/books/print/orders/:orderId/cancel",
+          "/api/books/print/orders/:orderId/status",
+          "/api/books/print/webhook"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/bow-challenge.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/carousel.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/catalog-import.ts",
+        "endpoints": 9,
+        "visible": 9,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/challenge-engine.ts",
+        "endpoints": 15,
+        "visible": 5,
+        "unseen": [
+          "/api/admin/challenges/:slug/judge",
+          "/api/admin/challenges/:slug/lifecycle",
+          "/api/admin/challenges/:slug/prizes",
+          "/api/challenges",
+          "/api/challenges/:slug",
+          "/api/challenges/:slug/enter",
+          "/api/challenges/:slug/prizes",
+          "/api/challenges/:slug/vote",
+          "/api/challenges/:slug/winners",
+          "/api/challenges/wins/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/chat-speak.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/chat/speak",
+          "/api/chat/speak/status"
+        ],
+        "classification": {
+          "surface": "operator",
+          "reason": "The operator's spoken-reply rail (speak + speak/status) behind the chat surface; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/chat-voice.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/chat/voice/transcribe"
+        ],
+        "classification": {
+          "surface": "operator",
+          "reason": "The operator chat's voice-in transcription fallback; part of the chat surface, no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/chat.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/chat",
+          "/api/chat/status"
+        ],
+        "classification": {
+          "surface": "operator",
+          "reason": "Thy Cheat Code's own chat rail (POST /api/chat + status) — the operator conversation itself; there is no page feature for it."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/cheat-code.ts",
+        "endpoints": 5,
+        "visible": 1,
+        "unseen": [
+          "/api/cheat-code/admin/events/:id/activate",
+          "/api/cheat-code/admin/events/:id/deactivate",
+          "/api/cheat-code/attempt",
+          "/api/cheat-code/status"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/client-errors.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/client-errors"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Telemetry sink: the RouteErrorBoundary's crash self-reports land here; no member surface."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/co-posts.ts",
+        "endpoints": 6,
+        "visible": 0,
+        "unseen": [
+          "/api/co-posts",
+          "/api/co-posts/:postId/accept",
+          "/api/co-posts/:postId/decline",
+          "/api/co-posts/:postId/withdraw",
+          "/api/co-posts/by-profile/:profileId",
+          "/api/co-posts/mine"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Co-post rails (invite / accept / decline / withdraw / mine) — collaborative posting behind the social surfaces, reached past the scan's one hop; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/co-releases.ts",
+        "endpoints": 8,
+        "visible": 0,
+        "unseen": [
+          "/api/co-releases",
+          "/api/co-releases/:id/accept",
+          "/api/co-releases/:id/amend-split",
+          "/api/co-releases/:id/attribution",
+          "/api/co-releases/:id/decline",
+          "/api/co-releases/:id/withdraw",
+          "/api/co-releases/by-profile/:profileId",
+          "/api/co-releases/mine"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Co-release rails (invite / accept / amend-split / attribution / withdraw) — collaborative releases with splits, behind the social surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/coach-tracker.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/command.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/comment-controls.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/creator-comments/:commentId/action",
+          "/api/creator-profiles/me/comment-settings",
+          "/api/creator-profiles/me/held-comments"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Creator comment-control rails (held comments / comment settings / actions) — moderation behind the profile surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/community-grants.ts",
+        "endpoints": 7,
+        "visible": 4,
+        "unseen": [
+          "/api/admin/community-grants/rounds",
+          "/api/admin/community-grants/rounds/:id",
+          "/api/admin/community-grants/rounds/:id/settle"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/community.ts",
+        "endpoints": 31,
+        "visible": 29,
+        "unseen": [
+          "/api/dm/:id/draft",
+          "/api/profiles/resolve"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/contact.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/content-id.ts",
+        "endpoints": 5,
+        "visible": 5,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/content-plans.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/content-plans/p/:slug",
+          "/api/content-plans/publish"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Content-plan share rail (publish + token read) — Content Intelligence's public share link is the surface; no page feature of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/courses.ts",
+        "endpoints": 7,
+        "visible": 0,
+        "unseen": [
+          "/api/courses",
+          "/api/courses/:productId",
+          "/api/courses/:productId/curriculum",
+          "/api/courses/:productId/learn",
+          "/api/courses/:productId/lessons/:lessonId/progress",
+          "/api/courses/mine",
+          "/api/courses/mine/created"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Creator Courses rails (catalog / curriculum / learn / progress / mine) — courses are sold products run from creator storefronts and the learn surface; no standalone page feature carries the family."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/cover-fridays.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/challenges/cover-fridays"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Cover Fridays ritual read — behind the challenges surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/creator-platform.ts",
+        "endpoints": 30,
+        "visible": 5,
+        "unseen": [
+          "/api/creator-profiles/:id/comments",
+          "/api/creator-profiles/:id/follow",
+          "/api/creator-profiles/:id/unfollow",
+          "/api/creator-profiles/:slug",
+          "/api/creator-profiles/:slug/achievements",
+          "/api/creator-profiles/:slug/media",
+          "/api/creator-profiles/check-slug",
+          "/api/media/:kind/:id/comments",
+          "/api/media/:kind/:id/like",
+          "/api/media/:kind/:id/play",
+          "/api/media/:kind/:id/unlike",
+          "/api/media/track/:id",
+          "/api/media/track/:id/stems",
+          "/api/media/track/:id/stems/playback",
+          "/api/media/video/:id",
+          "/api/notifications",
+          "/api/notifications/:id/read",
+          "/api/playlists/:id",
+          "/api/playlists/:id/buyers",
+          "/api/playlists/:id/follow",
+          "/api/playlists/:id/items",
+          "/api/playlists/:id/series-assist",
+          "/api/playlists/:id/unfollow",
+          "/api/tracks/:id/repost",
+          "/api/tracks/:id/unrepost"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/creator-tiers.ts",
+        "endpoints": 11,
+        "visible": 8,
+        "unseen": [
+          "/api/creator-tiers/billing",
+          "/api/creator-tiers/checkout",
+          "/api/creator-tiers/earnings"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/credits.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/credits/balance"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/daily-quests.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/dev.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/discord-bot.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/discord-bot/live"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/discord.ts",
+        "endpoints": 6,
+        "visible": 5,
+        "unseen": [
+          "/api/discord/ai-announcement"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/discovery.ts",
+        "endpoints": 26,
+        "visible": 13,
+        "unseen": [
+          "/api/discovery/charts/tracks",
+          "/api/discovery/charts/videos",
+          "/api/discovery/following",
+          "/api/discovery/genre/:genre",
+          "/api/discovery/genres",
+          "/api/discovery/likes",
+          "/api/discovery/new-this-week",
+          "/api/discovery/notifications",
+          "/api/discovery/notifications/read",
+          "/api/discovery/notify",
+          "/api/discovery/related/creators/:slug",
+          "/api/discovery/related/track/:id",
+          "/api/discovery/reposts"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/distribution-legacy.ts",
+        "endpoints": 24,
+        "visible": 16,
+        "unseen": [
+          "/api/distribution/change-requests/:id",
+          "/api/distribution/presave/:slug/account-presave",
+          "/api/distribution/splits/statements",
+          "/api/distribution/spotify/auth-url",
+          "/api/distribution/spotify/callback",
+          "/api/distribution/spotify/status",
+          "/api/promote/unlock-gates/:slug/record-share",
+          "/api/promote/unlock-gates/:slug/unlock"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/dj.ts",
+        "endpoints": 6,
+        "visible": 3,
+        "unseen": [
+          "/api/dj/crates/:id",
+          "/api/dj/crates/:id/export",
+          "/api/dj/crates/:id/propose-order"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/domains.ts",
+        "endpoints": 5,
+        "visible": 2,
+        "unseen": [
+          "/api/domains/:id",
+          "/api/domains/:id/verify",
+          "/api/domains/resolve"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/drafts.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/drop-day-kits.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/earnings.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/email-tracking.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/email-track/c/:token",
+          "/api/email-track/o/:token",
+          "/api/email-track/u/:token"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Email open/click/unsubscribe tracking endpoints hit by mail clients; no member surface."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/embed.ts",
+        "endpoints": 6,
+        "visible": 0,
+        "unseen": [
+          "/api/embed/playlist/:id",
+          "/api/embed/profile/:slug",
+          "/api/embed/refcode/:slug",
+          "/api/embed/track/:id",
+          "/api/embed/video/:id",
+          "/api/oembed"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Public embed + oEmbed rails (plus the twin page router's chrome-less embed pages): consumed by other sites, not a member surface."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/embedded-checkout.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/evergreen.ts",
+        "endpoints": 6,
+        "visible": 0,
+        "unseen": [
+          "/api/evergreen/candidates",
+          "/api/evergreen/proposals",
+          "/api/evergreen/proposals/:id/approve",
+          "/api/evergreen/proposals/:id/reject",
+          "/api/evergreen/proposals/generate",
+          "/api/evergreen/settings"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Evergreen content-recycling rails (candidates / proposals / approve / settings) — behind the promote surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/express-pay.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/fan-art.ts",
+        "endpoints": 4,
+        "visible": 2,
+        "unseen": [
+          "/api/creator-profiles/:slug/fan-art",
+          "/api/creator-profiles/me/fan-art/:pieceId"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/feature-verse.ts",
+        "endpoints": 13,
+        "visible": 0,
+        "unseen": [
+          "/api/feature-verse/listings",
+          "/api/feature-verse/listings/by-creator/:userId",
+          "/api/feature-verse/listings/mine",
+          "/api/feature-verse/orders",
+          "/api/feature-verse/orders/:id",
+          "/api/feature-verse/orders/:id/confirm",
+          "/api/feature-verse/orders/:id/decline",
+          "/api/feature-verse/orders/:id/deliver",
+          "/api/feature-verse/orders/:id/dispute",
+          "/api/feature-verse/orders/:id/fund",
+          "/api/feature-verse/orders/:id/refund",
+          "/api/feature-verse/orders/:id/sign",
+          "/api/feature-verse/orders/:id/terms"
+        ],
+        "classification": {
+          "surface": "store",
+          "reason": "Feature Verse marketplace rails (listings / orders / confirm / deliver) — buying and selling a featured verse, behind the marketplace surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/first100.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/free-chat.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/free-chat"
+        ],
+        "classification": {
+          "surface": "operator",
+          "reason": "The signed-out free-chat rail — the operator's public front door; the conversation surface itself, not a page feature."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/academy.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/ai-coach.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/ai-copilot.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/ai-edit-plan.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/ai-interview.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/alt-text.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/analytics-hub.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/artist-image.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/aspect-convert.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/aspect-ratios",
+          "/api/convert-aspect"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Aspect-ratio converter rail (ratio list + convert) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/audio-cleanup.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/audio-ducking.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/duck-audio"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Audio ducking rail — an editor/audio tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/audiogram.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/audiogram-colors",
+          "/api/visualizer-styles"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/auto-captions.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/auto-chapters.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/auto-chapters"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Auto Chapters rail (150 VB in the registry) — generates chapter markers from a transcript inside the editor; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/auto-edit.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/auto-edit"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI auto-edit rail — called by the World Create Desk and template surfaces through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/auto-reframe.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/auto-video-plan.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/auto-video-plan"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Auto video-plan rail — an AI planning tool behind the create surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/avatar-presenter.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/avatar-presenter",
+          "/api/avatar-presenter/:jobId",
+          "/api/avatar-presenter/status"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Avatar presenter rail (Hedra, 1,200 VB; ships dark until the wallet is funded) — job + status endpoints behind the presenter surface; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/background-removal.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/beat-sync.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/beat-sync",
+          "/api/beat-sync/info"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Beat-sync rail (+ info) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/beat.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/beats.ts",
+        "endpoints": 11,
+        "visible": 9,
+        "unseen": [
+          "/api/beats/:id/offers",
+          "/api/beats/licenses/mine"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/best-time.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/bg-generate.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/bg-music.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/bg-music",
+          "/api/bg-music-presets"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI background-music rail (+ presets) — generates royalty-free video music inside the editor; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/bg-replacer.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/replace-video-bg"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video background-replacer rail — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/bio-generator.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/bio-platforms",
+          "/api/generate-bio"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Bio generator rail (generate-bio, 100 VB by owner ruling, + the platform list) — its callers sit on profile surfaces past the scan's one hop; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/brand-calculator.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/brand-deals.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/brand-kit.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/branding-shop.ts",
+        "endpoints": 6,
+        "visible": 5,
+        "unseen": [
+          "/api/branding-shop/webhooks/printful"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/broll-suggester.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/broll-suggest"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI B-roll suggester rail — splits a script and suggests B-roll inside the editor; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/canvas.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/caption-styler.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/channel-audit.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/chapter-art.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/chapter-art",
+          "/api/chapter-art/styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Chapter-art rail (+ styles) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/chapters.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/chapters"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video chapter-markers rail (ffmpeg silencedetect + transcription) — an editor tool; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/cinematic-fx.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/cinematic-fx"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Cinematic FX rail — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/clip-descriptions.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/clip-description-styles"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/collabs.ts",
+        "endpoints": 6,
+        "visible": 6,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/collage.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/collage",
+          "/api/collage-layouts"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Collage rail (+ layouts) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/color-grade.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/color-grade",
+          "/api/color-presets"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Color-grade rail (+ presets) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/comment-replies.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/comment-replies/meta"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/comment-to-video.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/community-post.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/community.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/community/reply-draft"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/competitor-tracker.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/content-calendar.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/content-calendar"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI content-calendar rail — generates a 30-day posting plan behind the promote/coach surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/contests.ts",
+        "endpoints": 6,
+        "visible": 6,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/contract-analyzer.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/copyright.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/cover-art.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/cover-in-motion.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/cta-generator.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/ctr-predictor.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/ctr-factors",
+          "/api/predict-ctr"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Thumbnail CTR predictor rail (+ factors) — an AI scoring tool behind the thumbnail surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/desc-ab-test.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/test-descriptions"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Description A/B tester rail — AI-scores two description variants behind the publish surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/deverb.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/director-look.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/director-look"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Director-look rail — an editor look tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/distribution.ts",
+        "endpoints": 21,
+        "visible": 14,
+        "unseen": [
+          "/api/distribution/presave/:slug",
+          "/api/distribution/presave/:slug/click",
+          "/api/distribution/presave/:slug/follow",
+          "/api/distribution/presave/:slug/share",
+          "/api/distribution/presave/:slug/view",
+          "/api/distribution/splits/:slug",
+          "/api/distribution/webhooks/toolost"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/dream-collab.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/email-list.ts",
+        "endpoints": 20,
+        "visible": 13,
+        "unseen": [
+          "/api/email-list/join/:handle",
+          "/api/email-list/lists/:id/automations",
+          "/api/email-list/lists/:id/campaigns/:campaignId/queue",
+          "/api/email-list/lists/:id/campaigns/:campaignId/send",
+          "/api/email-list/lists/:id/segments/:segId/members",
+          "/api/email-list/lists/:id/unsubscribe",
+          "/api/email-list/unsubscribe/:token"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/end-screen.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/end-screen",
+          "/api/end-screen/info"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "End-screen rail (+ info) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/export-multi-ratio.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/export-multi-ratio/job/:jobId",
+          "/api/multi-ratio/ratios"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/export-video.ts",
+        "endpoints": 5,
+        "visible": 4,
+        "unseen": [
+          "/api/export-video-job/:jobId/cancel"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/extract-audio.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/fan-decoder.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/fan-graph.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/fan-segments.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/filler-removal.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/finish-my-song.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/freeze-mask.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/apply-mask"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/gamers.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/gif-converter.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/video-to-gif"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video-to-GIF converter rail — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/guest-questions.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/guest-questions"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Podcast guest-question generator rail — an AI tool behind the podcast surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/hashtags.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/hashtags"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI hashtag generator rail — behind the promote surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/headshot-studio.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/hook-analyzer.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/analyze-hook"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI hook analyzer rail — scores a video's opening transcript behind the create surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/hook-studio.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/hum-to-song.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/idea-validator.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/idea-validator-info"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/improve-prompt.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/improve-style.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/improve-style"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Style-improver rail — an AI assist behind the generation surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/interview-prep.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/intro-outro-ffmpeg.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/intro-outro",
+          "/api/intro-outro/styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Intro/outro rail (+ styles) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/intro-outro.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/invoice.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/jewelry.ts",
+        "endpoints": 6,
+        "visible": 6,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/karaoke.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/karaoke-themes"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/label-pitch.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/label-pitch/labels"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/link-to-hit.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/llc-guide.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/logo-animator.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/animate-logo",
+          "/api/logo-animations"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Logo animator rail (+ animations list) — a branding tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/logo.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/loop-maker.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/loop-info"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/lufs-meter.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/lyric-stories.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/lyric-video.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/lyric-video/styles"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/lyrics-generator.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/generate-lyrics"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI lyrics generator rail (100 VB per its header) — behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/mastering.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/media-detector.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/media-importer.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/memberships.ts",
+        "endpoints": 17,
+        "visible": 4,
+        "unseen": [
+          "/api/memberships/ai-perks",
+          "/api/memberships/dashboard",
+          "/api/memberships/directory",
+          "/api/memberships/members",
+          "/api/memberships/members/:id",
+          "/api/memberships/mine",
+          "/api/memberships/mine/:memberId/cancel",
+          "/api/memberships/mine/:memberId/pause",
+          "/api/memberships/mine/:memberId/resume",
+          "/api/memberships/mine/:memberId/update-payment",
+          "/api/memberships/recovery",
+          "/api/memberships/tiers/:id",
+          "/api/memberships/verify"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/meme-generator.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/meme-templates"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/meme-machine.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/merch.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/milestones.ts",
+        "endpoints": 8,
+        "visible": 7,
+        "unseen": [
+          "/api/milestones/brag-card"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/mix-master.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/mix-plan.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/mix-plan"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Mix-plan rail — an AI audio tool behind the Audio Studio surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/monetization-coach.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/motion-track.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/motion-track/apply",
+          "/api/motion-track/job/:jobId",
+          "/api/motion-track/track"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Motion-track rails (track / apply / job) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/movies.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/music-audio.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/generate-music-audio"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/niche-analyzer.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/niche-analyzer-info"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/photo-backdrop.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/photo-editor.ts",
+        "endpoints": 5,
+        "visible": 3,
+        "unseen": [
+          "/api/photo-presets/:id",
+          "/api/photo-presets/public/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/photo-enhance.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/playlist-pitch.ts",
+        "endpoints": 8,
+        "visible": 7,
+        "unseen": [
+          "/api/playlist-pitch/curators"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/podcast-dialogue.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/podcast-intro.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/podcast-intro",
+          "/api/podcast-intro-styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Podcast intro generator rail (+ styles) — behind the podcast surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/podcast-multiplier.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/podcast/multiply"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Podcast Multiplier rail (300 VB in the registry) — turns one episode into many assets; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/podcast.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/pre-production.ts",
+        "endpoints": 7,
+        "visible": 3,
+        "unseen": [
+          "/api/pre-production/pack",
+          "/api/pre-production/pack/:id",
+          "/api/pre-production/pack/:id/finalize",
+          "/api/pre-production/packs"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/prepare-export-files.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/press-kit.ts",
+        "endpoints": 5,
+        "visible": 4,
+        "unseen": [
+          "/api/press-kit/public/:handle"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/press-release.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/pro-tools-ai.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/producer-tag-lifecycle.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/producer-tag/approve",
+          "/api/producer-tag/draft",
+          "/api/producer-tag/mine",
+          "/api/producer-tag/settings"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Producer-tag lifecycle rails (draft / approve / mine / settings) — the tag maker's ownership half; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/producer-tag.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/producer-tag",
+          "/api/producer-tag/vault-voice"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Producer Tag Maker rail (+ vault voice) — makes the spoken tag inside the audio surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/product-photo.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/generate-product-photo"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Product Photo Studio rail — AI product photography for the branding/storefront sell flow; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/promo-cards.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/promo-cards/specs"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/promo-generator.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/promo.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/quote-finder.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/find-quotes"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Podcast quotable-moment finder rail — behind the podcast surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/randomizer.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/rate-my-mix.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/reaction-video.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/reaction-video",
+          "/api/reaction-video/options"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Reaction-video rail (+ options) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/release-checklist.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/repurpose.ts",
+        "endpoints": 5,
+        "visible": 4,
+        "unseen": [
+          "/api/repurpose"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/reverse-video.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/reverse-video"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Reverse-video rail — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/royalties.ts",
+        "endpoints": 6,
+        "visible": 0,
+        "unseen": [
+          "/api/royalties/entries",
+          "/api/royalties/import",
+          "/api/royalties/insights",
+          "/api/royalties/payouts",
+          "/api/royalties/platforms",
+          "/api/royalties/summary"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Royalties ledger rails (entries / import / insights / payouts / summary) — behind the Earnings surfaces, reached past the scan's one hop; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/runway-clip.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/generate-runway-clip/debug-check"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sample-pack.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/scene-effects.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/scene-effects/match",
+          "/api/scene-effects/recipes"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Scene-effects rails (recipes + match) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/script-to-video.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/script-to-video"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Script-to-video rail — a create tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/script-writer.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/seo-score.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/setlist.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sfx.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/shops.ts",
+        "endpoints": 25,
+        "visible": 20,
+        "unseen": [
+          "/api/shops/:id/discounts/validate",
+          "/api/shops/handle/:handle",
+          "/api/storefronts",
+          "/api/storefronts/checkout/status",
+          "/api/storefronts/slug/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/shoutouts.ts",
+        "endpoints": 8,
+        "visible": 8,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/show-finder.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/show-notes.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/show-notes"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Podcast show-notes generator rail — behind the podcast surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/silence-removal.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/remove-silence"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Silence-removal rail (remove-silence) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/singing-voice.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/singing-voice",
+          "/api/singing-voice/jobs/:jobId",
+          "/api/singing-voice/status",
+          "/api/singing-voice/voices"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Singing-voice rails (generate / jobs / status / voices) — behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/slideshow.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/slideshow",
+          "/api/slideshow-transitions"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Slideshow rail (+ transitions) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/slow-motion.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/social-analytics.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/analyze-post",
+          "/api/trending-topics"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Social analytics rails (analyze-post + trending-topics) — AI scoring behind the promote surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/social-kit.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/social-kit/specs"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/song-cover.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/song-cover",
+          "/api/song-cover/presets"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/song-harmony.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/generate-harmony",
+          "/api/generate-harmony/modes",
+          "/api/generate-harmony/using/:songId"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI harmony generator rails (generate / modes / using) — behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/song-inspo.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/song-inspo/analyze",
+          "/api/song-inspo/generate",
+          "/api/song-inspo/presets",
+          "/api/song-inspo/presets/:id"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Inspo Mode rails (analyze / generate / presets) — playlist-vibe-to-song behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/song-video.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/song.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sound-finder.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/sound-finder/trending"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/speed-presets.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/split-screen.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/split-screen/apply",
+          "/api/split-screen/job/:jobId",
+          "/api/split-screen/layouts"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Split-screen rails (layouts / apply / job) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sponsor-read.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sponsors.ts",
+        "endpoints": 21,
+        "visible": 20,
+        "unseen": [
+          "/api/sponsors/creator/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sponsorship-outreach.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/stabilize.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/stem-splitter.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/storyboard.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/storyboard",
+          "/api/storyboard/styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Storyboard generator rail (+ styles) — the generation half of storyboarding, behind the editor; no page of its own (the planner CRUD half is routes/storyboards.ts)."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/stream-copilot.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/stream-pack.ts",
+        "endpoints": 5,
+        "visible": 2,
+        "unseen": [
+          "/api/stream-pack/apply",
+          "/api/stream-pack/mine",
+          "/api/stream-pack/unapply"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/streamer-clips.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/style-stealer.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/subtitle-styler.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/subtitle-styles"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/sync-pitch.ts",
+        "endpoints": 9,
+        "visible": 8,
+        "unseen": [
+          "/api/sync-pitch/public/:token"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/testimonial.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/testimonial-styles",
+          "/api/testimonial-video"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Testimonial-video rail (+ styles) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/text-animator.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/animated-text",
+          "/api/animated-text/styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Animated-text rail (+ styles) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/three-second-lab.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumb-bg.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/thumb-background",
+          "/api/thumb-background/styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Thumbnail-background rail (+ styles) — behind the thumbnail surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumb-extract.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/extract-thumbnails"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Thumbnail-extraction rail — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumbnail-ab.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/thumbnail-ab/variations"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumbnail-generator.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumbnail-test.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumbnail-text.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/thumbnail-text",
+          "/api/thumbnail-text-styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Thumbnail-text optimizer rail (+ styles) — behind the thumbnail surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/thumbnail.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/tip-jar.ts",
+        "endpoints": 8,
+        "visible": 5,
+        "unseen": [
+          "/api/tips/:handle/checkout",
+          "/api/tips/:handle/tip",
+          "/api/tips/jar/:handle"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/title-studio.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/tour-planner.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/transitions.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/apply-transition",
+          "/api/transitions"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Transitions rails (list + apply) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/translate-captions.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/translate-languages"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/trend-jacker.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/trend-predictor.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/upload-clip.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/upscale-generative.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/ai-upscale",
+          "/api/ai-upscale/:jobId"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/upscale-image.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/upscale.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-background-removal.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-dub.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/dub-languages",
+          "/api/dub-video"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video-dub rails (dub-video + languages) — the translator's rail behind the editor; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-merger.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/merge-transitions",
+          "/api/merge-videos"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video-merger rails (merge-videos + transitions) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-styles.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/video-style",
+          "/api/video-styles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video-style rails (apply + list) — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-template.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-titles.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/video-title-styles",
+          "/api/video-titles"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "AI video-title generator rail (+ styles) — behind the publish surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-to-shorts.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-translator.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/video-translator/languages"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video-trim.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/trim-video"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Video-trim rail — an editor tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/video.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/virality-check.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/virtual-bg.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/virtual-backgrounds",
+          "/api/virtual-bg"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Virtual-background rails (apply + list) — behind the live/editor background surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/vocal-polish.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/vocal-removal.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/vocal-tune.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/voice-clone.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/clone-voice",
+          "/api/clone-voice/:id",
+          "/api/cloned-voices",
+          "/api/speak-as"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Voice-clone rails (clone / list / speak-as) — behind the voice surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/voice-effects.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/voice-effect",
+          "/api/voice-effects"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Voice-effect rails (apply + list) — an audio tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/voice-personas.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/personas",
+          "/api/personas/:id"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Voice-persona rails (saveable vocal identities for song generation) — behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/voiceover-pro.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/voiceover-pro",
+          "/api/voiceover-pro/voices"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Voiceover-pro rails (+ voices) — an audio tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/voiceover.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/volume-norm.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/normalize-volume"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Volume-normalize rail — an editor/audio tool called through shared helpers; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/watermark-removal.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/watermark.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/add-watermark",
+          "/api/watermark-positions"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Watermark rails (add + positions) — the member-facing watermark tool behind the editor (distinct from the house export watermark); no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generate/website-builder.ts",
+        "endpoints": 7,
+        "visible": 7,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generated-clips.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generation-history.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/generations.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/generations",
+          "/api/generations/:id"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Generation-history rail (list + read) — the member's own generations behind the Library/studio surfaces, reached past the scan's one hop; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/gift-cards.ts",
+        "endpoints": 6,
+        "visible": 2,
+        "unseen": [
+          "/api/gift-cards/:id/refund",
+          "/api/gift-cards/balance",
+          "/api/gift-cards/mine",
+          "/api/gift-cards/sold"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/gift-product.ts",
+        "endpoints": 4,
+        "visible": 2,
+        "unseen": [
+          "/api/product-gifts/:id/claim",
+          "/api/product-gifts/:id/resend"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/global-drop.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/group-digest.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/group-profiles.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/group-profiles/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/health.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/healthz",
+          "/api/healthz/deep"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Ops probes only: the shallow /api/healthz liveness check and the gate-kept /api/healthz/deep dependency check (DB, storage, export queue) the uptime monitor alerts on — not a member surface."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/hub-projects.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/hub/projects/:id"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/jewelry.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/job-notifications.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/job-notifications/:id/ack",
+          "/api/job-notifications/pending"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Generation-job notification delivery rail (pending poll + ack) behind the bell and device pings; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/keyword-automations.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/lip-sync.ts",
+        "endpoints": 13,
+        "visible": 10,
+        "unseen": [
+          "/api/lip-sync-tests/:testId/download",
+          "/api/lip-sync/check-inputs",
+          "/api/lip-sync/run/:runId"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-battles.ts",
+        "endpoints": 12,
+        "visible": 0,
+        "unseen": [
+          "/api/live-battles",
+          "/api/live-battles/:id",
+          "/api/live-battles/:id/accept",
+          "/api/live-battles/:id/cancel",
+          "/api/live-battles/:id/decline",
+          "/api/live-battles/:id/finalize",
+          "/api/live-battles/:id/start",
+          "/api/live-battles/:id/tally",
+          "/api/live-battles/:id/vote",
+          "/api/live-battles/by-stream/:streamId",
+          "/api/live-battles/crown",
+          "/api/live-battles/mine"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-battles rails (challenge / accept / start / tally / finalize) — the versus-battle machinery behind the live surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-captions.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/live-captions/languages",
+          "/api/live/:id/captions",
+          "/api/live/:id/captions/segments",
+          "/api/live/:id/captions/settings"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-captions rails (languages / segments / settings) — the caption machinery behind the live surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-chat.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/chat",
+          "/api/live/:id/chat/:messageId",
+          "/api/live/:id/chat/mute",
+          "/api/live/:id/chat/mute/:userId"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-chat rails (read / post / mute) — the stream chat behind the live surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-guests.ts",
+        "endpoints": 13,
+        "visible": 12,
+        "unseen": [
+          "/api/live-guest-invites/:token/join"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-highlights.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/live-streams/:id/highlights"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-highlight proposals rail — behind the live surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-moderators.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/chat/my-role",
+          "/api/live/moderators",
+          "/api/live/moderators/:userId"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-moderator rails (list / assign / my-role) — the channel-moderation machinery; the /go-live panel reads its own profile-gated contract, so no feature entry carries these endpoints."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-prefs.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/live-prefs"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-preferences rail — the streamer's saved live settings behind the live surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-shopping.ts",
+        "endpoints": 11,
+        "visible": 11,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-stage-manager.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/live-streams/:id/stage-manager",
+          "/api/live-streams/:id/stage-manager/mute",
+          "/api/live-streams/:id/stage-manager/unpin"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Stage Manager control rails (state / mute / unpin) — the live stage's control surface; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-streams.ts",
+        "endpoints": 16,
+        "visible": 10,
+        "unseen": [
+          "/api/live-streams",
+          "/api/live-streams/:id/class-roster",
+          "/api/live-streams/:id/hls/:file",
+          "/api/live-streams/:id/ingest/segment",
+          "/api/live-streams/mine",
+          "/api/live-streams/profile/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-summary.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-tickets.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/live-streams/:id/tickets"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-tips.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/tips"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-tips rail — tip reads behind the live surfaces (World stage tips ride the World rails); no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/live-widgets.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/tip-goal",
+          "/api/live/:id/widgets"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Live-widget rails (widgets + tip-goal) — the on-stream widget machinery; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/loading-screen.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/locations.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/loop-exchange.ts",
+        "endpoints": 6,
+        "visible": 6,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/lut.ts",
+        "endpoints": 8,
+        "visible": 0,
+        "unseen": [
+          "/api/apply-lut",
+          "/api/lut/my",
+          "/api/lut/my/:id",
+          "/api/lut/presets",
+          "/api/lut/presets/:file",
+          "/api/lut/preview",
+          "/api/lut/upload",
+          "/api/lut/validate"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "LUT library rails (presets / upload / validate / preview / apply / my) — the color-look library behind the editor's color surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/mashup.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/mashup",
+          "/api/mashup/info"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/membership-gifts.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/membership-gifts/recipient"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/mic-band.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/mirror-media.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/money.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/splits/overview"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/month-wrapped.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/move-home.ts",
+        "endpoints": 7,
+        "visible": 6,
+        "unseen": [
+          "/api/move-home/drafts/:step"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/music-export.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/nfc-cards.ts",
+        "endpoints": 7,
+        "visible": 7,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/open-verse.ts",
+        "endpoints": 9,
+        "visible": 9,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/operator-actions.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/operator/actions"
+        ],
+        "classification": {
+          "surface": "operator",
+          "reason": "The member's own operator action trail ('what did you do for me') read by the account surfaces; no standalone page."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/party.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/party/rooms/:code"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/performance-bookings.ts",
+        "endpoints": 8,
+        "visible": 0,
+        "unseen": [
+          "/api/performance-bookings",
+          "/api/performance-bookings/:id",
+          "/api/performance-bookings/:id/cancel",
+          "/api/performance-bookings/:id/complete",
+          "/api/performance-bookings/:id/fund",
+          "/api/performance-bookings/:id/release",
+          "/api/performance-bookings/:id/respond",
+          "/api/performance-bookings/escrow/confirm"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Performance-booking escrow rails (book / fund / respond / complete / release) — behind the bookings surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/pitch-fix.ts",
+        "endpoints": 12,
+        "visible": 8,
+        "unseen": [
+          "/api/admin/pitch-fix/rewards/process",
+          "/api/pitch-fix/feedback",
+          "/api/pitch-fix/feedback-prompt/eligibility",
+          "/api/pitch-fix/feedback-prompt/shown"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/plain-deals.ts",
+        "endpoints": 7,
+        "visible": 0,
+        "unseen": [
+          "/api/plain-deals",
+          "/api/plain-deals/:id",
+          "/api/plain-deals/:id/amend",
+          "/api/plain-deals/:id/decline",
+          "/api/plain-deals/:id/sign",
+          "/api/plain-deals/:id/withdraw",
+          "/api/plain-deals/mine"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Plain-deals rails (draft / sign / amend / decline / withdraw) — plain-language deal contracts behind the brand-deals surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/player-upgrades.ts",
+        "endpoints": 14,
+        "visible": 7,
+        "unseen": [
+          "/api/showcase/:slug/auto-chapters",
+          "/api/showcase/:slug/duel-click",
+          "/api/showcase/:slug/duel-cover",
+          "/api/showcase/duels/running",
+          "/api/songs/:songId/karaoke",
+          "/api/songs/:songId/karaoke-settings",
+          "/api/songs/:songId/karaoke/recordings"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/playlist.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/playlist",
+          "/api/playlist/:name",
+          "/api/playlist/upload"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "The floating Bow Down Playlist widget's R2 track rail — a site-wide widget rather than a page feature; the playlist itself is hand-uploads only (owner ruling)."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/podcast-feed.ts",
+        "endpoints": 4,
+        "visible": 2,
+        "unseen": [
+          "/api/podcast-feed/:slug",
+          "/api/podcast-feed/:slug/episodes/:file"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/priority-dms.ts",
+        "endpoints": 6,
+        "visible": 3,
+        "unseen": [
+          "/api/priority-dms/mine",
+          "/api/priority-dms/settle",
+          "/api/priority-dms/status"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/product-offers.ts",
+        "endpoints": 5,
+        "visible": 4,
+        "unseen": [
+          "/api/product-offers/for-item"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/product-reviews.ts",
+        "endpoints": 8,
+        "visible": 4,
+        "unseen": [
+          "/api/product-reviews/:id",
+          "/api/product-reviews/eligibility",
+          "/api/product-reviews/seller",
+          "/api/product-reviews/summary"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/profile-hosting.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/creator-hosting/checkout",
+          "/api/creator-hosting/me",
+          "/api/creator-hosting/plan"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Profile-hosting plan rails (plan / me / checkout) — the $9/mo hosting plan (included with Creator Elite) on the creator-tiers chassis; its checkout rides the embedded rail, so no feature entry carries these endpoints."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/profile-website.ts",
+        "endpoints": 16,
+        "visible": 10,
+        "unseen": [
+          "/api/collections/:slug",
+          "/api/creator-profiles/:slug/game-stats",
+          "/api/creator-profiles/:slug/layout",
+          "/api/creator-profiles/:slug/party-tables",
+          "/api/creator-profiles/:slug/spotlight",
+          "/api/creator-profiles/:slug/store-catalog"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/projects.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/provenance.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/provenance/:kind/:id",
+          "/api/provenance/:kind/:id/certificate",
+          "/api/provenance/:kind/:id/licence"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Content provenance certificate/licence verification rails read off generation records; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/proxy-editing.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/proxy-editing",
+          "/api/proxy-editing/prefs",
+          "/api/proxy-editing/relink-check",
+          "/api/proxy-editing/request"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Proxy-editing rails (generate / prefs / relink-check) — the editor's proxy-media machinery; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/public-api.ts",
+        "endpoints": 9,
+        "visible": 5,
+        "unseen": [
+          "/api/v1/balance",
+          "/api/v1/content",
+          "/api/v1/generate/bio",
+          "/api/v1/me"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/public-stats.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/publish.ts",
+        "endpoints": 7,
+        "visible": 3,
+        "unseen": [
+          "/api/publish/track",
+          "/api/publish/track/:id",
+          "/api/publish/video",
+          "/api/publish/video/:id"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/publishing-splits.ts",
+        "endpoints": 7,
+        "visible": 0,
+        "unseen": [
+          "/api/publishing-splits",
+          "/api/publishing-splits/:id",
+          "/api/publishing-splits/:id/amend",
+          "/api/publishing-splits/:id/confirm",
+          "/api/publishing-splits/:id/dispute",
+          "/api/publishing-splits/:id/sheet",
+          "/api/publishing-splits/mine"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Publishing-split rails (create / confirm / dispute / sheet) — songwriter split agreements behind the money surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/push.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/push/config",
+          "/api/push/preferences",
+          "/api/push/subscriptions"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Web-push plumbing: subscription registration and notification preferences behind the Settings card and the push sender; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/qr-login.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/r2-upload.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/r2/list"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/reach.ts",
+        "endpoints": 25,
+        "visible": 23,
+        "unseen": [
+          "/api/reach/broadcast/by-profile/:profileId",
+          "/api/reach/destinations/:platform"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/referrals.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/remix-king.ts",
+        "endpoints": 11,
+        "visible": 3,
+        "unseen": [
+          "/api/admin/remix-king/entries/:id/shortlist",
+          "/api/admin/remix-king/events",
+          "/api/admin/remix-king/events/:id",
+          "/api/admin/remix-king/events/:id/status",
+          "/api/admin/remix-king/events/:id/winner",
+          "/api/admin/remix-king/releases/:id/split-payments",
+          "/api/remix-king/events/:id",
+          "/api/remix-king/releases/:id/payments"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/reports.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/results-wall.ts",
+        "endpoints": 5,
+        "visible": 5,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/retention-delight.ts",
+        "endpoints": 7,
+        "visible": 7,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/retention-doctor.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/retention-drops.ts",
+        "endpoints": 5,
+        "visible": 2,
+        "unseen": [
+          "/api/retention/daily-drop/archive",
+          "/api/retention/daily-drop/catalog",
+          "/api/retention/daily-drop/unarchive"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/retention.ts",
+        "endpoints": 7,
+        "visible": 5,
+        "unseen": [
+          "/api/retention/quests/history",
+          "/api/retention/quests/leaderboard"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/review-links.ts",
+        "endpoints": 7,
+        "visible": 4,
+        "unseen": [
+          "/api/review-links/:token/comments",
+          "/api/review-links/:token/manage",
+          "/api/review-links/:token/unlock"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/royal-court.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/creator-profiles/:slug/court",
+          "/api/creator-profiles/me/court-candidates"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/sale-splits.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/sale-splits/mine",
+          "/api/sale-splits/owed"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Sale-split read rails (mine / owed) — the seller's split ledger behind the Earnings surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/sample-clearance.ts",
+        "endpoints": 6,
+        "visible": 5,
+        "unseen": [
+          "/api/sample-clearance/songs/:songId/credits-summary"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/scenes.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/discovery/scenes/:slug"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/scheduler.ts",
+        "endpoints": 6,
+        "visible": 2,
+        "unseen": [
+          "/api/schedule-post",
+          "/api/scheduled-posts",
+          "/api/scheduled-posts/:id",
+          "/api/scheduler/best-time"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/second-life.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/shares.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/shopify-bridge.ts",
+        "endpoints": 5,
+        "visible": 0,
+        "unseen": [
+          "/api/storefront/shopify-export/customers",
+          "/api/storefront/shopify-export/orders",
+          "/api/storefront/shopify-export/products",
+          "/api/storefront/shopify-import/commit",
+          "/api/storefront/shopify-import/preview"
+        ],
+        "classification": {
+          "surface": "store",
+          "reason": "Shopify CSV bridge rails (import preview/commit, export customers/orders/products) — the Sell Everything storefront's migration door; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/shorts.ts",
+        "endpoints": 13,
+        "visible": 5,
+        "unseen": [
+          "/api/hashtag/:tag",
+          "/api/shorts/:id",
+          "/api/sounds/:id",
+          "/api/videos/:id/duet",
+          "/api/videos/:id/duets",
+          "/api/videos/:id/king-feature",
+          "/api/videos/:id/stitch",
+          "/api/videos/:id/stitches"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/showcase.ts",
+        "endpoints": 5,
+        "visible": 1,
+        "unseen": [
+          "/api/showcase",
+          "/api/showcase/:id",
+          "/api/showcase/:slug",
+          "/api/showcase/:slug/like"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/social-proof.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/social.ts",
+        "endpoints": 42,
+        "visible": 29,
+        "unseen": [
+          "/api/hashtag/:tag/posts",
+          "/api/posts/:id/content-warning",
+          "/api/posts/:id/quote",
+          "/api/posts/:id/reply-draft",
+          "/api/saves/:kind/:targetId",
+          "/api/social/facebook/callback",
+          "/api/social/instagram/callback",
+          "/api/social/tiktok/callback",
+          "/api/social/x/callback",
+          "/api/stories/:id/reply",
+          "/api/stories/:id/view",
+          "/api/stories/highlights/:id",
+          "/api/stories/highlights/:id/stories"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/song-credits.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/song-credits/:kind/:id",
+          "/api/song-credits/:kind/:id/history",
+          "/api/song-credits/:kind/:id/sheet"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Song-credits rails (credits / history / sheet) — the credit-sheet record behind song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/song-remix.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/song-remix",
+          "/api/song-replace-section"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Song Remix + Replace Section rails — new arrangements of a song behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/song-requests.ts",
+        "endpoints": 5,
+        "visible": 3,
+        "unseen": [
+          "/api/live/:id/song-requests/close",
+          "/api/live/:id/song-requests/play-next"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/songs.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/sound-fit.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/sound-fit/coverage",
+          "/api/sound-fit/fit",
+          "/api/sound-fit/stack"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Sound-fit rails (coverage / fit / stack) — 'sounds that fit this' docked in CREATE (Audio Studio / Sound Library); no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/sound-prefs.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/spotlight.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/stock.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/stock/search"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/store.ts",
+        "endpoints": 20,
+        "visible": 16,
+        "unseen": [
+          "/api/store/download/:token",
+          "/api/store/licenses/:keyId/reissue",
+          "/api/store/licenses/:keyId/revoke",
+          "/api/store/price-guide"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/storefront.ts",
+        "endpoints": 29,
+        "visible": 11,
+        "unseen": [
+          "/api/storefront/bookings",
+          "/api/storefront/deliver/:token",
+          "/api/storefront/discounts",
+          "/api/storefront/discounts/:id",
+          "/api/storefront/discounts/validate",
+          "/api/storefront/money-checklist",
+          "/api/storefront/orders/:id/booking-cancel",
+          "/api/storefront/orders/:id/delivery-token",
+          "/api/storefront/orders/:id/log-to-tracker",
+          "/api/storefront/orders/:id/service-confirm",
+          "/api/storefront/orders/purchases",
+          "/api/storefront/orders/sales",
+          "/api/storefront/pixels",
+          "/api/storefront/product/:id/office-hours/book",
+          "/api/storefront/product/:id/slots",
+          "/api/storefront/products/:id",
+          "/api/storefront/products/:id/stock-alert",
+          "/api/storefront/promote/email"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/storyboards.ts",
+        "endpoints": 5,
+        "visible": 0,
+        "unseen": [
+          "/api/storyboards",
+          "/api/storyboards/:id",
+          "/api/storyboards/:id/panels",
+          "/api/storyboards/:id/panels/:panelId",
+          "/api/storyboards/:id/panels/:panelId/move"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Storyboard planner CRUD (boards + panels) — the member's video-plan store behind the editor's planning surface; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/stripe-connect.ts",
+        "endpoints": 5,
+        "visible": 5,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/stripe-payments.ts",
+        "endpoints": 4,
+        "visible": 2,
+        "unseen": [
+          "/api/create-checkout-session",
+          "/api/stripe-status"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/studio-gear.ts",
+        "endpoints": 8,
+        "visible": 0,
+        "unseen": [
+          "/api/admin/studio-gear/orders",
+          "/api/admin/studio-gear/orders/:id/proof/send",
+          "/api/admin/studio-gear/orders/:id/status",
+          "/api/studio-gear/catalog",
+          "/api/studio-gear/checkout",
+          "/api/studio-gear/orders",
+          "/api/studio-gear/orders/:id/proof/approve",
+          "/api/studio-gear/orders/:id/proof/request-revision"
+        ],
+        "classification": {
+          "surface": "store",
+          "reason": "Studio-gear store rails (catalog / checkout / orders / design-proof flow + admin fulfilment) — the house gear shop; the storefront feature carries the shop pages, not these endpoints."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/supporter-board.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/supporter-board/by-slug/:slug",
+          "/api/supporter-board/by-slug/:slug/opt-in",
+          "/api/supporter-board/by-slug/:slug/opt-out",
+          "/api/supporter-board/me/settings"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Supporter-board rails (by-slug board + opt-in/out + my settings) — the public supporter wall behind profile surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/team-seats.ts",
+        "endpoints": 4,
+        "visible": 4,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/teams.ts",
+        "endpoints": 9,
+        "visible": 9,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/the-crowns.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/crowns",
+          "/api/crowns/worn/:userId"
+        ],
+        "classification": {
+          "surface": "world",
+          "reason": "The Crowns rails (list + worn) — crown state read across profiles and the World; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/theme-kit.ts",
+        "endpoints": 7,
+        "visible": 0,
+        "unseen": [
+          "/api/theme-packs/creator-packs",
+          "/api/theme-packs/creator-packs/:id/publish",
+          "/api/theme-packs/creator-packs/:id/purchase",
+          "/api/theme-packs/customizations/:packId",
+          "/api/theme-packs/kit/:packId/download",
+          "/api/theme-packs/kit/manifests",
+          "/api/theme-packs/look/:code"
+        ],
+        "classification": {
+          "surface": "store",
+          "reason": "Theme-pack rails (creator packs / purchase / publish / kit manifests + downloads / look) — the theme-pack marketplace behind the branding surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/theme-packs.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/thumbnails.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/transcribe.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/trend-radar.ts",
+        "endpoints": 2,
+        "visible": 1,
+        "unseen": [
+          "/api/trend-radar"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/trust.ts",
+        "endpoints": 26,
+        "visible": 19,
+        "unseen": [
+          "/api/analytics/videos/:videoId/retention",
+          "/api/catalog-export/:id",
+          "/api/content-id/fingerprints",
+          "/api/content-id/scan",
+          "/api/mod-console/actions",
+          "/api/mod-console/my-flags",
+          "/api/stage-rooms/:id/close"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/tutorials.ts",
+        "endpoints": 9,
+        "visible": 3,
+        "unseen": [
+          "/api/tutorials/:id",
+          "/api/tutorials/:id/chapters",
+          "/api/tutorials/:id/resources",
+          "/api/tutorials/:slug",
+          "/api/tutorials/designate",
+          "/api/tutorials/series"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/ugc-ads.ts",
+        "endpoints": 7,
+        "visible": 7,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/ugc-briefs.ts",
+        "endpoints": 7,
+        "visible": 1,
+        "unseen": [
+          "/api/ugc-briefs/:id",
+          "/api/ugc-briefs/:id/approve",
+          "/api/ugc-briefs/:id/claim",
+          "/api/ugc-briefs/:id/close",
+          "/api/ugc-briefs/:id/deliver",
+          "/api/ugc-briefs/:id/release"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/upg-fans.ts",
+        "endpoints": 8,
+        "visible": 0,
+        "unseen": [
+          "/api/audience-room",
+          "/api/collab-match",
+          "/api/collab-match/:id/mark",
+          "/api/f/:code",
+          "/api/fan-links",
+          "/api/fan-links/attribute-signup",
+          "/api/fan-links/for-me",
+          "/api/fan-links/mine"
+        ],
+        "classification": {
+          "surface": "social",
+          "reason": "Fan rails (fan links + attribution, collab match, audience room, short fan links) — behind the social/promote surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/upload-watermark.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/vault.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/video-calls.ts",
+        "endpoints": 6,
+        "visible": 5,
+        "unseen": [
+          "/api/dm/call-config"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/viral-spike.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/waitlist.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/waitlist/invite/:code",
+          "/api/waitlist/status"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wallpapers.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/wallpapers/presets"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-adlib.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/wave8/adlib/generate"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-8 AI ad-lib generator rail — a vocal-production sidekick behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-calendar.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/wave8/calendar/slots"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-caption-styler.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/wave8/caption-styler/burn"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-8 caption-styler burn rail (100 VB, registry-matched) — an editor tool; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-highlights.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/wave8/highlights/cut"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-8 stream-highlight scorer rail — scores moments from a transcript (honestly: it does not cut video); no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-hook-rewriter.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-media-kit.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-merch-drop.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/wave8/merch-drop/plan",
+          "/api/wave8/merch-drop/plans",
+          "/api/wave8/merch-drop/save"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-8 merch-drop planner rails (plan / plans / save) — an AI planning tool behind the promote/store surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-splits.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/wave8/splits",
+          "/api/wave8/splits/:id",
+          "/api/wave8/splits/pdf"
+        ],
+        "classification": {
+          "surface": "money",
+          "reason": "Wave-8 royalty split-sheet rails (CRUD + PDF) — split sheets behind the money surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave8-thumbnail-ab.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave9a-music.ts",
+        "endpoints": 6,
+        "visible": 0,
+        "unseen": [
+          "/api/wave9a/lyrics/timing",
+          "/api/wave9a/structure/generate",
+          "/api/wave9a/structures",
+          "/api/wave9a/structures/:id",
+          "/api/wave9a/versions",
+          "/api/wave9a/versions/:id"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-9A music rails (structures / versions / lyrics timing) — the song-workbench store behind the song surfaces; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave9b-editor.ts",
+        "endpoints": 3,
+        "visible": 3,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave9c-direct-edit.ts",
+        "endpoints": 1,
+        "visible": 1,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave9d-camera.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/wave9d/camera/design",
+          "/api/wave9d/camera/presets",
+          "/api/wave9d/camera/prompt"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-9D camera rails (design / presets / prompt) — the camera planner's store (planner priced 100 VB in the registry); no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wave9d-director.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/wave9d/director/plan",
+          "/api/wave9d/director/plans"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Wave-9D character-director planning rails — a planning layer over the Scene Studio pipeline; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/webauthn.ts",
+        "endpoints": 5,
+        "visible": 5,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/wishlists.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/wishlists/check"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world-contests.ts",
+        "endpoints": 6,
+        "visible": 0,
+        "unseen": [
+          "/api/world/contests",
+          "/api/world/contests/:id",
+          "/api/world/contests/:id/entries",
+          "/api/world/contests/:id/winners",
+          "/api/world/contests/my-works",
+          "/api/world/winners-circle"
+        ],
+        "classification": {
+          "surface": "world",
+          "reason": "World Contests + Winners' Circle rails — entered inside the World; the 2D winners pages carry their own reads, so no feature entry carries these endpoints."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world-court-season.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/world/court-season"
+        ],
+        "classification": {
+          "surface": "world",
+          "reason": "World court-season rail (THE-GAME Ring 4) — read inside the World; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world-events.ts",
+        "endpoints": 3,
+        "visible": 2,
+        "unseen": [
+          "/api/world/events/:id"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world-fixture-failure.ts",
+        "endpoints": 1,
+        "visible": 0,
+        "unseen": [
+          "/api/world/fixture-failure"
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Telemetry beacon: the World's 3D-fixture load-failure reports land here; no member surface."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world-tutorial.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world.ts",
+        "endpoints": 14,
+        "visible": 11,
+        "unseen": [
+          "/api/world/creator-rooms/:slug",
+          "/api/world/creator-rooms/:slug/dressing",
+          "/api/world/my-music"
+        ]
+      }
+    ]
+  }
 }
