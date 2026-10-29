@@ -806,6 +806,7 @@ export function ClipGeneratorSection({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setShowInsertMenu((v) => !v); }}
                 className="flex items-center px-2 border-l border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Choose insert position"
                 title="Choose insert position"
               >
                 <ChevronDown className="h-3 w-3" />
@@ -928,6 +929,7 @@ export function ClipGeneratorSection({
                     type="button"
                     onClick={() => setSelectedSceneId(null)}
                     className="ml-auto text-white/50 hover:text-white/60 transition-colors"
+                    aria-label="Clear selection"
                     title="Clear selection"
                   >
                     <X className="h-3 w-3" />

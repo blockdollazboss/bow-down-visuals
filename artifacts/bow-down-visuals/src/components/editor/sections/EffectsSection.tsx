@@ -74,6 +74,7 @@ function IntensityRow({
       <button
         onClick={onRemove}
         className="shrink-0 text-white/25 hover:text-white/60 transition-colors text-xs leading-none px-0.5"
+        aria-label={`Remove ${label}`}
         title={`Remove ${label}`}
       >
         ×

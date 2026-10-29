@@ -199,6 +199,7 @@ export function KeyframesSection({ scenes, settings, setSettings }: Props) {
                     : "bg-black/60 border-white/50 hover:border-primary"
                 }`}
                 style={{ left: `${(k.time / (clipDuration || 1)) * 100}%` }}
+                aria-label={`${k.time.toFixed(2)}s keyframe — double-click to delete`}
                 title={`${k.time.toFixed(2)}s — double-click to delete`}
               />
             ))}

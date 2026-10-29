@@ -526,7 +526,7 @@ export function MotionTrackCard({
                 {anchors.map((a, i) => (
                   <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-white/60">
                     {a.t.toFixed(1)}s
-                    <button type="button" onClick={() => setAnchors((p) => p.filter((_, k) => k !== i))} className="text-white/30 hover:text-red-400">
+                    <button type="button" aria-label={`Remove anchor at ${a.t.toFixed(1)}s`} onClick={() => setAnchors((p) => p.filter((_, k) => k !== i))} className="text-white/30 hover:text-red-400">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </span>

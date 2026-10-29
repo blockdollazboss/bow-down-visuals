@@ -309,6 +309,7 @@ export function BeatSyncSection({
                     onClick={() => onSeek?.(m.time)}
                     className="absolute top-1 bottom-1 w-[3px] -translate-x-1/2 rounded-full bg-[#C9A84C] hover:bg-[#e8c96a] transition-colors"
                     style={{ left: `${Math.min(100, (m.time / totalDuration) * 100)}%` }}
+                    aria-label={t(`${ns}.markerSeek`, { time: fmtSecs(m.time) })}
                     title={t(`${ns}.markerSeek`, { time: fmtSecs(m.time) })}
                   />
                 ))}
@@ -330,6 +331,7 @@ export function BeatSyncSection({
                   <button aria-pressed={m.keep}
                     type="button"
                     onClick={() => toggleKeep(m.id)}
+                    aria-label={m.keep ? t(`${ns}.dismissMarker`) : t(`${ns}.keepMarker`)}
                     title={m.keep ? t(`${ns}.dismissMarker`) : t(`${ns}.keepMarker`)}
                     className={`h-4 w-4 rounded-full border shrink-0 transition-colors ${
                       m.keep ? "bg-[#C9A84C] border-[#C9A84C]" : "border-white/25 bg-transparent"
@@ -347,6 +349,7 @@ export function BeatSyncSection({
                     <button
                       type="button"
                       onClick={() => nudgeMarker(m.id, -0.05)}
+                      aria-label={t(`${ns}.nudgeEarlier`)}
                       title={t(`${ns}.nudgeEarlier`)}
                       className="h-6 w-6 rounded-md border border-white/10 text-white/50 hover:text-white hover:bg-white/10 flex items-center justify-center"
                     >
@@ -355,6 +358,7 @@ export function BeatSyncSection({
                     <button
                       type="button"
                       onClick={() => nudgeMarker(m.id, 0.05)}
+                      aria-label={t(`${ns}.nudgeLater`)}
                       title={t(`${ns}.nudgeLater`)}
                       className="h-6 w-6 rounded-md border border-white/10 text-white/50 hover:text-white hover:bg-white/10 flex items-center justify-center"
                     >
@@ -365,6 +369,7 @@ export function BeatSyncSection({
                   <button
                     type="button"
                     onClick={() => dismissMarker(m.id)}
+                    aria-label={t(`${ns}.removeMarker`)}
                     title={t(`${ns}.removeMarker`)}
                     className="h-6 w-6 rounded-md text-white/30 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
                   >

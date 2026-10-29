@@ -218,6 +218,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
                       type="button"
                       onClick={() => deleteStem(stem)}
                       disabled={stem.locked}
+                      aria-label="Delete stem"
                       title="Delete"
                       data-testid={`stem-delete-${stem.id}`}
                       className="h-7 w-7 rounded-lg border border-red-500/20 bg-red-500/5 text-red-400/70 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors disabled:opacity-25"

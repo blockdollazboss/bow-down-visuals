@@ -233,7 +233,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
                   <p className="text-sm font-semibold text-white/80">Clean radio mode</p>
                   <p className="text-[11px] text-white/35">Strip explicit words in the plan</p>
                 </div>
-                <Switch checked={opts.cleanRadioMode} onCheckedChange={(v) => patch({ cleanRadioMode: v })} data-testid="toggle-clean-radio" />
+                <Switch checked={opts.cleanRadioMode} onCheckedChange={(v) => patch({ cleanRadioMode: v })} aria-label="Clean radio mode" data-testid="toggle-clean-radio" />
               </div>
             </div>
           </Collapsible>

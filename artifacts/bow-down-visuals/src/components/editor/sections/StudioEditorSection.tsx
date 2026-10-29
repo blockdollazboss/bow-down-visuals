@@ -668,7 +668,7 @@ export function StudioEditorSection({
                 <div className="flex items-center gap-1.5">
                   {useLipSync && <span className="text-[8px] px-1.5 py-0.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300">Lip Sync</span>}
                   {!selScene.demoClipUrl && <span className="text-[8px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300">No clip</span>}
-                  <button type="button" onClick={() => setSelectedIdx(null)} className="text-[9px] text-white/25 hover:text-white/60 ml-1">✕</button>
+                  <button type="button" aria-label="Clear selection" onClick={() => setSelectedIdx(null)} className="text-[9px] text-white/25 hover:text-white/60 ml-1">✕</button>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-[9px]">

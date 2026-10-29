@@ -917,7 +917,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   </Field>
                   <Field label={t("captionSuite.emojiLabel")} hint={t("captionSuite.emojiHint")}>
                     <div className="flex items-center gap-2 pt-1">
-                      <Switch checked={withEmoji} onCheckedChange={setWithEmoji} />
+                      <Switch checked={withEmoji} onCheckedChange={setWithEmoji} aria-label={t("captionSuite.emojiLabel")} />
                       <span className="text-xs text-white/50">{withEmoji ? t("common.on") : t("common.off")}</span>
                     </div>
                   </Field>
@@ -927,7 +927,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
               {/* Branded end-card — the viral loop. Default ON. Burns into
                   transcript-mode exports; ships in SRT/VTT; translated in step 3. */}
               <div className="flex items-start gap-3 rounded-xl border border-[#E8C468]/25 bg-[#E8C468]/[0.05] p-4">
-                <Switch checked={endCard} onCheckedChange={toggleEndCard} data-testid="caption-suite-endcard" />
+                <Switch checked={endCard} onCheckedChange={toggleEndCard} aria-label={t("captionSuite.endCardLabel")} data-testid="caption-suite-endcard" />
                 <div className="flex-1">
                   <p className="text-sm font-bold text-white">{t("captionSuite.endCardLabel")}</p>
                   <p className="text-[11px] text-white/45 mt-0.5">{t("captionSuite.endCardDesc")}</p>

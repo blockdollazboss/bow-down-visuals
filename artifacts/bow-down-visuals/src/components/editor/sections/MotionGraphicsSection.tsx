@@ -487,6 +487,7 @@ export function MotionGraphicsSection({ playheadTimeSec, onAddToTimeline, active
                 <button
                   key={c}
                   type="button"
+                  aria-label={c}
                   title={c}
                   onClick={() => setColors((prev) => ({ ...prev, [selectedId]: { ...prev[selectedId]!, accent: c } }))}
                   className="h-8 w-8 rounded-full border-2 border-white/20 hover:border-primary hover:scale-110 transition-all"

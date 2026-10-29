@@ -441,7 +441,7 @@ export function ProToolsSection({
                 />
                 {["#00ff00", "#0000ff", "#00b140", "#0a84ff"].map((c) => (
                   <button
-                    key={c} type="button" title={c}
+                    key={c} type="button" aria-label={c} title={c}
                     onClick={() => patchProTools({ chromaKey: { ...pt.chromaKey, enabled: true, color: c } })}
                     className="h-7 w-7 rounded-full border border-white/20"
                     style={{ backgroundColor: c }}

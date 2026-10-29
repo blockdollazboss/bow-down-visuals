@@ -318,7 +318,7 @@ export function SpeedSegmentsPanel({ pt, patchProTools }: {
                   <Scissors className="h-3 w-3" /> Split
                 </button>
                 {segments.length > 1 && (
-                  <button type="button" title="Remove segment (neighbours stretch to fill)"
+                  <button type="button" aria-label="Remove segment" title="Remove segment (neighbours stretch to fill)"
                     onClick={() => patchSegments(normalizeSpeedSegments(segments.filter((x) => x.id !== s.id)))}
                     className="inline-flex items-center gap-1 text-[10px] font-bold text-white/50 hover:text-red-300 border border-white/10 rounded px-1.5 py-1">
                     <Trash2 className="h-3 w-3" />

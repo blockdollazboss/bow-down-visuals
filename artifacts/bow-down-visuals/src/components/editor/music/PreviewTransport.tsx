@@ -66,6 +66,7 @@ export function PreviewTransport({
           disabled={!hasStems || playState === "stopped"}
           data-testid="btn-preview-stop"
           className="h-10 w-10 flex items-center justify-center rounded-lg border border-white/12 bg-white/[0.03] text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-30"
+          aria-label="Stop"
           title="Stop"
         >
           <Square className="h-3.5 w-3.5" />

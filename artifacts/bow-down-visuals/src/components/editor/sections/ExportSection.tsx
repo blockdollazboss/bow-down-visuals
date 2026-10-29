@@ -760,6 +760,7 @@ export function ExportSection({
                       if (wmInputRef.current) wmInputRef.current.value = "";
                     }}
                     className="shrink-0 p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+                    aria-label="Remove custom watermark"
                     title="Remove custom watermark"
                   >
                     <X className="h-3.5 w-3.5" />

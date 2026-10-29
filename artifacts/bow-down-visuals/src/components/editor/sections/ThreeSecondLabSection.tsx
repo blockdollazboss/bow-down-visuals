@@ -174,6 +174,7 @@ export function ThreeSecondLabSection({ openingHint, bare, onApplyOpening }: Thr
               type="button"
               onClick={removeClip}
               className="shrink-0 rounded-lg border border-white/15 p-1.5 text-white/50 hover:border-red-400/50 hover:text-red-300 transition"
+              aria-label={t("videoEditor.labRemove", { defaultValue: "Remove clip" })}
               title={t("videoEditor.labRemove", { defaultValue: "Remove clip" })}
             >
               <X className="h-3.5 w-3.5" />

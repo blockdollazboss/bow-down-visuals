@@ -1431,6 +1431,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                   type="button"
                   onClick={() => void handleDeletePersona()}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/50 transition-colors hover:border-red-500/40 hover:text-red-300"
+                  aria-label="Delete this persona"
                   title="Delete this persona"
                   data-testid="btn-delete-persona"
                 >
