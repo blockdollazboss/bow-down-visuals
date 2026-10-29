@@ -62,7 +62,20 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
           "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: https: blob:",
-          "connect-src 'self' https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
+          /* blob: rides connect-src, not just img-src, because of the
+             World's 3D bodies: three.js GLTFLoader decodes EMBEDDED
+             GLB images through ImageBitmapLoader, which turns each
+             image's bytes into a blob: object URL and FETCHES it —
+             and fetch answers to connect-src. Without blob: here,
+             every embedded texture fetch was CSP-refused in
+             production (img-src had blob: all along, which covers
+             <img> loads only and made the policy look right), the
+             loader swallowed the refusal into a null texture, and
+             every fixture body parsed "successfully" with no
+             textures at all — the owner's Oct 28 session: six
+             "textures did not land" beacons, gold capsules at every
+             post, while local benches (no CSP) stayed green. */
+          "connect-src 'self' blob: https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
           "worker-src 'self' blob:",
           "frame-src https://js.stripe.com",
           "font-src 'self' data: https:",

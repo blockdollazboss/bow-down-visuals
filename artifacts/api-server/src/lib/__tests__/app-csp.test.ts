@@ -46,6 +46,20 @@ describe("app CSP — the kit's engine bucket is reachable", () => {
     expect(directive("connect-src")).toContain(MEDIA_BUCKET_ORIGIN);
   });
 
+  it("connect-src allows blob: (GLB embedded textures are fetched as blob: URLs by ImageBitmapLoader)", () => {
+    /* The World's fixture bodies carry their textures EMBEDDED in
+       the GLB. three.js GLTFLoader decodes them via
+       ImageBitmapLoader: object URL + fetch — and fetch is governed
+       by connect-src, NOT img-src (which has carried blob: all
+       along, covering only <img> loads). When connect-src lacked
+       blob:, every embedded-texture fetch was refused in
+       production, the loader resolved the textures to null, and
+       the bodies parsed texture-less (the Oct 28 "textures did
+       not land" beacons). This pin keeps the two directives from
+       drifting apart again. */
+    expect(directive("connect-src")).toContain("blob:");
+  });
+
   it("the bucket appears exactly twice — both directives of the main policy, never the embed policy", () => {
     const occurrences = appSrc.split(MEDIA_BUCKET_ORIGIN).length - 1;
     expect(occurrences).toBe(2);
