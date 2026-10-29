@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "d6f0a1f2ebdf2a90cd2df238b56f558d4bbcf39a",
+  "baseCommit": "edfae7807f4ed80aec304037f36eeedf156cfa07",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,10 +9,10 @@
   },
   "generatedAt": "2026-10-29",
   "counts": {
-    "routesInApp": 240,
+    "routesInApp": 241,
     "pageFiles": 185,
     "features": 248,
-    "excludedRoutes": 72,
+    "excludedRoutes": 73,
     "excludedPageFiles": 35,
     "pricedActions": 216,
     "routeFileEndpoints": 0,
@@ -16088,6 +16088,11 @@
       "kind": "route",
       "key": "/upscale",
       "reason": "Redirect to /video-editor?tab=upscale — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/shop",
+      "reason": "Redirect to /storefronts — the target carries the knowledge entry."
     },
     {
       "kind": "route",

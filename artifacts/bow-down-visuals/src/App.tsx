@@ -685,6 +685,12 @@ function AppShell() {
           <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
           <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
+          {/* Bare /shop front door (stack700): storefronts live at
+              /shop/:slug, are displayed as "/shop/{handle}", and are
+              discovered at /storefronts — the same fallback
+              lib/profile-shop-link.ts encodes for a shop with no
+              handle. The bare name had no route and served the 404. */}
+          <Route path="/shop"><Redirect to="/storefronts" /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>
           <Route path="/storefront/product/:id"><StorefrontProduct /></Route>
           <Route path="/interview-prep"><InterviewPrep /></Route>
