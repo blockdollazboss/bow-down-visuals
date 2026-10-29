@@ -1,7 +1,7 @@
 /**
  * Money-integrity + route tests for the Sponsor Marketplace.
  *
- * Covers: pricing constants (5 credits to post, 1 credit per AI assist),
+ * Covers: pricing constants (500 credits to post, 100 credits per AI assist),
  * deal/apply/pitch/matcher schema validation, the free browse + free apply
  * paths (no credit code touched), charge-before-generate, 402 out_of_credits,
  * and automatic refund when the provider fails.
@@ -168,10 +168,10 @@ async function seedDeal(postedBy = USER_B, overrides: Record<string, unknown> = 
 
 /* ── pricing ─────────────────────────────────────────────────────────── */
 describe("pricing constants", () => {
-  it("charges 5 credits to post a deal (brands pay)", () => {
+  it("charges 500 credits to post a deal (brands pay)", () => {
     expect(SPONSOR_POST_CREDIT_COST).toBe(500);
   });
-  it("charges 1 credit per AI assist", () => {
+  it("charges 100 credits per AI assist", () => {
     expect(SPONSOR_AI_CREDIT_COST).toBe(100);
   });
 });
@@ -283,9 +283,9 @@ describe("GET /api/sponsors/deals", () => {
   });
 });
 
-/* ── POST /api/sponsors/deals (5 credits) ────────────────────────────── */
+/* ── POST /api/sponsors/deals (500 credits) ──────────────────────────── */
 describe("POST /api/sponsors/deals", () => {
-  it("charges 5 credits and stores the deal", async () => {
+  it("charges 500 credits and stores the deal", async () => {
     const { status, json } = await req("POST", "/sponsors/deals", validDeal());
     expect(status).toBe(200);
     expect(json.deal.brandName).toBe("Golden Audio");
@@ -375,9 +375,9 @@ describe("POST /api/sponsors/deals/:id/apply", () => {
   });
 });
 
-/* ── POST /api/sponsors/pitch (1 credit, AI) ──────────────────────────── */
+/* ── POST /api/sponsors/pitch (100 credits, AI) ──────────────────────── */
 describe("POST /api/sponsors/pitch", () => {
-  it("charges 1 credit and returns the AI pitch", async () => {
+  it("charges 100 credits and returns the AI pitch", async () => {
     const { id } = await seedDeal();
     testState.openAiCreate = async () => ({
       choices: [{ message: { content: JSON.stringify({ pitch: "Dear brand, hire me.", subject: "Let's work" }) } }],
@@ -394,7 +394,7 @@ describe("POST /api/sponsors/pitch", () => {
     expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Pitch Writer" });
   });
 
-  it("refunds the credit when the provider fails", async () => {
+  it("refunds the 100 credits when the provider fails", async () => {
     const { id } = await seedDeal();
     testState.openAiCreate = async () => {
       throw new Error("provider exploded");
@@ -444,9 +444,9 @@ describe("POST /api/sponsors/pitch", () => {
   });
 });
 
-/* ── POST /api/sponsors/match (1 credit, AI) ──────────────────────────── */
+/* ── POST /api/sponsors/match (100 credits, AI) ──────────────────────── */
 describe("POST /api/sponsors/match", () => {
-  it("charges 1 credit and returns ranked matches", async () => {
+  it("charges 100 credits and returns ranked matches", async () => {
     const { id } = await seedDeal();
     testState.openAiCreate = async () => ({
       choices: [
@@ -480,7 +480,7 @@ describe("POST /api/sponsors/match", () => {
     expect(mockRefund).toHaveBeenCalled();
   });
 
-  it("refunds the credit when the provider fails", async () => {
+  it("refunds the 100 credits when the provider fails", async () => {
     await seedDeal();
     testState.openAiCreate = async () => {
       throw new Error("provider exploded");
