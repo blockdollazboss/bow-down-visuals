@@ -35,7 +35,17 @@ function getCookie(req: Request, name: string): string | undefined {
     const idx = part.indexOf("=");
     if (idx < 0) continue;
     if (part.slice(0, idx).trim() === name) {
-      return decodeURIComponent(part.slice(idx + 1).trim());
+      const raw = part.slice(idx + 1).trim();
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        /* A malformed %-sequence (a corrupted or foreign cookie value
+           under this name) must not throw inside the gate — an
+           un-decodable value simply isn't the token, so the raw value
+           falls through to the comparison and the gate answers its
+           normal 401 instead of wedging the browser on a 500. */
+        return raw;
+      }
     }
   }
   return undefined;
