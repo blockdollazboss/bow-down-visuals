@@ -73,6 +73,95 @@ const excludedPageFiles = new Map(
   OPERATOR_KB.excluded.filter((e: any) => e.kind === "pageFile").map((e: any) => [e.key, e.reason]),
 );
 
+describe("operator knowledge — server surface census (no invisible families)", () => {
+  /* Board #36 / stack800 lane 9: the frontend coverage above cannot see
+     endpoint families whose callers sit past the page scan's one hop
+     (the generate/* tool rails, the live-* rails, …). This half
+     RE-DERIVES the server surface from the server's own wiring —
+     routes/index.ts imports + mounts and each route file's
+     registrations — and pins the generated census (kb.serverSurface)
+     to it: every mounted family is in the census with its unseen
+     endpoints named, and every family no feature carries is
+     classified with a reviewed reason. If this fails after a server
+     change, re-run the generator (it throws with the exact gap) and
+     review the classification it asks for. */
+  const API_SRC = path.resolve(HERE, "..", "..");
+  const REPO_ROOT = path.resolve(HERE, "..", "..", "..", "..", "..");
+  const normParamsT = (p: string) =>
+    p.split("/").map((s) => (s.startsWith(":") ? ":param" : s)).join("/");
+
+  function deriveServerSurface() {
+    const indexSrc = read(path.join(API_SRC, "routes", "index.ts"));
+    const imports = new Map<string, string>();
+    for (const m of indexSrc.matchAll(/import\s+(?:\{\s*)?([A-Za-z0-9_]+)(?:\s*\})?\s+from\s+"(\.\/[^"]+)"/g)) {
+      imports.set(m[1], m[2]);
+    }
+    const visible = new Set(
+      OPERATOR_FEATURES.flatMap((f) => f.endpoints.map((e) => normParamsT(e.split("?")[0]))),
+    );
+    const regRe = /\b\w*[Rr]outer\.(?:get|post|put|patch|delete|all)\(\s*"([^"]+)"/g;
+    const byFile = new Map<string, Set<string>>();
+    for (const m of indexSrc.matchAll(/router\.use\(\s*(?:"([^"]+)"\s*,\s*)?([A-Za-z0-9_]+)\s*\)/g)) {
+      const prefix = m[1] ?? "";
+      const relImport = imports.get(m[2]);
+      expect(relImport, `routes/index.ts mounts ${m[2]}, which it never imports`).toBeTruthy();
+      const abs = path.join(API_SRC, "routes", `${relImport}.ts`);
+      const file = path.relative(REPO_ROOT, abs).split(path.sep).join("/");
+      const eps = byFile.get(file) ?? new Set<string>();
+      for (const r of read(abs).matchAll(regRe)) {
+        const p = `/api${prefix}${r[1]}`.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
+        if (p.length > 1) eps.add(p);
+      }
+      byFile.set(file, eps);
+    }
+    return { byFile, visible };
+  }
+
+  it("the census covers exactly the mounted route families, with unseen endpoints named", () => {
+    const { byFile, visible } = deriveServerSurface();
+    const census = OPERATOR_KB.serverSurface.files;
+    expect(census.map((f) => f.file).sort()).toEqual([...byFile.keys()].sort());
+    let derivedTotal = 0;
+    for (const entry of census) {
+      const eps = byFile.get(entry.file)!;
+      derivedTotal += eps.size;
+      expect(entry.endpoints, `${entry.file} endpoint count`).toBe(eps.size);
+      const derivedUnseen = [...eps].filter((e) => !visible.has(normParamsT(e))).sort();
+      expect(entry.unseen.map(normParamsT).sort(), `${entry.file} unseen set`).toEqual(
+        derivedUnseen.map(normParamsT).sort(),
+      );
+      expect(entry.visible, `${entry.file} visible count`).toBe(eps.size - derivedUnseen.length);
+    }
+    // A derivation that silently found nothing must not pass.
+    expect(derivedTotal).toBeGreaterThan(1500);
+    expect(OPERATOR_KB.counts.serverEndpoints).toBe(derivedTotal);
+    expect(OPERATOR_KB.counts.serverRouteFiles).toBe(byFile.size);
+    expect(OPERATOR_KB.counts.serverEndpointsVisible).toBe(
+      census.reduce((n, f) => n + f.visible, 0),
+    );
+  });
+
+  it("every family no feature carries is classified with a reviewed reason", () => {
+    const census = OPERATOR_KB.serverSurface.files;
+    let classified = 0;
+    for (const entry of census) {
+      if (entry.visible === 0) {
+        classified += 1;
+        expect(entry.classification, `${entry.file} is invisible and unclassified`).toBeTruthy();
+        expect(entry.classification!.surface, `${entry.file} classification surface`).toBeTruthy();
+        expect(entry.classification!.reason, `${entry.file} classification reason`).toBeTruthy();
+        expect(entry.classification!.reason).not.toContain("UNREVIEWED");
+      } else {
+        // A classification on a visible family is stale — the generator
+        // throws on it too; pin it here so the artifact alone proves it.
+        expect(entry.classification, `${entry.file} is visible but still classified`).toBeUndefined();
+      }
+    }
+    expect(OPERATOR_KB.counts.serverFilesClassified).toBe(classified);
+    expect(classified).toBeGreaterThan(0);
+  });
+});
+
 describe("operator knowledge — coverage (no silent gaps)", () => {
   it("every App.tsx route is a feature, an exclusion, or a redirect to one", () => {
     const routes = deriveRoutes();

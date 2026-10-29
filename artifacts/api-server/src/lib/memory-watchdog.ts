@@ -49,7 +49,7 @@
  * after the fatal log line.
  */
 import { getHeapSnapshot, getHeapStatistics } from "node:v8";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, readdirSync, readFileSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -111,6 +111,114 @@ export function sampleMemoryFields(): MemoryWatchdogFields {
         ? Math.round((m.heapUsed / heapLimitBytes) * 1000) / 1000
         : 0,
   };
+}
+
+/* ── Child-process tree sampling (2026-10-29, stack800 lane 9) ──────────
+ * The export-restart hunt proved the watchdog's structural blindness:
+ * it samples only this Node process (process.memoryUsage), while the
+ * container's OOM verdict falls on Node + children together — the
+ * ffmpeg child that actually burst the 512 MB container (262 MB peak
+ * against Node's calm ~280 MB) was invisible in every watchdog line,
+ * so the gauges read calm through the kill. The tick now also samples
+ * the child process TREE (descendants of this process, via /proc) and
+ * carries the totals on the same log lines: how many children, their
+ * combined RSS, and the single largest child by name — the "true peak
+ * shape" the next OOM investigation needs.
+ *
+ * SAMPLING ONLY, by design: the child figures never feed the snapshot
+ * trigger or the critical line. The restart policy stays exactly the
+ * one the 2026-10-25 diagnosis tuned (Node heap ratio / Node RSS) —
+ * widening the watchdog's eyes must not silently widen its teeth. */
+export interface ProcTableRow {
+  pid: number;
+  ppid: number;
+  rssMb: number;
+  comm: string;
+}
+
+export interface ChildTreeSample {
+  childCount: number;
+  childRssMb: number;
+  childTopName: string | null;
+  childTopRssMb: number;
+}
+
+/** Pure aggregation: every descendant of rootPid (children,
+ * grandchildren, …), never the root itself and never unrelated
+ * processes that merely share the table. Exported for the unit test. */
+export function aggregateChildTree(
+  rows: ProcTableRow[],
+  rootPid: number,
+): ChildTreeSample {
+  const byParent = new Map<number, ProcTableRow[]>();
+  for (const row of rows) {
+    const siblings = byParent.get(row.ppid);
+    if (siblings) siblings.push(row);
+    else byParent.set(row.ppid, [row]);
+  }
+  let childCount = 0;
+  let totalRss = 0;
+  let top: ProcTableRow | null = null;
+  const queue = [...(byParent.get(rootPid) ?? [])];
+  /* Seeded with the root: a corrupt table whose ppid chain cycles
+   * back to the root must neither loop nor count the root as its own
+   * child. */
+  const seen = new Set<number>([rootPid]);
+  while (queue.length > 0) {
+    const row = queue.shift()!;
+    if (seen.has(row.pid)) continue; // a corrupt table must not loop us
+    seen.add(row.pid);
+    childCount++;
+    totalRss += row.rssMb;
+    if (!top || row.rssMb > top.rssMb) top = row;
+    queue.push(...(byParent.get(row.pid) ?? []));
+  }
+  return {
+    childCount,
+    childRssMb: Math.round(totalRss * 10) / 10,
+    childTopName: top ? top.comm : null,
+    childTopRssMb: top ? Math.round(top.rssMb * 10) / 10 : 0,
+  };
+}
+
+/** Read the Linux process table from /proc: comm + ppid from stat
+ * (comm is parenthesised and may itself contain spaces/parens — slice
+ * between the first "(" and the last ")"), RSS from status VmRSS.
+ * Returns [] wherever /proc does not exist (non-Linux dev machines)
+ * and skips processes that vanish mid-scan. NEVER throws — a sampling
+ * failure must not be able to break the tick that carries it. */
+export function readProcTable(): ProcTableRow[] {
+  try {
+    const rows: ProcTableRow[] = [];
+    for (const name of readdirSync("/proc")) {
+      if (!/^\d+$/.test(name)) continue;
+      const pid = Number(name);
+      try {
+        const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+        const open = stat.indexOf("(");
+        const close = stat.lastIndexOf(")");
+        if (open < 0 || close < 0) continue;
+        const comm = stat.slice(open + 1, close);
+        const rest = stat.slice(close + 2).split(" ");
+        const ppid = Number(rest[1]); // fields: state(3) ppid(4) …
+        if (!Number.isFinite(ppid)) continue;
+        const status = readFileSync(`/proc/${pid}/status`, "utf8");
+        const rssMatch = /^VmRSS:\s+(\d+)\s*kB/m.exec(status);
+        const rssMb = rssMatch ? Number(rssMatch[1]) / 1024 : 0;
+        rows.push({ pid, ppid, rssMb, comm });
+      } catch {
+        /* the process exited between listing and reading — skip it */
+      }
+    }
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+/** One child-tree sample for the watchdog tick. */
+export function sampleChildTree(rootPid: number = process.pid): ChildTreeSample {
+  return aggregateChildTree(readProcTable(), rootPid);
 }
 
 let snapshotCaptured = false;
@@ -220,19 +328,23 @@ async function captureHeapSnapshot(): Promise<void> {
  */
 export function runMemoryWatchdogTick(): void {
   const fields = sampleMemoryFields();
+  /* Child-tree sample rides the periodic log lines only — the
+   * escalation and critical decisions below keep reading `fields`
+   * (this process alone), exactly as the restart policy was tuned. */
+  const logFields = { ...fields, ...sampleChildTree() };
   const rssOver = fields.rssMb > CONTAINER_BUDGET_MB * WARN_RATIO;
 
   if (fields.heapRatio >= HEAP_ERROR_RATIO) {
     logger.error(
-      fields,
+      logFields,
       "memory watchdog: heap at >= 90% of the V8 limit — OOM imminent",
     );
   } else if (fields.heapRatio >= HEAP_WARN_RATIO) {
-    logger.warn(fields, "memory watchdog: heap above 75% of the V8 limit");
+    logger.warn(logFields, "memory watchdog: heap above 75% of the V8 limit");
   } else if (rssOver) {
-    logger.warn(fields, "memory watchdog: RSS above 80% of container budget");
+    logger.warn(logFields, "memory watchdog: RSS above 80% of container budget");
   } else {
-    logger.info(fields, "memory watchdog");
+    logger.info(logFields, "memory watchdog");
   }
 
   /* Critical line first: once the process is at the edge, saving

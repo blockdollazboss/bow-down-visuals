@@ -42,6 +42,15 @@ ARG VITE_SUPABASE_URL=""
 ARG VITE_SUPABASE_ANON_KEY=""
 ARG VITE_LIP_SYNC_ENABLED=""
 ARG VITE_STRIPE_PUBLISHABLE_KEY=""
+# Build identifier baked into the bundle (App.tsx reads it as
+# import.meta.env.VITE_BUILD_ID; the RouteErrorBoundary stamps every
+# crash self-report with it — src/lib/boundary-report.ts). Set the
+# VITE_BUILD_ID env var on the service to stamp a specific id (e.g.
+# the commit); left unset, the build step below stamps the UTC build
+# timestamp instead, so a production bundle NEVER carries a null
+# build id. (.git is dockerignored and node:slim has no git binary,
+# so the commit cannot be derived inside the build itself.)
+ARG VITE_BUILD_ID=""
 ARG PORT="8080"
 ARG BASE_PATH="/"
 
@@ -51,13 +60,17 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
     VITE_LIP_SYNC_ENABLED=$VITE_LIP_SYNC_ENABLED \
     VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY \
+    VITE_BUILD_ID=$VITE_BUILD_ID \
     PORT=$PORT \
     BASE_PATH=$BASE_PATH
 
 # typecheck + build every workspace package (frontend + api-server)
 # Note: --no-frozen-lockfile allows pnpm to update the lockfile for new deps
 # (used when network issues prevent local lockfile regeneration)
-RUN pnpm install --no-frozen-lockfile && pnpm run build
+# The VITE_BUILD_ID prefix applies the timestamp fallback when the
+# build arg arrived empty (:- treats empty as unset); an explicitly
+# provided build arg passes through untouched.
+RUN pnpm install --no-frozen-lockfile && VITE_BUILD_ID="${VITE_BUILD_ID:-docker-$(date -u +%Y%m%dT%H%M%SZ)}" pnpm run build
 
 ENV NODE_ENV=production
 

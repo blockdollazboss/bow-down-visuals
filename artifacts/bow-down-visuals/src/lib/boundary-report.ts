@@ -16,9 +16,11 @@
  *      PATH only (no query string, no hash — those can carry tokens),
  *      error name + truncated message, whether the error looks like a
  *      chunk-load failure, the build identifier when the bundle
- *      carries one (VITE_BUILD_ID — currently unset in the build, so
- *      null; the field exists so the day the build stamps it, trips
- *      start naming their build with no client change), timestamp.
+ *      carries one (VITE_BUILD_ID — the production Docker build
+ *      stamps it since stack800 lane 9: the VITE_BUILD_ID build arg
+ *      when the service provides one, else the UTC build timestamp;
+ *      only non-Docker builds, e.g. a local dev bundle, still report
+ *      null), timestamp.
  *   2. reportBoundaryTrip — fire-and-forget delivery to
  *      POST /api/client-errors (sendBeacon first, fetch keepalive as
  *      fallback). It NEVER throws: telemetry must not be able to break
