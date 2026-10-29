@@ -66,15 +66,17 @@ describe("shop product card — the full title is readable", () => {
     expect(priceCls).toContain("mt-auto");
   });
 
-  it("no element on the shop page truncates a product name on the card grid", () => {
-    // The grid region (between the product-grid marker and the detail
-    // modal marker) must not pair `truncate` with a product name.
+  it("the card grid renders the product name exactly once — as the wrapping title", () => {
+    // Scope to the grid region (between the product-grid marker and the
+    // detail-modal marker): the only element rendering {p.name} there is
+    // the title itself, whose classes the first test already pins.
     const gridStart = shopSrc.indexOf("{/* product grid */}");
     const gridEnd = shopSrc.indexOf("{/* product detail modal */}");
     expect(gridStart).toBeGreaterThan(-1);
     expect(gridEnd).toBeGreaterThan(gridStart);
     const grid = shopSrc.slice(gridStart, gridEnd);
-    expect(grid).not.toMatch(/truncate[^>]*>\s*\{p\.name\}/);
+    expect(grid.match(/\{p\.name\}/g)).toHaveLength(1);
+    expect(classNameOfElementRendering(grid, "p.name")).not.toContain("truncate");
   });
 });
 

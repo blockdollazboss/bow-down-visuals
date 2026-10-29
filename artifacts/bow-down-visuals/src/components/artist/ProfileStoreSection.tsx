@@ -132,7 +132,7 @@ export default function ProfileStoreSection({
               <>
                 <span className="block px-3 py-2.5">
                   <span
-                    className="block truncate text-sm font-bold"
+                    className="block break-words text-sm font-bold"
                     style={{ color: "var(--ap-text)", fontFamily: "var(--ap-heading-font)" }}
                   >
                     {item.title}

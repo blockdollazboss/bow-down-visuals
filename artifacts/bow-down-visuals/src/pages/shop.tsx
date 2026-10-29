@@ -506,7 +506,7 @@ export default function ShopStorefront() {
                   <button
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className={`relative text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+                    className={`relative flex flex-col text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
                   >
                     {p.pinned_ad?.video_url && (
                       <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-amber-300">
@@ -514,15 +514,19 @@ export default function ShopStorefront() {
                       </span>
                     )}
                     {p.image_url ? (
-                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className="h-56 w-full object-cover group-hover:scale-[1.02] transition" />
+                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className="h-56 w-full shrink-0 object-cover group-hover:scale-[1.02] transition" />
                     ) : (
-                      <div className="h-56 w-full bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
+                      <div className="h-56 w-full shrink-0 bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
                         <ShoppingBag className="w-10 h-10 text-white/20" />
                       </div>
                     )}
-                    <div className="p-4">
-                      <div className="font-bold truncate">{p.name}</div>
-                      <div className="mt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
+                    <div className="p-4 flex flex-1 flex-col">
+                      {/* Full title wraps — never ellipsis-cut (owner screenshot Oct 28:
+                          "TEST Digital Download — delete pre-la…" on one cut-off line).
+                          Names run to 120 chars, so no line clamp either; the price is
+                          pinned to the body bottom so rows keep equal heights + aligned prices. */}
+                      <div className="font-bold break-words">{p.name}</div>
+                      <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
                     </div>
                   </button>
                 ))}
