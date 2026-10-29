@@ -36,6 +36,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mediaUrl } from "../media-cdn";
 import {
+  FIXTURE_ATTEMPT_TIMEOUT_MS,
   FIXTURE_BODIES,
   FixtureBeaconLedger,
   FixtureHealLoop,
@@ -51,9 +52,14 @@ import {
   fixtureRotY,
   fixtureStandinArtPlan,
   fixtureSway,
+  fixtureTextureRepairPlan,
+  withFixtureAttemptTimeout,
   type FixtureBodyDef,
   type FixtureBodyId,
   type FixtureFailureReport,
+  type FixtureTextureRepairStep,
+  type GlbJsonLike,
+  type GlbSamplerLike,
   type WorldFixtureDef,
 } from "./guard-fixtures";
 import { figureWidthForHeight } from "./figure";
@@ -121,6 +127,161 @@ function loadStandinTexture(
     attempt,
     (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   ).then(onLoad, onFail);
+}
+
+/* ── Texture repair: the texture step's second mechanism ──────────
+   When a parse lands texture-less (three's loader resolves a dead
+   texture decode to null instead of failing — mechanism in
+   guard-fixtures.ts), the textures are rebuilt from the parsed
+   file's own bytes through TextureLoader — the <img> decode path,
+   governed by img-src and independent of the fetch policy that
+   killed the bitmap path inside GLTFLoader. Repairs are
+   SERIALISED across bodies: a burst-wide texture failure must not
+   answer itself with three simultaneous re-decodes of 2048²
+   images on top of the entry burst. Initial parses stay fully
+   concurrent; only this second mechanism queues. */
+
+let textureRepairGate: Promise<unknown> = Promise.resolve();
+function runTextureRepair<T>(fn: () => Promise<T>): Promise<T> {
+  const run = textureRepairGate.then(fn, fn);
+  textureRepairGate = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+const repairTextureLoader = new THREE.TextureLoader();
+
+/** The parser surface the repair reads — GLTFLoader's parser is
+ *  not part of three's public types, so it is read loosely, the
+ *  same way the body loader already reaches parser.json. */
+interface GltfParserLike {
+  json?: GlbJsonLike;
+  getDependency?: (type: string, index: number) => Promise<unknown>;
+  associations?: Map<unknown, { materials?: number }>;
+}
+
+/** Mirror a glTF sampler onto a rebuilt texture (spec defaults:
+ *  wrap Repeat, magFilter Linear, minFilter LinearMipmapLinear). */
+function applyGlbSampler(tex: THREE.Texture, sampler?: GlbSamplerLike): void {
+  const wrap = (v?: number): THREE.Wrapping =>
+    v === 33071
+      ? THREE.ClampToEdgeWrapping
+      : v === 33648
+        ? THREE.MirroredRepeatWrapping
+        : THREE.RepeatWrapping;
+  tex.wrapS = wrap(sampler?.wrapS);
+  tex.wrapT = wrap(sampler?.wrapT);
+  tex.magFilter = sampler?.magFilter === 9728 ? THREE.NearestFilter : THREE.LinearFilter;
+  const min = sampler?.minFilter;
+  tex.minFilter =
+    min === 9728
+      ? THREE.NearestFilter
+      : min === 9729
+        ? THREE.LinearFilter
+        : min === 9984
+          ? THREE.NearestMipmapNearestFilter
+          : min === 9985
+            ? THREE.LinearMipmapNearestFilter
+            : min === 9986
+              ? THREE.NearestMipmapLinearFilter
+              : THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps =
+    tex.minFilter !== THREE.NearestFilter && tex.minFilter !== THREE.LinearFilter;
+}
+
+/**
+ * Rebuild a texture-less parse's missing textures in place.
+ * Returns true when at least one slot was filled; any failure —
+ * no parser, no plan, a decode that dies too — answers false and
+ * the caller judges the body by what actually landed.
+ */
+async function repairBodyTextures(gltf: {
+  parser?: unknown;
+  scene: THREE.Object3D;
+}): Promise<boolean> {
+  try {
+    const parser = gltf.parser as GltfParserLike | undefined;
+    const getDependency = parser?.getDependency;
+    if (!parser?.json || typeof getDependency !== "function") return false;
+    const steps = fixtureTextureRepairPlan(parser.json);
+    if (steps.length === 0) return false;
+    const getDep = getDependency.bind(parser);
+    const textureByKey = new Map<string, Promise<THREE.Texture | null>>();
+    const loadRepaired = (step: FixtureTextureRepairStep): Promise<THREE.Texture | null> => {
+      /* One decode per (texture, colour space): metalnessMap and
+         roughnessMap share the metallicRoughness texture instance,
+         exactly as the loader itself assigns it. */
+      const key = `${step.textureIndex}:${step.colorSpace}`;
+      let pending = textureByKey.get(key);
+      if (!pending) {
+        pending = (async () => {
+          const bytes = (await getDep("bufferView", step.bufferView)) as ArrayBuffer;
+          const url = URL.createObjectURL(new Blob([bytes], { type: step.mimeType }));
+          try {
+            const tex = await repairTextureLoader.loadAsync(url);
+            tex.flipY = false; /* glTF UVs: no flip, as GLTFLoader sets */
+            if (step.colorSpace === "srgb") tex.colorSpace = THREE.SRGBColorSpace;
+            applyGlbSampler(tex, step.sampler);
+            return tex;
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+        })().catch(() => null);
+        textureByKey.set(key, pending);
+      }
+      return pending;
+    };
+    /* Target the materials ON the scene meshes, found through the
+       parser's associations — never parser.getDependency("material"):
+       GLTFLoader CLONES a material onto the mesh whenever the mesh
+       needs vertex colours, flat shading or derivative tangents
+       (all three bodies qualify), so the parser's own instance is
+       a sibling the renderer never sees. Writing the repair onto
+       it lands nothing (proven on the bench: identity false, scene
+       untouched). The clone carries the same association, which is
+       the reliable road from a scene material back to its glTF
+       material index and therefore to its repair steps. */
+    const stepsByMaterial = new Map<number, FixtureTextureRepairStep[]>();
+    for (const step of steps) {
+      const list = stepsByMaterial.get(step.materialIndex) ?? [];
+      list.push(step);
+      stepsByMaterial.set(step.materialIndex, list);
+    }
+    const sceneMaterials = new Set<THREE.MeshStandardMaterial>();
+    gltf.scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) {
+        const m = mesh.material;
+        if (Array.isArray(m)) {
+          for (const item of m) sceneMaterials.add(item as THREE.MeshStandardMaterial);
+        } else if (m) {
+          sceneMaterials.add(m as THREE.MeshStandardMaterial);
+        }
+      }
+    });
+    let assigned = 0;
+    for (const material of sceneMaterials) {
+      const materialIndex = parser.associations?.get(material)?.materials;
+      if (materialIndex === undefined) continue;
+      for (const step of stepsByMaterial.get(materialIndex) ?? []) {
+        const current = material[step.slot] as THREE.Texture | null | undefined;
+        const currentImage = current?.image as { width?: unknown } | undefined;
+        if (current && typeof currentImage?.width === "number" && currentImage.width > 0) {
+          continue; /* this slot landed on its own — leave it alone */
+        }
+        const tex = await loadRepaired(step);
+        if (!tex) continue;
+        material[step.slot] = tex;
+        material.needsUpdate = true;
+        assigned += 1;
+      }
+    }
+    return assigned > 0;
+  } catch {
+    return false;
+  }
 }
 
 function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Group {
@@ -360,26 +521,62 @@ export function buildWorldFixtures(opts?: {
    * body materials carry no baseColorFactor, so a texture-less parse
    * stands a flat-white statue on the post (the owner's Oct 25
    * walk). Validate before accepting a source, so the fallback
-   * chain — and ultimately the stand-in — wins over a white body. */
+   * chain — and ultimately the stand-in — wins over a white body.
+   *
+   * Two reinforcements ride inside the attempt now (Oct 29,
+   * stack600/world-textures — the owner's Oct 28 session, where
+   * all six posts exhausted all four attempts on exactly this
+   * error while the bodies' bytes fetched fine):
+   *
+   * 1. REPAIR BEFORE FAILURE. three resolves a dead embedded-
+   *    texture decode to null instead of failing, and the decode
+   *    dies identically on every source (it is a fetch of a blob:
+   *    URL inside ImageBitmapLoader — refused by any policy or
+   *    pressure that blocks it), so walking sources alone can
+   *    never fix it. A texture-less parse is therefore repaired in
+   *    place first (repairBodyTextures) and re-judged; the attempt
+   *    fails only when the repair also leaves the body bare.
+   * 2. A CEILING. Nothing timed a load out before: a texture
+   *    promise that never settles hung the attempt, the plan, the
+   *    beacon and the heal ring with it. Each attempt now races
+   *    FIXTURE_ATTEMPT_TIMEOUT_MS. */
   const loadBody = async (path: string) => {
     const attempt = async (url: string) => {
-      const gltf = await loader.loadAsync(url);
-      const declared =
-        (gltf as { parser?: { json?: { textures?: unknown[] } } }).parser?.json?.textures
-          ?.length ?? 0;
-      const materials: THREE.Material[] = [];
-      gltf.scene.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        if (mesh.isMesh) {
-          const m = mesh.material;
-          if (Array.isArray(m)) materials.push(...m);
-          else if (m) materials.push(m);
-        }
-      });
-      if (!bodyTexturesLanded(declared, materials)) {
-        throw new Error(`textures did not land for ${url}`);
-      }
-      return gltf;
+      return withFixtureAttemptTimeout(
+        async () => {
+          const gltf = await loader.loadAsync(url);
+          const declared =
+            (gltf as { parser?: { json?: { textures?: unknown[] } } }).parser?.json
+              ?.textures?.length ?? 0;
+          const collectMaterials = (): THREE.Material[] => {
+            const materials: THREE.Material[] = [];
+            gltf.scene.traverse((o) => {
+              const mesh = o as THREE.Mesh;
+              if (mesh.isMesh) {
+                const m = mesh.material;
+                if (Array.isArray(m)) materials.push(...m);
+                else if (m) materials.push(m);
+              }
+            });
+            return materials;
+          };
+          if (bodyTexturesLanded(declared, collectMaterials())) return gltf;
+          const repaired = await runTextureRepair(() => repairBodyTextures(gltf)).catch(
+            () => false,
+          );
+          if (bodyTexturesLanded(declared, collectMaterials())) return gltf;
+          throw new Error(
+            repaired
+              ? `textures did not land for ${url} (texture repair attempted)`
+              : `textures did not land for ${url}`,
+          );
+        },
+        FIXTURE_ATTEMPT_TIMEOUT_MS,
+        {
+          setTimer: (fn, ms) => setTimeout(fn, ms),
+          clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        },
+      );
     };
     return attemptLoadPlan(fixtureLoadPlan(mediaUrl(path), path), attempt, (ms) =>
       new Promise((resolve) => setTimeout(resolve, ms)),
