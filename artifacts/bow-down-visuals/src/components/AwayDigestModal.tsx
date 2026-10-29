@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePopupSlot } from "@/hooks/use-popup-slot";
 import {
   X, MoonStar, CheckCircle2, AlertTriangle, FolderOpen, Trophy, KeyRound,
   Gift, Flame, ArrowRight, Settings2,
@@ -57,7 +58,15 @@ export function AwayDigestModal() {
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [digest, setDigest] = useState<Digest | null>(null);
-  const [open, setOpen] = useState(false);
+  const [wantsOpen, setWantsOpen] = useState(false);
+  /* First-session coordinator (QC G10): the digest is an announcement —
+     it claims the pop-up slot ahead of any upsell, and the coordinator's
+     once-per-session memory backs the fetch guard below. */
+  const mayShow = usePopupSlot("away-digest", user?.id ?? "guest", wantsOpen && !!digest);
+  const open = mayShow;
+  const setOpen = (next: boolean) => {
+    if (!next) setWantsOpen(false);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -76,7 +85,7 @@ export function AwayDigestModal() {
         const d = await res.json() as { show?: boolean } & Digest;
         if (cancelled || !d.show) return;
         setDigest(d);
-        setOpen(true);
+        setWantsOpen(true);
       } catch {
         /* silent — the digest is a courtesy, never a blocker */
       }

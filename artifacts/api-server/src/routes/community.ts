@@ -362,6 +362,53 @@ export async function notifyDmRequest(opts: {
   }
 }
 
+/* ── Group-join push (stack800 lane 8 — the push-families lane's named
+   leftover) ─────────────────────────────────────────────────────────────
+   A landed group join rides the event door instead of the bell-only
+   helper: the bell still always lands, and the ping obeys the group
+   owner's "social" preference (default OFF — a join is a social
+   interaction, so it never pings a member who didn't turn social
+   pings on). Exactly-once is structural: group_members' primary key
+   is (group_id, user_id) and the join route refuses an existing
+   member with a 409 before inserting, so this fires exactly once
+   per landed join row — no second counter. */
+export function buildGroupJoinEvent(opts: {
+  ownerUserId: string;
+  joinerName: string;
+  groupName: string;
+  groupSlug: string;
+}): UserEventInput {
+  return {
+    userId: opts.ownerUserId,
+    category: "social",
+    kind: "group_join",
+    title: `🦈 ${opts.joinerName} joined your group "${opts.groupName}"`,
+    body: "Your crew is growing — give them a shout.",
+    link: `/groups/${opts.groupSlug}`,
+  };
+}
+
+type GroupJoinEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _groupJoinEventNotifier: GroupJoinEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setGroupJoinEventNotifier(fn: GroupJoinEventNotifier | null): void {
+  _groupJoinEventNotifier = fn ?? notifyUserEvent;
+}
+
+/** Best-effort: a ping failure never fails the join that landed. */
+export async function notifyGroupJoined(opts: {
+  ownerUserId: string;
+  joinerName: string;
+  groupName: string;
+  groupSlug: string;
+}): Promise<void> {
+  try {
+    await _groupJoinEventNotifier(buildGroupJoinEvent(opts));
+  } catch (err) {
+    console.error("[community] group-join push failed", err);
+  }
+}
+
 /** Map user ids -> creator profile cards (for link-graph profile links). */
 async function profileCards(userIds: string[]): Promise<Record<string, { slug: string; displayName: string; avatarUrl: string | null }>> {
   const uniq = [...new Set(userIds)];
@@ -624,12 +671,11 @@ router.post("/groups/:slug/join", requireAuth, async (req, res) => {
       if (pr[0] && pr[0].userId !== userId) {
         const myCard = await profileCards([userId]);
         const who = myCard[userId]?.displayName ?? "Someone";
-        await notify({
-          userId: pr[0].userId,
-          kind: "group_join",
-          title: `🦈 ${who} joined your group "${group.name}"`,
-          body: "Your crew is growing — give them a shout.",
-          link: `/groups/${group.slug}`,
+        await notifyGroupJoined({
+          ownerUserId: pr[0].userId,
+          joinerName: who,
+          groupName: group.name,
+          groupSlug: group.slug,
         });
       }
     }
