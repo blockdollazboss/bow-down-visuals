@@ -23,6 +23,7 @@ import {
   type KeywordAutomationSurface,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
+import { isAdminRequest } from "../lib/admin";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { KW_MAX_RULES_PER_CREATOR, normalizeKeyword } from "../lib/keyword-automations";
 import { logger } from "../lib/logger";
@@ -148,7 +149,10 @@ router.post("/keyword-automations/rules", requireAuth, publicApiLimiter, async (
       .select({ value: count() })
       .from(keywordAutomationRulesTable)
       .where(eq(keywordAutomationRulesTable.creatorUserId, req.userId!));
-    if ((existing?.value ?? 0) >= KW_MAX_RULES_PER_CREATOR) {
+    /* Rule-count cap: product packaging for members. The owner's
+       account carries no customer restrictions (Oct 29, 2026) — an
+       admin creator is never refused a rule for count. */
+    if (!isAdminRequest(req) && (existing?.value ?? 0) >= KW_MAX_RULES_PER_CREATOR) {
       res.status(400).json({ error: `You can keep up to ${KW_MAX_RULES_PER_CREATOR} keyword rules.` });
       return;
     }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { eq, and, count, desc, inArray, isNull } from "drizzle-orm";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import { isAdminUserId } from "../../lib/admin";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
@@ -108,7 +109,9 @@ router.post("/email-list/subscribe", publicApiLimiter, async (req, res) => {
     return;
   }
 
-  /* Free tier: 1,000 subscribers per list. */
+  /* Free tier: 1,000 subscribers per list. (As coded the cap binds
+     every list; the owner's own list is exempt — Oct 29, 2026: his
+     account carries no customer restrictions.) */
   const [{ value: subCount }] = await db
     .select({ value: count() })
     .from(emailSubscribersTable)
@@ -118,7 +121,7 @@ router.post("/email-list/subscribe", publicApiLimiter, async (req, res) => {
         isNull(emailSubscribersTable.unsubscribedAt)
       )
     );
-  if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT) {
+  if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT && !(await isAdminUserId(list.userId))) {
     res.status(403).json({
       error: "This list is full.",
       code: "list_full",
