@@ -58,7 +58,9 @@ describe("BowDownAIGuide — widget open drives recovery", () => {
 
   it("row no longer hides all controls behind the unavailable flag", () => {
     expect(guide).not.toContain("{!unavailable && (");
-    expect(guide).toContain("{unavailable ? (");
+    /* stack700: the ternary is now the single themeRowView decision —
+       its retry branch is the same always-something-to-press rule. */
+    expect(guide).toContain('{view.card === "retry" ? (');
   });
 
   it("retry affordance shows its in-flight state while checking", () => {
