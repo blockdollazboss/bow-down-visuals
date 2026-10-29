@@ -170,12 +170,25 @@ async function identifyRail(
        one (unreleased → auto-unfund; a payout row → manual review),
        and everything the probe does not positively identify keeps
        parking exactly as before. */
-    const r = await db.execute(sql`
-      SELECT id FROM sponsor_deals
-      WHERE stripe_payment_intent_id = ${pi} OR stripe_session_id = ${pi}
-      LIMIT 1
-    `);
-    const dealRow = firstRow(r);
+    let dealRow: Row | undefined;
+    try {
+      const r = await db.execute(sql`
+        SELECT id FROM sponsor_deals
+        WHERE stripe_payment_intent_id = ${pi} OR stripe_session_id = ${pi}
+        LIMIT 1
+      `);
+      dealRow = firstRow(r);
+    } catch (err) {
+      /* A database the sponsor-escrow migration (0033, which added
+         stripe_payment_intent_id) hasn't reached must degrade to
+         the pre-probe behaviour — park for manual review — never
+         throw: a throw would 500 the webhook and Stripe would
+         retry a charge only a human can settle, forever. */
+      logger.error(
+        { err, paymentIntentId: pi },
+        "payment reversal: sponsor_deals payment-intent probe failed — treating the charge as unidentified (manual review)",
+      );
+    }
     if (!dealRow) return null;
     return identifySponsorDeal(String(dealRow["id"]), pi);
   }
