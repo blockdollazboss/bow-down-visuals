@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Loader2, Download, AlertTriangle, Trophy, Dices, Check, X, Plus,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Delete, RotateCcw, Sparkles,
   ShieldCheck, Ticket, Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { balanceComposition } from "@/lib/balance";
+import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import {
   NativeCard, NativeLoadingState, NativeEmptyState, NativeErrorState,
 } from "@/components/world/native";
@@ -139,6 +142,7 @@ function PrefSwitches({
 }
 
 export function AccountDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { user, profile } = useAuth();
   const [cursor, setCursor] = useState<CursorId>(() => getCursorChoice());
@@ -243,6 +247,17 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
     ? new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
     : null;
 
+  /* Lane V-bucs remainder (stack700): the Visual Bucs field keeps the
+     single spendable total; while part of it is temporary, the split
+     rides inside the same field — Permanent on its own line, the
+     temporary part named with its expiry on the next. Same source as
+     every shipped surface (lib/balance composition over the session
+     profile — the one aggregate bonus pool with one expiry), same
+     balance.* strings the Studio board already renders in-world. */
+  const balanceComp = profile
+    ? (profile.balance_composition ?? balanceComposition(profile))
+    : null;
+
   return (
     <div className="space-y-3" data-testid="world-account-desk">
       <NativeCard isLight={isLight} title="Account settings">
@@ -250,16 +265,36 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
             bio / socials editing lives on the creator-profile rails
             (My public page, above); these are the account's fields. */}
         <div className="grid gap-2 sm:grid-cols-2" data-testid="world-account-fields">
-          {[
+          {([
             { label: "Email", value: user?.email ?? "—" },
             { label: "Display name", value: profile?.display_name ?? "—" },
             { label: "Plan", value: profile?.plan ?? "—" },
-            { label: "Visual Bucs", value: typeof profile?.credits === "number" ? profile.credits.toLocaleString("en-US") : "—" },
+            {
+              label: "Visual Bucs",
+              value: typeof profile?.credits === "number" ? profile.credits.toLocaleString("en-US") : "—",
+              detail: balanceComp && balanceComp.temporaryCredits > 0 ? (
+                <>
+                  <span className={`block ${muted}`}>
+                    {t("balance.permanent_amount", { amount: balanceComp.permanentCredits.toLocaleString("en-US") })}
+                  </span>
+                  <TemporaryBucsNote
+                    composition={balanceComp}
+                    mode="label"
+                    className={`font-bold ${isLight ? "text-[#8a6d1f]" : "text-amber-300/90"}`}
+                  />
+                </>
+              ) : null,
+            },
             ...(memberSince ? [{ label: "Member since", value: memberSince }] : []),
-          ].map((f) => (
+          ] as { label: string; value: string; detail?: ReactNode }[]).map((f) => (
             <div key={f.label} className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
               <p className={`text-[10px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{f.label}</p>
               <p className={`mt-0.5 truncate text-sm font-bold ${strong}`}>{f.value}</p>
+              {f.detail ? (
+                <div className="mt-1 space-y-0.5 text-[11px] leading-snug" data-testid="world-account-balance-split">
+                  {f.detail}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
