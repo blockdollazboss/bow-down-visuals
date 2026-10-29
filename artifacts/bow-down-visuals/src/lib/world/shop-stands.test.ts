@@ -142,6 +142,10 @@ const panelSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/StationPanel.tsx", import.meta.url)),
   "utf8",
 );
+const nativeCardSrc = readFileSync(
+  fileURLToPath(new URL("../../components/world/native/NativeCard.tsx", import.meta.url)),
+  "utf8",
+);
 
 describe("the checkout transfer seam (§3.9)", () => {
   it("is one uniform label, naming the website as the destination", () => {
@@ -1027,5 +1031,66 @@ describe("source pins — the seller's whole picture at the stand (Parity P3)", 
   it("a failed earnings read is a failure line with a retry — never a silent zero", () => {
     expect(standsSrc).toContain('data-testid="world-shop-earnings-retry"');
     expect(standsSrc).toContain("setEarnings(null)");
+  });
+});
+
+describe("the ShopStands checkout reachability (stack600 audit)", () => {
+  /* Gate Pass 2's drawer trap (shop.tsx, fixed in
+     stack600/checkout-drawer-scroll) was a height-capped container
+     whose only scroll region EXCLUDED the embedded checkout, so
+     the Stripe Pay button sat unreachable below the fold. The
+     Marketplace stand's EmbeddedSessionCheckout mount was audited
+     for the same trap — the highest-stakes mount of the four,
+     because the fullscreen/parity laws mean the walker cannot
+     leave the World to reach a cut-off Pay button.
+     VERDICT — SAFE, and already built to the drawer's one-scroll-
+     region contract: the host StationPanel sheet is a single
+     `max-h-[86dvh] overflow-y-auto` region and EVERYTHING — the
+     sheet header, the station body (stand → cart card → checkout)
+     and the transfer footer — renders inside it. The stand itself
+     contributes no height/overflow classes at all (audited zeros),
+     and the two wrappers on the path (NativeCard, PanelBoundary)
+     are pass-throughs. The full-height Stripe iframe (~700–950 px)
+     becomes scrollable distance inside the sheet; Pay is reachable
+     at the sheet's scroll bottom at 480 px (≈413 px visible) and
+     600 px (≈516 px visible) alike, without leaving the sheet, the
+     station or the World. These pins freeze that shape. */
+
+  it("the station sheet is ONE scroll region: viewport-anchored, dvh-capped, internally scrolling", () => {
+    const panelAt = panelSrc.indexOf('data-testid="world-station-panel"');
+    expect(panelAt).toBeGreaterThan(-1);
+    const sheetTag = panelSrc.slice(Math.max(0, panelAt - 800), panelAt);
+    expect(sheetTag).toContain("fixed inset-x-0 bottom-0");
+    expect(sheetTag).toContain("max-h-[86dvh]");
+    expect(sheetTag).toContain("overflow-y-auto");
+    expect(sheetTag).toContain("overscroll-contain");
+  });
+
+  it("the station body — and the transfer footer after it — render INSIDE the sheet's scroll region", () => {
+    const panelAt = panelSrc.indexOf('data-testid="world-station-panel"');
+    expect(panelSrc.split("{body}").length - 1).toBe(1);
+    const bodyAt = panelSrc.indexOf("{body}");
+    expect(bodyAt).toBeGreaterThan(panelAt);
+    const footerAt = panelSrc.indexOf("context={resolution.station.tagline}");
+    expect(footerAt).toBeGreaterThan(bodyAt);
+  });
+
+  it("the PanelBoundary on the body's path is a pass-through (no wrapper, no clip)", () => {
+    expect(panelSrc).toContain("return this.props.children");
+  });
+
+  it("NativeCard is a pass-through — no overflow, no height cap", () => {
+    expect(nativeCardSrc).not.toContain("overflow");
+    expect(nativeCardSrc).not.toContain("max-h");
+  });
+
+  it("the stand mounts the checkout in flow and introduces no trap of its own (audited zeros)", () => {
+    expect(standsSrc).toContain('data-testid="world-shop-embedded-checkout"');
+    expect(standsSrc).toContain("<EmbeddedSessionCheckout clientSecret={embeddedSecret} />");
+    /* The whole ShopStands file carries no overflow or max-height
+       class anywhere — any future scroll region or cap added here
+       must re-prove the checkout stays inside a scrolling one. */
+    expect(standsSrc).not.toContain("overflow");
+    expect(standsSrc).not.toContain("max-h");
   });
 });
