@@ -22,6 +22,7 @@ import {
 } from "@/lib/world/bindings";
 import { firstGamepad } from "@/lib/world/gamepad";
 import { usePanelPadNav } from "@/hooks/use-panel-pad-nav";
+import WorldVirtualKeyboard from "@/components/world/VirtualKeyboard";
 import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
 import {
   ACTION_BY_ID,
@@ -862,6 +863,12 @@ export default function WorldPage() {
   const [fsArmed, setFsArmed] = useState(false);
   const fsRecoveryRef = useRef<FullscreenRecoveryState>(initialFullscreenRecovery);
   const [padConnected, setPadConnected] = useState(false);
+  /* The virtual keyboard's open state (stack900): the page
+     derives pad ownership from it — while the board is open
+     its pad reader is the only active family and the scene's
+     padPanelHold covers it, the same one-truth derivation as
+     every other panel below. */
+  const [vkbdOpen, setVkbdOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
@@ -1438,7 +1445,7 @@ export default function WorldPage() {
      testids the resolver looks up); the three strips resolve by
      their own. */
   usePanelPadNav({
-    active: panelTarget !== null && status === "inside",
+    active: panelTarget !== null && status === "inside" && !vkbdOpen,
     resolveContainer: () =>
       document.querySelector(
         '[data-testid="world-station-panel"], [data-testid="world-station-stepthrough"], [data-testid="world-studio-stepthrough"]',
@@ -1446,17 +1453,17 @@ export default function WorldPage() {
     onClose: closeStation,
   });
   usePanelPadNav({
-    active: charPanelOpen && status === "inside",
+    active: charPanelOpen && status === "inside" && !vkbdOpen,
     resolveContainer: () => document.querySelector('[data-testid="world-char-panel"]'),
     onClose: () => setCharPanelOpen(false),
   });
   usePanelPadNav({
-    active: screenPanelOpen && status === "inside",
+    active: screenPanelOpen && status === "inside" && !vkbdOpen,
     resolveContainer: () => document.querySelector('[data-testid="world-screen-panel"]'),
     onClose: () => setScreenPanelOpen(false),
   });
   usePanelPadNav({
-    active: hostPanelOpen && status === "inside",
+    active: hostPanelOpen && status === "inside" && !vkbdOpen,
     resolveContainer: () => document.querySelector('[data-testid="world-host-panel"]'),
     onClose: () => setHostPanelOpen(false),
   });
@@ -1470,8 +1477,8 @@ export default function WorldPage() {
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-    scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;
-  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
+    scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen || vkbdOpen;
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen, vkbdOpen]);
 
   /* Controller presence: a paired gamepad announces itself; the
      scene polls it for input (left stick walks, right stick looks,
@@ -4288,6 +4295,18 @@ export default function WorldPage() {
           )}
         </div>
       )}
+
+      {/* The virtual keyboard (stack900): summons itself over
+          any text field in this page — chat, herald, every
+          desk's fields — while a pad is connected or the World
+          is fullscreen, and hands the pad back when it closes.
+          Fixed to the viewport's foot, above every panel. */}
+      <WorldVirtualKeyboard
+        resolveScope={() => pageRef.current}
+        isLight={isLight}
+        padConnected={padConnected}
+        onOpenChange={setVkbdOpen}
+      />
 
       {/* The doors, opened: a station's panel (or the page a Court
           portrait pointed at). The sheet anchors itself to the
