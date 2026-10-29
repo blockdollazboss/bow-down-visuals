@@ -142,6 +142,61 @@ describe("describeBilling — cancel sets canceling, period end holds", () => {
   });
 });
 
+describe("describeBilling — change plan (stack600 plan-tier-change)", () => {
+  const paidPro = state({
+    plan: "pro",
+    planName: "Pro",
+    priceUsdPerMonth: 12,
+    status: "active",
+    currentPeriodEnd: PERIOD_END,
+    renewalDate: PERIOD_END,
+    hasStripeSubscription: true,
+    hasStripeCustomer: true,
+    canCancel: true,
+  });
+
+  it("Pro with the server's canChangePlan offers the switch to Elite", () => {
+    const d = describeBilling({ ...paidPro, canChangePlan: true });
+    expect(d.showChangePlan).toBe(true);
+    expect(d.changeTargetTier).toBe("elite");
+  });
+
+  it("Elite with canChangePlan offers the switch DOWN to Pro", () => {
+    const d = describeBilling({ ...paidPro, plan: "elite", planName: "Elite", priceUsdPerMonth: 29, canChangePlan: true });
+    expect(d.showChangePlan).toBe(true);
+    expect(d.changeTargetTier).toBe("pro");
+  });
+
+  it("without the server's word there is no change control — the client never guesses", () => {
+    const missing = describeBilling(paidPro);
+    expect(missing.showChangePlan).toBe(false);
+    expect(missing.changeTargetTier).toBeNull();
+    const refused = describeBilling({ ...paidPro, canChangePlan: false });
+    expect(refused.showChangePlan).toBe(false);
+    expect(refused.changeTargetTier).toBeNull();
+  });
+
+  it("a canceling member can still change plans (the server flags it — changing means staying)", () => {
+    const d = describeBilling({
+      ...paidPro,
+      status: "canceling",
+      renewalDate: null,
+      endsAt: PERIOD_END,
+      canCancel: false,
+      canResume: true,
+      canChangePlan: true,
+    });
+    expect(d.showChangePlan).toBe(true);
+    expect(d.changeTargetTier).toBe("elite");
+  });
+
+  it("the free plan never offers a change, even if a stray flag arrives", () => {
+    const d = describeBilling(state({ canChangePlan: true }));
+    expect(d.showChangePlan).toBe(false);
+    expect(d.changeTargetTier).toBeNull();
+  });
+});
+
 describe("formatBillingDate", () => {
   it("formats an ISO period end as a stable UTC date", () => {
     expect(formatBillingDate(PERIOD_END, "en-US")).toBe("Nov 25, 2026");
