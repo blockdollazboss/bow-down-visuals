@@ -575,6 +575,7 @@ function AppShell() {
           <Route path="/refund-policy"><RefundPolicy /></Route>
           <Route path="/randomizer"><Redirect to="/hooks?tab=dice" /></Route>
           <Route path="/sounds"><Redirect to="/audio-studio?tab=sounds" /></Route>
+          <Route path="/sound-library"><Redirect to="/audio-studio?tab=sounds" /></Route>
           {/* Shorts — vertical feed, sound pages, challenge pages, hashtag hub (public) */}
           <Route path="/shorts"><ShortsFeed /></Route>
           <Route path="/sound/:id"><SoundDetailPage /></Route>

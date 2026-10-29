@@ -234,6 +234,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/randomizer", disposition: "redirect", redirectTo: "/hooks?tab=dice", targetDisposition: "locked" },
   { path: "/hooks", disposition: "locked" },
   { path: "/sounds", disposition: "redirect", redirectTo: "/audio-studio?tab=sounds", targetDisposition: "locked" },
+  { path: "/sound-library", disposition: "redirect", redirectTo: "/audio-studio?tab=sounds", targetDisposition: "locked" },
   { path: "/shorts", disposition: "public" },
   { path: "/sound/:id", disposition: "public" },
   { path: "/challenge/:slug/winners", disposition: "public" },
