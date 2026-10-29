@@ -27,6 +27,10 @@
  *   · B Dance · RB Spin — and Back (8) cycles to page 2 (Point ·
  *   Laugh · Kneel · Beckon · Salute · High-five · Shrug).
  *   Start (9)                → photo mode (edge)
+ *   Back (8) held ≥ 600 ms   → toggle fullscreen (long-press
+ *                              edge; bindings.ts PAD_PAGE_BUTTON
+ *                              carries the why — Back's tap stays
+ *                              the action-page cycle)
  *   R3 (11)                  → moment claim (edge): the live drop
  *                              or the King's gift, when one is up
  * Avatar actions ride the same edge discipline as the toggles:
@@ -40,6 +44,8 @@ import {
   PAD_VERBS,
   PAD_JUMP_BUTTON,
   PAD_VOICE_LONG_PRESS_MS,
+  PAD_PAGE_BUTTON,
+  PAD_FULLSCREEN_LONG_PRESS_MS,
   actionForPadButton,
   DEFAULT_ACTION_PAGE,
   type ActionPageId,
@@ -67,6 +73,13 @@ export interface GamepadEdges {
   lt: boolean;
   /** Back held at the last poll (the page-cycle edge state). */
   page: boolean;
+  /** When the current Back hold began (poll clock ms), 0 = Back
+   *  is up. Back's tap is the page cycle; the hold's age is what
+   *  turns the same press into the fullscreen toggle. */
+  pageHeldSince: number;
+  /** The current Back hold has already fired its fullscreen
+   *  toggle. */
+  pageFiredFs: boolean;
   /** Start held at the last poll (the photo edge state). */
   photo: boolean;
   /** R3 held at the last poll (the moment-claim edge state). */
@@ -101,6 +114,13 @@ export interface GamepadIntent {
   interact: boolean;
   /** Edge-triggered: Back went down — cycle the action page. */
   pageCycle: boolean;
+  /** Edge-triggered: Back's hold crossed
+   *  PAD_FULLSCREEN_LONG_PRESS_MS this frame — toggle
+   *  fullscreen. (Back's pageCycle now rides the HOLD of the
+   *  same button: the tap that starts the hold has already
+   *  cycled the page — the documented cost of the share,
+   *  bindings.ts.) */
+  fullscreenToggle: boolean;
   /** Edge-triggered: Start went down — toggle photo mode. */
   photoMode: boolean;
   /** Edge-triggered: R3 went down — claim the live moment. */
@@ -122,6 +142,7 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   toggleView: false,
   interact: false,
   pageCycle: false,
+  fullscreenToggle: false,
   photoMode: false,
   momentClaim: false,
   action: null,
@@ -135,6 +156,8 @@ export const IDLE_GAMEPAD_EDGES: GamepadEdges = {
   aVoiced: false,
   lt: false,
   page: false,
+  pageHeldSince: 0,
+  pageFiredFs: false,
   photo: false,
   claim: false,
   actions: {},
@@ -206,6 +229,17 @@ export function pollGamepad(
     aDown &&
     (prev.aVoiced === true ||
       (aHeldSince > 0 && nowMs - aHeldSince >= PAD_VOICE_LONG_PRESS_MS));
+  /* Back (PAD_PAGE_BUTTON = VERB_BUTTON.pageCycle — one button,
+   *  two gestures, A's pattern): the press edge is the page
+   *  cycle; the hold crossing PAD_FULLSCREEN_LONG_PRESS_MS is
+   *  the fullscreen toggle, once per hold. */
+  const backDown = pressed(pad, PAD_PAGE_BUTTON);
+  const prevBackHeldSince = typeof prev.pageHeldSince === "number" ? prev.pageHeldSince : 0;
+  const pageHeldSince = backDown ? (prevBackHeldSince > 0 ? prevBackHeldSince : nowMs) : 0;
+  const pageFiredFs =
+    backDown &&
+    (prev.pageFiredFs === true ||
+      (pageHeldSince > 0 && nowMs - pageHeldSince >= PAD_FULLSCREEN_LONG_PRESS_MS));
   const edges: GamepadEdges = {
     voice: aDown,
     view: pressed(pad, VERB_BUTTON.viewToggle),
@@ -213,7 +247,9 @@ export function pollGamepad(
     aHeldSince,
     aVoiced,
     lt: pressed(pad, VERB_BUTTON.voiceBack),
-    page: pressed(pad, VERB_BUTTON.pageCycle),
+    page: backDown,
+    pageHeldSince,
+    pageFiredFs,
     photo: pressed(pad, VERB_BUTTON.photoMode),
     claim: pressed(pad, VERB_BUTTON.momentClaim),
     actions: actionEdges,
@@ -231,6 +267,7 @@ export function pollGamepad(
       toggleView: edges.view && !prev.view,
       interact: edges.interact && !prev.interact,
       pageCycle: edges.page && !prev.page,
+      fullscreenToggle: pageFiredFs && prev.pageFiredFs !== true,
       photoMode: edges.photo && !prev.photo,
       momentClaim: edges.claim && !prev.claim,
       action,

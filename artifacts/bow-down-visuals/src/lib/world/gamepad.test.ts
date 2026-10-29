@@ -169,6 +169,60 @@ describe("A — tap jumps, hold steps voice (stack300)", () => {
   });
 });
 
+describe("Back — tap cycles the page, hold toggles fullscreen (stack700)", () => {
+  it("a tap is a page cycle — edge only, never a fullscreen toggle", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(down.intent.pageCycle).toBe(true);
+    expect(down.intent.fullscreenToggle).toBe(false);
+    const held = pollGamepad(pad([0, 0, 0, 0], [8]), down.edges, "perform", 1100);
+    expect(held.intent.pageCycle).toBe(false);
+    expect(held.intent.fullscreenToggle).toBe(false);
+    const up = pollGamepad(pad([0, 0, 0, 0], []), held.edges, "perform", 1150);
+    const again = pollGamepad(pad([0, 0, 0, 0], [8]), up.edges, "perform", 1200);
+    expect(again.intent.pageCycle).toBe(true);
+    expect(again.intent.fullscreenToggle).toBe(false);
+  });
+
+  it("holding Back past the long-press line toggles fullscreen exactly once — the tap already cycled", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(down.intent.pageCycle).toBe(true);
+    const before = pollGamepad(pad([0, 0, 0, 0], [8]), down.edges, "perform", 1599);
+    expect(before.intent.fullscreenToggle).toBe(false);
+    const at = pollGamepad(pad([0, 0, 0, 0], [8]), before.edges, "perform", 1600);
+    expect(at.intent.fullscreenToggle).toBe(true);
+    expect(at.intent.pageCycle).toBe(false);
+    const after = pollGamepad(pad([0, 0, 0, 0], [8]), at.edges, "perform", 2600);
+    expect(after.intent.fullscreenToggle).toBe(false);
+  });
+
+  it("a fresh hold after release can toggle fullscreen again", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    const fired = pollGamepad(pad([0, 0, 0, 0], [8]), down.edges, "perform", 1700);
+    expect(fired.intent.fullscreenToggle).toBe(true);
+    const up = pollGamepad(pad([0, 0, 0, 0], []), fired.edges, "perform", 1800);
+    const down2 = pollGamepad(pad([0, 0, 0, 0], [8]), up.edges, "perform", 2000);
+    expect(down2.intent.pageCycle).toBe(true);
+    const fired2 = pollGamepad(pad([0, 0, 0, 0], [8]), down2.edges, "perform", 2700);
+    expect(fired2.intent.fullscreenToggle).toBe(true);
+  });
+
+  it("Back steals nothing else: not an action, not sprint, not photo", () => {
+    const { intent } = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(intent.action).toBeNull();
+    expect(intent.sprint).toBe(false);
+    expect(intent.photoMode).toBe(false);
+    expect(intent.jump).toBe(false);
+  });
+
+  it("a disconnected pad mid-hold resets the hold — a reconnect never fires a stale toggle", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    const gone = pollGamepad(null, down.edges, "perform", 5000);
+    expect(gone.intent.fullscreenToggle).toBe(false);
+    expect(gone.edges.pageHeldSince).toBe(0);
+    expect(gone.edges.pageFiredFs).toBe(false);
+  });
+});
+
 describe("firstGamepad", () => {
   it("skips disconnected slots", () => {
     const p = pad([0, 0, 0, 0]);

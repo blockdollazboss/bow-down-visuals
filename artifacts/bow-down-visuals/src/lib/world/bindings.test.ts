@@ -123,6 +123,12 @@ describe("role gates", () => {
      *  and jump (stack300). */
     expect(verbRoleOk("jump", "guest")).toBe(true);
     expect(verbRoleOk("jump", "member")).toBe(true);
+    /* Fullscreen is a view state like photo mode — guests keep
+     *  it (stack700): a guest on a controller can always get
+     *  their screen back. */
+    expect(verbRoleOk("fullscreen", "guest")).toBe(true);
+    expect(verbRoleOk("fullscreen", "member")).toBe(true);
+    expect(verbRoleOk("fullscreen", "admin")).toBe(true);
     for (const verb of ["voiceStep", "voiceBack", "interact", "pageCycle", "momentClaim"] as WorldVerb[]) {
       expect(verbRoleOk(verb, "guest")).toBe(false);
       expect(verbRoleOk(verb, "member")).toBe(true);
