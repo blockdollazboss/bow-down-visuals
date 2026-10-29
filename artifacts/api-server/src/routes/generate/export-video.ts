@@ -1861,10 +1861,17 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     exportStatus.ffmpegStage = "fetching audio";
     let audioPath: string | null = null;
     // Theme-aware default watermark: light theme gets the bronze-on-transparent
-    // logo, dark theme gets the gold-on-transparent logo. (Also fixes the old
-    // reference to bdv-watermark.png which never existed — the dark file is .webp.)
+    // logo, dark theme gets the gold-on-transparent logo. The dark mark feeds
+    // as bdv-watermark-dark.png — a pixel-identical PNG re-encode of the house
+    // WebP (decoded raw-RGBA dumps byte-equal, md5-verified) — so the §4.5
+    // pre-scale's PNG gate admits it and dark branded exports get the memory
+    // win (owner ruling, Oct 29: "Swap the dark mark to PNG"). Per the
+    // dark-mark measurement, the format swap itself shifts the rendered mark
+    // ≤20/255 per channel inside its own box — measured, reported, and
+    // accepted by the owner. bdv-watermark.webp stays in place: the photo
+    // editor and the frontend watermark helper still reference it.
     const DEFAULT_WATERMARK = path.join(WORKSPACE_ROOT, "artifacts/bow-down-visuals/public",
-      watermarkTheme === "light" ? "bdv-watermark-light.png" : "bdv-watermark.webp");
+      watermarkTheme === "light" ? "bdv-watermark-light.png" : "bdv-watermark-dark.png");
 
     if (!testMode && usePrepared && preparedEntry?.audio?.ready && existsSync(preparedEntry.audio.localPath)) {
       // Use the EXACT audio file already downloaded + ffprobe-verified in prepare step
@@ -2557,7 +2564,19 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
      * feed EXACTLY — the pre-stack700 render path, no output change —
      * and the skip is logged so the residual memory exposure (the
      * dark mark's queue leg) stays visible rather than silently
-     * trading quality for headroom. */
+     * trading quality for headroom.
+     *
+     * DARK-MARK SWAP (owner ruling, Oct 29) — that residual is now
+     * closed for the house dark mark: §2 feeds it as
+     * bdv-watermark-dark.png, a PNG re-encode carrying the WebP's
+     * exact decoded pixels (raw RGBA dumps byte-identical), so this
+     * gate admits it and dark branded exports pre-scale like light
+     * ones (measured encoder peak 270→215 MB). The swap's own cost —
+     * the rendered mark shifts ≤20/255 per channel inside its box,
+     * because feeding PNG vs WebP negotiates the in-graph scaler
+     * path — was measured, reported, and accepted by the owner. The
+     * gate still guards the remaining lossy sources (custom .jpg /
+     * .webp logos), whose full-size feed is unchanged. */
     let wmFeedPath: string | null = activeWmPath;
     if (wmInputIdx >= 0 && activeWmPath && wmDisplayWidth > 0) {
       const wmCodec = await probeStillImageCodec(activeWmPath);
