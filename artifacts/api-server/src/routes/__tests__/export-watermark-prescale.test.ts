@@ -26,6 +26,19 @@
  * PNG out), and the pass A invocation's `-loop 1 -i` input is that
  * pre-scaled file — never the full-size original. Proven with the
  * Lane E argv-recording PATH-shadow harness over a real render.
+ *
+ * IDENTITY GATE (stack700 watermark-png-gate): the identity proof
+ * covers PNG sources only, and the watermark leg accepts lossy ones
+ * — the dark house mark is WebP and custom logos download as .jpg /
+ * .webp. For lossy sources a standalone pre-scale negotiates a
+ * different intermediate format than the in-graph scale and the
+ * render DRIFTS (md5-verified on the actual dark mark). §4.5 now
+ * probes the source (shared probeStillImageCodec with §4.6) and
+ * pre-scales only codec == png; lossy sources feed the full-size
+ * original exactly as pre-stack700. So the pre-scale pins below run
+ * on the LIGHT house mark (PNG, 1600x1600), and two further pins
+ * hold the lossy side: a JPEG custom logo and the WebP dark house
+ * mark each spawn NO pre-scale and loop their untouched originals.
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { execFile } from "child_process";
@@ -182,6 +195,7 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
   let dir = "";
   let clipPath = "";
   let songPath = "";
+  let logoJpgPath = "";
   let realFfmpeg = "";
   let argvLog = "";
 
@@ -189,6 +203,7 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
     dir = await mkdtemp(join(tmpdir(), "stack700-wmfeed-"));
     clipPath = join(dir, "clip.mp4");
     songPath = join(dir, "song.mp3");
+    logoJpgPath = join(dir, "logo.jpg");
     argvLog = join(dir, "argv.log");
     await execFileAsync("ffmpeg", [
       "-y",
@@ -200,17 +215,26 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
       "-y", "-f", "lavfi", "-i", "sine=frequency=220:duration=5",
       "-c:a", "libmp3lame", songPath,
     ], { timeout: 60_000 });
+    // A JPEG custom-logo stand-in (1000x800) for the identity-gate pin.
+    await execFileAsync("ffmpeg", [
+      "-y", "-f", "lavfi", "-i", "color=c=0xcc6633:size=1000x800:duration=1",
+      "-frames:v", "1", "-pix_fmt", "yuv420p", logoJpgPath,
+    ], { timeout: 60_000 });
 
     const which = await execFileAsync("which", ["ffmpeg"]);
     realFfmpeg = which.stdout.trim().split("\n")[0]!;
     expect(realFfmpeg.length).toBeGreaterThan(0);
 
+    const files: Record<string, { path: string; type: string }> = {
+      "clip.mp4": { path: clipPath, type: "video/mp4" },
+      "song.mp3": { path: songPath, type: "audio/mpeg" },
+      "logo.jpg": { path: logoJpgPath, type: "image/jpeg" },
+    };
     server = createServer((req, res) => {
-      const name = (req.url ?? "").replace("/", "");
-      const file = name === "clip.mp4" ? clipPath : name === "song.mp3" ? songPath : null;
-      if (!file) { res.statusCode = 404; res.end(); return; }
-      void readFile(file).then((buf) => {
-        res.setHeader("Content-Type", name.endsWith(".mp3") ? "audio/mpeg" : "video/mp4");
+      const entry = files[(req.url ?? "").replace("/", "")];
+      if (!entry) { res.statusCode = 404; res.end(); return; }
+      void readFile(entry.path).then((buf) => {
+        res.setHeader("Content-Type", entry.type);
         res.end(buf);
       });
     });
@@ -224,7 +248,104 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
     if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
   });
 
+  /** Reset the shared capture state + argv log so each test in this
+   *  file sees only its own render's invocations. */
+  async function resetCapture(): Promise<void> {
+    captured.completed.length = 0;
+    captured.failed.length = 0;
+    await writeFile(argvLog, "");
+  }
+
+  /** Run one export under the argv-recording PATH shadow and return
+   *  the parsed ffmpeg invocations (used by the identity-gate pins;
+   *  the original pin below keeps its own inline flow). */
+  async function runAndCapture(body: never, jobId: string): Promise<string[][]> {
+    const fakeBin = join(dir, "fakebin");
+    await mkdir(fakeBin, { recursive: true });
+    const wrapper = [
+      "#!/bin/sh",
+      "{",
+      '  echo "===INVOKE==="',
+      '  for a in "$@"; do echo "$a"; done',
+      '} >> "$BDV_ARGV_LOG"',
+      `exec ${realFfmpeg} "$@"`,
+      "",
+    ].join("\n");
+    await writeFile(join(fakeBin, "ffmpeg"), wrapper);
+    await chmod(join(fakeBin, "ffmpeg"), 0o755);
+
+    await resetCapture();
+    const ctx = {
+      body,
+      userId: "user-1",
+      userPlan: "free",
+      userSupabase: fakeUserSupabase(),
+      log: logStub,
+      statusRef: { current: null },
+    } as never;
+
+    const prevPath = process.env["PATH"];
+    const prevLog = process.env["BDV_ARGV_LOG"];
+    process.env["PATH"] = `${fakeBin}:${prevPath ?? ""}`;
+    process.env["BDV_ARGV_LOG"] = argvLog;
+    try {
+      await runExportJobInBackground(jobId, ctx);
+    } finally {
+      process.env["PATH"] = prevPath;
+      if (prevLog === undefined) delete process.env["BDV_ARGV_LOG"];
+      else process.env["BDV_ARGV_LOG"] = prevLog;
+    }
+
+    const raw = await readFile(argvLog, "utf8");
+    return raw
+      .split("===INVOKE===\n")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map((s) => s.split("\n"));
+  }
+
+  function baseBody(overrides: Record<string, unknown>): never {
+    return {
+      projectId: PROJECT_ID,
+      clipUrls: [`${base}/clip.mp4`],
+      audioUrl: `${base}/song.mp3`,
+      timelineOrder: ["scene-1"],
+      testMode: false,
+      aspectRatio: "9:16",
+      fadeAudioInSec: 0,
+      fadeAudioOutSec: 0,
+      loopAudio: false,
+      audioStartSec: 0,
+      matchVideoLength: false,
+      addWatermark: true,
+      aiDisclosure: true,
+      customWatermarkUrl: null,
+      watermarkTheme: "dark",
+      watermarkPosition: "bottom-right",
+      watermarkSize: "medium",
+      watermarkMargin: 16,
+      audioSource: "uploaded",
+      captions: null,
+      captionExportMode: "burn",
+      branding: DEFAULT_BRANDING,
+      exportRangeStart: null,
+      exportRangeEnd: null,
+      clipTransitions: [null],
+      clipProTools: [null],
+      manualGapsBeforeSec: null,
+      effects: null,
+      overlayItems: null,
+      adjustmentItems: null,
+      ducking: null,
+      overlayEffects: null,
+      overlayEffectIntensity: null,
+      fitMode: "fill",
+      ...overrides,
+    } as never;
+  }
+
   it("spawns one pre-scale to the graph's watermark width and feeds pass A the scaled copy", async () => {
+    await resetCapture();
     const fakeBin = join(dir, "fakebin");
     await mkdir(fakeBin, { recursive: true });
     const wrapper = [
@@ -254,7 +375,10 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
       addWatermark: true,
       aiDisclosure: true,
       customWatermarkUrl: null,
-      watermarkTheme: "dark",
+      // Light theme -> the PNG house mark: this pin covers the
+      // byte-identical class. (The dark mark is WebP — outside the
+      // class — and is pinned separately below as feed-the-original.)
+      watermarkTheme: "light",
       watermarkPosition: "bottom-right",
       watermarkSize: "medium",
       watermarkMargin: 16,
@@ -346,6 +470,93 @@ describe("watermark feed pre-scale — pass A never loops the full-size original
         if (args[i] === "-loop") {
           expect(args[i + 2]).toBe("-i");
           expect(args[i + 3]).toBe(feedPath);
+        }
+      }
+    }
+  }, 300_000);
+
+  it("identity gate: a JPEG custom-logo watermark feeds its untouched original (no pre-scale)", async () => {
+    // Branding watermark OFF so the legacy §2b path resolves the
+    // watermark from customWatermarkUrl — a JPEG download
+    // (bdv-wm-<id>.jpg), outside the byte-identical class.
+    const noBrandingWm = {
+      ...DEFAULT_BRANDING,
+      watermark: { ...DEFAULT_BRANDING.watermark, enabled: false },
+    };
+    const invocations = await runAndCapture(
+      baseBody({
+        customWatermarkUrl: `${base}/logo.jpg`,
+        branding: noBrandingWm,
+      }),
+      "job-wm-jpeg-gate",
+    );
+
+    expect(captured.failed).toEqual([]);
+    expect(captured.completed).toHaveLength(1);
+    expect(captured.completed[0]!.result.watermarked).toBe(true);
+    expect(invocations.length).toBeGreaterThan(1);
+
+    // ── NO pre-scale spawn at all: nothing writes a bdv-wm-feed-*.png.
+    const prescales = invocations.filter((args) =>
+      args.some((a) => /bdv-wm-feed-.*\.png$/.test(a)) && args.includes("-vf"),
+    );
+    expect(prescales).toHaveLength(0);
+
+    // ── Pass A's -loop input is the downloaded JPEG original itself.
+    const passA = invocations.find((args) => args.includes("-filter_complex_threads"))!;
+    expect(passA).toBeTruthy();
+    const loopIdx = passA.indexOf("-loop");
+    expect(loopIdx).toBeGreaterThan(-1);
+    expect(passA[loopIdx + 1]).toBe("1");
+    expect(passA[loopIdx + 2]).toBe("-i");
+    const loopInput = passA[loopIdx + 3]!;
+    expect(loopInput).toMatch(/bdv-wm-[^/]*\.jpg$/);
+    expect(loopInput).not.toContain("bdv-wm-feed-");
+
+    // ── And it is the only -loop input in the whole render.
+    for (const args of invocations) {
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "-loop") {
+          expect(args[i + 3]).toBe(loopInput);
+        }
+      }
+    }
+  }, 300_000);
+
+  it("identity gate: the WebP dark house mark feeds its untouched original (no pre-scale)", async () => {
+    // Default branding watermark + dark theme -> DEFAULT_WATERMARK is
+    // bdv-watermark.webp (codec webp), outside the byte-identical
+    // class — the most common branded-export path must not drift.
+    const invocations = await runAndCapture(
+      baseBody({ watermarkTheme: "dark" }),
+      "job-wm-webp-gate",
+    );
+
+    expect(captured.failed).toEqual([]);
+    expect(captured.completed).toHaveLength(1);
+    expect(captured.completed[0]!.result.watermarked).toBe(true);
+    expect(invocations.length).toBeGreaterThan(1);
+
+    // ── NO pre-scale spawn at all.
+    const prescales = invocations.filter((args) =>
+      args.some((a) => /bdv-wm-feed-.*\.png$/.test(a)) && args.includes("-vf"),
+    );
+    expect(prescales).toHaveLength(0);
+
+    // ── Pass A's -loop input is the house WebP file itself.
+    const passA = invocations.find((args) => args.includes("-filter_complex_threads"))!;
+    expect(passA).toBeTruthy();
+    const loopIdx = passA.indexOf("-loop");
+    expect(loopIdx).toBeGreaterThan(-1);
+    expect(passA[loopIdx + 1]).toBe("1");
+    expect(passA[loopIdx + 2]).toBe("-i");
+    expect(passA[loopIdx + 3]).toMatch(/bdv-watermark\.webp$/);
+
+    // ── And it is the only -loop input in the whole render.
+    for (const args of invocations) {
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "-loop") {
+          expect(args[i + 3]).toMatch(/bdv-watermark\.webp$/);
         }
       }
     }
