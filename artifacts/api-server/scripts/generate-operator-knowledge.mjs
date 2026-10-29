@@ -58,6 +58,24 @@
                                  its sole entry retired with the Export
                                  Doctor's removal — the table stands
                                  empty until the next such family).
+     server-surface census ..... EVERY mounted server route file
+                                 (routes/index.ts imports + mounts, each
+                                 file's router.* registrations), emitted
+                                 as kb.serverSurface: per family, its
+                                 endpoint count, how many endpoints some
+                                 feature carries, and the unseen remainder
+                                 by name. A family with NO feature-visible
+                                 endpoint must be classified in
+                                 SERVER_FAMILY_CLASSIFICATIONS (surface +
+                                 reason) or generation throws — the
+                                 board-#36 widening (stack800 lane 9):
+                                 the page scan alone left whole endpoint
+                                 families (the generate/* tool rails, the
+                                 live-* rails, …) invisible to the
+                                 operator; the census names every family
+                                 so none can go invisible silently again.
+                                 The coverage test re-derives the census
+                                 from the server sources independently.
      duration-tiered prices .... src/routes/generate/music-audio.ts
                                  SONG_PRICE_TIERS — the table the charging
                                  function creditCostForLength derives from.
@@ -580,6 +598,79 @@ function extractRouteFileEndpoints(rawSrc) {
     if (p.length > 1) out.add(normParams(p));
   }
   return [...out].sort();
+}
+
+/** ─── Server-surface census (stack800 lane 9 — board #36) ────────────────
+    Derives EVERY mounted API family from the server's own wiring:
+    routes/index.ts imports + mounts (with their prefixes) and each
+    route file's registrations on any *Router receiver in the file
+    (routes/embed.ts registers its API twin as embedApiRouter; its page
+    twin registers the same paths for the chrome-less pages, deduped by
+    the path set). An endpoint is VISIBLE when some feature's endpoint
+    list carries it (param names normalized away — the registry and
+    the rails name parameters differently). Every family is emitted
+    with its unseen remainder BY NAME; a family with nothing visible
+    must carry a SERVER_FAMILY_CLASSIFICATIONS entry or this throws,
+    and a classification whose family turned visible (or unmounted)
+    throws as stale. The census is the operator's guarantee that no
+    endpoint family is invisible: partial families still publish their
+    unseen endpoints here even though their features carry the rest. */
+function buildServerSurface(features) {
+  /* Raw reads, no comment-stripping: a registration is a registration,
+     and the coverage test re-derives the census with the same plain
+     scan, so the two can never disagree about a commented-out line. */
+  const indexSrc = read(path.join(API_SRC, "routes", "index.ts"));
+  const imports = new Map();
+  for (const m of indexSrc.matchAll(/import\s+(?:\{\s*)?([A-Za-z0-9_]+)(?:\s*\})?\s+from\s+"(\.\/[^"]+)"/g)) {
+    imports.set(m[1], m[2]);
+  }
+  const visible = new Set();
+  for (const f of features) {
+    for (const e of f.endpoints) visible.add(normParams(e.split("?")[0]));
+  }
+  const regRe = /\b\w*[Rr]outer\.(?:get|post|put|patch|delete|all)\(\s*"([^"]+)"/g;
+  const byFile = new Map();
+  for (const m of indexSrc.matchAll(/router\.use\(\s*(?:"([^"]+)"\s*,\s*)?([A-Za-z0-9_]+)\s*\)/g)) {
+    const prefix = m[1] ?? "";
+    const varName = m[2];
+    const relImport = imports.get(varName);
+    if (!relImport) {
+      throw new Error(`server census: routes/index.ts mounts ${varName}, which it never imports — the census cannot derive its family`);
+    }
+    const abs = path.join(API_SRC, "routes", `${relImport}.ts`);
+    const file = rel(abs);
+    const src = read(abs);
+    const eps = byFile.get(file) ?? new Set();
+    for (const r of src.matchAll(regRe)) {
+      const p = `/api${prefix}${r[1]}`.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
+      if (p.length > 1) eps.add(p);
+    }
+    byFile.set(file, eps);
+  }
+  const files = [];
+  for (const [file, epsSet] of [...byFile.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const endpoints = [...epsSet].sort();
+    if (endpoints.length === 0) {
+      throw new Error(`server census: ${file} is mounted in routes/index.ts but registers no routes the harvest can see — its shape changed; review the harvest instead of emitting an empty family`);
+    }
+    const unseen = endpoints.filter((e) => !visible.has(normParams(e)));
+    const entry = { file, endpoints: endpoints.length, visible: endpoints.length - unseen.length, unseen };
+    if (entry.visible === 0) {
+      const classification = SERVER_FAMILY_CLASSIFICATIONS[file];
+      if (!classification) {
+        throw new Error(`server census: ${file} registers ${endpoints.length} endpoints, none visible in any feature, and has no SERVER_FAMILY_CLASSIFICATIONS entry — classify the family (surface + reason) so it is not invisible to the operator`);
+      }
+      entry.classification = classification;
+    }
+    files.push(entry);
+  }
+  for (const file of Object.keys(SERVER_FAMILY_CLASSIFICATIONS)) {
+    const entry = files.find((f) => f.file === file);
+    if (!entry || entry.visible > 0) {
+      throw new Error(`server census: SERVER_FAMILY_CLASSIFICATIONS entry for ${file} is stale — the family is ${entry ? "now partly feature-visible" : "no longer mounted"}; remove the entry`);
+    }
+  }
+  return { files };
 }
 
 /** data/seo-pages.ts: per-slug SEO pages carry a designed name + prose
@@ -1116,6 +1207,546 @@ const FEATURE_ENDPOINT_LINKS = [
     endpoint family whose calling surface sits past the page scan
     gets an entry here instead of a hand list. */
 const ROUTE_FILE_FEATURE_LINKS = [];
+
+/** ─── Server-family classifications (stack800 lane 9 — board #36) ────────
+    The server-surface census (buildServerSurface, below) derives every
+    mounted route family from routes/index.ts + the route files
+    themselves. A family whose endpoints NO feature carries is invisible
+    to the operator unless it is classified HERE: the surface it belongs
+    to and the reviewed reason it has no feature entry. Generation
+    THROWS on a fully-invisible family with no entry, and on an entry
+    whose family has become feature-visible or unmounted — the same
+    no-silent-gaps discipline the route/page EXCLUSIONS keep. Reasons
+    name the family's own facts (its endpoints, its calling surface);
+    census membership is derived, never hand-listed. */
+const SERVER_FAMILY_CLASSIFICATIONS = {
+  /* The operator's own rails — Thy Cheat Code IS this surface. */
+  "artifacts/api-server/src/routes/chat.ts": {
+    surface: "operator",
+    reason: "Thy Cheat Code's own chat rail (POST /api/chat + status) — the operator conversation itself; there is no page feature for it.",
+  },
+  "artifacts/api-server/src/routes/chat-speak.ts": {
+    surface: "operator",
+    reason: "The operator's spoken-reply rail (speak + speak/status) behind the chat surface; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/chat-voice.ts": {
+    surface: "operator",
+    reason: "The operator chat's voice-in transcription fallback; part of the chat surface, no page of its own.",
+  },
+  "artifacts/api-server/src/routes/free-chat.ts": {
+    surface: "operator",
+    reason: "The signed-out free-chat rail — the operator's public front door; the conversation surface itself, not a page feature.",
+  },
+  "artifacts/api-server/src/routes/operator-actions.ts": {
+    surface: "operator",
+    reason: "The member's own operator action trail ('what did you do for me') read by the account surfaces; no standalone page.",
+  },
+  /* Plumbing: probes, sinks, beacons, and delivery rails. */
+  "artifacts/api-server/src/routes/health.ts": {
+    surface: "plumbing",
+    reason: "Ops probes only: the shallow /api/healthz liveness check and the gate-kept /api/healthz/deep dependency check (DB, storage, export queue) the uptime monitor alerts on — not a member surface.",
+  },
+  "artifacts/api-server/src/routes/client-errors.ts": {
+    surface: "plumbing",
+    reason: "Telemetry sink: the RouteErrorBoundary's crash self-reports land here; no member surface.",
+  },
+  "artifacts/api-server/src/routes/world-fixture-failure.ts": {
+    surface: "plumbing",
+    reason: "Telemetry beacon: the World's 3D-fixture load-failure reports land here; no member surface.",
+  },
+  "artifacts/api-server/src/routes/email-tracking.ts": {
+    surface: "plumbing",
+    reason: "Email open/click/unsubscribe tracking endpoints hit by mail clients; no member surface.",
+  },
+  "artifacts/api-server/src/routes/push.ts": {
+    surface: "plumbing",
+    reason: "Web-push plumbing: subscription registration and notification preferences behind the Settings card and the push sender; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/job-notifications.ts": {
+    surface: "plumbing",
+    reason: "Generation-job notification delivery rail (pending poll + ack) behind the bell and device pings; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/playlist.ts": {
+    surface: "plumbing",
+    reason: "The floating Bow Down Playlist widget's R2 track rail — a site-wide widget rather than a page feature; the playlist itself is hand-uploads only (owner ruling).",
+  },
+  "artifacts/api-server/src/routes/embed.ts": {
+    surface: "plumbing",
+    reason: "Public embed + oEmbed rails (plus the twin page router's chrome-less embed pages): consumed by other sites, not a member surface.",
+  },
+  "artifacts/api-server/src/routes/provenance.ts": {
+    surface: "plumbing",
+    reason: "Content provenance certificate/licence verification rails read off generation records; no page of its own.",
+  },
+  /* Creator-tool rails: studio tools whose calling surfaces sit in the
+     Visual Vibes editor, the Audio Studio, or docked desks — reached
+     through shared client helpers past the page scan's one hop, so no
+     feature entry carries them. The census carries each family by
+     name; the reason names the tool. */
+  "artifacts/api-server/src/routes/generate/aspect-convert.ts": {
+    surface: "creator-tools",
+    reason: "Aspect-ratio converter rail (ratio list + convert) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/audio-ducking.ts": {
+    surface: "creator-tools",
+    reason: "Audio ducking rail — an editor/audio tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/auto-chapters.ts": {
+    surface: "creator-tools",
+    reason: "Auto Chapters rail (150 VB in the registry) — generates chapter markers from a transcript inside the editor; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/auto-edit.ts": {
+    surface: "creator-tools",
+    reason: "AI auto-edit rail — called by the World Create Desk and template surfaces through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/auto-video-plan.ts": {
+    surface: "creator-tools",
+    reason: "Auto video-plan rail — an AI planning tool behind the create surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/avatar-presenter.ts": {
+    surface: "creator-tools",
+    reason: "Avatar presenter rail (Hedra, 1,200 VB; ships dark until the wallet is funded) — job + status endpoints behind the presenter surface; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/beat-sync.ts": {
+    surface: "creator-tools",
+    reason: "Beat-sync rail (+ info) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/bg-music.ts": {
+    surface: "creator-tools",
+    reason: "AI background-music rail (+ presets) — generates royalty-free video music inside the editor; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/bg-replacer.ts": {
+    surface: "creator-tools",
+    reason: "Video background-replacer rail — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/bio-generator.ts": {
+    surface: "creator-tools",
+    reason: "Bio generator rail (generate-bio, 100 VB by owner ruling, + the platform list) — its callers sit on profile surfaces past the scan's one hop; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/broll-suggester.ts": {
+    surface: "creator-tools",
+    reason: "AI B-roll suggester rail — splits a script and suggests B-roll inside the editor; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/chapter-art.ts": {
+    surface: "creator-tools",
+    reason: "Chapter-art rail (+ styles) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/chapters.ts": {
+    surface: "creator-tools",
+    reason: "Video chapter-markers rail (ffmpeg silencedetect + transcription) — an editor tool; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/cinematic-fx.ts": {
+    surface: "creator-tools",
+    reason: "Cinematic FX rail — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/collage.ts": {
+    surface: "creator-tools",
+    reason: "Collage rail (+ layouts) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/color-grade.ts": {
+    surface: "creator-tools",
+    reason: "Color-grade rail (+ presets) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/content-calendar.ts": {
+    surface: "creator-tools",
+    reason: "AI content-calendar rail — generates a 30-day posting plan behind the promote/coach surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/ctr-predictor.ts": {
+    surface: "creator-tools",
+    reason: "Thumbnail CTR predictor rail (+ factors) — an AI scoring tool behind the thumbnail surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/desc-ab-test.ts": {
+    surface: "creator-tools",
+    reason: "Description A/B tester rail — AI-scores two description variants behind the publish surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/director-look.ts": {
+    surface: "creator-tools",
+    reason: "Director-look rail — an editor look tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/end-screen.ts": {
+    surface: "creator-tools",
+    reason: "End-screen rail (+ info) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/gif-converter.ts": {
+    surface: "creator-tools",
+    reason: "Video-to-GIF converter rail — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/guest-questions.ts": {
+    surface: "creator-tools",
+    reason: "Podcast guest-question generator rail — an AI tool behind the podcast surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/hashtags.ts": {
+    surface: "creator-tools",
+    reason: "AI hashtag generator rail — behind the promote surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/hook-analyzer.ts": {
+    surface: "creator-tools",
+    reason: "AI hook analyzer rail — scores a video's opening transcript behind the create surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/improve-style.ts": {
+    surface: "creator-tools",
+    reason: "Style-improver rail — an AI assist behind the generation surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/intro-outro-ffmpeg.ts": {
+    surface: "creator-tools",
+    reason: "Intro/outro rail (+ styles) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/logo-animator.ts": {
+    surface: "creator-tools",
+    reason: "Logo animator rail (+ animations list) — a branding tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/lyrics-generator.ts": {
+    surface: "creator-tools",
+    reason: "AI lyrics generator rail (100 VB per its header) — behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/mix-plan.ts": {
+    surface: "creator-tools",
+    reason: "Mix-plan rail — an AI audio tool behind the Audio Studio surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/motion-track.ts": {
+    surface: "creator-tools",
+    reason: "Motion-track rails (track / apply / job) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/podcast-intro.ts": {
+    surface: "creator-tools",
+    reason: "Podcast intro generator rail (+ styles) — behind the podcast surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/podcast-multiplier.ts": {
+    surface: "creator-tools",
+    reason: "Podcast Multiplier rail (300 VB in the registry) — turns one episode into many assets; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/producer-tag.ts": {
+    surface: "creator-tools",
+    reason: "Producer Tag Maker rail (+ vault voice) — makes the spoken tag inside the audio surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/producer-tag-lifecycle.ts": {
+    surface: "creator-tools",
+    reason: "Producer-tag lifecycle rails (draft / approve / mine / settings) — the tag maker's ownership half; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/product-photo.ts": {
+    surface: "creator-tools",
+    reason: "Product Photo Studio rail — AI product photography for the branding/storefront sell flow; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/quote-finder.ts": {
+    surface: "creator-tools",
+    reason: "Podcast quotable-moment finder rail — behind the podcast surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/reaction-video.ts": {
+    surface: "creator-tools",
+    reason: "Reaction-video rail (+ options) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/reverse-video.ts": {
+    surface: "creator-tools",
+    reason: "Reverse-video rail — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/scene-effects.ts": {
+    surface: "creator-tools",
+    reason: "Scene-effects rails (recipes + match) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/script-to-video.ts": {
+    surface: "creator-tools",
+    reason: "Script-to-video rail — a create tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/show-notes.ts": {
+    surface: "creator-tools",
+    reason: "Podcast show-notes generator rail — behind the podcast surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/silence-removal.ts": {
+    surface: "creator-tools",
+    reason: "Silence-removal rail (remove-silence) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/singing-voice.ts": {
+    surface: "creator-tools",
+    reason: "Singing-voice rails (generate / jobs / status / voices) — behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/slideshow.ts": {
+    surface: "creator-tools",
+    reason: "Slideshow rail (+ transitions) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/social-analytics.ts": {
+    surface: "creator-tools",
+    reason: "Social analytics rails (analyze-post + trending-topics) — AI scoring behind the promote surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/song-harmony.ts": {
+    surface: "creator-tools",
+    reason: "AI harmony generator rails (generate / modes / using) — behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/song-inspo.ts": {
+    surface: "creator-tools",
+    reason: "Inspo Mode rails (analyze / generate / presets) — playlist-vibe-to-song behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/song-remix.ts": {
+    surface: "creator-tools",
+    reason: "Song Remix + Replace Section rails — new arrangements of a song behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/split-screen.ts": {
+    surface: "creator-tools",
+    reason: "Split-screen rails (layouts / apply / job) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/storyboard.ts": {
+    surface: "creator-tools",
+    reason: "Storyboard generator rail (+ styles) — the generation half of storyboarding, behind the editor; no page of its own (the planner CRUD half is routes/storyboards.ts).",
+  },
+  "artifacts/api-server/src/routes/generate/testimonial.ts": {
+    surface: "creator-tools",
+    reason: "Testimonial-video rail (+ styles) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/text-animator.ts": {
+    surface: "creator-tools",
+    reason: "Animated-text rail (+ styles) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/thumb-bg.ts": {
+    surface: "creator-tools",
+    reason: "Thumbnail-background rail (+ styles) — behind the thumbnail surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/thumb-extract.ts": {
+    surface: "creator-tools",
+    reason: "Thumbnail-extraction rail — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/thumbnail-text.ts": {
+    surface: "creator-tools",
+    reason: "Thumbnail-text optimizer rail (+ styles) — behind the thumbnail surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/transitions.ts": {
+    surface: "creator-tools",
+    reason: "Transitions rails (list + apply) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/video-dub.ts": {
+    surface: "creator-tools",
+    reason: "Video-dub rails (dub-video + languages) — the translator's rail behind the editor; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/video-merger.ts": {
+    surface: "creator-tools",
+    reason: "Video-merger rails (merge-videos + transitions) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/video-styles.ts": {
+    surface: "creator-tools",
+    reason: "Video-style rails (apply + list) — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/video-titles.ts": {
+    surface: "creator-tools",
+    reason: "AI video-title generator rail (+ styles) — behind the publish surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/video-trim.ts": {
+    surface: "creator-tools",
+    reason: "Video-trim rail — an editor tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/virtual-bg.ts": {
+    surface: "creator-tools",
+    reason: "Virtual-background rails (apply + list) — behind the live/editor background surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/voice-clone.ts": {
+    surface: "creator-tools",
+    reason: "Voice-clone rails (clone / list / speak-as) — behind the voice surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/voice-effects.ts": {
+    surface: "creator-tools",
+    reason: "Voice-effect rails (apply + list) — an audio tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/voice-personas.ts": {
+    surface: "creator-tools",
+    reason: "Voice-persona rails (saveable vocal identities for song generation) — behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/voiceover-pro.ts": {
+    surface: "creator-tools",
+    reason: "Voiceover-pro rails (+ voices) — an audio tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/volume-norm.ts": {
+    surface: "creator-tools",
+    reason: "Volume-normalize rail — an editor/audio tool called through shared helpers; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/generate/watermark.ts": {
+    surface: "creator-tools",
+    reason: "Watermark rails (add + positions) — the member-facing watermark tool behind the editor (distinct from the house export watermark); no page of its own.",
+  },
+  "artifacts/api-server/src/routes/lut.ts": {
+    surface: "creator-tools",
+    reason: "LUT library rails (presets / upload / validate / preview / apply / my) — the color-look library behind the editor's color surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/proxy-editing.ts": {
+    surface: "creator-tools",
+    reason: "Proxy-editing rails (generate / prefs / relink-check) — the editor's proxy-media machinery; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/sound-fit.ts": {
+    surface: "creator-tools",
+    reason: "Sound-fit rails (coverage / fit / stack) — 'sounds that fit this' docked in CREATE (Audio Studio / Sound Library); no page of its own.",
+  },
+  "artifacts/api-server/src/routes/storyboards.ts": {
+    surface: "creator-tools",
+    reason: "Storyboard planner CRUD (boards + panels) — the member's video-plan store behind the editor's planning surface; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/content-plans.ts": {
+    surface: "creator-tools",
+    reason: "Content-plan share rail (publish + token read) — Content Intelligence's public share link is the surface; no page feature of its own.",
+  },
+  "artifacts/api-server/src/routes/generations.ts": {
+    surface: "creator-tools",
+    reason: "Generation-history rail (list + read) — the member's own generations behind the Library/studio surfaces, reached past the scan's one hop; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave8-adlib.ts": {
+    surface: "creator-tools",
+    reason: "Wave-8 AI ad-lib generator rail — a vocal-production sidekick behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave8-caption-styler.ts": {
+    surface: "creator-tools",
+    reason: "Wave-8 caption-styler burn rail (100 VB, registry-matched) — an editor tool; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave8-highlights.ts": {
+    surface: "creator-tools",
+    reason: "Wave-8 stream-highlight scorer rail — scores moments from a transcript (honestly: it does not cut video); no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave8-merch-drop.ts": {
+    surface: "creator-tools",
+    reason: "Wave-8 merch-drop planner rails (plan / plans / save) — an AI planning tool behind the promote/store surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave9a-music.ts": {
+    surface: "creator-tools",
+    reason: "Wave-9A music rails (structures / versions / lyrics timing) — the song-workbench store behind the song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave9d-camera.ts": {
+    surface: "creator-tools",
+    reason: "Wave-9D camera rails (design / presets / prompt) — the camera planner's store (planner priced 100 VB in the registry); no page of its own.",
+  },
+  "artifacts/api-server/src/routes/wave9d-director.ts": {
+    surface: "creator-tools",
+    reason: "Wave-9D character-director planning rails — a planning layer over the Scene Studio pipeline; no page of its own.",
+  },
+  /* Live rails: the Go Live machinery — streams are run from the World
+     and the /go-live surface through shared helpers past the scan's
+     one hop, so no feature entry carries these families. */
+  "artifacts/api-server/src/routes/live-battles.ts": {
+    surface: "live",
+    reason: "Live-battles rails (challenge / accept / start / tally / finalize) — the versus-battle machinery behind the live surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-captions.ts": {
+    surface: "live",
+    reason: "Live-captions rails (languages / segments / settings) — the caption machinery behind the live surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-chat.ts": {
+    surface: "live",
+    reason: "Live-chat rails (read / post / mute) — the stream chat behind the live surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-highlights.ts": {
+    surface: "live",
+    reason: "Live-highlight proposals rail — behind the live surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-moderators.ts": {
+    surface: "live",
+    reason: "Live-moderator rails (list / assign / my-role) — the channel-moderation machinery; the /go-live panel reads its own profile-gated contract, so no feature entry carries these endpoints.",
+  },
+  "artifacts/api-server/src/routes/live-prefs.ts": {
+    surface: "live",
+    reason: "Live-preferences rail — the streamer's saved live settings behind the live surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-stage-manager.ts": {
+    surface: "live",
+    reason: "Stage Manager control rails (state / mute / unpin) — the live stage's control surface; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-tips.ts": {
+    surface: "live",
+    reason: "Live-tips rail — tip reads behind the live surfaces (World stage tips ride the World rails); no page of its own.",
+  },
+  "artifacts/api-server/src/routes/live-widgets.ts": {
+    surface: "live",
+    reason: "Live-widget rails (widgets + tip-goal) — the on-stream widget machinery; no page of its own.",
+  },
+  /* World rails. */
+  "artifacts/api-server/src/routes/world-contests.ts": {
+    surface: "world",
+    reason: "World Contests + Winners' Circle rails — entered inside the World; the 2D winners pages carry their own reads, so no feature entry carries these endpoints.",
+  },
+  "artifacts/api-server/src/routes/world-court-season.ts": {
+    surface: "world",
+    reason: "World court-season rail (THE-GAME Ring 4) — read inside the World; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/the-crowns.ts": {
+    surface: "world",
+    reason: "The Crowns rails (list + worn) — crown state read across profiles and the World; no page of its own.",
+  },
+  /* Social / community rails behind hub surfaces. */
+  "artifacts/api-server/src/routes/co-posts.ts": {
+    surface: "social",
+    reason: "Co-post rails (invite / accept / decline / withdraw / mine) — collaborative posting behind the social surfaces, reached past the scan's one hop; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/co-releases.ts": {
+    surface: "social",
+    reason: "Co-release rails (invite / accept / amend-split / attribution / withdraw) — collaborative releases with splits, behind the social surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/comment-controls.ts": {
+    surface: "social",
+    reason: "Creator comment-control rails (held comments / comment settings / actions) — moderation behind the profile surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/evergreen.ts": {
+    surface: "social",
+    reason: "Evergreen content-recycling rails (candidates / proposals / approve / settings) — behind the promote surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/upg-fans.ts": {
+    surface: "social",
+    reason: "Fan rails (fan links + attribution, collab match, audience room, short fan links) — behind the social/promote surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/supporter-board.ts": {
+    surface: "social",
+    reason: "Supporter-board rails (by-slug board + opt-in/out + my settings) — the public supporter wall behind profile surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/cover-fridays.ts": {
+    surface: "social",
+    reason: "Cover Fridays ritual read — behind the challenges surfaces; no page of its own.",
+  },
+  /* Money rails behind the dashboards. */
+  "artifacts/api-server/src/routes/generate/royalties.ts": {
+    surface: "money",
+    reason: "Royalties ledger rails (entries / import / insights / payouts / summary) — behind the Earnings surfaces, reached past the scan's one hop; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/courses.ts": {
+    surface: "money",
+    reason: "Creator Courses rails (catalog / curriculum / learn / progress / mine) — courses are sold products run from creator storefronts and the learn surface; no standalone page feature carries the family.",
+  },
+  "artifacts/api-server/src/routes/performance-bookings.ts": {
+    surface: "money",
+    reason: "Performance-booking escrow rails (book / fund / respond / complete / release) — behind the bookings surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/plain-deals.ts": {
+    surface: "money",
+    reason: "Plain-deals rails (draft / sign / amend / decline / withdraw) — plain-language deal contracts behind the brand-deals surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/publishing-splits.ts": {
+    surface: "money",
+    reason: "Publishing-split rails (create / confirm / dispute / sheet) — songwriter split agreements behind the money surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/sale-splits.ts": {
+    surface: "money",
+    reason: "Sale-split read rails (mine / owed) — the seller's split ledger behind the Earnings surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/song-credits.ts": {
+    surface: "money",
+    reason: "Song-credits rails (credits / history / sheet) — the credit-sheet record behind song surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/profile-hosting.ts": {
+    surface: "money",
+    reason: "Profile-hosting plan rails (plan / me / checkout) — the $9/mo hosting plan (included with Creator Elite) on the creator-tiers chassis; its checkout rides the embedded rail, so no feature entry carries these endpoints.",
+  },
+  "artifacts/api-server/src/routes/wave8-splits.ts": {
+    surface: "money",
+    reason: "Wave-8 royalty split-sheet rails (CRUD + PDF) — split sheets behind the money surfaces; no page of its own.",
+  },
+  /* Store rails. */
+  "artifacts/api-server/src/routes/feature-verse.ts": {
+    surface: "store",
+    reason: "Feature Verse marketplace rails (listings / orders / confirm / deliver) — buying and selling a featured verse, behind the marketplace surfaces; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/studio-gear.ts": {
+    surface: "store",
+    reason: "Studio-gear store rails (catalog / checkout / orders / design-proof flow + admin fulfilment) — the house gear shop; the storefront feature carries the shop pages, not these endpoints.",
+  },
+  "artifacts/api-server/src/routes/shopify-bridge.ts": {
+    surface: "store",
+    reason: "Shopify CSV bridge rails (import preview/commit, export customers/orders/products) — the Sell Everything storefront's migration door; no page of its own.",
+  },
+  "artifacts/api-server/src/routes/theme-kit.ts": {
+    surface: "store",
+    reason: "Theme-pack rails (creator packs / purchase / publish / kit manifests + downloads / look) — the theme-pack marketplace behind the branding surfaces; no page of its own.",
+  },
+};
 
 /** Docked surfaces: real features that live as a tab, panel, or mode
     inside a host page and own no route of their own, so the route
@@ -2146,6 +2777,12 @@ function main() {
     source: "artifacts/bow-down-visuals/index.html (og:title / meta description)",
   };
 
+  /* Server-surface census (stack800 lane 9): every mounted route
+     family, derived after all feature endpoint attachments settle. */
+  const serverSurface = buildServerSurface(features);
+  const serverEndpointsTotal = serverSurface.files.reduce((n, f) => n + f.endpoints, 0);
+  const serverEndpointsVisible = serverSurface.files.reduce((n, f) => n + f.visible, 0);
+
   const kb = {
     generatedBy: "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
     baseCommit,
@@ -2164,17 +2801,23 @@ function main() {
       takeoverOffers: takeoverOffers.length,
       withDescriptions: features.filter((f) => f.description).length,
       withoutDescriptions: features.filter((f) => !f.description).length,
+      serverRouteFiles: serverSurface.files.length,
+      serverEndpoints: serverEndpointsTotal,
+      serverEndpointsVisible,
+      serverFilesClassified: serverSurface.files.filter((f) => f.classification).length,
     },
     packs,
     crossChecks,
     features: features.sort((a, b) => a.path.localeCompare(b.path)),
     excluded,
+    serverSurface,
   };
   writeFileSync(OUT_FILE, JSON.stringify(kb, null, 2) + "\n");
 
   console.log(`operator knowledge → ${rel(OUT_FILE)}`);
   console.log(`routes in App.tsx: ${routes.length} · page files: ${allPageFiles.length}`);
   console.log(`features: ${features.length} · excluded routes: ${kb.counts.excludedRoutes} · excluded page files: ${kb.counts.excludedPageFiles}`);
+  console.log(`server census: ${kb.counts.serverRouteFiles} route files · ${kb.counts.serverEndpoints} endpoints · ${kb.counts.serverEndpointsVisible} feature-visible · ${kb.counts.serverFilesClassified} families classified (none invisible)`);
   console.log(`priced actions in CREDIT_COSTS: ${creditCosts.size} · packs: ${packs.length} · guides: ${guides.length}`);
   for (const [endpoint, t] of tieredPrices) {
     console.log(`tiered price: ${endpoint} — ${t.tiers.map((x) => `≤${x.upToSeconds}s ${x.vb} VB`).join(" · ")} (from ${t.tiersSource})`);

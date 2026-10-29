@@ -87,6 +87,18 @@ export interface OperatorFeature {
   nextSteps: { label: string; path: string; source?: string }[];
 }
 
+/** One family of the server-surface census (generator:
+ * buildServerSurface). `unseen` names the endpoints no feature
+ * carries; a family with nothing visible also carries its reviewed
+ * classification from the generator's SERVER_FAMILY_CLASSIFICATIONS. */
+export interface OperatorServerFamily {
+  file: string;
+  endpoints: number;
+  visible: number;
+  unseen: string[];
+  classification?: { surface: string; reason: string };
+}
+
 export interface OperatorKnowledge {
   generatedBy: string;
   baseCommit: string;
@@ -95,6 +107,7 @@ export interface OperatorKnowledge {
   counts: Record<string, number>;
   packs: { credits: number; label: string; source: string }[];
   features: OperatorFeature[];
+  serverSurface: { files: OperatorServerFamily[] };
 }
 
 export const OPERATOR_KB = kbJson as unknown as OperatorKnowledge;
