@@ -28,6 +28,8 @@ import { DailyDropSlate } from "@/components/DailyDropSlate";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import CommandCenter from "@/components/CommandCenter";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
+import { balanceComposition } from "@/lib/balance";
+import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import { useTranslation } from "react-i18next";
 import {
   DASHBOARD_SECTION_KEYS,
@@ -200,6 +202,16 @@ export default function Dashboard() {
 
   const name = firstName(profile?.display_name, user?.email);
   const balance = profile?.credits ?? 0;
+
+  /* Lane V-bucs remainder (stack700): the top-up chip keeps the single
+     spendable total; while part of it is temporary, the split rides
+     under the command bar's stat row — Permanent on its own line, the
+     temporary part named with its expiry on the next (the shipped
+     lib/balance composition + balance.* strings, as the sidebar and
+     /credit-history already render them). */
+  const balanceComp = profile
+    ? (profile.balance_composition ?? balanceComposition(profile))
+    : null;
 
   /* ── Stack-28 #44: the sidebar Quests door lands on /dashboard#quests —
      scroll to the widget once it mounts (it renders below async sections,
@@ -497,6 +509,16 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          {/* The split under the stat row, right-aligned under the
+              top-up chip — only while a temporary part exists. */}
+          {balanceComp && balanceComp.temporaryCredits > 0 && (
+            <div className="mt-3 flex flex-col items-end gap-0.5" data-testid="dashboard-balance-split">
+              <span className="text-xs font-medium text-white/60">
+                {t("balance.permanent_amount", { amount: balanceComp.permanentCredits.toLocaleString("en-US") })}
+              </span>
+              <TemporaryBucsNote composition={balanceComp} mode="label" className="text-xs font-medium text-amber-300/90" />
+            </div>
+          )}
           {/* Hidden while the projects section is failed — a failed
               section must not present its "no projects" face here; its
               own failure note sits in the Continue section below. */}
