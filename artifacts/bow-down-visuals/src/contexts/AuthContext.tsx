@@ -3,6 +3,11 @@ import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
 import { spendableCredits, balanceComposition, type BalanceComposition } from "@/lib/balance";
 import { installSessionGuard, registerSessionHooks } from "@/lib/session-guard";
+import {
+  signInWithSupabase,
+  settleWithin,
+  SIGN_IN_ATTEMPT_TIMEOUT_MS,
+} from "@/lib/auth-signin";
 
 interface Profile {
   id: string;
@@ -119,11 +124,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
 
-    try {
-      await fetch("/__staging_logout", { credentials: "same-origin" });
-    } catch {
-      /* ignore — no staging gate here */
-    }
+    /* Deliberately NO /__staging_logout here (stack800 lane 4).
+       Session death is involuntary and can be a false positive — one
+       failed token refresh during a network blip is enough — and the
+       gate pass is a SEPARATE, longer-lived credential. Clearing it
+       from this path turned every spurious death into a full gate
+       lockout: the redirect below landed on the gate form instead of
+       /login, and the user lost BOTH sessions to one hiccup (the
+       Gate #4 "gate dropped my session mid-run" reports). Only the
+       deliberate signOut() drops the gate pass. */
 
     /* Full navigation (not pushState): guarantees every in-memory cache,
      * poller, and stale closure is torn down with the dead session. */
@@ -322,15 +331,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signIn(email: string, password: string) {
     try {
       const client = getSupabase();
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        return { error: error.message || "Login failed" };
+      /* Bounded + once-retried (lib/auth-signin): a stalled sign-in
+       * request used to hold this promise — and the login button's
+       * "Signing in…" — open indefinitely, then surface the raw
+       * "Failed to fetch" as if it were an account problem
+       * (Gate #4). Credential decisions pass through verbatim. */
+      const outcome = await signInWithSupabase(client, email, password);
+      if (!outcome.ok) {
+        return { error: outcome.error };
       }
 
-      if (data.user) {
-        setUser(data.user);
-        await fetchProfile(client, data.user.id);
+      if (outcome.user) {
+        setUser(outcome.user);
+        /* The profile fetch rides along, but it may not hold the
+         * sign-in hostage: bounded by the same settle window, and a
+         * timeout is not a sign-in failure — onAuthStateChange /
+         * refreshProfile lands the profile when it can. */
+        await settleWithin(
+          fetchProfile(client, outcome.user.id),
+          SIGN_IN_ATTEMPT_TIMEOUT_MS,
+        ).catch(() => undefined);
       }
 
       return { error: null };
