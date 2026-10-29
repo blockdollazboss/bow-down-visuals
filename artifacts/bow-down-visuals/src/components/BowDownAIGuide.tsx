@@ -5,6 +5,7 @@ import {
   Upload, Trash2, Loader2, RotateCcw,
 } from "lucide-react";
 import { useThemePlayer } from "@/contexts/ThemePlayerContext";
+import { themeRowView } from "@/lib/theme-row-state";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Snap geometry ─────────────────────────────────────────── */
@@ -493,21 +494,29 @@ function ThemePlayerRow() {
   const loaded      = status === "ready";
   const missing     = status === "missing";
   const failed      = status === "error";
-  const unavailable = missing || failed;
+  /* stack700: the body card, the header suffix and the help line all
+     come from this ONE decision (lib/theme-row-state.ts), so they can
+     never contradict each other again — the way the pre-Lane-T
+     "— coming soon" suffix (keyed on missing) used to render on top
+     of Lane T's "Tap to retry" card (keyed on unavailable). */
+  const view        = themeRowView({ status, playFailed, playing });
 
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-black text-white/60 uppercase tracking-widest flex items-center gap-1.5">
         <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : failed ? "bg-red-400/60" : missing ? "bg-[#C9A84C]/70" : "bg-yellow-400/60"}`} />
         Theme Song
-        {/* "missing" = no theme song chosen yet (an expected state, not a
-            failure) — it used to render a red "— not found" that read like
-            a site error to every visitor. Red is reserved for real errors. */}
-        {missing && <span className="text-[#C9A84C]/80 font-normal normal-case tracking-normal ml-1">— coming soon</span>}
-        {failed && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— couldn't load</span>}
-        {/* Lane T: a rejected manual play() is a real, named state —
-            not the old silent no-op where the button claimed playing. */}
-        {playFailed && !playing && <span className="text-red-400/80 font-normal normal-case tracking-normal ml-1">— couldn't play</span>}
+        {/* At most ONE suffix, the one themeRowView chose: an element
+            error names itself ("couldn't load"); a rejected manual
+            play() is a real, named state ("couldn't play" — Lane T:
+            not the old silent no-op where the button claimed playing).
+            "missing" takes NO suffix — since Lane T it means 'the
+            probe just failed, recoverable', and its retry card below
+            is the whole state; the old "— coming soon" claim for the
+            same status contradicted that card (stack700). Red stays
+            reserved for real errors (f9ad41643). */}
+        {view.suffix === "couldnt-load" && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— couldn't load</span>}
+        {view.suffix === "couldnt-play" && <span className="text-red-400/80 font-normal normal-case tracking-normal ml-1">— couldn't play</span>}
       </p>
       {/* Lane T: unavailable is no longer a dead end. The probe failure
           that produced missing/error may have been one transient moment
@@ -516,7 +525,7 @@ function ThemePlayerRow() {
           keeps retrying on its own while this panel is open. During the
           initial "probing" state the normal controls below render, so
           there is always something to press. */}
-      {unavailable ? (
+      {view.card === "retry" ? (
         <button
           onClick={reprobe}
           aria-label="Retry theme song"
@@ -583,7 +592,7 @@ function ThemePlayerRow() {
         </div>
       )}
       {/* Recoverable play failure: the play button above is the retry. */}
-      {playFailed && !playing && !unavailable && (
+      {view.playHelp && (
         <p className="text-[10px] text-red-400/80 leading-snug">
           Couldn't start the theme song — tap play to try again.
         </p>
@@ -656,8 +665,8 @@ export function BowDownAIGuide() {
 
   /* Lane T: tell the theme player when this widget is open. Opening
      re-probes a theme whose boot probe failed (and keeps retrying on
-     backoff while open) instead of leaving "— coming soon" up for the
-     whole session. Cleanup also fires on open flips; setWatching is
+     backoff while open) instead of leaving the failed probe's stale
+     state up for the whole session. Cleanup also fires on open flips; setWatching is
      idempotent, so the false→effect→true sequence is harmless. */
   useEffect(() => {
     setWidgetOpen(open);
