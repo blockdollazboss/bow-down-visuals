@@ -397,7 +397,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         disabled={likeBusy === key}
         className={
           state.liked
-            ? "inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition disabled:opacity-50"
+            ? "inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition disabled:opacity-50 bdv-touch-target"
             : actionBtn
         }
       >
@@ -438,7 +438,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         disabled={repostBusy === key}
         className={
           state.reposted
-            ? "inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition disabled:opacity-50"
+            ? "inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition disabled:opacity-50 bdv-touch-target"
             : actionBtn
         }
       >
@@ -507,14 +507,14 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const tabBtn = (active: boolean) =>
-    `rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+    `rounded-full px-3.5 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "bg-[#d4af37] text-black"
         : isLight
           ? "border border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border border-white/15 text-white/75 hover:text-white"
     }`;
-  const actionBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  const actionBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"

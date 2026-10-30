@@ -38,7 +38,7 @@ import {
    before each run. */
 
 const tabBtn = (isLight: boolean, active: boolean) =>
-  `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     active
       ? "border-[#d4af37] bg-[#d4af37] text-black"
       : isLight
@@ -46,7 +46,7 @@ const tabBtn = (isLight: boolean, active: boolean) =>
         : "border-white/15 text-white/75 hover:text-white"
   }`;
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 
 /* ─── Inspo ───────────────────────────────────────────────────────── */
 
@@ -157,7 +157,7 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
     <div data-testid="world-song-inspo-bench" className="space-y-3">
       <label className="block">
         <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Drop the vibe — playlist links, artist names, or words</span>
-        <textarea value={playlistInput} onChange={(e) => setPlaylistInput(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
+        <textarea value={playlistInput} onChange={(e) => setPlaylistInput(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
       </label>
       <DeskTextField isLight={isLight} label="Notes for the vibe" value={notes} onChange={setNotes} />
       <button type="button" data-testid="world-song-inspo-analyze" onClick={() => void analyze()} disabled={busy !== null || !playlistInput.trim()} className={goldBtn}>
@@ -284,11 +284,11 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
           </div>
           <label className="block text-xs font-bold">
             Balance toward the first song — {balance}%
-            <input type="range" min={0} max={100} value={balance} onChange={(e) => setBalance(Number(e.target.value))} className="w-full" />
+            <input type="range" min={0} max={100} value={balance} onChange={(e) => setBalance(Number(e.target.value))} className="w-full bdv-touch-target" />
           </label>
           <label className="block text-xs font-bold">
             Crossfade — {crossfadeSec}s
-            <input type="range" min={0} max={12} value={crossfadeSec} onChange={(e) => setCrossfadeSec(Number(e.target.value))} className="w-full" />
+            <input type="range" min={0} max={12} value={crossfadeSec} onChange={(e) => setCrossfadeSec(Number(e.target.value))} className="w-full bdv-touch-target" />
           </label>
           <button type="button" data-testid="world-song-mashup-run" onClick={() => void run()} disabled={busy || !songA || !songB || songA === songB} className={goldBtn}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

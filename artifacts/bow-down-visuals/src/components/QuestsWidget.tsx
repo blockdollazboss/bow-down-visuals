@@ -206,7 +206,7 @@ export default function QuestsWidget({
           {t("retention.quests_load_failed", { defaultValue: "Your quests couldn't load — check your connection and try again." })}
         </span>
         <button type="button" onClick={() => void load()}
-          className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all">
+          className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all bdv-touch-target">
           {t("retention.quests_retry", { defaultValue: "Try again" })}
         </button>
       </section>
@@ -216,7 +216,7 @@ export default function QuestsWidget({
   const toggle = (
     <button type="button" onClick={() => void toggleEnabled()} role="switch" aria-checked={data.enabled}
       aria-label={t("retention.toggle_quests")}
-      className="flex items-center gap-2 text-[11px] font-bold text-white/50 hover:text-white/80 transition-colors">
+      className="flex items-center gap-2 text-[11px] font-bold text-white/50 hover:text-white/80 transition-colors bdv-touch-target">
       <span>{t("retention.toggle_quests")}</span>
       <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.enabled ? "bg-primary" : "bg-white/[0.12]"}`}>
         <span className={`inline-block h-3.5 w-3.5 rounded-full bg-black transition-transform ${data.enabled ? "translate-x-[18px]" : "translate-x-[3px]"}`} />
@@ -255,12 +255,12 @@ export default function QuestsWidget({
         </div>
         <button type="button" onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? t("retention.expand") : t("retention.collapse")}
-          className="p-1.5 rounded-lg text-white/50 hover:text-primary hover:bg-white/[0.05] transition-colors">
+          className="p-1.5 rounded-lg text-white/50 hover:text-primary hover:bg-white/[0.05] transition-colors bdv-touch-box">
           <ChevronDown className={`h-4 w-4 transition-transform ${collapsed ? "" : "rotate-180"}`} />
         </button>
         <button type="button" onClick={() => { try { localStorage.setItem(HIDE_KEY, "1"); } catch {} setHidden(true); }}
           aria-label={t("retention.hide_widget")}
-          className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.05] transition-colors">
+          className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.05] transition-colors bdv-touch-box">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -325,25 +325,25 @@ export default function QuestsWidget({
                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wide shrink-0">{t("retention.quests_claimed")}</span>
                     ) : canClaim ? (
                       <button type="button" onClick={() => void claimDaily(q.key)} disabled={claimingDaily === q.key}
-                        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all disabled:opacity-60">
+                        className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all disabled:opacity-60 bdv-touch-target">
                         {claimingDaily === q.key ? <Loader2 className="h-4 w-4 animate-spin" /> : t("retention.quests_claim", { reward: q.reward })}
                       </button>
                     ) : meta ? (
                       inWorld && dest?.kind === "station" && onGoToStation ? (
                         <button type="button" data-testid={`world-daily-go-${q.key}`}
                           onClick={() => onGoToStation(dest.stationId)}
-                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all">
+                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all bdv-touch-target">
                           {t("retention.quest_go_do_it")} <ArrowUpRight className="h-3.5 w-3.5" />
                         </button>
                       ) : inWorld ? (
                         <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer"
                           data-testid={`world-daily-elsewhere-${q.key}`}
-                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.10] text-[11px] font-black text-white/50 hover:text-primary hover:border-primary/40 transition-colors">
+                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.10] text-[11px] font-black text-white/50 hover:text-primary hover:border-primary/40 transition-colors bdv-touch-target">
                           On the website <ArrowUpRight className="h-3.5 w-3.5" />
                         </a>
                       ) : (
                         <Link href={meta.href}>
-                          <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
+                          <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer bdv-touch-box">
                             <ArrowUpRight className="h-4 w-4" />
                           </span>
                         </Link>
@@ -409,25 +409,25 @@ export default function QuestsWidget({
                   <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wide shrink-0">{t("retention.quests_claimed")}</span>
                 ) : canClaim && q.reward > 0 ? (
                   <button type="button" onClick={() => void claim(q.key)} disabled={claiming === q.key}
-                    className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all disabled:opacity-60">
+                    className="shrink-0 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all disabled:opacity-60 bdv-touch-target">
                     {claiming === q.key ? <Loader2 className="h-4 w-4 animate-spin" /> : t("retention.quests_claim", { reward: q.reward })}
                   </button>
                 ) : meta ? (
                   inWorld && dest?.kind === "station" && onGoToStation ? (
                     <button type="button" data-testid={`world-quest-go-${q.key}`}
                       onClick={() => onGoToStation(dest.stationId)}
-                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all">
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-black text-[11px] font-black hover:brightness-110 transition-all bdv-touch-target">
                       {t("retention.quest_go_do_it")} <ArrowUpRight className="h-3.5 w-3.5" />
                     </button>
                   ) : inWorld ? (
                     <a href={dest?.kind === "transfer" ? dest.href : meta.href} target="_blank" rel="noopener noreferrer"
                       data-testid={`world-quest-elsewhere-${q.key}`}
-                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.10] text-[11px] font-black text-white/50 hover:text-primary hover:border-primary/40 transition-colors">
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/[0.10] text-[11px] font-black text-white/50 hover:text-primary hover:border-primary/40 transition-colors bdv-touch-target">
                       On the website <ArrowUpRight className="h-3.5 w-3.5" />
                     </a>
                   ) : (
                     <Link href={meta.href}>
-                      <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer">
+                      <span className="shrink-0 p-2 rounded-xl border border-white/[0.10] text-white/50 hover:text-primary hover:border-primary/40 transition-colors cursor-pointer bdv-touch-box">
                         <ArrowUpRight className="h-4 w-4" />
                       </span>
                     </Link>
