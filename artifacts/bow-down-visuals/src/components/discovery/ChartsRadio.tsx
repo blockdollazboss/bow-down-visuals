@@ -269,7 +269,7 @@ export function ChartsRadioPanel({
           <button
             type="button"
             onClick={() => setRetryNonce((n) => n + 1)}
-            className="inline-flex items-center gap-1 font-bold text-[#b08d3e] hover:underline"
+            className="inline-flex items-center gap-1 py-3 -my-3 font-bold text-[#b08d3e] hover:underline"
           >
             <RotateCcw className="h-3.5 w-3.5" /> Retry
           </button>

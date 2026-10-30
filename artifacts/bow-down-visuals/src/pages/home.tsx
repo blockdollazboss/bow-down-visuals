@@ -236,7 +236,7 @@ function ShareRow({ label }: { label?: string }) {
   }
 
   const btn =
-    "flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/50 transition-all duration-200 hover:border-primary/50 hover:text-primary hover:bg-primary/10";
+    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/50 transition-all duration-200 hover:border-primary/50 hover:text-primary hover:bg-primary/10";
 
   return (
     <div data-dark-lock className="flex items-center gap-3">
@@ -1026,7 +1026,7 @@ function StudioShowcase() {
 
                     <Link
                       href={tool.href}
-                      className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link"
+                      className="mt-6 flex items-center gap-2 py-3 -my-3 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link"
                     >
                       {t("home.openThisTool")}{" "}
                       <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
