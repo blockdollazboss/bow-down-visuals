@@ -1390,6 +1390,13 @@ html, body {
    the same antique gold as its #d4af37 sibling. */
 .light .text-\[\#d4a017\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 
+/* Books writer: the chapter-title input is text-[#f5e6b8] on a
+   transparent ground over the page — in light the ground remaps to
+   ivory and the near-cream title all but vanished (the body textarea
+   beside it remaps correctly via text-white/90). The hex joins the
+   §19 single-use pale-gold family (#f0d878 precedent) at antique gold. */
+.light .text-\[\#f5e6b8\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
