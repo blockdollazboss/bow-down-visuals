@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Pin, EyeOff, Check, X, ShieldCheck, ListFilter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,7 +67,7 @@ export function CommentControlsPanel() {
       setWordsDraft(next.blocked_words.join(", "));
       setNote("Saved. Your comments, your rules.");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That didn't save — try again.");
+      setNote(plainErrorText(e, "That didn't save — try again."));
     } finally {
       setBusy(false);
     }
@@ -79,7 +80,7 @@ export function CommentControlsPanel() {
       await runCommentAction(token, c.surface, c.id, action);
       setHeld((prev) => prev.filter((x) => x.id !== c.id));
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That didn't stick — try again.");
+      setNote(plainErrorText(e, "That didn't stick — try again."));
     } finally {
       setBusy(false);
     }

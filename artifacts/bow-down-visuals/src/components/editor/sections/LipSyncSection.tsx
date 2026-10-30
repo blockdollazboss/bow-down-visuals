@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState, useRef, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
@@ -633,11 +634,11 @@ export function LipSyncSection({
       });
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        throw new Error(data.error ?? `Upload failed: HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(data, `Upload failed: HTTP ${res.status}`));
       }
       updateLipSync({ uploadedVocalStemUrl: data.url, audioSource: "vocals" });
     } catch (err) {
-      setStemUploadError(err instanceof Error ? err.message : "Upload failed");
+      setStemUploadError(plainErrorText(err, "Upload failed"));
     } finally {
       setStemUploading(false);
     }
@@ -689,7 +690,7 @@ export function LipSyncSection({
       if (!resp) return; // user cancelled the credit confirmation
       updateLipSync({ uploadedVocalStemUrl: resp.url, audioSource: "vocals" });
     } catch (err) {
-      setAcapellaError(err instanceof Error ? err.message : "Export failed");
+      setAcapellaError(plainErrorText(err, "Export failed"));
     } finally {
       setAcapellaExporting(false);
     }
@@ -734,7 +735,7 @@ export function LipSyncSection({
       /* "completed": do NOT auto-save — user chooses via buttons in the panel.
          "processing" / "pending": leave status as-is, never mark failed. */
     } catch (err) {
-      setApplyError(err instanceof Error ? err.message : String(err));
+      setApplyError(plainErrorText(err, String(err)));
     } finally {
       setCheckJobLoading(false);
     }
@@ -906,7 +907,7 @@ export function LipSyncSection({
         lipSyncTimingMismatch:  false,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = plainErrorText(err, "Lip sync didn't land — try again.");
       if (err instanceof StillProcessingError) {
         /* Keep status as processing — Sync.so may still be running */
         updateClipEdit(sceneId, { lipSyncError: msg });
@@ -1023,7 +1024,7 @@ export function LipSyncSection({
           replaceUrl:         result.url,
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = plainErrorText(err, "Lip sync didn't land — try again.");
         if (err instanceof StillProcessingError) {
           updateClipEdit(scene.id, { lipSyncError: msg });
           setProcessState(p => p ? { ...p, lastError: `Scene ${scene.sceneNumber}: still processing` } : null);
@@ -1152,7 +1153,7 @@ export function LipSyncSection({
         multipleKeysFound: false, providerEndpointConfigured: false,
         accountStatusAvailable: false, billingBlocked: null,
         httpStatus: null,
-        lastError: err instanceof Error ? err.message : "Network error",
+        lastError: plainErrorText(err, "Network error"),
         message: "Account check failed", checkedAt: new Date().toLocaleTimeString(),
       });
     } finally {
@@ -1462,7 +1463,7 @@ export function LipSyncSection({
 
       if (!startRes.ok) {
         const errBody = await startRes.json().catch(() => ({ error: `HTTP ${startRes.status}` })) as { error?: string };
-        throw new Error(errBody.error ?? `Scene test route returned HTTP ${startRes.status}`);
+        throw new Error(apiErrorMessage(errBody, `Scene test route returned HTTP ${startRes.status}`));
       }
 
       const { jobId } = (await startRes.json()) as { jobId: string };
@@ -1540,12 +1541,12 @@ export function LipSyncSection({
           return;
         }
         if (job.status === "failed") {
-          throw new Error(job.error ?? "Scene test render failed");
+          throw new Error(apiErrorMessage(job, "Scene test render failed"));
         }
       }
       throw new Error("Scene test timed out after 4 minutes.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = plainErrorText(err, "Lip sync didn't land — try again.");
       setSceneTestError(msg);
     } finally {
       setSceneTestRunning(false);
@@ -4117,7 +4118,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
 
   const startData = await startRes.json() as { jobId?: string; error?: string; code?: string };
   if (!startRes.ok || !startData.jobId) {
-    throw new Error(startData.error ?? `Lip sync failed: HTTP ${startRes.status}`);
+    throw new Error(apiErrorMessage(startData, `Lip sync failed: HTTP ${startRes.status}`));
   }
 
   const { jobId } = startData;
@@ -4183,7 +4184,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       return { url: job.url, provider: job.provider ?? "sync", resultMeta: job.resultMeta ?? null };
     }
     if (job.status === "failed") {
-      throw new Error(job.error ?? "Lip sync job failed.");
+      throw new Error(apiErrorMessage(job, "Lip sync job failed."));
     }
     /* Backend polled Sync.so until its own limit — job may still be running */
     if (job.status === "processing" && job.code === "still_processing") {

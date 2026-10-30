@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Send, Check, X, Ban, Plus, Store, HeartHandshake, Paperclip, Link2, Search, Music2, Clapperboard, Image as ImageIcon, File as FileIcon, Video, PhoneMissed, PhoneOutgoing } from "lucide-react";
@@ -267,7 +268,7 @@ export default function Messages() {
       await loadConvs();
       setActiveId(d.conversation.id);
       setTab(d.conversation.status === "request" ? "requests" : "inbox");
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't start the conversation."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't start the conversation.")); }
   }
 
   async function startBySlug() {
@@ -276,7 +277,7 @@ export default function Messages() {
       const r = (await api.get(`/api/profiles/resolve?slug=${encodeURIComponent(newSlug.trim().toLowerCase())}`)) as { user_id: string };
       setNewSlug(""); setShowNew(false);
       await startByUserId(r.user_id);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Creator not found."); }
+    } catch (e) { setNotice(plainErrorText(e, "Creator not found.")); }
   }
 
   /* King tray: stickers + GIFs ride as :shortcode: text in the body —
@@ -317,11 +318,11 @@ export default function Messages() {
         ref?: string; type?: string; name?: string; error?: string; message?: string;
       };
       if (!res.ok || !data.ref || !data.type) {
-        throw new Error(data.message || data.error || "The upload didn't land.");
+        throw new Error(apiErrorMessage(data, "The upload didn't land."));
       }
       setPendingAtt({ url: data.ref, type: data.type, name: data.name ?? file.name });
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "The upload didn't land.");
+      setNotice(plainErrorText(e, "The upload didn't land."));
     } finally { setUploading(false); }
   }
 
@@ -355,23 +356,23 @@ export default function Messages() {
       setPendingAtt(null);
       await loadThread(activeId);
       await loadConvs();
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't send."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't send.")); }
   }
 
   async function accept() {
     if (!activeId) return;
     try { await api.post(`/api/dm/${activeId}/accept`); await loadConvs(); await loadThread(activeId); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't accept."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't accept.")); }
   }
   async function decline() {
     if (!activeId || !window.confirm("Decline this message request?")) return;
     try { await api.post(`/api/dm/${activeId}/decline`); setActiveId(null); await loadConvs(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't decline."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't decline.")); }
   }
   async function block() {
     if (!activeId || !window.confirm("Block this conversation?")) return;
     try { await api.post(`/api/dm/${activeId}/block`); setActiveId(null); await loadConvs(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't block."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't block.")); }
   }
 
   const list = tab === "inbox" ? inbox : tab === "requests" ? requests : [];

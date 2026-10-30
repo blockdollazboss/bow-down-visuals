@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -155,11 +156,11 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
         return;
       }
       if (res.status === 503) {
-        setError(data.message || t("singingVoice.notConfiguredError", { defaultValue: "Singing-voice conversion isn't connected yet." }));
+        setError(apiErrorMessage(data, t("singingVoice.notConfiguredError", { defaultValue: "Singing-voice conversion isn't connected yet." })));
         setPhase("form");
         return;
       }
-      if (!res.ok || !data.jobId) throw new Error(data.message || data.error || "Conversion failed to start");
+      if (!res.ok || !data.jobId) throw new Error(apiErrorMessage(data, "Conversion failed to start"));
       setJobId(data.jobId);
       setJobStatus("queued");
       pollRef.current = window.setInterval(async () => {
@@ -174,7 +175,7 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
             setPhase("done");
           } else if (pd.status === "failed") {
             if (pollRef.current) window.clearInterval(pollRef.current);
-            setError(pd.error || t("singingVoice.failedRefunded", { defaultValue: "Conversion failed — credits refunded." }));
+            setError(apiErrorMessage(pd, t("singingVoice.failedRefunded", { defaultValue: "Conversion failed — credits refunded." })));
             setPhase("form");
           } else {
             setJobStatus(pd.status ?? "processing");
@@ -184,7 +185,7 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
         }
       }, 3000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("singingVoice.startFailed", { defaultValue: "Could not start conversion." }));
+      setError(plainErrorText(e, t("singingVoice.startFailed", { defaultValue: "Could not start conversion." })));
       setPhase("form");
     }
   }

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState, useRef, forwardRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1298,7 +1299,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
       });
       const data = (await res.json()) as { error?: string; message?: string };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? t("home.waitlistErrorGeneric"));
+        setError(apiErrorMessage(data, t("home.waitlistErrorGeneric")));
         setLoading(false);
         return;
       }

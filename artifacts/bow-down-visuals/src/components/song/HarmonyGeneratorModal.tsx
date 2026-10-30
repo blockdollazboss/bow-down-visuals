@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, X, Users, Mic2, Palette, Link2, Check, AlertCircle, Download, SlidersHorizontal, Music4, Sparkles, Disc3 } from "lucide-react";
 import { Link } from "wouter";
@@ -222,12 +223,12 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
       if (res.status === 503 && data.code?.includes("not_configured")) {
         // AI engine not wired on this server — honest, with a one-click classic fallback.
         setAiUnavailable(true);
-        setError(data.error ?? t("harmony.aiNotConfigured"));
+        setError(apiErrorMessage(data, t("harmony.aiNotConfigured")));
         setPhase("form");
         return;
       }
       if (!res.ok || !data.mixedPreviewUrl) {
-        throw new Error(data.error ?? data.message ?? t("harmony.generateFailed"));
+        throw new Error(apiErrorMessage(data, t("harmony.generateFailed")));
       }
       setResult(data);
       setPhase("done");
@@ -250,7 +251,7 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
       }
       toast({ title: t("harmony.createdTitle"), description: t("harmony.createdDesc", { title: data.song.title }) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("harmony.generateFailed"));
+      setError(plainErrorText(e, t("harmony.generateFailed")));
       setPhase("form");
     }
   }
@@ -295,10 +296,10 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
       });
       if (!res) return;
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || t("harmony.lyricVideoFailed"));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("harmony.lyricVideoFailed")));
       setLyricVideoUrl(data.url);
     } catch (e) {
-      setLyricError(e instanceof Error ? e.message : t("harmony.lyricVideoFailed"));
+      setLyricError(plainErrorText(e, t("harmony.lyricVideoFailed")));
     } finally {
       setLyricBusy(false);
     }
@@ -320,10 +321,10 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
       });
       if (!res) return;
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || t("harmony.coverArtFailed"));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("harmony.coverArtFailed")));
       setArtUrl(data.url);
     } catch (e) {
-      setArtError(e instanceof Error ? e.message : t("harmony.coverArtFailed"));
+      setArtError(plainErrorText(e, t("harmony.coverArtFailed")));
     } finally {
       setArtBusy(false);
     }

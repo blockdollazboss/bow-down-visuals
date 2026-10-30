@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 /* ─── LUFS Loudness Meter + Normalize ─────────────────────────────────
    Audio-studio loudness tooling: FREE server-side analysis (integrated
    LUFS, LRA, true peak from loudnorm's JSON summary, plus momentary /
@@ -314,7 +315,7 @@ export function LufsPanel() {
         const data: NormalizeJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("lufs.errorJobNotFound", { defaultValue: "Job not found — it may have expired." }));
+          setError(apiErrorMessage(data, t("lufs.errorJobNotFound", { defaultValue: "Job not found — it may have expired." })));
           return;
         }
         if (data.status === "done") {
@@ -327,7 +328,7 @@ export function LufsPanel() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("lufs.errorNormalizeFailed", { defaultValue: "Normalization failed — you were refunded." }));
+          setError(apiErrorMessage(data, t("lufs.errorNormalizeFailed", { defaultValue: "Normalization failed — you were refunded." })));
         } else {
           setStatus(data.status as LufsJobStatus);
         }
@@ -416,7 +417,7 @@ export function LufsPanel() {
       const data: AnalyzeResponse = await res.json();
       if (!res.ok) {
         setStatus("failed");
-        setError(data.message || data.error || t("lufs.analyzeError", { defaultValue: "Could not analyze this file. Try another audio file." }));
+        setError(apiErrorMessage(data, t("lufs.analyzeError", { defaultValue: "Could not analyze this file. Try another audio file." })));
         return;
       }
       setAnalysis(data);
@@ -493,7 +494,7 @@ export function LufsPanel() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("lufs.errorStartFailed", { defaultValue: "Could not start normalization. Try again." }));
+        setError(apiErrorMessage(data, t("lufs.errorStartFailed", { defaultValue: "Could not start normalization. Try again." })));
         return;
       }
       setJobId(data.jobId);

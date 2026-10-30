@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -400,12 +401,12 @@ export default function PodcastStudio() {
         return;
       }
       if (!res.ok || !data.audioUrl) {
-        throw new Error(data.message || data.error || t("podcast.errors.generationFailed"));
+        throw new Error(apiErrorMessage(data, t("podcast.errors.generationFailed")));
       }
       setResult(data);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("podcast.errors.generationFailed"));
+      setError(plainErrorText(err, t("podcast.errors.generationFailed")));
     } finally {
       setGenerating(false);
     }

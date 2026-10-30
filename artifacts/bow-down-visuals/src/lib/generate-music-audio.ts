@@ -1,4 +1,5 @@
 import type { FetchImpl } from "@/hooks/use-confirmed-api";
+import { apiErrorMessage } from "./api-error";
 
 export interface GenerateMusicAudioRequest {
   prompt: string;
@@ -85,7 +86,15 @@ export async function generateMusicAudio(
 
   if (!res.ok) {
     const code = data?.code;
-    throw new Error((code && FRIENDLY_ERRORS[code]) || data?.error || "Music generation failed. Please try again.");
+    /* This rail's own friendly words for its known codes win; anything
+       else goes through the shared translator so a raw server code
+       never becomes the message (error-truth, stack900 L1). The
+       out_of_credits signal above is untouched — it is the protocol
+       the callers' catches compare against. */
+    throw new Error(
+      (code && FRIENDLY_ERRORS[code]) ||
+        apiErrorMessage(data, "Music generation failed. Please try again."),
+    );
   }
   if (!data?.url) {
     throw new Error("Generation finished but no audio was returned.");

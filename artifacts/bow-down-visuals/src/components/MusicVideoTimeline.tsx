@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-error";
     import { useState, useCallback, useEffect, useRef } from "react";
     import {
       Film,
@@ -246,7 +247,7 @@
             } else if (data.status === "failed" || data.status === "cancelled") {
               stopPolling();
               setIsPolling(false);
-              setError(data.error ?? "Scene clip generation returned a failure with no message");
+              setError(apiErrorMessage(data, "Scene clip generation returned a failure with no message"));
               onUpdateRef.current({ generationStatus: "failed" });
               onGeneratingEndRef.current();
 
@@ -257,9 +258,7 @@
           } catch (e) {
             stopPolling();
             setIsPolling(false);
-            setError(
-              e instanceof Error ? e.message : "Network error while polling the scene clip",
-            );
+            setError(plainErrorText(e, "Network error while polling the scene clip"));
             onUpdateRef.current({ generationStatus: "failed" });
             onGeneratingEndRef.current();
           }
@@ -320,7 +319,7 @@
           };
 
           if (!res.ok || !data.taskId) {
-            throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
+            throw new Error(apiThrowMessage(data, `Scene clip error (HTTP ${res.status})`));
           }
 
           if (IS_DEV) console.log("[Runway] task:", data.taskId);
@@ -329,7 +328,7 @@
           startPolling(data.taskId);
         } catch (e) {
           const msg =
-            e instanceof Error ? e.message : "Failed to start scene clip generation";
+            plainErrorText(e, "Failed to start scene clip generation");
 
           setIsPolling(false);
 

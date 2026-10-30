@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { Accessibility, Loader2, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,11 +54,7 @@ export function AltTextField({
       });
       if (data.altText) onChange(data.altText.slice(0, ALT_TEXT_MAX_CHARS));
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Couldn't generate a description — you can still write your own.",
-      );
+      setError(plainErrorText(e, "Couldn't generate a description — you can still write your own."));
     } finally {
       setGenerating(false);
     }

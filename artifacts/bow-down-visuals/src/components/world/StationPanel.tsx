@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import {
   Component,
   Suspense,
@@ -743,7 +744,7 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
         setDrop(null);
         refreshProfile();
       } else {
-        setNote(data.error ?? "The drop slipped away — it may have expired.");
+        setNote(apiErrorMessage(data, "The drop slipped away — it may have expired."));
         void load();
       }
     } catch {

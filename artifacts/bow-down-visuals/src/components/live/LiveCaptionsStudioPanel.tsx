@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Captions, Loader2, Mic, MicOff, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,7 +135,7 @@ export default function LiveCaptionsStudioPanel({ streamId }: { streamId: string
       setSourceLanguage(r.settings.sourceLanguage);
       setNote(null);
     } else {
-      setNote(r.error ?? "Caption settings couldn't save.");
+      setNote(apiErrorMessage(r, "Caption settings couldn't save."));
     }
   }
 
@@ -148,7 +149,7 @@ export default function LiveCaptionsStudioPanel({ streamId }: { streamId: string
       setTypedLine("");
       setNote(null);
     } else {
-      setNote(r.error ?? "That caption line didn't go through.");
+      setNote(apiErrorMessage(r, "That caption line didn't go through."));
     }
   }
 

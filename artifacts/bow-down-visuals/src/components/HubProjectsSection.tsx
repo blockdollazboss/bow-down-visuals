@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export default function HubProjectsSection() {
       if (!res.ok) throw new Error(t("myProjects.failedLoadHubProjects"));
       setRows(parseHubProjectsList(await res.json()));
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : t("myProjects.failedLoadHubProjects"));
+      setLoadError(plainErrorText(err, t("myProjects.failedLoadHubProjects")));
     } finally {
       setLoading(false);
     }

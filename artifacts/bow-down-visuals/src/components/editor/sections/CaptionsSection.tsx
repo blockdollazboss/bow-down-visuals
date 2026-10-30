@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
@@ -810,7 +811,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       if (!res) return; // user cancelled the credit confirmation
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
-        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(err, `HTTP ${res.status}`));
       }
 
       const data = await res.json() as {
@@ -870,7 +871,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         ].filter(Boolean).join(" "),
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
+      const msg = plainErrorText(e, "Unknown error");
       setAiSyncStatus({ type: "error", message: `AI sync failed: ${msg}` });
       setAiSyncDetails((prev) => prev ?? { audioFound: !!audioUrl, hasTranscript: false, matched: 0, needsReview: c.lines.length, avgConfidencePct: 0 });
     } finally {
@@ -1069,7 +1070,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       if (!res) return; // user cancelled the credit confirmation
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
-        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(err, `HTTP ${res.status}`));
       }
 
       const data = await res.json() as { transcript: string; segments?: WhisperSegment[]; words?: WhisperWord[] };
@@ -1122,7 +1123,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         message: `${newLines.length} captions built from vocal transcript and saved.${c.lines.length > 0 ? " Previous captions backed up — use Restore below if needed." : ""}`,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
+      const msg = plainErrorText(e, "Unknown error");
       setRebuildStatus({ type: "error", message: `Rebuild failed: ${msg}` });
     } finally {
       setRebuilding(false);

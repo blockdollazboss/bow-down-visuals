@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Creator Profiles — shared types, verticals, starter templates, themes ──
    The Creator Streaming Platform serves ALL creators equally — music, video,
    gaming, podcast, film, tv, influencer, education, everything on the site.
@@ -513,7 +514,7 @@ export function emptyProfile(overrides: Partial<CreatorProfile> = {}): CreatorPr
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const err = new Error((body as { error?: string }).error || `Request failed (${res.status})`) as Error & { status?: number };
+    const err = new Error(apiErrorMessage(body, `Request failed (${res.status})`)) as Error & { status?: number };
     // Preserve the HTTP status so callers can tell a genuine 404 (page
     // really doesn't exist) from a 500/network failure (page may exist,
     // the load just failed) — those need different UI states.

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Crown, Loader2 } from "lucide-react";
@@ -141,7 +142,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : t("worldPlansDesk.confirmPending"));
+        setError(apiErrorMessage(data, t("worldPlansDesk.confirmPending")));
         return;
       }
       const tierName = embedded.tier;
@@ -245,7 +246,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       window.open(url, "_blank", "noopener,noreferrer");
       setOpenedNote(t("worldPlansDesk.checkoutOpenedTab", { name: plan.name }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("worldPlansDesk.networkHiccup"));
+      setError(plainErrorText(e, t("worldPlansDesk.networkHiccup")));
     } finally { setBusyTier(null); }
   };
 
@@ -310,7 +311,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       window.open(url, "_blank", "noopener,noreferrer");
       setOpenedNote(t("worldPlansDesk.portalOpened"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("worldPlansDesk.networkHiccup"));
+      setError(plainErrorText(e, t("worldPlansDesk.networkHiccup")));
     } finally { setPortalBusy(false); }
   };
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,7 +191,7 @@ export function BgStudio() {
       });
       if (!res) return;
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Upload failed."));
       const url = data.url as string;
       setPhotoUrl(url);
       const img = await loadImage(url);
@@ -199,7 +200,7 @@ export function BgStudio() {
       setCutoutUrl(null); setDetectedColor(null); setBackdropUrl(null); setResultUrl(null);
       toast({ title: t("bgStudio.uploadedTitle", { defaultValue: "Photo uploaded" }), description: t("bgStudio.uploadedDesc", { defaultValue: "Now remove the background." }) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("bgStudio.uploadFailed", { defaultValue: "Upload failed. Try again." }));
+      setError(plainErrorText(e, t("bgStudio.uploadFailed", { defaultValue: "Upload failed. Try again." })));
     } finally {
       setUploading(false);
     }
@@ -221,14 +222,14 @@ export function BgStudio() {
       if (!res) { setRemoving(false); return; } // user cancelled the confirm
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || data.error || t("bgStudio.removeFailed", { defaultValue: "Background removal failed." }));
+        throw new Error(apiErrorMessage(data, t("bgStudio.removeFailed", { defaultValue: "Background removal failed." })));
       }
       if (!data.url) throw new Error(t("bgStudio.noOutput", { defaultValue: "No output image returned." }));
       setCutoutTier("basic"); // server path is the corner-sampling color-key
       setCutoutUrl(data.url as string);
       setDetectedColor((data.backgroundColor as string | undefined) ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("bgStudio.removeFailed", { defaultValue: "Background removal failed." }));
+      setError(plainErrorText(e, t("bgStudio.removeFailed", { defaultValue: "Background removal failed." })));
     } finally {
       setRemoving(false);
     }
@@ -246,7 +247,7 @@ export function BgStudio() {
       setCutoutUrl(cutoutDataUrl(img, matte));
     } catch (e) {
       // Honest failure + a labeled Basic fallback — never a silent swap.
-      setMatteError(e instanceof Error ? e.message : t("bgStudio.matteFailed", { defaultValue: "Pro matting could not run on this device." }));
+      setMatteError(plainErrorText(e, t("bgStudio.matteFailed", { defaultValue: "Pro matting could not run on this device." })));
     } finally {
       setMatting(false);
     }
@@ -268,7 +269,7 @@ export function BgStudio() {
       setCutoutTier("basic");
       setCutoutUrl(cutoutDataUrl(img, { alpha, width: canvas.width, height: canvas.height }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("bgStudio.removeFailed", { defaultValue: "Background removal failed." }));
+      setError(plainErrorText(e, t("bgStudio.removeFailed", { defaultValue: "Background removal failed." })));
     }
   }
 
@@ -294,14 +295,14 @@ export function BgStudio() {
       if (!res) { setGenerating(false); return; } // user cancelled the confirm
       const data = await res.json();
       if (res.status === 503) {
-        throw new Error(data.message || t("bgStudio.aiNotConnected", { defaultValue: "AI backdrops are not connected on this server yet." }));
+        throw new Error(apiErrorMessage(data, t("bgStudio.aiNotConnected", { defaultValue: "AI backdrops are not connected on this server yet." })));
       }
       if (!res.ok || !data.url) {
-        throw new Error(data.message || data.error || t("bgStudio.backdropFailed", { defaultValue: "Backdrop generation failed." }));
+        throw new Error(apiErrorMessage(data, t("bgStudio.backdropFailed", { defaultValue: "Backdrop generation failed." })));
       }
       setBackdropUrl(data.url as string);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("bgStudio.backdropFailed", { defaultValue: "Backdrop generation failed." }));
+      setError(plainErrorText(e, t("bgStudio.backdropFailed", { defaultValue: "Backdrop generation failed." })));
     } finally {
       setGenerating(false);
     }
@@ -340,7 +341,7 @@ export function BgStudio() {
       ctx.drawImage(fg, 0, 0);
       setResultUrl(canvas.toDataURL("image/png"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("bgStudio.composeFailed", { defaultValue: "Could not compose the final image." }));
+      setError(plainErrorText(e, t("bgStudio.composeFailed", { defaultValue: "Could not compose the final image." })));
     } finally {
       setComposing(false);
     }

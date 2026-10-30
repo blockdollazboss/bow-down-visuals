@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
@@ -99,7 +100,7 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
       setPermNote("Catalog permanence election saved.");
       await loadPermanence();
     } catch (e) {
-      setPermError(e instanceof Error ? e.message : "Couldn't save the catalog election.");
+      setPermError(plainErrorText(e, "Couldn't save the catalog election."));
     } finally { setPermBusy(null); }
   };
 
@@ -119,7 +120,7 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
       setPermNote("Permanence election recorded for this release.");
       await loadPermanence();
     } catch (e) {
-      setPermError(e instanceof Error ? e.message : "Couldn't save the election.");
+      setPermError(plainErrorText(e, "Couldn't save the election."));
     } finally { setPermBusy(null); }
   };
 
@@ -146,7 +147,7 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
       );
       await loadClaims();
     } catch (e) {
-      setClaimError(e instanceof Error ? e.message : "That action didn't land — the claim is unchanged.");
+      setClaimError(plainErrorText(e, "That action didn't land — the claim is unchanged."));
     } finally { setClaimBusy(null); }
   };
 

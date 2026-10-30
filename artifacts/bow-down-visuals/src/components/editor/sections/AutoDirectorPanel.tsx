@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
@@ -124,7 +125,7 @@ export function AutoDirectorPanel({
       const data = (await res.json().catch(() => ({}))) as {
         plan?: DirectorPlan; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.error || data.message || `Plan failed (${res.status})`);
+      if (!res.ok) throw new Error(apiErrorMessage(data, `Plan failed (${res.status})`));
       if (!data.plan || !Array.isArray(data.plan.scenes) || data.plan.scenes.length === 0) {
         throw new Error("The director returned an empty plan — try again.");
       }
@@ -132,7 +133,7 @@ export function AutoDirectorPanel({
       setDrafts(data.plan.scenes);
       setOpenSceneIdx(0);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Plan generation failed");
+      setError(plainErrorText(e, "Plan generation failed"));
     } finally {
       setGenerating(false);
     }

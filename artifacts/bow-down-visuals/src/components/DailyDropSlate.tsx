@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -77,7 +78,7 @@ export function DailyDropSlate() {
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
       error?: string; message?: string;
     };
-    if (!res.ok) throw new Error(data.message || data.error || `Request failed (${res.status})`);
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
     return data as T;
   }
 

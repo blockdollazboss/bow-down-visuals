@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Sparkles, Shirt, CalendarCheck, Check, ArrowRight } from "lucide-react";
@@ -108,8 +109,8 @@ export default function MerchDropPlanner() {
       if (!res) return; // user cancelled the credit confirmation
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (res.status === 503) { setError(data.message || data.error); return; }
-      if (!res.ok) { setError(data.message || data.error || t("wave8.merchDrop.errors.planFailed")); return; }
+      if (res.status === 503) { setError(apiErrorMessage(data, "That isn't set up yet — try again later.")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, t("wave8.merchDrop.errors.planFailed"))); return; }
       setPlan(data.plan as MerchPlan);
       if (!planName.trim()) setPlanName(`${niche.trim().slice(0, 40)} Drop`);
     } catch {
@@ -142,7 +143,7 @@ export default function MerchDropPlanner() {
       });
       if (!res) return;
       const data = await res.json();
-      if (!res.ok) { setError(data.error || t("wave8.merchDrop.errors.saveFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, t("wave8.merchDrop.errors.saveFailed"))); return; }
       setAccepted(true);
       setSavedPlans((prev) => [
         {

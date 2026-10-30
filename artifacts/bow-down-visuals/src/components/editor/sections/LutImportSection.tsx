@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Palette, Upload, Loader2, CheckCircle2, XCircle, Trash2, Play,
@@ -123,7 +124,7 @@ export function LutImportSection({
       });
       const data = (await res!.json()) as { valid: boolean; error?: string; title?: string; size?: number; format?: string };
       if (!res!.ok || !data.valid) {
-        setError(data.error ?? "That file couldn't be read as a LUT.");
+        setError(apiErrorMessage(data, "That file couldn't be read as a LUT."));
         return;
       }
       setSource({ kind: "upload", file, validated: { title: data.title ?? file.name, size: data.size ?? 0, format: data.format ?? "cube" } });
@@ -147,7 +148,7 @@ export function LutImportSection({
       const res = await confirmedFetch("/api/lut/upload", { method: "POST", body: form, skipConfirm: true });
       const data = (await res!.json()) as { id?: string; name?: string; error?: string };
       if (!res!.ok) {
-        setError(data.error ?? "Couldn't save that LUT.");
+        setError(apiErrorMessage(data, "Couldn't save that LUT."));
         return;
       }
       toast({ title: "Saved to My LUTs", description: `"${data.name}" is now reusable across projects.` });
@@ -194,7 +195,7 @@ export function LutImportSection({
       const res = await confirmedFetch("/api/lut/preview", { method: "POST", body: form, skipConfirm: true });
       if (!res!.ok) {
         const data = (await res!.json().catch(() => ({}))) as { error?: string };
-        setError(data.error ?? "Preview failed.");
+        setError(apiErrorMessage(data, "Preview failed."));
         return;
       }
       const blob = await res!.blob();
@@ -225,7 +226,7 @@ export function LutImportSection({
       if (res === null) return; // user cancelled the credit confirm
       const data = (await res.json().catch(() => ({}))) as Partial<ApplyResult> & { error?: string; message?: string };
       if (!res.ok || !data.url) {
-        setError(data.message ?? data.error ?? "LUT apply failed — no Visual Bucs were spent.");
+        setError(apiErrorMessage(data, "LUT apply failed — no Visual Bucs were spent."));
         return;
       }
       setResult({ url: data.url!, storageRef: data.storageRef ?? "", lut: data.lut ?? "LUT", creditsRemaining: data.creditsRemaining ?? 0 });

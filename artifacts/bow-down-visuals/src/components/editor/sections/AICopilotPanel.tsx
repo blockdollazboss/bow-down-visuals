@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Sparkles, Loader2, CheckCircle2, AlertTriangle, Lightbulb, Wrench,
@@ -245,7 +246,7 @@ export function AICopilotPanel(props: Props) {
     } catch (e) {
       toast({
         title: "Couldn't apply",
-        description: e instanceof Error ? e.message : "Unknown error.",
+        description: plainErrorText(e, "Unknown error."),
         variant: "destructive",
       });
     } finally {
@@ -308,7 +309,7 @@ export function AICopilotPanel(props: Props) {
         }>;
         error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.message || data.error || "Analysis failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Analysis failed."));
       const incoming: Suggestion[] = (data.suggestions ?? []).map((s) => ({
         ...s, id: nextId(), source: "ai" as const,
       }));
@@ -320,7 +321,7 @@ export function AICopilotPanel(props: Props) {
     } catch (e) {
       toast({
         title: "Analysis failed",
-        description: e instanceof Error ? e.message : "Unknown error.",
+        description: plainErrorText(e, "Unknown error."),
         variant: "destructive",
       });
     } finally {

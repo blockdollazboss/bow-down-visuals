@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -239,7 +240,7 @@ export function AudioDesk(props: CreateDeskProps) {
         const res = await fetch("/api/deverb/status");
         const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
         if (!cancelled && res.ok && data.ok === false) {
-          setGateNote(data.message ?? "De-reverb isn't switched on yet — nothing will be charged.");
+          setGateNote(apiErrorMessage(data, "De-reverb isn't switched on yet — nothing will be charged."));
         } else if (!cancelled) {
           setGateNote(null);
         }
@@ -278,7 +279,7 @@ export function AudioDesk(props: CreateDeskProps) {
         if (read.done) {
           stopPolling();
           if (read.failed) {
-            setError(read.error ?? "The job didn't finish.");
+            setError(apiErrorMessage(read, "The job didn't finish."));
             setState("failed");
           } else {
             setResultUrl(read.url);
@@ -317,9 +318,9 @@ export function AudioDesk(props: CreateDeskProps) {
         const res = await fetch(path, { method: "POST", headers: await authHeaders(), body: form });
         const data = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string; message?: string };
         if (res.status === 402 && data.error === "pricing_pending") {
-          throw new Error(data.message ?? "De-reverb pricing hasn't been approved yet — nothing was charged.");
+          throw new Error(apiErrorMessage(data, "De-reverb pricing hasn't been approved yet — nothing was charged."));
         }
-        if (!res.ok || !data.jobId) throw new Error(data.message || data.error || "The job didn't start.");
+        if (!res.ok || !data.jobId) throw new Error(apiErrorMessage(data, "The job didn't start."));
         startJobPoll(path, data.jobId, tool === "cleanup" ? "Your cleaned audio" : "Your de-reverbed audio");
         return;
       }
@@ -334,7 +335,7 @@ export function AudioDesk(props: CreateDeskProps) {
           body: form,
         });
         const data = (await res.json().catch(() => ({}))) as { songUrl?: string; error?: string; message?: string };
-        if (!res.ok || !data.songUrl) throw new Error(data.message || data.error || "Could not finish the song.");
+        if (!res.ok || !data.songUrl) throw new Error(apiErrorMessage(data, "Could not finish the song."));
         setResultUrl(data.songUrl);
         setResultTitle("Your finished song");
         refreshProfile();
@@ -359,7 +360,7 @@ export function AudioDesk(props: CreateDeskProps) {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Generation failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Generation failed."));
       setResultUrl(data.url);
       setResultTitle(
         isBeat
@@ -370,7 +371,7 @@ export function AudioDesk(props: CreateDeskProps) {
       setState("done");
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The bench hit a snag.");
+      setError(plainErrorText(err, "The bench hit a snag."));
       setState("failed");
     }
   };
@@ -841,7 +842,7 @@ function AudioFullBench(props: {
 
   const finishWith = (read: AudioBenchResult) => {
     if (read.failed) {
-      setError(read.error ?? "The bench didn't finish.");
+      setError(apiErrorMessage(read, "The bench didn't finish."));
       setBusy(false);
       return;
     }
@@ -891,7 +892,7 @@ function AudioFullBench(props: {
           for (const [k, v] of humAnalyzeFields()) form.append(k, v);
           const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
           const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string };
-          if (!res.ok) throw new Error(data.error ?? "Could not analyze that hum.");
+          if (!res.ok) throw new Error(apiErrorMessage(data, "Could not analyze that hum."));
           const parsed = humAnalysisOfResponse(data);
           if (!parsed) throw new Error("Analysis came back incomplete — try again.");
           ref = parsed.humRef;
@@ -902,7 +903,7 @@ function AudioFullBench(props: {
         for (const [k, v] of humGenerateFields({ humRef: ref, mode: "simple" })) form.append(k, v);
         const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
         const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        if (!res.ok) throw new Error(data.error ?? data.message ?? "Song generation failed.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "Song generation failed."));
         const url = humSongUrlOfResponse(data);
         if (!url) throw new Error("The song came back without audio.");
         finishWith({ done: true, failed: false, urls: [{ label: "Your hum, as a song", url }], text: null, error: null });
@@ -922,7 +923,7 @@ function AudioFullBench(props: {
           ),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-        if (!res.ok) throw new Error(data.message ?? data.error ?? "Generation failed.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "Generation failed."));
         const read = interpretAudioBenchResponse(benchId, data);
         if (!read.done) throw new Error("The make came back without audio.");
         finishWith(read);
@@ -959,9 +960,9 @@ function AudioFullBench(props: {
             /* The modal's honest AI-not-wired state, with the
                one-tap classic fallback below. */
             setHarmonyAiUnavailable(true);
-            throw new Error(data.error ?? "AI harmonies aren't connected on this server yet — classic doubles still work.");
+            throw new Error(apiErrorMessage(data, "AI harmonies aren't connected on this server yet — classic doubles still work."));
           }
-          if (!res.ok) throw new Error(data.message ?? data.error ?? "The bench didn't start.");
+          if (!res.ok) throw new Error(apiErrorMessage(data, "The bench didn't start."));
           const read = interpretAudioBenchResponse(benchId, data);
           if (!read.done) throw new Error("The harmony came back without audio.");
           finishWith(read);
@@ -977,7 +978,7 @@ function AudioFullBench(props: {
           body: JSON.stringify(body),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-        if (!res.ok) throw new Error(data.message ?? data.error ?? "The bench didn't start.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "The bench didn't start."));
         const jobId = audioBenchJobIdOf(data);
         if (!jobId) throw new Error("The bench didn't start.");
         startPoll(jobId);
@@ -991,7 +992,7 @@ function AudioFullBench(props: {
         for (const [k, v] of mixFields({ genre, intensity, loudness, vocalLevelDb: vocalDb })) form.append(k, v);
         const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-        if (!res.ok) throw new Error(data.message ?? data.error ?? "The mix didn't start.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "The mix didn't start."));
         const jobId = audioBenchJobIdOf(data);
         if (!jobId) throw new Error("The mix didn't start.");
         startPoll(jobId);
@@ -1012,7 +1013,7 @@ function AudioFullBench(props: {
       }
       const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? "The bench didn't start.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The bench didn't start."));
       if (!def.pollPath) {
         const read = interpretAudioBenchResponse(benchId, data);
         if (!read.done) throw new Error("The bench came back without a result.");
@@ -1026,7 +1027,7 @@ function AudioFullBench(props: {
       if (benchId === "stems") setStemsJobId(jobId);
       startPoll(jobId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The bench hit a snag.");
+      setError(plainErrorText(err, "The bench hit a snag."));
       setBusy(false);
     }
   };

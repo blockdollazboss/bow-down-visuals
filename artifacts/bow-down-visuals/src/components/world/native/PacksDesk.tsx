@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -81,7 +82,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok || !data.success) {
-        setFailed(typeof data.error === "string" ? data.error : "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.");
+        setFailed(apiErrorMessage(data, "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment."));
         return;
       }
       setEmbedded(null);
@@ -136,7 +137,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
       };
       window.addEventListener("focus", onFocus);
     } catch (e) {
-      setFailed(e instanceof Error ? e.message : "Network error. Please try again.");
+      setFailed(plainErrorText(e, "Network error. Please try again."));
     } finally {
       setBusyKey(null);
     }

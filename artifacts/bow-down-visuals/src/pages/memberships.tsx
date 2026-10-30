@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
@@ -224,7 +225,7 @@ function FanClubJoin({
           method: "POST", headers, body: JSON.stringify({ tierId: tier.id }),
         });
         const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-        if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start the trial.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start the trial."));
         setMsg("Your 7-day free trial is on — no charge today. Join with a paid plan before it ends to keep your seat.");
         return;
       }
@@ -239,7 +240,7 @@ function FanClubJoin({
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; free?: boolean; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start checkout.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start checkout."));
       if (data.free) {
         setMsg(recipient ? "Gift sent — they're a member now." : "You're in — your membership is active.");
         return;
@@ -247,7 +248,7 @@ function FanClubJoin({
       if (data.url) { window.location.href = data.url; return; }
       throw new Error("Couldn't start checkout.");
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Something went wrong. Try again.");
+      setMsg(plainErrorText(e, "Something went wrong. Try again."));
     } finally {
       setBusy(null);
     }
@@ -499,7 +500,7 @@ export default function Memberships() {
     try {
       const token = await getAccessToken();
       const { res, data } = await api(`/memberships/mine/${m.id}/update-payment`, token, { method: "POST" });
-      if (!res.ok) throw new Error(String(data.error ?? "update failed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "update failed"));
       if (data.url) {
         window.location.href = String(data.url);
         return;
@@ -533,7 +534,7 @@ export default function Memberships() {
             setFanMsg(
               res.ok && data.success
                 ? "Payment confirmed — your membership is active."
-                : String(data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+                : apiErrorMessage(data, "We couldn't confirm that payment. If you were charged, contact support."),
             );
           }
         } catch {
@@ -555,7 +556,7 @@ export default function Memberships() {
     try {
       const token = await getAccessToken();
       const { res, data } = await api(`/memberships/mine/${m.id}/cancel`, token, { method: "POST" });
-      if (!res.ok) throw new Error(String(data.error ?? "cancel failed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "cancel failed"));
       setFanMsg(`Membership canceled — you're out of ${m.tierName ?? "the fan club"}.`);
       await loadMine();
     } catch {
@@ -588,7 +589,7 @@ export default function Memberships() {
       setPausePickId(null);
       await loadMine();
     } catch (e) {
-      setFanMsg(e instanceof Error ? e.message : "Couldn't pause that membership — try again in a moment.");
+      setFanMsg(plainErrorText(e, "Couldn't pause that membership — try again in a moment."));
     } finally {
       setPausingMemberId(null);
     }
@@ -606,7 +607,7 @@ export default function Memberships() {
       setFanMsg(`Welcome back — your ${m.tierName ?? "membership"} membership is active again.`);
       await loadMine();
     } catch (e) {
-      setFanMsg(e instanceof Error ? e.message : "Couldn't resume that membership — try again in a moment.");
+      setFanMsg(plainErrorText(e, "Couldn't resume that membership — try again in a moment."));
     } finally {
       setResumingId(null);
     }
@@ -706,7 +707,7 @@ export default function Memberships() {
         body: JSON.stringify({ tierId: memberTier, fanLabel: fanLabel.trim() }),
       });
       if (res.status === 409) {
-        setError(String(data.error ?? t("memberships.errorDuplicateMember")));
+        setError(apiErrorMessage(data, t("memberships.errorDuplicateMember")));
         return;
       }
       if (!res.ok) throw new Error();

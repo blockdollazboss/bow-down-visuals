@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -67,22 +68,22 @@ export default function ActionTrackerPanel() {
       const res = await confirmedFetch("/api/coach/plan-numbers", { skipConfirm: true });
       if (!res) throw new Error(t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
       const data = (await res.json().catch(() => ({}))) as PlanNumbersDto & { error?: string };
-      if (!res.ok) throw new Error(data.error || t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." })));
       return data;
     };
     const loadItems = async (): Promise<CoachActionItemDto[]> => {
       const res = await confirmedFetch("/api/coach/action-items", { skipConfirm: true });
       if (!res) throw new Error(t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
       const data = (await res.json().catch(() => ({}))) as { items?: CoachActionItemDto[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." })));
       return Array.isArray(data.items) ? data.items : [];
     };
     try {
       const [numSettled, itemSettled] = await Promise.allSettled([loadNumbers(), loadItems()]);
       if (numSettled.status === "fulfilled") setNumbers(numSettled.value);
-      else setNumbersError(numSettled.reason instanceof Error ? numSettled.reason.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      else setNumbersError(plainErrorText(numSettled.reason, t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." })));
       if (itemSettled.status === "fulfilled") setItems(itemSettled.value);
-      else setItemsError(itemSettled.reason instanceof Error ? itemSettled.reason.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      else setItemsError(plainErrorText(itemSettled.reason, t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." })));
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ export default function ActionTrackerPanel() {
       );
       await load();
     } catch (err) {
-      setGoalMsg(err instanceof Error ? err.message : t("coachTracker.errorGoal", { defaultValue: "Couldn't save your goal — try again." }));
+      setGoalMsg(plainErrorText(err, t("coachTracker.errorGoal", { defaultValue: "Couldn't save your goal — try again." })));
     } finally {
       setGoalSaving(false);
     }
@@ -132,10 +133,10 @@ export default function ActionTrackerPanel() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { item?: CoachActionItemDto; error?: string };
-      if (!res.ok || !data.item) throw new Error(data.error || "Update failed.");
+      if (!res.ok || !data.item) throw new Error(apiErrorMessage(data, "Update failed."));
       setItems((prev) => prev.map((i) => (i.id === item.id ? data.item! : i)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed.");
+      setError(plainErrorText(err, "Update failed."));
     } finally {
       setBusyId(null);
     }
@@ -154,11 +155,11 @@ export default function ActionTrackerPanel() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { items?: CoachActionItemDto[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Save failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Save failed."));
       setItems((prev) => [...prev, ...(data.items ?? [])]);
       setNewTitle("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed.");
+      setError(plainErrorText(err, "Save failed."));
     } finally {
       setAdding(false);
     }
@@ -174,7 +175,7 @@ export default function ActionTrackerPanel() {
       setItems((prev) => prev.filter((i) => i.id !== id));
       setConfirmDeleteId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
+      setError(plainErrorText(err, "Delete failed."));
     } finally {
       setBusyId(null);
     }

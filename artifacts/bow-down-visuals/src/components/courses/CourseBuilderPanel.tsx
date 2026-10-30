@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -72,8 +73,8 @@ export default function CourseBuilderPanel() {
       setCourses(await fetchCreatedCourses(getAccessToken));
     } catch (e) {
       if ((e as { code?: string }).code === "COURSES_NOT_LIVE") setNotLive(true);
-      else if ((e as { code?: string }).code === "NO_PROFILE" || /profile/i.test(e instanceof Error ? e.message : "")) setCourses([]);
-      else setErr(e instanceof Error ? e.message : "Couldn't load your courses.");
+      else if ((e as { code?: string }).code === "NO_PROFILE" || /profile/i.test(plainErrorText(e, ""))) setCourses([]);
+      else setErr(plainErrorText(e, "Couldn't load your courses."));
     }
   }, [getAccessToken]);
 
@@ -95,7 +96,7 @@ export default function CourseBuilderPanel() {
       await load();
       await openEditor(product.id);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't create the course.");
+      setErr(plainErrorText(e, "Couldn't create the course."));
     } finally { setBusy(null); }
   }
 
@@ -118,7 +119,7 @@ export default function CourseBuilderPanel() {
         })),
       })));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't load the curriculum.");
+      setErr(plainErrorText(e, "Couldn't load the curriculum."));
     }
   }
 
@@ -144,7 +145,7 @@ export default function CourseBuilderPanel() {
       setNotice("Curriculum saved — the order you see is the order buyers learn in.");
       await openEditor(editingId);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't save the curriculum.");
+      setErr(plainErrorText(e, "Couldn't save the curriculum."));
     } finally { setBusy(null); }
   }
 
@@ -156,7 +157,7 @@ export default function CourseBuilderPanel() {
       setNotice(updated.isActive ? `“${updated.title}” is live in your store.` : `“${updated.title}” is back to draft — buyers can't see it.`);
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't update the course.");
+      setErr(plainErrorText(e, "Couldn't update the course."));
     } finally { setBusy(null); }
   }
 
@@ -171,7 +172,7 @@ export default function CourseBuilderPanel() {
       setNotice(`“${updated.title}” now sells at ${usd(updated.priceCents)} — you set it, it stays.`);
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't set the price.");
+      setErr(plainErrorText(e, "Couldn't set the price."));
     } finally { setBusy(null); }
   }
 

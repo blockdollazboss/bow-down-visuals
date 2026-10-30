@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -256,7 +257,7 @@ export function HumToSong() {
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? "Could not analyze that audio.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not analyze that audio."));
       if (!data.humRef || !data.analysis) throw new Error("Analysis came back incomplete — try again.");
       setHumRef(data.humRef);
       setHumUrl(data.humUrl ?? null);
@@ -274,7 +275,7 @@ export function HumToSong() {
       });
       setPhase("ready");
     } catch (err) {
-      fail(err instanceof Error ? err.message : "Could not analyze that audio.");
+      fail(plainErrorText(err, "Could not analyze that audio."));
     }
   }
 
@@ -313,7 +314,7 @@ export function HumToSong() {
           setPhase("ready");
           return;
         }
-        throw new Error(data.error ?? data.message ?? "Song generation failed.");
+        throw new Error(apiErrorMessage(data, "Song generation failed."));
       }
       const title = songTitle.trim() || "Hum Song";
       const asset = addAsset({
@@ -345,7 +346,7 @@ export function HumToSong() {
         document.getElementById("hum-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      fail(err instanceof Error ? err.message : "Song generation failed.");
+      fail(plainErrorText(err, "Song generation failed."));
     }
   }
 
@@ -374,7 +375,7 @@ export function HumToSong() {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? "Extension failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Extension failed."));
       if (!data.url) throw new Error("Extension came back empty.");
       setExtendedUrl(data.url);
       addAsset({
@@ -389,7 +390,7 @@ export function HumToSong() {
     } catch (err) {
       toast({
         title: "Extension failed",
-        description: err instanceof Error ? err.message : "Could not extend the song.",
+        description: plainErrorText(err, "Could not extend the song."),
         variant: "destructive",
       });
     } finally {

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* Creator comment controls (#27) — client for the creator-owned half of
    comment moderation: pin / hide / held-for-review / keyword blocklist.
    Endpoints (api-server routes/comment-controls + creator-platform):
@@ -58,7 +59,7 @@ export async function fetchCommentSettings(token: string | null): Promise<Commen
     headers: { ...(await authHeaders(token)) },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? "Comment settings wouldn't load");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "Comment settings wouldn't load"));
   return (data as { settings: CommentSettings }).settings;
 }
 
@@ -72,7 +73,7 @@ export async function saveCommentSettings(
     body: JSON.stringify(patch),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? "Comment settings didn't save");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "Comment settings didn't save"));
   return (data as { settings: CommentSettings }).settings;
 }
 
@@ -81,7 +82,7 @@ export async function fetchHeldComments(token: string | null): Promise<{ comment
     headers: { ...(await authHeaders(token)) },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? "The held queue wouldn't load");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "The held queue wouldn't load"));
   const d = data as { comments?: HeldComment[]; held_copy?: string };
   return { comments: d.comments ?? [], heldCopy: d.held_copy ?? null };
 }
@@ -100,7 +101,7 @@ export async function runCommentAction(
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const d = data as { error?: string; message?: string };
-    throw new Error(d.message ?? d.error ?? "That comment action didn't stick");
+    throw new Error(apiErrorMessage(d, "That comment action didn't stick"));
   }
   return (data as { comment: ControlledComment }).comment;
 }

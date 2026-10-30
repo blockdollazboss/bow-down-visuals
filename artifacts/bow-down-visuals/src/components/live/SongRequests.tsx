@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Music2, Play, SkipForward, XCircle, ListMusic, CircleDollarSign } from "lucide-react";
@@ -178,7 +179,7 @@ export function SongRequestPanel({ streamId, isLive }: { streamId: string; isLiv
       });
       const d = (await res.json().catch(() => null)) as { error?: string; request?: SongRequestDto } | null;
       if (!res.ok) {
-        setError(d?.error ?? "That request didn't go through. Try again.");
+        setError(apiErrorMessage(d, "That request didn't go through. Try again."));
         return;
       }
       intentKeyRef.current = "";
@@ -399,7 +400,7 @@ export function SongRequestDesk() {
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
-        setDeskError(d?.error ?? "Your rules couldn't be saved. Try again.");
+        setDeskError(apiErrorMessage(d, "Your rules couldn't be saved. Try again."));
         return;
       }
       setSavedNote("Rules saved — fans see them up front on the request panel.");
@@ -423,7 +424,7 @@ export function SongRequestDesk() {
         body: JSON.stringify({}),
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) setDeskError(d?.error ?? "That didn't go through. Try again.");
+      if (!res.ok) setDeskError(apiErrorMessage(d, "That didn't go through. Try again."));
       await loadQueue();
     } catch {
       setDeskError("That didn't go through. Try again.");
@@ -443,7 +444,7 @@ export function SongRequestDesk() {
         body: JSON.stringify({}),
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) setDeskError(d?.error ?? "That skip didn't go through. Try again.");
+      if (!res.ok) setDeskError(apiErrorMessage(d, "That skip didn't go through. Try again."));
       await loadQueue();
     } catch {
       setDeskError("That skip didn't go through. Try again.");

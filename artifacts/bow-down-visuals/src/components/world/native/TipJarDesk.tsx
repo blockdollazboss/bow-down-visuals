@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, HandCoins, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
@@ -81,7 +82,7 @@ export function TipJarDesk({ isLight }: { isLight: boolean }) {
       setSavedNote("Your tip page is saved — fans can tip you at its link.");
       await load();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Couldn't save your tip page — try again.");
+      setSaveError(plainErrorText(e, "Couldn't save your tip page — try again."));
     } finally {
       setSaving(false);
     }

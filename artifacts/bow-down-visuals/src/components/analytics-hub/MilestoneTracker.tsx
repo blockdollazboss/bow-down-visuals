@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -144,11 +145,11 @@ export default function MilestoneTracker() {
       const data = (await res.json().catch(() => ({}))) as {
         milestones?: Milestone[]; tracks?: TrackProgress[]; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? t("milestones.loadFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("milestones.loadFailed")));
       setMilestones(data.milestones ?? []);
       setTracks(data.tracks ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("milestones.loadFailed"));
+      setError(plainErrorText(e, t("milestones.loadFailed")));
     } finally {
       setLoading(false);
     }
@@ -202,7 +203,7 @@ export default function MilestoneTracker() {
       const data = (await res.json().catch(() => ({}))) as {
         milestone?: Milestone; awardTier?: string; newAchievements?: MilestoneAchievement[]; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? t("milestones.logFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("milestones.logFailed")));
       const fresh = data.newAchievements ?? [];
       setNotice(
         fresh.length > 0
@@ -216,7 +217,7 @@ export default function MilestoneTracker() {
       /* New threshold crossed → open the one-click brag modal. */
       if (fresh.length > 0) setBrag(fresh[fresh.length - 1]!);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("milestones.logFailed"));
+      setError(plainErrorText(e, t("milestones.logFailed")));
     } finally {
       setSaving(false);
     }
@@ -235,7 +236,7 @@ export default function MilestoneTracker() {
       const data = (await res.json().catch(() => ({}))) as {
         imported?: number; skipped?: number; newAchievements?: MilestoneAchievement[]; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? t("milestones.importFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("milestones.importFailed")));
       const fresh = data.newAchievements ?? [];
       setNotice(
         fresh.length > 0
@@ -248,7 +249,7 @@ export default function MilestoneTracker() {
       /* CSV crossed new thresholds → brag the biggest one. */
       if (fresh.length > 0) setBrag(fresh[fresh.length - 1]!);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("milestones.importFailed"));
+      setError(plainErrorText(e, t("milestones.importFailed")));
     } finally {
       setImporting(false);
     }

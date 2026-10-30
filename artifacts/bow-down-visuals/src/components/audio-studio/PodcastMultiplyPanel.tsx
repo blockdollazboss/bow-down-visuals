@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useState } from "react";
 import {
   Clapperboard, Copy, Check, Loader2, AlertTriangle, Sparkles,
@@ -84,7 +85,7 @@ export function PodcastMultiplyPanel(props: {
         return;
       }
       if (!res.ok || !data.kitId) {
-        setError(data.error || data.message || "The publish kit couldn't be built — nothing was charged for a kit you didn't get.");
+        setError(apiErrorMessage(data, "The publish kit couldn't be built — nothing was charged for a kit you didn't get."));
         return;
       }
       setKit(data);

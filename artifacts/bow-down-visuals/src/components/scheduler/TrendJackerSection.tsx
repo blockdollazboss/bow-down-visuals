@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -108,7 +109,7 @@ export default function TrendJackerSection() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.hook || !data.script) throw new Error(data.message || "Draft failed.");
+      if (!res.ok || !data.hook || !data.script) throw new Error(apiErrorMessage(data, "Draft failed."));
       setDraft({
         hook: data.hook,
         script: data.script,
@@ -118,7 +119,7 @@ export default function TrendJackerSection() {
       });
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Draft failed.");
+      setError(plainErrorText(e, "Draft failed."));
     } finally {
       setLoading(false);
     }

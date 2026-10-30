@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState, useEffect, useRef } from "react";
 import {
   Mic, FileText, Clapperboard, CheckCircle2, Loader2, AlertCircle,
@@ -148,16 +149,13 @@ export function SongWorkflow({
       };
 
       if (res.status === 413 || data.error === "FILE_TOO_LARGE") {
-        setTxError(
-          data.message ??
-            "This song file is too large to transcribe. Please upload a smaller MP3 or paste lyrics manually.",
-        );
+        setTxError(apiErrorMessage(data, "This song file is too large to transcribe. Please upload a smaller MP3 or paste lyrics manually."));
         setTxState("too-large");
         setShowManual(true);
         return;
       }
 
-      if (!res.ok || !data.transcript) throw new Error(data.error ?? data.message ?? "Transcription failed");
+      if (!res.ok || !data.transcript) throw new Error(apiErrorMessage(data, "Transcription failed"));
 
       const text = data.transcript;
       setLocalTranscript(text);
@@ -178,7 +176,7 @@ export function SongWorkflow({
         setTxState("error");
         return;
       }
-      const msg = err instanceof Error ? err.message : "Could not transcribe song";
+      const msg = plainErrorText(err, "Could not transcribe song");
       setTxError(msg);
       setTxState("error");
     } finally {

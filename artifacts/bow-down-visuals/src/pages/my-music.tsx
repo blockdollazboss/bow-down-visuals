@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -88,10 +89,10 @@ export default function MyMusic() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const body = (await res.json().catch(() => ({}))) as { purchases?: Purchase[]; error?: string };
-      if (!res.ok) throw new Error(body.error || "Couldn't load your library.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Couldn't load your library."));
       setPurchases(body.purchases ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load your library.");
+      setError(plainErrorText(err, "Couldn't load your library."));
     } finally {
       setLoading(false);
     }
@@ -116,10 +117,10 @@ export default function MyMusic() {
       const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
       /* License blocks (revoked key / spent cap) answer with a plain
          `message` — surface it word for word. */
-      if (!res.ok || !body.url) throw new Error(body.message || body.error || "Couldn't make a download link.");
+      if (!res.ok || !body.url) throw new Error(apiErrorMessage(body, "Couldn't make a download link."));
       window.location.href = body.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't make a download link.");
+      setError(plainErrorText(err, "Couldn't make a download link."));
     } finally {
       setMinting(null);
     }

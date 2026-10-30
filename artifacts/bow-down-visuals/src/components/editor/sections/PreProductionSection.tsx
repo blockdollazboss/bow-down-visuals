@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import {
   EditorSettings, PreProductionState, ProductionBible, StoryboardShot, ProductionAsset,
@@ -64,7 +65,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || data.message || "Request failed");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Request failed"));
     return data;
   }
 
@@ -79,7 +80,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
       });
       updateBible({ ...defaultProductionBible(), ...data.bible, locked: pp.bible.locked });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Bible generation failed.");
+      setError(plainErrorText(e, "Bible generation failed."));
     } finally {
       setGenerating(false);
     }
@@ -106,7 +107,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
       }));
       updatePP({ storyboard: shots });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Storyboard generation failed.");
+      setError(plainErrorText(e, "Storyboard generation failed."));
     } finally {
       setGenerating(false);
     }
@@ -140,7 +141,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
       updatePP({
         storyboard: pp.storyboard.map((s) =>
           s.id === shotId
-            ? { ...s, [statusKey]: "error", [errKey]: e instanceof Error ? e.message : "Failed" }
+            ? { ...s, [statusKey]: "error", [errKey]: plainErrorText(e, "Failed") }
             : s,
         ),
       });
@@ -186,7 +187,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
     } catch (e) {
       updatePP({
         assets: pp.assets.map((a) =>
-          a.id === id ? { ...a, status: "error", error: e instanceof Error ? e.message : "Failed" } : a,
+          a.id === id ? { ...a, status: "error", error: plainErrorText(e, "Failed") } : a,
         ),
       });
     } finally {

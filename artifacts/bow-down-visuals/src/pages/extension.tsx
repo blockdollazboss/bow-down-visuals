@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -108,7 +109,7 @@ export default function Extension() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error === "duplicate_email" ? "You're already on the list. " : (data.message || data.error || "Something went wrong."));
+        setError(data.error === "duplicate_email" ? "You're already on the list. " : apiErrorMessage(data, "Something went wrong."));
         setState("error");
         return;
       }

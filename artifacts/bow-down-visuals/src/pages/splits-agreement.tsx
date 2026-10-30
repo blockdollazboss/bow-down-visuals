@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
@@ -46,11 +47,11 @@ export default function SplitsAgreement() {
           error?: string; message?: string;
         } & Partial<AgreementData>;
         if (!res.ok || !json.title) {
-          throw new Error(json.message || json.error || "Split agreement not found.");
+          throw new Error(apiErrorMessage(json, "Split agreement not found."));
         }
         if (!cancelled) setData(json as AgreementData);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Couldn't load the split agreement.");
+        if (!cancelled) setError(plainErrorText(err, "Couldn't load the split agreement."));
       } finally {
         if (!cancelled) setLoading(false);
       }

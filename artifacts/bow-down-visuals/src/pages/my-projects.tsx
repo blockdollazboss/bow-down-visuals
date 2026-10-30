@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -787,7 +788,7 @@ export default function MyProjects() {
       const data = (await res.json()) as { projects: Project[] };
       setProjects(data.projects);
     } catch (err) {
-      setProjError(err instanceof Error ? err.message : t("myProjects.failedLoadProjects"));
+      setProjError(plainErrorText(err, t("myProjects.failedLoadProjects")));
     } finally {
       setProjLoading(false);
     }
@@ -803,7 +804,7 @@ export default function MyProjects() {
       const data = (await res.json()) as { drafts: DraftRow[] };
       setDrafts(data.drafts);
     } catch (err) {
-      setDraftsError(err instanceof Error ? err.message : t("myProjects.failedLoadDrafts"));
+      setDraftsError(plainErrorText(err, t("myProjects.failedLoadDrafts")));
     } finally {
       setDraftsLoading(false);
     }
@@ -819,7 +820,7 @@ export default function MyProjects() {
       const data = (await res.json()) as { clips: ClipRow[] };
       setClips(data.clips);
     } catch (err) {
-      setClipsError(err instanceof Error ? err.message : t("myProjects.failedLoadClips"));
+      setClipsError(plainErrorText(err, t("myProjects.failedLoadClips")));
     } finally {
       setClipsLoading(false);
     }
@@ -835,7 +836,7 @@ export default function MyProjects() {
       const data = (await res.json()) as { projects: WebsiteBuildRow[] };
       setWebsites(data.projects);
     } catch (err) {
-      setWebsitesError(err instanceof Error ? err.message : t("myProjects.failedLoadWebsites"));
+      setWebsitesError(plainErrorText(err, t("myProjects.failedLoadWebsites")));
     } finally {
       setWebsitesLoading(false);
     }
@@ -884,7 +885,7 @@ export default function MyProjects() {
       const data = (await res.json()) as { history: GenerationHistoryRow[] };
       setHistory(data.history);
     } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : t("myProjects.failedLoadHistory"));
+      setHistoryError(plainErrorText(err, t("myProjects.failedLoadHistory")));
     } finally {
       setHistoryLoading(false);
     }

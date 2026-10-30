@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
@@ -184,9 +185,7 @@ function CreatorRoomDressingPicker({
       setSaved(true);
       onDressingChanged?.(slug);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Couldn't save your room's dressing. Try again.",
-      );
+      setError(plainErrorText(err, "Couldn't save your room's dressing. Try again."));
     } finally {
       setSavingId(null);
     }
@@ -1692,7 +1691,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
       }
       throw new Error("Checkout didn't return a payment page — nothing was charged.");
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "Checkout didn't start — nothing was charged, and your cart is untouched.");
+      setOrderError(plainErrorText(e, "Checkout didn't start — nothing was charged, and your cart is untouched."));
     } finally {
       setPlacing(false);
     }
@@ -1764,7 +1763,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         return;
       }
     } catch (e) {
-      setBuyError(e instanceof Error ? e.message : "Checkout failed — nothing was charged.");
+      setBuyError(plainErrorText(e, "Checkout failed — nothing was charged."));
     } finally {
       setBusyId(null);
     }

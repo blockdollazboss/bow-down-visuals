@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Image as ImageIcon, AlertTriangle, RotateCcw, Check, X, EyeOff, Undo2 } from "lucide-react";
 import {
@@ -81,7 +82,7 @@ export default function FanArtReviewDesk() {
         return next;
       });
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : "That decision didn't save. Please try again.");
+      setActionError(plainErrorText(e, "That decision didn't save. Please try again."));
     } finally {
       setBusyId(null);
     }

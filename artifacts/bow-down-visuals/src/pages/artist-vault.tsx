@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
@@ -458,11 +459,11 @@ function LockedVoiceSection({ vault, onChanged }: {
         body: form,
       });
       const data = await res.json().catch(() => ({} as { error?: string }));
-      if (!res.ok) throw new Error(data.error || t("artistVault.voiceCloneFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.voiceCloneFailed")));
       setPickerOpen(false);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.voiceCloneFailed"));
+      setError(plainErrorText(e, t("artistVault.voiceCloneFailed")));
     } finally {
       setBusy(false);
     }
@@ -497,12 +498,12 @@ function LockedVoiceSection({ vault, onChanged }: {
       }
       setStage(t("artistVault.cloningVocals"));
       const data = await res.json().catch(() => ({} as { error?: string }));
-      if (!res.ok) throw new Error(data.error || t("artistVault.voiceFromSongFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.voiceFromSongFailed")));
       setSongPickerOpen(false);
       setStage(null);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.voiceFromSongFailed"));
+      setError(plainErrorText(e, t("artistVault.voiceFromSongFailed")));
     } finally {
       setBusy(false);
       setStage(null);
@@ -515,11 +516,11 @@ function LockedVoiceSection({ vault, onChanged }: {
     try {
       const res = await fetch("/api/songs", { headers: await authHeaders() });
       const data = await res.json().catch(() => ({} as { error?: string; songs?: { id: string; title: string }[] }));
-      if (!res.ok) throw new Error(data.error || t("artistVault.loadSongsFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.loadSongsFailed")));
       setSongs(data.songs ?? []);
       setSongPickerOpen((v) => !v);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.loadSongsFailed"));
+      setError(plainErrorText(e, t("artistVault.loadSongsFailed")));
     } finally {
       setLoadingSongs(false);
     }
@@ -530,11 +531,11 @@ function LockedVoiceSection({ vault, onChanged }: {
     try {
       const res = await fetch("/api/voices", { headers: await authHeaders() });
       const data = await res.json().catch(() => ({} as { error?: string; voices?: VoiceOption[] }));
-      if (!res.ok) throw new Error(data.error || t("artistVault.loadVoicesFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.loadVoicesFailed")));
       setVoices(data.voices ?? []);
       setPickerOpen(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.loadVoicesFailed"));
+      setError(plainErrorText(e, t("artistVault.loadVoicesFailed")));
     } finally {
       setLoadingVoices(false);
     }
@@ -557,7 +558,7 @@ function LockedVoiceSection({ vault, onChanged }: {
       setPickerOpen(false);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.lockVoiceFailed"));
+      setError(plainErrorText(e, t("artistVault.lockVoiceFailed")));
     } finally {
       setBusy(false);
     }
@@ -574,7 +575,7 @@ function LockedVoiceSection({ vault, onChanged }: {
       if (!res.ok) throw new Error(t("artistVault.removeVoiceFailed"));
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.removeVoiceFailed"));
+      setError(plainErrorText(e, t("artistVault.removeVoiceFailed")));
     } finally {
       setBusy(false);
     }
@@ -774,7 +775,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
       const data = await res.json().catch(() => ({} as { status?: string; error?: string }));
       if (data.status === "SUCCEEDED") return;
       if (data.status === "FAILED" || data.status === "CANCELLED") {
-        throw new Error(data.error || t("artistVault.videoGenFailed"));
+        throw new Error(apiErrorMessage(data, t("artistVault.videoGenFailed")));
       }
     }
     throw new Error(t("artistVault.videoStillProcessing"));
@@ -791,13 +792,13 @@ function ReferenceVideoSection({ vault, onChanged }: {
         headers: await authHeaders(),
       });
       const data = await res.json().catch(() => ({} as { taskId?: string; error?: string; message?: string }));
-      if (!res.ok) throw new Error(data.message || data.error || t("artistVault.videoStartFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.videoStartFailed")));
       setStage(t("artistVault.animatingCharacter"));
       await pollTask(data.taskId!);
       setStage(null);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.videoGenFailedGeneric"));
+      setError(plainErrorText(e, t("artistVault.videoGenFailedGeneric")));
     } finally {
       setBusy(false);
       setStage(null);
@@ -815,7 +816,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
       if (!res.ok) throw new Error(t("artistVault.videoRemoveFailed"));
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.videoRemoveFailed"));
+      setError(plainErrorText(e, t("artistVault.videoRemoveFailed")));
     } finally {
       setBusy(false);
     }
@@ -831,7 +832,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
         headers: await authHeaders(),
       });
       const data = await res.json().catch(() => ({} as { taskId?: string; error?: string }));
-      if (!res.ok) throw new Error(data.error || t("artistVault.loopStartFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.loopStartFailed")));
       // Poll — FFmpeg takes ~30s; charged only on success.
       for (let i = 0; i < 100; i++) {
         await new Promise((r) => setTimeout(r, 3000));
@@ -840,12 +841,12 @@ function ReferenceVideoSection({ vault, onChanged }: {
         });
         const pdata = await pres.json().catch(() => ({} as { status?: string; error?: string }));
         if (pdata.status === "succeeded") break;
-        if (pdata.status === "failed") throw new Error(pdata.error || t("artistVault.loopFailed"));
+        if (pdata.status === "failed") throw new Error(apiErrorMessage(pdata, t("artistVault.loopFailed")));
       }
       setLoopStage(null);
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("artistVault.loopFailedGeneric"));
+      setError(plainErrorText(e, t("artistVault.loopFailedGeneric")));
     } finally {
       setLoopBusy(false);
       setLoopStage(null);
@@ -1000,10 +1001,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("artistVault.wardrobeLoadFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.wardrobeLoadFailed")));
       setOutfits(data.outfits ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.wardrobeLoadFailed"));
+      setError(plainErrorText(err, t("artistVault.wardrobeLoadFailed")));
     } finally {
       setLoading(false);
     }
@@ -1032,13 +1033,13 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         body: JSON.stringify({ label: outfitLabel.trim(), image_url: url.trim(), image_path: path }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("artistVault.outfitAddFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.outfitAddFailed")));
       setLabel("");
       setImageUrl("");
       setShowAdd(false);
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.outfitAddFailed"));
+      setError(plainErrorText(err, t("artistVault.outfitAddFailed")));
     } finally {
       setBusy(false);
     }
@@ -1059,7 +1060,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
       const publicUrl = await r2UploadFile(filePath, file, file.type, token);
       await addOutfit(outfitLabel.trim() || t("artistVault.customOutfit"), publicUrl, filePath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
+      setError(plainErrorText(err, t("artistVault.uploadFailed")));
     } finally {
       setUploading(false);
     }
@@ -1074,10 +1075,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ is_default: true }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.setDefaultFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.setDefaultFailed")));
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.setDefaultFailed"));
+      setError(plainErrorText(err, t("artistVault.setDefaultFailed")));
     }
   };
 
@@ -1091,11 +1092,11 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ label: editLabel.trim() }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.renameFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.renameFailed")));
       setEditingId(null);
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.renameFailed"));
+      setError(plainErrorText(err, t("artistVault.renameFailed")));
     }
   };
 
@@ -1107,10 +1108,10 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.removeOutfitFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.removeOutfitFailed")));
       await fetchOutfits();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.removeOutfitFailed"));
+      setError(plainErrorText(err, t("artistVault.removeOutfitFailed")));
     }
   };
 
@@ -1359,11 +1360,11 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("artistVault.identityLoadFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.identityLoadFailed")));
       setPhotos(data.photos ?? []);
       setCoverage(data.coverage ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.identityLoadFailed"));
+      setError(plainErrorText(err, t("artistVault.identityLoadFailed")));
     } finally {
       setLoading(false);
     }
@@ -1399,14 +1400,14 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? t("artistVault.identityAddFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.identityAddFailed")));
       setImageUrl("");
       setWardrobe("");
       setIsGenerated(false);
       setShowAdd(false);
       await fetchPhotos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.identityAddFailed"));
+      setError(plainErrorText(err, t("artistVault.identityAddFailed")));
     } finally {
       setBusy(false);
     }
@@ -1427,7 +1428,7 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
       const publicUrl = await r2UploadFile(filePath, file, file.type, token);
       await addPhoto(publicUrl, filePath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
+      setError(plainErrorText(err, t("artistVault.uploadFailed")));
     } finally {
       setUploading(false);
     }
@@ -1442,10 +1443,10 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityUpdateFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.identityUpdateFailed")));
       await fetchPhotos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.identityUpdateFailed"));
+      setError(plainErrorText(err, t("artistVault.identityUpdateFailed")));
     }
   };
 
@@ -1457,10 +1458,10 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityRemoveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.identityRemoveFailed")));
       await fetchPhotos();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("artistVault.identityRemoveFailed"));
+      setError(plainErrorText(err, t("artistVault.identityRemoveFailed")));
     }
   };
 
@@ -2098,7 +2099,7 @@ export default function ArtistVault() {
       setPhotoUrl(publicUrl);
       setPhotoPath(filePath);
     } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : t("artistVault.uploadFailed"));
+      setPhotoError(plainErrorText(err, t("artistVault.uploadFailed")));
     } finally {
       setUploadingPhoto(false);
     }
@@ -2224,7 +2225,7 @@ export default function ArtistVault() {
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? t("artistVault.saveFailedShort"));
+        throw new Error(apiErrorMessage(err, t("artistVault.saveFailedShort")));
       }
       await fetchVaults();
       setSaveSuccess(true);
@@ -2234,7 +2235,7 @@ export default function ArtistVault() {
       setPhotoError(null);
       setTimeout(() => setSaveSuccess(false), 5000);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : t("artistVault.saveFailed"));
+      setApiError(plainErrorText(err, t("artistVault.saveFailed")));
     } finally {
       setSaving(false);
     }

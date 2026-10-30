@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -134,7 +135,7 @@ export default function BetaAccess() {
         invitesCount?: number; milestones?: WaitlistPosition["milestones"];
       };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? t("betaAccess.errorSubmitFailed"));
+        setError(apiErrorMessage(data, t("betaAccess.errorSubmitFailed")));
         setLoading(false);
         return;
       }

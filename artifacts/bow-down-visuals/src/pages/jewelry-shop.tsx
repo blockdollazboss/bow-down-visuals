@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -140,11 +141,11 @@ export default function JewelryShop() {
         }),
       });
       const json = await res!.json();
-      if (!json.ok) throw new Error(json.error || t("jewelryShop.reservationFailed"));
+      if (!json.ok) throw new Error(apiErrorMessage(json, t("jewelryShop.reservationFailed")));
       setDone(true);
       void loadOrders();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : t("jewelryShop.reservationFailedRetry"));
+      setFormError(plainErrorText(e, t("jewelryShop.reservationFailedRetry")));
     } finally {
       setSubmitting(false);
     }

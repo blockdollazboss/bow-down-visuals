@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Gift, Loader2, BadgeCheck, Search } from "lucide-react";
@@ -97,7 +98,7 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
           );
           void loadMine();
         } else if (!res.ok) {
-          setError(data.error ?? "Payment went through but the gift is still landing — check below in a few minutes.");
+          setError(apiErrorMessage(data, "Payment went through but the gift is still landing — check below in a few minutes."));
         }
       } catch {
         setError("Payment went through but we couldn't confirm the gift yet — it lands automatically via our payment webhook.");
@@ -116,7 +117,7 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
       });
       const data = await res.json();
       if (res.ok) setPreview(data.recipient);
-      else setError(data.message ?? data.error ?? "We couldn't find that creator.");
+      else setError(apiErrorMessage(data, "We couldn't find that creator."));
     } catch {
       setError("Network hiccup — try again.");
     } finally {
@@ -143,7 +144,7 @@ export default function GiftMembership({ isLight }: { isLight: boolean }) {
         setPreview({ displayName: data.recipient.displayName, slug: data.recipient.slug });
         setClientSecret(data.clientSecret);
       } else {
-        setError(data.message ?? data.error ?? "Checkout didn't start. Try again in a minute.");
+        setError(apiErrorMessage(data, "Checkout didn't start. Try again in a minute."));
       }
     } catch {
       setError("Network hiccup — try again.");

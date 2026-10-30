@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -121,10 +122,12 @@ export function HeadshotStudio() {
       if (!res.ok || !data.url) {
         if (res.status === 503 || data.code === "provider_not_connected") setProviderDown(true);
         throw new Error(
-          data.message ?? data.error ??
-            (data.code === "out_of_credits"
+          apiErrorMessage(
+            data,
+            data.code === "out_of_credits"
               ? t("headshotStudio.errors.outOfCredits", { defaultValue: "Not enough Visual Bucs. Please buy more Visual Bucs to continue." })
-              : t("headshotStudio.errors.failed", { defaultValue: "Headshot generation failed. Visual Bucs were not charged." })),
+              : t("headshotStudio.errors.failed", { defaultValue: "Headshot generation failed. Visual Bucs were not charged." }),
+          ),
         );
       }
       setGenerating(false);
@@ -132,7 +135,7 @@ export function HeadshotStudio() {
       setResultUrl(data.url);
     } catch (e) {
       setGenerating(false);
-      setError(e instanceof Error ? e.message : t("headshotStudio.errors.failed", { defaultValue: "Headshot generation failed. Visual Bucs were not charged." }));
+      setError(plainErrorText(e, t("headshotStudio.errors.failed", { defaultValue: "Headshot generation failed. Visual Bucs were not charged." })));
     }
   }
 

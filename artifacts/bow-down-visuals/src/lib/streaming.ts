@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 import { mediaUrl } from "@/lib/media-cdn";
 import type { StemDescriptor } from "@/lib/stems-player";
 
@@ -321,7 +322,7 @@ export async function toggleLike(
   const path = `/api/media/${kind}/${encodeURIComponent(id)}/${liked ? "unlike" : "like"}`;
   const r = await fetch(path, { method: liked ? "DELETE" : "POST", headers: { ...headers, "Content-Type": "application/json" } });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? "Like failed");
+  if (!r.ok) throw new Error(apiErrorMessage(d, "Like failed"));
   return {
     liked: typeof d.liked === "boolean" ? d.liked : !liked,
     count: typeof d.like_count === "number" ? d.like_count : null,
@@ -338,7 +339,7 @@ export async function toggleRepost(
   const path = `/api/tracks/${encodeURIComponent(id)}/${reposted ? "unrepost" : "repost"}`;
   const r = await fetch(path, { method: reposted ? "DELETE" : "POST", headers: { ...headers, "Content-Type": "application/json" } });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? "Repost failed");
+  if (!r.ok) throw new Error(apiErrorMessage(d, "Repost failed"));
   return {
     reposted: typeof d.reposted === "boolean" ? d.reposted : !reposted,
     count: typeof d.repost_count === "number" ? d.repost_count : null,
@@ -385,7 +386,7 @@ export async function postComment(
     body: JSON.stringify({ body }),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? "Comment failed");
+  if (!r.ok) throw new Error(apiErrorMessage(d, "Comment failed"));
   return unwrap<MediaComment>(d) ?? ({ body, created_at: new Date().toISOString() } as MediaComment);
 }
 
@@ -399,7 +400,7 @@ export async function togglePlaylistFollow(
     headers: { ...headers, "Content-Type": "application/json" },
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? "Follow failed");
+  if (!r.ok) throw new Error(apiErrorMessage(d, "Follow failed"));
   return {
     following: typeof d.following === "boolean" ? d.following : !following,
     count: typeof d.follower_count === "number" ? d.follower_count : null,

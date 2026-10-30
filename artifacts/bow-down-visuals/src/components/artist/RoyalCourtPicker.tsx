@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Crown, X, ChevronUp, ChevronDown, Search, AlertTriangle, RotateCcw, Check } from "lucide-react";
 import {
@@ -146,7 +147,7 @@ export default function RoyalCourtPicker() {
       setCourtIds(saved.map((m) => m.profileId));
       setSavedMessage(courtSaveSummary(saved));
     } catch (err) {
-      setSaveError((err as Error).message || "Couldn't save your Front Row. Try again.");
+      setSaveError(plainErrorText(err, "Couldn't save your Front Row. Try again."));
     } finally {
       setSaving(false);
     }

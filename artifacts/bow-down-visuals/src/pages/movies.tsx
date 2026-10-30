@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -152,10 +153,10 @@ export default function Movies() {
           });
         } catch { /* hub unavailable — non-fatal */ }
       } else {
-        setError(data.message || t("movies.errorGeneration"));
+        setError(apiErrorMessage(data, t("movies.errorGeneration")));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("movies.errorGenerationShort"));
+      setError(plainErrorText(e, t("movies.errorGenerationShort")));
     } finally {
       setConceptLoading(false);
     }
@@ -182,10 +183,10 @@ export default function Movies() {
         setDetection(data.detection as Detection);
         setDetectNote(data.note ?? "");
       } else {
-        setError(data.message || t("movies.errorDetection"));
+        setError(apiErrorMessage(data, t("movies.errorDetection")));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("movies.errorDetectionShort"));
+      setError(plainErrorText(e, t("movies.errorDetectionShort")));
     } finally {
       setClipLoading(false);
     }

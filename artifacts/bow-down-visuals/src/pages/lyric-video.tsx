@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -170,7 +171,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
       const data = (await res.json().catch(() => ({}))) as AlignResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.lines) || !data.audioRef) {
-        throw new Error(data.message || data.error || t("lyricVideo.alignFailed"));
+        throw new Error(apiErrorMessage(data, t("lyricVideo.alignFailed")));
       }
       setAlignment(data);
       setLines(data.lines);
@@ -179,7 +180,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
         document.getElementById("lyric-timing")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("lyricVideo.alignFailed"));
+      setError(plainErrorText(err, t("lyricVideo.alignFailed")));
     } finally {
       setAligning(false);
     }
@@ -219,14 +220,14 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
       const data = (await res.json().catch(() => ({}))) as RenderJobResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.jobId) {
-        throw new Error(data.message || t("lyricVideo.renderStartFailed"));
+        throw new Error(apiErrorMessage(data, t("lyricVideo.renderStartFailed")));
       }
       setJobId(data.jobId);
       refreshProfile();
       pollRef.current = window.setInterval(() => void pollJob(data.jobId!), 4000);
       void pollJob(data.jobId!);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("lyricVideo.renderStartFailed"));
+      setError(plainErrorText(err, t("lyricVideo.renderStartFailed")));
       setRendering(false);
     }
   }
@@ -243,7 +244,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
         setRendering(false);
         refreshProfile();
         if (data.status === "failed") {
-          setError(data.error || t("lyricVideo.renderFailedRefunded"));
+          setError(apiErrorMessage(data, t("lyricVideo.renderFailedRefunded")));
         }
       }
     } catch {

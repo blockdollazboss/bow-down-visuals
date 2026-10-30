@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "./api-error";
 /* ─── Royalty Tracker — dashboard load (S27-43) ───────────────────────
    The three royalty sources (summary / platforms / payouts) are
    independent. Each is checked for HTTP success on its OWN: a !ok
@@ -63,22 +64,22 @@ type RoyaltyGetter = (
 export async function loadRoyaltySources(get: RoyaltyGetter): Promise<RoyaltySources> {
   const loadSummary = async (): Promise<SummaryData> => {
     const { res, data } = await get("/api/royalties/summary");
-    if (!res.ok) throw new Error((data.error as string) || `Couldn't load your royalty summary (${res.status ?? "error"}).`);
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't load your royalty summary (${res.status ?? "error"}).`));
     return data as unknown as SummaryData;
   };
   const loadPlatforms = async (): Promise<PlatformStatus[]> => {
     const { res, data } = await get("/api/royalties/platforms");
-    if (!res.ok) throw new Error((data.error as string) || `Couldn't load your platform connections (${res.status ?? "error"}).`);
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't load your platform connections (${res.status ?? "error"}).`));
     return ((data as { platforms?: PlatformStatus[] }).platforms ?? []) as PlatformStatus[];
   };
   const loadPayouts = async (): Promise<Payout[]> => {
     const { res, data } = await get("/api/royalties/payouts");
-    if (!res.ok) throw new Error((data.error as string) || `Couldn't load your payouts (${res.status ?? "error"}).`);
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't load your payouts (${res.status ?? "error"}).`));
     return ((data as { payouts?: Payout[] }).payouts ?? []) as Payout[];
   };
   const [s, p, pay] = await Promise.allSettled([loadSummary(), loadPlatforms(), loadPayouts()]);
   const msg = (r: PromiseRejectedResult, fallback: string) =>
-    r.reason instanceof Error ? r.reason.message : fallback;
+    plainErrorText(r.reason, fallback);
   return {
     summary: s.status === "fulfilled" ? s.value : null,
     summaryError: s.status === "rejected" ? msg(s, "Couldn't load your royalty summary.") : null,

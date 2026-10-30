@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import {
   ImagePlus, X, Loader2, Tv2, LogOut, Droplets, Type, Fingerprint,
@@ -145,12 +146,12 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `Upload failed (${res.status})`);
+        throw new Error(apiErrorMessage(body, `Upload failed (${res.status})`));
       }
       const { url } = (await res.json()) as { url: string };
       setWm({ customLogoUrl: url });
     } catch (err) {
-      setWmError(err instanceof Error ? err.message : "Upload failed");
+      setWmError(plainErrorText(err, "Upload failed"));
     } finally {
       setWmUploading(false);
     }

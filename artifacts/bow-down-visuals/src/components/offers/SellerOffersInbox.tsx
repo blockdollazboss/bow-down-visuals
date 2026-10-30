@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,7 +68,7 @@ export default function SellerOffersInbox({
       await actOnOffer(getAccessToken, offer.id, action, amountCents);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't go through — try again.");
+      setError(plainErrorText(e, "That didn't go through — try again."));
     } finally {
       setBusyId(null);
     }

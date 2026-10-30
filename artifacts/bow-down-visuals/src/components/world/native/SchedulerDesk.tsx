@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, ChevronLeft, ChevronRight, Link2, Link2Off, MoveRight, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -183,7 +184,7 @@ function SchedulerComposeForm(props: ComposeFormProps) {
         setError(
           res.status === 402
             ? "Out of Visual Bucs — top up and the scheduler is ready again."
-            : (d.message ?? d.error ?? "The scheduler didn't take that — try again."),
+            : apiErrorMessage(d, "The scheduler didn't take that — try again."),
         );
         return;
       }
@@ -227,7 +228,7 @@ function SchedulerComposeForm(props: ComposeFormProps) {
         setBtError(
           res.status === 402
             ? "Out of Visual Bucs — top up and best-time is ready again."
-            : (d.message ?? "Best-time didn't answer — a failed ask is refunded. Try again."),
+            : apiErrorMessage(d, "Best-time didn't answer — a failed ask is refunded. Try again."),
         );
         return;
       }
@@ -530,7 +531,7 @@ export function SchedulerDeskSection({
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
         const d = data as { message?: string };
-        setListNote(d.message ?? "That post couldn't be removed — try again.");
+        setListNote(apiErrorMessage(d, "That post couldn't be removed — try again."));
         return;
       }
       const result = parseSchedulerDeleteResult(data);
@@ -606,7 +607,7 @@ export function SchedulerDeskSection({
       const url = parseSocialAuthUrl(data);
       if (!res.ok || !url) {
         const d = data as { message?: string };
-        setListNote(d.message ?? `${label} auto-post isn't configured yet — posting stays ready for the accounts you have.`);
+        setListNote(apiErrorMessage(d, `${label} auto-post isn't configured yet — posting stays ready for the accounts you have.`));
         setConnecting(null);
         return;
       }

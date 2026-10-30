@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Globe2, Loader2, Rocket, CheckCircle2, Circle, Languages } from "lucide-react";
 import { Link } from "wouter";
@@ -71,12 +72,12 @@ export function GlobalDropPanel({ releaseId, authFetch }: { releaseId: string; a
         body: JSON.stringify({ releaseId }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Could not assemble the package");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not assemble the package"));
       setPkg(data as GlobalDropPackage);
       setTitles(Object.fromEntries(Object.entries((data as GlobalDropPackage).versions).map(([k, v]) => [k, v.translatedTitle ?? ""])));
       setUrls(Object.fromEntries(Object.entries((data as GlobalDropPackage).versions).map(([k, v]) => [k, v.url ?? ""])));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not assemble the package");
+      setError(plainErrorText(e, "Could not assemble the package"));
     } finally {
       setBusy(null);
     }
@@ -97,10 +98,10 @@ export function GlobalDropPanel({ releaseId, authFetch }: { releaseId: string; a
         }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Could not save the review");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save the review"));
       setPkg(data as GlobalDropPackage);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save the review");
+      setError(plainErrorText(e, "Could not save the review"));
     } finally {
       setBusy(null);
     }
@@ -113,7 +114,7 @@ export function GlobalDropPanel({ releaseId, authFetch }: { releaseId: string; a
     try {
       const res = await authFetch(`/api/global-drop/${releaseId}/publish`, { method: "POST" });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Could not publish");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not publish"));
       setPkg(data as GlobalDropPackage);
       const routed = (data as GlobalDropPackage).routed ?? [];
       const titleOnly = (data as GlobalDropPackage).titleOnly ?? [];
@@ -122,7 +123,7 @@ export function GlobalDropPanel({ releaseId, authFetch }: { releaseId: string; a
           (titleOnly.length > 0 ? ` Approved without a URL, so not routed yet: ${titleOnly.join(", ")}.` : ""),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not publish");
+      setError(plainErrorText(e, "Could not publish"));
     } finally {
       setBusy(null);
     }

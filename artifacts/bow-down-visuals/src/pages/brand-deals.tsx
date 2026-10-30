@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useState, useEffect } from "react";
@@ -266,7 +267,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
         return;
       }
       if (!res.ok || !Array.isArray(data.deals) || data.deals.length === 0) {
-        throw new Error(data.message || data.error || t("brandDeals.errorHuntFailed"));
+        throw new Error(apiErrorMessage(data, t("brandDeals.errorHuntFailed")));
       }
       setDeals(data.deals);
       setDisclaimer(data.disclaimer || "");
@@ -275,7 +276,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
         document.getElementById("deal-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandDeals.errorHuntFailed"));
+      setError(plainErrorText(err, t("brandDeals.errorHuntFailed")));
     } finally {
       setLoading(false);
     }
@@ -311,13 +312,13 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
         return;
       }
       if (!res.ok || !data.outreach?.subject || !data.outreach?.message) {
-        throw new Error(data.message || data.error || t("brandDeals.errorOutreachFailed"));
+        throw new Error(apiErrorMessage(data, t("brandDeals.errorOutreachFailed")));
       }
       setOutreach(data.outreach);
       setOutreachTips(data.tips ?? []);
       refreshProfile();
     } catch (err) {
-      setOutreachError(err instanceof Error ? err.message : t("brandDeals.errorOutreachFailed"));
+      setOutreachError(plainErrorText(err, t("brandDeals.errorOutreachFailed")));
     } finally {
       setOutreachLoading(false);
     }
@@ -937,7 +938,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
         return;
       }
       if (!res.ok || !data.kit) {
-        throw new Error(data.message || data.error || t("outreach.kitFailed"));
+        throw new Error(apiErrorMessage(data, t("outreach.kitFailed")));
       }
       setKit(data.kit);
       refreshProfile();
@@ -956,7 +957,7 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
         document.getElementById("outreach-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("outreach.kitFailed"));
+      setError(plainErrorText(err, t("outreach.kitFailed")));
     } finally {
       setLoading(false);
     }
@@ -1350,10 +1351,10 @@ function MarketplaceTab() {
     try {
       const res = await fetch("/api/sponsors/deals", { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as { deals?: MarketplaceDeal[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("sponsors.errorLoadDeals"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("sponsors.errorLoadDeals")));
       setDeals(Array.isArray(data.deals) ? data.deals : []);
     } catch (err) {
-      setDealsError(err instanceof Error ? err.message : t("sponsors.errorLoadDeals"));
+      setDealsError(plainErrorText(err, t("sponsors.errorLoadDeals")));
     } finally {
       setDealsLoading(false);
     }
@@ -1390,12 +1391,12 @@ function MarketplaceTab() {
         refreshProfile();
         return;
       }
-      if (!res.ok) throw new Error(data.error || t("sponsors.errorMatcher"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("sponsors.errorMatcher")));
       setMatches(Array.isArray(data.matches) ? data.matches : []);
       setMatchNote(data.note || "");
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sponsors.errorMatcher"));
+      setError(plainErrorText(err, t("sponsors.errorMatcher")));
     } finally {
       setMatchLoading(false);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   Mic2,
@@ -183,9 +184,7 @@ export function LipSyncStudio({
         setStillError(e.message);
         if (e.clipUrl) setStillKeptClipUrl(e.clipUrl);
       } else {
-        setStillError(
-          e instanceof Error ? e.message : "Still-to-lip-sync failed.",
-        );
+        setStillError(plainErrorText(e, "Still-to-lip-sync failed."));
       }
     } finally {
       setStillBusy(false);
@@ -242,7 +241,7 @@ export function LipSyncStudio({
         const st = (await res.json()) as RunAllStatus;
         if (cancelled) return;
         setStatus(st);
-        setError(st.state === "failed" ? st.error ?? "The run failed." : null);
+        setError(st.state === "failed" ? plainErrorText(st.error, "The run failed.") : null);
         if (st.state === "done" || st.state === "failed") {
           if (timer) clearInterval(timer);
           try {
@@ -253,7 +252,7 @@ export function LipSyncStudio({
         }
       } catch (e) {
         if (!cancelled)
-          setError(e instanceof Error ? e.message : "Status check failed");
+          setError(plainErrorText(e, "Status check failed"));
       }
     };
     void poll();
@@ -285,9 +284,7 @@ export function LipSyncStudio({
         message?: string;
       };
       if (!res.ok || !body.runId) {
-        throw new Error(
-          body.message ?? body.error ?? `Failed to start (HTTP ${res.status})`,
-        );
+        throw new Error(apiErrorMessage(body, `Failed to start (HTTP ${res.status})`));
       }
       setRunId(body.runId);
       setStatus(null);
@@ -298,7 +295,7 @@ export function LipSyncStudio({
         /* ignore */
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start the run");
+      setError(plainErrorText(e, "Failed to start the run"));
     } finally {
       setStarting(false);
     }
@@ -432,7 +429,7 @@ export function LipSyncStudio({
         }
         if (data.status === "failed") {
           setClipPhase("failed");
-          setClipError(data.error ?? "Lip sync failed.");
+          setClipError(apiErrorMessage(data, "Lip sync failed."));
           setClipJobId(null);
           return;
         }
@@ -494,17 +491,13 @@ export function LipSyncStudio({
         message?: string;
       };
       if (!res.ok || !data.jobId) {
-        throw new Error(
-          data.message ?? data.error ?? `Could not start (HTTP ${res.status})`,
-        );
+        throw new Error(apiErrorMessage(data, `Could not start (HTTP ${res.status})`));
       }
       setClipPhase("running");
       setClipJobId(data.jobId);
     } catch (e) {
       setClipPhase("failed");
-      setClipError(
-        e instanceof Error ? e.message : "Could not start lip sync.",
-      );
+      setClipError(plainErrorText(e, "Could not start lip sync."));
     }
   };
 

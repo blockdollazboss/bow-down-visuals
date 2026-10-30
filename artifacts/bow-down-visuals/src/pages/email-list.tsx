@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -351,7 +352,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  try {
  const res = await authedFetch("/api/email-list/lists");
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't load your lists.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load your lists."));
  setLists(data.lists ?? []);
  listsLoadedRef.current = true;
  if (data.lists?.length && !activeListId) setActiveListId(data.lists[0].id);
@@ -371,7 +372,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  try {
  const res = await authedFetch(`/api/email-list/lists/${listId}/subscribers`);
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't load subscribers.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load subscribers."));
  setSubscribers(data.subscribers ?? []);
  setStats(data.stats ?? null);
  subsLoadedForRef.current = listId;
@@ -462,7 +463,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  body: JSON.stringify({ ...patch, locale: i18n.language }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't save that automation.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save that automation."));
  const fresh = data.automation as AutomationRow;
  setAutomations((rows) => rows.map((r) => (r.kind === fresh.kind ? fresh : r)));
  setAutoDrafts((d) => ({
@@ -471,7 +472,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }));
  setAutoSavedKind(fresh.kind);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't save that automation.");
+ setError(plainErrorText(e, "Couldn't save that automation."));
  } finally {
  setAutoSaving(null);
  }
@@ -519,12 +520,12 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  body: JSON.stringify(patch),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't save that rule.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save that rule."));
  const fresh = data.rule as KeywordRuleRow;
  /* The PATCH door returns no measured counts — keep the loaded ones. */
  setKwRules((rows) => rows.map((r) => (r.id === fresh.id ? { ...fresh, sent: r.sent, captured: r.captured } : r)));
  } catch (e) {
- setKwError(e instanceof Error ? e.message : "Couldn't save that rule.");
+ setKwError(plainErrorText(e, "Couldn't save that rule."));
  } finally { setKwSaving(null); }
  }
 
@@ -543,11 +544,11 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't save that rule.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save that rule."));
  setKwRules((rows) => [...rows, data.rule as KeywordRuleRow]);
  setKwKeyword(""); setKwDmBody("");
  } catch (e) {
- setKwError(e instanceof Error ? e.message : "Couldn't save that rule.");
+ setKwError(plainErrorText(e, "Couldn't save that rule."));
  } finally { setKwSaving(null); }
  }
 
@@ -558,7 +559,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  if (!res.ok) throw new Error("Couldn't delete that rule.");
  setKwRules((rows) => rows.filter((r) => r.id !== rule.id));
  } catch (e) {
- setKwError(e instanceof Error ? e.message : "Couldn't delete that rule.");
+ setKwError(plainErrorText(e, "Couldn't delete that rule."));
  } finally { setKwSaving(null); }
  }
 
@@ -570,11 +571,11 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  body: JSON.stringify({ name: newTagName.trim() }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't create the tag.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't create the tag."));
  setNewTagName("");
  loadEngagement(activeListId);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't create the tag.");
+ setError(plainErrorText(e, "Couldn't create the tag."));
  }
  }
 
@@ -586,7 +587,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  loadEngagement(activeListId);
  loadSubscribers(activeListId);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't delete the tag.");
+ setError(plainErrorText(e, "Couldn't delete the tag."));
  }
  }
 
@@ -598,12 +599,12 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  body: JSON.stringify({ tagIds: draftTagIds }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't save tags.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save tags."));
  setEditingTagsFor(null);
  loadSubscribers(activeListId);
  loadEngagement(activeListId);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't save tags.");
+ setError(plainErrorText(e, "Couldn't save tags."));
  }
  }
 
@@ -620,11 +621,11 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't create the segment.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't create the segment."));
  setSegName(""); setSegTags([]); setSegAutoTags([]); setSegSources([]); setSegEngagement("any");
  loadEngagement(activeListId);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't create the segment.");
+ setError(plainErrorText(e, "Couldn't create the segment."));
  } finally {
  setSegCreating(false);
  }
@@ -637,7 +638,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  if (!res.ok) throw new Error("Couldn't delete the segment.");
  loadEngagement(activeListId);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't delete the segment.");
+ setError(plainErrorText(e, "Couldn't delete the segment."));
  }
  }
 
@@ -657,7 +658,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't send the campaign.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't send the campaign."));
  const c = data.campaign;
  if (c?.status === "sent") {
  setCampResult(`${t("email-list.campaign_sent_msg")}: ${c.deliveredCount}/${c.recipientCount} ${t("email-list.delivered_word")}`);
@@ -667,7 +668,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  loadEngagement(activeListId);
  loadSubscribers(activeListId);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't send the campaign.");
+ setError(plainErrorText(e, "Couldn't send the campaign."));
  } finally {
  setCampSending(false);
  }
@@ -692,13 +693,13 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't create the list.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't create the list."));
  setLists((prev) => [data.list, ...prev]);
  setActiveListId(data.list.id);
  setNewName(""); setNewHandle(""); setNewDesc("");
  setShowNewList(false);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't create the list.");
+ setError(plainErrorText(e, "Couldn't create the list."));
  } finally {
  setCreating(false);
  }
@@ -710,12 +711,12 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  try {
  const res = await authedFetch(`/api/email-list/lists/${id}`, { method: "DELETE" });
  const data = await res.json().catch(() => ({}));
- if (!res.ok) throw new Error(data.error ?? "Couldn't delete the list.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't delete the list."));
  setLists((prev) => prev.filter((l) => l.id !== id));
  if (activeListId === id) setActiveListId("");
  setConfirmDeleteId(null);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't delete the list.");
+ setError(plainErrorText(e, "Couldn't delete the list."));
  } finally {
  setDeletingId(null);
  }
@@ -739,12 +740,12 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't save the list details.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the list details."));
  setLists((prev) => prev.map((l) => (l.id === activeListId ? { ...l, ...data.list } : l)));
  setDetailsSaved(true);
  setTimeout(() => setDetailsSaved(false), 3000);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't save the list details.");
+ setError(plainErrorText(e, "Couldn't save the list details."));
  } finally {
  setSavingDetails(false);
  }
@@ -768,12 +769,12 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  }),
  });
  const data = await res.json();
- if (!res.ok) throw new Error(data.error ?? "Couldn't save the welcome emails.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the welcome emails."));
  setLists((prev) => prev.map((l) => (l.id === activeListId ? { ...l, ...data.list } : l)));
  setWelcomeSaved(true);
  setTimeout(() => setWelcomeSaved(false), 3000);
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't save the welcome emails.");
+ setError(plainErrorText(e, "Couldn't save the welcome emails."));
  } finally {
  setSavingWelcome(false);
  }
@@ -804,12 +805,12 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  refreshProfile();
  return;
  }
- if (!res.ok) throw new Error(data.error ?? "Couldn't write the newsletter.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't write the newsletter."));
  setNlDraft({ subject: data.subject, body: data.body });
  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: data.subject, body: data.body, at: Date.now() })); } catch { /* ignore */ }
  refreshProfile();
  } catch (e) {
- setError(e instanceof Error ? e.message : "Couldn't write the newsletter.");
+ setError(plainErrorText(e, "Couldn't write the newsletter."));
  } finally {
  setNlLoading(false);
  }

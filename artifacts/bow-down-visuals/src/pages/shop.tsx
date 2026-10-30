@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -363,7 +364,7 @@ export default function ShopStorefront() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("shop.errorOrderFailed")));
       if ((data.free === true || data.paidWithGiftCard === true) && data.paid === true) {
         setOrderDone({
           lines: cartDetailed.length, gross: data.gross_cents ?? 0, fee: data.platform_fee_cents ?? 0, net: data.seller_net_cents ?? 0,
@@ -388,7 +389,7 @@ export default function ShopStorefront() {
       }
       throw new Error(t("shop.errorOrderFailed"));
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : t("shop.errorOrderFailedRetry"));
+      setOrderError(plainErrorText(e, t("shop.errorOrderFailedRetry")));
     } finally {
       setPlacing(false);
     }
@@ -415,7 +416,7 @@ export default function ShopStorefront() {
       }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || data.error || t("shop.errorOrderFailed"));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("shop.errorOrderFailed")));
     if (typeof data.clientSecret === "string" && data.clientSecret && hasStripePublishableKey()) {
       setEmbeddedSecret(data.clientSecret);
       setCartOpen(true);

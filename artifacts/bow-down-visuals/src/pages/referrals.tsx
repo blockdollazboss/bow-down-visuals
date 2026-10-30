@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
@@ -514,7 +515,7 @@ export default function Referrals() {
           if (!user) return;
           const { res, data } = await authFetch("/api/referrals/me");
           if (cancelled) return;
-          if (!res.ok) { setError(data.error ?? t("referrals.error.loadFailed")); return; }
+          if (!res.ok) { setError(apiErrorMessage(data, t("referrals.error.loadFailed"))); return; }
           setInfo(data);
         })();
         await Promise.allSettled([contestP, meP]);

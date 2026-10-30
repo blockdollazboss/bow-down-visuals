@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   Timer, Loader2, AlertTriangle, ChevronDown, ChevronUp,
@@ -126,12 +127,12 @@ export function LyricsToTimeline({ lyrics, songTitle, durationSec }: LyricsToTim
         return;
       }
       if (!res.ok || !Array.isArray(data.lines) || data.lines.length === 0) {
-        throw new Error(data.message || data.error || t("wave9.timeline.errorGeneric"));
+        throw new Error(apiErrorMessage(data, t("wave9.timeline.errorGeneric")));
       }
       setLines(data.lines);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave9.timeline.errorGeneric"));
+      setError(plainErrorText(err, t("wave9.timeline.errorGeneric")));
     } finally {
       setLoading(false);
     }

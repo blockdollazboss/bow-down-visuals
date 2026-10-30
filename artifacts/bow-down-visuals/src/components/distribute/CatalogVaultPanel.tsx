@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -54,11 +55,11 @@ export function CatalogVaultPanel(props: {
         setVaulting(false);
         return;
       }
-      if (!res.ok) throw new Error(data.message ?? data.error ?? t("catalogVault.vaultFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("catalogVault.vaultFailed")));
       refreshProfile();
       onVaulted(releaseId);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t("catalogVault.vaultFailed");
+      const msg = plainErrorText(e, t("catalogVault.vaultFailed"));
       setLocalError(msg);
       onError(msg);
     } finally {

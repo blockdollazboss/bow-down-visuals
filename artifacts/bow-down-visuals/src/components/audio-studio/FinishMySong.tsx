@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -94,11 +95,11 @@ export function FinishMySong() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.songUrl) throw new Error(data.message || "Could not finish song.");
+      if (!res.ok || !data.songUrl) throw new Error(apiErrorMessage(data, "Could not finish song."));
       setResult(data);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not finish song.");
+      setError(plainErrorText(e, "Could not finish song."));
     } finally {
       setLoading(false);
     }

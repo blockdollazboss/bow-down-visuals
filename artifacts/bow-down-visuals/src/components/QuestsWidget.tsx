@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -160,7 +161,7 @@ export default function QuestsWidget({
         dispatchQuestClaimed({ questKey, reward: body.reward });
         await load();
       } else {
-        setToast(body.error ?? t("retention.claim_failed"));
+        setToast(apiErrorMessage(body, t("retention.claim_failed")));
       }
     } catch {
       setToast(t("retention.claim_failed"));
@@ -187,7 +188,7 @@ export default function QuestsWidget({
         dispatchQuestClaimed({ questKey, reward: body.amountVb });
         await load();
       } else {
-        setToast(body.error ?? t("retention.claim_failed"));
+        setToast(apiErrorMessage(body, t("retention.claim_failed")));
       }
     } catch {
       setToast(t("retention.claim_failed"));

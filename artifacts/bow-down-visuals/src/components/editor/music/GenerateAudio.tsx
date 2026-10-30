@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Sparkles, Loader2, Music, AlertCircle, CheckCircle2, Disc3, Scissors,
@@ -536,7 +537,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
           setOutOfCredits(true);
           return;
         }
-        throw new Error(data.error || data.message || "Voice cloning failed. Please try again.");
+        throw new Error(apiThrowMessage(data, "Voice cloning failed. Please try again."));
       }
       const list = await reloadVoices();
       setCloneOpen(false);
@@ -572,7 +573,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         });
       }
     } catch (err) {
-      setCloneError(err instanceof Error ? err.message : "Voice cloning failed. Please try again.");
+      setCloneError(plainErrorText(err, "Voice cloning failed. Please try again."));
     } finally {
       setCloning(false);
     }
@@ -628,7 +629,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setPersonaName("");
       toast({ title: "Persona saved", description: `"${persona.name}" is ready in the persona picker.` });
     } catch (err) {
-      toast({ title: "Could not save persona", description: err instanceof Error ? err.message : "Try again in a moment.", variant: "destructive" });
+      toast({ title: "Could not save persona", description: plainErrorText(err, "Try again in a moment."), variant: "destructive" });
     } finally {
       setSavingPersona(false);
     }
@@ -644,7 +645,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setActivePersonaId(null);
       toast({ title: "Persona deleted", description: `"${p.name}" was removed.` });
     } catch (err) {
-      toast({ title: "Could not delete persona", description: err instanceof Error ? err.message : "Templates can't be deleted.", variant: "destructive" });
+      toast({ title: "Could not delete persona", description: plainErrorText(err, "Templates can't be deleted."), variant: "destructive" });
     }
   }
 
@@ -799,7 +800,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       });
       if (!res) return; // user cancelled (no confirm exists for a free call — defensive)
       const data = (await res.json().catch(() => ({}))) as { improvedStyle?: string; error?: string };
-      if (!res.ok) throw new Error(data.error || "Style Enhance failed.");
+      if (!res.ok) throw new Error(apiThrowMessage(data, "Style Enhance failed."));
       const improved = (data.improvedStyle ?? "").trim();
       if (!improved || improved === rough) {
         toast({ title: "Already polished", description: "Your style reads well as-is — nothing to sharpen." });
@@ -811,7 +812,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     } catch (err) {
       toast({
         title: "Could not enhance style",
-        description: err instanceof Error ? err.message : "Style Enhance failed. Please try again.",
+        description: plainErrorText(err, "Style Enhance failed. Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -862,7 +863,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     });
     if (!res) return null; // user cancelled
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Extension failed.");
+    if (!res.ok) throw new Error(apiThrowMessage(data, "Extension failed."));
     return {
       ...target,
       id: `stem-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -926,7 +927,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setUploadExtendStart(null);
       toast({ title: "Track uploaded", description: "Finish it, extend it, or cover it — your call." });
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setUploadError(plainErrorText(err, "Upload failed. Please try again."));
     } finally {
       setUploading(false);
     }
@@ -965,7 +966,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         return;
       }
       if (!res.ok || !data.songUrl) {
-        throw new Error(data.message || data.error || "Could not finish your song.");
+        throw new Error(apiThrowMessage(data, "Could not finish your song."));
       }
       const stem = buildStem(data.songUrl, "", `${uploadTrack.stem.name} (Finished)`);
       onChange({ ...settings, musicStudio: { ...ms, stems: [stem, ...ms.stems] } });
@@ -983,7 +984,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         description: data.influenceNote || "The completed song is your working song now — extend it, split it, caption it.",
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not finish your song.";
+      const msg = plainErrorText(err, "Could not finish your song.");
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();
@@ -1022,7 +1023,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
           : "The new section was crossfaded onto your track.",
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not extend audio.";
+      const msg = plainErrorText(err, "Could not extend audio.");
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();
@@ -1082,7 +1083,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         return;
       }
       if (!res.ok || !data.song) {
-        throw new Error(data.message || data.error || "Could not replace that section.");
+        throw new Error(apiThrowMessage(data, "Could not replace that section."));
       }
       const stem = buildStem(data.song.audio_url, "", `${lastGenerated.name} (Section Replaced)`, lastGenerated.durationSec);
       swapWorkingStem(stem);
@@ -1125,7 +1126,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         return;
       }
       if (!res.ok || !start.jobId) {
-        throw new Error(start.message || start.error || "Could not start the stem split.");
+        throw new Error(apiThrowMessage(start, "Could not start the stem split."));
       }
 
       setStemsPhase("splitting");
@@ -1142,7 +1143,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         try {
           const pr = await fetch(`/api/stems/${jobId}`);
           data = (await pr.json().catch(() => null)) as { status?: string; stems?: Record<string, string | null> | null; durationSeconds?: number; error?: string } | null;
-          if (!pr.ok) throw new Error(data?.error || "Stem split failed.");
+          if (!pr.ok) throw new Error(apiThrowMessage(data, "Stem split failed."));
         } catch (pollErr) {
           // Job-level failures stop the loop; transient network errors keep polling.
           if (pollErr instanceof Error && /failed|not found/i.test(pollErr.message)) throw pollErr;
@@ -1150,7 +1151,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         }
         if (!data) continue;
         if (data.status === "done") { doneData = data; break; }
-        if (data.status === "failed") throw new Error(data.error || "Stem split failed — your Visual Bucs were refunded.");
+        if (data.status === "failed") throw new Error(apiThrowMessage(data, "Stem split failed — your Visual Bucs were refunded."));
       }
       if (!doneData) throw new Error("The stem split is taking longer than usual — it keeps running on the server, try again in a bit.");
 
@@ -1223,7 +1224,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         return;
       }
       if (!res.ok || !start.jobId) {
-        throw new Error(start.message || start.error || "Could not start mastering.");
+        throw new Error(apiThrowMessage(start, "Could not start mastering."));
       }
 
       setRemasterPhase("mastering");
@@ -1238,7 +1239,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         try {
           const pr = await fetch(`/api/mastering/${jobId}`);
           data = (await pr.json().catch(() => null)) as { status?: string; wavUrl?: string | null; mp3Url?: string | null; error?: string } | null;
-          if (!pr.ok) throw new Error(data?.error || "Mastering failed.");
+          if (!pr.ok) throw new Error(apiThrowMessage(data, "Mastering failed."));
         } catch (pollErr) {
           // Job-level failures stop the loop; transient network errors keep polling.
           if (pollErr instanceof Error && /failed|not found/i.test(pollErr.message)) throw pollErr;
@@ -1246,7 +1247,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         }
         if (!data) continue;
         if (data.status === "done") { doneData = data; break; }
-        if (data.status === "failed") throw new Error(data.error || "Mastering failed — your Visual Bucs were refunded.");
+        if (data.status === "failed") throw new Error(apiThrowMessage(data, "Mastering failed — your Visual Bucs were refunded."));
       }
       if (!doneData) throw new Error("Mastering is taking longer than usual — it keeps running on the server, try again in a bit.");
 
@@ -1304,7 +1305,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         return;
       }
       if (!res.ok || !Array.isArray(data.lines) || data.lines.length === 0) {
-        throw new Error(data.message || data.error || "Could not time those lyrics.");
+        throw new Error(apiThrowMessage(data, "Could not time those lyrics."));
       }
       const newLines = data.lines.map((l, i) => ({
         id: `wave9a-${Date.now()}-${i}`,

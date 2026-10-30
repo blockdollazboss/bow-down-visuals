@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { ArrowDown, ArrowUp, CalendarClock, Camera, Check, CheckCircle2, Copy, Crown, Download, Eye, EyeOff, FolderPlus, Layers, Link2, Megaphone, Newspaper, Palette, Pencil, Plus, RefreshCw, Rocket, Share2, Sparkles, Trash2, X } from "lucide-react";
@@ -385,7 +386,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
           refreshProfile();
         } else if (outcome.kind === "failed") {
           setLogoJob("failed");
-          setLogoError(outcome.error ?? "The logo didn't finish — a failed make is not charged. Try again.");
+          setLogoError(apiErrorMessage(outcome, "The logo didn't finish — a failed make is not charged. Try again."));
         }
       } catch {
         /* keep polling on transient network errors (the page's rule) */
@@ -414,7 +415,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
           refreshProfile();
         } else if (outcome.kind === "failed") {
           setIntroJob("failed");
-          setIntroError(outcome.error ?? "The sting didn't finish — a failed make is not charged. Try again.");
+          setIntroError(apiErrorMessage(outcome, "The sting didn't finish — a failed make is not charged. Try again."));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -710,10 +711,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
         return;
       }
       if (outcome.kind === "failed") {
-        setSpError(
-          outcome.message ??
-            "The graphic couldn't be made — a failed make is not charged. Try again.",
-        );
+        setSpError(apiErrorMessage(outcome, "The graphic couldn't be made — a failed make is not charged. Try again."));
         return;
       }
       setSpUrl(outcome.url);
@@ -1452,7 +1450,7 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
         setPkError(
           res.status === 409
             ? "That press address is already taken — pick another handle."
-            : (d.message ?? d.error ?? "That save didn't land — try again."),
+            : apiErrorMessage(d, "That save didn't land — try again."),
         );
         return;
       }
@@ -1844,7 +1842,7 @@ function BioPageEditor({ isLight, onChanged }: { isLight: boolean; onChanged?: (
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
         const d = data as { error?: string };
-        setError(d.error ?? "That save didn't land — try again.");
+        setError(apiErrorMessage(d, "That save didn't land — try again."));
         return;
       }
       const saved = parseBioPageFull(data);
@@ -1885,7 +1883,7 @@ function BioPageEditor({ isLight, onChanged }: { isLight: boolean; onChanged?: (
             ? "Out of Visual Bucs — top up and publishing is ready again."
             : res.status === 409
               ? "This page is already published."
-              : (d.message ?? d.error ?? "Publishing didn't land — a failed publish is refunded. Try again."),
+              : apiErrorMessage(d, "Publishing didn't land — a failed publish is refunded. Try again."),
         );
         return;
       }

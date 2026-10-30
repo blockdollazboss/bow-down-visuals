@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -166,7 +167,7 @@ export function WallpapersDesk() {
       const data = (await res.json().catch(() => ({}))) as {
         status?: string; url?: string | null; taskId?: string; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." })));
       if (data.status === "succeeded" && data.url) {
         setCurrentArt(data.url);
         refreshProfile();
@@ -189,12 +190,12 @@ export function WallpapersDesk() {
           return;
         }
         if (pdata.status === "failed" || pdata.status === "cancelled") {
-          throw new Error(pdata.error ?? t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." }));
+          throw new Error(apiErrorMessage(pdata, t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." })));
         }
       }
       throw new Error(t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." }));
     } catch (e) {
-      setArtError(e instanceof Error ? e.message : t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." }));
+      setArtError(plainErrorText(e, t("wallpapers.generateFailed", { defaultValue: "Generation failed. Visual Bucs were not charged." })));
     } finally {
       setGenerating(false);
     }
@@ -229,7 +230,7 @@ export function WallpapersDesk() {
       url?: string; width?: number; height?: number; error?: string; message?: string;
     };
     if (!res.ok || !data.url) {
-      throw new Error(data.message ?? data.error ?? t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." }));
+      throw new Error(apiErrorMessage(data, t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." })));
     }
     return {
       url: data.url,
@@ -248,7 +249,7 @@ export function WallpapersDesk() {
       const out = await renderOne(presetKey, currentArt);
       if (out) setRenders((prev) => [out, ...prev]);
     } catch (e) {
-      setRenderError(e instanceof Error ? e.message : t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." }));
+      setRenderError(plainErrorText(e, t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." })));
     } finally {
       setRendering(false);
     }
@@ -304,7 +305,7 @@ export function WallpapersDesk() {
       // A paid phone render survives a failed desktop render: it stays
       // in Your renders (and in the user's generation history).
       if (phone) setRenders((prev) => [phone!, ...prev]);
-      setPackError(e instanceof Error ? e.message : t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." }));
+      setPackError(plainErrorText(e, t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." })));
     } finally {
       setPackBusy(false);
     }
@@ -352,12 +353,12 @@ export function WallpapersDesk() {
       });
       const data = (await res.json().catch(() => ({}))) as { product?: { id?: string }; error?: string; message?: string };
       if (!res.ok || !data.product?.id) {
-        throw new Error(data.message ?? data.error ?? t("wallpapers.listFailed", { defaultValue: "The listing could not be created. Try again in a moment." }));
+        throw new Error(apiErrorMessage(data, t("wallpapers.listFailed", { defaultValue: "The listing could not be created. Try again in a moment." })));
       }
       setListedId(data.product.id);
       toast({ title: t("wallpapers.listedToast", { defaultValue: "Listed in your store" }) });
     } catch (e) {
-      setListError(e instanceof Error ? e.message : t("wallpapers.listFailed", { defaultValue: "The listing could not be created. Try again in a moment." }));
+      setListError(plainErrorText(e, t("wallpapers.listFailed", { defaultValue: "The listing could not be created. Try again in a moment." })));
     } finally {
       setListing(false);
     }
@@ -420,7 +421,7 @@ export function WallpapersDesk() {
         taskId?: string; error?: string; message?: string;
       };
       if (!res.ok || !data.taskId) {
-        throw new Error(data.message ?? data.error ?? t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
+        throw new Error(apiErrorMessage(data, t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." })));
       }
       const token = await getAccessToken();
       for (let i = 0; i < 60; i++) {
@@ -441,12 +442,12 @@ export function WallpapersDesk() {
           throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
         }
         if (pdata.status === "failed" || pdata.status === "cancelled") {
-          throw new Error(pdata.error ?? t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
+          throw new Error(apiErrorMessage(pdata, t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." })));
         }
       }
       throw new Error(t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
     } catch (e) {
-      setVideoError(e instanceof Error ? e.message : t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." }));
+      setVideoError(plainErrorText(e, t("wallpapers.videoGenerateFailed", { defaultValue: "Video generation failed. Visual Bucs were not charged." })));
     } finally {
       setGeneratingVideo(false);
     }
@@ -473,7 +474,7 @@ export function WallpapersDesk() {
         url?: string; width?: number; height?: number; seconds?: number; creditCost?: number; error?: string; message?: string;
       };
       if (!res.ok || !data.url) {
-        throw new Error(data.message ?? data.error ?? t("wallpapers.screensaverRenderFailed", { defaultValue: "The screensaver render could not be made. Try again in a moment." }));
+        throw new Error(apiErrorMessage(data, t("wallpapers.screensaverRenderFailed", { defaultValue: "The screensaver render could not be made. Try again in a moment." })));
       }
       const target = wallpaperPresetByKey(ssPresetKey);
       setSsResult({
@@ -485,7 +486,7 @@ export function WallpapersDesk() {
       });
       refreshProfile();
     } catch (e) {
-      setSsError(e instanceof Error ? e.message : t("wallpapers.screensaverRenderFailed", { defaultValue: "The screensaver render could not be made. Try again in a moment." }));
+      setSsError(plainErrorText(e, t("wallpapers.screensaverRenderFailed", { defaultValue: "The screensaver render could not be made. Try again in a moment." })));
     } finally {
       setSsBusy(false);
     }

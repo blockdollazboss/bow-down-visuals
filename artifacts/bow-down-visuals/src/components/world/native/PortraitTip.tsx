@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { HandCoins, Heart, Loader2 } from "lucide-react";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
@@ -124,7 +125,7 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
       if (!res.ok) throw new Error(apiErrorLine(data, "That tip couldn't be recorded."));
       setSent("intent");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That tip couldn't be recorded — try again.");
+      setError(plainErrorText(e, "That tip couldn't be recorded — try again."));
     } finally {
       setSending(false);
     }

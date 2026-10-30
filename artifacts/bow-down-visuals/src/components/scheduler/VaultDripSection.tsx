@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -132,7 +133,7 @@ export default function VaultDripSection() {
         description: t("vaultDrip.draftsCreatedDesc", { defaultValue: "Find them in the Drafts tab — schedule each to its drop date." }),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create drafts.");
+      setError(plainErrorText(e, "Could not create drafts."));
     } finally {
       setCreating(false);
     }

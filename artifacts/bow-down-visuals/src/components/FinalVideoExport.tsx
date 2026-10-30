@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -508,7 +509,7 @@ export function FinalVideoExport({
         expiresAt?: number;
         error?: string;
       }>(res, "/api/prepare-export-files", t);
-      if (!res.ok) throw new Error(data.error ?? t("videoExport.errPrepareHttp", { status: res.status }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("videoExport.errPrepareHttp", { status: res.status })));
       setPrepareId(data.prepareId);
       setPrepareExpiresAt(data.expiresAt ?? null);
       setNowTick(Date.now());
@@ -520,7 +521,7 @@ export function FinalVideoExport({
       return { ready: data.allReady, prepareId: data.prepareId };
     } catch (err) {
       setPrepareState("failed");
-      setPrepareError(err instanceof Error ? err.message : t("videoExport.errPrepare"));
+      setPrepareError(plainErrorText(err, t("videoExport.errPrepare")));
       return { ready: false, prepareId: null };
     }
   }
@@ -693,11 +694,11 @@ export function FinalVideoExport({
           signal: AbortSignal.timeout(15_000),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((data as { error?: string }).error ?? t("videoExport.errEstimateHttp", { status: res.status }));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("videoExport.errEstimateHttp", { status: res.status })));
         setEstimate(data as typeof estimate);
       } catch (err) {
         setEstimate(null);
-        setEstimateError(err instanceof Error ? err.message : t("videoExport.errEstimate"));
+        setEstimateError(plainErrorText(err, t("videoExport.errEstimate")));
       } finally {
         setEstimateLoading(false);
       }
@@ -811,7 +812,7 @@ export function FinalVideoExport({
         ffmpegExitCode?: number;
       }>(res, `POST ${endpoint}`, t);
       const err = Object.assign(
-        new Error(body.error ?? t("videoExport.errExportHttp", { status: res.status })),
+        new Error(apiThrowMessage(body, t("videoExport.errExportHttp", { status: res.status }), res.status)),
         {
           code:           body.code,
           exportStatus:   body.exportStatus,
@@ -1057,7 +1058,7 @@ export function FinalVideoExport({
         });
         return;
       }
-      const msg = err instanceof Error ? err.message : t("videoExport.exportFailedLower");
+      const msg = plainErrorText(err, t("videoExport.exportFailedLower"));
       if (msg === "out_of_credits") {
         setStatus("idle");
         setProgressStep("");

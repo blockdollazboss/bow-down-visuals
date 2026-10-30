@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -124,14 +125,14 @@ export default function PresaveLanding() {
         });
         const authJson = (await authRes.json().catch(() => ({}))) as { authUrl?: string; message?: string };
         if (authRes.ok && authJson.authUrl) { window.location.href = authJson.authUrl; return; }
-        throw new Error(authJson.message || json.message || "Account pre-save isn't available right now.");
+        throw new Error(apiErrorMessage(authJson, apiErrorMessage(json, "Account pre-save isn't available right now.")));
       }
-      if (!res.ok || !json.saved) throw new Error(json.message || "The save wasn't confirmed — nothing was recorded.");
+      if (!res.ok || !json.saved) throw new Error(apiErrorMessage(json, "The save wasn't confirmed — nothing was recorded."));
       setAccountSaveState("saved");
       setAccountSaveMsg("Saved to your library — it's yours the moment it drops.");
     } catch (err) {
       setAccountSaveState("error");
-      setAccountSaveMsg(err instanceof Error ? err.message : "The save wasn't confirmed — nothing was recorded.");
+      setAccountSaveMsg(plainErrorText(err, "The save wasn't confirmed — nothing was recorded."));
     }
   }
 
@@ -165,7 +166,7 @@ export default function PresaveLanding() {
         /* Server nests the payload under `presave`; accept both shapes. */
         const release = json.presave ?? (json.title ? (json as PresaveRelease) : undefined);
         if (!res.ok || !release?.title) {
-          throw new Error(json.message || json.error || t("presave.errors.notFound"));
+          throw new Error(apiErrorMessage(json, t("presave.errors.notFound")));
         }
         if (!cancelled) {
           setData(release);
@@ -173,7 +174,7 @@ export default function PresaveLanding() {
           setShareCount(release.shareCount ?? 0);
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : t("presave.errors.loadFailed"));
+        if (!cancelled) setError(plainErrorText(err, t("presave.errors.loadFailed")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -265,7 +266,7 @@ export default function PresaveLanding() {
       const json = (await res.json().catch(() => ({}))) as {
         followerCount?: number; alreadyFollowing?: boolean; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(json.message || json.error || t("presave.followFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(json, t("presave.followFailed")));
       setFollowerCount(json.followerCount ?? followerCount + 1);
       setFollowState("done");
       setFollowMsg(
@@ -275,7 +276,7 @@ export default function PresaveLanding() {
       );
     } catch (err) {
       setFollowState("error");
-      setFollowMsg(err instanceof Error ? err.message : t("presave.followFailed"));
+      setFollowMsg(plainErrorText(err, t("presave.followFailed")));
     }
   }
 

@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -194,7 +195,7 @@ function DomainCard({
       setLastCheck(r);
       onChanged(); // refresh statuses from the server
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Check failed — try again.");
+      setError(plainErrorText(e, "Check failed — try again."));
     } finally {
       setChecking(false);
     }
@@ -207,7 +208,7 @@ function DomainCard({
       await deleteDomain(token, domain.id);
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't release it — try again.");
+      setError(plainErrorText(e, "Couldn't release it — try again."));
       setDeleting(false);
     }
   }, [token, domain.id, domain.hostname, onChanged]);
@@ -330,7 +331,7 @@ export default function CreatorDomainsPage() {
       setNoProfile(false);
     } catch (e) {
       if (e instanceof Error && /creator page/i.test(e.message)) setNoProfile(true);
-      else setError(e instanceof Error ? e.message : "Couldn't load your domains.");
+      else setError(plainErrorText(e, "Couldn't load your domains."));
     } finally {
       setLoading(false);
     }
@@ -348,7 +349,7 @@ export default function CreatorDomainsPage() {
       setHostname("");
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't claim it — try again.");
+      setError(plainErrorText(e, "Couldn't claim it — try again."));
     } finally {
       setClaiming(false);
     }

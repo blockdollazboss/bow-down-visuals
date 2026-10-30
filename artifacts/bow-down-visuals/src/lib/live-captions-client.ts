@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /**
  * live-captions-client.ts — Live Captions, Every Language (Stack-200
  * #160, TRULY NEW): the browser brain for real-time captions on LIVE
@@ -503,7 +504,7 @@ export async function setCaptionTrack(
         error: null,
       };
     }
-    return { ok: false, settings: null, error: (json?.error as string) ?? "Caption settings couldn't save." };
+    return { ok: false, settings: null, error: apiErrorMessage(json, "Caption settings couldn't save.") };
   } catch {
     return { ok: false, settings: null, error: "Caption settings couldn't save." };
   }
@@ -524,7 +525,7 @@ export async function postCaptionSegment(
     if (status === 201) return { ok: true, error: null };
     return {
       ok: false,
-      error: (json?.error as string) ?? "That caption line didn't go through.",
+      error: apiErrorMessage(json, "That caption line didn't go through."),
       retryAfterMs: typeof json?.retryAfterMs === "number" ? json.retryAfterMs : undefined,
     };
   } catch {

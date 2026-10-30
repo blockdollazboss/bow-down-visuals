@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import {
   BadgeCheck, Gift, Loader2, Music4, Play, Stamp, AlertTriangle, Check,
@@ -115,7 +116,7 @@ export function YourOwnTag(props: {
       });
       const data = (await res.json().catch(() => ({}))) as DraftResponse;
       if (!res.ok || !data.tag) {
-        setError(data.error || "The draft couldn't be made. Nothing was charged — drafts are free.");
+        setError(apiErrorMessage(data, "The draft couldn't be made. Nothing was charged — drafts are free."));
         return;
       }
       setNotice("Draft ready — give it a listen below, then approve it by ear.");
@@ -141,7 +142,7 @@ export function YourOwnTag(props: {
       if (!res) return; // user cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as ApproveResponse;
       if (!res.ok || !data.tag) {
-        setError(data.message || data.error || "Approval didn't go through.");
+        setError(apiErrorMessage(data, "Approval didn't go through."));
         return;
       }
       setNotice(
@@ -174,7 +175,7 @@ export function YourOwnTag(props: {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(data.error || "The toggle didn't save.");
+        setError(apiErrorMessage(data, "The toggle didn't save."));
         return;
       }
       await loadMine();

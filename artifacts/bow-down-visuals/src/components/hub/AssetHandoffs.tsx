@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -208,7 +209,7 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? t("hubSpine.handoffs.failed"));
+      if (!res.ok) throw new Error(apiThrowMessage(data, t("hubSpine.handoffs.failed")));
 
       const saved: HandoffResult[] = [];
       const pushResult = (url: string | undefined, label: string, kind: HubAssetKind, detail?: string, text?: string) => {
@@ -251,7 +252,7 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
       setResults((r) => [...saved, ...r]);
       toast({ title: t("hubSpine.handoffs.doneTitle"), description: t("hubSpine.handoffs.doneDesc", { tool: t(`hubSpine.handoffs.${meta.costKey}.label`) }) });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("hubSpine.handoffs.failed");
+      const msg = plainErrorText(err, t("hubSpine.handoffs.failed"));
       if (msg === "out_of_credits") {
         setErrors((e) => ({ ...e, [id]: t("hubSpine.handoffs.outOfCredits") }));
       } else {

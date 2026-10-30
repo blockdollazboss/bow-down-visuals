@@ -1,3 +1,5 @@
+import { apiErrorMessage } from "../../../lib/api-error";
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -200,13 +202,13 @@ export function StockLibraryPanel({
         setItems([]);
         return;
       }
-      if (!res.ok) throw new Error(data.message ?? data.error ?? tr("errorGeneric", { status: res.status }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, tr("errorGeneric", { status: res.status })));
       setItems(Array.isArray(data.items) ? data.items : []);
       setTotalResults(data.totalResults ?? 0);
       setPage(nextPage);
       setSearched(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tr("errorGenericFallback"));
+      setError(plainErrorText(err, tr("errorGenericFallback")));
       setItems([]);
     } finally {
       setLoading(false);
@@ -243,7 +245,7 @@ export function StockLibraryPanel({
         message?: string;
       };
       if (!res.ok || !data.success || !data.item) {
-        throw new Error(data.message ?? data.error ?? tr("importFailedDesc"));
+        throw new Error(apiErrorMessage(data, tr("importFailedDesc")));
       }
       const imported = data.item;
       const nowIso = new Date().toISOString();

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, X, Disc3, Mic2, Palette, Scale, Link2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -198,7 +199,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
         return;
       }
       if (!res.ok || !data.song || !data.audioUrl) {
-        throw new Error(data.error || data.message || "Cover generation failed. Please try again.");
+        throw new Error(apiErrorMessage(data, "Cover generation failed. Please try again."));
       }
       setCover(data.song);
       setCoverUrl(data.audioUrl);
@@ -207,7 +208,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
       onCoverCreated?.(data.song);
       toast({ title: "Cover created", description: `"${data.song.title}" is in your song library.` });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cover generation failed. Please try again.");
+      setError(plainErrorText(e, "Cover generation failed. Please try again."));
       setPhase("form");
     }
   }
@@ -237,10 +238,10 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
       });
       if (!res) return;
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || "Lyric video failed. Please try again.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Lyric video failed. Please try again."));
       setLyricVideoUrl(data.url);
     } catch (e) {
-      setLyricError(e instanceof Error ? e.message : "Lyric video failed. Please try again.");
+      setLyricError(plainErrorText(e, "Lyric video failed. Please try again."));
     } finally {
       setLyricBusy(false);
     }
@@ -262,10 +263,10 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
       });
       if (!res) return;
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || "Cover art failed. Please try again.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Cover art failed. Please try again."));
       setArtUrl(data.url);
     } catch (e) {
-      setArtError(e instanceof Error ? e.message : "Cover art failed. Please try again.");
+      setArtError(plainErrorText(e, "Cover art failed. Please try again."));
     } finally {
       setArtBusy(false);
     }

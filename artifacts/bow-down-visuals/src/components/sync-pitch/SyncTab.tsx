@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
@@ -294,7 +295,7 @@ export default function SyncTab({
         return;
       }
       if (!res.ok || !(data as { oneSheet?: OneSheet }).oneSheet) {
-        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("syncPitch.kitFailed"));
+        throw new Error(apiErrorMessage(data, t("syncPitch.kitFailed")));
       }
       const oneSheet = (data as { oneSheet: OneSheet }).oneSheet;
       setSheet(oneSheet);
@@ -304,7 +305,7 @@ export default function SyncTab({
         document.getElementById("sync-onesheet-result")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("syncPitch.kitFailed"));
+      setError(plainErrorText(err, t("syncPitch.kitFailed")));
     } finally {
       setGenerating(false);
     }
@@ -358,7 +359,7 @@ export default function SyncTab({
       setNewBrief({ title: "", projectType: "tv", mood: "", budgetRange: "", deadline: "", notes: "" });
       setShowBriefForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("syncPitch.saveFailed"));
+      setError(plainErrorText(err, t("syncPitch.saveFailed")));
     }
   }
 
@@ -405,7 +406,7 @@ export default function SyncTab({
       setNewPitch({ songTitle: "", targetName: "", notes: "" });
       setShowAddForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("syncPitch.saveFailed"));
+      setError(plainErrorText(err, t("syncPitch.saveFailed")));
     }
   }
 
@@ -456,7 +457,7 @@ export default function SyncTab({
       setIncomeAmount((prev) => ({ ...prev, [p.id]: "" }));
       window.location.href = "/coach";
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("syncPitch.moneyLogFailed"));
+      setError(plainErrorText(err, t("syncPitch.moneyLogFailed")));
     } finally {
       setLoggingIncome(null);
     }

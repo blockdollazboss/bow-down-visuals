@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ListMusic, Play, Pause, Volume2, VolumeX,
@@ -327,10 +328,10 @@ function PlaylistTracks() {
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
         };
-        if (!res.ok) throw new Error(data.error || "Upload failed.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "Upload failed."));
         await refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Upload failed.");
+        setError(plainErrorText(e, "Upload failed."));
       } finally {
         setUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -357,7 +358,7 @@ function PlaylistTracks() {
         }
         await refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Delete failed.");
+        setError(plainErrorText(e, "Delete failed."));
       }
     },
     [authHeaders, refresh],

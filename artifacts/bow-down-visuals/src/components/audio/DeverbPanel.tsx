@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -175,7 +176,7 @@ export function DeverbPanel() {
         const data: DeverbJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("deverb.errorJobNotFound"));
+          setError(apiErrorMessage(data, t("deverb.errorJobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -187,7 +188,7 @@ export function DeverbPanel() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("deverb.errorDeverbFailed"));
+          setError(apiErrorMessage(data, t("deverb.errorDeverbFailed")));
         } else {
           setStatus(data.status as DeverbJobStatus);
         }
@@ -293,19 +294,19 @@ export function DeverbPanel() {
       if (res.status === 503) {
         // Provider gate still closed on the server side.
         setStatus("failed");
-        setError(data.message || data.error || t("deverb.errorProviderNotConfigured"));
+        setError(apiErrorMessage(data, t("deverb.errorProviderNotConfigured")));
         return;
       }
       if (res.status === 402) {
         const isPricingPending = data.error === "pricing_pending";
         setOutOfCredits(!isPricingPending);
         setStatus(isPricingPending ? "failed" : "idle");
-        setError(isPricingPending ? data.message || t("deverb.errorPricingPending") : null);
+        setError(isPricingPending ? plainErrorText(data.message, t("deverb.errorPricingPending")) : null);
         return;
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("deverb.errorStartFailed"));
+        setError(apiErrorMessage(data, t("deverb.errorStartFailed")));
         return;
       }
       setJobId(data.jobId);

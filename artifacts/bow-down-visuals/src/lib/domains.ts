@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Custom domains — Worker 10: creator "own website" flagship ─────────────
    Shared types + API helpers + site-mode host detection.
 
@@ -128,7 +129,7 @@ export function dnsInstructionsFor(hostname: string, token: string): DnsInstruct
 
 async function json<T>(res: Response): Promise<T> {
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Something went sideways. Try again. 🦈");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "Something went sideways. Try again. 🦈"));
   return data as T;
 }
 

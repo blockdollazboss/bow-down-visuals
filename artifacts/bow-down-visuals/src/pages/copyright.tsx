@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -326,7 +327,7 @@ export default function CopyrightAssistant() {
         return;
       }
       if (!res.ok) {
-        throw new Error((data.error as string) || "Draft failed — try again.");
+        throw new Error(apiErrorMessage(data, "Draft failed — try again."));
       }
       setDraft({
         description: data.description as string,
@@ -335,7 +336,7 @@ export default function CopyrightAssistant() {
       refreshProfile().catch(() => {});
       document.getElementById("draft-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
-      setDraftError(err instanceof Error ? err.message : "Draft failed — try again.");
+      setDraftError(plainErrorText(err, "Draft failed — try again."));
     } finally {
       setDraftLoading(false);
     }
@@ -361,12 +362,12 @@ export default function CopyrightAssistant() {
         return;
       }
       if (!res.ok) {
-        throw new Error((data.error as string) || "Couldn't get an answer — try again.");
+        throw new Error(apiErrorMessage(data, "Couldn't get an answer — try again."));
       }
       setQaMessages([...nextMessages, { role: "assistant", content: data.answer as string }]);
       refreshProfile().catch(() => {});
     } catch (err) {
-      setQaError(err instanceof Error ? err.message : "Couldn't get an answer — try again.");
+      setQaError(plainErrorText(err, "Couldn't get an answer — try again."));
       setQaMessages(nextMessages);
     } finally {
       setQaLoading(false);

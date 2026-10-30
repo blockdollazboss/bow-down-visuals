@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -213,7 +214,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       }
       setLicenseNote(typeof data["message"] === "string" ? data["message"] : "License reserved.");
     } catch (e) {
-      setLicenseError(e instanceof Error ? e.message : "That license couldn't be reserved — try again.");
+      setLicenseError(plainErrorText(e, "That license couldn't be reserved — try again."));
     } finally {
       setLicensing(false);
     }
@@ -244,7 +245,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       setListingForm(emptyBeatListingForm());
       void loadBrowse(0, false);
     } catch (e) {
-      setListError(e instanceof Error ? e.message : "That listing couldn't go live — try again.");
+      setListError(plainErrorText(e, "That listing couldn't go live — try again."));
     } finally {
       setListing(false);
     }
@@ -298,7 +299,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       setTplEditingId(null);
       await loadDashboard();
     } catch (e) {
-      setTplError(e instanceof Error ? e.message : "Couldn't save that template — check the fields and try again.");
+      setTplError(plainErrorText(e, "Couldn't save that template — check the fields and try again."));
     } finally {
       setTplSaving(false);
     }

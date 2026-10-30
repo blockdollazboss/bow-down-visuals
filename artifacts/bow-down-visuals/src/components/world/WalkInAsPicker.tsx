@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 /**
  * WalkInAsPicker — "Walk in as": choose who you are in the King's
  * Hall. A house guard (the palace guards — King Sharks of the hall,
@@ -198,7 +199,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
       setRestyleDraft(appearanceDraftFrom(appearance));
       setRestyleOpen(true);
     } catch (err) {
-      setManageError(err instanceof Error ? err.message : "Couldn't read the character's look. Please try again.");
+      setManageError(plainErrorText(err, "Couldn't read the character's look. Please try again."));
     } finally {
       setRestyleLoading(false);
     }
@@ -212,7 +213,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
       await onSaveAppearance(manageChar.id, { ...restyleDraft });
       closeManage();
     } catch (err) {
-      setManageError(err instanceof Error ? err.message : "Couldn't save the new look. Please try again.");
+      setManageError(plainErrorText(err, "Couldn't save the new look. Please try again."));
     } finally {
       setManageBusy(false);
     }
@@ -228,7 +229,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
       setCreateName("");
       setCreateDraft(emptyAppearanceDraft());
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Couldn't create the character. Please try again.");
+      setCreateError(plainErrorText(err, "Couldn't create the character. Please try again."));
     } finally {
       setCreateBusy(false);
     }
@@ -242,7 +243,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
       await onRename(manageChar.id, draftName);
       closeManage();
     } catch (err) {
-      setManageError(err instanceof Error ? err.message : "Couldn't rename the character. Please try again.");
+      setManageError(plainErrorText(err, "Couldn't rename the character. Please try again."));
     } finally {
       setManageBusy(false);
     }
@@ -256,7 +257,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
       await onRemove(manageChar.id);
       closeManage();
     } catch (err) {
-      setManageError(err instanceof Error ? err.message : "Couldn't remove the character. Please try again.");
+      setManageError(plainErrorText(err, "Couldn't remove the character. Please try again."));
     } finally {
       setManageBusy(false);
     }

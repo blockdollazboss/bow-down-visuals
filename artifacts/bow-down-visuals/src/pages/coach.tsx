@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
@@ -311,7 +312,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  return;
  }
  if (!res.ok || !Array.isArray(data.eligibility) || data.eligibility.length === 0 || !Array.isArray(data.moneyMoves) || data.moneyMoves.length === 0) {
- throw new Error(data.message || data.error || t("coach.errorPlanFailed"));
+ throw new Error(apiErrorMessage(data, t("coach.errorPlanFailed")));
  }
  setPlan(data);
  refreshProfile();
@@ -319,7 +320,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  document.getElementById("coach-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("coach.errorPlanFailed"));
+ setError(plainErrorText(err, t("coach.errorPlanFailed")));
  } finally {
  setLoading(false);
  }
@@ -679,7 +680,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  });
  if (!res) return;
  const data = (await res.json().catch(() => ({}))) as { items?: unknown[]; skipped?: unknown[]; error?: string };
- if (!res.ok) throw new Error(data.error || "Couldn't save the moves.");
+ if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the moves."));
  const saved = Array.isArray(data.items) ? data.items.length : 0;
  setMovesMsg(
  saved > 0
@@ -687,7 +688,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  : t("coach.movesAlreadySaved", { defaultValue: "Those moves are already in your Action Tracker." }),
  );
  } catch (err) {
- setMovesMsg(err instanceof Error ? err.message : "Couldn't save the moves.");
+ setMovesMsg(plainErrorText(err, "Couldn't save the moves."));
  } finally {
  setSavingMoves(false);
  }

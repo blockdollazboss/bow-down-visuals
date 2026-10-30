@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,7 +140,7 @@ export default function InspoTab({
         body: JSON.stringify({ playlistInput: playlistInput.trim(), notes: notes.trim() }),
       });
       const data = (await res.json()) as { styleDna?: StyleDna; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Vibe analysis failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Vibe analysis failed."));
       setDna({ ...EMPTY_DNA, ...(data.styleDna ?? {}) });
       setDnaOpen(true);
       toast({ title: "Vibe decoded", description: "Review the style DNA, tweak anything, then generate your song." });
@@ -147,7 +148,7 @@ export default function InspoTab({
         document.getElementById("inspo-dna-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Vibe analysis failed. Please try again.");
+      setError(plainErrorText(err, "Vibe analysis failed. Please try again."));
     } finally {
       setAnalyzing(false);
     }
@@ -181,7 +182,7 @@ export default function InspoTab({
         mood: dna.mood.join(", "),
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed.";
+      const msg = plainErrorText(err, "Generation failed.");
       if (msg === "out_of_credits") onOutOfCredits();
       else setError(msg);
     } finally {
@@ -199,12 +200,12 @@ export default function InspoTab({
         body: JSON.stringify({ name: presetName.trim(), styleDna: dna }),
       });
       const data = (await res.json()) as { preset?: VibePreset; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not save preset.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save preset."));
       if (data.preset) setPresets((p) => [data.preset!, ...p]);
       setPresetName("");
       toast({ title: "Vibe saved", description: `"${data.preset?.name}" is now in My Vibes.` });
     } catch (err) {
-      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+      toast({ title: "Save failed", description: plainErrorText(err, "Try again."), variant: "destructive" });
     } finally {
       setSavingPreset(false);
     }

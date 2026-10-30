@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Users, Plus, Search, Lock, Globe, Crown } from "lucide-react";
@@ -83,7 +84,7 @@ export default function Groups() {
       setTab("mine");
       await load();
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "Couldn't start the group.");
+      setCreateError(plainErrorText(e, "Couldn't start the group."));
     } finally { setCreating(false); }
   }
 

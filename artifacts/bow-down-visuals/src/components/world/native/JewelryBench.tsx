@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -220,7 +221,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
         return;
       }
       if (!res.ok) {
-        setError(((data as { error?: string }).error) ?? "The preview couldn't be made — a failed make is not charged. Try again.");
+        setError(apiErrorMessage(data, "The preview couldn't be made — a failed make is not charged. Try again."));
         return;
       }
       const url = parseJewelryDesignUrl(data);
@@ -259,7 +260,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
         return;
       }
       if (!res.ok) {
-        setError(((data as { error?: string }).error) ?? "The manufacturing file couldn't be built. Try again.");
+        setError(apiErrorMessage(data, "The manufacturing file couldn't be built. Try again."));
         return;
       }
       const info = parseJewelryStl(data);

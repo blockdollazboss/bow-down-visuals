@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, type JSX } from "react";
 import { Loader2, Link2Off, AlertTriangle, BadgeCheck, RotateCcw } from "lucide-react";
@@ -175,14 +176,14 @@ export function ConnectedAccounts() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.authUrl) {
-        throw new Error(data.message || `${cfg.name} auto-post isn't configured yet.`);
+        throw new Error(apiErrorMessage(data, `${cfg.name} auto-post isn't configured yet.`));
       }
       // Full-page redirect — both Meta and TikTok OAuth require it.
       window.location.href = data.authUrl as string;
     } catch (err) {
       toast({
         title: `Couldn't start ${cfg.name} connect`,
-        description: err instanceof Error ? err.message : "Try again.",
+        description: plainErrorText(err, "Try again."),
         variant: "destructive",
       });
       setConnecting(null);

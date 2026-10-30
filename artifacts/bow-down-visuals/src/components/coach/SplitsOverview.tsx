@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -82,10 +83,10 @@ export default function SplitsOverview() {
       const res = await confirmedFetch("/api/splits/overview", { skipConfirm: true });
       if (!res) return;
       const json = (await res.json().catch(() => ({}))) as OverviewData & { error?: string };
-      if (!res.ok) throw new Error(json.error || "Couldn't load the splits overview.");
+      if (!res.ok) throw new Error(apiErrorMessage(json, "Couldn't load the splits overview."));
       setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load the splits overview.");
+      setError(plainErrorText(err, "Couldn't load the splits overview."));
     } finally {
       setLoading(false);
     }

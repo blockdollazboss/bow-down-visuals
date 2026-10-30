@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useState, type CSSProperties } from "react";
 import { Flag, X, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,7 +84,7 @@ export function ReportButton({
       setDuplicate(result.duplicate);
       setPhase("success");
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Could not file your report. Please try again.");
+      setErrorMsg(plainErrorText(e, "Could not file your report. Please try again."));
       setPhase("error");
     }
   }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-error";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Camera, Clock, MapPin, Zap, Film, Loader2,
@@ -698,7 +699,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
           setIsGenerating(false);
-          setError(data.error ?? "Scene clip generation failed");
+          setError(apiErrorMessage(data, "Scene clip generation failed"));
           onUpdateRef.current({ generationStatus: "failed" });
         } else {
           setProgress(typeof data.progress === "number" ? data.progress : null);
@@ -805,7 +806,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
       const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none"; seed?: number; isDraft?: boolean; formatNotice?: string | null; references?: { mode: string; submitted: number; inSet: number; reduced: boolean; note: string | null } };
       setFormatNotice(data.formatNotice ?? null);
-      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Scene clip error (HTTP ${res.status})`);
+      if (!res.ok || !data.taskId) throw new Error(apiThrowMessage(data, `Scene clip error (HTTP ${res.status})`));
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
       /* Surface the server's reference accounting (e.g. a single-image
@@ -816,7 +817,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       setTaskId(data.taskId);
       startPolling(data.taskId, finalPrompt, resolvedSource);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to start scene clip generation";
+      const msg = plainErrorText(e, "Failed to start scene clip generation");
       setIsGenerating(false);
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
@@ -1422,7 +1423,7 @@ function EndFramePicker({ scene, onPick }: {
       });
       const data = (await res.json()) as { location?: { image_url?: string }; error?: string };
       const url = data.location?.image_url;
-      if (!res.ok || !url) throw new Error(data.error ?? "Upload failed");
+      if (!res.ok || !url) throw new Error(apiErrorMessage(data, "Upload failed"));
       /* The upload joined the Locations library — drop the shared cache so
          the next open lists it alongside the other library images. */
       locationsCache = null;
@@ -1434,7 +1435,7 @@ function EndFramePicker({ scene, onPick }: {
     } catch (e) {
       toast({
         title: "Upload failed",
-        description: e instanceof Error ? e.message : "Please try again.",
+        description: plainErrorText(e, "Please try again."),
         variant: "destructive",
       });
     } finally {

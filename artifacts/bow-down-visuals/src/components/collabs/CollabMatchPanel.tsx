@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { CheckCircle2, HeartHandshake, Loader2, Sparkles, XCircle } from "lucide-react";
 import {
@@ -63,10 +64,10 @@ export function CollabMatchPanel({ authed }: { authed: AuthedFn }) {
         method: "POST",
         body: { mark: markValue },
       });
-      if (!res.ok) throw new Error(typeof payload.error === "string" ? payload.error : "mark failed");
+      if (!res.ok) throw new Error(apiErrorMessage(payload, "mark failed"));
       await load();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Couldn't save your answer — try again.");
+      setActionError(plainErrorText(err, "Couldn't save your answer — try again."));
     } finally {
       setActingId(null);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -92,7 +93,7 @@ export function PhotoEnhance() {
       const publicUrl = await r2UploadFile(key, file, file.type, token);
       setOriginalUrl(publicUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("photoEnhance.errorUpload", { defaultValue: "Upload failed. Try again." }));
+      setError(plainErrorText(e, t("photoEnhance.errorUpload", { defaultValue: "Upload failed. Try again." })));
     } finally {
       setUploading(false);
     }
@@ -145,18 +146,15 @@ export function PhotoEnhance() {
       };
       if (!res.ok || !data.url) {
         if (data.error === "photo_enhance_not_connected") {
-          throw new Error(
-            data.message ??
-              t("photoEnhance.errorNotConnected", {
+          throw new Error(apiErrorMessage(data, t("photoEnhance.errorNotConnected", {
                 defaultValue: "Photo Enhance is not connected yet — the AI image service still needs to be set up.",
-              })
-          );
+              })));
         }
-        throw new Error(data.message ?? data.error ?? `Enhance API error (HTTP ${res.status})`);
+        throw new Error(apiErrorMessage(data, `Enhance API error (HTTP ${res.status})`));
       }
       setResult({ url: data.url, operations: data.operations ?? ops });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t("photoEnhance.errorFailed", { defaultValue: "Enhancement failed. Try again." });
+      const msg = plainErrorText(e, t("photoEnhance.errorFailed", { defaultValue: "Enhancement failed. Try again." }));
       setError(msg === "out_of_credits" ? t("photoEnhance.errorCredits", { defaultValue: "Not enough Visual Bucs. Please buy more Visual Bucs to continue." }) : msg);
     } finally {
       setEnhancing(false);

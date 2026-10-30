@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Disc3, Loader2, Package, Send, Undo2, XCircle } from "lucide-react";
 import {
@@ -145,11 +146,11 @@ export function CoReleasesPanel({
         setCreateMsg("Co-releases are almost ready — the final setup step hasn't landed yet, so nothing was published, no split was agreed, and your collaborator hasn't been notified.");
         return;
       }
-      if (!res.ok) throw new Error((data.message as string) || (data.error as string) || "Couldn't create that co-release.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't create that co-release."));
       setCreateMsg("Co-release drafted — it's waiting on your collaborator to approve the split and the release. It goes live on both profiles only when they approve.");
       load();
     } catch (err) {
-      setCreateMsg(err instanceof Error ? err.message : "Couldn't create that co-release.");
+      setCreateMsg(plainErrorText(err, "Couldn't create that co-release."));
     } finally {
       setCreating(false);
     }
@@ -165,10 +166,10 @@ export function CoReleasesPanel({
         setCreateMsg("Co-releases are almost ready — the final setup step hasn't landed yet, so nothing changed.");
         return;
       }
-      if (!res.ok) throw new Error((data.message as string) || "That action isn't available.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That action isn't available."));
       load();
     } catch (err) {
-      setCreateMsg(err instanceof Error ? err.message : "Couldn't do that.");
+      setCreateMsg(plainErrorText(err, "Couldn't do that."));
     } finally {
       setActingId(null);
     }
@@ -177,7 +178,7 @@ export function CoReleasesPanel({
   async function showAttribution(item: CoReleaseItem) {
     try {
       const { res, data } = await authed(coReleaseAttributionPath(item.id));
-      if (!res.ok) throw new Error((data.message as string) || "No attribution yet.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "No attribution yet."));
       const totals = (data.totals as Array<{ display_name: string | null; sharePct: number; amountCents: number }>) ?? [];
       const total = (data.total_creator_cents as number) ?? 0;
       setAttribution((prev) => ({
@@ -188,7 +189,7 @@ export function CoReleasesPanel({
             : totals.map((t) => `${t.display_name ?? "Creator"} — ${t.sharePct}% · $${(t.amountCents / 100).toFixed(2)}`).join("  ·  "),
       }));
     } catch (err) {
-      setAttribution((prev) => ({ ...prev, [item.id]: err instanceof Error ? err.message : "Couldn't load attribution." }));
+      setAttribution((prev) => ({ ...prev, [item.id]: plainErrorText(err, "Couldn't load attribution.") }));
     }
   }
 

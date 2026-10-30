@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Coins, HandCoins, Loader2, Megaphone, Trophy, Vote } from "lucide-react";
@@ -126,13 +127,13 @@ export default function CommunityGrantsPage() {
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(err?.error ?? "submit failed");
+        throw new Error(apiErrorMessage(err, "submit failed"));
       }
       setNote({ ok: true, text: t("communityGrants.projectSubmitted") });
       setPTitle(""); setPDesc("");
       await load();
     } catch (err) {
-      setNote({ ok: false, text: err instanceof Error && err.message !== "submit failed" ? err.message : t("communityGrants.submitError") });
+      setNote({ ok: false, text: err instanceof Error && err.message !== "submit failed" ? plainErrorText(err, t("communityGrants.submitError")) : t("communityGrants.submitError") });
     } finally { setPBusy(false); }
   }
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -217,12 +218,12 @@ export default function LlcGuide() {
         return;
       }
       if (!res.ok || !data.answer) {
-        throw new Error(data.message || data.error || t("llcGuide.errAnswer"));
+        throw new Error(apiErrorMessage(data, t("llcGuide.errAnswer")));
       }
       setMessages([...nextMessages, { role: "assistant", content: data.answer }]);
       refreshProfile();
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : t("llcGuide.errAnswer"));
+      setChatError(plainErrorText(err, t("llcGuide.errAnswer")));
       setMessages(messages);
     } finally {
       setChatLoading(false);
@@ -248,7 +249,7 @@ export default function LlcGuide() {
         return;
       }
       if (!res.ok || !data.plan || !Array.isArray(data.plan.steps) || data.plan.steps.length === 0) {
-        throw new Error(data.message || data.error || t("llcGuide.errPlan"));
+        throw new Error(apiErrorMessage(data, t("llcGuide.errPlan")));
       }
       setPlan(data.plan);
       refreshProfile();
@@ -256,7 +257,7 @@ export default function LlcGuide() {
         document.getElementById("llc-plan-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setPlanError(err instanceof Error ? err.message : t("llcGuide.errPlan"));
+      setPlanError(plainErrorText(err, t("llcGuide.errPlan")));
     } finally {
       setPlanLoading(false);
     }

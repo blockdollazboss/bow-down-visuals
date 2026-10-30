@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { X, Loader2, Send, CheckCircle2, Bell, BellOff, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,11 +69,11 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't post to Discord.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't post to Discord."));
       setSent(true);
       toast({ title: "Announced! 🎉", description: "Your Discord server just got the drop." });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(plainErrorText(e, "Something went wrong."));
     } finally {
       setSending(false);
     }

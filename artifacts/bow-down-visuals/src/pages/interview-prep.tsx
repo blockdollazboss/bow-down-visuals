@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import {
@@ -163,7 +164,7 @@ export default function InterviewPrep() {
         return;
       }
       if (!res.ok || !data.session) {
-        throw new Error(data.message || data.error || t("interviewPrep.sessionFailed"));
+        throw new Error(apiErrorMessage(data, t("interviewPrep.sessionFailed")));
       }
       setSession(data.session);
       refreshProfile();
@@ -171,7 +172,7 @@ export default function InterviewPrep() {
         document.getElementById("interview-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("interviewPrep.sessionFailed"));
+      setError(plainErrorText(err, t("interviewPrep.sessionFailed")));
     } finally {
       setLoading(false);
     }
@@ -213,12 +214,12 @@ export default function InterviewPrep() {
         return;
       }
       if (!res.ok || !data.feedback) {
-        throw new Error(data.message || data.error || t("interviewPrep.feedbackFailed"));
+        throw new Error(apiErrorMessage(data, t("interviewPrep.feedbackFailed")));
       }
       setFeedback(data.feedback);
       refreshProfile();
     } catch (err) {
-      setFeedbackError(err instanceof Error ? err.message : t("interviewPrep.feedbackFailed"));
+      setFeedbackError(plainErrorText(err, t("interviewPrep.feedbackFailed")));
     } finally {
       setFeedbackLoading(false);
     }

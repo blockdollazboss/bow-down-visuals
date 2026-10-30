@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Loader2, Sparkles, Link2, Check } from "lucide-react";
@@ -98,11 +99,11 @@ export function StyleStealerSection({ settings, setSettings, bare }: StyleSteale
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.formula) throw new Error(data.message || "Analysis failed.");
+      if (!res.ok || !data.formula) throw new Error(apiErrorMessage(data, "Analysis failed."));
       setResult(data);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed.");
+      setError(plainErrorText(e, "Analysis failed."));
     } finally {
       setLoading(false);
     }

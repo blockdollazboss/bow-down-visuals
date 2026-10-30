@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { X, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export default function SpotlightModal({ open, onClose }: { open: boolean; onClo
       }
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(plainErrorText(err, "Something went wrong."));
     } finally {
       setSubmitting(false);
     }

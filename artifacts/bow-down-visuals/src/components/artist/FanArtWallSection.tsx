@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Image as ImageIcon, AlertTriangle, RotateCcw, Send, CheckCircle2, Clock } from "lucide-react";
@@ -176,7 +177,7 @@ export default function FanArtWallSection({
       setFormOpen(false);
       setJustSent(true);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Couldn't send your piece. Please try again.");
+      setFormError(plainErrorText(e, "Couldn't send your piece. Please try again."));
     } finally {
       setSending(false);
     }

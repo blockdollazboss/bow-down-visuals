@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── "The profile IS the website" — client (Stack 3) ────────────────────
    Mirrors the API DTOs from routes/profile-website.ts exactly:
    - Spotlight pin (item 5): GET /creator-profiles/:slug/spotlight,
@@ -11,9 +12,7 @@ async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(
-      (body as { message?: string; error?: string }).message ||
-        (body as { error?: string }).error ||
-        `Request failed (${res.status})`,
+      apiErrorMessage(body, `Request failed (${res.status})`),
     ) as Error & { status?: number; code?: string };
     err.status = res.status;
     err.code = (body as { error?: string }).error;

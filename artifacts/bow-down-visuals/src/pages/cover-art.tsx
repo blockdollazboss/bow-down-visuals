@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
@@ -121,7 +122,7 @@ export default function CoverArt() {
         return;
       }
       if (!res.ok) {
-        throw new Error(data.error || "Cover art generation failed.");
+        throw new Error(apiErrorMessage(data, "Cover art generation failed."));
       }
       const cover: CoverArtResult = {
         url: data.url,
@@ -142,7 +143,7 @@ export default function CoverArt() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cover art generation failed.");
+      setError(plainErrorText(err, "Cover art generation failed."));
     } finally {
       setGenerating(false);
     }

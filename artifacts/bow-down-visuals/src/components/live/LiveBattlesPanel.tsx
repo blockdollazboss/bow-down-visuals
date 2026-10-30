@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Crown, Loader2, Swords, Trophy, XCircle, CheckCircle2, Play, Flag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -224,14 +225,14 @@ export default function LiveBattlesPanel({
     try {
       const body = action === "start" ? { stream_id: streamId ?? myLiveStreamId ?? "" } : {};
       const { res, data } = await call(liveBattleActionPath(battle.id, action), { method: "POST", body });
-      if (!res.ok) throw new Error((data.error as string) || "That didn't go through.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That didn't go through."));
       const updated = data.battle as LiveBattle;
       if (streamBattle?.id === updated.id) setStreamBattle(updated);
       setMine((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
       void loadStreamBattle();
       if (showMine) void loadMine();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "That didn't go through.");
+      setMsg(plainErrorText(err, "That didn't go through."));
     } finally {
       setBusy(null);
     }
@@ -243,11 +244,11 @@ export default function LiveBattlesPanel({
     setMsg(null);
     try {
       const { res, data } = await call(liveBattleActionPath(battle.id, "vote"), { method: "POST", body: { side } });
-      if (!res.ok) throw new Error((data.error as string) || "That vote didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That vote didn't land."));
       const updated = data.battle as LiveBattle;
       if (streamBattle?.id === updated.id) setStreamBattle(updated);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "That vote didn't land.");
+      setMsg(plainErrorText(err, "That vote didn't land."));
     } finally {
       setBusy(null);
     }
@@ -260,12 +261,12 @@ export default function LiveBattlesPanel({
     setMsg(null);
     try {
       const { res, data } = await call(LIVE_BATTLES_PATH, { method: "POST", body: { opponent_slug: slug } });
-      if (!res.ok) throw new Error((data.error as string) || "That challenge didn't go out.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That challenge didn't go out."));
       setOpponentSlug("");
       setMsg("Challenge sent — it waits on their answer. The theme is drawn when the challenge is created, so you both prepare for the same brief.");
       void loadMine();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "That challenge didn't go out.");
+      setMsg(plainErrorText(err, "That challenge didn't go out."));
     } finally {
       setBusy(null);
     }

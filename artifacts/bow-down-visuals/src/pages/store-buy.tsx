@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
@@ -121,7 +122,7 @@ export default function StoreBuy() {
         if (!alive) return;
         if (!res.ok) {
           if (body.error === "SELLING_NOT_AVAILABLE") setNotWired(true);
-          setError(body.message || body.error || "Couldn't load this drop.");
+          setError(apiErrorMessage(body, "Couldn't load this drop."));
           return;
         }
         setData(body);
@@ -182,14 +183,14 @@ export default function StoreBuy() {
          already own, and the rest of the bundle sells individually. */
       if (body.error === "ALREADY_OWNED" && body.watchUrl) {
         if (params.kind === "bundle") {
-          setError(body.message || "You already own part of this bundle.");
+          setError(apiErrorMessage(body, "You already own part of this bundle."));
           setBuying(false);
           return;
         }
         navigate(body.watchUrl);
         return;
       }
-      if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Checkout failed."));
       if (body.paid) {
         // Paid in full by gift card — the server already recorded the
         // sale and delivered; there is no card form to mount.
@@ -202,9 +203,9 @@ export default function StoreBuy() {
         setBuying(false);
         return;
       }
-      throw new Error(body.message || body.error || "Checkout failed.");
+      throw new Error(apiErrorMessage(body, "Checkout failed."));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Checkout failed.");
+      setError(plainErrorText(err, "Checkout failed."));
       setBuying(false);
     }
   }

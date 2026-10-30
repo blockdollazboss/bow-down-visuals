@@ -1,3 +1,5 @@
+import { apiErrorMessage } from "../../lib/api-error";
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,7 +14,7 @@ async function api(token: string | null, method: string, path: string, body?: un
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as any)?.message || (json as any)?.error || "Something went wrong.");
+  if (!res.ok) throw new Error(apiErrorMessage(json, "Something went wrong."));
   return json as any;
 }
 
@@ -49,7 +51,7 @@ export function LandingContentPanel({ releaseId }: { releaseId: string }) {
       const t = await getAccessToken();
       await api(t, "PUT", `/api/distribution/releases/${releaseId}/landing-content`, { videoUrl, storeUrl, socialLinks: socials });
       setMsg("Saved. Your release page keeps these links after release day — it becomes your release's home link.");
-    } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't save."); }
+    } catch (e) { setErr(plainErrorText(e, "Couldn't save.")); }
   }
   const socialKeys = ["instagram", "tiktok", "youtube", "x", "website"];
   return (
@@ -108,7 +110,7 @@ export function LyricsPackagePanel({ releaseId }: { releaseId: string }) {
       setLrc(d.lyricsPackage.lrc ?? "");
       setComplete(Boolean(d.lyricsPackage.step?.complete));
       setMsg("Lyrics step saved — the lyrics and their synced timing ship with this release package.");
-    } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't save."); }
+    } catch (e) { setErr(plainErrorText(e, "Couldn't save.")); }
   }
   return (
     <section className={card}>
@@ -156,7 +158,7 @@ export function ChangeRequestsPanel({ releaseId }: { releaseId: string }) {
       setReason(""); setDetails("");
       setMsg(d.note);
       void load();
-    } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't file the request."); }
+    } catch (e) { setErr(plainErrorText(e, "Couldn't file the request.")); }
   }
   return (
     <section className={card}>
@@ -250,7 +252,7 @@ export function SplitStatementsPanel() {
       if (periodStart) qs.set("periodStart", periodStart);
       if (periodEnd) qs.set("periodEnd", periodEnd);
       setData(await api(t, "GET", `/api/distribution/splits/statements${qs.toString() ? `?${qs}` : ""}`));
-    } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't build statements."); }
+    } catch (e) { setErr(plainErrorText(e, "Couldn't build statements.")); }
   }, [getAccessToken, periodStart, periodEnd]);
   useEffect(() => { void load(); }, [load]);
   return (
@@ -312,24 +314,24 @@ export function RosterPanel() {
   async function invite() {
     setErr(null); setMsg(null);
     try { const t = await getAccessToken(); await api(t, "POST", "/api/distribution/roster/invite", { artistName: name, artistEmail: email }); setName(""); setEmail(""); setMsg("Artist added to your roster as invited. They choose whether to accept — and whether you can see their releases."); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Couldn't add the artist."); }
+    catch (e) { setErr(plainErrorText(e, "Couldn't add the artist.")); }
   }
   async function viewReleases(id: string) {
     setErr(null);
     try { const t = await getAccessToken(); const d = await api(t, "GET", `/api/distribution/roster/${id}/releases`); setReleases((p) => ({ ...p, [id]: d })); }
-    catch (e) { setErr(e instanceof Error ? e.message : "That artist's releases aren't visible."); }
+    catch (e) { setErr(plainErrorText(e, "That artist's releases aren't visible.")); }
   }
   async function respond(id: string, response: string, grant = false) {
     try { const t = await getAccessToken(); await api(t, "POST", `/api/distribution/roster/invites/${id}/respond`, { response, distributionAccess: grant }); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Couldn't record your answer."); }
+    catch (e) { setErr(plainErrorText(e, "Couldn't record your answer.")); }
   }
   async function setAccess(id: string, grant: boolean) {
     try { const t = await getAccessToken(); await api(t, "POST", `/api/distribution/roster/invites/${id}/access`, { distributionAccess: grant }); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Couldn't update access."); }
+    catch (e) { setErr(plainErrorText(e, "Couldn't update access.")); }
   }
   async function remove(id: string) {
     try { const t = await getAccessToken(); await api(t, "DELETE", `/api/distribution/roster/${id}`); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Couldn't remove the artist."); }
+    catch (e) { setErr(plainErrorText(e, "Couldn't remove the artist.")); }
   }
   return (
     <section className={card}>

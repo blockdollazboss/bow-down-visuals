@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
@@ -238,7 +239,7 @@ export default function InvoiceGeneratorPanel({ prefillBrand, prefillCreator }: 
         return;
       }
       if (!res.ok || !data.invoice || !data.pdfBase64) {
-        throw new Error(data.message || data.error || t("outreach.invoice.failed"));
+        throw new Error(apiErrorMessage(data, t("outreach.invoice.failed")));
       }
       downloadBase64Pdf(data.pdfBase64, data.pdfFilename ?? `${data.invoice.invoiceNumber}.pdf`);
       refreshProfile();
@@ -247,7 +248,7 @@ export default function InvoiceGeneratorPanel({ prefillBrand, prefillCreator }: 
         document.getElementById("invoice-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("outreach.invoice.failed"));
+      setError(plainErrorText(err, t("outreach.invoice.failed")));
     } finally {
       setLoading(false);
     }

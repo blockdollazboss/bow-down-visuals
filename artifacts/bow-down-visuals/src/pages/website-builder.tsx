@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -328,7 +329,7 @@ export default function WebsiteBuilder() {
         window.history.replaceState(null, "", url);
       } catch { /* non-browser — the project still opened */ }
     } catch (e: any) {
-      setError(e.message || t("websiteBuilder.openFailed"));
+      setError(apiErrorMessage(e, t("websiteBuilder.openFailed")));
     } finally {
       setOpening(false);
     }
@@ -368,7 +369,7 @@ export default function WebsiteBuilder() {
         error?: string;
       };
       if (!res.ok || !data.project) {
-        throw new Error(data.error || t("websiteBuilder.saveFailed"));
+        throw new Error(apiErrorMessage(data, t("websiteBuilder.saveFailed")));
       }
       setProjectId(data.project.id);
       setCurrentVersion(data.version ?? null);
@@ -377,7 +378,7 @@ export default function WebsiteBuilder() {
       void loadSavedBuilds();
       void loadVersions(data.project.id).catch(() => {});
     } catch (e: any) {
-      setError(e.message || t("websiteBuilder.saveFailed"));
+      setError(apiErrorMessage(e, t("websiteBuilder.saveFailed")));
     } finally {
       setSavingRetry(false);
     }
@@ -398,7 +399,7 @@ export default function WebsiteBuilder() {
         version: number;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || t("websiteBuilder.restoreFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("websiteBuilder.restoreFailed")));
       setFiles(data.files);
       setDescription(data.brief.description);
       setStyle(data.brief.style);
@@ -409,7 +410,7 @@ export default function WebsiteBuilder() {
       void loadVersions(projectId).catch(() => {});
       void loadSavedBuilds();
     } catch (e: any) {
-      setError(e.message || t("websiteBuilder.restoreFailed"));
+      setError(apiErrorMessage(e, t("websiteBuilder.restoreFailed")));
     } finally {
       setOpening(false);
     }
@@ -427,7 +428,7 @@ export default function WebsiteBuilder() {
       setConfirmDeleteId(null);
       if (id === projectId) startNewSite();
     } catch (e: any) {
-      setError(e.message || t("websiteBuilder.deleteFailed"));
+      setError(apiErrorMessage(e, t("websiteBuilder.deleteFailed")));
     }
   }
 
@@ -514,7 +515,7 @@ export default function WebsiteBuilder() {
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || t("websiteBuilder.generationFailedError"));
+        throw new Error(apiErrorMessage(data, t("websiteBuilder.generationFailedError")));
       }
       setFiles(data.files);
       setSeededFrom(data.seededFrom ?? null);
@@ -533,7 +534,7 @@ export default function WebsiteBuilder() {
       }
       setSaveFailed(data.saved === false);
     } catch (e: any) {
-      setError(e.message || t("websiteBuilder.genericError"));
+      setError(apiErrorMessage(e, t("websiteBuilder.genericError")));
     } finally {
       setLoading(false);
     }
@@ -561,7 +562,7 @@ export default function WebsiteBuilder() {
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || t("websiteBuilder.editFailedError"));
+        throw new Error(apiErrorMessage(data, t("websiteBuilder.editFailedError")));
       }
       setFiles(data.files);
       setEditRequest("");
@@ -573,7 +574,7 @@ export default function WebsiteBuilder() {
         void loadSavedBuilds();
       }
     } catch (e: any) {
-      setError(e.message || t("websiteBuilder.genericError"));
+      setError(apiErrorMessage(e, t("websiteBuilder.genericError")));
     } finally {
       setEditing(false);
     }

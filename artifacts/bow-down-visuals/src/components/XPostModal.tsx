@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { X as CloseIcon, Loader2, Sparkles, Send, CheckCircle2, ExternalLink, Gauge } from "lucide-react";
 import { XIcon } from "@/components/ui/x-icon";
@@ -136,12 +137,12 @@ export function XPostModal({ open, onClose, videoUrl, accounts }: Props) {
         return;
       }
       if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
-        throw new Error(data.message || "Caption generation failed.");
+        throw new Error(apiErrorMessage(data, "Caption generation failed."));
       }
       setText(`${data.hooks[0]}\n\nMade with @bowdownvisuals 🔥`.slice(0, TEXT_LIMIT));
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Caption generation failed.");
+      setError(plainErrorText(err, "Caption generation failed."));
     } finally {
       setAiLoading(false);
     }
@@ -183,7 +184,7 @@ export function XPostModal({ open, onClose, videoUrl, accounts }: Props) {
         return;
       }
       if (!res.ok) {
-        throw new Error(data.message || "Couldn't publish to X.");
+        throw new Error(apiErrorMessage(data, "Couldn't publish to X."));
       }
       setPermalink(data.permalink || null);
       /* Confirmed success: this intent is done, so a later composer session
@@ -196,7 +197,7 @@ export function XPostModal({ open, onClose, videoUrl, accounts }: Props) {
       refreshProfile();
       toast({ title: "Posted to X", description: "Your post is live." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't publish to X.");
+      setError(plainErrorText(err, "Couldn't publish to X."));
     } finally {
       setPublishing(false);
     }

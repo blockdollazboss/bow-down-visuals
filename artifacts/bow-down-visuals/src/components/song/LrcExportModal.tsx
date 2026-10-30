@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
@@ -226,13 +227,13 @@ export function LrcExportModal({ open, onClose, source }: LrcExportModalProps) {
         throw new Error(t("lrcExport.outOfCredits"));
       }
       if (!res.ok || !Array.isArray(data.lines) || data.lines.length === 0) {
-        throw new Error(data.message || data.error || t("lrcExport.alignFailed"));
+        throw new Error(apiErrorMessage(data, t("lrcExport.alignFailed")));
       }
       setTimed(fromAlignedLines(data.lines));
       setMode("review");
       toast({ title: t("lrcExport.alignDoneTitle"), description: t("lrcExport.alignDoneDesc") });
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : t("lrcExport.alignFailed"));
+      setAiError(plainErrorText(err, t("lrcExport.alignFailed")));
     } finally {
       setAligning(false);
     }

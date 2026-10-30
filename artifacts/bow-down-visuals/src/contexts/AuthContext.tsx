@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
@@ -355,7 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: null };
     } catch (err) {
-      return { error: err instanceof Error ? err.message : "Login failed" };
+      return { error: plainErrorText(err, "Login failed") };
     }
   }
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /**
  * lib/reports.ts — member content reports (Stack-4 #3).
  *
@@ -95,7 +96,7 @@ export async function submitReport(
     error?: string;
   };
   if (!res.ok || !data.report) {
-    throw new Error(data.error || "Could not file your report. Please try again.");
+    throw new Error(apiErrorMessage(data, "Could not file your report. Please try again."));
   }
   return { report: data.report, duplicate: data.duplicate === true };
 }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
@@ -132,7 +133,7 @@ export default function Contests() {
       setContests(data.contests ?? []);
     } catch (e) {
       setListLoadError(true);
-      setError(e instanceof Error ? e.message : "Could not load contests");
+      setError(plainErrorText(e, "Could not load contests"));
     } finally {
       setLoading(false);
     }
@@ -161,7 +162,7 @@ export default function Contests() {
       setEntryMethod(data.contest?.entryMethods?.[0] ?? "follow");
       setAnnounceUrl(data.contest?.announcementImageUrl ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load contest");
+      setError(plainErrorText(e, "Could not load contest"));
     } finally {
       setDetailLoading(false);
     }
@@ -207,7 +208,7 @@ export default function Contests() {
         }),
       });
       const data = (await res.json()) as { contest?: ContestSummary; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not create contest");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not create contest"));
       setShowBuilder(false);
       setTitle("");
       setPrize("");
@@ -217,7 +218,7 @@ export default function Contests() {
       setEndsAt("");
       openDetail(data.contest!.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create contest");
+      setError(plainErrorText(e, "Could not create contest"));
     } finally {
       setCreating(false);
     }
@@ -234,11 +235,11 @@ export default function Contests() {
         body: JSON.stringify({ handle: entryHandle.trim(), entryMethod }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not add entry");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not add entry"));
       setEntryHandle("");
       loadDetail(detail.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add entry");
+      setError(plainErrorText(e, "Could not add entry"));
     } finally {
       setAddingEntry(false);
     }
@@ -260,7 +261,7 @@ export default function Contests() {
         s ? { ...s, verified: s.verified + (entry.is_verified ? -1 : 1) } : s,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not update entry");
+      setError(plainErrorText(e, "Could not update entry"));
     }
   }
 
@@ -276,11 +277,11 @@ export default function Contests() {
         contest?: ContestSummary;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? "Could not draw winner");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not draw winner"));
       setWinner(data.winner ?? null);
       loadDetail(detail.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not draw winner");
+      setError(plainErrorText(e, "Could not draw winner"));
     } finally {
       setDrawing(false);
     }
@@ -298,14 +299,14 @@ export default function Contests() {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(data.error ?? "Could not generate announcement");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not generate announcement"));
       setAnnounceUrl(data.url ?? null);
       /* The winner graphic flows into the hub project — announce it anywhere. */
       if (data.url) {
         try { addAsset({ kind: "image", url: data.url, label: `Contest winner — ${winner?.handle || detail.title}`, detail: "Winner announcement" }); } catch { /* non-fatal */ }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not generate announcement");
+      setError(plainErrorText(e, "Could not generate announcement"));
     } finally {
       setAnnouncing(false);
     }

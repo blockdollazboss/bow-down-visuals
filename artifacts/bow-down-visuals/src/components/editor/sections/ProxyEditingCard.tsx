@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Clapperboard, Loader2, Film, Zap } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
@@ -80,8 +81,8 @@ export function ProxyEditingCard({ scenes, projectId }: { scenes: SceneData[]; p
       });
       if (!res) { setNote("Could not request a proxy. You are still editing from the original."); return; }
       const data = (await res.json().catch(() => ({}))) as { outcome?: string; message?: string; error?: string };
-      if (data.outcome === "not_heavy") setNote(data.message ?? "This clip is light enough to edit from the original — no proxy needed.");
-      else if (!res.ok) setNote(data.message ?? "Proxy editing is off for this account.");
+      if (data.outcome === "not_heavy") setNote(apiErrorMessage(data, "This clip is light enough to edit from the original — no proxy needed."));
+      else if (!res.ok) setNote(apiErrorMessage(data, "Proxy editing is off for this account."));
       await load();
     } catch {
       setNote("Could not request a proxy. You are still editing from the original.");

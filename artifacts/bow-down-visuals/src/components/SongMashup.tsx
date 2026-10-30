@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -195,12 +196,12 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
         body: form,
       });
       const data = (await res.json()) as { song?: LibSong; error?: string };
-      if (!res.ok || !data.song) throw new Error(data.error || "Upload failed.");
+      if (!res.ok || !data.song) throw new Error(apiErrorMessage(data, "Upload failed."));
       setSongs((prev) => [data.song!, ...prev]);
       if (side === "A") setSongAId(data.song.id);
       else setSongBId(data.song.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed.");
+      setError(plainErrorText(e, "Upload failed."));
     } finally {
       setUploading(null);
     }
@@ -248,7 +249,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
         error?: string;
       };
       if (!res.ok || !data.song) {
-        throw new Error(data.error || t("mashup.failed"));
+        throw new Error(apiErrorMessage(data, t("mashup.failed")));
       }
       setResult(data.song);
       setAnalysis(data.analysis ?? null);
@@ -263,7 +264,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       await refreshProfile().catch(() => {});
       toast({ title: t("mashup.resultTitle"), description: data.song.title });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("mashup.failed"));
+      setError(plainErrorText(e, t("mashup.failed")));
     } finally {
       setWorking(false);
     }
@@ -293,12 +294,12 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       });
       if (!res) return;
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || "Lyric video failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Lyric video failed."));
       setLyricVideoUrl(data.url);
       addAsset({ kind: "video", url: data.url, label: `${result.title} — lyric video`, detail: "Lyric Video", meta: { sourceAsset: result.id } });
       toast({ title: t("mashup.lyricVideoDone") });
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : "Lyric video failed.", variant: "destructive" });
+      toast({ title: plainErrorText(e, "Lyric video failed."), variant: "destructive" });
     } finally {
       setHandoffRunning(null);
     }
@@ -321,12 +322,12 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       });
       if (!res) return;
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || "Cover art failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Cover art failed."));
       setCoverArtUrl(data.url);
       addAsset({ kind: "image", url: data.url, label: `${result.title} — cover art`, detail: "Cover Art", meta: { sourceAsset: result.id } });
       toast({ title: t("mashup.coverArtDone") });
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : "Cover art failed.", variant: "destructive" });
+      toast({ title: plainErrorText(e, "Cover art failed."), variant: "destructive" });
     } finally {
       setHandoffRunning(null);
     }
@@ -371,7 +372,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           body: JSON.stringify({ title, song_ids: [result.id] }),
         });
         const data = (await res.json()) as { album?: { id: string; title: string }; error?: string };
-        if (!res.ok || !data.album) throw new Error(data.error || "Could not create album.");
+        if (!res.ok || !data.album) throw new Error(apiErrorMessage(data, "Could not create album."));
         albumId = data.album.id;
         albumTitle = data.album.title;
         setAlbums((prev) => [{ id: albumId, title: albumTitle }, ...prev]);
@@ -390,13 +391,13 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
             body: JSON.stringify({ song_ids: [...existing, result.id] }),
           });
           const data = (await res.json()) as { error?: string };
-          if (!res.ok) throw new Error(data.error || "Could not add to album.");
+          if (!res.ok) throw new Error(apiErrorMessage(data, "Could not add to album."));
         }
       }
       setAlbumAdded(albumTitle);
       toast({ title: `${t("mashup.albumAdded")}: ${albumTitle}` });
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : "Could not add to album.", variant: "destructive" });
+      toast({ title: plainErrorText(e, "Could not add to album."), variant: "destructive" });
     } finally {
       setHandoffRunning(null);
     }

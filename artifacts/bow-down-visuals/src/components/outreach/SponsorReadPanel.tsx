@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
@@ -137,7 +138,7 @@ export default function SponsorReadPanel() {
         return;
       }
       if (!res.ok || !data.read) {
-        throw new Error(data.message || data.error || t("outreach.sponsorReadFailed"));
+        throw new Error(apiErrorMessage(data, t("outreach.sponsorReadFailed")));
       }
       setRead(data.read);
       refreshProfile();
@@ -145,7 +146,7 @@ export default function SponsorReadPanel() {
         document.getElementById("sponsor-read-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("outreach.sponsorReadFailed"));
+      setError(plainErrorText(err, t("outreach.sponsorReadFailed")));
     } finally {
       setLoading(false);
     }
@@ -208,7 +209,7 @@ export default function SponsorReadPanel() {
       if (!res.ok) throw new Error(t("outreach.sponsorReadSaveFailed"));
       setNotice(t("outreach.sponsorReadSaved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("outreach.sponsorReadSaveFailed"));
+      setError(plainErrorText(err, t("outreach.sponsorReadSaveFailed")));
     } finally {
       setSaving(false);
     }

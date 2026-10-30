@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
@@ -175,7 +176,7 @@ export default function Tips() {
     });
     setSaving(false);
     if (!res.ok) {
-      setError(data.details?.[0]?.message ?? data.error ?? t("tips.saveError"));
+      setError(data.details?.[0]?.message ?? apiErrorMessage(data, t("tips.saveError")));
       return;
     }
     await load();
@@ -189,7 +190,7 @@ export default function Tips() {
     try {
       const { res, data } = await authFetch("/api/tips/goal", { method: "DELETE" });
       if (!res.ok) {
-        setError(data.error ?? t("tips.saveError"));
+        setError(apiErrorMessage(data, t("tips.saveError")));
         return;
       }
       setGoalAmount("");

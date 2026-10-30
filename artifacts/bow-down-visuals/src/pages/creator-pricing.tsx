@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link, useSearch } from "wouter";
@@ -203,7 +204,7 @@ export default function CreatorPricing() {
         });
         return;
       }
-      setError(data.message ?? data.error ?? "Checkout didn't start. Try again in a minute.");
+      setError(apiErrorMessage(data, "Checkout didn't start. Try again in a minute."));
     } catch (err) {
       /* Every attempt failed at transport level (the helper only
          throws for those; a server JSON answer — including the
@@ -232,7 +233,7 @@ export default function CreatorPricing() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error ?? "Your payment went through — we're still applying your plan. Refresh in a moment.");
+        setError(apiErrorMessage(data, "Your payment went through — we're still applying your plan. Refresh in a moment."));
         return;
       }
       setEmbeddedDone(embedded.tier);
@@ -258,7 +259,7 @@ export default function CreatorPricing() {
       });
       const data = await res.json();
       if (!res.ok || !data.changed) {
-        setError(data.error ?? "Couldn't switch your plan — try again.");
+        setError(apiErrorMessage(data, "Couldn't switch your plan — try again."));
         return;
       }
       setChangeConfirm(null);

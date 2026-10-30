@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
@@ -437,7 +438,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("promo-clip.errorGenerationFailed");
+      const msg = plainErrorText(err, t("promo-clip.errorGenerationFailed"));
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -476,7 +477,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("promo-clip.errorGenerationFailed");
+      const msg = plainErrorText(err, t("promo-clip.errorGenerationFailed"));
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {

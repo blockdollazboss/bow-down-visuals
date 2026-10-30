@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useCallback } from "react";
 import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle, AudioWaveform } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -208,7 +209,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       refreshProfile();
       toast({ title: "Audio generated!", description: "It will be attached to this project when you save." });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not generate audio.";
+      const msg = plainErrorText(err, "Could not generate audio.");
       if (msg === "out_of_credits") {
         setAudioOutOfCredits(true);
         refreshProfile();
@@ -256,7 +257,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({ error: "Save failed" }))) as { error?: string };
-        throw new Error(err.error ?? "Save failed");
+        throw new Error(apiErrorMessage(err, "Save failed"));
       }
       const saved_data = (await res.json()) as { id: string };
       setSaved(true);
@@ -266,7 +267,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
     } catch (err: unknown) {
       toast({
         title: "Save failed",
-        description: err instanceof Error ? err.message : "Could not save project.",
+        description: plainErrorText(err, "Could not save project."),
         variant: "destructive",
       });
     } finally {

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useRef, useState } from "react";
 import { EditorSettings, getClipEdit } from "@/lib/editor-settings";
 import {
@@ -183,7 +184,7 @@ export function AutoClipSection({
     if (!res) throw new Error("Export cancelled"); // user cancelled the credit confirmation
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(body.error ?? `Export failed (HTTP ${res.status})`);
+      throw new Error(apiErrorMessage(body, `Export failed (HTTP ${res.status})`));
     }
     // Exports render as background jobs (202 { jobId }); poll until done.
     const accepted = (await res.json()) as { jobId?: string; url?: string };
@@ -237,7 +238,7 @@ export function AutoClipSection({
               ? {
                   ...j,
                   status: "error",
-                  error: e instanceof Error ? e.message : "Failed",
+                  error: plainErrorText(e, "Failed"),
                   errorCode: (e as { code?: string }).code,
                 }
               : j
@@ -264,7 +265,7 @@ export function AutoClipSection({
             ? {
                 ...j,
                 status: "error",
-                error: e instanceof Error ? e.message : "Failed",
+                error: plainErrorText(e, "Failed"),
                 errorCode: (e as { code?: string }).code,
               }
             : j

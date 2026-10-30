@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { mediaUrl } from "@/lib/media-cdn";
@@ -444,11 +445,11 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { room?: { code: string }; error?: string };
-      if (!res.ok || !data.room) throw new Error(data.error ?? "Could not open the room");
+      if (!res.ok || !data.room) throw new Error(apiErrorMessage(data, "Could not open the room"));
       window.history.replaceState(null, "", `/party?room=${data.room.code}`);
       onEnter(data.room.code);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Could not open the room");
+      setCreateError(plainErrorText(err, "Could not open the room"));
     } finally {
       setCreating(false);
     }

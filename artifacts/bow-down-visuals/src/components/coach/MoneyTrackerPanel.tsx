@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearch } from "wouter";
@@ -166,10 +167,10 @@ export default function MoneyTrackerPanel() {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { entries?: MoneyEntry[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("moneyTracker.errorLoad"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("moneyTracker.errorLoad")));
       setEntries(Array.isArray(data.entries) ? data.entries : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("moneyTracker.errorLoad"));
+      setError(plainErrorText(err, t("moneyTracker.errorLoad")));
     } finally {
       setLoading(false);
     }
@@ -274,7 +275,7 @@ export default function MoneyTrackerPanel() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { entry?: MoneyEntry; error?: string };
-      if (!res.ok || !data.entry) throw new Error(data.error || t("moneyTracker.errorSave"));
+      if (!res.ok || !data.entry) throw new Error(apiErrorMessage(data, t("moneyTracker.errorSave")));
       setEntries((prev) => [data.entry!, ...prev]);
       setShowForm(false);
       setInvoicePrefill(false);
@@ -284,7 +285,7 @@ export default function MoneyTrackerPanel() {
       setFReleaseId("");
       setFDate(todayYmd());
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t("moneyTracker.errorSave"));
+      setFormError(plainErrorText(err, t("moneyTracker.errorSave")));
     } finally {
       setSaving(false);
     }
@@ -298,12 +299,12 @@ export default function MoneyTrackerPanel() {
       if (!res) return;
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t("moneyTracker.errorDelete"));
+        throw new Error(apiErrorMessage(data, t("moneyTracker.errorDelete")));
       }
       setEntries((prev) => prev.filter((e) => e.id !== id));
       setConfirmDeleteId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("moneyTracker.errorDelete"));
+      setError(plainErrorText(err, t("moneyTracker.errorDelete")));
     } finally {
       setDeletingId(null);
     }
@@ -330,12 +331,12 @@ export default function MoneyTrackerPanel() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { entry?: MoneyEntry; error?: string };
-      if (!res.ok || !data.entry) throw new Error(data.error || "Couldn't link the release.");
+      if (!res.ok || !data.entry) throw new Error(apiErrorMessage(data, "Couldn't link the release."));
       setEntries((prev) => prev.map((e) => (e.id === entryId ? data.entry! : e)));
       setLinkingId(null);
       setLinkValue("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't link the release.");
+      setError(plainErrorText(err, "Couldn't link the release."));
       setLinkingId(null);
     }
   }

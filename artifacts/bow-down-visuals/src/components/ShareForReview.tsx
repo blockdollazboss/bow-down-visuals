@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,7 +67,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("review.createFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("review.createFailed")));
       setCreatedUrl(`${window.location.origin}${data.url}`);
       toast({ title: t("review.linkCreated") });
     } catch (err) {
@@ -290,7 +291,7 @@ export function ReviewFeedbackBadge({ videoUrl, sourceType, sourceId, projectId 
         body: JSON.stringify({ action: "regenerate" }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) throw new Error(data.error || t("review.notifyFailed"));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("review.notifyFailed")));
       const fullUrl = `${window.location.origin}${data.url}`;
       await navigator.clipboard.writeText(fullUrl).catch(() => {});
       toast({ title: t("review.notifyCopied"), description: t("review.notifyCopiedHint") });

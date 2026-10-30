@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { X, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,11 +55,11 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
       const d = await r.json().catch(() => null);
       if (!r.ok) {
         const first = d?.details?.[0]?.message;
-        throw new Error(first || d?.error || "Something went wrong.");
+        throw new Error(first || apiErrorMessage(d, "Something went wrong."));
       }
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(plainErrorText(err, "Something went wrong."));
     } finally {
       setSubmitting(false);
     }

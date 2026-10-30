@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -126,7 +127,7 @@ export function IntrosOutrosTool() {
         const data: StingResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("introsOutros.stingNotFound"));
+          setError(apiErrorMessage(data, t("introsOutros.stingNotFound")));
           return;
         }
         if (data.status === "succeeded") {
@@ -142,7 +143,7 @@ export function IntrosOutrosTool() {
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           setStatus("failed");
-          setError(data.error || t("introsOutros.generationFailed"));
+          setError(apiErrorMessage(data, t("introsOutros.generationFailed")));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -182,7 +183,7 @@ export function IntrosOutrosTool() {
       }
       if (!res.ok || !data.taskId) {
         setStatus("failed");
-        setError(data.error || t("introsOutros.startFailed"));
+        setError(apiErrorMessage(data, t("introsOutros.startFailed")));
         return;
       }
       setTaskId(data.taskId);

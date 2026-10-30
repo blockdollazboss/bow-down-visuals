@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Link, useSearch } from "wouter";
 import {
@@ -1277,7 +1278,7 @@ export default function VideoEditor() {
         resetHistory();
         hydrated.current = true;
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : t("videoEditor.loadProjectFailed"));
+        if (!cancelled) setLoadError(plainErrorText(err, t("videoEditor.loadProjectFailed")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1750,7 +1751,7 @@ export default function VideoEditor() {
 
       toast({ title: t("videoEditor.scenesRebuiltSaved", { count: parsed.length }), description: t("videoEditor.scenesReadyDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
+      const msg = plainErrorText(err, "Unknown error");
       setRebuildStatus("error");
       setRebuildError(t("videoEditor.parseScenesError", { msg }));
       toast({ title: t("videoEditor.parseScenesTitle"), description: msg, variant: "destructive" });
@@ -1782,7 +1783,7 @@ export default function VideoEditor() {
       setAutoSceneStatus("idle");
       toast({ title: t("videoEditor.scenesGeneratedFromSong", { count: newScenes.length }), description: t("videoEditor.scenesReadyDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("videoEditor.autoSceneErrorDefault");
+      const msg = plainErrorText(err, t("videoEditor.autoSceneErrorDefault"));
       setAutoSceneStatus("error");
       setAutoSceneError(msg);
     }
@@ -1822,13 +1823,13 @@ export default function VideoEditor() {
       }
       if (synced === 0 && recovered === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? t("videoEditor.noNewClipsMsg"));
+        setSyncMsg(apiErrorMessage(json, t("videoEditor.noNewClipsMsg")));
         toast({ title: t("videoEditor.nothingToSyncTitle"), description: json.message ?? t("videoEditor.nothingToSyncDesc") });
         return;
       }
       if (recovered > 0 && synced === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? t("videoEditor.recoveredClipsMsg", { count: recovered }));
+        setSyncMsg(apiErrorMessage(json, t("videoEditor.recoveredClipsMsg", { count: recovered })));
         toast({
           title: t("videoEditor.clipsRecoveredTitle", { count: recovered }),
           description: t("videoEditor.clipsRecoveredDesc"),
@@ -1847,7 +1848,7 @@ export default function VideoEditor() {
         description: t("videoEditor.clipsSyncedDesc"),
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
+      const msg = plainErrorText(err, "Unknown error");
       setSyncState("error");
       setSyncMsg(msg);
       toast({ title: t("videoEditor.syncFailedTitle"), description: msg, variant: "destructive" });

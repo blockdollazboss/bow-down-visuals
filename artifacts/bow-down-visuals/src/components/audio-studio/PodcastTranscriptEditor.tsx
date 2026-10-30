@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 /* ── Podcast transcript editor (Stack 6 #5) ──────────────────────────────
  * Edit a recorded or imported episode by editing its words. The episode
  * is transcribed once with word-level timings (the same analysis the
@@ -78,7 +79,7 @@ export function PodcastTranscriptEditor() {
       setMediaUrl(up.url);
       toast({ title: "Episode imported", description: "Ready to transcribe." });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -104,12 +105,12 @@ export function PodcastTranscriptEditor() {
       });
       if (!res) return; /* credit confirmation cancelled */
       const data = (await res.json().catch(() => null)) as { jobId?: string; error?: string } | null;
-      if (!res.ok || !data?.jobId) throw new Error(data?.error ?? "Could not start the transcription.");
+      if (!res.ok || !data?.jobId) throw new Error(apiErrorMessage(data, "Could not start the transcription."));
       setAnalyzeJobId(data.jobId);
       setPhase("analyzing");
       setStage("queued");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Transcription failed to start.");
+      setError(plainErrorText(err, "Transcription failed to start."));
     }
   }
 
@@ -138,7 +139,7 @@ export function PodcastTranscriptEditor() {
           setPhase("review");
           setAnalyzeJobId(null);
         } else if (data.status === "failed") {
-          setError(data.error ?? "Transcription failed — the charge was refunded.");
+          setError(apiErrorMessage(data, "Transcription failed — the charge was refunded."));
           setPhase("idle");
           setAnalyzeJobId(null);
         }
@@ -175,11 +176,11 @@ export function PodcastTranscriptEditor() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => null)) as { jobId?: string; error?: string } | null;
-      if (!res.ok || !data?.jobId) throw new Error(data?.error ?? "Could not start the render.");
+      if (!res.ok || !data?.jobId) throw new Error(apiErrorMessage(data, "Could not start the render."));
       setRenderJobId(data.jobId);
       setPhase("rendering");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Render failed to start.");
+      setError(plainErrorText(err, "Render failed to start."));
     }
   }
 
@@ -200,7 +201,7 @@ export function PodcastTranscriptEditor() {
           setPhase("done");
           setRenderJobId(null);
         } else if (data.status === "failed") {
-          setError(data.error ?? "Render failed.");
+          setError(apiErrorMessage(data, "Render failed."));
           setPhase("review");
           setRenderJobId(null);
         }

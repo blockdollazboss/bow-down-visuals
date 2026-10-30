@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Radio, Square, Loader2, Video, VideoOff, KeyRound, RefreshCw, Ban, Copy, Check,
@@ -286,7 +287,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       setPhase("camera");
       const msg = err instanceof TransportError && (err.code === "NOT_CONFIGURED" || err.code === "STREAM_NOT_CONFIGURED")
         ? "Live streaming isn't switched on yet on this site. Your camera works — broadcasting turns on the moment the owner enables it."
-        : err instanceof Error ? err.message : "Couldn't go live. Try again in a moment.";
+        : plainErrorText(err, "Couldn't go live. Try again in a moment.");
       setNote(msg);
     }
   }
@@ -444,7 +445,7 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
     setBusy(action);
     setNote(null);
     try { await fn(); } catch (err) {
-      setNote(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setNote(plainErrorText(err, "Something went wrong. Try again."));
     } finally { setBusy(null); }
   };
 
@@ -649,7 +650,7 @@ function DestinationKeysSection({ isLight }: { isLight: boolean }) {
             setNote("Saved. This platform will pick up your next broadcast when you add it to the stream's destinations.");
             await load();
           } catch (err) {
-            setNote(err instanceof Error ? err.message : "That destination couldn't be saved.");
+            setNote(plainErrorText(err, "That destination couldn't be saved."));
           } finally { setBusy(false); }
         }}
         className={`${goldBtn} mt-2`}
@@ -736,7 +737,7 @@ function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Pro
                 setNote("Saved. Your fans earn at these rates from now on.");
                 await load(profileId);
               } catch (err) {
-                setNote(err instanceof Error ? err.message : "Settings couldn't be saved.");
+                setNote(plainErrorText(err, "Settings couldn't be saved."));
               }
             }}
           >
@@ -900,7 +901,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
       await refreshRoster();
       setNote("Invite ready — share the link. It's shown once; a lost link is replaced by minting a new one (and revoking the old).");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That invite couldn't be made.");
+      setNote(plainErrorText(e, "That invite couldn't be made."));
     } finally { setMinting(false); }
   }
 
@@ -912,7 +913,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
       await refreshRoster();
       setNote(data.sessions_ended ? `Link revoked — ${data.sessions_ended} guest session(s) ended with it.` : "Link revoked.");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That invite couldn't be revoked.");
+      setNote(plainErrorText(e, "That invite couldn't be revoked."));
     }
   }
 
@@ -921,7 +922,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       const data = await promoteGuest(stream.id, guest.id, await token());
       setGuests((gs) => gs.map((g) => (g.id === guest.id ? data.guest : g)));
-    } catch (e) { setNote(e instanceof Error ? e.message : "That guest couldn't be brought on stage."); }
+    } catch (e) { setNote(plainErrorText(e, "That guest couldn't be brought on stage.")); }
   }
 
   async function handleDemote(guest: GuestSessionDto) {
@@ -929,7 +930,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       const data = await demoteGuest(stream.id, guest.id, await token());
       setGuests((gs) => gs.map((g) => (g.id === guest.id ? data.guest : g)));
-    } catch (e) { setNote(e instanceof Error ? e.message : "That guest couldn't be moved backstage."); }
+    } catch (e) { setNote(plainErrorText(e, "That guest couldn't be moved backstage.")); }
   }
 
   async function handleRemove(guest: GuestSessionDto) {
@@ -937,7 +938,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       await removeGuest(stream.id, guest.id, await token());
       setGuests((gs) => gs.filter((g) => g.id !== guest.id));
-    } catch (e) { setNote(e instanceof Error ? e.message : "That guest couldn't be removed."); }
+    } catch (e) { setNote(plainErrorText(e, "That guest couldn't be removed.")); }
   }
 
   async function enterBackstage() {
@@ -988,7 +989,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
       setMessages((ms) => (ms.some((m) => m.id === data.message.id) ? ms : [...ms, data.message]));
       setDraft("");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That message couldn't be sent.");
+      setNote(plainErrorText(e, "That message couldn't be sent."));
     } finally { setSending(false); }
   }
 
@@ -1266,7 +1267,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
         } catch { /* a dead stored pass just means joining fresh */ }
       }
     } catch (e) {
-      setCheckError(e instanceof Error ? e.message : "That invite couldn't be checked.");
+      setCheckError(plainErrorText(e, "That invite couldn't be checked."));
     } finally { setChecking(false); }
   }
 
@@ -1279,7 +1280,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       try { sessionStorage.setItem(guestStorageKey(inviteToken), data.session_token); } catch { /* private mode */ }
       await startBackstage(data.session_token, data.session);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "Backstage couldn't let you in.");
+      setNote(plainErrorText(e, "Backstage couldn't let you in."));
     } finally { setJoining(false); }
   }
 
@@ -1301,7 +1302,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       setMessages((ms) => (ms.some((m) => m.id === data.message.id) ? ms : [...ms, data.message]));
       setDraft("");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That message couldn't be sent.");
+      setNote(plainErrorText(e, "That message couldn't be sent."));
     } finally { setSending(false); }
   }
 
@@ -1437,7 +1438,7 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "That stream couldn't be scheduled.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That stream couldn't be scheduled."));
       if (editingId) {
         await fetch(SCHEDULED_STREAM_PATH(editingId), { method: "DELETE", headers: await authHeaders() });
         setNote("Stream updated — the new plan is below and the old one is cancelled.");
@@ -1447,7 +1448,7 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
       clearForm();
       await load();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That stream couldn't be scheduled.");
+      setNote(plainErrorText(e, "That stream couldn't be scheduled."));
     } finally {
       setSaving(false);
     }
@@ -1832,7 +1833,7 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
       setWhen("");
       await loadUpcoming();
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "That premiere couldn't be scheduled.");
+      setNote(plainErrorText(err, "That premiere couldn't be scheduled."));
     } finally {
       setSaving(false);
     }
@@ -1846,7 +1847,7 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
       setNote(`"${p.title}" is cancelled.`);
       await loadUpcoming();
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "That premiere couldn't be cancelled.");
+      setNote(plainErrorText(err, "That premiere couldn't be cancelled."));
     } finally {
       setCancellingId(null);
     }

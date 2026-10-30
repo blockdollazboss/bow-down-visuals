@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Mic2, Loader2, AlertTriangle, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
@@ -101,13 +102,13 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
         return;
       }
       if (!res.ok || !Array.isArray(data.adlibs) || data.adlibs.length === 0) {
-        throw new Error(data.message || data.error || t("wave8.adlib.errorGeneric"));
+        throw new Error(apiErrorMessage(data, t("wave8.adlib.errorGeneric")));
       }
       setResult(data);
       setActiveTake("A");
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave8.adlib.errorGeneric"));
+      setError(plainErrorText(err, t("wave8.adlib.errorGeneric")));
     } finally {
       setLoading(false);
     }

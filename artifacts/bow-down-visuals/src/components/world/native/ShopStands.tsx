@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
   BadgeCheck, BarChart3, Check, Crown, Gem, Gift, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
@@ -374,7 +375,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Checkout didn't start — nothing was charged.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start — nothing was charged."));
       if (checkoutCompletedInWorld(data)) {
         const order = marketOrderFromPayload(data);
         if (order?.paid) setPaidOrder(order);
@@ -400,7 +401,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       }
       throw new Error("Checkout didn't return a payment page — nothing was charged.");
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "Checkout didn't start — nothing was charged, and your cart is untouched.");
+      setOrderError(plainErrorText(e, "Checkout didn't start — nothing was charged, and your cart is untouched."));
     } finally {
       setPlacing(false);
     }
@@ -672,7 +673,7 @@ function StandCreateShop({
       setOpen(false);
       setNote(`"${saved.mine.name}" is open on the square — visit its stand to stock it and shape it.`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The shop didn't open — nothing was created.");
+      setError(plainErrorText(e, "The shop didn't open — nothing was created."));
     } finally {
       setCreating(false);
     }
@@ -867,7 +868,7 @@ function StandManager({
       setFormOpen(false);
       setEditingProduct(null);
     } catch (e) {
-      setManageError(e instanceof Error ? e.message : "The product didn't save — nothing about your stand changed.");
+      setManageError(plainErrorText(e, "The product didn't save — nothing about your stand changed."));
     } finally {
       setSaving(false);
     }
@@ -893,7 +894,7 @@ function StandManager({
       setConfirmingDeleteId(null);
       setManageNote(`"${p.name}" is off your stand.`);
     } catch (e) {
-      setManageError(e instanceof Error ? e.message : "That product wouldn't come off the stand — it's still on your shelf.");
+      setManageError(plainErrorText(e, "That product wouldn't come off the stand — it's still on your shelf."));
     } finally {
       setDeletingId(null);
     }
@@ -928,7 +929,7 @@ function StandManager({
       set({ description });
       setManageNote("The description's written — read it over, then save the product to put it on the stand.");
     } catch (e) {
-      setManageError(e instanceof Error ? e.message : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+      setManageError(plainErrorText(e, "The writer didn't answer — if Visual Bucs were charged, they're refunded."));
     } finally {
       setAiDescBusy(false);
     }
@@ -964,7 +965,7 @@ function StandManager({
       set({ imageUrl: url });
       setManageNote("Your product image is made — save the product to put it on the stand.");
     } catch (e) {
-      setManageError(e instanceof Error ? e.message : "The image didn't come back — if Visual Bucs were charged, they're refunded.");
+      setManageError(plainErrorText(e, "The image didn't come back — if Visual Bucs were charged, they're refunded."));
     } finally {
       setAiImageBusy(null);
     }
@@ -999,7 +1000,7 @@ function StandManager({
       setSettingsForm(shopSettingsFormFromShop(saved.mine));
       setSettingsNote("Your shop's new face is live on the square.");
     } catch (e) {
-      setSettingsError(e instanceof Error ? e.message : "Your settings didn't save — your shop is unchanged.");
+      setSettingsError(plainErrorText(e, "Your settings didn't save — your shop is unchanged."));
     } finally {
       setSettingsSaving(false);
     }
@@ -1037,7 +1038,7 @@ function StandManager({
       setSettings({ description });
       setSettingsNote("Your shop's story is written — read it over, then save the settings to put it on the square.");
     } catch (e) {
-      setSettingsError(e instanceof Error ? e.message : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+      setSettingsError(plainErrorText(e, "The writer didn't answer — if Visual Bucs were charged, they're refunded."));
     } finally {
       setAiShopDescBusy(false);
     }
@@ -1060,7 +1061,7 @@ function StandManager({
       if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "Your shop wouldn't close — it's still on the square.");
       onShopDeleted();
     } catch (e) {
-      setSettingsError(e instanceof Error ? e.message : "Your shop wouldn't close — it's still on the square.");
+      setSettingsError(plainErrorText(e, "Your shop wouldn't close — it's still on the square."));
       setDeletingShop(false);
     }
   };
@@ -1683,11 +1684,11 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Upload failed."));
       setRugLogo({ url: data.url, fileName: file.name });
       setNote("Logo's on the rug — add it to your cart when you're ready.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed.");
+      setError(plainErrorText(e, "Upload failed."));
     } finally {
       setRugUploading(false);
     }
@@ -1714,11 +1715,11 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok || !data.logo?.url) throw new Error(data.message ?? data.error ?? "The design didn't come back.");
+      if (!res.ok || !data.logo?.url) throw new Error(apiErrorMessage(data, "The design didn't come back."));
       setDesign(data);
       setNote(`Your brand kit is designed — ${BRANDING_DESIGN_COST.toLocaleString("en-US")} Visual Bucs, and the logo and mockups are yours.`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The design studio hiccupped — if Visual Bucs were charged, they're refunded.");
+      setError(plainErrorText(e, "The design studio hiccupped — if Visual Bucs were charged, they're refunded."));
     } finally {
       setDesigning(false);
     }
@@ -1751,7 +1752,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       });
       const orderData = (await orderRes.json().catch(() => ({}))) as { order?: { id: string }; error?: string; message?: string };
       if (!orderRes.ok || !orderData.order?.id) {
-        throw new Error(orderData.message ?? orderData.error ?? "The order couldn't be placed.");
+        throw new Error(apiErrorMessage(orderData, "The order couldn't be placed."));
       }
       const orderId = orderData.order.id;
       const coRes = await fetch("/api/branding-shop/checkout", {
@@ -1794,7 +1795,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       }
       if (checkoutCompletedInWorld(coData)) {
         setCart([]);
-        setNote(coData.message ?? "Order received — demo checkout completed here, no real payment was taken.");
+        setNote(apiErrorMessage(coData, "Order received — demo checkout completed here, no real payment was taken."));
         void loadOrders();
         return;
       }
@@ -1802,7 +1803,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       setCart([]);
       void loadOrders();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The order couldn't be placed — your cart is untouched.");
+      setError(plainErrorText(e, "The order couldn't be placed — your cart is untouched."));
     } finally {
       setPlacing(false);
     }
@@ -1823,7 +1824,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; clientSecret?: string };
-      if (!res.ok) throw new Error(data.error ?? "Checkout didn't start.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start."));
       /* The clientSecret branch precedes the tab fallback. */
       if (typeof data.clientSecret === "string" && data.clientSecret) {
         setPaySecret(data.clientSecret);
@@ -1837,10 +1838,10 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         setNote("Checkout opened in a new tab — finish paying there; this stand refreshes your orders when you're back.");
         return;
       }
-      setNote(data.message ?? "That order is settled.");
+      setNote(apiErrorMessage(data, "That order is settled."));
       void loadOrders();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Checkout didn't start — nothing was charged.");
+      setError(plainErrorText(e, "Checkout didn't start — nothing was charged."));
     } finally {
       setPayingId(null);
     }
@@ -2291,7 +2292,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       setRoster((list) => (list ? applyMemberStatus(list, saved) : list));
       setRosterMsg(`${member.fanLabel} is now ${saved.status.replace("_", " ")}.`);
     } catch (e) {
-      setRosterMsg(e instanceof Error ? e.message : "Couldn't update that member — try again in a moment.");
+      setRosterMsg(plainErrorText(e, "Couldn't update that member — try again in a moment."));
     } finally {
       setMemberBusyId(null);
     }
@@ -2318,7 +2319,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       setRoster((list) => (list ? removeMemberRow(list, member.id) : list));
       setRosterMsg(`${member.fanLabel} is off the roster.`);
     } catch (e) {
-      setRosterMsg(e instanceof Error ? e.message : "Couldn't remove that member.");
+      setRosterMsg(plainErrorText(e, "Couldn't remove that member."));
     } finally {
       setMemberBusyId(null);
       setConfirmingRemoveId(null);
@@ -2351,7 +2352,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       setRosterMsg(`${body.fanLabel} is on the roster.`);
       void loadRoster();
     } catch (e) {
-      setRosterMsg(e instanceof Error ? e.message : "Couldn't add that member — try again in a moment.");
+      setRosterMsg(plainErrorText(e, "Couldn't add that member — try again in a moment."));
     } finally {
       setAddingMember(false);
     }
@@ -2391,7 +2392,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       setSuggestions(got);
       setSuggestMsg("Pick a suggestion to load it into the tier form — edit anything, then create the tier.");
     } catch (e) {
-      setSuggestMsg(e instanceof Error ? e.message : "The suggester didn't answer — if Visual Bucs were charged, they're refunded.");
+      setSuggestMsg(plainErrorText(e, "The suggester didn't answer — if Visual Bucs were charged, they're refunded."));
     } finally {
       setSuggestBusy(false);
     }
@@ -2453,7 +2454,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       resetForm();
       void loadOwn();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Couldn't save that tier — try again in a moment.");
+      setMsg(plainErrorText(e, "Couldn't save that tier — try again in a moment."));
     } finally {
       setSaving(false);
     }
@@ -2478,7 +2479,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
         ? `“${tier.name}” is paused — hidden from fans, existing members keep their seats.`
         : `“${tier.name}” is live again.`);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Couldn't update that tier.");
+      setMsg(plainErrorText(e, "Couldn't update that tier."));
     } finally {
       setPausingId(null);
     }
@@ -2504,7 +2505,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       if (editingId === tier.id) resetForm();
       setMsg(`“${tier.name}” is deleted — its members go with it, exactly as on the website.`);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Couldn't delete that tier.");
+      setMsg(plainErrorText(e, "Couldn't delete that tier."));
     } finally {
       setDeletingId(null);
       setConfirmingDeleteId(null);
@@ -2994,7 +2995,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
           body: JSON.stringify({ tierId: tier.id }),
         });
         const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-        if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start the trial.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start the trial."));
         setMsg("Your 7-day free trial is on — no charge today. Join with a paid plan before it ends to keep your seat.");
         void loadMine();
         return;
@@ -3006,7 +3007,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         body: JSON.stringify(membershipCheckoutPayload(tier.id, period, recipientId)),
       });
       const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? "Couldn't start checkout.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start checkout."));
       if (checkoutCompletedInWorld(data)) {
         /* A free crown activates in-world at once — for a gift,
            the seat is THEIRS, in the memberships page's own words. */
@@ -3034,7 +3035,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       }
       throw new Error("Couldn't start checkout.");
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Something went wrong at the stand. Try again.");
+      setMsg(plainErrorText(e, "Something went wrong at the stand. Try again."));
     } finally {
       setBusy(null);
     }

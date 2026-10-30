@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -1189,7 +1190,7 @@ export default function WorldPage() {
           `Quest line complete — ${body.amountVb ?? ""} Visual Bucs added to your balance.`,
         );
       } else {
-        setTutorialMsg(body?.error ?? "That claim didn't land — nothing was paid.");
+        setTutorialMsg(apiErrorMessage(body, "That claim didn't land — nothing was paid."));
       }
     } catch {
       setTutorialMsg("That claim didn't land — nothing was paid.");
@@ -1240,7 +1241,7 @@ export default function WorldPage() {
       );
       await refreshWorldLocks();
     } catch (err) {
-      setLockNote(err instanceof Error ? err.message : "That lock didn't land — nothing was changed.");
+      setLockNote(plainErrorText(err, "That lock didn't land — nothing was changed."));
     } finally {
       setLockBusy(false);
     }
@@ -1259,7 +1260,7 @@ export default function WorldPage() {
         );
         await refreshWorldLocks();
       } catch (err) {
-        setLockNote(err instanceof Error ? err.message : "That lock didn't land — nothing was changed.");
+        setLockNote(plainErrorText(err, "That lock didn't land — nothing was changed."));
       } finally {
         setLockBusy(false);
       }
@@ -1278,7 +1279,7 @@ export default function WorldPage() {
         setLockNote(`${lock.displayName} can walk into this room again, right now.`);
         await refreshWorldLocks();
       } catch (err) {
-        setLockNote(err instanceof Error ? err.message : "That unlock didn't land — nothing was changed.");
+        setLockNote(plainErrorText(err, "That unlock didn't land — nothing was changed."));
       } finally {
         setLockBusy(false);
       }

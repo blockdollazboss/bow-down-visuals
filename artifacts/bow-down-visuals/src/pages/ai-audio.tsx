@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
@@ -119,7 +120,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         return;
       }
       if (!res.ok || !data.url) {
-        setError(data.error || t("beatMaker.errorGenerateFailed"));
+        setError(apiErrorMessage(data, t("beatMaker.errorGenerateFailed")));
         return;
       }
       const generated: GeneratedBeat = {
@@ -1382,7 +1383,7 @@ function SamplesPanel() {
       }
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || t("samples.error.generationFailed"));
+        throw new Error(apiErrorMessage(data, t("samples.error.generationFailed")));
       }
       setSamples(data.samples ?? []);
       /* Each sample is a persistent URL — report the pack into the hub project. */
@@ -1397,7 +1398,7 @@ function SamplesPanel() {
       setPackName(`${genre}-${bpm}bpm-${musicalKey}`.toLowerCase().replace(/[^a-z0-9-]/g, ""));
       setProgress("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("samples.error.generationFailed"));
+      setError(plainErrorText(e, t("samples.error.generationFailed")));
       setProgress("");
     } finally {
       setGenerating(false);
@@ -1419,7 +1420,7 @@ function SamplesPanel() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || t("samples.error.zipFailed"));
+        throw new Error(apiErrorMessage(data, t("samples.error.zipFailed")));
       }
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -1430,7 +1431,7 @@ function SamplesPanel() {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("samples.error.zipDownloadFailed"));
+      setError(plainErrorText(e, t("samples.error.zipDownloadFailed")));
     } finally {
       setZipping(false);
     }
@@ -1841,7 +1842,7 @@ function SfxPanel() {
         return;
       }
       if (!res.ok || !data.url) {
-        throw new Error(data.message || data.error || t("sfx.errorGenerationFailed"));
+        throw new Error(apiErrorMessage(data, t("sfx.errorGenerationFailed")));
       }
       const item: SfxItem = {
         id: data.genHistoryId ?? `${Date.now()}`,
@@ -1865,7 +1866,7 @@ function SfxPanel() {
         void audioRef.current?.play().catch(() => {});
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sfx.errorGenerationFailed"));
+      setError(plainErrorText(err, t("sfx.errorGenerationFailed")));
     } finally {
       setLoading(false);
     }
@@ -1878,7 +1879,7 @@ function SfxPanel() {
       const wav = await mp3UrlToWav(item.url);
       downloadBlob(new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }), `${sfxSlug(item.prompt)}.wav`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sfx.errorWavFailed"));
+      setError(plainErrorText(err, t("sfx.errorWavFailed")));
     } finally {
       setConverting(null);
     }
@@ -1918,7 +1919,7 @@ function SfxPanel() {
       const zip = createZip(entries);
       downloadBlob(new Blob([zip.buffer as ArrayBuffer], { type: "application/zip" }), `bdv-sfx-pack-${items.length}.zip`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sfx.errorPackFailed"));
+      setError(plainErrorText(err, t("sfx.errorPackFailed")));
     } finally {
       setPacking(false);
     }

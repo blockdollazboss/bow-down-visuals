@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -183,7 +184,7 @@ export function UgcAdsPanel() {
       setScriptLines(script.lines.join("\n"));
       setCta(script.cta);
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "The script didn't come through — try again.");
+      setMakerError(plainErrorText(err, "The script didn't come through — try again."));
     } finally {
       setScriptBusy(false);
     }
@@ -207,7 +208,7 @@ export function UgcAdsPanel() {
       /* A failed attempt was refunded — the retry must be a NEW intent
          (fresh idempotency key), never a replay of the refunded one. */
       personaKeyRef.current = "";
-      setMakerError(err instanceof Error ? err.message : "The persona didn't come through — try again.");
+      setMakerError(plainErrorText(err, "The persona didn't come through — try again."));
     } finally {
       setPersonaBusy(false);
     }
@@ -256,7 +257,7 @@ export function UgcAdsPanel() {
       refreshProfile();
       toast({ title: "Your UGC ad is ready", description: `${ready.productName} — saved to your ads and your clip library.` });
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "Generation failed — any charge was refunded.");
+      setMakerError(plainErrorText(err, "Generation failed — any charge was refunded."));
       void loadAds();
     } finally {
       setGenerating(false);
@@ -271,7 +272,7 @@ export function UgcAdsPanel() {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      toast({ title: "Generation failed", description: err instanceof Error ? err.message : "Any charge was refunded.", variant: "destructive" });
+      toast({ title: "Generation failed", description: plainErrorText(err, "Any charge was refunded."), variant: "destructive" });
       void loadAds();
     } finally {
       setBusyAdId(null);

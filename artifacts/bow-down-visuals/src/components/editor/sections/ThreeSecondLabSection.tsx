@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Timer, Loader2, Sparkles, Trophy, Upload, X, Clapperboard } from "lucide-react";
@@ -116,12 +117,12 @@ export function ThreeSecondLabSection({ openingHint, bare, onApplyOpening }: Thr
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.openings?.length) throw new Error(data.message || "Lab failed.");
+      if (!res.ok || !data.openings?.length) throw new Error(apiErrorMessage(data, "Lab failed."));
       setAppliedText(null);
       setOpenings([...data.openings].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)));
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lab failed.");
+      setError(plainErrorText(e, "Lab failed."));
     } finally {
       setLoading(false);
     }

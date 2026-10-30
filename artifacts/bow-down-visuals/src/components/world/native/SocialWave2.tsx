@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import {
   Search, Loader2, ShieldCheck, Eye, Pencil, Copy, Check, ChevronUp, ChevronDown,
@@ -70,7 +71,7 @@ async function apiJson<T>(
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
     error?: string; message?: string;
   };
-  if (!res.ok) throw new Error(data.message || data.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
   return data as T;
 }
 
@@ -951,7 +952,7 @@ function ProfileEditor({
       setBasicsNote("Saved — your page wears it now.");
       onSaved();
     } catch (e) {
-      setBasicsNote(e instanceof Error ? e.message : "That save didn't land — your page is unchanged.");
+      setBasicsNote(plainErrorText(e, "That save didn't land — your page is unchanged."));
     } finally {
       setSavingBasics(false);
     }
@@ -1107,7 +1108,7 @@ function LayoutEditor({
       setDto(d);
       setNote("Layout saved — your page renders in this order.");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That layout didn't save — the server validates blocks; your page is unchanged.");
+      setNote(plainErrorText(e, "That layout didn't save — the server validates blocks; your page is unchanged."));
     } finally {
       setSaving(false);
     }
@@ -1245,7 +1246,7 @@ function ThemeEditor({
       setBodyFont(d.bodyFont);
       setNote("Theme saved — your page wears the new look.");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That theme didn't save — picks must come from the designed lists.");
+      setNote(plainErrorText(e, "That theme didn't save — picks must come from the designed lists."));
     } finally {
       setSaving(false);
     }

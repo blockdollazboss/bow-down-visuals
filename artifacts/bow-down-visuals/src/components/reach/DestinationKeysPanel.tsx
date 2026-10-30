@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Radio, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,7 +130,7 @@ export default function DestinationKeysPanel() {
                 const v = await reachApi.runFanOut(getAccessToken, liveStream.id);
                 setNote(v.verdicts.map((x) => `${x.platform}: ${x.status}${x.reason ? ` — ${x.reason}` : ""}`).join(" · ") || "No destinations to relay to.");
               } catch (e) {
-                setNote(e instanceof Error ? e.message : "Fan-out couldn't run.");
+                setNote(plainErrorText(e, "Fan-out couldn't run."));
               } finally {
                 setBusy(false);
                 void load();
@@ -154,7 +155,7 @@ export default function DestinationKeysPanel() {
               setNote(`Saved. ${platform} will pick up your next broadcast (add it to the stream's destinations when you go live).`);
               void load();
             } catch (err) {
-              setNote(err instanceof Error ? err.message : "That destination couldn't be saved.");
+              setNote(plainErrorText(err, "That destination couldn't be saved."));
             } finally {
               setBusy(false);
             }

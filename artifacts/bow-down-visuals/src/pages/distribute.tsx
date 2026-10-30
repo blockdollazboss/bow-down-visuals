@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -445,7 +446,7 @@ function NewReleaseWizard(props: {
         taskId?: string; error?: string; message?: string;
       };
       if (res.status === 402) { onOutOfCredits(); return; }
-      if (!res.ok || !data.taskId) throw new Error(data.message || data.error || "Couldn't start image generation.");
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "Couldn't start image generation."));
       /* poll until it lands */
       let attempts = 0;
       for (;;) {
@@ -462,14 +463,14 @@ function NewReleaseWizard(props: {
           break;
         }
         if (pd.status === "failed" || pd.status === "cancelled") {
-          throw new Error(pd.error || "Image generation failed — no Visual Bucs charged.");
+          throw new Error(apiErrorMessage(pd, "Image generation failed — no Visual Bucs charged."));
         }
         setArtStatus(pd.progress != null ? `Rendering… ${Math.round(pd.progress)}%` : `Rendering… (${attempts * 3}s)`);
         if (attempts >= 60) throw new Error("Image job is taking too long — check back; it may still finish.");
       }
     } catch (err) {
       setArtStatus(null);
-      onError(err instanceof Error ? err.message : "Cover art generation failed.");
+      onError(plainErrorText(err, "Cover art generation failed."));
     } finally {
       setArtWorking(false);
     }
@@ -519,7 +520,7 @@ function NewReleaseWizard(props: {
         release?: Release; error?: string; message?: string;
       };
       if (!draftRes.ok || !draftData.release) {
-        throw new Error(draftData.message || draftData.error || "Couldn't create the release draft.");
+        throw new Error(apiErrorMessage(draftData, "Couldn't create the release draft."));
       }
       const release = draftData.release;
 
@@ -536,13 +537,13 @@ function NewReleaseWizard(props: {
         return;
       }
       if (!subRes.ok || !subData.release) {
-        throw new Error(subData.message || subData.error || "Couldn't submit the release.");
+        throw new Error(apiErrorMessage(subData, "Couldn't submit the release."));
       }
       refreshProfile();
       setDone({ release: subData.release, notice: subData.notice ?? null });
       onDone(subData.release, subData.notice ?? null, true);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't create the release.");
+      onError(plainErrorText(err, "Couldn't create the release."));
     } finally {
       setCreating(false);
     }
@@ -1022,14 +1023,14 @@ function ReleaseMetadataManager(props: {
         release?: Release; barcode?: string; notice?: string; error?: string; message?: string;
       };
       if (!res.ok || !data.release) {
-        throw new Error(data.message || data.error || "Couldn't generate the barcode.");
+        throw new Error(apiErrorMessage(data, "Couldn't generate the barcode."));
       }
       setUpc(data.barcode ?? "");
       setUpcKind("internal");
       onUpdate(data.release);
       onNotice(data.notice ?? "Internal catalog ID minted — not a store-recognized UPC.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't generate the barcode.");
+      onError(plainErrorText(err, "Couldn't generate the barcode."));
     } finally {
       setBarcodeWorking(false);
     }
@@ -1077,14 +1078,14 @@ function ReleaseMetadataManager(props: {
         release?: Release; error?: string; message?: string;
       };
       if (!res.ok || !data.release) {
-        throw new Error(data.message || data.error || "Couldn't save the metadata.");
+        throw new Error(apiErrorMessage(data, "Couldn't save the metadata."));
       }
       setTracks(data.release.tracks ?? []);
       onUpdate(data.release);
       onNotice("Release metadata saved — free.");
       return true;
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't save the metadata.");
+      onError(plainErrorText(err, "Couldn't save the metadata."));
       return false;
     } finally {
       setSaving(false);
@@ -1500,7 +1501,7 @@ function PresaveManager(props: {
     try {
       const res = await authFetch(`/api/distribution/releases/${release.id}/presave-stats`);
       const data = (await res.json().catch(() => ({}))) as Partial<PresaveStats> & { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load pre-save stats.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load pre-save stats."));
       setStats(data as PresaveStats);
       setHeadline(data.settings?.headline ?? "");
       setLinks(data.settings?.platformLinks ?? {});
@@ -1512,7 +1513,7 @@ function PresaveManager(props: {
       setLanguageRows(destinationRows(data.settings?.languageDestinations));
       setRoutingReady(data.settings?.routingReady !== false);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't load pre-save stats.");
+      onError(plainErrorText(err, "Couldn't load pre-save stats."));
     } finally {
       setStatsLoading(false);
     }
@@ -1551,7 +1552,7 @@ function PresaveManager(props: {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as PresaveStats & { error?: string; message?: string };
-      if (!res.ok) throw new Error((data as { message?: string; error?: string }).message || (data as { error?: string }).error || "Couldn't save pre-save settings.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save pre-save settings."));
       setStats((prev) => (prev ? { ...prev, settings: data.settings } : prev));
       setTerritoryRows(destinationRows(data.settings?.territoryDestinations));
       setLanguageRows(destinationRows(data.settings?.languageDestinations));
@@ -1559,7 +1560,7 @@ function PresaveManager(props: {
       setEditing(false);
       onNotice("Pre-save page updated — free.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't save pre-save settings.");
+      onError(plainErrorText(err, "Couldn't save pre-save settings."));
     } finally {
       setSaving(false);
     }
@@ -2005,12 +2006,12 @@ function ReleaseDetail(props: {
       const data = (await res.json().catch(() => ({}))) as MetadataResult;
       if (handle402(data)) return;
       if (!res.ok || !data.titleOptions?.length) {
-        throw new Error(data.message || data.error || "Metadata generation failed — try again.");
+        throw new Error(apiErrorMessage(data, "Metadata generation failed — try again."));
       }
       setMetaResult(data);
       refreshProfile();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Metadata generation failed.");
+      onError(plainErrorText(err, "Metadata generation failed."));
     } finally {
       setMetaLoading(false);
     }
@@ -2036,12 +2037,12 @@ function ReleaseDetail(props: {
       const data = (await res.json().catch(() => ({}))) as StrategyResult;
       if (handle402(data)) return;
       if (!res.ok || !data.timing) {
-        throw new Error(data.message || data.error || "Strategy generation failed — try again.");
+        throw new Error(apiErrorMessage(data, "Strategy generation failed — try again."));
       }
       setStrategyResult(data);
       refreshProfile();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Strategy generation failed.");
+      onError(plainErrorText(err, "Strategy generation failed."));
     } finally {
       setStrategyLoading(false);
     }
@@ -2099,7 +2100,7 @@ function ReleaseDetail(props: {
       const data = (await res.json().catch(() => ({}))) as {
         splits?: RoyaltySplit[]; agreementVersion?: number; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(data.message || data.error || "Couldn't save the splits.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the splits."));
       onUpdate({ ...release, royaltySplits: data.splits ?? splits });
       onNotice(
         data.agreementVersion && data.agreementVersion > 1
@@ -2107,7 +2108,7 @@ function ReleaseDetail(props: {
           : "Royalty splits saved — free.",
       );
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't save the splits.");
+      onError(plainErrorText(err, "Couldn't save the splits."));
     } finally {
       setSplitsSaving(false);
     }
@@ -2130,11 +2131,11 @@ function ReleaseDetail(props: {
         onNotice(data.error ?? "Invite recorded — share the agreement link with them instead.");
         return;
       }
-      if (!res.ok) throw new Error(data.message || data.error || "Couldn't record the invite.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't record the invite."));
       setSplits((prev) => prev.map((x) => (x.id === split.id ? { ...x, inviteStatus: "invited" } : x)));
       onNotice("Invite sent to the collaborator.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't record the invite.");
+      onError(plainErrorText(err, "Couldn't record the invite."));
     } finally {
       setInvitingId(null);
     }
@@ -2148,12 +2149,12 @@ function ReleaseDetail(props: {
     try {
       const res = await authFetch(`/api/distribution/releases/${release.id}/splits/share-link`, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { slug?: string; error?: string; message?: string };
-      if (!res.ok || !data.slug) throw new Error(data.message || data.error || "Couldn't create the share link.");
+      if (!res.ok || !data.slug) throw new Error(apiErrorMessage(data, "Couldn't create the share link."));
       setShareSlug(data.slug);
       onUpdate({ ...release, splitShareSlug: data.slug });
       onNotice("Split agreement link created — free.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't create the share link.");
+      onError(plainErrorText(err, "Couldn't create the share link."));
     } finally {
       setShareWorking(false);
     }
@@ -2175,14 +2176,14 @@ function ReleaseDetail(props: {
     try {
       const res = await authFetch(`/api/distribution/releases/${release.id}/presave`, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { slug?: string; url?: string; error?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Couldn't create the pre-save link.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Couldn't create the pre-save link."));
       setPresaveUrl(data.url);
       onUpdate({ ...release, presaveSlug: data.slug ?? release.presaveSlug });
       onNotice("Pre-save link created — free.");
       /* The pre-save page flows into the hub project — announce it from the scheduler. */
       try { addAsset({ kind: "other", url: data.url, label: `Pre-save — ${release.title || "release"}`, detail: "Distribution" }); } catch { /* non-fatal */ }
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't create the pre-save link.");
+      onError(plainErrorText(err, "Couldn't create the pre-save link."));
     } finally {
       setPresaveWorking(false);
     }
@@ -2221,13 +2222,13 @@ function ReleaseDetail(props: {
       };
       if (handle402(data)) return;
       if (!res.ok || !data.release) {
-        throw new Error(data.message || data.error || "Couldn't submit the release.");
+        throw new Error(apiErrorMessage(data, "Couldn't submit the release."));
       }
       onUpdate(data.release);
       onNotice(data.notice ?? "Release submitted — delivery queued.");
       refreshProfile();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't submit the release.");
+      onError(plainErrorText(err, "Couldn't submit the release."));
     } finally {
       setSubmitting(false);
     }
@@ -2246,7 +2247,7 @@ function ReleaseDetail(props: {
         throw new Error("Couldn't delete the release.");
       }
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't delete the release.");
+      onError(plainErrorText(err, "Couldn't delete the release."));
     } finally {
       setDeleting(false);
     }
@@ -2989,7 +2990,7 @@ function ReleasePlanTab() {
         return;
       }
       if (!res.ok || !data.plan || !Array.isArray(data.plan.weeks) || data.plan.weeks.length === 0) {
-        throw new Error(data.message || data.error || t("release.error.planFailed"));
+        throw new Error(apiErrorMessage(data, t("release.error.planFailed")));
       }
       setPlan(data.plan);
       setChecked({});
@@ -2999,7 +3000,7 @@ function ReleasePlanTab() {
         document.getElementById("release-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("release.error.planFailed"));
+      setError(plainErrorText(err, t("release.error.planFailed")));
     } finally {
       setLoading(false);
     }

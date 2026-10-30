@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { MessageCircle, Send, Pin, EyeOff, Eye, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -64,7 +65,7 @@ export function CommentThread({ kind, mediaId }: { kind: MediaKind; mediaId: str
       setBody("");
       if (c.status === "held") setHeldNotice(c.held_copy ?? HELD_COPY);
     } catch (e: any) {
-      setError(e?.message ?? "Couldn't post that comment");
+      setError(apiErrorMessage(e, "Couldn't post that comment"));
     } finally {
       setPosting(false);
     }
@@ -78,7 +79,7 @@ export function CommentThread({ kind, mediaId }: { kind: MediaKind; mediaId: str
       await runCommentAction(token, "media", c.id, action);
       await load();
     } catch (e: any) {
-      setError(e?.message ?? "That comment action didn't stick");
+      setError(apiErrorMessage(e, "That comment action didn't stick"));
     } finally {
       setActingId(null);
     }

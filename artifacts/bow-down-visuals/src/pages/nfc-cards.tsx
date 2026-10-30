@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -200,7 +201,7 @@ export default function NfcCards() {
         }),
       });
       const json = await res!.json();
-      if (!json.ok) throw new Error(json.error || t("nfcCards.orderFailed"));
+      if (!json.ok) throw new Error(apiErrorMessage(json, t("nfcCards.orderFailed")));
       if (json.profile) {
         setOrderResult({ slug: json.profile.slug, url: json.profile.url });
       } else {
@@ -211,7 +212,7 @@ export default function NfcCards() {
       setOrderKey(genOrderKey());
       loadMine();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Order failed — try again.");
+      setFormError(plainErrorText(e, "Order failed — try again."));
     } finally {
       setSubmitting(false);
     }
@@ -233,7 +234,7 @@ export default function NfcCards() {
         }),
       });
       const json = await res!.json();
-      if (!json.ok) throw new Error(json.error || t("nfcCards.saveFailed"));
+      if (!json.ok) throw new Error(apiErrorMessage(json, t("nfcCards.saveFailed")));
       setProfiles((ps) => ps.map((p) => (p.slug === editing.slug ? { ...p, ...json.profile } : p)));
       setEditing(null);
     } finally {

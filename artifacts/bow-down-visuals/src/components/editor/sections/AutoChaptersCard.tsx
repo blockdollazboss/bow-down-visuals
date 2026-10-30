@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { ListVideo, Sparkles, Copy, Check, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { EditorCard } from "@/components/editor/controls";
@@ -98,7 +99,7 @@ export function AutoChaptersCard({
           error?: string;
           message?: string;
         };
-        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(err, `HTTP ${res.status}`));
       }
       const data = (await res.json()) as { chapters?: VideoChapter[] };
       const next = sortChapters(data.chapters ?? []);
@@ -106,7 +107,7 @@ export function AutoChaptersCard({
       onChaptersChange(next);
       setStatus({ type: "success", message: `${next.length} chapters generated — review, edit, then copy for YouTube.` });
     } catch (err) {
-      setStatus({ type: "error", message: err instanceof Error ? err.message : "Chapter generation failed." });
+      setStatus({ type: "error", message: plainErrorText(err, "Chapter generation failed.") });
     } finally {
       setGenerating(false);
     }

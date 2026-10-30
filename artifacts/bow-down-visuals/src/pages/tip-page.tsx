@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -147,7 +148,7 @@ export default function TipPage() {
         }
       } else if (co.status !== 503) {
         const coJson = await co.json().catch(() => null);
-        setError(coJson?.details?.[0]?.message ?? coJson?.error ?? t("tipPage.recordFailed"));
+        setError(coJson?.details?.[0]?.message ?? apiErrorMessage(coJson, t("tipPage.recordFailed")));
         return;
       }
       const res = await fetch(`/api/tips/${encodeURIComponent(handle)}/tip`, {
@@ -157,7 +158,7 @@ export default function TipPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.details?.[0]?.message ?? json.error ?? t("tipPage.recordFailed"));
+        setError(json.details?.[0]?.message ?? apiErrorMessage(json, t("tipPage.recordFailed")));
         return;
       }
       setSent(true);

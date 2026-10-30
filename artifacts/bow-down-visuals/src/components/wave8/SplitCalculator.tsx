@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -261,10 +262,10 @@ export default function SplitCalculator() {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { sheets?: SplitSheet[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("wave8.splits.errorLoad"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("wave8.splits.errorLoad")));
       setSheets(Array.isArray(data.sheets) ? data.sheets : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave8.splits.errorLoad"));
+      setError(plainErrorText(err, t("wave8.splits.errorLoad")));
     } finally {
       setLoading(false);
     }
@@ -308,7 +309,7 @@ export default function SplitCalculator() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { sheet?: SplitSheet; error?: string };
-      if (!res.ok || !data.sheet) throw new Error(data.error || t("wave8.splits.errorSave"));
+      if (!res.ok || !data.sheet) throw new Error(apiErrorMessage(data, t("wave8.splits.errorSave")));
       setSheets((prev) => [data.sheet!, ...prev]);
       setShowForm(false);
       setFTitle("");
@@ -317,7 +318,7 @@ export default function SplitCalculator() {
         { name: "", role: "", pct: "" },
       ]);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t("wave8.splits.errorSave"));
+      setFormError(plainErrorText(err, t("wave8.splits.errorSave")));
     } finally {
       setSaving(false);
     }
@@ -331,12 +332,12 @@ export default function SplitCalculator() {
       if (!res) return;
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t("wave8.splits.errorSave"));
+        throw new Error(apiErrorMessage(data, t("wave8.splits.errorSave")));
       }
       setSheets((prev) => prev.filter((s) => s.id !== id));
       setConfirmDeleteId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave8.splits.errorSave"));
+      setError(plainErrorText(err, t("wave8.splits.errorSave")));
     } finally {
       setDeletingId(null);
     }
@@ -361,12 +362,12 @@ export default function SplitCalculator() {
         message?: string;
       };
       if (res.status === 402) throw new Error(t("wave8.splits.outOfCredits"));
-      if (!res.ok) throw new Error(data.message || data.error || t("wave8.splits.errorPdf"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("wave8.splits.errorPdf")));
       buildSplitPdf(data);
     } catch (err) {
       setCardError((prev) => ({
         ...prev,
-        [sheet.id]: err instanceof Error ? err.message : t("wave8.splits.errorPdf"),
+        [sheet.id]: plainErrorText(err, t("wave8.splits.errorPdf")),
       }));
     } finally {
       setGeneratingId(null);
@@ -408,7 +409,7 @@ export default function SplitCalculator() {
         });
         const data = (await res!.json().catch(() => ({}))) as { entry?: unknown; error?: string; message?: string };
         if (!res || !res.ok || !data.entry) {
-          throw new Error(data.message || data.error || t("wave8.splits.errorLedger"));
+          throw new Error(apiErrorMessage(data, t("wave8.splits.errorLedger")));
         }
         setRowStatus((prev) => ({ ...prev, [key]: "posted" }));
         ok++;

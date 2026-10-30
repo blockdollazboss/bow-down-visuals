@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Nfc, Loader2, Download, RefreshCw } from "lucide-react";
@@ -35,10 +36,10 @@ export function NfcOrdersAdmin({ authHeaders }: { authHeaders: () => Promise<Hea
     try {
       const res = await fetch("/api/nfc-cards/admin/orders", { headers: await authHeaders() });
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Load failed");
+      if (!json.ok) throw new Error(apiErrorMessage(json, "Load failed"));
       setOrders(json.orders);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Load failed");
+      setError(plainErrorText(e, "Load failed"));
     } finally {
       setLoading(false);
     }

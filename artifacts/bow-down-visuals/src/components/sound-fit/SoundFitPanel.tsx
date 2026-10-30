@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Layers, Search, FolderPlus, Check } from "lucide-react";
@@ -122,7 +123,7 @@ export default function SoundFitPanel() {
         setStack(parsed);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("soundFit.errorGeneric", { defaultValue: "Sound-fit hit a snag. Please try again." }));
+      setError(plainErrorText(e, t("soundFit.errorGeneric", { defaultValue: "Sound-fit hit a snag. Please try again." })));
     } finally {
       setLoading(null);
     }

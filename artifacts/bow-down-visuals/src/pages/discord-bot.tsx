@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Check, Copy, ExternalLink, Loader2, PlugZap, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -106,7 +107,7 @@ export default function DiscordBotSetup() {
       const res = await fetch("/api/discord-bot/install-url", { headers: await authHeaders() });
       const body = (await res.json()) as { install_url?: string; error?: string };
       if (!res.ok || !body.install_url) {
-        setInstallError(body.error ?? t("discord-bot.installUrlError"));
+        setInstallError(apiErrorMessage(body, t("discord-bot.installUrlError")));
         return;
       }
       setInstallUrl(body.install_url);

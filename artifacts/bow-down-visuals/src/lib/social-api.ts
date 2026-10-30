@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 import {
   markRevealedThisSession,
   type ContentWarningLabel,
@@ -309,7 +310,7 @@ export async function apiJson<T>(
   const res = await apiFetch(getAccessToken, path, init, options);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { message?: string }).message || `Request failed (${res.status})`);
+    throw new Error(apiErrorMessage(body, `Request failed (${res.status})`));
   }
   return (await res.json()) as T;
 }

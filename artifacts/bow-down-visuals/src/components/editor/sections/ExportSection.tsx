@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDefaultWatermarkUrl } from "@/lib/watermark";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
@@ -324,12 +325,12 @@ export function ExportSection({
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `Upload failed (${res.status})`);
+        throw new Error(apiErrorMessage(body, `Upload failed (${res.status})`));
       }
       const { url } = (await res.json()) as { url: string };
       setExport({ customWatermarkUrl: url });
     } catch (err) {
-      setWmError(err instanceof Error ? err.message : "Upload failed");
+      setWmError(plainErrorText(err, "Upload failed"));
     } finally {
       setWmUploading(false);
     }
@@ -362,7 +363,7 @@ export function ExportSection({
       .catch((e) => {
         if (!cancelled) {
           setAudioReachable(false);
-          setAudioReachError(e instanceof Error ? e.message : "fetch failed");
+          setAudioReachError(plainErrorText(e, "fetch failed"));
         }
       })
       .finally(() => { if (!cancelled) setAudioChecking(false); });

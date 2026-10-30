@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage } from "./api-error";
 import type { FetchImpl } from "@/hooks/use-confirmed-api";
 
 export function parseMarkdownSections(text: string): Record<string, string> {
@@ -47,7 +48,7 @@ export async function callGenerateApi(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
     const errObj = err as { error?: string; message?: string };
-    throw new Error(errObj.error ?? errObj.message ?? "Generation failed");
+    throw new Error(apiThrowMessage(errObj, "Generation failed", res.status));
   }
 
   const data = (await res.json()) as {

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Tutorials V1 — client ─────────────────────────────────────────────
    Mirrors the API DTOs from routes/tutorials.ts exactly. Tutorials
    live INSIDE the Creator Academy (the How-To Videos tab) and on
@@ -220,7 +221,7 @@ export function inProgressCards(
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+    throw new Error(apiErrorMessage(body, `Request failed (${res.status})`));
   }
   return res.json() as Promise<T>;
 }

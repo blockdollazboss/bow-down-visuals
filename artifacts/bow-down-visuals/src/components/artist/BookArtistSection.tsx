@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { CalendarPlus, ShieldCheck, Loader2, ScrollText } from "lucide-react";
@@ -109,7 +110,7 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
         setLengthMin: "", productionNotes: "", cancellationTerms: "", notes: "",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send that booking.");
+      setError(plainErrorText(err, "Could not send that booking."));
     } finally {
       setSubmitting(false);
     }
@@ -143,7 +144,7 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That step didn't go through.");
+      setError(plainErrorText(err, "That step didn't go through."));
     } finally {
       setBusyId(null);
     }
@@ -158,7 +159,7 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
       setSandboxSessions((s) => { const next = { ...s }; delete next[booking.id]; return next; });
       void refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not confirm the funding.");
+      setError(plainErrorText(err, "Could not confirm the funding."));
     } finally {
       setBusyId(null);
     }

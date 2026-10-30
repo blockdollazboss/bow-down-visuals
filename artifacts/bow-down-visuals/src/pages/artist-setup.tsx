@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -53,7 +54,7 @@ async function uploadImage(kind: "avatar" | "banner" | "background", file: File)
   form.append("kind", kind);
   const res = await fetch("/api/ai-page-designer/upload", { method: "POST", body: form });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Upload failed.");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "Upload failed."));
   return data.url as string;
 }
 
@@ -76,7 +77,7 @@ function ImageField({
       onChange(url);
       toast({ title: "Uploaded", description: "Looking sharp." });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Try again.") });
     } finally {
       setBusy(false);
     }
@@ -268,7 +269,7 @@ export default function ArtistSetup() {
       toast({ title: "Saved", description: justPublished ? "You're live. Go look at yourself." : "All changes saved." });
       if (justPublished) setReveal(true);
     } catch (err) {
-      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "Save failed", description: plainErrorText(err, "Try again.") });
     } finally {
       setSaving(false);
     }

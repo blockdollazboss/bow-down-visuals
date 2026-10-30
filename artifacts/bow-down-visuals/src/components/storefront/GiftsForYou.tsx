@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Gift, Loader2, CheckCircle2, Clock, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,11 +70,11 @@ export default function GiftsForYou() {
         body: "{}",
       });
       const body = (await res.json().catch(() => ({}))) as { note?: string; message?: string; error?: string };
-      if (!res.ok) throw new Error(body.message || body.error || "That didn't work — try again.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "That didn't work — try again."));
       setNote(body.note ?? (action === "claim" ? "Claimed — it's yours now." : "Re-sent."));
       await load();
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "That didn't work — try again.");
+      setNote(plainErrorText(err, "That didn't work — try again."));
     } finally {
       setBusyId(null);
     }

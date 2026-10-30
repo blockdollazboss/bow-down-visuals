@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -269,11 +270,11 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
       });
       if (!res) return; /* user cancelled the credit confirm */
       const data = (await res.json()) as { enrichedPrompt?: string; error?: string };
-      if (!res.ok || !data.enrichedPrompt) throw new Error(data.error ?? "Build failed");
+      if (!res.ok || !data.enrichedPrompt) throw new Error(apiErrorMessage(data, "Build failed"));
       setPreview(data.enrichedPrompt);
       setUsed(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t(`${ns}.errorGeneric`));
+      setError(plainErrorText(e, t(`${ns}.errorGeneric`)));
     } finally {
       setBuilding(false);
     }
@@ -307,7 +308,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
         notes?: string[];
         error?: string;
       };
-      if (!res.ok || !data.proposal) throw new Error(data.error ?? "design failed");
+      if (!res.ok || !data.proposal) throw new Error(apiErrorMessage(data, "design failed"));
       setProposal(data.proposal);
       setProposalNotes(data.notes ?? []);
     } catch {

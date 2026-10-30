@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Loader2, Megaphone } from "lucide-react";
@@ -73,7 +74,7 @@ export default function CommercePixelsSettings({
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("commercePixels.saveFailed"));
+      setError(plainErrorText(err, t("commercePixels.saveFailed")));
     } finally {
       setSaving(false);
     }

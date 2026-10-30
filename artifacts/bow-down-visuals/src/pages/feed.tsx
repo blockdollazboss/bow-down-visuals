@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Flame, Clock3, Bookmark, TrendingUp, Radio, Clapperboard } from "lucide-react";
@@ -51,7 +52,7 @@ export default function FeedPage() {
         setPosts((prev) => (reset ? data.posts : [...prev, ...data.posts]));
         setHasMore(data.posts.length === 20);
       } catch (e) {
-        if (reset) setError(e instanceof Error ? e.message : "Couldn't load your feed.");
+        if (reset) setError(plainErrorText(e, "Couldn't load your feed."));
       } finally {
         setLoading(false);
         setLoadingMore(false);

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -168,7 +169,7 @@ export default function LightningSetup({
       setStep(2);
       onCreated(p);
     } catch (err) {
-      toast({ title: "Couldn't go live", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "Couldn't go live", description: plainErrorText(err, "Try again.") });
     } finally {
       setBusy(false);
     }
@@ -193,7 +194,7 @@ export default function LightningSetup({
       });
       if (!res) { setGenerating(false); return; } /* credit confirmation dismissed */
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Design failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Design failed"));
       setBusy(true);
       const p = await createProfile(
         createPayload({
@@ -212,7 +213,7 @@ export default function LightningSetup({
       setStep(2);
       onCreated(p);
     } catch (err) {
-      toast({ title: "The designer stumbled", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "The designer stumbled", description: plainErrorText(err, "Try again.") });
     } finally {
       setGenerating(false);
       setBusy(false);

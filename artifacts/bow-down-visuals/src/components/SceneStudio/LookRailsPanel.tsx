@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { Clapperboard, Sparkles, Loader2, Check, X, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,14 +80,14 @@ export function LookRailsPanel({ scene, onPick }: {
         error?: string;
       };
       if (!res.ok || !data.proposal) {
-        throw new Error(data.error || `AI Director error (HTTP ${res.status})`);
+        throw new Error(apiErrorMessage(data, `AI Director error (HTTP ${res.status})`));
       }
       /* Proposal lands in LOCAL state only — the scene is untouched until
          the creator accepts a rail (acceptRail / acceptAllProposal). */
       setProposal(data.proposal);
       setAcceptedRails(new Set());
     } catch (e) {
-      setProposalError(e instanceof Error ? e.message : "The AI Director could not propose a look.");
+      setProposalError(plainErrorText(e, "The AI Director could not propose a look."));
     } finally {
       setProposing(false);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -378,7 +379,7 @@ function BookEditor({
       const res = await fetch(`/api/books/${book.id}/export/${format}`, { credentials: "include" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Export failed");
+        throw new Error(apiErrorMessage(data, "Export failed"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -408,7 +409,7 @@ function BookEditor({
       });
       if (!res) return; // user cancelled the confirmation
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Cover generation failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Cover generation failed"));
       onBookUpdate({ ...book, coverUrl: data.cover_url });
       toast({ title: "Cover generated" });
     } catch (err) {
@@ -639,7 +640,7 @@ function PrintBookModal({ book, onClose }: { book: Book; onClose: () => void }) 
       });
       if (!res) { setQuoting(false); return; } // user cancelled
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Quote failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Quote failed"));
       setQuote(data);
       if (data.shippingOptions?.length > 0 && !data.shippingOptions.some((s: any) => s.id === shippingLevel)) {
         setShippingLevel(data.shippingOptions[0].id);
@@ -677,7 +678,7 @@ function PrintBookModal({ book, onClose }: { book: Book; onClose: () => void }) 
       });
       if (!res) { setOrdering(false); return; } // user cancelled
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Order failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Order failed"));
       setOrderResult(data);
       setStep("done");
       toast({ title: "Print order placed!" });

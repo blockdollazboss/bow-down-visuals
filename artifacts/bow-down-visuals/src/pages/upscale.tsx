@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -90,7 +91,7 @@ function VideoUpscaleTool() {
         const data: UpscaleJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("upscale.jobNotFound"));
+          setError(apiErrorMessage(data, t("upscale.jobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -102,7 +103,7 @@ function VideoUpscaleTool() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("upscale.videoUpscaleFailedRefunded"));
+          setError(apiErrorMessage(data, t("upscale.videoUpscaleFailedRefunded")));
         } else {
           setStatus(data.status as VideoJobStatus);
         }
@@ -151,7 +152,7 @@ function VideoUpscaleTool() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("upscale.startFailed"));
+        setError(apiErrorMessage(data, t("upscale.startFailed")));
         return;
       }
       setJobId(data.jobId);
@@ -565,7 +566,7 @@ function ImageUpscaleTool() {
         setStatus("failed");
         setError(
           (data.message || data.error)
-            ? t("upscale.upscaleFailedServer", { msg: data.message || data.error, cost: IMAGE_CREDIT_COST })
+            ? t("upscale.upscaleFailedServer", { msg: apiErrorMessage(data, "server error"), cost: IMAGE_CREDIT_COST })
             : t("upscale.upscaleFailedRefunded", { cost: IMAGE_CREDIT_COST }),
         );
         return;
@@ -855,7 +856,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
         const data: EnhanceJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("watermarkRemoval.jobNotFound"));
+          setError(apiErrorMessage(data, t("watermarkRemoval.jobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -867,7 +868,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("watermarkRemoval.removalFailedRefunded", { bucs: ENHANCE_CREDIT_COST }));
+          setError(apiErrorMessage(data, t("watermarkRemoval.removalFailedRefunded", { bucs: ENHANCE_CREDIT_COST })));
         } else {
           setStatus(data.status as EnhanceJobStatus);
         }
@@ -933,7 +934,7 @@ function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: boolean 
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("watermarkRemoval.startFailedError"));
+        setError(apiErrorMessage(data, t("watermarkRemoval.startFailedError")));
         return;
       }
       setJobId(data.jobId);

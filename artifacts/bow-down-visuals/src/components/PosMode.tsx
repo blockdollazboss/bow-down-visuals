@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   QrCode, Link2, Copy, Check, Loader2, Minus, Plus, Banknote,
@@ -144,7 +145,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
         gross_cents?: number; platform_fee_cents?: number; seller_net_cents?: number;
         paid?: boolean; error?: string;
       };
-      if (!res.ok) throw new Error(data.error || t("myShop.pos.chargeFailed", { defaultValue: "Could not start the payment. Nothing was charged." }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.pos.chargeFailed", { defaultValue: "Could not start the payment. Nothing was charged." })));
       if (data.paid) {
         /* Free cart: the server recorded it as paid with no payment. */
         setPhase("paid");
@@ -163,7 +164,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
       setPhase("awaiting");
       startPolling(data.sessionId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.pos.chargeFailed", { defaultValue: "Could not start the payment. Nothing was charged." }));
+      setError(plainErrorText(err, t("myShop.pos.chargeFailed", { defaultValue: "Could not start the payment. Nothing was charged." })));
     } finally {
       setBusy(null);
     }
@@ -181,11 +182,11 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { gross_cents?: number; error?: string };
-      if (!res.ok) throw new Error(data.error || t("myShop.pos.cashFailed", { defaultValue: "Could not record the cash sale." }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.pos.cashFailed", { defaultValue: "Could not record the cash sale." })));
       setCashTotal(data.gross_cents ?? totalCents);
       setPhase("cashDone");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.pos.cashFailed", { defaultValue: "Could not record the cash sale." }));
+      setError(plainErrorText(err, t("myShop.pos.cashFailed", { defaultValue: "Could not record the cash sale." })));
     } finally {
       setBusy(null);
     }

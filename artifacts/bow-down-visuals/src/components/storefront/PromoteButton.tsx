@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -108,7 +109,7 @@ export default function PromoteButton({ product }: { product: StoreProductDTO })
       setEmailMsg(`Draft saved to "${listName}" — queue it from your email list when ready.`);
     } catch (e) {
       setEmailState("error");
-      setEmailMsg(e instanceof Error ? e.message : "Couldn't draft that email.");
+      setEmailMsg(plainErrorText(e, "Couldn't draft that email."));
     }
   };
 

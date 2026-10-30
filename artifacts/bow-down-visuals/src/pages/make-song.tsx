@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -312,7 +313,7 @@ export function MakeSongModule() {
         mood: params.mood,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("makeSong.generationFailed");
+      const msg = plainErrorText(err, t("makeSong.generationFailed"));
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {

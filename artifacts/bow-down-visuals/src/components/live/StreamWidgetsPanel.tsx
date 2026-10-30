@@ -1,3 +1,5 @@
+import { apiErrorMessage } from "../../lib/api-error";
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Loader2, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,7 +72,7 @@ export default function StreamWidgetsPanel({ streamId }: { streamId: string | nu
         body: JSON.stringify({ goalVb: parsed }),
       });
       const json = await res.json().catch(() => null);
-      if (res.status !== 200) throw new Error((json?.error as string) ?? "goal failed");
+      if (res.status !== 200) throw new Error(apiErrorMessage(json, "goal failed"));
       setNote(parsed ? `Goal set — the goal bar tracks tips toward ${formatBucs(parsed)}.` : "Goal cleared.");
       // Refresh so the bar + numbers reflect the saved goal at once.
       const w = await fetch(`/api/live/${streamId}/widgets`);
@@ -80,7 +82,7 @@ export default function StreamWidgetsPanel({ streamId }: { streamId: string | nu
         setWidgetData(dto);
       }
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "That goal couldn't be saved. Try again.");
+      setNote(plainErrorText(err, "That goal couldn't be saved. Try again."));
     }
     setSavingGoal(false);
   }

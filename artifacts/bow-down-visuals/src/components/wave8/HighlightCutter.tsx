@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Scissors, Loader2, AlertTriangle, ArrowRight, CalendarClock } from "lucide-react";
@@ -90,7 +91,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
         return;
       }
       if (!res.ok || !Array.isArray(data.moments) || data.moments.length === 0) {
-        throw new Error(data.message || data.error || t("wave8.highlights.errorGeneric"));
+        throw new Error(apiErrorMessage(data, t("wave8.highlights.errorGeneric")));
       }
       setResult(data);
       refreshProfile();
@@ -98,7 +99,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
         document.getElementById("highlight-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave8.highlights.errorGeneric"));
+      setError(plainErrorText(err, t("wave8.highlights.errorGeneric")));
     } finally {
       setLoading(false);
     }

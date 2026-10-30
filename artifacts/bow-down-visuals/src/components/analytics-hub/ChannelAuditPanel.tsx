@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -158,7 +159,7 @@ export default function ChannelAuditPanel() {
         return;
       }
       if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || t("audit.errorAuditFailed"));
+        throw new Error(apiErrorMessage(data, t("audit.errorAuditFailed")));
       }
       setResult(data);
       refreshProfile();
@@ -166,7 +167,7 @@ export default function ChannelAuditPanel() {
         document.getElementById("audit-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("audit.errorAuditFailed"));
+      setError(plainErrorText(err, t("audit.errorAuditFailed")));
     } finally {
       setLoading(false);
     }

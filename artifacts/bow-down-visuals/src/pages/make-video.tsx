@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -384,7 +385,7 @@ export function MakeVideoModule() {
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
     } catch (err) {
-      setAudioSceneError(err instanceof Error ? err.message : t("makeVideo.audioSceneFailed"));
+      setAudioSceneError(plainErrorText(err, t("makeVideo.audioSceneFailed")));
     } finally {
       setGeneratingScenesFromAudio(false);
     }
@@ -453,7 +454,7 @@ export function MakeVideoModule() {
       void performSave({ result, sceneData: parsedScenes, ghid: gid ?? null });
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("makeVideo.generationFailed");
+      const msg = plainErrorText(err, t("makeVideo.generationFailed"));
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -643,7 +644,7 @@ export function MakeVideoModule() {
       setDraftState("recovered");
       setTimeout(() => setDraftState("idle"), 2500);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("makeVideo.draftNotFoundBackup");
+      const msg = plainErrorText(err, t("makeVideo.draftNotFoundBackup"));
       setDraftError(msg);
       setDraftState("failed");
     }
@@ -720,7 +721,7 @@ export function MakeVideoModule() {
       }
       toast({ title: t("makeVideo.toastProjectSavedTitle"), description: t("makeVideo.toastProjectSavedDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("makeVideo.saveFailedRetry");
+      const msg = plainErrorText(err, t("makeVideo.saveFailedRetry"));
       setSaveError(msg);
       setAutoSaveStatus("failed");
       toast({ title: "Save failed", description: msg, variant: "destructive" });

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
@@ -136,11 +137,11 @@ export default function SponsorDealDetail() {
     try {
       const res = await fetch(`/api/sponsors/deals/${dealId}`, { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as { deal?: FullDeal; error?: string };
-      if (!res.ok) throw new Error(data.error || t("sponsorDealDetail.errorLoadDeal"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("sponsorDealDetail.errorLoadDeal")));
       setDeal(data.deal ?? null);
       if (data.deal && data.deal.postedBy === user.id) loadApplications(data.deal.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sponsorDealDetail.errorLoadDeal"));
+      setError(plainErrorText(err, t("sponsorDealDetail.errorLoadDeal")));
     } finally {
       setLoading(false);
     }
@@ -172,11 +173,11 @@ export default function SponsorDealDetail() {
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string };
-      if (!res.ok) throw new Error(data.error || t("sponsorDealDetail.errorActionFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("sponsorDealDetail.errorActionFailed")));
       await load();
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sponsorDealDetail.errorActionFailed"));
+      setError(plainErrorText(err, t("sponsorDealDetail.errorActionFailed")));
       return null;
     } finally {
       setBusy(null);
@@ -214,11 +215,11 @@ export default function SponsorDealDetail() {
       if (!res) return; /* user cancelled the credit confirmation */
       const data = (await res.json().catch(() => ({}))) as { pitch?: string; error?: string };
       if (res.status === 402) { setOutOfCredits(true); refreshProfile(); return; }
-      if (!res.ok || !data.pitch) throw new Error(data.error || t("sponsorDealDetail.errorPitchWriter"));
+      if (!res.ok || !data.pitch) throw new Error(apiErrorMessage(data, t("sponsorDealDetail.errorPitchWriter")));
       setPitch(data.pitch);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sponsorDealDetail.errorPitchWriter"));
+      setError(plainErrorText(err, t("sponsorDealDetail.errorPitchWriter")));
     } finally {
       setPitchLoading(false);
     }

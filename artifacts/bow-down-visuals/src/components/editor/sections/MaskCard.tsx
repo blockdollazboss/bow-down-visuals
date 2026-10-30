@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Scan, Share2, Download, Sparkles } from "lucide-react";
@@ -232,7 +233,7 @@ export function MaskCard({
         toast({ title: t("videoEditor.mask.outOfBucs"), variant: "destructive" });
         return;
       }
-      if (res.status !== 202 || !body.jobId) throw new Error(body.error ?? t("videoEditor.mask.applyFailed"));
+      if (res.status !== 202 || !body.jobId) throw new Error(apiErrorMessage(body, t("videoEditor.mask.applyFailed")));
       const jobId = body.jobId as string;
       pollTimer.current = window.setInterval(async () => {
         try {
@@ -247,7 +248,7 @@ export function MaskCard({
           } else if (jb.status === "failed") {
             if (pollTimer.current) window.clearInterval(pollTimer.current);
             setBusy(false);
-            throw new Error(jb.error ?? t("videoEditor.mask.applyFailed"));
+            throw new Error(apiErrorMessage(jb, t("videoEditor.mask.applyFailed")));
           }
         } catch (err) {
           if (pollTimer.current) window.clearInterval(pollTimer.current);

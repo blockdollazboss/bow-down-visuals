@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
@@ -274,7 +275,7 @@ function TitlesTab() {
  const data = (await res.json().catch(() => ({}))) as TitleStudioResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.titles) || data.titles.length === 0 || !data.description) {
- throw new Error(data.message || data.error || t("titles.generationFailed"));
+ throw new Error(apiErrorMessage(data, t("titles.generationFailed")));
  }
  setResult(data);
  /* The title pack flows into the hub project — scheduler and hooks pick it up. */
@@ -300,7 +301,7 @@ function TitlesTab() {
  document.getElementById("titles-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("titles.generationFailed"));
+ setError(plainErrorText(err, t("titles.generationFailed")));
  } finally {
  setLoading(false);
  }
@@ -803,7 +804,7 @@ function RandomizerDice() {
  return;
  }
  if (!res.ok || !Array.isArray(data.ideas) || data.ideas.length === 0) {
- throw new Error(data.message || data.error || t("randomizer.error.aiRollFailed"));
+ throw new Error(apiErrorMessage(data, t("randomizer.error.aiRollFailed")));
  }
  setAiIdeas(data.ideas);
  refreshProfile();
@@ -811,7 +812,7 @@ function RandomizerDice() {
  document.getElementById("ai-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("randomizer.error.aiRollFailed"));
+ setError(plainErrorText(err, t("randomizer.error.aiRollFailed")));
  } finally {
  setAiLoading(false);
  }
@@ -1117,7 +1118,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as HooksResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
- throw new Error(data.message || data.error || t("hooks.errHooksFailed"));
+ throw new Error(apiErrorMessage(data, t("hooks.errHooksFailed")));
  }
  setHooks(data.hooks);
  refreshProfile();
@@ -1125,7 +1126,7 @@ export default function HookStudio() {
  document.getElementById("hooks-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("hooks.errHooksFailed"));
+ setError(plainErrorText(err, t("hooks.errHooksFailed")));
  } finally {
  setHooksLoading(false);
  }
@@ -1151,7 +1152,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as CaptionsResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.captions) || data.captions.length === 0) {
- throw new Error(data.message || data.error || t("hooks.errCaptionsFailed"));
+ throw new Error(apiErrorMessage(data, t("hooks.errCaptionsFailed")));
  }
  setCapResult(data);
  refreshProfile();
@@ -1159,7 +1160,7 @@ export default function HookStudio() {
  document.getElementById("captions-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("hooks.errCaptionsFailed"));
+ setError(plainErrorText(err, t("hooks.errCaptionsFailed")));
  } finally {
  setCapLoading(false);
  }
@@ -1186,7 +1187,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as PreflightResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.checks) || data.checks.length === 0) {
- throw new Error(data.message || data.error || t("hooks.errScoringFailed"));
+ throw new Error(apiErrorMessage(data, t("hooks.errScoringFailed")));
  }
  setScorecard(data);
  refreshProfile();
@@ -1194,7 +1195,7 @@ export default function HookStudio() {
  document.getElementById("preflight-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("hooks.errScoringFailed"));
+ setError(plainErrorText(err, t("hooks.errScoringFailed")));
  } finally {
  setPreflightLoading(false);
  }
@@ -1221,7 +1222,7 @@ export default function HookStudio() {
  const data = (await res.json().catch(() => ({}))) as CtaResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || !Array.isArray(data.ctas) || data.ctas.length === 0) {
- throw new Error(data.message || data.error || t("hooks.errCtasFailed"));
+ throw new Error(apiErrorMessage(data, t("hooks.errCtasFailed")));
  }
  setCtas(data.ctas);
  refreshProfile();
@@ -1229,7 +1230,7 @@ export default function HookStudio() {
  document.getElementById("cta-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("hooks.errCtasFailed"));
+ setError(plainErrorText(err, t("hooks.errCtasFailed")));
  } finally {
  setCtaLoading(false);
  }

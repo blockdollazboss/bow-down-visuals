@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { CheckCircle2, Loader2, Lock, Share2 } from "lucide-react";
@@ -26,9 +27,9 @@ export default function UnlockGatePage() {
       try {
         const res = await fetch(`/api/promote/unlock-gates/${encodeURIComponent(slug)}`);
         const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.gate) throw new Error(json.error || "This unlock link doesn't exist.");
+        if (!res.ok || !json.gate) throw new Error(apiErrorMessage(json, "This unlock link doesn't exist."));
         setGate(json.gate);
-      } catch (e) { setError(e instanceof Error ? e.message : "Couldn't load this gate."); }
+      } catch (e) { setError(plainErrorText(e, "Couldn't load this gate.")); }
     })();
   }, [slug]);
 
@@ -45,7 +46,7 @@ export default function UnlockGatePage() {
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.unlocked) { setState("unlocked"); setContentUrl(json.contentUrl); return; }
       setState("locked");
-      setMsg(json.message || "Not unlocked yet — complete the step first, then try again.");
+      setMsg(apiErrorMessage(json, "Not unlocked yet — complete the step first, then try again."));
     } catch { setState("locked"); setMsg("Couldn't check the unlock — try again."); }
   }
 

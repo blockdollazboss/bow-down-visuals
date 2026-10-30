@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Mic2, Loader2, PenLine, ShieldCheck, PackageCheck, AlertTriangle, RotateCcw, BadgeDollarSign } from "lucide-react";
@@ -159,11 +160,11 @@ export function FeatureVersePanel({
           creatorName: (user as { user_metadata?: { full_name?: string } } | null)?.user_metadata?.full_name,
         },
       });
-      if (!res.ok) throw new Error(String((data as { error?: string }).error ?? "Could not save your listing."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save your listing."));
       setMsg("Your feature listing is saved at your price.");
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Could not save your listing.");
+      setMsg(plainErrorText(e, "Could not save your listing."));
     } finally { setBusy(null); }
   }
 
@@ -184,13 +185,13 @@ export function FeatureVersePanel({
           idempotencyKey: orderKey,
         },
       });
-      if (!res.ok) throw new Error(String((data as { error?: string }).error ?? "Could not place that order."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not place that order."));
       setMsg("Terms proposed. Nothing is charged and no recording starts until BOTH of you sign — then you fund the escrow hold.");
       setSelected(null);
       setOrderKey(newFeatureOrderKey());
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Could not place that order.");
+      setMsg(plainErrorText(e, "Could not place that order."));
     } finally { setBusy(null); }
   }
 
@@ -204,10 +205,10 @@ export function FeatureVersePanel({
       if (action === "deliver" && !body?.deliveryNote) { setMsg("Add a delivery note (or say where the delivered feature is) first."); return; }
       if (action === "dispute" && !body?.reason) { setMsg("Say what went wrong with the delivery first."); return; }
       const { res, data } = await authed(featureVerseActionPath(order.id, action), { method: "POST", body });
-      if (!res.ok) throw new Error(String((data as { error?: string }).error ?? "That action didn't go through."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That action didn't go through."));
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "That action didn't go through.");
+      setMsg(plainErrorText(e, "That action didn't go through."));
     } finally { setBusy(null); }
   }
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { Sparkles, Loader2, Check, SlidersHorizontal, ListMusic, Info, Wand2, Download, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
         toast({ title: "Mix Rendered", description: "Your AI mix is ready to preview and download." });
       }
     } catch (e) {
-      setRenderError(e instanceof Error ? e.message : "Render failed. Please try again.");
+      setRenderError(plainErrorText(e, "Render failed. Please try again."));
     } finally {
       setRendering(false);
     }
@@ -153,7 +154,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
       if (!res) return; /* user cancelled the credit confirmation */
       if (!res.ok) {
         const err = (await res.json().catch(() => ({ error: "Mix plan failed" }))) as { error?: string };
-        throw new Error(err.error ?? "Mix plan failed");
+        throw new Error(apiThrowMessage(err, "Mix plan failed"));
       }
       const generatedPlan = (await res.json()) as AiMixPlan;
       onChange({ ...settings, musicStudio: { ...ms, aiMix: opts, aiMixPlan: generatedPlan } });
@@ -164,7 +165,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           : `Mix & master plan built for ${presetName}.`,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not generate plan.";
+      const msg = plainErrorText(err, "Could not generate plan.");
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();

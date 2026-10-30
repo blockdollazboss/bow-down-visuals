@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -174,7 +175,7 @@ export default function BrandDealCalculator() {
         return;
       }
       if (!res.ok || !data.result) {
-        setError(data.error || data.message || t("brandCalculator.errorCalcFailed"));
+        setError(apiErrorMessage(data, t("brandCalculator.errorCalcFailed")));
         return;
       }
       setResult(data.result);

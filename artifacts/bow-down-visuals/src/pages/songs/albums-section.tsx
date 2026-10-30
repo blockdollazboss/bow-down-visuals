@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -86,10 +87,10 @@ export default function AlbumsSection({
     try {
       const res = await fetch("/api/albums", { headers: await authHeaders() });
       const data = (await res.json()) as { albums?: Album[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not load albums.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not load albums."));
       setAlbums(data.albums ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load albums.");
+      setError(plainErrorText(e, "Could not load albums."));
     } finally {
       setLoading(false);
     }
@@ -127,10 +128,10 @@ export default function AlbumsSection({
     try {
       const res = await fetch(`/api/albums/${id}`, { headers: await authHeaders() });
       const data = (await res.json()) as { album?: Album; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not load album.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not load album."));
       return data.album ?? null;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load album.");
+      setError(plainErrorText(e, "Could not load album."));
       return null;
     }
   }
@@ -165,12 +166,12 @@ export default function AlbumsSection({
         });
       }
       const data = (await res.json()) as { album?: Album; error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not save album.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save album."));
       setCreating(false);
       setEditing(null);
       await loadAlbums();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save album.");
+      setError(plainErrorText(e, "Could not save album."));
     } finally {
       setSaving(false);
     }
@@ -188,10 +189,10 @@ export default function AlbumsSection({
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Could not publish album.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not publish album."));
       await loadAlbums();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not publish album.");
+      setError(plainErrorText(e, "Could not publish album."));
     } finally {
       setPublishingId(null);
     }
@@ -208,11 +209,11 @@ export default function AlbumsSection({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || "Could not delete album.");
+        throw new Error(apiErrorMessage(data, "Could not delete album."));
       }
       await loadAlbums();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete album.");
+      setError(plainErrorText(e, "Could not delete album."));
     } finally {
       setDeletingId(null);
     }
@@ -245,10 +246,10 @@ export default function AlbumsSection({
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok || !data.url) throw new Error(data.error || "Cover art generation failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Cover art generation failed."));
       setCoverArtUrl(data.url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cover art generation failed.");
+      setError(plainErrorText(e, "Cover art generation failed."));
     } finally {
       setGeneratingCover(false);
     }

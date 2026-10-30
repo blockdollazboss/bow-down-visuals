@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import {
   Users, Search, Plus, ArrowLeft, Lock, Globe, Pin, Trash2, MessageSquare,
@@ -55,7 +56,7 @@ async function apiJson<T>(
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
     error?: string; message?: string;
   };
-  if (!res.ok) throw new Error(data.message || data.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
   return data as T;
 }
 
@@ -134,7 +135,7 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       setTick((t) => t + 1);
       if (d.group?.slug) setOpenSlug(d.group.slug);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't start the group — try again.");
+      setNotice(plainErrorText(e, "Couldn't start the group — try again."));
     } finally {
       setCreating(false);
     }
@@ -271,7 +272,7 @@ function GroupRoom({
       if (!parsed) throw new Error("Couldn't load the group — try again.");
       setDetail(parsed);
     } catch (e) {
-      setFailed(e instanceof Error ? e.message : "Couldn't load the group — try again.");
+      setFailed(plainErrorText(e, "Couldn't load the group — try again."));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, reloadKey]);
@@ -294,7 +295,7 @@ function GroupRoom({
       }
       setReloadKey((k) => k + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "That didn't go through — try again.");
+      onNotice(plainErrorText(e, "That didn't go through — try again."));
     } finally {
       setBusy(false);
     }
@@ -418,7 +419,7 @@ function GroupFeed({
       setDraft("");
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't post — try again.");
+      onNotice(plainErrorText(e, "Couldn't post — try again."));
     } finally {
       setBusy(false);
     }
@@ -429,7 +430,7 @@ function GroupFeed({
       await apiJson(authHeaders, groupPostPath(slug, id), { method: "DELETE" });
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't delete that post.");
+      onNotice(plainErrorText(e, "Couldn't delete that post."));
     }
   };
 
@@ -546,7 +547,7 @@ function GroupForum({
       setChName(""); setChDesc(""); setChGate("");
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't open the channel.");
+      onNotice(plainErrorText(e, "Couldn't open the channel."));
     } finally {
       setChBusy(false);
     }
@@ -558,7 +559,7 @@ function GroupForum({
       if (channelId === id) { setChannelId(null); setThreadId(null); }
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't close the channel.");
+      onNotice(plainErrorText(e, "Couldn't close the channel."));
     }
   };
 
@@ -743,7 +744,7 @@ function ForumChannelView({
       if (d.thread?.id) onOpenThread(d.thread.id);
       else setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't start the thread.");
+      onNotice(plainErrorText(e, "Couldn't start the thread."));
     } finally {
       setBusy(false);
     }
@@ -845,7 +846,7 @@ function ForumThreadView({
       setDraft("");
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't post your reply.");
+      onNotice(plainErrorText(e, "Couldn't post your reply."));
     } finally {
       setBusy(false);
     }
@@ -856,7 +857,7 @@ function ForumThreadView({
       await apiJson(authHeaders, forumThreadPath(slug, threadId), { method: "PATCH", body: patch });
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "That moderation didn't go through.");
+      onNotice(plainErrorText(e, "That moderation didn't go through."));
     }
   };
 
@@ -866,7 +867,7 @@ function ForumThreadView({
       onNotice("Thread removed.");
       onBack();
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't delete the thread.");
+      onNotice(plainErrorText(e, "Couldn't delete the thread."));
     }
   };
 
@@ -875,7 +876,7 @@ function ForumThreadView({
       await apiJson(authHeaders, forumReplyPath(slug, threadId, replyId), { method: "DELETE" });
       setTick((t) => t + 1);
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't delete that reply.");
+      onNotice(plainErrorText(e, "Couldn't delete that reply."));
     }
   };
 

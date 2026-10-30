@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useRoute } from "wouter";
@@ -161,7 +162,7 @@ export default function LiveGuest() {
         setPhase("ready");
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : t("liveGuests.inviteOpenFailed"));
+        setError(plainErrorText(e, t("liveGuests.inviteOpenFailed")));
         setPhase("ended");
       }
     })();
@@ -218,7 +219,7 @@ export default function LiveGuest() {
       );
       await startBackstage(data.session_token, data.session, true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveGuests.joinFailed"));
+      setError(plainErrorText(e, t("liveGuests.joinFailed")));
       setPhase("ready");
     }
   }

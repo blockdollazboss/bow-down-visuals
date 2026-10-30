@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, Sparkles, Send, CheckCircle2, ExternalLink, Gauge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -131,12 +132,12 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
         return;
       }
       if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
-        throw new Error(data.message || "Caption generation failed.");
+        throw new Error(apiErrorMessage(data, "Caption generation failed."));
       }
       setCaption(`${data.hooks[0]}\n\nMade with @bowdownvisuals 🔥\n#musicvideo #contentcreator #aivideo`);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Caption generation failed.");
+      setError(plainErrorText(err, "Caption generation failed."));
     } finally {
       setAiLoading(false);
     }
@@ -178,7 +179,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
         return;
       }
       if (!res.ok) {
-        throw new Error(data.message || "Couldn't publish to Instagram.");
+        throw new Error(apiErrorMessage(data, "Couldn't publish to Instagram."));
       }
       setPermalink(data.permalink || null);
       /* Confirmed success: this intent is done, so a later composer session
@@ -191,7 +192,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
       refreshProfile();
       toast({ title: "Posted to Instagram", description: "Your reel is live." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't publish to Instagram.");
+      setError(plainErrorText(err, "Couldn't publish to Instagram."));
     } finally {
       setPublishing(false);
     }

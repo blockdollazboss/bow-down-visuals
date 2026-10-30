@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, Loader2, Scissors, X, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -108,14 +109,10 @@ export function BeatSyncSection({
         return;
       }
       if (res.status === 503) {
-        throw new Error(
-          typeof data.message === "string" ? data.message : t(`${ns}.errorUnavailable`)
-        );
+        throw new Error(apiErrorMessage(data, t(`${ns}.errorUnavailable`)));
       }
       if (!res.ok || !Array.isArray(data.beats)) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : t(`${ns}.errorGeneric`)
-        );
+        throw new Error(apiErrorMessage(data, t(`${ns}.errorGeneric`)));
       }
       const list: BeatMarker[] = (data.beats as number[])
         .filter((t) => typeof t === "number" && isFinite(t) && t >= 0)
@@ -133,7 +130,7 @@ export function BeatSyncSection({
         }),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+      setError(plainErrorText(err, t(`${ns}.errorGeneric`)));
     }
   }
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { Link } from "wouter";
@@ -270,14 +271,14 @@ export function MultiRatioExportCard({
       }
       const data = (await res.json()) as MultiRatioJobStatus & { error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? t("videoEditor.multiRatio.startFailed"));
+        throw new Error(apiErrorMessage(data, t("videoEditor.multiRatio.startFailed")));
       }
       setJob(data);
     } catch (err) {
       setRendering(false);
       toast({
         title: t("videoEditor.multiRatio.startFailedTitle"),
-        description: err instanceof Error ? err.message : t("videoEditor.multiRatio.startFailed"),
+        description: plainErrorText(err, t("videoEditor.multiRatio.startFailed")),
       });
     }
   }
@@ -687,7 +688,7 @@ export function ExtractAudioCard({ videoUrl }: { videoUrl: string | null }) {
         error?: string;
       };
       if (!res.ok || !data.url) {
-        throw new Error(data.error ?? t("videoEditor.extractAudio.failed"));
+        throw new Error(apiErrorMessage(data, t("videoEditor.extractAudio.failed")));
       }
       setResult({
         url: data.url,
@@ -699,7 +700,7 @@ export function ExtractAudioCard({ videoUrl }: { videoUrl: string | null }) {
     } catch (err) {
       toast({
         title: t("videoEditor.extractAudio.failedTitle"),
-        description: err instanceof Error ? err.message : t("videoEditor.extractAudio.failed"),
+        description: plainErrorText(err, t("videoEditor.extractAudio.failed")),
       });
     } finally {
       setExtracting(false);

@@ -1,3 +1,5 @@
+import { apiErrorMessage } from "../../lib/api-error";
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Crown, Loader2, Mic2, RefreshCw, Send, Trophy, Undo2, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -137,7 +139,7 @@ export default function OpenVerseDesk() {
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      throw new Error((data.message as string) || (data.error as string) || "That didn't go through — try again.");
+      throw new Error(apiErrorMessage(data, "That didn't go through — try again."));
     }
     return data;
   }
@@ -161,7 +163,7 @@ export default function OpenVerseDesk() {
       setNotice("Your open verse is live — the split terms above are the terms, in writing, before anyone records a note.");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't post the open verse.");
+      setError(plainErrorText(err, "Couldn't post the open verse."));
     } finally {
       setBusy(null);
     }
@@ -203,7 +205,7 @@ export default function OpenVerseDesk() {
       setNotice(`Verse submitted to “${post.song_title}”. The split you saw — ${post.winner_share_pct}% to the winning verse — is the split in writing.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't submit your verse.");
+      setError(plainErrorText(err, "Couldn't submit your verse."));
     } finally {
       setBusy(null);
     }
@@ -224,7 +226,7 @@ export default function OpenVerseDesk() {
       await load();
       if (detailId === post.id) void loadDetail(post.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That action didn't go through.");
+      setError(plainErrorText(err, "That action didn't go through."));
     } finally {
       setBusy(null);
     }

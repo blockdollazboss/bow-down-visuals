@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -186,12 +187,12 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
         return;
       }
       if (!res.ok || !Array.isArray(data.warmup)) {
-        throw new Error(data.message || data.error || t("podcast.guestQuestions.errors.generationFailed"));
+        throw new Error(apiErrorMessage(data, t("podcast.guestQuestions.errors.generationFailed")));
       }
       setResult(data);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("podcast.guestQuestions.errors.generationFailed"));
+      setError(plainErrorText(err, t("podcast.guestQuestions.errors.generationFailed")));
     } finally {
       setLoading(false);
     }
@@ -279,12 +280,12 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
         return;
       }
       if (!res.ok || !data.url) {
-        throw new Error(data.message || data.error || t("podcast.guestQuestions.errors.generationFailed"));
+        throw new Error(apiErrorMessage(data, t("podcast.guestQuestions.errors.generationFailed")));
       }
       setIntroResult(data);
       refreshProfile();
     } catch (err) {
-      setIntroError(err instanceof Error ? err.message : t("podcast.guestQuestions.errors.generationFailed"));
+      setIntroError(plainErrorText(err, t("podcast.guestQuestions.errors.generationFailed")));
     } finally {
       setIntroLoading(false);
     }
@@ -323,12 +324,12 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
         return;
       }
       if (!res.ok || data.notes == null) {
-        throw new Error(data.message || data.error || t("podcast.guestQuestions.errors.generationFailed"));
+        throw new Error(apiErrorMessage(data, t("podcast.guestQuestions.errors.generationFailed")));
       }
       setNotesResult(data);
       refreshProfile();
     } catch (err) {
-      setNotesError(err instanceof Error ? err.message : t("podcast.guestQuestions.errors.generationFailed"));
+      setNotesError(plainErrorText(err, t("podcast.guestQuestions.errors.generationFailed")));
     } finally {
       setNotesLoading(false);
     }
@@ -366,12 +367,12 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
         return;
       }
       if (!res.ok || !data.url) {
-        throw new Error(data.message || data.error || t("podcast.guestQuestions.errors.generationFailed"));
+        throw new Error(apiErrorMessage(data, t("podcast.guestQuestions.errors.generationFailed")));
       }
       setAgResult(data);
       refreshProfile();
     } catch (err) {
-      setAgError(err instanceof Error ? err.message : t("podcast.guestQuestions.errors.generationFailed"));
+      setAgError(plainErrorText(err, t("podcast.guestQuestions.errors.generationFailed")));
     } finally {
       setAgLoading(false);
     }

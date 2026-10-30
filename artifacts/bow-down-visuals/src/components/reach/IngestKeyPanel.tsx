@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, Copy, EyeOff, KeyRound, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -71,7 +72,7 @@ export default function IngestKeyPanel() {
       try {
         await fn();
       } catch (err) {
-        setNote(err instanceof Error ? err.message : "Something went wrong. Try again.");
+        setNote(plainErrorText(err, "Something went wrong. Try again."));
       } finally {
         setBusy(null);
       }

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -162,7 +163,7 @@ export function LogoMakerTool() {
         const data: LogoResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("logoMaker.logoNotFound"));
+          setError(apiErrorMessage(data, t("logoMaker.logoNotFound")));
           return;
         }
         if (data.status === "succeeded") {
@@ -176,7 +177,7 @@ export function LogoMakerTool() {
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           setStatus("failed");
-          setError(data.error || t("logoMaker.logoFailedNoCharge"));
+          setError(apiErrorMessage(data, t("logoMaker.logoFailedNoCharge")));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -213,7 +214,7 @@ export function LogoMakerTool() {
       }
       if (!res.ok) {
         setStatus("failed");
-        setError(data.error || t("logoMaker.couldNotGenerate"));
+        setError(apiErrorMessage(data, t("logoMaker.couldNotGenerate")));
         return;
       }
       if (data.status === "succeeded" && data.url) {

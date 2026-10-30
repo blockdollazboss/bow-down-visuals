@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useRef, useState } from "react";
@@ -285,7 +286,7 @@ export default function Shoutouts() {
       });
       const j = await res.json();
       if (!res.ok) {
-        setError(j.error || t("shoutouts.errorSubmitFailed"));
+        setError(apiErrorMessage(j, t("shoutouts.errorSubmitFailed")));
         return;
       }
       /* Priced requests go straight to checkout (0142): the fan pays
@@ -335,7 +336,7 @@ export default function Shoutouts() {
         return;
       }
       if (!res.ok) {
-        setAiError(j.error || t("shoutouts.errorPolishFailed"));
+        setAiError(apiErrorMessage(j, t("shoutouts.errorPolishFailed")));
         return;
       }
       setMessage(j.message);
@@ -410,7 +411,7 @@ export default function Shoutouts() {
       const upData = (await upRes.json().catch(() => ({}))) as {
         url?: string; ref?: string; error?: string; message?: string;
       };
-      if (!upRes.ok) throw new Error(upData.message ?? upData.error ?? `Upload failed (${upRes.status})`);
+      if (!upRes.ok) throw new Error(apiErrorMessage(upData, `Upload failed (${upRes.status})`));
       const stored = upData.ref ?? upData.url;
       if (!stored) throw new Error(t("shoutouts.errorUploadNoRef"));
       const res = await fetch(`/api/shoutouts/requests/${id}`, {
@@ -423,12 +424,12 @@ export default function Shoutouts() {
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? `Could not attach the video (${res.status})`);
+        throw new Error(apiErrorMessage(j, `Could not attach the video (${res.status})`));
       }
       setDeliveryUrls((d) => ({ ...d, [id]: "" }));
       fetchCreatorData();
     } catch (err) {
-      setUploadError((e) => ({ ...e, [id]: err instanceof Error ? err.message : t("shoutouts.errorUploadFailed") }));
+      setUploadError((e) => ({ ...e, [id]: plainErrorText(err, t("shoutouts.errorUploadFailed")) }));
     } finally {
       setUploading((u) => ({ ...u, [id]: false }));
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -258,7 +259,7 @@ export default function Dashboard() {
             refreshProfile();
             setTimeout(() => refreshProfile(), 3000);
           } else {
-            setPaymentToast({ type: "error", message: data.error ?? "We couldn't confirm your Visual Bucs yet. Your payment went through — check your balance in a moment, and contact support if they're still missing." });
+            setPaymentToast({ type: "error", message: apiErrorMessage(data, "We couldn't confirm your Visual Bucs yet. Your payment went through — check your balance in a moment, and contact support if they're still missing.") });
           }
         } catch {
           setPaymentToast({ type: "error", message: "We couldn't reach the server to confirm your Visual Bucs. Refresh to check your balance — if they're missing, contact support." });

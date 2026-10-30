@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Music lane (editor) — Personas + session persistence ───────────────────
    Phase B of the formal music lane inside the editor's Music Studio.
 
@@ -86,7 +87,7 @@ export async function createLanePersona(
     body: JSON.stringify({ name: body.name, description: "", gender: body.gender, settings: body.settings, isPublic: false }),
   });
   const data = (await res.json().catch(() => ({}))) as { persona?: LanePersona; error?: string };
-  if (!res.ok || !data.persona) throw new Error(data.error || "Could not save that persona.");
+  if (!res.ok || !data.persona) throw new Error(apiErrorMessage(data, "Could not save that persona."));
   return data.persona;
 }
 
@@ -94,7 +95,7 @@ export async function deleteLanePersona(token: string | null, id: string): Promi
   const res = await personaFetch(token, `/api/personas/${encodeURIComponent(id)}`, { method: "DELETE" });
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error || "Could not delete that persona.");
+    throw new Error(apiErrorMessage(data, "Could not delete that persona."));
   }
 }
 

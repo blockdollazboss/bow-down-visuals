@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 /* ── Arrangement Studio (Stack 6) ────────────────────────────────────────
  * The Audio desk as an instrument: songs/stems live on a timeline as
  * tracks with clips you can move and trim, per-track parametric FX chains
@@ -676,7 +677,7 @@ export default function ArrangementStudio() {
         toast({ title: "Tracks added", description: `${added.length} track${added.length > 1 ? "s" : ""} on the timeline.` });
       }
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -694,7 +695,7 @@ export default function ArrangementStudio() {
       };
       updateTrack({ ...track, clips: [...track.clips, clip] });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -711,7 +712,7 @@ export default function ArrangementStudio() {
       ];
       updateTrack({ ...track, takes });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -764,7 +765,7 @@ export default function ArrangementStudio() {
         toast({ title: "Export complete", description: `${btn.label} is ready to download.` });
       }
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : "Export failed. Please try again.");
+      setExportError(plainErrorText(err, "Export failed. Please try again."));
     } finally {
       setExporting(null);
     }

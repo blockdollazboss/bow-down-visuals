@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -120,12 +121,12 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         }),
       });
       const data = (await res.json()) as { error?: string; event?: JackpotEvent };
-      if (!res.ok) throw new Error(data.error || t("admin.jackpot.errorCreate"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("admin.jackpot.errorCreate")));
       setMessage(t("admin.jackpot.createdMessage", { name: data.event?.name }));
       setSequence([]);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("admin.jackpot.errorCreate"));
+      setError(plainErrorText(e, t("admin.jackpot.errorCreate")));
     } finally {
       setSaving(false);
     }
@@ -142,11 +143,11 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         headers: await authHeaders(),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || t("admin.jackpot.errorAction", { action }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("admin.jackpot.errorAction", { action })));
       setMessage(ev.isActive ? t("admin.jackpot.deactivated") : t("admin.jackpot.activatedMessage", { name: ev.name }));
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("admin.jackpot.errorActionFailed"));
+      setError(plainErrorText(e, t("admin.jackpot.errorActionFailed")));
     } finally {
       setBusyId(null);
     }
@@ -1686,11 +1687,11 @@ export default function AdminPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("admin.errorSaveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("admin.errorSaveFailed")));
       await loadBowRace();
       setBowMsg(t("admin.bowRaceUpdated"));
     } catch (e) {
-      setBowMsg(e instanceof Error ? e.message : t("admin.errorSaveFailed"));
+      setBowMsg(plainErrorText(e, t("admin.errorSaveFailed")));
     } finally {
       setBowSaving(false);
     }
@@ -1729,11 +1730,11 @@ export default function AdminPage() {
         body: JSON.stringify({ amount: n }),
       });
       const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
-      if (!res.ok) throw new Error(data.error || t("admin.errorGrantFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("admin.errorGrantFailed")));
       setMessage(t("admin.grantedMessage", { amount: data.granted, balance: data.credits }));
       await refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("admin.errorGrantFailed"));
+      setError(plainErrorText(e, t("admin.errorGrantFailed")));
     } finally {
       setGranting(false);
     }
@@ -1759,11 +1760,11 @@ export default function AdminPage() {
         body: JSON.stringify({ amount: n, email: friendEmail.trim() }),
       });
       const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
-      if (!res.ok) throw new Error(data.error || t("admin.errorGrantFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("admin.errorGrantFailed")));
       setFriendMessage(t("admin.friendGrantedMessage", { amount: data.granted, email: friendEmail.trim(), balance: data.credits }));
       setFriendEmail("");
     } catch (e) {
-      setFriendError(e instanceof Error ? e.message : t("admin.errorGrantFailed"));
+      setFriendError(plainErrorText(e, t("admin.errorGrantFailed")));
     } finally {
       setFriendGranting(false);
     }
@@ -1789,11 +1790,11 @@ export default function AdminPage() {
         body: JSON.stringify({ tier: tierNum, email: planEmail.trim() }),
       });
       const data = (await res.json()) as { tier?: number; rank?: string; error?: string };
-      if (!res.ok) throw new Error(data.error || t("admin.errorPlanSet"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("admin.errorPlanSet")));
       setPlanMessage(t("admin.planSetMessage", { email: planEmail.trim(), rank: data.rank, tier: data.tier }));
       setPlanEmail("");
     } catch (e) {
-      setPlanError(e instanceof Error ? e.message : t("admin.errorPlanSet"));
+      setPlanError(plainErrorText(e, t("admin.errorPlanSet")));
     } finally {
       setPlanSaving(false);
     }

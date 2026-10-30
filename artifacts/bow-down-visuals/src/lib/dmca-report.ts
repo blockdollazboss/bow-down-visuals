@@ -11,6 +11,7 @@
    reporting infringement may not have an account, so no auth header is
    ever attached here. */
 
+import { apiErrorMessage } from "./api-error";
 /** The good-faith statement the reporter affirms. Sent verbatim as
     agree_under_penalty — the server requires the value to affirm the
     statement (it must match /yes|true|agree/i). */
@@ -166,10 +167,9 @@ export async function submitDmcaReport(
     }
     return {
       status: "error",
-      error:
-        typeof data.error === "string" && data.error
-          ? data.error
-          : "The report didn't go through. Try again.",
+      /* The server's plain message when it sent one; a raw code never
+         reaches the page (error-truth, stack900 L1). */
+      error: apiErrorMessage(data, "The report didn't go through. Try again."),
     };
   } catch {
     return { status: "error", error: "The report didn't go through. Check your connection and try again." };

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Megaphone, Send, Undo2, XCircle } from "lucide-react";
 import {
@@ -109,13 +110,13 @@ export function CoPostsPanel({
         setCreateMsg("Co-posts are almost ready — the final setup step hasn't landed yet, so nothing was posted and your collaborator hasn't been notified.");
         return;
       }
-      if (!res.ok) throw new Error((data.message as string) || (data.error as string) || "Couldn't create that co-post.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't create that co-post."));
       setBody("");
       setMediaUrl("");
       setCreateMsg("Co-post created — it's waiting on your collaborator's approval. It goes live on both profiles only when they approve it.");
       load();
     } catch (err) {
-      setCreateMsg(err instanceof Error ? err.message : "Couldn't create that co-post.");
+      setCreateMsg(plainErrorText(err, "Couldn't create that co-post."));
     } finally {
       setCreating(false);
     }
@@ -138,10 +139,10 @@ export function CoPostsPanel({
         setLoadError("Co-posts are almost ready — the final setup step hasn't landed yet, so nothing changed.");
         return;
       }
-      if (!res.ok) throw new Error((data.message as string) || "Couldn't update that co-post.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't update that co-post."));
       load();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Couldn't update that co-post.");
+      setLoadError(plainErrorText(err, "Couldn't update that co-post."));
     } finally {
       setActingId(null);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -245,7 +246,7 @@ export default function GamersHub() {
         return;
       }
       if (!res.ok || !data.titles?.length || !data.videoIdeas?.length) {
-        throw new Error(data.message || data.error || "Generation failed");
+        throw new Error(apiErrorMessage(data, "Generation failed"));
       }
       setTitles(data.titles.slice(0, 5));
       setVideoIdeas(data.videoIdeas.slice(0, 5));
@@ -253,7 +254,7 @@ export default function GamersHub() {
       setIsSample(false);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The generator hiccupped — try again.");
+      setError(plainErrorText(e, "The generator hiccupped — try again."));
     } finally {
       setLoading(false);
     }
