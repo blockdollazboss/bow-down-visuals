@@ -116,7 +116,7 @@ async function loadCourt(ownerProfileId: string, publicOnly: boolean): Promise<C
 /* ── GET /api/creator-profiles/me/court — the owner's own Court (auth).
    Registered BEFORE /:slug/court: below it, "me" would be captured as a
    slug and the owner would read a stranger's (empty) Court as their own. */
-router.get("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/creator-profiles/me/court", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -135,7 +135,7 @@ router.get("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (r
    No ?q: the creators the caller follows (their people first).
    With ?q: public creators matching name or slug, most-followed first.
    The caller's own profile is always excluded — no self-crowning. */
-router.get("/creator-profiles/me/court-candidates", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/creator-profiles/me/court-candidates", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -193,7 +193,7 @@ const saveCourtSchema = z.object({
   memberProfileIds: z.array(z.string()).max(64),
 });
 
-router.put("/creator-profiles/me/court", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/creator-profiles/me/court", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {

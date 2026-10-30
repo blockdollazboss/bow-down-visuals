@@ -115,7 +115,7 @@ const createBriefSchema = z.object({
   deadline: z.string().trim().max(40).optional(),
 });
 
-router.post("/ugc-briefs", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-briefs", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createBriefSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -212,7 +212,7 @@ router.get("/ugc-briefs/:id", requireAuth, async (req, res) => {
 });
 
 /* ── POST /api/ugc-briefs/:id/claim — a creator takes the brief ────── */
-router.post("/ugc-briefs/:id/claim", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-briefs/:id/claim", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const row = await loadBrief(id);
@@ -237,7 +237,7 @@ router.post("/ugc-briefs/:id/claim", publicApiLimiter, requireAuth, async (req, 
 });
 
 /* ── POST /api/ugc-briefs/:id/release — the claimer hands it back ──── */
-router.post("/ugc-briefs/:id/release", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-briefs/:id/release", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const row = await loadBrief(id);
@@ -266,7 +266,7 @@ const deliverSchema = z.object({
   adId: z.string().uuid(),
 });
 
-router.post("/ugc-briefs/:id/deliver", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-briefs/:id/deliver", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = deliverSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -318,7 +318,7 @@ router.post("/ugc-briefs/:id/deliver", publicApiLimiter, requireAuth, async (req
 });
 
 /* ── POST /api/ugc-briefs/:id/approve — the brand accepts delivery ─── */
-router.post("/ugc-briefs/:id/approve", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-briefs/:id/approve", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const row = await loadBrief(id);
@@ -343,7 +343,7 @@ router.post("/ugc-briefs/:id/approve", publicApiLimiter, requireAuth, async (req
 });
 
 /* ── POST /api/ugc-briefs/:id/close — the brand closes the brief ──── */
-router.post("/ugc-briefs/:id/close", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-briefs/:id/close", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const row = await loadBrief(id);

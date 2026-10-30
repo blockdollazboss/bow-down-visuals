@@ -88,7 +88,7 @@ const STACK_SYSTEM_ADDENDUM =
   "reads as a single choreographed camera journey.";
 
 /* ─── GET /wave9d/camera/presets — free ─── */
-router.get("/wave9d/camera/presets", publicApiLimiter, requireAuth, (_req, res) => {
+router.get("/wave9d/camera/presets", requireAuth, publicApiLimiter, (_req, res) => {
   res.json({
     presets: CAMERA_PRESETS.map((p) => ({
       id: p.id,
@@ -107,7 +107,7 @@ router.get("/wave9d/camera/presets", publicApiLimiter, requireAuth, (_req, res) 
 });
 
 /* ─── POST /wave9d/camera/prompt — 100 VB ─── */
-router.post("/wave9d/camera/prompt", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9d/camera/prompt", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = cameraPromptRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -264,7 +264,7 @@ const designResponseSchema = z.object({
   summary: z.string().trim().max(300).optional().default(""),
 });
 
-router.post("/wave9d/camera/design", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9d/camera/design", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = designRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

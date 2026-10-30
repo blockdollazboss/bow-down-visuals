@@ -70,8 +70,8 @@ const commentRepliesSchema = z.object({
    deducted BEFORE the model call and refunded if the provider call fails. */
 router.post(
   "/comment-replies",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = commentRepliesSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

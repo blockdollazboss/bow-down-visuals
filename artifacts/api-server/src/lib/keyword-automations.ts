@@ -59,6 +59,7 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db, type EmailList, type EmailSubscriber } from "@workspace/db";
+import { isAdminUserId } from "./admin";
 import { queueWelcomeSequence } from "./email-campaign-sender";
 import { logger } from "./logger";
 
@@ -493,7 +494,7 @@ export async function handleDmEmailCapture(input: DmCaptureInput): Promise<void>
         const countRow = await first<{ value: number }>(sql`
           SELECT count(*)::int AS value FROM email_subscribers
           WHERE list_id = ${list.id} AND unsubscribed_at IS NULL`);
-        if ((countRow?.value ?? 0) >= KW_LIST_FREE_SUBSCRIBER_LIMIT) {
+        if ((countRow?.value ?? 0) >= KW_LIST_FREE_SUBSCRIBER_LIMIT && !(await isAdminUserId(list.userId))) {
           await recordEvent({
             ruleId: rule.id, creatorUserId: rule.creator_user_id, fanUserId: input.senderUserId,
             surface: fireSurface, surfaceRef: fireRef, outcome: "failed",

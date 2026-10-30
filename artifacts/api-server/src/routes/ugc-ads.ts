@@ -360,7 +360,7 @@ const scriptGenSchema = z.object({
   keyPoints: z.string().trim().max(400).optional().default(""),
 });
 
-router.post("/ugc-ads/script", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-ads/script", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = scriptGenSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -494,7 +494,7 @@ const generateUgcPersonaHandler = async (req: Request, res: Response) => {
   }
 };
 
-router.post("/ugc-ads/persona", generationLimiter, requireAuth, generateUgcPersonaHandler);
+router.post("/ugc-ads/persona", requireAuth, generationLimiter, generateUgcPersonaHandler);
 
 /* Operator core (Phase 2 Lane E): the Tier 3 ugc.persona tool runs
    this exact handler in-process (lib/rail-core) — same charge-first
@@ -647,7 +647,7 @@ const createUgcAdHandler = async (req: Request, res: Response) => {
   }
 };
 
-router.post("/ugc-ads", publicApiLimiter, requireAuth, createUgcAdHandler);
+router.post("/ugc-ads", requireAuth, publicApiLimiter, createUgcAdHandler);
 
 /* Operator core (Phase 2 Lane E): creating the ad record is the free
    first half of the Tier 3 ugc.video tool — the same handler the
@@ -777,7 +777,7 @@ const pinSchema = z.object({
   productId: z.string().uuid().optional(),
 });
 
-router.post("/ugc-ads/:id/pin", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ugc-ads/:id/pin", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = pinSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -1112,7 +1112,7 @@ const generateUgcAdHandler = async (req: Request, res: Response) => {
   }
 };
 
-router.post("/ugc-ads/:id/generate", generationLimiter, requireAuth, generateUgcAdHandler);
+router.post("/ugc-ads/:id/generate", requireAuth, generationLimiter, generateUgcAdHandler);
 
 /* Operator core (Phase 2 Lane E): the Tier 3 ugc.video tool renders
    through this exact handler in-process (lib/rail-core) — same

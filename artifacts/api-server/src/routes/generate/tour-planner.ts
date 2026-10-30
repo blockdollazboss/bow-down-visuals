@@ -169,7 +169,7 @@ export function buildOptimizeSystemPrompt(): string {
 const router = Router();
 
 /* GET /api/tour/dates — list the user's tour dates (free). */
-router.get("/tour/dates", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/tour/dates", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rows = await db
       .select()
@@ -184,7 +184,7 @@ router.get("/tour/dates", publicApiLimiter, requireAuth, async (req, res) => {
 });
 
 /* POST /api/tour/dates — add a tour date (free). */
-router.post("/tour/dates", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/tour/dates", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createTourDateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -216,7 +216,7 @@ router.post("/tour/dates", publicApiLimiter, requireAuth, async (req, res) => {
 });
 
 /* PUT /api/tour/dates/:id — update a tour date (free). */
-router.put("/tour/dates/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/tour/dates/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = updateTourDateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -265,7 +265,7 @@ router.put("/tour/dates/:id", publicApiLimiter, requireAuth, async (req, res) =>
 });
 
 /* DELETE /api/tour/dates/:id — delete a tour date (free). */
-router.delete("/tour/dates/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/tour/dates/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const { id: rawId } = req.params;
   const id = String(rawId);
   try {
@@ -288,7 +288,7 @@ router.delete("/tour/dates/:id", publicApiLimiter, requireAuth, async (req, res)
    Body: { home_base, transport?, crew_size?, date_ids[] }
    Returns: { stops: OptimizedStop[], budget: BudgetBreakdown, routing_notes,
               creditsUsed, creditsRemaining } */
-router.post("/tour/optimize", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/tour/optimize", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = optimizeSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -29,12 +29,15 @@ const FOREIGN_VAULT = "66666666-6666-4666-8666-666666666666";
 const h = vi.hoisted(() => ({
   state: {
     userId: "",
+    userEmail: "",
     userCredits: 0,
     songs: [] as Array<Record<string, unknown>>,
     vaults: [] as Array<Record<string, unknown>>,
     charges: [] as Array<{ userId: string; cost: number }>,
     refunds: [] as Array<{ userId: string; amount: number }>,
     failSongInsert: false,
+    elevenCalls: 0,
+    lastMusicLengthMs: null as number | null,
   },
 }));
 
@@ -47,6 +50,7 @@ function render(cond: unknown): { sql: string; params: unknown[] } {
 vi.mock("../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
     req.userId = h.state.userId;
+    req.userEmail = h.state.userEmail;
     req.userCredits = h.state.userCredits;
     next();
   },
@@ -228,8 +232,15 @@ beforeAll(async () => {
      the extend route additionally downloads the original audio URL. */
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: unknown) => {
+    vi.fn(async (url: unknown, init?: { body?: unknown }) => {
       if (String(url).includes("api.elevenlabs.io")) {
+        h.state.elevenCalls += 1;
+        try {
+          const parsed = JSON.parse(String(init?.body ?? "{}")) as { music_length_ms?: number };
+          h.state.lastMusicLengthMs = parsed.music_length_ms ?? null;
+        } catch {
+          h.state.lastMusicLengthMs = null;
+        }
         return {
           ok: true,
           status: 200,
@@ -270,6 +281,9 @@ afterAll(async () => {
 
 beforeEach(() => {
   h.state.userId = OWNER;
+  h.state.userEmail = "";
+  h.state.elevenCalls = 0;
+  h.state.lastMusicLengthMs = null;
   h.state.userCredits = 100_000;
   h.state.songs = [];
   h.state.charges = [];
@@ -536,6 +550,77 @@ describe("POST /api/generate-music-audio/extend — the library save", () => {
       expect(h.state.songs).toHaveLength(0);
     } finally {
       h.state.failSongInsert = false;
+    }
+  });
+});
+
+describe("POST /api/generate-music-audio — the 10-minute ceiling and the owner exemption (Oct 29, 2026)", () => {
+  const ADMIN = "owner@example.test";
+
+  it("a member past 10 minutes is refused plainly BEFORE the provider or any charge", async () => {
+    const { status, json } = await req("POST", "/generate-music-audio", {
+      prompt: "warm soul groove",
+      lengthSeconds: 700,
+    });
+    expect(status).toBe(400);
+    expect(json.code).toBe("song_too_long");
+    expect(String(json.error)).toContain("up to 10 minutes");
+    expect(h.state.elevenCalls).toBe(0);
+    expect(h.state.charges).toEqual([]);
+    expect(h.state.songs).toHaveLength(0);
+  });
+
+  it("the owner's account generates past 10 minutes: unclamped length to the provider, top-tier price", async () => {
+    process.env["ADMIN_EMAILS"] = ADMIN;
+    h.state.userEmail = ADMIN;
+    try {
+      const { status, json } = await req("POST", "/generate-music-audio", {
+        prompt: "warm soul groove",
+        songTitle: "The Long One",
+        lengthSeconds: 700,
+      });
+      expect(status).toBe(200);
+      /* The provider was asked for the full 700 s — never clamped. */
+      expect(h.state.lastMusicLengthMs).toBe(700_000);
+      expect(json.durationMs).toBe(700_000);
+      /* Priced at the top tier (2,400) — the exemption moves limits,
+         not prices. */
+      expect(h.state.charges).toEqual([{ userId: OWNER, cost: 2400 }]);
+      const [row] = h.state.songs;
+      expect(String(row!["duration_sec"])).toBe("700");
+    } finally {
+      delete process.env["ADMIN_EMAILS"];
+      h.state.userEmail = "";
+    }
+  });
+
+  it("ADMIN_EMAILS unset: the same address is refused like any member (fail-closed)", async () => {
+    delete process.env["ADMIN_EMAILS"];
+    h.state.userEmail = ADMIN;
+    const { status, json } = await req("POST", "/generate-music-audio", {
+      prompt: "warm soul groove",
+      lengthSeconds: 700,
+    });
+    expect(status).toBe(400);
+    expect(json.code).toBe("song_too_long");
+    expect(h.state.elevenCalls).toBe(0);
+    expect(h.state.charges).toEqual([]);
+  });
+
+  it("an admin inside the ceiling is priced by the normal tiers (no price change)", async () => {
+    process.env["ADMIN_EMAILS"] = ADMIN;
+    h.state.userEmail = ADMIN;
+    try {
+      const { status } = await req("POST", "/generate-music-audio", {
+        prompt: "warm soul groove",
+        lengthSeconds: 180,
+      });
+      expect(status).toBe(200);
+      expect(h.state.lastMusicLengthMs).toBe(180_000);
+      expect(h.state.charges).toEqual([{ userId: OWNER, cost: 800 }]);
+    } finally {
+      delete process.env["ADMIN_EMAILS"];
+      h.state.userEmail = "";
     }
   });
 });

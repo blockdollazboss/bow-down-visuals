@@ -64,7 +64,7 @@ async function refundOnFailure(userId: string, amount: number, label: string) {
    → 200 { hook, script, visualPlan[], caption, hashtags[], creditsUsed, creditsRemaining }
    Paid: 200 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
-router.post("/trend-jacker/draft", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/trend-jacker/draft", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = draftSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

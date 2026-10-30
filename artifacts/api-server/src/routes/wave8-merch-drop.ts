@@ -127,7 +127,7 @@ const PRICE_BAND_GUIDANCE: Record<string, string> = {
 };
 
 /* POST /api/wave8/merch-drop/plan — 100 VB. AI writes 3 merch concepts + 5 launch posts. */
-router.post("/wave8/merch-drop/plan", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/merch-drop/plan", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = planSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -241,7 +241,7 @@ const saveSchema = z.object({
 
 /* POST /api/wave8/merch-drop/save — free. Saves the plan + queues launch
    posts into the content calendar as promo slots. */
-router.post("/wave8/merch-drop/save", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/merch-drop/save", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = saveSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

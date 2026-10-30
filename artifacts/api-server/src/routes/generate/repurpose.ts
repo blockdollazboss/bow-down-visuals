@@ -31,7 +31,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
 const router = Router();
@@ -108,7 +108,7 @@ const rerollThumbnailSchema = z.object({
   prompt: z.string().min(1).max(1000),
 });
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: VIDEO_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
@@ -573,8 +573,8 @@ export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
    pays for a pack they didn't get. */
 router.post(
   "/repurpose/analyze",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   upload.single("video"),
   async (req: Request, res: Response) => {
     const parsed = analyzeBodySchema.safeParse(req.body ?? {});
@@ -808,7 +808,7 @@ Return ONLY JSON:
  "tiktokScript": "...",
  "blogOutline": ["...", "...", "..."]}`;
 
-router.post("/repurpose", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/repurpose", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = repurposeTextSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -949,7 +949,7 @@ router.get("/repurpose/jobs/:jobId", requireAuth, (req: Request, res: Response) 
    The client sends back the transcript from the analyze response (stateless
    — no server-side transcript storage). Refunds when the model returns
    unusable output. */
-router.post("/repurpose/reroll", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/repurpose/reroll", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = rerollBodySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1020,7 +1020,7 @@ router.post("/repurpose/reroll", publicApiLimiter, requireAuth, async (req: Requ
 });
 
 /* ── POST /api/repurpose/reroll-thumbnail — 1 credit per fresh image ───── */
-router.post("/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/repurpose/reroll-thumbnail", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = rerollThumbnailSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -8,7 +8,7 @@ import {
   SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 
 const router = Router();
 
@@ -17,7 +17,7 @@ const router = Router();
  *  PR #5), so this multer cap is the guard. */
 const UPLOAD_CLIP_MAX_BYTES = 80 * 1024 * 1024;
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   // 2026-10-12 OOM fix: disk-backed — an 80MB clip never sits in RAM.
   storage: tmpUploadStorage,
   limits: { fileSize: UPLOAD_CLIP_MAX_BYTES },

@@ -120,7 +120,7 @@ const directEditRequestSchema = z.object({
 });
 
 /* ── POST /wave9c/direct/edit — 150 VB ─────────────────────────────────────── */
-router.post("/wave9c/direct/edit", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9c/direct/edit", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = directEditRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

@@ -38,6 +38,7 @@ import {
 } from "@workspace/db";
 import { getTool, type OperatorTool } from "./operator-tools";
 import { toolIsCharged } from "./operator-tool-catalog";
+import { isAdminEmail } from "./admin";
 import { logger } from "./logger";
 
 /* ── Constants (build-time, stated here on purpose) ─────────────────── */
@@ -61,18 +62,11 @@ export function operatorHandsEnabled(): boolean {
 
 /* ── Admin gate (the requireAdmin pattern, fail-closed) ─────────────── */
 
-function adminEmails(): string[] {
-  return (process.env["ADMIN_EMAILS"] ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 /** Same rule as routes/admin.ts requireAdmin: the session email must
-    be on ADMIN_EMAILS; unset allowlist → nobody is an admin. */
+    be on ADMIN_EMAILS; unset allowlist → nobody is an admin. Delegates
+    to the one shared predicate in lib/admin.ts. */
 export function isOperatorAdminEmail(email: string | undefined | null): boolean {
-  const e = (email ?? "").trim().toLowerCase();
-  return !!e && adminEmails().includes(e);
+  return isAdminEmail(email);
 }
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -348,11 +342,16 @@ export async function executeAction(input: ExecuteInput): Promise<ExecutorOutcom
       return refusedOutcome(tool, gate.reason, gate.replyText, gate.priceQuoted ?? tool.priceVb);
     }
     runArgs = gate.args;
-    const chargedToday = await countChargedActionsToday(input.userId);
-    if (chargedToday >= OPERATOR_DAILY_CHARGED_CAP) {
-      await writeAudit({ ...auditBase, result: "refused", resultReason: "daily_cap", priceQuoted: tool.priceVb });
-      return refusedOutcome(tool, "daily_cap",
-        `You've hit today's cap of ${OPERATOR_DAILY_CHARGED_CAP} actions run through me — the site itself has no such cap, so the pages will still do it, or we pick this up tomorrow.`);
+    /* Daily charged cap: a runaway-spending guard for members. The
+       owner's own account carries no customer restrictions (owner
+       directive, Oct 29 2026) — an admin caller is never capped here. */
+    if (!isOperatorAdminEmail(input.userEmail)) {
+      const chargedToday = await countChargedActionsToday(input.userId);
+      if (chargedToday >= OPERATOR_DAILY_CHARGED_CAP) {
+        await writeAudit({ ...auditBase, result: "refused", resultReason: "daily_cap", priceQuoted: tool.priceVb });
+        return refusedOutcome(tool, "daily_cap",
+          `You've hit today's cap of ${OPERATOR_DAILY_CHARGED_CAP} actions run through me — the site itself has no such cap, so the pages will still do it, or we pick this up tomorrow.`);
+      }
     }
     /* Consume exactly once, guarded on status='pending': a replay or
        a race finds no row to consume and refuses. Consumption happens

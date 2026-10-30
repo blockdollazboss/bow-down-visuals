@@ -67,7 +67,7 @@ const ENERGY_DIRECTION: Record<z.infer<typeof energySchema>, string> = {
 };
 
 /* ─── POST /wave8/adlib/generate — 150 VB ─── */
-router.post("/wave8/adlib/generate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/adlib/generate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = adlibRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

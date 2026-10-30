@@ -27,7 +27,7 @@ const querySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-router.get("/email-list/fan-graph", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/fan-graph", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = querySchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid fan graph query." });

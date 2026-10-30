@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { requireAuth } from "../../middlewares/require-auth";
+import { isAdminRequest } from "../../lib/admin";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { db, artistVaultsTable, songsTable } from "@workspace/db";
@@ -162,10 +163,21 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
 
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
+  /* Owner exemption (Oct 29, 2026): the 10-minute ceiling is a pricing
+     rule (the top tier ends there), not a provider wall — and the
+     owner's account carries no customer restrictions. An admin caller
+     is never refused for length: the request goes to the provider at
+     the length he asked for, priced at the top tier. If the provider
+     itself refuses the length, its error surfaces honestly through
+     the normal failure path (and the standard refund rail) — nothing
+     is silently clamped for him either. Members keep the item-21
+     plain-words refusal exactly as before. */
+  const adminCaller = isAdminRequest(req);
   /* Item 21 over-length honesty: a request past the 10-minute top tier
      refuses plainly BEFORE pricing/charging — never silently clamp
      the song to 600s and charge the 2,400 top tier for it. */
   if (
+    !adminCaller &&
     typeof lengthSeconds === "number" &&
     Number.isFinite(lengthSeconds) &&
     lengthSeconds * 1000 > MAX_LENGTH_MS
@@ -177,9 +189,18 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
     });
     return;
   }
-  const musicLengthMs = clampLengthMs(lengthSeconds);
+  const musicLengthMs =
+    adminCaller &&
+    typeof lengthSeconds === "number" &&
+    Number.isFinite(lengthSeconds) &&
+    lengthSeconds * 1000 > MAX_LENGTH_MS
+      ? Math.round(lengthSeconds * 1000)
+      : clampLengthMs(lengthSeconds);
   const variantCount = variants === 2 ? 2 : 1;
-  const baseCost = creditCostForLength(musicLengthMs);
+  const baseCost =
+    musicLengthMs > MAX_LENGTH_MS
+      ? SONG_PRICE_TIERS[SONG_PRICE_TIERS.length - 1]!.cost
+      : creditCostForLength(musicLengthMs);
   // Dual-variant costs 2x — two provider calls.
   const creditCost = baseCost * variantCount;
   if (!isDev && currentCredits < creditCost) {

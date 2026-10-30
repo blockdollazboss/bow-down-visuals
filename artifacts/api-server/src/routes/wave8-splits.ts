@@ -115,7 +115,7 @@ router.get("/wave8/splits", requireAuth, async (req: Request, res: Response) => 
 });
 
 /* POST /api/wave8/splits — create a sheet (free) */
-router.post("/wave8/splits", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/wave8/splits", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = createSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -141,7 +141,7 @@ router.post("/wave8/splits", publicApiLimiter, requireAuth, async (req: Request,
 });
 
 /* PATCH /api/wave8/splits/:id — rename or edit collaborators (free) */
-router.patch("/wave8/splits/:id", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.patch("/wave8/splits/:id", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) {
     res.status(400).json({ error: "Sheet id is required." });
@@ -204,7 +204,7 @@ router.delete("/wave8/splits/:id", requireAuth, async (req: Request, res: Respon
    sheet data. The frontend renders the PDF from this payload (client-side
    jspdf), so the server never stores binary. Charge upfront, refund on any
    failure — the creator never pays for a failed finalization. */
-router.post("/wave8/splits/pdf", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/wave8/splits/pdf", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = pdfSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

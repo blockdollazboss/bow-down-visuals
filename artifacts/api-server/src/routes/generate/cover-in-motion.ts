@@ -115,7 +115,7 @@ async function trimTo3sFile(inPath: string): Promise<string> {
 /* POST /api/cover-in-motion/animate { imageUrl, style?, durationSec? }
    → 200 { videoUrl, creditsUsed, creditsRemaining }
    Paid: 400 Visual Bucs. Refund on failure. */
-router.post("/cover-in-motion/animate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/cover-in-motion/animate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = animateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

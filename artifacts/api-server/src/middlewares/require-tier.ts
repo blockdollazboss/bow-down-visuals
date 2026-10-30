@@ -8,6 +8,7 @@ import {
   tierFromLegacyPlan,
 } from "../lib/platform-fees";
 import { logger } from "../lib/logger";
+import { isAdminEmail } from "../lib/admin";
 
 /* ── Tier gating — Worker 12 ──────────────────────────────────────────────
    Canonical gate for creator-platform paid features. Usage:
@@ -92,6 +93,19 @@ export async function resolveCreatorTier(
  */
 export function requireTier(required: Exclude<CreatorTier, "free">) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    /* Owner exemption (Oct 29, 2026): an admin account is never
+       tier-gated. The effective tier still resolves for the profileId
+       handlers consume, but the gate itself always passes and the
+       reported tier is the top of the ladder. Fee math never reads
+       req.creatorTier (it resolves its own sources), so no price or
+       fee moves. */
+    if (isAdminEmail(req.userEmail)) {
+      const { profileId } = await resolveCreatorTier(req.userId, req.userPlan);
+      req.creatorTier = "elite";
+      req.creatorProfileId = profileId ?? undefined;
+      next();
+      return;
+    }
     const { tier, profileId } = await resolveCreatorTier(req.userId, req.userPlan);
     req.creatorTier = tier;
     req.creatorProfileId = profileId ?? undefined;

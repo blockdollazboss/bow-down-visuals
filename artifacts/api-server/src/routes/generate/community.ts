@@ -158,7 +158,7 @@ async function refundOnFailure(userId: string, cost: number, action: string): Pr
 }
 
 /* ─── POST /api/community/moderate ───────────────────────────────────────── */
-router.post("/community/moderate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/community/moderate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = moderateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -215,7 +215,7 @@ router.post("/community/moderate", publicApiLimiter, requireAuth, async (req, re
 });
 
 /* ─── POST /api/community/reply-draft ────────────────────────────────────── */
-router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/community/reply-draft", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = replyDraftSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -284,7 +284,7 @@ router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req,
 });
 
 /* ─── POST /api/community/sentiment ──────────────────────────────────────── */
-router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/community/sentiment", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = sentimentSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -347,7 +347,7 @@ router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, r
 });
 
 /* ─── POST /api/community/superfans ──────────────────────────────────────── */
-router.post("/community/superfans", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/community/superfans", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = superfanSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

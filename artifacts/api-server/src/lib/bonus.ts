@@ -1,6 +1,7 @@
 import { sql, eq } from "drizzle-orm";
 import { db, hourlyCrateClaimsTable } from "@workspace/db";
 import { getSupabaseAdmin } from "./supabase-admin";
+import { isAdminUserId } from "./admin";
 import { recordRetentionClaim } from "./claim-records";
 import { logger } from "./logger";
 
@@ -396,6 +397,13 @@ export function pickWheelSegment(random: number = Math.random()): WheelSegment {
 export async function spinWheel(userId: string): Promise<WheelSpinResult> {
   const admin = getSupabaseAdmin();
 
+  /* Owner exemption (Oct 29, 2026): the hourly wheel cooldown is
+     pacing for members — the owner's account carries no customer
+     restrictions, so his spins are never cooldown-refused. His
+     last_wheel_spin still stamps on every spin (the readout stays
+     truthful); it simply never gates him. */
+  const adminCaller = await isAdminUserId(userId);
+
   const { data: profile, error } = await admin
     .from("profiles")
     .select("last_wheel_spin")
@@ -404,7 +412,7 @@ export async function spinWheel(userId: string): Promise<WheelSpinResult> {
   if (error) throw new Error(`Failed to read wheel cooldown: ${error.message}`);
 
   const lastSpin = (profile as any)?.last_wheel_spin as string | null;
-  if (lastSpin) {
+  if (lastSpin && !adminCaller) {
     const elapsedMs = Date.now() - new Date(lastSpin).getTime();
     const cooldownMs = WHEEL_COOLDOWN_MINUTES * 60 * 1000;
     if (elapsedMs < cooldownMs) {
@@ -421,12 +429,15 @@ export async function spinWheel(userId: string): Promise<WheelSpinResult> {
   // (The read-check above alone raced: two requests could both read an
   // old spin time and both pay out on a single cooldown.)
   const cutoff = new Date(Date.now() - WHEEL_COOLDOWN_MINUTES * 60 * 1000).toISOString();
-  const { data: spinRows, error: updateErr } = await admin
+  const claim = admin
     .from("profiles")
     .update({ last_wheel_spin: now })
-    .eq("id", userId)
-    .or(`last_wheel_spin.is.null,last_wheel_spin.lte.${cutoff}`)
-    .select("id");
+    .eq("id", userId);
+  const { data: spinRows, error: updateErr } = adminCaller
+    ? await claim.select("id")
+    : await claim
+        .or(`last_wheel_spin.is.null,last_wheel_spin.lte.${cutoff}`)
+        .select("id");
   if (updateErr) throw new Error(`Failed to record spin: ${updateErr.message}`);
   if (!spinRows || spinRows.length === 0) {
     // Lost the race — or no profile row yet. Re-read to tell them apart.

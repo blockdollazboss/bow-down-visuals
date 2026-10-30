@@ -216,7 +216,7 @@ const beatsRequestSchema = z.object({
   maxAnalyzeSec: z.number().int().min(10).max(300).optional().default(180),
 });
 
-router.post("/wave9b/beats/detect", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9b/beats/detect", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = beatsRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -427,7 +427,7 @@ function buildRecipeOps(
    Returns the recipe's edit-op list for PREVIEW. Nothing is applied
    server-side; the client shows the list and the user confirms before the
    ops execute against the timeline model. */
-router.post("/wave9b/templates/apply", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9b/templates/apply", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = recipeRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -512,7 +512,7 @@ router.post("/wave9b/templates/apply", publicApiLimiter, requireAuth, async (req
    calls this AFTER a successful on-device replacement to collect the
    feature price. 402 when broke — the client keeps the processed blob and
    lets the user top up and retry the charge without reprocessing. */
-router.post("/wave9b/bg/charge", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave9b/bg/charge", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = z.object({ sceneId: z.string().trim().max(128).optional().default("") }).safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid charge request." });

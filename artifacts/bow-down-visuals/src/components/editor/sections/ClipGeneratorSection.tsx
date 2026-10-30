@@ -20,6 +20,7 @@ import { InlineRunwayGenerator } from "@/components/SceneStudio";
 import { Collapsible, Field } from "@/components/editor/controls";
 import { IconBtn } from "@/components/editor/sections/shared";
 import type { SceneData } from "@/lib/scene-parser";
+import { useIsAdmin, uploadLimitBytes, uploadLimitLabel } from "@/lib/use-is-admin";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
@@ -130,6 +131,8 @@ export function ClipGeneratorSection({
 }: ClipGeneratorSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { confirmSpend } = useCreditConfirm();
+  /* Clip uploads ride /api/upload-clip: members 80 MB, owner 1 GB. */
+  const isAdmin = useIsAdmin();
 
   /* "Create All" runs scenes sequentially so each later scene can chain from
      the previous scene's freshly-generated last frame. `createAllQueue` holds
@@ -387,8 +390,8 @@ export function ClipGeneratorSection({
     const file = e.target.files?.[0];
     if (!file) return;
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (file.size > 80 * 1024 * 1024) {
-      setUploadError("That clip is over 80 MB — trim it or pick a smaller file.");
+    if (file.size > uploadLimitBytes(isAdmin, 80 * 1024 * 1024)) {
+      setUploadError(`That clip is over ${uploadLimitLabel(isAdmin, 80 * 1024 * 1024)} — trim it or pick a smaller file.`);
       setUploadStatus("error");
       return;
     }

@@ -217,7 +217,7 @@ async function chargeOr402(
 /* POST /api/llc-guide/ask { question, state?, history? }
    → 200 { answer, creditsUsed, creditsRemaining }
    Paid: 1 credit per answer. */
-router.post("/llc-guide/ask", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/llc-guide/ask", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = askSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -264,7 +264,7 @@ router.post("/llc-guide/ask", publicApiLimiter, requireAuth, async (req, res) =>
 /* POST /api/llc-guide/plan { state, creatorType, businessName? }
    → 200 { plan, creditsUsed, creditsRemaining }
    Paid: 1 credit per plan. */
-router.post("/llc-guide/plan", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/llc-guide/plan", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = planSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

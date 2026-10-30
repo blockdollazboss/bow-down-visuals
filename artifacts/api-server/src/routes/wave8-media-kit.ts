@@ -123,7 +123,7 @@ function aiUnavailable(res: { status: (c: number) => { json: (b: unknown) => voi
 
 /* POST /api/wave8/media-kit/generate — 100 VB. Reads the user's artist
    vault (optional specific vault) and returns a structured media kit. */
-router.post("/wave8/media-kit/generate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/media-kit/generate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

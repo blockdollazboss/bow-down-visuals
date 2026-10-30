@@ -63,7 +63,7 @@ const learningPathSchema = z.object({  goals: z.string().min(4, "Tell us your go
 });
 export { learningPathSchema };
 
-router.post("/academy/learning-path", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/academy/learning-path", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = learningPathSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -195,7 +195,7 @@ const askSchema = z.object({
 });
 export { askSchema };
 
-router.post("/academy/ask", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/academy/ask", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = askSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -299,7 +299,7 @@ const lessonSchema = z.object({
 });
 export { lessonSchema };
 
-router.post("/academy/lesson", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/academy/lesson", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = lessonSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

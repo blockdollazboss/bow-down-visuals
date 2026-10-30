@@ -10,8 +10,10 @@
  * Mirrors the pattern routes/generate/mix-master.ts already used.
  */
 import multer from "multer";
+import type { Request, RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
+import { isAdminRequest } from "./admin";
 
 export const tmpUploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, tmpdir()),
@@ -22,3 +24,36 @@ export const tmpUploadStorage = multer.diskStorage({
     cb(null, `upload-${randomUUID()}-${safe}`);
   },
 });
+
+/* ── Admin-aware upload limits (owner directive, Oct 29, 2026) ──────────
+   The fileSize caps on DISK-backed routes are policy numbers (the file
+   streams to temp disk; it never sits in RAM), so the owner's account
+   gets a far larger ceiling on them: ADMIN_UPLOAD_MAX_BYTES. Member
+   caps are byte-identical to before. This helper builds the member
+   and admin multer instances from ONE options object (same storage,
+   same fileFilter) and returns chain-compatible middleware that picks
+   per request — mount it AFTER requireAuth so the caller's identity
+   is resolved. Memory-storage routes deliberately do NOT use this:
+   their caps are a technical guard (a buffered upload is RAM on a
+   512 MB instance) and stay for everyone. */
+export const ADMIN_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024; // 1 GB
+
+export interface AdminAwareUpload {
+  single(field: string): RequestHandler;
+  array(field: string, maxCount?: number): RequestHandler;
+  fields(fields: multer.Field[]): RequestHandler;
+}
+
+export function createAdminAwareUpload(options: multer.Options): AdminAwareUpload {
+  const member = multer(options);
+  const admin = multer({
+    ...options,
+    limits: { ...(options.limits ?? {}), fileSize: ADMIN_UPLOAD_MAX_BYTES },
+  });
+  const pick = (req: Request): multer.Multer => (isAdminRequest(req) ? admin : member);
+  return {
+    single: (field) => (req, res, next) => pick(req).single(field)(req, res, next),
+    array: (field, maxCount) => (req, res, next) => pick(req).array(field, maxCount)(req, res, next),
+    fields: (fields) => (req, res, next) => pick(req).fields(fields)(req, res, next),
+  };
+}

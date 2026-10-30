@@ -210,7 +210,7 @@ async function refund(userId: string, cost: number) {
 /* POST /api/interview-prep/session → 200 { session, creditsUsed, creditsRemaining }
    Paid: 200 credits per prep session. Charge-before-generate; auto-refund on
    provider failure or unusable model output. */
-router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/interview-prep/session", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = sessionSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -278,7 +278,7 @@ router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req
 /* POST /api/interview-prep/feedback → 200 { feedback, creditsUsed, creditsRemaining }
    Paid: 100 credits per answer feedback. Charge-before-generate; auto-refund on
    provider failure or unusable model output. */
-router.post("/interview-prep/feedback", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/interview-prep/feedback", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = feedbackSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

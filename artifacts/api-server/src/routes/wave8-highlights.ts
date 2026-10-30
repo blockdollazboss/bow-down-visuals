@@ -58,7 +58,7 @@ const highlightsResponseSchema = z.object({
 type HighlightsResponse = z.infer<typeof highlightsResponseSchema>;
 
 /* ─── POST /wave8/highlights/cut — 300 VB ─── */
-router.post("/wave8/highlights/cut", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/wave8/highlights/cut", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = highlightsRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

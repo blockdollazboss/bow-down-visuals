@@ -87,8 +87,8 @@ function filenameForMime(mimeType: string): string {
 
 router.post(
   "/chat/voice/transcribe",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   upload.single("audio"),
   async (req, res) => {
     if (!req.file) {

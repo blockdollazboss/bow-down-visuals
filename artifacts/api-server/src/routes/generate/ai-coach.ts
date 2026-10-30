@@ -68,7 +68,7 @@ async function refundOnFailure(userId: string, action: string): Promise<void> {
    Paid: AI_COACH_CREDITS (default 100 Visual Bucs). Auth required; credits
    are deducted BEFORE the model call using the same pre-check + chargeCredits
    pattern as monetization-coach. */
-router.post("/ai-coach", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/ai-coach", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = aiCoachSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

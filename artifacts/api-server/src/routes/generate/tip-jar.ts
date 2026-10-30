@@ -435,7 +435,7 @@ setInterval(() => {
 const router = Router();
 
 /* GET /api/tips/settings → my tip page settings (or 404 if not set up). Auth. */
-router.get("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
+router.get("/tips/settings", requireAuth, publicApiLimiter, (req, res) => {
   const settings = tipPages.get(req.userId!);
   if (!settings) {
     res.status(404).json({ error: "Tip page not set up yet." });
@@ -446,7 +446,7 @@ router.get("/tips/settings", publicApiLimiter, requireAuth, (req, res) => {
 });
 
 /* POST /api/tips/settings → create/update my tip page. Auth. Free. */
-router.post("/tips/settings", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/tips/settings", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = tipPageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -499,7 +499,7 @@ router.post("/tips/settings", publicApiLimiter, requireAuth, async (req, res) =>
 /* POST /api/tips/goal { targetAmount, label } → set or edit MY active
    funding goal. Auth. Owner-scoped by construction: the handler only
    ever touches the caller's own tip page. */
-router.post("/tips/goal", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
   const settings = tipPages.get(req.userId!);
   if (!settings) {
     res.status(404).json({ error: "Set up your tip page first, then add a funding goal." });
@@ -533,7 +533,7 @@ router.post("/tips/goal", publicApiLimiter, requireAuth, async (req, res) => {
 
 /* DELETE /api/tips/goal → remove MY active funding goal. Auth. A
    reached goal is archived to the history, never silently erased. */
-router.delete("/tips/goal", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
   const settings = tipPages.get(req.userId!);
   if (!settings) {
     res.status(404).json({ error: "Tip page not set up yet." });
@@ -942,7 +942,7 @@ router.post("/tips/checkout/verify", publicApiLimiter, async (req, res) => {
 });
 
 /* GET /api/tips/dashboard → my totals + tip feed. Auth. */
-router.get("/tips/dashboard", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/tips/dashboard", requireAuth, publicApiLimiter, async (req, res) => {
   const settings = tipPages.get(req.userId!);
   const intents = [...tipIntents.values()]
     .filter((t) => t.pageUserId === req.userId)

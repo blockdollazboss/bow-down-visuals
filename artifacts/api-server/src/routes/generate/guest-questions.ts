@@ -88,7 +88,7 @@ function cleanQuestions(raw: unknown, max: number): GuestQuestion[] {
            total, creditsUsed, creditsRemaining }
    Paid: 75 Visual Bucs. Auth required; credits are deducted BEFORE the
    model call and REFUNDED if the provider fails (money-integrity rule). */
-router.post("/guest-questions", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/guest-questions", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = guestQuestionsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

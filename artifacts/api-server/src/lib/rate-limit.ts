@@ -1,4 +1,14 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { skipIfAdmin } from "./admin";
+
+/* Owner exemption (Oct 29, 2026): every session limiter below carries
+   `skip: skipIfAdmin` — an admin (ADMIN_EMAILS) never burns a bucket
+   and is never refused by one. The skip reads the email requireAuth
+   resolved, so it bites on mounts where auth runs first; routes that
+   mount a limiter before auth were reordered so identity exists.
+   The per-API-KEY limiters further down deliberately carry NO skip:
+   a key is a bearer credential, and its runaway-loop protection must
+   hold no matter whose key it is. */
 
 /**
  * Shared rate limiter for abuse-prone public endpoints.
@@ -10,6 +20,7 @@ export const publicApiLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: skipIfAdmin,
   message: { error: "Too many requests. Please try again in a minute." },
 });
 
@@ -24,6 +35,7 @@ export const generationLimiter = rateLimit({
   limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: skipIfAdmin,
   keyGenerator: (req) => {
     // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
     const userId = (req as { userId?: string }).userId;
@@ -45,6 +57,7 @@ export const freeAiLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: skipIfAdmin,
   keyGenerator: (req) => {
     // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
     const userId = (req as { userId?: string }).userId;
@@ -67,6 +80,7 @@ export const freeExpensiveAiLimiter = rateLimit({
   limit: 5,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: skipIfAdmin,
   keyGenerator: (req) => {
     // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
     const userId = (req as { userId?: string }).userId;
@@ -90,6 +104,7 @@ export const reportWriteLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  skip: skipIfAdmin,
   keyGenerator: (req) => {
     const userId = (req as { userId?: string }).userId;
     return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");

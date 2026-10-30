@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link2, Loader2, Sparkles, Upload, Film, Music2, Plus, X, Check, Copy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsAdmin, uploadLimitBytes, uploadLimitLabel } from "@/lib/use-is-admin";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -51,6 +52,8 @@ export default function LinkToHitPanel() {
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  /* Uploads ride /api/upload-clip: members 80 MB, owner 1 GB. */
+  const isAdmin = useIsAdmin();
 
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
@@ -84,8 +87,8 @@ export default function LinkToHitPanel() {
       setError("That file isn't a video — choose a video file.");
       return;
     }
-    if (f.size > 80 * 1024 * 1024) {
-      setError("That video is over 80 MB — trim it or pick a smaller file.");
+    if (f.size > uploadLimitBytes(isAdmin, 80 * 1024 * 1024)) {
+      setError(`That video is over ${uploadLimitLabel(isAdmin, 80 * 1024 * 1024)} — trim it or pick a smaller file.`);
       return;
     }
     setError(null);

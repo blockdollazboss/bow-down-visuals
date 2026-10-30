@@ -215,7 +215,7 @@ export function parseCompetitorJson(raw: string, fallbackName: string, niche: st
    Paid: 200 Visual Bucs (COMPETITOR_CREDITS). Auth required; credits are
    deducted BEFORE the model call and auto-refunded on provider failure or
    unusable output. */
-router.post("/competitor-analysis", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/competitor-analysis", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = competitorSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

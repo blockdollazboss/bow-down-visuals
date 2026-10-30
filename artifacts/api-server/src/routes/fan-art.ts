@@ -53,7 +53,7 @@ function fail(res: Response, err: unknown, scope: string) {
 
 /* The /me + /mine routes register BEFORE /:slug — Express matches in
    order and "me" would otherwise be captured as a creator slug. */
-router.get("/creator-profiles/me/fan-art", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/creator-profiles/me/fan-art", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const out = await listCreatorQueue(store, req.userId!);
     res.json(await refreshSupabaseStorageUrlsDeep({
@@ -70,7 +70,7 @@ const reviewSchema = z.object({
   action: z.enum(FAN_ART_ACTIONS as unknown as [string, ...string[]]),
 });
 
-router.patch("/creator-profiles/me/fan-art/:pieceId", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.patch("/creator-profiles/me/fan-art/:pieceId", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = reviewSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -88,7 +88,7 @@ router.patch("/creator-profiles/me/fan-art/:pieceId", publicApiLimiter, requireA
   }
 });
 
-router.get("/fan-art/mine", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/fan-art/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const pieces = await listMySubmissions(store, req.userId!);
     res.json(await refreshSupabaseStorageUrlsDeep({ pieces }));
@@ -119,7 +119,7 @@ const submitSchema = z.object({
   artist_name: z.string().max(80).optional(),
 });
 
-router.post("/creator-profiles/:slug/fan-art", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/creator-profiles/:slug/fan-art", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = submitSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

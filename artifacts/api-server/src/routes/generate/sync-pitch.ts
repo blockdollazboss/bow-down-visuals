@@ -156,8 +156,8 @@ export function parseSyncOneSheetResponse(raw: string): Omit<SyncOneSheetContent
    Returns: { oneSheet, creditsUsed, creditsRemaining } */
 router.post(
   "/sync-pitch/one-sheet",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = oneSheetInputSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

@@ -168,7 +168,7 @@ router.get("/studio-gear/catalog", (_req, res) => {
    Totals are recomputed server-side from the ruled catalog — the client
    total is never trusted. Custom items must carry a spec (text, notes,
    or artwork) or there is nothing to build a proof from. */
-router.post("/studio-gear/orders", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/studio-gear/orders", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = orderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -246,7 +246,7 @@ router.post("/studio-gear/orders", publicApiLimiter, requireAuth, async (req, re
    charge-gated on design-proof approval (see the gate inside): an
    unapproved proof refuses here, so a made-to-order piece is never
    paid before its proof settles — and production waits for both. */
-router.post("/studio-gear/checkout", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/studio-gear/checkout", requireAuth, publicApiLimiter, async (req, res) => {
   const { orderId } = (req.body ?? {}) as { orderId?: string };
   if (!orderId || typeof orderId !== "string") {
     res.status(400).json({ error: "orderId is required." });

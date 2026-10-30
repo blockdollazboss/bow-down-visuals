@@ -214,8 +214,8 @@ export function parseCalcJson(raw: string): CalcResult {
    refund-on-failure pattern as the monetization coach and LLC guide. */
 router.post(
   "/brand-calculator/calculate",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = calculateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

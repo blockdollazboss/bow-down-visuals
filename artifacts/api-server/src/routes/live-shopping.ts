@@ -178,8 +178,8 @@ router.get("/live-shopping/catalog", requireAuth, async (req: Request, res: Resp
 
 router.post(
   "/live-shopping/products",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = productSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -209,8 +209,8 @@ router.post(
 
 router.patch(
   "/live-shopping/products/:id",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = productUpdateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -264,8 +264,8 @@ router.patch(
 
 router.delete(
   "/live-shopping/products/:id",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const deleted = await db
       .delete(liveShopProductsTable)
@@ -297,8 +297,8 @@ router.get("/live-shopping/streams", requireAuth, async (req: Request, res: Resp
 
 router.post(
   "/live-shopping/streams",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = streamSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -323,8 +323,8 @@ router.post(
 
 router.patch(
   "/live-shopping/streams/:id",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = streamUpdateSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -391,8 +391,8 @@ router.patch(
 
 router.post(
   "/live-shopping/streams/:id/alerts",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const streamId = req.params.id as string;
     const stream = await db
@@ -495,8 +495,8 @@ router.get(
 
 router.post(
   "/live-shopping/sales",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = saleSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -572,8 +572,8 @@ router.post(
 
 router.post(
   "/live-shopping/checkout",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = checkoutSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -690,8 +690,8 @@ router.post(
 
 router.post(
   "/live-shopping/verify",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = checkoutVerifySchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -926,8 +926,8 @@ router.get("/live-shopping/dashboard", requireAuth, async (req: Request, res: Re
 
 router.post(
   "/live-shopping/ai-description",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req: Request, res: Response) => {
     const parsed = aiDescriptionSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

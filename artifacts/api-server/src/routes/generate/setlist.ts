@@ -122,7 +122,7 @@ const router = Router();
 
 /* POST /api/setlist/flow → 200 { order, flowNotes, creditsUsed, creditsRemaining }
    Paid: 1 credit per suggestion. Auth required; 402 when broke; refund on failure. */
-router.post("/setlist/flow", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/setlist/flow", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = setlistFlowSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

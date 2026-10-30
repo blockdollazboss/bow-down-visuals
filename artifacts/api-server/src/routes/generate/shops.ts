@@ -24,6 +24,7 @@ import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import { isAdminEmail } from "../../lib/admin";
 import { logger } from "../../lib/logger";
 import { isUniqueViolation, isUndefinedTable, pgErrorText } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -848,7 +849,7 @@ router.get("/shops/my-purchases", requireAuth, async (req, res) => {
    sell; the 5% platform fee is the only take. (Custom domains below
    stay Pro-gated: that is a domain feature, not the right to sell.)
    Everything after creation (products, AI, analytics) follows its own rules. */
-router.post("/shops", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createShopSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -878,7 +879,7 @@ router.post("/shops", publicApiLimiter, requireAuth, async (req, res) => {
 });
 
 /* ── PATCH /api/shops/:id — update my shop (free) ────────────────────────── */
-router.patch("/shops/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/shops/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = updateShopSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1066,7 +1067,7 @@ router.get("/shops/:id/products", requireAuth, async (req, res) => {
 });
 
 /* ── POST /api/shops/:id/products — add a product (free) ─────────────────── */
-router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/:id/products", requireAuth, publicApiLimiter, async (req, res) => {
   const shop = await getOwnedShop(param(req.params.id), req.userId!);
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });
@@ -1150,7 +1151,7 @@ router.post("/shops/:id/products", publicApiLimiter, requireAuth, async (req, re
 });
 
 /* ── PATCH /api/shops/:id/products/:productId (free) ─────────────────────── */
-router.patch("/shops/:id/products/:productId", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/shops/:id/products/:productId", requireAuth, publicApiLimiter, async (req, res) => {
   const shop = await getOwnedShop(param(req.params.id), req.userId!);
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });
@@ -1311,7 +1312,7 @@ const deliverableMultipart = multer({
   limits: { fileSize: DELIVERABLE_MAX_BYTES },
 });
 
-router.post("/shops/:id/deliverables/upload", publicApiLimiter, requireAuth, (req, res, next) => {
+router.post("/shops/:id/deliverables/upload", requireAuth, publicApiLimiter, (req, res, next) => {
   deliverableMultipart.single("file")(req, res, (err: unknown) => {
     if (err) {
       const tooBig = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE";
@@ -1397,7 +1398,7 @@ const setShopBumpSchema = z.object({
   percentOff: z.number().int().min(0).max(MAX_BUMP_PERCENT_OFF).default(0),
 });
 
-router.put("/shops/:id/products/:productId/bump", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/shops/:id/products/:productId/bump", requireAuth, publicApiLimiter, async (req, res) => {
   const shop = await getOwnedShop(param(req.params.id), req.userId!);
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });
@@ -1500,7 +1501,7 @@ router.get("/shops/:id/discounts", requireAuth, async (req, res) => {
   res.json({ codes });
 });
 
-router.post("/shops/:id/discounts", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/:id/discounts", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createShopDiscountSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid discount code.", details: parsed.error.issues });
@@ -1541,7 +1542,7 @@ router.post("/shops/:id/discounts", publicApiLimiter, requireAuth, async (req, r
   res.status(201).json({ code: presentShopDiscount(r.rows[0] as unknown as ShopDiscountRow) });
 });
 
-router.patch("/shops/:id/discounts/:codeId", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/shops/:id/discounts/:codeId", requireAuth, publicApiLimiter, async (req, res) => {
   const codeId = param(req.params.codeId);
   const parsed = z.object({
     isActive: z.boolean().optional(),
@@ -1628,7 +1629,7 @@ router.get("/shops/:id/discounts/validate", publicApiLimiter, async (req, res) =
 });
 
 /* ── AI: shop description writer — 1 credit ───────────────────────────────── */
-router.post("/shops/ai/shop-description", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/ai/shop-description", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = shopDescriptionSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1701,7 +1702,7 @@ router.post("/shops/ai/shop-description", publicApiLimiter, requireAuth, async (
 });
 
 /* ── AI: product description generator — 1 credit ─────────────────────────── */
-router.post("/shops/ai/product-description", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/ai/product-description", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = productDescriptionSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1779,7 +1780,7 @@ router.post("/shops/ai/product-description", publicApiLimiter, requireAuth, asyn
 });
 
 /* ── AI: product image — 100 credits standard / 200 credits premium ────────────── */
-router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/ai/product-image", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = productImageSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1896,6 +1897,10 @@ export function meetsProTier(plan: string | null | undefined): boolean {
 }
 
 export function requireProTier(req: any, res: any, next: any) {
+  /* Owner exemption (Oct 29, 2026): the owner's account is never
+     plan-gated — shops and custom domains open for an admin on any
+     plan. Members see the exact same gate as before. */
+  if (isAdminEmail(req.userEmail)) return next();
   if (meetsProTier(req.userPlan)) return next();
   res.status(403).json({
     error: "PRO_TIER_REQUIRED",
@@ -3061,7 +3066,7 @@ function posTodayYmd(): string {
    frontend renders that URL as a QR code and a copyable payment link.
    The customer opens it on their own phone and pays with their card;
    nothing about the payment itself happens on the seller's device. */
-router.post("/shops/:id/pos/checkout", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/:id/pos/checkout", requireAuth, publicApiLimiter, async (req, res) => {
   const shop = await getOwnedShop(param(req.params.id), req.userId!);
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });
@@ -3196,7 +3201,7 @@ router.post("/shops/:id/pos/checkout", publicApiLimiter, requireAuth, async (req
    cart line, source 'in_person_cash', so the sale shows in the money
    tracker as exactly what it was. A $0 line is a giveaway, not a cash
    sale, and refuses. */
-router.post("/shops/:id/pos/cash-sale", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/shops/:id/pos/cash-sale", requireAuth, publicApiLimiter, async (req, res) => {
   const shop = await getOwnedShop(param(req.params.id), req.userId!);
   if (!shop) {
     res.status(404).json({ error: "Shop not found." });
@@ -3253,7 +3258,7 @@ const domainSchema = z.object({
   domain: z.string().trim().min(4).max(253),
 });
 
-router.post("/storefronts/:id/domain", publicApiLimiter, requireAuth, requireProTier, async (req, res) => {
+router.post("/storefronts/:id/domain", requireAuth, publicApiLimiter, requireProTier, async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const shop = await getOwnedShopFull(id ?? "", req.userId!);
   if (!shop) {
@@ -3308,7 +3313,7 @@ const verifySchema = z.object({
   shopId: z.string().uuid(),
 });
 
-router.post("/storefronts/domain/verify", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/storefronts/domain/verify", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = verifySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "shopId is required." });

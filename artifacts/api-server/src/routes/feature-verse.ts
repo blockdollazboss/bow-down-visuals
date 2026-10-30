@@ -215,7 +215,7 @@ const upsertListingSchema = z.object({
 
 /* PUT /api/feature-verse/listings/mine — the creator sets their OWN
    price. No platform default exists to fall back to. */
-router.put("/feature-verse/listings/mine", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/feature-verse/listings/mine", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = upsertListingSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid listing.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
@@ -320,7 +320,7 @@ const createOrderSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200),
 });
 
-router.post("/feature-verse/orders", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createOrderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid feature order.", details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })) });
@@ -449,7 +449,7 @@ const amendSchema = z.object({
   splits: z.array(splitSchema).min(1).optional(),
 });
 
-router.patch("/feature-verse/orders/:id/terms", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/feature-verse/orders/:id/terms", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = amendSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -485,7 +485,7 @@ router.patch("/feature-verse/orders/:id/terms", publicApiLimiter, requireAuth, a
 
 /* ── Sign (one action per party, timestamped) ─────────────────────────── */
 
-router.post("/feature-verse/orders/:id/sign", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/sign", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     let row = await loadOrder(id);
@@ -524,7 +524,7 @@ router.post("/feature-verse/orders/:id/sign", publicApiLimiter, requireAuth, asy
 
 /* ── Decline (creator, before signing — no fee was ever taken) ────────── */
 
-router.post("/feature-verse/orders/:id/decline", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/decline", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     let row = await loadOrder(id);
@@ -551,7 +551,7 @@ router.post("/feature-verse/orders/:id/decline", publicApiLimiter, requireAuth, 
 
 /* ── Fund escrow (buyer, both signatures required, exactly once) ──────── */
 
-router.post("/feature-verse/orders/:id/fund", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/fund", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     let row = await loadOrder(id);
@@ -608,7 +608,7 @@ const deliverSchema = z.object({
   deliveryUrl: z.string().trim().max(2048).regex(/^https?:\/\//, "must be an http(s) URL").optional(),
 });
 
-router.post("/feature-verse/orders/:id/deliver", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/deliver", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = deliverSchema.safeParse(req.body ?? {});
   if (!parsed.success || (!parsed.data?.deliveryNote && !parsed.data?.deliveryUrl)) {
@@ -648,7 +648,7 @@ router.post("/feature-verse/orders/:id/deliver", publicApiLimiter, requireAuth, 
 
 /* ── Confirm (buyer) → release escrow to the creator, exactly once ────── */
 
-router.post("/feature-verse/orders/:id/confirm", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/confirm", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const row = await loadOrder(id);
@@ -683,7 +683,7 @@ router.post("/feature-verse/orders/:id/confirm", publicApiLimiter, requireAuth, 
 
 const disputeSchema = z.object({ reason: z.string().trim().min(1).max(1000) });
 
-router.post("/feature-verse/orders/:id/dispute", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/dispute", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = disputeSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -717,7 +717,7 @@ router.post("/feature-verse/orders/:id/dispute", publicApiLimiter, requireAuth, 
 
 /* ── Refund (either party, while a fee is held — ALWAYS in full) ──────── */
 
-router.post("/feature-verse/orders/:id/refund", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/feature-verse/orders/:id/refund", requireAuth, publicApiLimiter, async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const row = await loadOrder(id);

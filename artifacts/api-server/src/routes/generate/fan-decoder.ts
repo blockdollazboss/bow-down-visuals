@@ -74,7 +74,7 @@ function parseStringList(raw: unknown, max: number, len: number): string[] {
 /* POST /api/fan-decoder/decode { comments[1-30], niche? }
    → 200 { wants[{want, quotes[], priority}], contentDirections[], toneNotes, creditsUsed, creditsRemaining }
    Paid: 100 Visual Bucs. Refund on failure. */
-router.post("/fan-decoder/decode", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/fan-decoder/decode", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = decodeSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

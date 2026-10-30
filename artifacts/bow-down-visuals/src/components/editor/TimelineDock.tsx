@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useShareClip } from "@/hooks/use-share-clip";
+import { useIsAdmin, uploadLimitBytes, uploadLimitLabel } from "@/lib/use-is-admin";
 import { useTranslation } from "react-i18next";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
@@ -120,6 +121,9 @@ export function TimelineDock({
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
   const { shareClip } = useShareClip();
+  /* The clip pre-check mirrors the /api/upload-clip rail: members
+     80 MB; the owner's account rides the server's 1 GB admin ceiling. */
+  const isAdmin = useIsAdmin();
   const [zoom, setZoom] = useState(1);
   const [beatGrid, setBeatGrid] = useState<BeatGrid | null>(null);
   const [beatLoading, setBeatLoading] = useState(false);
@@ -818,8 +822,8 @@ export function TimelineDock({
     setReplaceTargetId(null);
     if (timelineLocked) return;
     if (!file || !sceneId || !onReplaceClipVideo) return;
-    if (file.size > 80 * 1024 * 1024) {
-      toast({ title: "That clip is over 80 MB — trim it or pick a smaller file.", variant: "destructive" });
+    if (file.size > uploadLimitBytes(isAdmin, 80 * 1024 * 1024)) {
+      toast({ title: `That clip is over ${uploadLimitLabel(isAdmin, 80 * 1024 * 1024)} — trim it or pick a smaller file.`, variant: "destructive" });
       return;
     }
     try {
@@ -848,7 +852,7 @@ export function TimelineDock({
         variant: "destructive",
       });
     }
-  }, [replaceTargetId, onReplaceClipVideo, toast, timelineLocked]);
+  }, [replaceTargetId, onReplaceClipVideo, toast, timelineLocked, isAdmin]);
 
   /* ── Build the right-click menu items for the audio (song) lane. Every
      item performs a real action — nothing here is a dead button. ── */

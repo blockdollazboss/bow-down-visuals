@@ -41,7 +41,7 @@ import {
 
 const router = Router();
 
-router.get("/scene-effects/recipes", publicApiLimiter, requireAuth, (_req, res) => {
+router.get("/scene-effects/recipes", requireAuth, publicApiLimiter, (_req, res) => {
   res.json({
     recipes: EFFECT_RECIPES,
     maxStack: MAX_STACKED_EFFECTS,
@@ -178,7 +178,7 @@ async function aiPolish(
   }
 }
 
-router.post("/scene-effects/match", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/scene-effects/match", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = matchSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

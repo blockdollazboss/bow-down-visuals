@@ -156,7 +156,7 @@ async function chargeOr402(
 }
 
 /* POST /api/copyright/draft → 200 { description, filingNotes, creditsUsed, creditsRemaining } */
-router.post("/copyright/draft", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/copyright/draft", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = draftSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -218,7 +218,7 @@ router.post("/copyright/draft", publicApiLimiter, requireAuth, async (req, res) 
 });
 
 /* POST /api/copyright/ask → 200 { answer, creditsUsed, creditsRemaining } */
-router.post("/copyright/ask", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/copyright/ask", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = askSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

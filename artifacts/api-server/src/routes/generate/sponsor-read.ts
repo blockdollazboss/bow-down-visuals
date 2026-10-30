@@ -85,7 +85,7 @@ export function parseSponsorRead(raw: string): SponsorRead | null {
    → 200 { read, creditsUsed, creditsRemaining }
    Paid: 100 Visual Bucs per read. Auth required; credits are deducted BEFORE
    the model call, with automatic refund on provider failure or unusable output. */
-router.post("/sponsor-read", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/sponsor-read", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = sponsorReadSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

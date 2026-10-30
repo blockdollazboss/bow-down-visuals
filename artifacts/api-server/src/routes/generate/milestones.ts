@@ -459,7 +459,7 @@ function milestoneCardSvg(opts: {
 
 /* POST /api/milestones/log — log a stream count you read in Spotify for
    Artists (free). Award tier is computed server-side. */
-router.post("/milestones/log", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/milestones/log", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = logMilestoneSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -545,7 +545,7 @@ router.post("/milestones/log", publicApiLimiter, requireAuth, async (req, res) =
 
 /* POST /api/milestones/import-csv — bulk import counts from a CSV export
    (e.g. your own spreadsheet of Spotify for Artists numbers). Free. */
-router.post("/milestones/import-csv", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/milestones/import-csv", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = csvImportSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -646,7 +646,7 @@ router.post("/milestones/import-csv", publicApiLimiter, requireAuth, async (req,
 
 /* GET /api/milestones — the creator's logged milestones (free) plus
    per-track progress toward the next award. */
-router.get("/milestones", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/milestones", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(milestonesTable)
@@ -687,7 +687,7 @@ router.get("/milestones", publicApiLimiter, requireAuth, async (req, res) => {
 
 /* GET /api/milestones/:id/card — the shareable gold/black milestone card
    (SVG) with "Made with Bow Down Visuals" attribution. Free. */
-router.get("/milestones/:id/card", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/milestones/:id/card", requireAuth, publicApiLimiter, async (req, res) => {
   const id = req.params["id"] as string;
   const rows = await db
     .select()
@@ -715,7 +715,7 @@ router.get("/milestones/:id/card", publicApiLimiter, requireAuth, async (req, re
 /* GET /api/milestones/achievements — every crossed brag threshold across
    verticals (streams, followers, earnings, releases), derived from existing
    tables. Free. Powers the trophy shelf + the brag modal. */
-router.get("/milestones/achievements", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/milestones/achievements", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const { achievements, totals } = await computeAchievements(req.userId!);
     res.json({ achievements, totals });
@@ -732,8 +732,8 @@ const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
    Raw PNG ≤ 2MB → object storage → signed URL. Free. */
 router.post(
   "/milestones/brag-card",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   express.raw({ type: "image/png", limit: "2mb" }),
   async (req, res) => {
     try {
@@ -776,7 +776,7 @@ async function getOwnedReleaseId(releaseId: string, userId: string): Promise<{ i
 /* POST /api/catalog-vault/vault — one-time vault purchase for a release
    (200 Visual Bucs). The release's presave page, showcase entry and assets
    stay live on Bow Down Visuals permanently. */
-router.post("/catalog-vault/vault", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/catalog-vault/vault", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = z.object({ releaseId: z.string().uuid("releaseId must be a release UUID.") }).safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request.", details: parsed.error.issues });
@@ -860,7 +860,7 @@ router.post("/catalog-vault/vault", publicApiLimiter, requireAuth, async (req, r
 });
 
 /* GET /api/catalog-vault/status — which releases are vaulted (free). */
-router.get("/catalog-vault/status", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/catalog-vault/status", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(catalogVaultsTable)

@@ -349,7 +349,7 @@ function toMemberJson(
 }
 
 /* GET /api/memberships/tiers — list the creator's tiers (free). */
-router.get("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/memberships/tiers", requireAuth, publicApiLimiter, async (req, res) => {
   const tiers = await db
     .select()
     .from(fanTiersTable)
@@ -359,7 +359,7 @@ router.get("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res)
 });
 
 /* POST /api/memberships/tiers — create a tier (free). */
-router.post("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/tiers", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = tierCreateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -386,7 +386,7 @@ router.post("/memberships/tiers", publicApiLimiter, requireAuth, async (req, res
 });
 
 /* PUT /api/memberships/tiers/:id — update a tier (free, owner only). */
-router.put("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/memberships/tiers/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = tierUpdateSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -418,7 +418,7 @@ router.put("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (req, 
 });
 
 /* DELETE /api/memberships/tiers/:id — delete a tier + its members (free, owner only). */
-router.delete("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/memberships/tiers/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const owned = await db
     .select({ id: fanTiersTable.id })
     .from(fanTiersTable)
@@ -435,7 +435,7 @@ router.delete("/memberships/tiers/:id", publicApiLimiter, requireAuth, async (re
 /* GET /api/memberships/dashboard — subscriber counts, MRR, churn (free).
    MRR is computed from active members' locked-in price_cents — real tracked
    data, not a projection. Churn = canceled / (active + canceled). */
-router.get("/memberships/dashboard", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/memberships/dashboard", requireAuth, publicApiLimiter, async (req, res) => {
   const members = await db
     .select()
     .from(fanMembersTable)
@@ -480,7 +480,7 @@ router.get("/memberships/dashboard", publicApiLimiter, requireAuth, async (req, 
 });
 
 /* GET /api/memberships/members — list members (free). */
-router.get("/memberships/members", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/memberships/members", requireAuth, publicApiLimiter, async (req, res) => {
   const members = await db
     .select()
     .from(fanMembersTable)
@@ -507,7 +507,7 @@ router.get("/memberships/members", publicApiLimiter, requireAuth, async (req, re
    whether the recovery automation is switched on for any of the
    creator's lists, so the desk never implies a chase is running when
    it isn't. */
-router.get("/memberships/recovery", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/memberships/recovery", requireAuth, publicApiLimiter, async (req, res) => {
   const me = req.userId!;
   const [members, tiers, lists] = await Promise.all([
     db.select().from(fanMembersTable).where(eq(fanMembersTable.user_id, me)),
@@ -568,7 +568,7 @@ router.get("/memberships/recovery", publicApiLimiter, requireAuth, async (req, r
 /* POST /api/memberships/members — add a member manually (free).
    Manual tracking for imported/off-platform subscribers; the UI labels
    these honestly (no payment was taken here). */
-router.post("/memberships/members", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/members", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = memberAddSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -605,7 +605,7 @@ router.post("/memberships/members", publicApiLimiter, requireAuth, async (req, r
 });
 
 /* PATCH /api/memberships/members/:id — update member status (free, owner only). */
-router.patch("/memberships/members/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/memberships/members/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = memberStatusSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid status." });
@@ -629,7 +629,7 @@ router.patch("/memberships/members/:id", publicApiLimiter, requireAuth, async (r
 });
 
 /* DELETE /api/memberships/members/:id — remove a member (free, owner only). */
-router.delete("/memberships/members/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/memberships/members/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const deleted = await db
     .delete(fanMembersTable)
     .where(and(eq(fanMembersTable.id, param(req.params.id)), eq(fanMembersTable.user_id, req.userId!)))
@@ -841,7 +841,7 @@ router.get("/memberships/directory", publicApiLimiter, async (_req, res) => {
    The charged amount comes from checkoutChargeCents(tier, period) — the
    same number the tier DTO displays as the price. Free tiers skip
    checkout entirely and activate immediately (no payment to verify). */
-router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1006,7 +1006,7 @@ router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, 
    active membership. Idempotent on the session id (unique index +
    read-back), and the session total must match the tier's computed
    charge for the period — a tampered or stale session never activates. */
-router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = verifySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "sessionId is required" });
@@ -1161,7 +1161,7 @@ router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, re
    No charge, no checkout: the membership is 'trialing' until trial end.
    It converts ONLY through a paid checkout + verify; otherwise it reads
    as expired. One trial per fan per tier, ever. */
-router.post("/memberships/join-trial", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/join-trial", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = joinTrialSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "tierId is required" });
@@ -1232,7 +1232,7 @@ router.post("/memberships/join-trial", publicApiLimiter, requireAuth, async (req
 
 /* GET /api/memberships/mine — the fan's own view: memberships they hold,
    gifts they've sent, and gifts they've received — all honest states. */
-router.get("/memberships/mine", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/memberships/mine", requireAuth, publicApiLimiter, async (req, res) => {
   const me = req.userId!;
   const members = await db
     .select()
@@ -1296,7 +1296,7 @@ router.get("/memberships/mine", publicApiLimiter, requireAuth, async (req, res) 
    creator-side status rail writes (and what churn counts). A manual
    tracking row (fan_user_id null) has no fan to cancel it — the creator
    manages those from their members list. */
-router.post("/memberships/mine/:memberId/cancel", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/mine/:memberId/cancel", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(fanMembersTable)
@@ -1355,7 +1355,7 @@ async function findOwnMember(memberId: string, fanUserId: string) {
    every gate admits only effective trialing/active, and the stored
    status is now "paused". No charge moves and no period time burns:
    the period end shifts on resume by the time rested. */
-router.post("/memberships/mine/:memberId/pause", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/mine/:memberId/pause", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = pauseSchema.safeParse(req.body ?? {});
   if (!parsed.success || !isValidPauseMonths(parsed.data.months)) {
     res.status(400).json({
@@ -1424,7 +1424,7 @@ router.post("/memberships/mine/:memberId/pause", publicApiLimiter, requireAuth, 
    answers 200, so the fan's tap always lands on the truth. A seat
    whose shifted period has ALSO run out reads expired — resume
    answers 409 and the honest door is a fresh join/renewal. */
-router.post("/memberships/mine/:memberId/resume", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/mine/:memberId/resume", requireAuth, publicApiLimiter, async (req, res) => {
   const member = await findOwnMember(param(req.params.memberId), req.userId!);
   if (!member) {
     res.status(404).json({ error: "Membership not found." });
@@ -1479,7 +1479,7 @@ router.post("/memberships/mine/:memberId/resume", publicApiLimiter, requireAuth,
    renewal it is. A free tier has no payment to fix: it reactivates
    directly with a fresh period. Access state before payment is
    untouched — nothing here marks anything paid. */
-router.post("/memberships/mine/:memberId/update-payment", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/mine/:memberId/update-payment", requireAuth, publicApiLimiter, async (req, res) => {
   const rows = await db
     .select()
     .from(fanMembersTable)
@@ -1589,7 +1589,7 @@ router.post("/memberships/mine/:memberId/update-payment", publicApiLimiter, requ
 /* POST /api/memberships/ai-perks { niche, audienceSize, tierCount }
    → 200 { tiers: [{ name, priceDollars, perks[] }], creditsUsed, creditsRemaining }
    Paid: 1 credit. Charge-before-generate; refund on provider failure. */
-router.post("/memberships/ai-perks", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/memberships/ai-perks", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = perkSuggestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

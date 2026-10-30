@@ -4,6 +4,7 @@ import { z } from "zod";
 import { eq, and, count, desc, inArray, isNull } from "drizzle-orm";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
+import { isAdminUserId } from "../../lib/admin";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
@@ -108,7 +109,9 @@ router.post("/email-list/subscribe", publicApiLimiter, async (req, res) => {
     return;
   }
 
-  /* Free tier: 1,000 subscribers per list. */
+  /* Free tier: 1,000 subscribers per list. (As coded the cap binds
+     every list; the owner's own list is exempt — Oct 29, 2026: his
+     account carries no customer restrictions.) */
   const [{ value: subCount }] = await db
     .select({ value: count() })
     .from(emailSubscribersTable)
@@ -118,7 +121,7 @@ router.post("/email-list/subscribe", publicApiLimiter, async (req, res) => {
         isNull(emailSubscribersTable.unsubscribedAt)
       )
     );
-  if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT) {
+  if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT && !(await isAdminUserId(list.userId))) {
     res.status(403).json({
       error: "This list is full.",
       code: "list_full",
@@ -248,7 +251,7 @@ router.post("/email-list/unsubscribe/:token", publicApiLimiter, async (req, res)
 
 /* ── Authed: lists ─────────────────────────────────────────────────────── */
 
-router.get("/email-list/lists", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists", requireAuth, publicApiLimiter, async (req, res) => {
   const lists = await db
     .select()
     .from(emailListsTable)
@@ -257,7 +260,7 @@ router.get("/email-list/lists", publicApiLimiter, requireAuth, async (req, res) 
   res.json({ lists });
 });
 
-router.post("/email-list/lists", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = insertEmailListSchema
     .omit({ userId: true })
     .safeParse(req.body ?? {});
@@ -292,7 +295,7 @@ router.post("/email-list/lists", publicApiLimiter, requireAuth, async (req, res)
   res.status(201).json({ list });
 });
 
-router.patch("/email-list/lists/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/email-list/lists/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const parsed = insertEmailListSchema
     .omit({ userId: true, handle: true })
@@ -317,7 +320,7 @@ router.patch("/email-list/lists/:id", publicApiLimiter, requireAuth, async (req,
   res.json({ list: updated });
 });
 
-router.delete("/email-list/lists/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/email-list/lists/:id", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const [deleted] = await db
     .delete(emailListsTable)
@@ -332,7 +335,7 @@ router.delete("/email-list/lists/:id", publicApiLimiter, requireAuth, async (req
 
 /* ── Authed: subscribers + dashboard ───────────────────────────────────── */
 
-router.get("/email-list/lists/:id/subscribers", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/subscribers", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const [list] = await db
     .select()
@@ -390,7 +393,7 @@ router.get("/email-list/lists/:id/subscribers", publicApiLimiter, requireAuth, a
   });
 });
 
-router.post("/email-list/lists/:id/unsubscribe", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists/:id/unsubscribe", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const { email } = (req.body ?? {}) as { email?: string };
   if (!email || !isValidEmail(String(email))) {
@@ -433,7 +436,7 @@ const tagNameSchema = z.object({
   name: z.string().trim().min(1, "Tag name is required.").max(40),
 });
 
-router.get("/email-list/lists/:id/tags", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/tags", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const list = await ownList(req, id);
   if (!list) {
@@ -455,7 +458,7 @@ router.get("/email-list/lists/:id/tags", publicApiLimiter, requireAuth, async (r
   res.json({ tags: tags.map((t) => ({ ...t, subscriberCount: counts.get(t.id) ?? 0 })) });
 });
 
-router.post("/email-list/lists/:id/tags", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists/:id/tags", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const list = await ownList(req, id);
   if (!list) {
@@ -481,7 +484,7 @@ router.post("/email-list/lists/:id/tags", publicApiLimiter, requireAuth, async (
   res.status(201).json({ tag });
 });
 
-router.delete("/email-list/lists/:id/tags/:tagId", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/email-list/lists/:id/tags/:tagId", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const tagId = String(req.params.tagId ?? "");
   const list = await ownList(req, id);
@@ -500,7 +503,7 @@ router.delete("/email-list/lists/:id/tags/:tagId", publicApiLimiter, requireAuth
   res.json({ ok: true });
 });
 
-router.put("/email-list/lists/:id/subscribers/:subId/tags", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/email-list/lists/:id/subscribers/:subId/tags", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const subId = String(req.params.subId ?? "");
   const list = await ownList(req, id);
@@ -563,7 +566,7 @@ async function validateCriteriaForList(listId: string, raw: unknown) {
   return criteria;
 }
 
-router.get("/email-list/lists/:id/segments", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/segments", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const list = await ownList(req, id);
   if (!list) {
@@ -584,7 +587,7 @@ router.get("/email-list/lists/:id/segments", publicApiLimiter, requireAuth, asyn
   res.json({ segments: withSizes });
 });
 
-router.post("/email-list/lists/:id/segments", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists/:id/segments", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const list = await ownList(req, id);
   if (!list) {
@@ -609,7 +612,7 @@ router.post("/email-list/lists/:id/segments", publicApiLimiter, requireAuth, asy
   res.status(201).json({ segment: { ...segment, criteria, size: members.length } });
 });
 
-router.patch("/email-list/lists/:id/segments/:segId", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/email-list/lists/:id/segments/:segId", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const segId = String(req.params.segId ?? "");
   const list = await ownList(req, id);
@@ -647,7 +650,7 @@ router.patch("/email-list/lists/:id/segments/:segId", publicApiLimiter, requireA
   res.json({ segment: { ...updated, criteria, size: members.length } });
 });
 
-router.delete("/email-list/lists/:id/segments/:segId", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/email-list/lists/:id/segments/:segId", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const segId = String(req.params.segId ?? "");
   const list = await ownList(req, id);
@@ -666,7 +669,7 @@ router.delete("/email-list/lists/:id/segments/:segId", publicApiLimiter, require
   res.json({ ok: true });
 });
 
-router.get("/email-list/lists/:id/segments/:segId/members", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/segments/:segId/members", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const segId = String(req.params.segId ?? "");
   const list = await ownList(req, id);
@@ -692,7 +695,7 @@ router.get("/email-list/lists/:id/segments/:segId/members", publicApiLimiter, re
 
 /* ── Authed: CSV export (free — pure data) ─────────────────────────────── */
 
-router.get("/email-list/lists/:id/export", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/export", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const [list] = await db
     .select()
@@ -734,7 +737,7 @@ const newsletterSchema = z.object({
   callToAction: z.string().max(300).optional().default(""),
 });
 
-router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/newsletter", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = newsletterSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -831,7 +834,7 @@ const campaignSchema = z.object({
   segmentId: z.string().uuid().nullable().optional(),
 });
 
-router.get("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/campaigns", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const [list] = await db
     .select({ id: emailListsTable.id })
@@ -853,7 +856,7 @@ router.get("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, asy
   res.json({ campaigns });
 });
 
-router.post("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists/:id/campaigns", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const [list] = await db
     .select({ id: emailListsTable.id })
@@ -916,7 +919,7 @@ router.post("/email-list/lists/:id/campaigns", publicApiLimiter, requireAuth, as
   res.status(201).json({ campaign, dispatch });
 });
 
-router.post("/email-list/lists/:id/campaigns/:campaignId/send", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists/:id/campaigns/:campaignId/send", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const campaignId = String(req.params.campaignId ?? "");
   const [list] = await db
@@ -1011,7 +1014,7 @@ function automationLocaleOf(req: any): AutomationLocale {
   return resolveAutomationLocale(req.body?.locale, req.query?.locale);
 }
 
-router.get("/email-list/lists/:id/automations", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/email-list/lists/:id/automations", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const list = await loadOwnedList(req, res, id);
   if (!list) return;
@@ -1027,7 +1030,7 @@ const automationPatchSchema = z.object({
   delayHours: z.number().int().min(0).max(720).optional(),
 });
 
-router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/email-list/lists/:id/automations/:kind", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const kindParam = String(req.params.kind ?? "");
   if (!(EMAIL_AUTOMATION_KINDS as readonly string[]).includes(kindParam)) {
@@ -1083,7 +1086,7 @@ router.patch("/email-list/lists/:id/automations/:kind", publicApiLimiter, requir
    creator previewed is the audience that sends. Automation carriers
    are refused here exactly like the /send door refuses them: they
    are sent only by the automation runner. */
-router.post("/email-list/lists/:id/campaigns/:campaignId/queue", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/email-list/lists/:id/campaigns/:campaignId/queue", requireAuth, publicApiLimiter, async (req, res) => {
   const id = String(req.params.id ?? "");
   const campaignId = String(req.params.campaignId ?? "");
   const [list] = await db

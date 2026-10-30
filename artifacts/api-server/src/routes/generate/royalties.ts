@@ -287,7 +287,7 @@ async function chargeOr402(
 }
 
 /* GET /api/royalties/summary → dashboard aggregates. Free. */
-router.get("/royalties/summary", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/royalties/summary", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const entries = await db
       .select({
@@ -317,7 +317,7 @@ router.get("/royalties/summary", publicApiLimiter, requireAuth, async (req, res)
 });
 
 /* GET /api/royalties/entries?song=&platform=&limit= → entries. Free. */
-router.get("/royalties/entries", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/royalties/entries", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const { song, platform, limit } = req.query as { song?: string; platform?: string; limit?: string };
     const conds = [eq(royaltyEntriesTable.user_id, req.userId!)];
@@ -338,7 +338,7 @@ router.get("/royalties/entries", publicApiLimiter, requireAuth, async (req, res)
 });
 
 /* POST /api/royalties/import { csv } → parse + insert. Free. */
-router.post("/royalties/import", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/royalties/import", requireAuth, publicApiLimiter, async (req, res) => {
   const { csv } = (req.body ?? {}) as { csv?: unknown };
   if (typeof csv !== "string" || !csv.trim()) {
     res.status(400).json({ error: "Paste your distributor CSV first." });
@@ -376,7 +376,7 @@ router.post("/royalties/import", publicApiLimiter, requireAuth, async (req, res)
 });
 
 /* GET /api/royalties/platforms → connection status. Free. */
-router.get("/royalties/platforms", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/royalties/platforms", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const conns = await db
       .select()
@@ -401,7 +401,7 @@ router.get("/royalties/platforms", publicApiLimiter, requireAuth, async (req, re
 
 /* POST /api/royalties/platforms { platform, account_label? } → connect. Free.
    v1 only supports manual connections; OAuth paths are honestly "coming soon". */
-router.post("/royalties/platforms", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/royalties/platforms", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = connectSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid connection request." });
@@ -446,7 +446,7 @@ router.post("/royalties/platforms", publicApiLimiter, requireAuth, async (req, r
 });
 
 /* GET /api/royalties/payouts → payout records. Free. */
-router.get("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/royalties/payouts", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const payouts = await db
       .select()
@@ -480,7 +480,7 @@ ${emailButton(`${baseUrlForEmail()}/money`, "Open Money Tracker")}`
 }
 
 /* POST /api/royalties/payouts → create or update a payout. Free. */
-router.post("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/royalties/payouts", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = payoutSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -558,7 +558,7 @@ router.post("/royalties/payouts", publicApiLimiter, requireAuth, async (req, res
 });
 
 /* POST /api/royalties/insights → AI earnings insights. 1 credit, refund on failure. */
-router.post("/royalties/insights", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/royalties/insights", requireAuth, publicApiLimiter, async (req, res) => {
   const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, ROYALTY_INSIGHTS_CREDITS, res);
   if (creditsRemaining === null) return;
 

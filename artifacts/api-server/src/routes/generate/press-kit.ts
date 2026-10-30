@@ -199,7 +199,7 @@ async function handleExists(handle: string, excludeId?: string): Promise<boolean
 }
 
 /* POST /api/press-kit/generate — 3 credits. AI bio + kit creation. */
-router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/press-kit/generate", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = generatePressKitSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -294,7 +294,7 @@ router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, re
 });
 
 /* POST /api/press-kit/:id/regenerate-bio — 1 credit. Bio refresh only. */
-router.post("/press-kit/:id/regenerate-bio", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/press-kit/:id/regenerate-bio", requireAuth, publicApiLimiter, async (req, res) => {
   const kitId = param(req.params.id);
   const parsed = regenerateBioSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

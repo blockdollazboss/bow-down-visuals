@@ -90,7 +90,7 @@ async function suggestionRowsFor(userId: string) {
     .orderBy(desc(collabSuggestionsTable.created_at));
 }
 
-router.get("/collab-match", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/collab-match", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const me = await myCollabProfile(req.userId!);
     if (!me) {
@@ -174,7 +174,7 @@ router.get("/collab-match", publicApiLimiter, requireAuth, async (req: Request, 
 
 const MarkSchema = z.object({ mark: z.enum(["interested", "passed"]) });
 
-router.post("/collab-match/:id/mark", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/collab-match/:id/mark", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = MarkSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid mark" });
@@ -253,7 +253,7 @@ const MintSchema = z.object({
   contentId: z.string().trim().max(120).optional().nullable(),
 });
 
-router.post("/fan-links", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/fan-links", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = MintSchema.safeParse(req.body ?? {});
   if (!parsed.success || !isFanLinkContentType(parsed.data?.contentType)) {
     res.status(400).json({ error: "Invalid fan link" });
@@ -347,7 +347,7 @@ function toLinkRow(r: typeof fanLinksTable.$inferSelect): FanLinkRow {
   };
 }
 
-router.get("/fan-links/mine", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/fan-links/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const links = await db
       .select()
@@ -368,7 +368,7 @@ router.get("/fan-links/mine", publicApiLimiter, requireAuth, async (req: Request
   }
 });
 
-router.get("/fan-links/for-me", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/fan-links/for-me", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const links = await db
       .select()
@@ -461,7 +461,7 @@ router.get("/f/:code", publicApiLimiter, async (req: Request, res: Response) => 
 
 const AttributeSchema = z.object({ code: z.string() });
 
-router.post("/fan-links/attribute-signup", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/fan-links/attribute-signup", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = AttributeSchema.safeParse(req.body ?? {});
   if (!parsed.success || !isFanLinkCode(parsed.data.code)) {
     res.status(400).json({ error: "Invalid fan link code" });
@@ -481,7 +481,7 @@ router.post("/fan-links/attribute-signup", publicApiLimiter, requireAuth, async 
    unavailable. Only plays of my own media count. */
 const AUDIENCE_WINDOW_DAYS = 28;
 
-router.get("/audience-room", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/audience-room", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const profiles = await db
       .select({ id: creatorProfilesTable.id })

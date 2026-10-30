@@ -62,7 +62,7 @@ async function refundOnFailure(userId: string): Promise<void> {
    Paid: 1 credit per AI roll. Auth required; credits are deducted BEFORE the
    model call using the same pre-check + deductCredits + recordCreditUsage
    pattern as the chat paid mode. */
-router.post("/randomizer", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/randomizer", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = randomizerSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid randomizer request: category is required." });

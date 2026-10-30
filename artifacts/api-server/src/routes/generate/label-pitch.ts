@@ -371,8 +371,8 @@ export function parseDemoKitResponse(raw: string): DemoKit {
    Returns: { kit, creditsUsed, creditsRemaining } */
 router.post(
   "/label-pitch/kit",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = demoKitSchema.safeParse(req.body ?? {});
     if (!parsed.success) {

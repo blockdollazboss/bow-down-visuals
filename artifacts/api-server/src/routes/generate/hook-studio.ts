@@ -79,7 +79,7 @@ async function refundOnFailure(userId: string, action: string): Promise<void> {
    Paid: 1 credit per generation (all modes). Auth required; credits are
    deducted BEFORE the model call using the same pre-check + deductCredits +
    recordCreditUsage pattern as the randomizer and chat paid mode. */
-router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = hookStudioSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

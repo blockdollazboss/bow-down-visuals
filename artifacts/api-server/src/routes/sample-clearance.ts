@@ -70,7 +70,7 @@ const declareSchema = z.object({
 
 const patchSchema = declareSchema.partial();
 
-router.post("/sample-clearance/songs/:songId/declarations", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/sample-clearance/songs/:songId/declarations", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = declareSchema.safeParse(req.body);
     if (!parsed.success) {

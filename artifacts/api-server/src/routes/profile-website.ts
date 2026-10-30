@@ -105,7 +105,7 @@ function layoutResponse(profile: ProfileRow): LayoutResponseDto {
   return { layout: blocks, isDefault, blockTypes: PROFILE_BLOCK_TYPES, maxBlocks: MAX_PROFILE_BLOCKS, templateId: liveTemplateIdOf(profile) };
 }
 
-router.get("/creator-profiles/me/layout", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/creator-profiles/me/layout", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -119,7 +119,7 @@ router.get("/creator-profiles/me/layout", publicApiLimiter, requireAuth, async (
   }
 });
 
-router.put("/creator-profiles/me/layout", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/creator-profiles/me/layout", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -184,7 +184,7 @@ function themeSettingsOf(profile: ProfileRow): ThemeSettingsDto {
   };
 }
 
-router.get("/creator-profiles/me/theme-settings", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/creator-profiles/me/theme-settings", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -215,7 +215,7 @@ const themeSettingsSchema = z
     message: "Send at least one setting to change.",
   });
 
-router.put("/creator-profiles/me/theme-settings", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/creator-profiles/me/theme-settings", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -332,7 +332,7 @@ async function saveDraft(profile: ProfileRow, draft: ProfileTemplateDraft): Prom
   return { ...profile, themeConfig: cfg };
 }
 
-router.get("/creator-profiles/me/template", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/creator-profiles/me/template", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -348,7 +348,7 @@ router.get("/creator-profiles/me/template", publicApiLimiter, requireAuth, async
 
 const draftPickSchema = z.object({ templateId: z.string().max(60) });
 
-router.put("/creator-profiles/me/template/draft", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/creator-profiles/me/template/draft", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -380,7 +380,7 @@ const draftLayoutSchema = z.object({
   bodyFont: z.string().max(60).nullish(),
 });
 
-router.put("/creator-profiles/me/template/draft/layout", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/creator-profiles/me/template/draft/layout", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -436,7 +436,7 @@ router.put("/creator-profiles/me/template/draft/layout", publicApiLimiter, requi
   }
 });
 
-router.post("/creator-profiles/me/template/ai-design", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/creator-profiles/me/template/ai-design", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -473,7 +473,7 @@ router.post("/creator-profiles/me/template/ai-design", publicApiLimiter, require
   }
 });
 
-router.post("/creator-profiles/me/template/approve", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/creator-profiles/me/template/approve", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -523,7 +523,7 @@ router.post("/creator-profiles/me/template/approve", publicApiLimiter, requireAu
   }
 });
 
-router.delete("/creator-profiles/me/template/draft", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/creator-profiles/me/template/draft", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -875,7 +875,7 @@ const spotlightPutSchema = z.object({
   itemId: z.string().nullable().optional(),
 });
 
-router.put("/creator-profiles/me/spotlight", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/creator-profiles/me/spotlight", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -1051,7 +1051,7 @@ function collectionDto(fanProfile: ProfileRow, items: CollectionItemDto[]): Coll
 
 /* The /me routes register BEFORE /:slug — Express matches in order
    and "me" would otherwise be captured as a fan slug. */
-router.get("/collections/me", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/collections/me", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {
@@ -1069,7 +1069,7 @@ router.get("/collections/me", publicApiLimiter, requireAuth, async (req, res) =>
 const visibilitySchema = z.object({ visibility: z.enum(["public", "private"]) });
 
 
-router.put("/collections/me/visibility", publicApiLimiter, requireAuth, async (req, res) => {
+router.put("/collections/me/visibility", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const own = await getOwnProfile(req.userId!);
     if (!own) {

@@ -338,8 +338,8 @@ async function summarizeEpisode(title: string, transcriptText: string): Promise<
 
 router.post(
   "/podcast/multiply",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   async (req, res) => {
     const parsed = multiplySchema.safeParse(req.body ?? {});
     if (!parsed.success) {

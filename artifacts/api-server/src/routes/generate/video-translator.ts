@@ -51,7 +51,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
-import { tmpUploadStorage } from "../../lib/upload-storage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import {
   DUB_CAPTION_LANGUAGES,
   isDubCaptionLanguage,
@@ -497,7 +497,7 @@ export async function runTranslateJob(
 
 /* ── Upload ──────────────────────────────────────────────────────────── */
 
-const upload = multer({
+const upload = createAdminAwareUpload({
   storage: tmpUploadStorage,
   limits: { fileSize: VIDEO_TRANSLATOR_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
@@ -543,8 +543,8 @@ router.get("/video-translator/languages", (_req, res) => {
  */
 router.post(
   "/video-translator/translate",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   upload.single("video"),
   async (req, res) => {
     let body: unknown = req.body;

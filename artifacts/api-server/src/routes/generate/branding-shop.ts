@@ -222,7 +222,7 @@ async function runwayGenerateAndUpload(
    Runway gen4_image in PARALLEL (server-side polling). Credits are charged
    BEFORE generation and refunded on ANY provider failure — the user never
    pays for a kit they didn't get. */
-router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/branding-shop/design", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = designSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -350,7 +350,7 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
    fulfillment (Printful live, or the clearly-labeled mock sandbox) and the
    response carries the provider + honest fulfillment messaging. Payment is
    a separate step (POST /checkout) — nothing is charged here. */
-router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/branding-shop/orders", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = orderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -454,7 +454,7 @@ function getBaseUrl(req: import("express").Request): string {
    trusted. On success the Stripe webhook marks the order paid and confirms
    fulfillment. Without STRIPE_SECRET_KEY a clearly-labeled mock checkout
    completes the order instantly (demo mode). */
-router.post("/branding-shop/checkout", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/branding-shop/checkout", requireAuth, publicApiLimiter, async (req, res) => {
   const { orderId, uiMode } = (req.body ?? {}) as { orderId?: string; uiMode?: string };
   if (!orderId || typeof orderId !== "string") {
     res.status(400).json({ error: "orderId is required." });
@@ -609,8 +609,8 @@ const upload = multer({
    Returns a URL for the uploaded logo. Used for custom logo rug orders. */
 router.post(
   "/branding-shop/upload-logo",
-  publicApiLimiter,
   requireAuth,
+  publicApiLimiter,
   upload.single("file"),
   async (req, res) => {
     try {

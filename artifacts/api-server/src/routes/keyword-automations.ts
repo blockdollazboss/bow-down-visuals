@@ -23,6 +23,7 @@ import {
   type KeywordAutomationSurface,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
+import { isAdminRequest } from "../lib/admin";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { KW_MAX_RULES_PER_CREATOR, normalizeKeyword } from "../lib/keyword-automations";
 import { logger } from "../lib/logger";
@@ -93,7 +94,7 @@ async function validateCaptureTarget(userId: string, listId: string | null | und
   return list ? null : "That email list isn't yours.";
 }
 
-router.get("/keyword-automations/rules", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/keyword-automations/rules", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rules = await db
       .select()
@@ -127,7 +128,7 @@ router.get("/keyword-automations/rules", publicApiLimiter, requireAuth, async (r
   }
 });
 
-router.post("/keyword-automations/rules", publicApiLimiter, requireAuth, async (req, res) => {
+router.post("/keyword-automations/rules", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const parsed = ruleBodySchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -148,7 +149,10 @@ router.post("/keyword-automations/rules", publicApiLimiter, requireAuth, async (
       .select({ value: count() })
       .from(keywordAutomationRulesTable)
       .where(eq(keywordAutomationRulesTable.creatorUserId, req.userId!));
-    if ((existing?.value ?? 0) >= KW_MAX_RULES_PER_CREATOR) {
+    /* Rule-count cap: product packaging for members. The owner's
+       account carries no customer restrictions (Oct 29, 2026) — an
+       admin creator is never refused a rule for count. */
+    if (!isAdminRequest(req) && (existing?.value ?? 0) >= KW_MAX_RULES_PER_CREATOR) {
       res.status(400).json({ error: `You can keep up to ${KW_MAX_RULES_PER_CREATOR} keyword rules.` });
       return;
     }
@@ -173,7 +177,7 @@ router.post("/keyword-automations/rules", publicApiLimiter, requireAuth, async (
   }
 });
 
-router.patch("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.patch("/keyword-automations/rules/:id", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rule = await loadOwnedRule(req, res, String(req.params["id"] ?? ""));
     if (!rule) return;
@@ -221,7 +225,7 @@ router.patch("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, as
   }
 });
 
-router.delete("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, async (req, res) => {
+router.delete("/keyword-automations/rules/:id", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const rule = await loadOwnedRule(req, res, String(req.params["id"] ?? ""));
     if (!rule) return;
@@ -234,7 +238,7 @@ router.delete("/keyword-automations/rules/:id", publicApiLimiter, requireAuth, a
 });
 
 /** The audit log: every recorded fire for the caller's rules. */
-router.get("/keyword-automations/events", publicApiLimiter, requireAuth, async (req, res) => {
+router.get("/keyword-automations/events", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     const limit = Math.min(100, Math.max(1, Number(req.query["limit"] ?? 50) || 50));
     const rows = await db

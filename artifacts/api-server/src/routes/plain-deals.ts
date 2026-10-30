@@ -293,7 +293,7 @@ async function attachSignedDeal(deal: PlainDeal): Promise<PlainDealSplitAttach> 
 }
 
 /* POST /api/plain-deals — draft (author signs at draft; partner pending) */
-router.post("/plain-deals", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/plain-deals", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = createSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -446,7 +446,7 @@ router.post("/plain-deals", publicApiLimiter, requireAuth, async (req: Request, 
 });
 
 /* GET /api/plain-deals/mine — my deals, newest first (guarded read) */
-router.get("/plain-deals/mine", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/plain-deals/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     let sideRows: Array<typeof plainDealSidesTable.$inferSelect>;
     try {
@@ -480,7 +480,7 @@ router.get("/plain-deals/mine", publicApiLimiter, requireAuth, async (req: Reque
 });
 
 /* GET /api/plain-deals/:id — one deal; only its two sides may read it */
-router.get("/plain-deals/:id", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.get("/plain-deals/:id", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const id = String(req.params["id"] ?? "");
     if (!UUID_RE.test(id)) return res.status(400).json({ error: "invalid_id" });
@@ -543,7 +543,7 @@ async function signNames(deal: PlainDeal): Promise<{ authorName: string; partner
 
 /* POST /api/plain-deals/:id/sign — sign the words as written. When this
    completes the pair, the split + text freeze and the split attaches. */
-router.post("/plain-deals/:id/sign", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/plain-deals/:id/sign", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = signSchema.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
@@ -648,13 +648,13 @@ function actionRoute(action: "decline" | "withdraw") {
   };
 }
 
-router.post("/plain-deals/:id/decline", publicApiLimiter, requireAuth, actionRoute("decline"));
-router.post("/plain-deals/:id/withdraw", publicApiLimiter, requireAuth, actionRoute("withdraw"));
+router.post("/plain-deals/:id/decline", requireAuth, publicApiLimiter, actionRoute("decline"));
+router.post("/plain-deals/:id/withdraw", requireAuth, publicApiLimiter, actionRoute("withdraw"));
 
 /* POST /api/plain-deals/:id/amend — author rewrites the words before
    signature. The partner is un-signed in the same write: they must
    sign the NEW words; nobody is bound by words they didn't sign. */
-router.post("/plain-deals/:id/amend", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/plain-deals/:id/amend", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = amendSchema.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });

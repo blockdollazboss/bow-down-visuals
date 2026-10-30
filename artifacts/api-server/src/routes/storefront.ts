@@ -76,6 +76,7 @@ import { sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
+import { isAdminUserId } from "../lib/admin";
 /* Worker 12 (PLATFORM TIERS + FEE ECONOMICS) owns the money math — this is
    the ONE shared fee location. The base fee is a flat 5% (env
    PLATFORM_FEE_BPS; owner ruling 2026-10-23) — the same rate the
@@ -4183,7 +4184,8 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
       WHERE list_id = ${listId} AND unsubscribed_at IS NULL
     `);
     const subCount = Number((subCountRes.rows[0] as Record<string, unknown>)?.["c"] ?? 0);
-    if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT) {
+    /* The owner's own list never reads as full (Oct 29, 2026). */
+    if (subCount >= EMAIL_FREE_SUBSCRIBER_LIMIT && !(creatorUserId && (await isAdminUserId(creatorUserId)))) {
       res.status(403).json({
         error: "LIST_FULL",
         message: `This creator's list has reached the ${EMAIL_FREE_SUBSCRIBER_LIMIT}-subscriber free tier, so the claim can't go through right now.`,

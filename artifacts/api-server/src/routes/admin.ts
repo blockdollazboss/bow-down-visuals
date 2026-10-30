@@ -33,16 +33,12 @@ import { listPaymentReversals } from "../lib/payment-reversals";
 
 const router = Router();
 
-function adminEmails(): string[] {
-  return (process.env["ADMIN_EMAILS"] ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
+import { adminEmails, isAdminEmail } from "../lib/admin";
 
+/* The one admin predicate lives in lib/admin.ts (fail-closed
+   ADMIN_EMAILS); requireAdmin has always enforced exactly that rule. */
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const email = (req.userEmail ?? "").toLowerCase();
-  if (!email || !adminEmails().includes(email)) {
+  if (!isAdminEmail(req.userEmail)) {
     res.status(403).json({ error: "Not authorized." });
     return;
   }
