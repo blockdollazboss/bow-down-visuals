@@ -170,6 +170,44 @@ export function postingAccountStates(accounts: PostingAccountLike[]): PostingAcc
   });
 }
 
+/**
+ * The platform set a FRESH composer should open with (EVERYTHING-SMART
+ * audit, stack900 K1). The composer used to open on ["instagram"] for
+ * everyone — even a creator who posts to TikTok + YouTube every day,
+ * or who has no Instagram connected at all. The system already knows
+ * better, from state the scheduler page has loaded anyway:
+ *
+ *   1. The platforms of the creator's most recent post — what they
+ *      actually post to — narrowed to accounts still connected (a
+ *      platform they disconnected shouldn't come pre-ticked).
+ *   2. Else the platforms they have connected, in canonical order.
+ *   3. Else null — the composer keeps its own last-resort default.
+ *
+ * Pure + total: expired accounts count as NOT connected (an expired
+ * token can't post), and unrecognised platform strings are dropped.
+ */
+export function defaultComposerPlatforms(
+  posts: Array<Pick<ScheduledPostShape, "platforms" | "createdAt">>,
+  accounts: Array<{ platform: string; expired?: boolean }>,
+): SchedulerPlatformKey[] | null {
+  const connected = new Set<SchedulerPlatformKey>(
+    POSTING_PLATFORMS.filter((p) =>
+      accounts.some((a) => a.platform === p && !a.expired),
+    ),
+  );
+  const recent = [...posts]
+    .filter((p) => Array.isArray(p.platforms) && p.platforms.length > 0)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))[0];
+  if (recent) {
+    const last = recent.platforms.filter((p) => POSTING_PLATFORMS.includes(p));
+    const stillConnected = last.filter((p) => connected.has(p));
+    if (stillConnected.length > 0) return stillConnected;
+    if (connected.size === 0 && last.length > 0) return last;
+  }
+  if (connected.size > 0) return POSTING_PLATFORMS.filter((p) => connected.has(p));
+  return null;
+}
+
 /** Group scheduled posts by their local YYYY-MM-DD date. */
 export function groupPostsByDay(posts: ScheduledPostShape[]): Map<string, ScheduledPostShape[]> {
   const map = new Map<string, ScheduledPostShape[]>();
