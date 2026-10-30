@@ -6,6 +6,8 @@ import {
   Gauge,
   Maximize,
   Minimize,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import {
@@ -22,6 +24,11 @@ import {
   type QualityPreference,
 } from "@/lib/world/quality";
 import type { HallViewMode } from "@/lib/world/view-mode";
+import {
+  withWorldVolumeLevel,
+  withWorldVolumeMuted,
+  type WorldVolume,
+} from "@/lib/world/volume";
 
 /* ─── World settings — the World's own settings home (stack900) ────
    The owner's ruling (2026-10-29): settings for the World live
@@ -40,9 +47,11 @@ import type { HallViewMode } from "@/lib/world/view-mode";
    quality through the footer's own cycle, fullscreen through the
    header button's own toggleFs. The panel is a second door to
    the same rooms, never a second truth. What the census found no
-   store for (the radio's open state is session-only; the World
-   has no volume dial anywhere) is simply not here — a settings
-   panel with an invented slider would be a lie with a handle.
+   store for (the radio's open state is session-only) is simply
+   not here. The Sound section's second row — the World volume —
+   arrived with lane G3's real master store (lib/world/volume):
+   it rides the same second-door pattern, passed in as props, and
+   the panel still persists nothing itself.
 
    Sections, in the ruling's order: Controller (the pad in hand,
    named by B1's reactive profile store; the button map's row
@@ -70,6 +79,11 @@ export interface WorldSettingsPanelProps {
   onCycleQuality: () => void;
   announceMuted: boolean;
   onToggleAnnounceMuted: () => void;
+  /** The World master volume (lane G3's store, second door): the
+   *  page's mirrored state + the store's own setter, so this row
+   *  and the header's mute button can never disagree. */
+  worldVolume: WorldVolume;
+  onWorldVolumeChange: (next: WorldVolume) => void;
   isFs: boolean;
   fsSupported: boolean;
   onToggleFullscreen: () => void;
@@ -118,6 +132,8 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
     onCycleQuality,
     announceMuted,
     onToggleAnnounceMuted,
+    worldVolume,
+    onWorldVolumeChange,
     isFs,
     fsSupported,
     onToggleFullscreen,
@@ -243,9 +259,12 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
           </p>
         </Section>
 
-        {/* ── Sound: the one World sound switch the census proved
-            (the palace announcements mute — the header toggle's
-            own handler, the same device store). ── */}
+        {/* ── Sound: two separate switches, one section — the
+            palace announcements mute (the header toggle's own
+            handler, its own device store) and, directly under
+            it, the World master volume (lane G3's store, the
+            header mute button's second door). Either can silence
+            its own half without touching the other. ── */}
         <Section title="Sound" isLight={isLight}>
           <button
             type="button"
@@ -272,6 +291,50 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
             The palace speaks for drops, shows and the King&rsquo;s
             moment. Off silences the banner and its sting on this
             device — the room log still keeps the line.
+          </p>
+          <div className="flex items-center gap-2 self-start">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!worldVolume.muted}
+              data-testid="world-settings-volume-mute"
+              onClick={() => onWorldVolumeChange(withWorldVolumeMuted(worldVolume, !worldVolume.muted))}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                !worldVolume.muted
+                  ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
+                  : isLight
+                    ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36] hover:text-[#2a1e07]"
+                    : "border-white/20 bg-white/5 text-white/60 hover:text-white"
+              }`}
+            >
+              {worldVolume.muted ? (
+                <VolumeX className="h-4 w-4" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+              World volume {worldVolume.muted ? "muted" : "on"}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={worldVolume.level}
+              data-testid="world-settings-volume-slider"
+              aria-label="World volume"
+              onChange={(e) => onWorldVolumeChange(withWorldVolumeLevel(worldVolume, Number(e.currentTarget.value)))}
+              className="w-32 accent-[#d4af37]"
+            />
+            <span className={`text-xs font-bold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
+              {worldVolume.level}
+            </span>
+          </div>
+          <p className={noteCls}>
+            Two separate switches: announcements mute silences only
+            the palace&rsquo;s voice; the World volume is the master
+            for every World sound on this device. Either can silence
+            its half without touching the other — and your
+            phone&rsquo;s own mute still outranks both.
           </p>
         </Section>
 

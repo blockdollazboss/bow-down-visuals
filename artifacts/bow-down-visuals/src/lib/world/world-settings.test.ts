@@ -135,6 +135,23 @@ describe("world settings — every control writes through its existing store", (
     expect(panel).toContain('role="switch"');
   });
 
+  it("sound: the master volume row (lane G3, joined) writes through the passed handler", () => {
+    /* B7's census found no master store, so this row did not
+       exist on its base; lane G3 built the real store, and at
+       the stack900 join the Sound section gained the row as a
+       second door to it — props in, handler out, the panel
+       itself still persists nothing (see the no-store pin). */
+    expect(page).toContain("worldVolume={worldVolume}");
+    expect(page).toContain(
+      "onWorldVolumeChange={(next: WorldVolume) => setWorldVolume(next)}",
+    );
+    expect(panel).toContain('data-testid="world-settings-volume-mute"');
+    expect(panel).toContain('data-testid="world-settings-volume-slider"');
+    expect(panel).toContain("withWorldVolumeMuted(worldVolume, !worldVolume.muted)");
+    expect(panel).toContain("withWorldVolumeLevel(worldVolume, Number(e.currentTarget.value))");
+    expect(panel).toContain("onWorldVolumeChange");
+  });
+
   it("display: quality cycles through the footer's own next-preference step", () => {
     expect(page).toContain(
       "onCycleQuality={() => setQualityPref((q) => nextQualityPreference(q))}",

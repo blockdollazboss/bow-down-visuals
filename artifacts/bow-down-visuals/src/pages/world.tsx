@@ -4691,6 +4691,8 @@ export default function WorldPage() {
           onCycleQuality={() => setQualityPref((q) => nextQualityPreference(q))}
           announceMuted={announceMuted}
           onToggleAnnounceMuted={toggleAnnounceMuted}
+          worldVolume={worldVolume}
+          onWorldVolumeChange={(next: WorldVolume) => setWorldVolume(next)}
           isFs={isFs}
           fsSupported={fsSupported}
           onToggleFullscreen={toggleFs}
