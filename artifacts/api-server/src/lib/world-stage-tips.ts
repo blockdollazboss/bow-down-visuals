@@ -34,7 +34,8 @@
  */
 
 import { eq } from "drizzle-orm";
-import { db, worldStageTipsTable, creditUsageTable } from "@workspace/db";
+import { db, worldStageTipsTable, creditUsageTable, creatorProfilesTable } from "@workspace/db";
+import { emitOverlayAlert } from "./overlay-events";
 import {
   addCreditsAtomic,
 } from "./supabase-admin";
@@ -250,6 +251,26 @@ export function createStageTipper(store: StageTipStore = dbStageTipStore) {
               await _stageTipEventNotifier(buildStageTipEvent({ toUserId, amountVb }));
             } catch (notifyErr) {
               logger.warn({ notifyErr, tipId: tip.id }, "[stage-tip] performer push failed (non-fatal)");
+            }
+            /* Stream overlays (stack900 C2): the same landed tip
+               pops on the performer's overlay feed, naming the
+               tipper the way the live tip alerts do. Best-effort,
+               under the same gate (credit landed, never a self-tip). */
+            try {
+              const tipperRows = await db
+                .select({ displayName: creatorProfilesTable.displayName })
+                .from(creatorProfilesTable)
+                .where(eq(creatorProfilesTable.userId, fromUserId))
+                .limit(1);
+              const tipperName = tipperRows[0]?.displayName ?? "Someone";
+              emitOverlayAlert(toUserId, {
+                kind: "tip",
+                title: `${tipperName} tipped ${amountVb.toLocaleString("en-US")} Visual Bucs`,
+                body: "A stage tip from the World.",
+                amountVb,
+              });
+            } catch (overlayErr) {
+              logger.warn({ overlayErr, tipId: tip.id }, "[stage-tip] overlay alert failed (non-fatal)");
             }
           }
         } catch (err) {

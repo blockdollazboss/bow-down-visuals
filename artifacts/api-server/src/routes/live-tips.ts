@@ -34,6 +34,7 @@ import {
   LIVE_TIP_PIN_DURATION_MS,
 } from "../lib/live-config";
 import { liveChatHub, effectiveStatus, getActivePin, chatMessageDtos, stageManagerTipFollowUp } from "./live-chat";
+import { emitOverlayAlert } from "../lib/overlay-events";
 import { isTicketed, canEnterStream } from "../lib/live-tickets";
 import { awardTipPoints } from "../lib/loyalty";
 
@@ -449,6 +450,15 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
           body: dto.body,
           amountVb,
         },
+      });
+      // Stream overlays (stack900 C2): the same alert, on the
+      // creator's overlay feed — the door OBS / Streamlabs browser
+      // sources subscribe to. Same words, same amount.
+      emitOverlayAlert(stream.user_id, {
+        kind: "tip",
+        title: `${dto.tipper.displayName} tipped ${amountVb.toLocaleString("en-US")} Visual Bucs`,
+        body: dto.body,
+        amountVb,
       });
       if (pinnedUntil) {
         const pin = await getActivePin(stream.id).catch(() => null);

@@ -128,6 +128,7 @@ import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { queueKeywordComment } from "../lib/keyword-automations";
 import { emitNewFollowerWebhook } from "../lib/api-webhooks";
+import { emitOverlayAlert } from "../lib/overlay-events";
 import { resolvePaidPlan } from "../lib/profile-website";
 
 /** Operator emails for alerts (ADMIN_EMAILS, comma-separated). */
@@ -1673,6 +1674,14 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
       // Public-API webhook (lane 20): fire-and-forget, never awaited —
       // a webhook failure can never fail or roll back this follow.
       emitNewFollowerWebhook(profile.userId, { profileId: profile.id, followerUserId: userId });
+      // Stream overlays (stack900 C2): the same moment on the
+      // creator's overlay feed, whether or not they're live in our
+      // own studio — their OBS overlay pops it either way.
+      emitOverlayAlert(profile.userId, {
+        kind: "follow",
+        title: `${followerName ?? "Someone"} just followed`,
+        body: "A new fan just walked in — say hello.",
+      });
       // A follow that lands while the creator is live surfaces as an
       // on-screen alert in their studio Program feed (same WS room as
       // chat). Best-effort only — a follow never fails over an alert.

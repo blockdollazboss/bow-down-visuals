@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "122dd8344fbac298eaacb04b958aa0425b4294e8",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "counts": {
     "routesInApp": 241,
     "pageFiles": 185,
@@ -21,10 +21,10 @@
     "takeoverOffers": 2,
     "withDescriptions": 238,
     "withoutDescriptions": 10,
-    "serverRouteFiles": 427,
-    "serverEndpoints": 1703,
+    "serverRouteFiles": 428,
+    "serverEndpoints": 1707,
     "serverEndpointsVisible": 1003,
-    "serverFilesClassified": 128
+    "serverFilesClassified": 129
   },
   "packs": [
     {
@@ -20114,6 +20114,21 @@
         "classification": {
           "surface": "creator-tools",
           "reason": "Storyboard planner CRUD (boards + panels) — the member's video-plan store behind the editor's planning surface; no page of its own."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/stream-overlays.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/overlay/me",
+          "/api/overlay/state",
+          "/api/overlay/test-alert",
+          "/api/overlay/token/reset"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Stream-overlay rails (overlay state + token desk + test alert) — the data door for the OBS/Streamlabs overlay pages (/overlay/alerts, /overlay/goal) and the Stream Widgets desk section on /promote; the pages are chromeless browser sources, so no feature entry carries these endpoints."
         }
       },
       {

@@ -159,6 +159,7 @@ import songRequestsRouter from "./song-requests";
 import liveTicketsRouter from "./live-tickets";
 import liveModeratorsRouter from "./live-moderators";
 import liveWidgetsRouter from "./live-widgets";
+import streamOverlaysRouter from "./stream-overlays";
 import liveSummaryRouter from "./live-summary";
 import liveBattlesRouter from "./live-battles";
 import reachRouter from "./reach";
@@ -575,6 +576,7 @@ router.use(songRequestsRouter);              // /api/live/:id/song-requests + /a
 router.use(liveTicketsRouter);               // /api/live-streams/:id/ticket(s) (ticketed live — pay-per-view door)
 router.use(liveModeratorsRouter);            // /api/live/moderators + /api/live/:id/chat/my-role
 router.use(liveWidgetsRouter);               // /api/live/:id/widgets + /api/live/:id/tip-goal
+router.use(streamOverlaysRouter);            // /api/overlay/* (stack900 C2 — OBS/Streamlabs overlay state, token + desk)
 router.use(liveSummaryRouter);               // /api/live/:id/summary (post-stream, owner)
 router.use(liveBattlesRouter);               // /api/live-battles/* (Stack-200 #154 — two-creator live battles, recorded-vote tally, crown)
 router.use(reachRouter);                     // /api/reach/* (Stack 9: fan-out, premieres, raids, drops, loyalty, close-friends, broadcast)
