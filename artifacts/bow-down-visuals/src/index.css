@@ -1347,6 +1347,15 @@ html, body {
    placeholder joins §11's readable value alongside the /35 rung above. */
 .light .placeholder\:text-amber-100\/30:not([data-dark-lock]):not([data-dark-lock] *)::placeholder { color: #7A7266; }
 
+/* ProductReviews star ratings: the unfilled star is text-amber-200/25
+   (display) and /30 (the rating input). The amber-200 ladder (§5) stops
+   at /60, so on ivory the unfilled stars vanished — a five-star control
+   showed only its filled stars and read as a shorter scale. Both steps
+   take a muted bronze, faint enough to stay "unfilled", visible enough
+   to keep the scale's structure. */
+.light .text-amber-200\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.55); }
+.light .text-amber-200\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.5); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
