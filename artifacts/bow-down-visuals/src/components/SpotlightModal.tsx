@@ -105,7 +105,7 @@ export default function SpotlightModal({ open, onClose }: { open: boolean; onClo
               <button
                 type="button"
                 onClick={onClose}
-                className={`rounded-full p-1 ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white"}`}
+                className={`rounded-full p-3 -m-2 ${isLight ? "text-[#8A7A56] hover:text-[#2A1E07]" : "text-white/40 hover:text-white"}`}
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
