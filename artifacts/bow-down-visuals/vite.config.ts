@@ -84,11 +84,16 @@ export default defineConfig({
           // helpers, though recharts is used only by the lazy
           // analytics-hub route. Pin both leaves to one tiny shared vendor
           // chunk so vendor-recharts stays behind the route that uses it.
+          // (Chunk name kept as "vendor-clsx" — the first pin's name:
+          // renaming the target to "vendor-shared" was measured to make
+          // Rolldown merge the leaves straight back into vendor-recharts,
+          // so the proven name stays and this comment carries the truth
+          // about what's inside.)
           if (
             /[\\/]node_modules[\\/]clsx[\\/]/.test(id) ||
             /[\\/]node_modules[\\/]use-sync-external-store[\\/]/.test(id)
           ) {
-            return "vendor-shared";
+            return "vendor-clsx";
           }
           // Stack-28 #51: recharts is used ONLY by the analytics-hub route — keep it in
           // its own vendor chunk so the hub's panel code stays lean and
