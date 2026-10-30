@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "122dd8344fbac298eaacb04b958aa0425b4294e8",
+  "baseCommit": "e54d236c320f4bd0bcd8c45e54954a6e3b161a0f",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,9 +9,9 @@
   },
   "generatedAt": "2026-10-30",
   "counts": {
-    "routesInApp": 241,
-    "pageFiles": 185,
-    "features": 248,
+    "routesInApp": 243,
+    "pageFiles": 187,
+    "features": 250,
     "excludedRoutes": 73,
     "excludedPageFiles": 35,
     "pricedActions": 216,
@@ -19,12 +19,12 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 238,
+    "withDescriptions": 240,
     "withoutDescriptions": 10,
     "serverRouteFiles": 428,
     "serverEndpoints": 1707,
-    "serverEndpointsVisible": 1003,
-    "serverFilesClassified": 129
+    "serverEndpointsVisible": 1006,
+    "serverFilesClassified": 128
   },
   "packs": [
     {
@@ -9933,6 +9933,36 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
     },
     {
+      "id": "overlay-alerts",
+      "name": "Overlay Alerts Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/alerts",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx",
+      "component": "OverlayAlertsPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: a card pops on the creator's stream the moment a tip lands, a fan follows, or a member joins.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx usePageTitle meta description"
+    },
+    {
+      "id": "overlay-goal",
+      "name": "Overlay Goal Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/goal",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx",
+      "component": "OverlayGoalPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the creator's tip-goal bar for their current stream, filling live as tips land.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx usePageTitle meta description"
+    },
+    {
       "id": "party",
       "name": "Party Games",
       "nameSource": "app-sidebar.tsx nav label (en.json)",
@@ -10290,6 +10320,9 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/overlay/me",
+        "/api/overlay/test-alert",
+        "/api/overlay/token/reset",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -20119,17 +20152,10 @@
       {
         "file": "artifacts/api-server/src/routes/stream-overlays.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 3,
         "unseen": [
-          "/api/overlay/me",
-          "/api/overlay/state",
-          "/api/overlay/test-alert",
-          "/api/overlay/token/reset"
-        ],
-        "classification": {
-          "surface": "live",
-          "reason": "Stream-overlay rails (overlay state + token desk + test alert) — the data door for the OBS/Streamlabs overlay pages (/overlay/alerts, /overlay/goal) and the Stream Widgets desk section on /promote; the pages are chromeless browser sources, so no feature entry carries these endpoints."
-        }
+          "/api/overlay/state"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/stripe-connect.ts",

@@ -1,6 +1,7 @@
 import { useSearch } from "wouter";
 import { OverlayGoalBar } from "@/components/overlay/OverlayGoalBar";
 import { useOverlayFeed, useTransparentStage } from "@/lib/use-overlay-feed";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /overlay/goal (stack900 lane C2) ────────────────────────────────────
    The tip-goal browser source: a transparent page carrying only
@@ -11,6 +12,10 @@ import { useOverlayFeed, useTransparentStage } from "@/lib/use-overlay-feed";
 
 export default function OverlayGoalPage() {
   useTransparentStage();
+  usePageTitle(
+    "Stream tip-goal overlay",
+    "The Bow Down Visuals overlay for OBS and Streamlabs: the creator's tip-goal bar for their current stream, filling live as tips land.",
+  );
   const search = useSearch();
   const params = new URLSearchParams(search);
   const token = params.get("token");

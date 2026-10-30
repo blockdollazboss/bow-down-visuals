@@ -545,7 +545,6 @@ function AppShell() {
         <Switch>
           <Route path="/overlay/alerts"><OverlayAlertsPage /></Route>
           <Route path="/overlay/goal"><OverlayGoalPage /></Route>
-          <Route>{() => null}</Route>
         </Switch>
       </Suspense>
     );

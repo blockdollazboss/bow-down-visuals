@@ -1650,10 +1650,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "live",
     reason: "Live-widget rails (widgets + tip-goal) — the on-stream widget machinery; no page of its own.",
   },
-  "artifacts/api-server/src/routes/stream-overlays.ts": {
-    surface: "live",
-    reason: "Stream-overlay rails (overlay state + token desk + test alert) — the data door for the OBS/Streamlabs overlay pages (/overlay/alerts, /overlay/goal) and the Stream Widgets desk section on /promote; the pages are chromeless browser sources, so no feature entry carries these endpoints.",
-  },
   /* World rails. */
   "artifacts/api-server/src/routes/world-contests.ts": {
     surface: "world",

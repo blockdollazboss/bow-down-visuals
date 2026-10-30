@@ -30,8 +30,11 @@ describe("chromeless routing", () => {
     expect(gateAt).toBeGreaterThan(branchAt);
     expect(appSrc).toContain('<Route path="/overlay/alerts"><OverlayAlertsPage /></Route>');
     expect(appSrc).toContain('<Route path="/overlay/goal"><OverlayGoalPage /></Route>');
-    // Unknown overlay paths render nothing — never a 404 on stream.
-    expect(appSrc).toContain("<Route>{() => null}</Route>");
+    // The overlay branch carries no NotFound: an unknown /overlay/*
+    // path matches nothing in its Switch and renders nothing — a
+    // 404 page must never appear on a stream's program output.
+    const branch = appSrc.slice(branchAt, appSrc.indexOf("</Switch>", branchAt));
+    expect(branch).not.toContain("NotFound");
   });
 
   it("both pages take the transparent stage and read token + style from the URL", () => {

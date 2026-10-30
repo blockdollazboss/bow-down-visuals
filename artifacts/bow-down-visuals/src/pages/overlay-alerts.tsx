@@ -1,6 +1,7 @@
 import { useSearch } from "wouter";
 import { OverlayAlertCard } from "@/components/overlay/OverlayAlertCard";
 import { useOverlayFeed, useTransparentStage } from "@/lib/use-overlay-feed";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── /overlay/alerts (stack900 lane C2) ──────────────────────────────────
    The browser source a creator pastes into OBS / Streamlabs: a
@@ -12,6 +13,10 @@ import { useOverlayFeed, useTransparentStage } from "@/lib/use-overlay-feed";
 
 export default function OverlayAlertsPage() {
   useTransparentStage();
+  usePageTitle(
+    "Stream alert overlay",
+    "The Bow Down Visuals overlay for OBS and Streamlabs: a card pops on the creator's stream the moment a tip lands, a fan follows, or a member joins.",
+  );
   const search = useSearch();
   const params = new URLSearchParams(search);
   const token = params.get("token");
