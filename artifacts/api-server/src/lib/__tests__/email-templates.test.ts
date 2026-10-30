@@ -58,7 +58,7 @@ describe("emailShell (Resend family)", () => {
   });
 
   it("emailButton carries the href verbatim in a gold pill", () => {
-    const href = "https://bowdownvisuals.com/distribution?splitInvite=tok123";
+    const href = "https://bowdownvisuals.com/splits/0123abcdef";
     const btn = emailButton(href, "Review my split");
     expect(btn).toContain(`href="${href}"`);
     expect(btn).toContain("Review my split");
