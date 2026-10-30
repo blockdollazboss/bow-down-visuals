@@ -1371,6 +1371,18 @@ html, body {
 .light .text-red-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.9); }
 .light .text-emerald-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.9); }
 
+/* The #d4af37 house gold as TEXT escaped the tables entirely — §5
+   deepened its near-twin #C9A84C and §19 the #e8c86a steps, but the
+   social Composer's quote label, attachment chips and action ink are
+   text-[#d4af37] (plain, /70), printed raw at ~2:1 on the remapped
+   ivory surfaces. The family takes the #e8c86a ladder: plain to
+   antique gold, steps at the ladder's alphas. Border/fill uses of the
+   hex are different class names and stay authored gold. */
+.light .text-\[\#d4af37\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+.light .text-\[\#d4af37\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#d4af37\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#d4af37\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
