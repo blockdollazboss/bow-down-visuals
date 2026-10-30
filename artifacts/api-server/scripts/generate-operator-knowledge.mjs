@@ -1318,6 +1318,53 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/stems?mode=instrumental",
     attachToFeatureIds: ["audio-studio", "tab-stems", "desk-stems", "video-editor"],
   },
+  /* Stack-900 KB triage (Lane K4): the scattered two-hop rails.
+     Analytics Hub intelligence steps (Hook Lab, Content Calendar)
+     sit under components/analytics-hub/intelligence/*; the Branding
+     Shop's Product Photo Studio and Merch Drop Planner are imported
+     by the legacy branding-shop module the Branding Kit shop tab
+     renders (the World Merch Bench calls the planner natively; its
+     price rides the web surface); the Caption Styler burn rail is
+     called by the styler component the Hook Studio tab renders;
+     the Highlight Cutter lives in the legacy repurpose module the
+     editor's Repurpose desk renders; the royalty Split
+     Calculator's PDF rail is called from the Money coach's tracker
+     panel; and album publishing is called by the albums section of
+     the songs module My Projects renders. All past the one-hop
+     scan; all registry-priced; none quotable by the operator
+     until now. */
+  {
+    endpoint: "/api/analyze-hook",
+    attachToFeatureIds: ["analytics-hub"],
+  },
+  {
+    endpoint: "/api/content-calendar",
+    attachToFeatureIds: ["analytics-hub"],
+  },
+  {
+    endpoint: "/api/generate-product-photo",
+    attachToFeatureIds: ["tab-branding-shop"],
+  },
+  {
+    endpoint: "/api/wave8/merch-drop/plan",
+    attachToFeatureIds: ["tab-branding-shop"],
+  },
+  {
+    endpoint: "/api/wave8/caption-styler/burn",
+    attachToFeatureIds: ["tab-caption-styler"],
+  },
+  {
+    endpoint: "/api/wave8/highlights/cut",
+    attachToFeatureIds: ["desk-repurpose"],
+  },
+  {
+    endpoint: "/api/wave8/splits/pdf",
+    attachToFeatureIds: ["coach"],
+  },
+  {
+    endpoint: "/api/album-publish",
+    attachToFeatureIds: ["tab-albums"],
+  },
 ];
 
 /** Unpriced sub-step endpoints of a priced rail — the poll and prepare
@@ -1475,10 +1522,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Collage rail (+ layouts) — an editor tool called through shared helpers; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/content-calendar.ts": {
-    surface: "creator-tools",
-    reason: "AI content-calendar rail — generates a 30-day posting plan behind the promote/coach surfaces; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/ctr-predictor.ts": {
     surface: "creator-tools",
     reason: "Thumbnail CTR predictor rail (+ factors) — an AI scoring tool behind the thumbnail surfaces; no page of its own.",
@@ -1502,10 +1545,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/hashtags.ts": {
     surface: "creator-tools",
     reason: "AI hashtag generator rail — behind the promote surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/hook-analyzer.ts": {
-    surface: "creator-tools",
-    reason: "AI hook analyzer rail — scores a video's opening transcript behind the create surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/improve-style.ts": {
     surface: "creator-tools",
@@ -1534,10 +1573,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/producer-tag-lifecycle.ts": {
     surface: "creator-tools",
     reason: "Producer-tag lifecycle rails (draft / approve / mine / settings) — the tag maker's ownership half; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/product-photo.ts": {
-    surface: "creator-tools",
-    reason: "Product Photo Studio rail — AI product photography for the branding/storefront sell flow; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/quote-finder.ts": {
     surface: "creator-tools",
@@ -1667,18 +1702,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Generation-history rail (list + read) — the member's own generations behind the Library/studio surfaces, reached past the scan's one hop; no page of its own.",
   },
-  "artifacts/api-server/src/routes/wave8-caption-styler.ts": {
-    surface: "creator-tools",
-    reason: "Wave-8 caption-styler burn rail (100 VB, registry-matched) — an editor tool; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/wave8-highlights.ts": {
-    surface: "creator-tools",
-    reason: "Wave-8 stream-highlight scorer rail — scores moments from a transcript (honestly: it does not cut video); no page of its own.",
-  },
-  "artifacts/api-server/src/routes/wave8-merch-drop.ts": {
-    surface: "creator-tools",
-    reason: "Wave-8 merch-drop planner rails (plan / plans / save) — an AI planning tool behind the promote/store surfaces; no page of its own.",
-  },
   /* Live rails: the Go Live machinery — streams are run from the World
      and the /go-live surface through shared helpers past the scan's
      one hop, so no feature entry carries these families. */
@@ -1792,10 +1815,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/profile-hosting.ts": {
     surface: "money",
     reason: "Profile-hosting plan rails (plan / me / checkout) — the $9/mo hosting plan (included with Creator Elite) on the creator-tiers chassis; its checkout rides the embedded rail, so no feature entry carries these endpoints.",
-  },
-  "artifacts/api-server/src/routes/wave8-splits.ts": {
-    surface: "money",
-    reason: "Wave-8 royalty split-sheet rails (CRUD + PDF) — split sheets behind the money surfaces; no page of its own.",
   },
   /* Store rails. */
   "artifacts/api-server/src/routes/feature-verse.ts": {
