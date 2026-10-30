@@ -1,4 +1,4 @@
--- 0300: Per-creator stream-overlay tokens (stack900 lane C2 — owner
+-- 0301: Per-creator stream-overlay tokens (stack900 lane C2 — owner
 -- directive Oct 29, 2026: "We need widgets outside of our website").
 --
 -- Bow Down's stream widgets used to live only inside our own Go Live
