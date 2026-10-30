@@ -213,6 +213,7 @@ import {
   HEIGHTS_LAMPS, HEIGHTS_BANNER_POLES, HEIGHTS_BANNER_POLE,
   HEIGHTS_PLATES, HEIGHTS_PLATE, heightsPlateLines, heightsRosterSignature,
   HEIGHTS_DESK, HEIGHTS_RUNNER, HEIGHTS_THRESHOLD, HEIGHTS_MOTES,
+  DOOR_DRESS, heightsDoorStyle,
 } from "./creator-heights";
 import {
   createEmberField, emberCountForTier, emberOffsetAt, lanternGlowScale,
@@ -731,6 +732,77 @@ function doorPlateTexture(text: string): THREE.CanvasTexture {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   doorPlateCache.set(text, tex);
+  return tex;
+}
+
+/* ── The residence doors' panelled wood (stack900) ──────────────
+   One painted canvas for the Creator Heights fronts' doors, in
+   the door plates' canvas tradition: warm walnut with a vertical
+   grain and the two recessed panels DOOR_DRESS shapes (dark
+   inset, lit upper bevel, shadowed lower edge — the panel reads
+   carved, not printed flat). Painted ONCE at day brightness; the
+   per-look material tint (heightsDoorStyle) dims it for dusk.
+   The grain's randomness is a fixed-seed LCG, so every build
+   paints the identical door. The canvas maps the whole door
+   face per box face — front correct, back mirrored against the
+   front's back line where it is barely seen, edges stretched
+   thin at 0.16 m depth, as with every painted box in the palace. */
+let doorWoodTex: THREE.CanvasTexture | null = null;
+
+function doorWoodTexture(): THREE.CanvasTexture {
+  if (doorWoodTex) return doorWoodTex;
+  const W = 256;
+  const H = 368;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#7d4f24";
+  g.fillRect(0, 0, W, H);
+  let seed = 1234567;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  /* Vertical grain: soft light/dark streaks down the board. */
+  for (let i = 0; i < 90; i++) {
+    const x = rnd() * W;
+    const w = 1 + rnd() * 2.5;
+    g.fillStyle = rnd() > 0.5 ? "rgba(214,164,96,0.10)" : "rgba(43,24,8,0.12)";
+    g.fillRect(x, 0, w, H);
+  }
+  g.lineWidth = 1;
+  for (let i = 0; i < 14; i++) {
+    const x0 = rnd() * W;
+    g.strokeStyle = "rgba(43,24,8,0.16)";
+    g.beginPath();
+    g.moveTo(x0, 0);
+    for (let y = 0; y <= H; y += 32) g.lineTo(x0 + Math.sin(y * 0.05 + i) * 3, y);
+    g.stroke();
+  }
+  /* One recessed panel: groove shadow, lit bevel inside it, and
+   * the raised field at the panel's heart. */
+  const panel = (top: number, bottom: number) => {
+    const x = DOOR_DRESS.panelX * W;
+    const y = top * H;
+    const w = DOOR_DRESS.panelW * W;
+    const h = (bottom - top) * H;
+    g.fillStyle = "rgba(30,17,5,0.65)";
+    g.fillRect(x, y, w, h);
+    g.fillStyle = "rgba(226,178,106,0.28)";
+    g.fillRect(x + 4, y + 4, w - 8, h - 8);
+    g.fillStyle = "#6e4520";
+    g.fillRect(x + 8, y + 8, w - 16, h - 16);
+    g.strokeStyle = "rgba(30,17,5,0.55)";
+    g.lineWidth = 2;
+    g.strokeRect(x + 8, y + 8, w - 16, h - 16);
+  };
+  panel(DOOR_DRESS.upperPanel.top, DOOR_DRESS.upperPanel.bottom);
+  panel(DOOR_DRESS.lowerPanel.top, DOOR_DRESS.lowerPanel.bottom);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  doorWoodTex = tex;
   return tex;
 }
 
@@ -1466,6 +1538,11 @@ interface LookMaterials {
   ceiling: THREE.MeshStandardMaterial;
   fabric: THREE.MeshStandardMaterial;
   darkMetal: THREE.MeshStandardMaterial;
+  /** The residence doors' panelled wood (stack900): door-only —
+   *  painted canvas grain + recessed panels, metalness zero, so
+   *  the Heights fronts' doors read as timber doors, not as the
+   *  darkMetal slabs every post and lamp around them wears. */
+  doorWood: THREE.MeshStandardMaterial;
   /** Per-metre material factories (item 7): a wall run, ceiling or
    *  plaza wall of a given size gets a material whose texture repeat
    *  derives from THAT size, so texel density is constant across the
@@ -2163,8 +2240,13 @@ export class KingsHallScene {
       metalness: 0, envMapIntensity: 0.5,
     });
     const darkMetal = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.55, metalness: 0.5 });
+    const doorStyle = heightsDoorStyle(look.theme);
+    const doorWood = new THREE.MeshStandardMaterial({
+      map: doorWoodTexture(), color: doorStyle.tint,
+      roughness: doorStyle.roughness, metalness: 0, envMapIntensity: 0.4,
+    });
     return {
-      gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal,
+      gold, goldDark, marble, marbleWall, ceiling, fabric, darkMetal, doorWood,
       goldFor: goldSized("bright"),
       goldDarkFor: goldSized("dark"),
       wallFor: sized("wall", "marble-rough", { envMapIntensity: 0.55 }),
@@ -7343,11 +7425,15 @@ export class KingsHallScene {
 
     /* The residence fronts: four posts per front (instanced), a
      * fabric canopy with a gold-dark edge on their heads, and
-     * the residence door closing each front's back — a dark
-     * metal panel with a gold trim and a lit transom window
-     * above it (emissive only, the lamp-glass law; NO real
-     * light behind it). Scenery honouring the creator-rooms
-     * concept: the creators' doors on their quarter. */
+     * the residence door closing each front's back — a panelled
+     * WOOD door (mats.doorWood, stack900: it wore the posts'
+     * darkMetal and read as a metal slab) with a gold trim, a
+     * gold handle at hand height and a lit transom window above
+     * it (emissive only, the lamp-glass law; NO real light
+     * behind it). The posts keep the shared darkMetal — only
+     * the door panels changed material. Scenery honouring the
+     * creator-rooms concept: the creators' doors on their
+     * quarter. */
     {
       instanced(
         new THREE.CylinderGeometry(0.07, 0.09, FRONT_KIT.postH, 10), mats.darkMetal,
@@ -7363,8 +7449,12 @@ export class KingsHallScene {
         g.add(canopy);
       }
       instanced(
-        new THREE.BoxGeometry(FRONT_KIT.doorW, FRONT_KIT.doorH, FRONT_KIT.doorD), mats.darkMetal,
+        new THREE.BoxGeometry(FRONT_KIT.doorW, FRONT_KIT.doorH, FRONT_KIT.doorD), mats.doorWood,
         HEIGHTS_FRONT_DOORS.map((d) => ({ x: d.cx, y: d.cy, z: d.cz })),
+      );
+      instanced(
+        new THREE.SphereGeometry(DOOR_DRESS.handleR, 10, 8), mats.gold,
+        HEIGHTS_FRONT_DOORS.map((d) => ({ x: d.cx + DOOR_DRESS.handleDx, y: DOOR_DRESS.handleY, z: d.cz + FRONT_KIT.doorD / 2 + DOOR_DRESS.handleProud })),
       );
       instanced(
         new THREE.BoxGeometry(FRONT_KIT.doorW, 0.05, 0.05), mats.gold,
