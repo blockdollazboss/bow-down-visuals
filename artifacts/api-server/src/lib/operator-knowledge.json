@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "8ac6e9712b764c2f2fdf3ae241f36fb976b47866",
+  "baseCommit": "1b2f5dc3f92b00a6f5219b4114cb9fc86d9dcc28",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -19,8 +19,8 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 248,
-    "withoutDescriptions": 0,
+    "withDescriptions": 238,
+    "withoutDescriptions": 10,
     "serverRouteFiles": 427,
     "serverEndpoints": 1704,
     "serverEndpointsVisible": 1004,
@@ -5410,9 +5410,7 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/winners.tsx DESCRIPTION constant"
+      "nextSteps": []
     },
     {
       "id": "charts",
@@ -7311,9 +7309,7 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "Your money home on Bow Down Visuals: track what your songs, videos, beats, and shop sales earn, and watch every payout line up in one place.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/earnings.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "email-list",
@@ -7629,9 +7625,7 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "Browse music by genre — find creators, tracks, and beats in the style you love, gathered in one place.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/genre.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "genres",
@@ -8219,9 +8213,7 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "Your stream remote: pair this screen with your studio and drive scenes, transitions, mic, camera, and recording from your phone.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream-controller.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "group--slug",
@@ -9974,9 +9966,7 @@
       "component": "PhotoPresetPage",
       "endpoints": [],
       "prices": [],
-      "nextSteps": [],
-      "description": "A shared photo look from a Bow Down Visuals creator — preview the preset here, then make it your own in the photo editor.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/photo-preset.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "pitch-fix",
@@ -10038,9 +10028,7 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "A playlist on Bow Down Visuals — play through a creator's set of videos and episodes in order, right in your browser.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/playlist.tsx DESCRIPTION constant"
+      "nextSteps": []
     },
     {
       "id": "post--id",
@@ -10302,6 +10290,9 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/drop-day-kits",
+        "/api/drop-day-kits/:param/status",
+        "/api/drop-day-kits/mine",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -10955,9 +10946,7 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "Search Bow Down Visuals — find creators, songs, videos, beats, and storefronts from one box.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/search.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "setlist",
@@ -11707,9 +11696,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": [],
-      "description": "Build your storefront: lay out your shop, arrange your products, and make your corner of Bow Down Visuals unmistakably yours.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-builder.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "sync-one-sheet--token",
@@ -11909,9 +11896,6 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
-        "/api/showcase-items/:param/duel",
-        "/api/showcase-items/:param/duel/cancel",
-        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12073,9 +12057,6 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
-        "/api/showcase-items/:param/duel",
-        "/api/showcase-items/:param/duel/cancel",
-        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12256,9 +12237,6 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
-        "/api/showcase-items/:param/duel",
-        "/api/showcase-items/:param/duel/cancel",
-        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12445,9 +12423,6 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
-        "/api/showcase-items/:param/duel",
-        "/api/showcase-items/:param/duel/cancel",
-        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12862,9 +12837,7 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "Made for your kind of creator — see the tools, desks, and workflows Bow Down Visuals shapes around your craft.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/vertical.tsx usePageTitle meta description"
+      "nextSteps": []
     },
     {
       "id": "video-editor",
@@ -15956,9 +15929,7 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": [],
-      "description": "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/winners.tsx DESCRIPTION constant"
+      "nextSteps": []
     },
     {
       "id": "world",
@@ -17087,8 +17058,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/drop-day-kits.ts",
-        "endpoints": 3,
-        "visible": 3,
+        "endpoints": 4,
+        "visible": 4,
         "unseen": []
       },
       {
@@ -19985,8 +19956,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/showcase.ts",
-        "endpoints": 6,
-        "visible": 2,
+        "endpoints": 5,
+        "visible": 1,
         "unseen": [
           "/api/showcase",
           "/api/showcase/:id",

@@ -25,10 +25,21 @@
    presave page yet) is named in `missing` — never invented. The kit
    starts as a DRAFT: nothing is live until the creator reviews it
    and activates it, and activation requires the two pieces the
-   land-time promise stands on — a release date and a presave page. */
+   land-time promise stands on — a release date and a presave page.
+
+   H3 delta (the G1-scoped remainder): the RELEASE-DAY CHECKLIST and
+   the Promote list. assembleChecklist derives the run-through from
+   the same real rails — the release's own fields, the kit, the
+   presave capture count, and the Scheduler's release-attributed
+   posts (scheduled_posts.release_id, migration 0143) — and
+   listKitReleases + GET /api/drop-day-kits/mine feed the kit's
+   second home, the Drop Day panel docked in Promote. Steps the kit
+   cannot verify (the teaser and banners render in Create) are
+   'action', never 'done' — a checklist that ticks itself would be
+   a lie with a checkbox. */
 
 import { sql, eq, and } from "drizzle-orm";
-import { db, dropDayKitsTable, presaveFollowsTable } from "@workspace/db";
+import { db, dropDayKitsTable, presaveFollowsTable, scheduledPostsTable } from "@workspace/db";
 import { presaveUrl } from "./presave-url";
 
 export interface KitRelease {
@@ -161,13 +172,111 @@ export function effectiveKitStatus(
   return now >= moment ? "landed" : status;
 }
 
+/* ── Release-day checklist ──────────────────────────────────────────
+   The run-through a creator works before drop day, derived ONLY
+   from real state: the release's own fields, the assembled kit, the
+   presave capture count, and the announcement posts the Scheduler
+   attributes to this release. Three honest states:
+
+   - 'done'   — the rail itself proves it (field present, post
+                scheduled/posted, kit armed or landed);
+   - 'todo'   — something is missing; the detail names where it is
+                fixed (always an existing surface, never this kit);
+   - 'action' — the creator's move: the kit holds a spec or a door,
+                and only the creator can take the step (render in
+                Create, schedule in the Scheduler, activate the kit).
+
+   The teaser and banner steps are NEVER 'done': rendering happens
+   in Create and the kit cannot see a render — claiming otherwise
+   would tick a box nobody checked. */
+
+export interface AnnounceState {
+  draft: number;
+  scheduled: number;
+  posted: number;
+}
+
+export type KitChecklistState = "done" | "todo" | "action";
+
+export interface KitChecklistStep {
+  id: "audio" | "artwork" | "release_date" | "presave_page" | "teaser" | "banners" | "announce" | "heads_up";
+  label: string;
+  state: KitChecklistState;
+  detail: string;
+}
+
+export function assembleChecklist(input: {
+  release: KitRelease;
+  kit: DropDayKitPayload | null;
+  kitStatus: string | null;
+  captures: number;
+  announce: AnnounceState;
+}): KitChecklistStep[] {
+  const { release, kitStatus, captures, announce } = input;
+  const steps: KitChecklistStep[] = [];
+
+  steps.push(release.audioUrl
+    ? { id: "audio", label: "Track audio", state: "done", detail: "On the release — the teaser short is cut from it." }
+    : { id: "audio", label: "Track audio", state: "todo", detail: "Add the track in Distribute — the teaser short is cut from it." });
+
+  steps.push(release.artworkUrl
+    ? { id: "artwork", label: "Cover art", state: "done", detail: "On the release — the banner set and the announcement carry it." }
+    : { id: "artwork", label: "Cover art", state: "todo", detail: "Add cover art in Distribute — the banner set is built from it." });
+
+  steps.push(release.releaseDate
+    ? { id: "release_date", label: "Release date", state: "done", detail: `Set for ${release.releaseDate} — everything on drop day is timed to it.` }
+    : { id: "release_date", label: "Release date", state: "todo", detail: "Set the date in Distribute — everything on drop day is timed to it." });
+
+  steps.push(release.presaveSlug
+    ? { id: "presave_page", label: "Presave page", state: "done", detail: "Live — fans pre-save there and join the heads-up list." }
+    : { id: "presave_page", label: "Presave page", state: "todo", detail: "Send the release to presave in Distribute — fans land there and join the heads-up list." });
+
+  steps.push(!release.audioUrl
+    ? { id: "teaser", label: "Teaser short", state: "todo", detail: "Needs the track audio first — the teaser is cut from it." }
+    : input.kit?.teaser
+      ? { id: "teaser", label: "Teaser short", state: "action", detail: "The 15-second teaser spec is ready — it renders in Create, so this step stays open until you've made it." }
+      : { id: "teaser", label: "Teaser short", state: "todo", detail: "Assemble the kit — the teaser spec is built from your track." });
+
+  steps.push(!release.artworkUrl
+    ? { id: "banners", label: "Banner set", state: "todo", detail: "Needs the cover art first — every banner is built from it." }
+    : input.kit && input.kit.banners.length > 0
+      ? { id: "banners", label: "Banner set", state: "action", detail: "Four banner sizes are specced from your cover art — they render in Create, so this step stays open until you've made them." }
+      : { id: "banners", label: "Banner set", state: "todo", detail: "Assemble the kit — the banner set is specced from your cover art." });
+
+  if (announce.posted > 0) {
+    steps.push({ id: "announce", label: "Launch announcement", state: "done", detail: "Posted through the Scheduler." });
+  } else if (announce.scheduled > 0) {
+    steps.push({ id: "announce", label: "Launch announcement", state: "done", detail: "Scheduled in the Scheduler — it fires on its own at the time you set." });
+  } else if (announce.draft > 0) {
+    steps.push({ id: "announce", label: "Launch announcement", state: "action", detail: "A draft is waiting in the Scheduler — open it and set it for release day." });
+  } else if (!release.presaveSlug) {
+    steps.push({ id: "announce", label: "Launch announcement", state: "todo", detail: "Needs the presave page first — its link rides inside the announcement." });
+  } else {
+    steps.push({ id: "announce", label: "Launch announcement", state: "action", detail: "Opens in the Scheduler already written, link and cover art riding along — you pick the time and where it posts." });
+  }
+
+  if (kitStatus === "landed") {
+    steps.push({ id: "heads_up", label: "Fan heads-up", state: "done", detail: "Landed — the presave list got the heads-up at the release moment, exactly once." });
+  } else if (kitStatus === "active") {
+    steps.push({ id: "heads_up", label: "Fan heads-up", state: "done", detail: `Armed — ${captures} on the presave list get one heads-up email at the release moment.` });
+  } else if (kitStatus === "draft") {
+    steps.push({ id: "heads_up", label: "Fan heads-up", state: "action", detail: "Activate the kit to arm it — every fan on the presave list gets one heads-up email at the release moment." });
+  } else {
+    steps.push({ id: "heads_up", label: "Fan heads-up", state: "todo", detail: "Assemble the kit to set this up." });
+  }
+
+  return steps;
+}
+
 /* ── Store ──────────────────────────────────────────────────────────── */
 
 export interface DropDayKitStore {
   getByRelease(releaseId: string): Promise<Record<string, unknown> | null>;
+  listKitsByUser(userId: string): Promise<Array<Record<string, unknown>>>;
   upsertKit(row: { userId: string; releaseId: string; kit: DropDayKitPayload }): Promise<{ id: string }>;
   setStatus(id: string, userId: string, status: "active"): Promise<boolean>;
   captureCount(releaseId: string): Promise<number>;
+  announceState(releaseId: string, userId: string): Promise<AnnounceState>;
 }
 
 export const drizzleDropDayKitStore: DropDayKitStore = {
@@ -178,6 +287,13 @@ export const drizzleDropDayKitStore: DropDayKitStore = {
       .where(eq(dropDayKitsTable.releaseId, releaseId))
       .limit(1);
     return (rows[0] as Record<string, unknown> | undefined) ?? null;
+  },
+  async listKitsByUser(userId) {
+    const rows = await db
+      .select()
+      .from(dropDayKitsTable)
+      .where(eq(dropDayKitsTable.userId, userId));
+    return rows as Array<Record<string, unknown>>;
   },
   async upsertKit(row) {
     const inserted = await db
@@ -211,19 +327,33 @@ export const drizzleDropDayKitStore: DropDayKitStore = {
       .where(eq(presaveFollowsTable.releaseId, releaseId));
     return rows.length;
   },
+  /* The announcement posts the Scheduler attributes to this release
+     (release_id, migration 0143), scoped to the kit's owner — a
+     count by lifecycle bucket, nothing about anyone else's posts.
+     'publishing' counts as scheduled: the poller has claimed it and
+     it is on its way out. Failed/cancelled posts count nowhere —
+     they announce nothing. */
+  async announceState(releaseId, userId) {
+    const rows = await db
+      .select({ status: scheduledPostsTable.status })
+      .from(scheduledPostsTable)
+      .where(
+        and(
+          eq(scheduledPostsTable.release_id, releaseId),
+          eq(scheduledPostsTable.user_id, userId),
+        ),
+      );
+    const state: AnnounceState = { draft: 0, scheduled: 0, posted: 0 };
+    for (const r of rows) {
+      if (r.status === "draft") state.draft += 1;
+      else if (r.status === "scheduled" || r.status === "publishing") state.scheduled += 1;
+      else if (r.status === "posted") state.posted += 1;
+    }
+    return state;
+  },
 };
 
-/** Read the release the kit binds to — the same columns the
- *  distribution routes read, presave_slug included. */
-export async function readKitRelease(releaseId: string): Promise<KitRelease | null> {
-  const rows = await db.execute(sql`
-    SELECT id, user_id, title, artist_name, release_date,
-           audio_url, artwork_url, status, presave_slug
-    FROM distribution_releases
-    WHERE id = ${releaseId}
-    LIMIT 1`);
-  const r = (rows.rows as Array<Record<string, unknown>>)[0];
-  if (!r) return null;
+function rowToKitRelease(r: Record<string, unknown>): KitRelease {
   return {
     id: String(r["id"]),
     userId: String(r["user_id"]),
@@ -235,4 +365,31 @@ export async function readKitRelease(releaseId: string): Promise<KitRelease | nu
     status: String(r["status"]),
     presaveSlug: r["presave_slug"] == null ? null : String(r["presave_slug"]),
   };
+}
+
+const KIT_RELEASE_COLUMNS = sql`id, user_id, title, artist_name, release_date,
+           audio_url, artwork_url, status, presave_slug`;
+
+/** Read the release the kit binds to — the same columns the
+ *  distribution routes read, presave_slug included. */
+export async function readKitRelease(releaseId: string): Promise<KitRelease | null> {
+  const rows = await db.execute(sql`
+    SELECT ${KIT_RELEASE_COLUMNS}
+    FROM distribution_releases
+    WHERE id = ${releaseId}
+    LIMIT 1`);
+  const r = (rows.rows as Array<Record<string, unknown>>)[0];
+  return r ? rowToKitRelease(r) : null;
+}
+
+/** Every release the caller owns, soonest drop first (undated
+ *  releases last, newest first among themselves) — the Promote
+ *  panel's list. Same columns, same mapping as readKitRelease. */
+export async function listKitReleases(userId: string): Promise<KitRelease[]> {
+  const rows = await db.execute(sql`
+    SELECT ${KIT_RELEASE_COLUMNS}
+    FROM distribution_releases
+    WHERE user_id = ${userId}
+    ORDER BY (release_date IS NULL), release_date ASC, created_at DESC`);
+  return (rows.rows as Array<Record<string, unknown>>).map(rowToKitRelease);
 }
