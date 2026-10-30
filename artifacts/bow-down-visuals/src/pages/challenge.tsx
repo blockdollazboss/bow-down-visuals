@@ -195,7 +195,7 @@ export default function ChallengePage() {
 
   return (
     <div className={`min-h-[calc(100dvh-4rem)] px-4 py-6 md:px-8`}>
-      <Link href="/shorts" className={`mb-6 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
+      <Link href="/shorts" className={`py-3 -mt-3 mb-3 inline-flex items-center gap-2 text-sm hover:text-primary ${isLight ? "text-[#8A7A56]" : "text-white/60"}`}>
         <ArrowLeft className="h-4 w-4" /> Back to Shorts
       </Link>
 

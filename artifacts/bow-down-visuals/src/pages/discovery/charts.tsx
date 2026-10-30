@@ -139,7 +139,7 @@ function ScenesStrip() {
         <h2 className={`flex items-center gap-2 text-sm font-black uppercase tracking-widest ${isLight ? "text-[#8a6d2f]" : "text-[#e8c86a]"}`}>
           <MapPin className="h-4 w-4" /> Local Scenes
         </h2>
-        <Link href="/scenes" className={`inline-flex items-center gap-0.5 text-xs font-bold ${isLight ? "text-[#8a6d2f]" : "text-[#e8c86a]"}`}>
+        <Link href="/scenes" className={`inline-flex items-center gap-0.5 py-3.5 -my-3.5 text-xs font-bold ${isLight ? "text-[#8a6d2f]" : "text-[#e8c86a]"}`}>
           All scenes <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -706,11 +706,11 @@ export default function Charts() {
       {/* Browse more */}
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-sm">
         <span className="text-white/40">Keep digging:</span>
-        <Link href="/browse" className="font-bold text-[#e8c86a] hover:underline">Browse verticals</Link>
+        <Link href="/browse" className="py-3 -my-3 font-bold text-[#e8c86a] hover:underline">Browse verticals</Link>
         <span className="text-white/20">·</span>
-        <Link href="/genres" className="font-bold text-[#e8c86a] hover:underline">Browse genres</Link>
+        <Link href="/genres" className="py-3 -my-3 font-bold text-[#e8c86a] hover:underline">Browse genres</Link>
         <span className="text-white/20">·</span>
-        <Link href="/search" className="font-bold text-[#e8c86a] hover:underline">Search everything</Link>
+        <Link href="/search" className="py-3 -my-3 font-bold text-[#e8c86a] hover:underline">Search everything</Link>
       </div>
 
       <CreateCta />

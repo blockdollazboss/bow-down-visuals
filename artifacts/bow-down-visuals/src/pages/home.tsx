@@ -1104,7 +1104,7 @@ function TemplatesBand() {
           </div>
           <Link
             href="/templates"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition-colors hover:text-yellow-300"
+            className="inline-flex items-center gap-1.5 py-3 -my-3 text-sm font-semibold text-primary transition-colors hover:text-yellow-300"
           >
             {t("home.templates.browseAll", { defaultValue: "Browse all templates" })}
             <ArrowRight className="h-4 w-4" />

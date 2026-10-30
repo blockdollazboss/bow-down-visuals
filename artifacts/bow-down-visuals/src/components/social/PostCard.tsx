@@ -509,7 +509,7 @@ export function PostCard({
           )}
 
           {!removed && !locked && post.reply_count > 0 && depth === 0 && (
-            <button onClick={loadReplies} className="mt-2 text-xs font-semibold text-[#d4af37] hover:underline">
+            <button onClick={loadReplies} className="py-3.5 -mt-1.5 -mb-3.5 text-xs font-semibold text-[#d4af37] hover:underline">
               {showReplies ? "Hide replies" : `View ${post.reply_count} ${post.reply_count === 1 ? "reply" : "replies"}`}
             </button>
           )}

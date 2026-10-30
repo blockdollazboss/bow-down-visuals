@@ -55,7 +55,7 @@ export default function PostPage() {
 
   return (
     <div className="mx-auto w-full max-w-[680px] px-4 pb-24 pt-6">
-      <Link href="/home" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-400 hover:text-[#d4af37]">
+      <Link href="/home" className="py-3 -mt-3 mb-1 inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-400 hover:text-[#d4af37]">
         <ArrowLeft className="h-4 w-4" /> Back to your timeline
       </Link>
 
