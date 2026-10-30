@@ -96,6 +96,26 @@ router.get("/showcase", async (req, res) => {
   }
 });
 
+/* GET /api/showcase/mine — the signed-in creator's own published items
+   (all types, newest first). Registered BEFORE /showcase/:slug so "mine"
+   is never read as a slug. The Thumbnail Studio duel desk (#174) lists
+   the creator's videos from here. */
+router.get("/showcase/mine", requireAuth, async (req, res) => {
+  const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 60));
+  try {
+    const items = await db
+      .select()
+      .from(showcaseItemsTable)
+      .where(eq(showcaseItemsTable.user_id, req.userId!))
+      .orderBy(desc(showcaseItemsTable.created_at))
+      .limit(limit);
+    res.json({ items: await refreshSupabaseStorageUrlsDeep(items) });
+  } catch (err) {
+    req.log.error({ err }, "[showcase] mine failed");
+    res.status(500).json({ error: "Could not load your showcase items." });
+  }
+});
+
 /* GET /api/showcase/:slug — public item detail; increments views */
 router.get("/showcase/:slug", async (req, res) => {
   const { slug } = req.params as { slug: string };
