@@ -41,6 +41,10 @@ import {
                              own /shop/:handle storefront.
    - GET /api/embed/mine   → (auth) the signed-in creator's widget
                              inventory for the Widgets Desk in Promote.
+   Stack1000 M2 — the desk also offers the ORIGINAL kinds (track,
+   video, playlist): /api/embed/mine now carries the creator's own
+   published tracks, published videos and public playlists to pick
+   from, so the classic players are copyable from the desk too.
    Every page takes ?theme=light|dark (default dark) and is responsive:
    fluid at phone width (no sideways scroll at 320px), roomier on tablet
    and desktop boxes, and every door is a ≥44px touch target.
@@ -486,8 +490,10 @@ embedApiRouter.get("/embed/product/:id", async (req: Request, res: Response) => 
 });
 
 /** GET /api/embed/mine — the signed-in creator's widget inventory for the
- *  Widgets Desk in Promote: their profile slug, tip handle, live state
- *  and active storefront items. Their OWN data only (requireAuth). */
+ *  Widgets Desk in Promote: their profile slug, tip handle, live state,
+ *  active storefront items, and (Stack1000 M2) their classic-embed
+ *  inventory — published profile tracks, published profile videos and
+ *  public playlists. Their OWN data only (requireAuth). */
 embedApiRouter.get("/embed/mine", requireAuth, async (req: Request, res: Response) => {
   const userId = req.userId!;
   const [profile] = await db
@@ -518,6 +524,49 @@ embedApiRouter.get("/embed/mine", requireAuth, async (req: Request, res: Respons
   }
   const tip = getPublicTipPageByUserId(userId);
   const live = profile ? await getEmbedLive(profile.slug) : null;
+  /* Classic-embed inventory (Stack1000 M2): the desk's track / video /
+     playlist widgets wear the creator's OWN published media — the same
+     rows the embed getters themselves resolve (published tracks and
+     videos on their profile, public playlists they own). Unpublished
+     or private rows never reach the desk: their embeds 404 by the
+     getters' own rules, so offering them here would sell a dead frame.
+     The flag/owner checks run in code as well as in SQL (house rule —
+     the desk must never list another creator's media). */
+  let tracks: Array<{ id: string; title: string }> = [];
+  let videos: Array<{ id: string; title: string; is_short: boolean }> = [];
+  let playlists: Array<{ id: string; title: string; item_count: number }> = [];
+  if (profile) {
+    const trackRows = await db
+      .select()
+      .from(profileTracksTable)
+      .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
+      .orderBy(desc(profileTracksTable.createdAt))
+      .limit(50);
+    tracks = trackRows
+      .filter((t) => t.profileId === profile.id && t.isPublished)
+      .slice(0, 20)
+      .map((t) => ({ id: t.id, title: t.title }));
+    const videoRows = await db
+      .select()
+      .from(profileVideosTable)
+      .where(and(eq(profileVideosTable.profileId, profile.id), eq(profileVideosTable.isPublished, true)))
+      .orderBy(desc(profileVideosTable.createdAt))
+      .limit(50);
+    videos = videoRows
+      .filter((v) => v.profileId === profile.id && v.isPublished)
+      .slice(0, 20)
+      .map((v) => ({ id: v.id, title: v.title, is_short: !!v.isShort }));
+    const playlistRows = await db
+      .select()
+      .from(playlistsTable)
+      .where(and(eq(playlistsTable.ownerProfileId, profile.id), eq(playlistsTable.isPublic, true)))
+      .orderBy(desc(playlistsTable.createdAt))
+      .limit(50);
+    playlists = playlistRows
+      .filter((p) => p.ownerProfileId === profile.id && p.isPublic)
+      .slice(0, 20)
+      .map((p) => ({ id: p.id, title: p.title, item_count: (p.items ?? []).length }));
+  }
   res.json({
     profile: profile
       ? { slug: profile.slug, display_name: profile.displayName, is_public: !!profile.isPublic }
@@ -525,6 +574,9 @@ embedApiRouter.get("/embed/mine", requireAuth, async (req: Request, res: Respons
     tip_handle: tip?.handle ?? null,
     live: live ? { is_live: live.is_live, stream: live.stream } : null,
     products,
+    tracks,
+    videos,
+    playlists,
   });
 });
 
