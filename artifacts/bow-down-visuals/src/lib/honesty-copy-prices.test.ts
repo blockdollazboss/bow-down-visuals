@@ -103,13 +103,13 @@ describe("S27-21 social publishing copy prices (100, derived)", () => {
 });
 
 describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
-  it("the rail's song tiers are 400 / 800 / 1,200 and the registry base matches the first tier", () => {
+  it("the rail's song tiers are 400 / 800 / 1,200 / 2,400 and the registry base matches the first tier", () => {
     const src = readApi("routes/generate/music-audio.ts");
-    const tiersBlock = src.slice(src.indexOf("SONG_PRICE_TIERS"));
+    const tiersStart = src.indexOf("SONG_PRICE_TIERS");
+    const tiersBlock = src.slice(tiersStart, src.indexOf("];", tiersStart));
     const tiers = [...tiersBlock.matchAll(/cost:\s*([\d_]+)/g)]
-      .slice(0, 3)
       .map((m) => Number(m[1]!.replace(/_/g, "")));
-    expect(tiers).toEqual([400, 800, 1200]);
+    expect(tiers).toEqual([400, 800, 1200, 2400]);
     expect(CREDIT_COSTS["/api/generate-music-audio"]?.cost).toBe(tiers[0]);
   });
 
@@ -139,8 +139,10 @@ describe("S27-22 HelpPanel prices (rail-true, derived)", () => {
     expect(src).toContain('getCreditCost("/api/thumbnail-generator")');
     expect(src).toContain('getCreditCost("/api/generate-runway-clip")');
     /* The one literal the registry cannot supply: the song tier max,
-       pinned here against the rail table derived above. */
-    expect(src).toContain("SONG_COST_MAX = 1_200");
+       pinned here against the rail table derived above. Round-2 fix:
+       the pin previously held 1_200, the pre-2,400-tier top — the rail
+       has charged 2,400 for songs up to 10 minutes all along. */
+    expect(src).toContain("SONG_COST_MAX = 2_400");
   });
 });
 

@@ -10,14 +10,14 @@ import { getCreditCost } from "@/lib/credit-costs";
    - songs: the registry carries the base song cost (400); songs are
      duration-tiered on the rail (routes/generate/music-audio.ts
      SONG_PRICE_TIERS: 400 up to 1 min / 800 up to 3 min / 1,200 up to
-     5 min), so the top of the range is the one figure the registry has
+     5 min / 2,400 up to 10 min), so the top of the range is the one figure the registry has
      no entry for — it is pinned against the rail by
      honesty-copy-prices.test.ts.
    - video plans 200, promos 100, thumbnails span the two thumbnail rails,
      video clips 400 — all straight from the registry. */
 const fmtVb = (n: number) => n.toLocaleString("en-US");
 const SONG_COST_MIN = getCreditCost("/api/generate-music-audio")?.cost ?? 400;
-const SONG_COST_MAX = 1_200;
+const SONG_COST_MAX = 2_400;
 const VIDEO_PLAN_COST = getCreditCost("/api/generate-video-plan")?.cost ?? 200;
 const PROMO_COST = getCreditCost("/api/generate-promo-clips")?.cost ?? 100;
 // Thumbnails span the two thumbnail rails: /api/thumbnail-generator at

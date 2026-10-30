@@ -1610,7 +1610,7 @@ function StemsPanel() {
               }`}
             >
               <AudioWaveform className="h-4 w-4" />
-              {t("stems.modeFull", { defaultValue: "Full split · 4cr" })}
+              {t("stems.modeFull", { defaultValue: "Full split" })}
             </button>
             <button
               role="tab"
@@ -1621,7 +1621,7 @@ function StemsPanel() {
               }`}
             >
               <Mic2 className="h-4 w-4" />
-              {t("stems.modeVocalsOnly", { defaultValue: "Vocals only · 3cr" })}
+              {t("stems.modeVocalsOnly", { defaultValue: "Vocals only" })}
             </button>
             <button
               role="tab"
@@ -1632,7 +1632,7 @@ function StemsPanel() {
               }`}
             >
               <MicOff className="h-4 w-4" />
-              {t("stems.modeInstrumental", { defaultValue: "Instrumental · 3cr" })}
+              {t("stems.modeInstrumental", { defaultValue: "Instrumental" })}
             </button>
           </div>
         </div>

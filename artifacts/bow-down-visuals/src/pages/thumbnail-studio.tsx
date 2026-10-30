@@ -103,10 +103,11 @@ const textareaClass = (isLight: boolean) =>
   (isLight ? "focus:bg-black/[0.06]" : "focus:bg-white/[0.06]");
 
 /* ── Single-shot artwork mode (merged from /thumbnail) ───────────────────
-   The legacy 1-credit single-shot generator: POST /api/generate-thumbnail
-   (registry: "/api/generate-thumbnail" = 100 = 1 Visual Buc) with platform
+   The single-shot generator: POST /api/generate-thumbnail — 100 VB for
+   the text concept plus 200 VB more when the AI image renders (300 on
+   delivery; registry: "/api/generate-thumbnail" = 300) — with platform
    presets, art-style / mood pickers and an Artist Vault tie-in. Preserved
-   here as the "Artwork" mode so the 1-credit path is never lost. */
+   here as the "Artwork" mode. */
 
 interface SingleShotFormValues {
   artistName: string;

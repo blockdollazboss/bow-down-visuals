@@ -92,7 +92,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Clean up, split stems, master & polish any track",
     route: "/audio-studio",
     category: "create",
-    creditCost: "From 50 Visual Bucs",
+    creditCost: "From 75 Visual Bucs",
     icon: SlidersHorizontal,
     badge: "POPULAR",
   },
@@ -102,7 +102,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Pro timeline editor with transitions & effects",
     route: "/video-editor",
     category: "create",
-    creditCost: "400 Visual Bucs/export",
+    creditCost: "Free–400 Visual Bucs/export",
     icon: Film,
   },
   {
@@ -111,7 +111,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Click-magnet thumbnails that get the click",
     route: "/thumbnail-studio?tab=generate",
     category: "create",
-    creditCost: "From 100 Visual Bucs",
+    creditCost: "From 200 Visual Bucs",
     icon: Image,
   },
   {
@@ -197,7 +197,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "A month of content planned in minutes",
     route: "/scheduler?tab=calendar",
     category: "promote",
-    creditCost: "100 Visual Bucs",
+    creditCost: "150 Visual Bucs",
     icon: CalendarDays,
   },
   {
@@ -338,7 +338,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Courses that turn talent into a career",
     route: "/academy",
     category: "business",
-    creditCost: "Free",
+    creditCost: "Free to browse",
     icon: GraduationCap,
   },
   {
