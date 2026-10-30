@@ -37,6 +37,7 @@ import {
 import { selectedLiveTransport, isLiveTransportReady } from "../lib/live-config";
 import { closeBackstage } from "../lib/live-backstage";
 import { expireQueuedRequests } from "../lib/song-requests";
+import { clearNowPlaying } from "../lib/now-playing";
 import {
   drizzleCreatorClassStore,
   getClassRoster,
@@ -563,6 +564,12 @@ async function endStreamRow(row: LiveStream, finalViewerCount: number): Promise<
   await expireQueuedRequests(row.id).catch((err) =>
     logger.warn({ err, streamId: row.id }, "live-streams end: song-request queue close-out failed (stream still ends)"),
   );
+  /* Now Playing (stack900 D3): an ended stream has nothing playing —
+     clear the overlay feed's row with the close-out. Best-effort,
+     same as the queue: a feed failure never blocks the end. */
+  await clearNowPlaying(row.id).catch((err) =>
+    logger.warn({ err, streamId: row.id }, "live-streams end: now-playing clear failed (stream still ends)"),
+  );
   const now = new Date();
   const updated = await db
     .update(liveStreamsTable)
@@ -610,6 +617,8 @@ async function sweepStaleLive(): Promise<void> {
     /* N18: the bulk stale-end bypasses endStreamRow, so close the
        request queue (and refund unplayed tips) here too. */
     await expireQueuedRequests(s.id).catch(() => undefined);
+    /* D3: same bypass, same duty — clear the now-playing row. */
+    await clearNowPlaying(s.id).catch(() => undefined);
   }
 }
 
