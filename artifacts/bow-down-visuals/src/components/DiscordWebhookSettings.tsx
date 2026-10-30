@@ -105,6 +105,10 @@ export function DiscordWebhookSettings() {
     if (res.ok) {
       toast({ title: "Disconnected", description: "Discord announcements are off." });
       await load();
+    } else {
+      /* A failed disconnect used to say nothing at all — the click
+         vanished and the still-connected state looked like a choice. */
+      toast({ title: "Couldn't disconnect", description: "Discord announcements are still on — try again.", variant: "destructive" });
     }
   }
 

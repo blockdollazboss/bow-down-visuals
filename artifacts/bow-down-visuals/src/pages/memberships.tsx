@@ -1154,9 +1154,15 @@ export default function Memberships() {
               <div className={CARD + " space-y-4"}>
                 <div className="grid md:grid-cols-2 gap-4">
                   <input className={INPUT} placeholder={t("memberships.tierNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-                    <input className={INPUT + " pl-9"} placeholder={t("memberships.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
+                  <div>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                      <input className={INPUT + " pl-9"} placeholder={t("memberships.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
+                    </div>
+                    {/* The rail caps a tier at $999.99/mo and this form
+                        clamps to it silently — state the cap where the
+                        number is typed instead of rewriting it quietly. */}
+                    <p className="mt-1 text-[11px] text-white/35">Up to $999.99 a month — 0 makes a free tier.</p>
                   </div>
                 </div>
                 <textarea className={INPUT} placeholder={t("memberships.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={500} />
@@ -1181,15 +1187,18 @@ export default function Memberships() {
                     Let members pause (1–3 months)
                     <span className="text-xs text-white/40">Rest instead of cancelling — access sleeps, billing skips</span>
                   </label>
-                  <div className="relative">
-                    <BadgePercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-                    <input
-                      className={INPUT + " pl-9"}
-                      placeholder="Annual discount % (fans pay yearly)"
-                      value={annualDiscount}
-                      onChange={(e) => setAnnualDiscount(e.target.value)}
-                      inputMode="numeric"
-                    />
+                  <div>
+                    <div className="relative">
+                      <BadgePercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                      <input
+                        className={INPUT + " pl-9"}
+                        placeholder="Annual discount % (fans pay yearly)"
+                        value={annualDiscount}
+                        onChange={(e) => setAnnualDiscount(e.target.value)}
+                        inputMode="numeric"
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-white/35">0–90% — the rail's cap, stated here instead of applied silently.</p>
                   </div>
                 </div>
                 <div>
