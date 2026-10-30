@@ -240,7 +240,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {isShoot && (
           <>
             {/* Curated scene packs — one tap sets wardrobe + pose + backdrop */}
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Scene packs</p>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">{t("photoShoot.scenePacks.title")}</p>
             <div className="flex gap-2 flex-wrap mb-4">
               {SCENE_PACKS.map((pack) => (
                 <button
