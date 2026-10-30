@@ -474,7 +474,7 @@ ${emailDetailBox(`<div style="color:#a67c1a;font-weight:700;font-size:22px;">${e
 <div style="font-size:13px;margin-top:4px;">from ${escapeHtml(payout.distributor)}</div>
 <div style="color:#8a7c5c;font-size:12px;">Period ending ${escapeHtml(payout.periodEnd)}</div>`)}
 <p style="margin:0 0 16px;font-size:14px;">Track every dollar in your Money Tracker — the cheat code keeps the receipts.</p>
-${emailButton(`${baseUrlForEmail()}/money`, "Open Money Tracker")}`
+${emailButton(`${baseUrlForEmail()}/coach`, "Open Money Tracker")}`
   );
   await sendEmail({ to: toEmail, subject: `Payout received — ${payout.amount} ${payout.currency} from ${payout.distributor}`, html });
 }

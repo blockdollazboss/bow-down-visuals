@@ -698,6 +698,13 @@ function AppShell() {
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
+          {/* Bare /presave front door (route-truth J4): presaves live
+              at /presave/:slug; the Spotify account-presave callback
+              redirects failures (and slug-less successes) to the BARE
+              path, which had no route and served the 404. Presave
+              campaigns are managed at /distribute — the bare name
+              lands there, like the other bare-name front doors. */}
+          <Route path="/presave"><Redirect to="/distribute" /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
           <Route path="/unlock/:slug"><UnlockGate /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>

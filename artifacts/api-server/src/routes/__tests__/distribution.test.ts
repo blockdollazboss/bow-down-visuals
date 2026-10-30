@@ -1043,6 +1043,38 @@ describe("splits share links + invites", () => {
     expect(noEmail.status).toBe(400);
     expect(noEmail.json.error).toMatch(/email/i);
   });
+
+  it("an invite ensures the agreement slug its email button links to", async () => {
+    const { id } = await seedRelease(USER_A);
+    const saved = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [
+        { name: "Me", share: 80 },
+        { name: "Writer", role: "writer", email: "writer@example.com", share: 20 },
+      ],
+    });
+    const writer = saved.json.splits.find((s: any) => s.name === "Writer");
+    const invited = await req("POST", `/distribution/releases/${id}/splits/invite`, {
+      splitId: writer.id,
+    });
+    expect(invited.status).toBe(200);
+    /* Route-truth (lane J4): the invite email's button targets
+       /splits/<slug> — the public agreement page. The invite must
+       have ensured that slug exists even with no email provider
+       configured, and the agreement must actually serve under it.
+       (Before the fix the button pointed at /distribution?splitInvite=…,
+       a path with no route and a token nothing consumed.) */
+    const rows = await testState.db.execute(
+      sql`SELECT split_share_slug FROM distribution_releases WHERE id = ${id}`,
+    );
+    const slug = (rows.rows[0] as any)?.split_share_slug as string | null;
+    expect(slug).toMatch(/^[a-f0-9]{10}$/);
+    const pub = await req("GET", `/distribution/splits/${slug}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.title).toBeTruthy();
+    /* And the share-link door reuses the very same slug. */
+    const link = await req("POST", `/distribution/releases/${id}/splits/share-link`);
+    expect(link.json.slug).toBe(slug);
+  });
 });
 
 /* ─── v2: pre-save links ──────────────────────────────────────────────────── */

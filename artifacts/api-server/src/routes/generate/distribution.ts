@@ -1722,6 +1722,38 @@ router.put("/distribution/releases/:id/splits", requireAuth, async (req, res) =>
   }
 });
 
+/* ─── Split share slug — one mint for both doors ───────────────────────────
+   The share-link endpoint and the split-invite email both send the
+   collaborator to the public agreement page (/splits/:slug). The slug
+   is minted idempotently on the release row; whichever door needs it
+   first (the creator tapping "share", or the invite going out) mints
+   it, and every later door reuses the same slug. Returns null when
+   five mint attempts all collided. */
+async function ensureSplitShareSlug(
+  rid: string,
+  userId: string,
+  current: string | null,
+): Promise<string | null> {
+  if (current) return current;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const slug = randomInt(0, 0xffffffffff).toString(16).padStart(10, "0");
+    try {
+      await db.execute(sql`
+        UPDATE distribution_releases
+        SET split_share_slug = ${slug}, updated_at = now()
+        WHERE id = ${rid} AND user_id = ${userId}
+      `);
+      return slug;
+    } catch (err) {
+      /* Slug collision — astronomically unlikely; retry. (drizzle
+         wraps the pg error: the 23505 rides on .cause — see
+         lib/pg-errors.) */
+      if (!isUniqueViolation(err)) throw err;
+    }
+  }
+  return null;
+}
+
 /* ─── Split agreement share link ───────────────────────────────────────────
    POST /api/distribution/releases/:id/splits/share-link — mint (idempotently)
    a public slug for the split agreement summary. The frontend appends
@@ -1733,28 +1765,12 @@ router.post("/distribution/releases/:id/splits/share-link", requireAuth, async (
       res.status(404).json({ error: "Release not found." });
       return;
     }
-    if (existing.split_share_slug) {
-      res.json({ slug: existing.split_share_slug, url: `${APP_PUBLIC_URL}/splits/${existing.split_share_slug}` });
+    const slug = await ensureSplitShareSlug(releaseId(req), req.userId!, existing.split_share_slug);
+    if (!slug) {
+      res.status(500).json({ error: "Couldn't mint a share link — try again." });
       return;
     }
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const slug = randomInt(0, 0xffffffffff).toString(16).padStart(10, "0");
-      try {
-        await db.execute(sql`
-          UPDATE distribution_releases
-          SET split_share_slug = ${slug}, updated_at = now()
-          WHERE id = ${releaseId(req)} AND user_id = ${req.userId!}
-        `);
-        res.json({ slug, url: `${APP_PUBLIC_URL}/splits/${slug}` });
-        return;
-      } catch (err) {
-        /* Slug collision — astronomically unlikely; retry. (drizzle
-           wraps the pg error: the 23505 rides on .cause — see
-           lib/pg-errors.) */
-        if (!isUniqueViolation(err)) throw err;
-      }
-    }
-    res.status(500).json({ error: "Couldn't mint a share link — try again." });
+    res.json({ slug, url: `${APP_PUBLIC_URL}/splits/${slug}` });
   } catch (err) {
     logger.error({ err }, "[distribution] split share-link failed");
     res.status(500).json({ error: "Couldn't mint a share link — try again." });
@@ -1872,6 +1888,22 @@ router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req,
 
     /* ── Invite email — best-effort, fail-open. The invite is recorded
        regardless; without a provider the UI shares the agreement link. ── */
+    /* The invite's destination is the public split agreement page —
+       the same link the UI shares when no email goes out. Ensure its
+       slug exists (idempotent mint) BEFORE the email is composed, so
+       the button lands on the agreement itself. Fail-soft: if the
+       slug can't be ensured, the email falls back to the Distribute
+       hub rather than a dead door. (Route-truth lane J4: the old
+       button pointed at /distribution?splitInvite=… — no such route
+       exists, and nothing anywhere consumed the token, so every
+       invite email landed on the 404.) */
+    let agreementUrl = `${baseUrlForEmail()}/distribute`;
+    try {
+      const slug = await ensureSplitShareSlug(releaseId(req), req.userId!, existing.split_share_slug);
+      if (slug) agreementUrl = `${baseUrlForEmail()}/splits/${slug}`;
+    } catch (err) {
+      logger.warn({ err }, "[distribution] split invite: share slug ensure failed (email falls back to the hub)");
+    }
     let emailSent = false;
     if (isEmailConfigured() && split.payee_email) {
       const releaseTitle = (existing as { title?: string } | null)?.title ?? "a release";
@@ -1879,7 +1911,7 @@ router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req,
         "You've got a revenue split",
         `<p style="margin:0 0 12px;"><strong style="color:#a67c1a;">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
 <p style="margin:0 0 16px;font-size:14px;">Review and accept your split agreement so royalties flow to you automatically when the release earns.</p>
-${emailButton(`${baseUrlForEmail()}/distribution?splitInvite=${escapeHtml(inviteToken)}`, "Review my split")}`
+${emailButton(agreementUrl, "Review my split")}`
       );
       const result = await sendEmail({
         to: split.payee_email,

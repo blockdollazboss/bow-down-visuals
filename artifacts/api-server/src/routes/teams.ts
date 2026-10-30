@@ -241,7 +241,7 @@ router.post("/teams/:id/invite", requireAuth, async (req, res) => {
         `You're invited to "${escapeHtml(teamName)}"`,
         `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:#a67c1a;">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
 <p style="margin:0 0 16px;font-size:14px;">Sign in with <strong>${escapeHtml(email)}</strong> to accept — your pending invite is waiting under Teams.</p>
-${emailButton(`${baseUrlForEmail()}/teams`, "View my invite")}`
+${emailButton(`${baseUrlForEmail()}/team`, "View my invite")}`
       );
       const result = await sendEmail({
         to: email,
