@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useLocation } from "wouter";
 import { X, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   TOUR_STEPS,
   ONBOARDING_START_EVENT,
@@ -108,6 +109,8 @@ export function OnboardingTour() {
     setStepIndex(null);
   }, []);
 
+  const dialogRef = useModalA11y<HTMLDivElement>(stepIndex !== null, finish);
+
   const goTo = useCallback(
     (next: number) => {
       if (next < 0 || next >= TOUR_STEPS.length) {
@@ -169,6 +172,8 @@ export function OnboardingTour() {
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={`Tour step ${stepIndex + 1} of ${TOUR_STEPS.length}: ${step.title}`}

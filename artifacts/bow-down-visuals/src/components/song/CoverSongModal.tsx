@@ -3,6 +3,7 @@ import { Loader2, X, Disc3, Mic2, Palette, Scale, Link2, Check, AlertCircle } fr
 import { Button } from "@/components/ui/button";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { CoverComparePlayer } from "./CoverComparePlayer";
 
 /* ─── CoverSongModal ────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ function audioDuration(url: string): Promise<number> {
 }
 
 export function CoverSongModal({ open, onClose, source, initialLyrics = "", initialTitle = "", onCoverCreated }: CoverSongModalProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
   const [mode, setMode] = useState<"simple" | "custom">("simple");
@@ -303,7 +305,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
       aria-modal="true"
       aria-label="Make a cover"
     >
-      <div className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-[#0a0a0a] border border-primary/25 shadow-[0_0_60px_-10px_rgba(255,200,60,0.25)]">
+      <div ref={dialogRef} tabIndex={-1} className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-[#0a0a0a] border border-primary/25 shadow-[0_0_60px_-10px_rgba(255,200,60,0.25)]">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 bg-[#0a0a0a]/95 backdrop-blur border-b border-white/10">
           <div className="flex items-center gap-2.5 min-w-0">

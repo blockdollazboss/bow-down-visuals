@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useTranslation } from "react-i18next";
 
 /* ─── Sponsor Deal Pipeline (Wave 8) ──────────────────────────────────────
@@ -337,6 +338,7 @@ export default function SponsorPipeline() {
   }
 
   const openDraft = openDraftId ? drafts[openDraftId] : null;
+  const dialogRef = useModalA11y<HTMLDivElement>(!!openDraftId, () => setOpenDraftId(null));
   const openDraftDeal = openDraftId ? deals.find((d) => d.id === openDraftId) : null;
 
   return (
@@ -597,6 +599,8 @@ export default function SponsorPipeline() {
       {/* ── follow-up draft modal ────────────────────────────────────── */}
       {openDraft && openDraftDeal && (
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setOpenDraftId(null)}
           role="dialog"

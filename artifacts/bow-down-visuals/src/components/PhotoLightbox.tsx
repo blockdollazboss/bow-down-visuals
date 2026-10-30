@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 interface PhotoLightboxProps {
   photoUrl: string | null;
@@ -12,6 +13,7 @@ interface PhotoLightboxProps {
  * Click any artist photo to see it big.
  */
 export function PhotoLightbox({ photoUrl, artistName, onClose }: PhotoLightboxProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(!!photoUrl, onClose);
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -28,6 +30,10 @@ export function PhotoLightbox({ photoUrl, artistName, onClose }: PhotoLightboxPr
 
   return (
     <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
       data-dark-lock
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
       onClick={onClose}

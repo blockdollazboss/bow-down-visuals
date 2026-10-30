@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   buildLrc,
   validateLrc,
@@ -74,6 +75,7 @@ function fmtClock(sec: number): string {
 }
 
 export function LrcExportModal({ open, onClose, source }: LrcExportModalProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { addAsset } = useHubProject();
@@ -301,6 +303,8 @@ export function LrcExportModal({ open, onClose, source }: LrcExportModalProps) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={t("lrcExport.title")}

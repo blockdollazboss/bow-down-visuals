@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PixelSprite } from "@/components/pixel-headline";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { cn } from "@/lib/utils";
 
 /**
@@ -94,6 +95,7 @@ export function CheatCodeEasterEgg() {
   const lastFire = useRef(0);
 
   const dismiss = useCallback(() => setFired(false), []);
+  const dialogRef = useModalA11y<HTMLDivElement>(fired, dismiss);
 
   useEffect(() => {
     if (!fired) return;
@@ -140,6 +142,8 @@ export function CheatCodeEasterEgg() {
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Cheat code accepted"

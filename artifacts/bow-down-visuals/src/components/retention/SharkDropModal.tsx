@@ -4,6 +4,7 @@ import { mediaUrl } from "@/lib/media-cdn";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* ─── SharkDropModal — surprise Visual Bucs ──────────────────────────────
    The King Shark (character-locked favicon GIF) drops VB in your vault.
@@ -42,6 +43,7 @@ export default function SharkDropModal({
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const isLight = useIsLightTheme();
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onDismiss);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +100,8 @@ export default function SharkDropModal({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-4"
       role="dialog"
       aria-modal="true"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, ListMusic, Plus, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   fetchMyPlaylists, createPlaylist, addItemToPlaylist,
   type MediaKind, type MyPlaylist,
@@ -21,6 +22,7 @@ export function AddToPlaylist({
   open: boolean;
   onClose: () => void;
 }) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const { user, getAccessToken } = useAuth();
   const [playlists, setPlaylists] = useState<MyPlaylist[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,7 @@ export function AddToPlaylist({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-label="Add to playlist">
+    <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Add to playlist">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative w-full max-w-sm rounded-2xl bg-[#14110b] border border-[#e8c86a]/30 shadow-[0_20px_60px_rgba(0,0,0,.8)] p-5">
         <div className="flex items-center justify-between mb-1">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { Share2, Copy, Check, Coins, Link2, MessageCircle } from "lucide-react";
 
 /* ─── ShareMenu: the share-to-earn viral loop ─────────────────────────────
@@ -82,6 +83,7 @@ export default function ShareMenu({
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useModalA11y<HTMLDivElement>(menuOpen, () => setMenuOpen(false));
 
   /* Keep the prop in sync if the parent resolves its code late. */
   useEffect(() => {
@@ -251,7 +253,7 @@ export default function ShareMenu({
         {menuOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-            <div className="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-[#c9a84c]/30 bg-[#14100a] p-2 shadow-2xl">
+            <div ref={menuRef} tabIndex={-1} className="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-[#c9a84c]/30 bg-[#14100a] p-2 shadow-2xl">
               {"share" in navigator && (
                 <button type="button" className={menuItem}
                   onClick={() => { setMenuOpen(false); void doNative(); }}>

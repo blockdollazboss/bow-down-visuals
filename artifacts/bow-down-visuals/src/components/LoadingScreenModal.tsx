@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* Shared Loading Screen Takeover inquiry modal. Triggered from the
    loading-screen promo in the WittyLoader rotation. Mirrors SpotlightModal.
@@ -19,6 +20,7 @@ type Offer = {
 };
 
 export default function LoadingScreenModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const isLight = useIsLightTheme();
   const [offer, setOffer] = useState<Offer | null>(null);
   const [name, setName] = useState("");
@@ -68,6 +70,8 @@ export default function LoadingScreenModal({ open, onClose }: { open: boolean; o
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={onClose}
       role="dialog"
