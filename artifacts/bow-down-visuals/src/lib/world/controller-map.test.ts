@@ -150,7 +150,9 @@ describe("controller map — jobs are bindings.ts truth, against the current pag
     expect(byId(nodes, "topFace").job).toBe("Switch view");
     expect(byId(nodes, "leftTrigger").job).toBe("Step voice back");
     expect(byId(nodes, "rightTrigger").job).toBe("Sprint — hold");
-    expect(byId(nodes, "rightMenu").job).toBe("Photo mode");
+    /* Button 9's row names both jobs since the stack900 join
+       composed B8's tap (settings) with the hold (photo). */
+    expect(byId(nodes, "rightMenu").job).toBe("World settings — tap · photo mode — hold");
     expect(byId(nodes, "leftBumper").job).toContain("prompt");
     expect(byId(nodes, "leftStick").job).toContain("Move");
     expect(byId(nodes, "leftStick").pressJob).toBe("Sprint — hold");

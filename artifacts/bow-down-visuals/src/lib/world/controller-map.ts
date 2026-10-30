@@ -185,7 +185,12 @@ export function controllerMapNodes(
       "Choose the selected control",
     ),
     role("leftMenu", "Switch action page — tap · full screen — hold"),
-    role("rightMenu", "Photo mode"),
+    /* Button 9 carries both gestures (bindings.ts PAD_MENU_BUTTON):
+       the tap opens the World settings, the hold frames a photo —
+       the map names both, in the tap · hold shape the other
+       dual-job rows use. (Composed at the stack900 join: on B6's
+       own base only the hold job existed.) */
+    role("rightMenu", "World settings — tap · photo mode — hold"),
     {
       id: "guide",
       name: SYSTEM_NAMES[profile.family].guide,
