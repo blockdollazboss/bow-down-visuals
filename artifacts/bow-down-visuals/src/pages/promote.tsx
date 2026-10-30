@@ -13,6 +13,7 @@ import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
 import { UgcAdsPanel } from "@/components/hub/UgcAdsPanel";
 import { UnlockGatesPanel } from "@/components/promote/UnlockGatesPanel";
+import { StreamOverlaysPanel } from "@/components/promote/StreamOverlaysPanel";
 import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
 import { ResultsWallPanel } from "@/components/promote/ResultsWallPanel";
@@ -473,6 +474,15 @@ export default function Promote() {
         {/* Stack 11 #8 — generalized follow/share-to-unlock gates. */}
         <div className="mt-10">
           <UnlockGatesPanel />
+        </div>
+
+        {/* Stream overlays (stack900 C2) — the widgets that live OUTSIDE
+            the website, on the creator's own stream in OBS/Streamlabs.
+            Docked in the Promote family beside the other share-out
+            tools; when the embed-widgets desk (lane C1) lands, the two
+            desks sit side by side here. */}
+        <div className="mt-10">
+          <StreamOverlaysPanel />
         </div>
           </>
         )}
