@@ -454,8 +454,17 @@ describe("free ($0) bookable services — the claim rail books too", () => {
   it("claim confirms instantly, re-claim is the same booking, racers 409, cancel frees the slot", async () => {
     const productId = await seedService({ priceCents: 0 });
     const slots = await req("GET", `/storefront/product/${productId}/slots`);
-    const slotA = slots.json.days[0].slots[0];
-    const slotB = slots.json.days[0].slots[1];
+    /* The grid is generated relative to the wall clock: the first
+       returned day is TODAY in the creator's timezone, and late in the
+       day it can hold a single remaining slot (the day drops out of the
+       list entirely once none remain). Taking "the second slot of the
+       first day" therefore made this test fail every late afternoon —
+       slotB was undefined. The two slots this test needs are simply
+       the first two open slots of the whole grid, which the 14-day
+       horizon always has. */
+    const open = (slots.json.days as Array<any>).flatMap((d) => d.slots);
+    const slotA = open[0];
+    const slotB = open[1];
 
     h.userId = BUYER; h.userEmail = "fan@example.com";
     const c1 = await req("POST", "/storefront/claim", {
