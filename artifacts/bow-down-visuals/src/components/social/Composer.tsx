@@ -495,19 +495,19 @@ export function Composer({
           {/* the King's tray — stickers + GIFs, on posts AND replies */}
           <EmojiTray onPickToken={insertBodyToken} onPickGif={pickGif} />
         {!replyTo && <>
-          <button aria-expanded={showUrlBox} data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Attach image/video link" aria-expanded={showUrlBox} data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <ImagePlus className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => { setUrlMode("track"); setShowUrlBox(true); }} title="Attach your sound (links to its page)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Attach your sound (links to its page)" data-min-stars="2" onClick={() => { setUrlMode("track"); setShowUrlBox(true); }} title="Attach your sound (links to its page)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Music2 className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => { setUrlMode("event"); setShowUrlBox(true); }} title="Attach your event (links to /shows)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Attach your event (links to /shows)" data-min-stars="2" onClick={() => { setUrlMode("event"); setShowUrlBox(true); }} title="Attach your event (links to /shows)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <CalendarDays className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => setThreadExtras([...threadExtras, ""])} title="Add another (thread)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Add another (thread)" data-min-stars="2" onClick={() => setThreadExtras([...threadExtras, ""])} title="Add another (thread)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Plus className="h-5 w-5" />
           </button>
-          <button aria-expanded={pollOpen} data-min-stars="2" onClick={() => { setPollOpen((v) => !v); if (pollOpen) setPollOptions([]); }} title="Add poll" className={`rounded-full p-2 hover:bg-[#d4af37]/10 ${pollOpen ? "bg-[#d4af37]/15 text-[#f5e08c]" : "text-[#d4af37]"}`}>
+          <button aria-label="Add poll" aria-expanded={pollOpen} data-min-stars="2" onClick={() => { setPollOpen((v) => !v); if (pollOpen) setPollOptions([]); }} title="Add poll" className={`rounded-full p-2 hover:bg-[#d4af37]/10 ${pollOpen ? "bg-[#d4af37]/15 text-[#f5e08c]" : "text-[#d4af37]"}`}>
             <BarChart3 className="h-5 w-5" />
           </button>
           {/* money buttons — always visible, never gated */}

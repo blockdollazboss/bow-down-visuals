@@ -419,7 +419,7 @@ export default function ReviewPage() {
                                   <PencilLine className="h-3.5 w-3.5" />
                                 </a>
                               )}
-                              <button
+                              <button aria-label={t("review.deleteComment")}
                                 onClick={() => manageAction("delete_comment", { commentId: c.id })}
                                 disabled={acting !== null}
                                 className="flex items-center justify-center h-7 w-7 rounded-full border border-white/15 text-white/50 hover:text-red-400 hover:border-red-500/40 transition-colors disabled:opacity-50"

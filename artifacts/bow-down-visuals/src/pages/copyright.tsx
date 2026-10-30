@@ -646,7 +646,7 @@ export default function CopyrightAssistant() {
                     >
                       {r.status}
                     </button>
-                    <button
+                    <button aria-label={t("copyright.remove")}
                       onClick={() => setRegs((prev) => prev.filter((x) => x.id !== r.id))}
                       title={t("copyright.remove")}
                       className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-red-300"

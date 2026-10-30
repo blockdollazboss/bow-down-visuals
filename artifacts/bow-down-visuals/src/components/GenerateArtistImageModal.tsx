@@ -431,7 +431,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
                   <img src={img.url} alt="Photo shoot result" className="h-full w-full object-cover" loading="lazy" />
                 </div>
               ) : (
-                <button
+                <button aria-label="Use as reference photo"
                   key={img.path}
                   type="button"
                   disabled={generating}

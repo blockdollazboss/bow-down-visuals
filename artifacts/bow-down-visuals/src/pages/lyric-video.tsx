@@ -404,7 +404,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                       <p className="mt-0.5 truncate text-sm">{line.text}</p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button
+                      <button aria-label={t("lyricVideo.shiftEarlier")}
                         onClick={() => nudge(i, -0.5)}
                         title={t("lyricVideo.shiftEarlier")}
                         className="rounded-lg border border-white/10 p-1.5 text-white/60 hover:border-primary/50 hover:text-primary"
@@ -433,7 +433,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                         className="w-20 rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-center font-mono text-xs text-white outline-none focus:border-primary/60"
                         aria-label={t("lyricVideo.lineEndTime", { n: i + 1 })}
                       />
-                      <button
+                      <button aria-label={t("lyricVideo.shiftLater")}
                         onClick={() => nudge(i, 0.5)}
                         title={t("lyricVideo.shiftLater")}
                         className="rounded-lg border border-white/10 p-1.5 text-white/60 hover:border-primary/50 hover:text-primary"

@@ -489,7 +489,7 @@ export default function SetlistBuilder() {
 
                       {/* per-song controls */}
                       <div className="no-print flex items-center gap-1 shrink-0">
-                        <button
+                        <button aria-label={t("setlist.stageNotesTitle")}
                           onClick={() => setNotesOpen((p) => ({ ...p, [s.id]: !p[s.id] }))}
                           data-min-stars="3"
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition"
@@ -497,7 +497,7 @@ export default function SetlistBuilder() {
                         >
                           <StickyNote className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("setlist.moveUp")}
                           onClick={() => handleMove(i, i - 1)}
                           disabled={i === 0}
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition disabled:opacity-20"
@@ -505,7 +505,7 @@ export default function SetlistBuilder() {
                         >
                           <ChevronUp className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("setlist.moveDown")}
                           onClick={() => handleMove(i, i + 1)}
                           disabled={i === songs.length - 1}
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition disabled:opacity-20"
@@ -513,7 +513,7 @@ export default function SetlistBuilder() {
                         >
                           <ChevronDown className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("setlist.removeSong")}
                           onClick={() => removeSong(s.id)}
                           className="rounded-lg p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 transition"
                           title={t("setlist.removeSong")}

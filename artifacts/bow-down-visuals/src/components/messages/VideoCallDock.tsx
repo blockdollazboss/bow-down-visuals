@@ -340,7 +340,7 @@ export function VideoCallDock(props: {
         <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-[#e8c86a]/10 px-4 py-2 text-sm text-[#e8c86a]"
           data-testid="video-call-notice">
           <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} title="Dismiss" className="text-[#e8c86a]/70 hover:text-[#e8c86a]">
+          <button aria-label="Dismiss" type="button" onClick={() => setNotice(null)} title="Dismiss" className="text-[#e8c86a]/70 hover:text-[#e8c86a]">
             <X className="h-4 w-4" />
           </button>
         </div>

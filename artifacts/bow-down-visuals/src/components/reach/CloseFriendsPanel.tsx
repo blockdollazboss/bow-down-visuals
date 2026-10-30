@@ -60,7 +60,7 @@ export default function CloseFriendsPanel() {
               {f.profile?.avatarUrl ? <img src={f.profile.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e8c86a]/20 text-xs font-bold text-[#e8c86a]">{f.profile?.displayName?.[0] ?? "?"}</span>}
               <span className="truncate">{f.profile?.displayName ?? "Creator"}</span>
             </span>
-            <button
+            <button aria-label="Remove from your circle"
               type="button"
               title="Remove from your circle"
               onClick={async () => {

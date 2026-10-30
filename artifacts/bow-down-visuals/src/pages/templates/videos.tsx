@@ -136,7 +136,7 @@ export default function VideoTemplates() {
               data-testid="vt-search"
             />
             {query && (
-              <button
+              <button aria-label={t("videoTemplatesPage.clearSearch", { defaultValue: "Clear search" })}
                 onClick={() => setQuery("")}
                 title={t("videoTemplatesPage.clearSearch", { defaultValue: "Clear search" })}
                 className={`shrink-0 ${isLight ? "text-[#8A7A56] hover:text-[#7A5A12]" : "text-white/40 hover:text-white"}`}

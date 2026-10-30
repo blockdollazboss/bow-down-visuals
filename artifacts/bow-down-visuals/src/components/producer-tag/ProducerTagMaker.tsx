@@ -444,7 +444,7 @@ export function ProducerTagMaker() {
                         {presetLabel(tag.preset)} · {tag.voiceName}
                       </p>
                     </button>
-                    <button
+                    <button aria-label={t("producerTag.deleteTag")}
                       type="button"
                       onClick={() => deleteTag(tag.id)}
                       title={t("producerTag.deleteTag")}

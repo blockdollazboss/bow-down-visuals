@@ -757,7 +757,7 @@
             )}
 
             <div className="ml-auto flex items-center gap-1">
-              <button
+              <button aria-label="Move Up"
                 onClick={onMoveUp}
                 disabled={isFirst}
                 className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
@@ -767,7 +767,7 @@
                 <ArrowUp className="h-3.5 w-3.5" />
               </button>
 
-              <button
+              <button aria-label="Move Down"
                 onClick={onMoveDown}
                 disabled={isLast}
                 className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
@@ -777,7 +777,7 @@
                 <ArrowDown className="h-3.5 w-3.5" />
               </button>
 
-              <button
+              <button aria-label="Remove Scene"
                 onClick={onRemove}
                 className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                 title="Remove Scene"

@@ -503,7 +503,7 @@ function ProjectCard({
             >
               <FolderOpen className="h-3.5 w-3.5" /> {t("myProjects.open")}
             </Button>
-            <button
+            <button aria-label={t("myProjects.deleteProject")}
               onClick={handleDelete}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors"
               title={t("myProjects.deleteProject")}
@@ -615,7 +615,7 @@ function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <button onClick={handleDownload} title={t("myProjects.downloadBackupJson")} data-min-stars="6"
+          <button aria-label={t("myProjects.downloadBackupJson")} onClick={handleDownload} title={t("myProjects.downloadBackupJson")} data-min-stars="6"
             className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors">
             <Download className="h-4 w-4" />
           </button>

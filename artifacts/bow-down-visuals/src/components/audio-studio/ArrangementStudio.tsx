@@ -228,10 +228,10 @@ function FxChainEditor({ track, onChange }: { track: ArrangementTrack; onChange:
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-white/85">{idx + 1}. {FX_STEP_LABELS[step.type]}</span>
             <div className="ml-auto flex items-center gap-1">
-              <button type="button" title="Move earlier in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx - 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↑</button>
-              <button type="button" title="Move later in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx + 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↓</button>
+              <button aria-label="Move earlier in the chain" type="button" title="Move earlier in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx - 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↑</button>
+              <button aria-label="Move later in the chain" type="button" title="Move later in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx + 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↓</button>
               <Chip active={step.enabled} onClick={() => patchStep(step.id, { enabled: !step.enabled })}>{step.enabled ? "On" : "Off"}</Chip>
-              <button type="button" title="Remove step" onClick={() => onChange({ ...track, fxChain: chain.filter((s) => s.id !== step.id) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-red-300 hover:text-red-200"><Trash2 className="h-3 w-3" /></button>
+              <button aria-label="Remove step" type="button" title="Remove step" onClick={() => onChange({ ...track, fxChain: chain.filter((s) => s.id !== step.id) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-red-300 hover:text-red-200"><Trash2 className="h-3 w-3" /></button>
             </div>
           </div>
           {step.type === "eq" && (
@@ -372,7 +372,7 @@ function AutomationLaneEditor({
         {points.map((p, i) => {
           const { x, y } = toXY(p.time, p.value);
           return (
-            <button
+            <button aria-label={`${meta.label}: ${p.value}${meta.unit} @ ${p.time.toFixed(2)}s`}
               key={`${p.time}-${i}`}
               type="button"
               className="absolute h-3.5 w-3.5 -ml-[7px] -mt-[7px] rounded-full bg-amber-300 border border-amber-100 cursor-grab active:cursor-grabbing z-10"
@@ -520,7 +520,7 @@ function CompEditor({
           const takeIdx = takes.findIndex((t) => t.id === r.takeId);
           const len = r.srcEnd - r.srcStart;
           return (
-            <button
+            <button aria-label={`${takes[takeIdx]?.name ?? "Take"} · ${r.startTime.toFixed(1)}s – ${(r.startTime + len).toFixed(1)}s`}
               key={r.id}
               type="button"
               className={`absolute top-1 bottom-1 rounded-md ${takeColor(takeIdx)} ${selectedRegionId === r.id ? "ring-2 ring-white/80" : ""}`}
@@ -936,7 +936,7 @@ export default function ArrangementStudio() {
                         className="h-7 min-w-0 flex-1 rounded-md bg-white/[0.04] border border-white/10 px-2 text-xs font-bold text-white/90"
                         aria-label="Track name"
                       />
-                      <button type="button" title="Delete track" onClick={(e) => { e.stopPropagation(); setArrangement((a) => ({ ...a, tracks: a.tracks.filter((t) => t.id !== track.id) })); }} className="text-white/30 hover:text-red-300 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button aria-label="Delete track" type="button" title="Delete track" onClick={(e) => { e.stopPropagation(); setArrangement((a) => ({ ...a, tracks: a.tracks.filter((t) => t.id !== track.id) })); }} className="text-white/30 hover:text-red-300 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                     {track.kind === "audio" ? (
                       <select

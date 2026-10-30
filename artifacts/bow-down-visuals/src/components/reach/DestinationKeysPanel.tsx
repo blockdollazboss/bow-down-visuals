@@ -100,7 +100,7 @@ export default function DestinationKeysPanel() {
                     ) : (
                       <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">key saved</span>
                     )}
-                    <button
+                    <button aria-label="Remove this destination's key"
                       type="button"
                       title="Remove this destination's key"
                       onClick={async () => {

@@ -966,7 +966,7 @@ export default function Publish() {
                   </div>
                 </div>
                 {!editingId && (
-                  <button
+                  <button aria-label="Use a different file"
                     onClick={() => { setPrefillUrl(null); setPrefillLabel(null); }}
                     className="rounded-lg border border-white/10 p-1.5 text-white/40 hover:text-white"
                     title="Use a different file"
@@ -1126,7 +1126,7 @@ export default function Publish() {
               {artworkUrl ? (
                 <div className="relative shrink-0">
                   <img src={artworkUrl} alt="artwork" className="h-24 w-24 rounded-xl object-cover border border-white/10" />
-                  <button
+                  <button aria-label="Remove"
                     onClick={() => { setArtworkUrl(null); setArtworkRef(null); }}
                     className="absolute -top-2 -right-2 rounded-full bg-black/80 border border-white/15 p-1 text-white/60 hover:text-white"
                     title="Remove"
@@ -1360,14 +1360,14 @@ export default function Publish() {
                       {(d.download_price_cents ?? 0) > 0 ? ` · $${((d.download_price_cents ?? 0) / 100).toFixed(2)} download` : ""}
                     </p>
                   </div>
-                  <button
+                  <button aria-label="Edit"
                     onClick={() => startEdit(d)}
                     className="rounded-xl border border-white/10 p-2 text-white/50 hover:text-white hover:border-amber-400/40"
                     title="Edit"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button
+                  <button aria-label="Delete"
                     onClick={() => handleDelete(d)}
                     className="rounded-xl border border-white/10 p-2 text-white/50 hover:text-red-400 hover:border-red-500/30"
                     title="Delete"

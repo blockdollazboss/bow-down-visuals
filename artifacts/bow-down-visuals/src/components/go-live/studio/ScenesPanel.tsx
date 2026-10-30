@@ -91,7 +91,7 @@ export default function ScenesPanel({
               ) : isPreview ? (
                 <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Pvw</span>
               ) : null}
-              <button
+              <button aria-label="Take to Program (cut)"
                 type="button"
                 title="Take to Program (cut)"
                 onClick={() => onTake(scene.id)}
@@ -99,7 +99,7 @@ export default function ScenesPanel({
               >
                 <MonitorPlay className="h-3.5 w-3.5" />
               </button>
-              <button
+              <button aria-label="Duplicate scene"
                 type="button"
                 title="Duplicate scene"
                 onClick={() => stage.duplicateSceneById(scene.id)}
@@ -107,7 +107,7 @@ export default function ScenesPanel({
               >
                 <Copy className="h-3.5 w-3.5" />
               </button>
-              <button
+              <button aria-label={stage.scenes.length <= 1 ? "You need at least one scene" : "Delete scene"}
                 type="button"
                 title={stage.scenes.length <= 1 ? "You need at least one scene" : "Delete scene"}
                 disabled={stage.scenes.length <= 1}

@@ -1267,13 +1267,13 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                       <span className="text-xs text-white/40">∞ unlimited</span>
                     ) : (
                       <span className="inline-flex items-center gap-1">
-                        <button onClick={() => setInventory(p, Math.max(0, p.inventory - 1))} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Decrease">
+                        <button aria-label="Decrease" onClick={() => setInventory(p, Math.max(0, p.inventory - 1))} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Decrease">
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className={`min-w-[3ch] text-center text-xs font-bold ${p.soldOut ? "text-red-400" : "text-white"}`}>
                           {p.inventory}
                         </span>
-                        <button onClick={() => setInventory(p, p.inventory + 1)} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Increase">
+                        <button aria-label="Increase" onClick={() => setInventory(p, p.inventory + 1)} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Increase">
                           <Plus className="h-3 w-3" />
                         </button>
                       </span>
@@ -1834,7 +1834,7 @@ function DiscountsTab() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex gap-2">
             <input aria-label="Discount code name" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="CODE name" className={inputCls} />
-            <button onClick={randomCode} title="Generate a code name" className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20">
+            <button aria-label="Generate a code name" onClick={randomCode} title="Generate a code name" className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20">
               <Sparkles className="h-4 w-4" />
             </button>
           </div>

@@ -599,7 +599,7 @@ export default function ContentIdMonitor() {
                       >
                         {o.opted_in ? "Opt out" : "Opt in"}
                       </button>
-                      <button
+                      <button aria-label="Remove"
                         onClick={() => void removeOptin(o)}
                         title="Remove"
                         className="rounded-lg border border-white/10 p-1.5 text-white/40 transition hover:border-red-500/40 hover:text-red-400"
@@ -715,7 +715,7 @@ export default function ContentIdMonitor() {
                       >
                         {DETECTION_STATUS_LABEL[d.status]}
                       </button>
-                      <button
+                      <button aria-label="Delete"
                         onClick={() => void removeDetection(d)}
                         title="Delete"
                         className="rounded-lg border border-white/10 p-1.5 text-white/40 transition hover:border-red-500/40 hover:text-red-400"

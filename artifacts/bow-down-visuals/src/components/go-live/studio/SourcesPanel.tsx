@@ -249,10 +249,10 @@ export default function SourcesPanel({
               {source.name}
               <span className={`ml-1.5 text-[10px] uppercase ${label}`}>{SOURCE_TYPE_LABELS[source.type]}</span>
             </button>
-            <button type="button" title="Move toward front" onClick={() => stage.moveSourceById(scene.id, source.id, 1)} className="rounded p-1 text-zinc-400 transition hover:text-[#C9A84C]">
+            <button aria-label="Move toward front" type="button" title="Move toward front" onClick={() => stage.moveSourceById(scene.id, source.id, 1)} className="rounded p-1 text-zinc-400 transition hover:text-[#C9A84C]">
               <ArrowUp className="h-3.5 w-3.5" />
             </button>
-            <button type="button" title="Move toward back" onClick={() => stage.moveSourceById(scene.id, source.id, -1)} className="rounded p-1 text-zinc-400 transition hover:text-[#C9A84C]">
+            <button aria-label="Move toward back" type="button" title="Move toward back" onClick={() => stage.moveSourceById(scene.id, source.id, -1)} className="rounded p-1 text-zinc-400 transition hover:text-[#C9A84C]">
               <ArrowDown className="h-3.5 w-3.5" />
             </button>
             <button
@@ -271,7 +271,7 @@ export default function SourcesPanel({
             >
               {source.locked ? <Lock className="h-3.5 w-3.5 text-[#C9A84C]" /> : <Unlock className="h-3.5 w-3.5" />}
             </button>
-            <button
+            <button aria-label="Remove source"
               type="button"
               title="Remove source"
               onClick={() => {

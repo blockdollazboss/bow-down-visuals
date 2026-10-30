@@ -158,7 +158,7 @@ export function LinkedCharactersSection({
                     {roleLabel(link.role)}
                   </p>
                 </div>
-                <button
+                <button aria-label="Remove link"
                   type="button"
                   onClick={() => handleUnlink(link.id)}
                   className="text-white/30 hover:text-red-400 transition-colors p-1"

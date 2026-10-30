@@ -382,7 +382,7 @@ export default function JewelryStudio() {
                 <p className={`${isLight ? "text-xs font-semibold uppercase tracking-widest text-[#8A7A56] mb-2" : "text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2"}`}>{t("jewelry.useMyLogo", { defaultValue: "Or use a logo you already made" })}</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {hubLogos.slice(0, 6).map((l) => (
-                    <button
+                    <button aria-label={l.label}
                       key={l.id}
                       type="button"
                       onClick={async () => {
@@ -833,7 +833,7 @@ export default function JewelryStudio() {
       </div>
 
       {/* Consultant floating button + drawer */}
-      <button
+      <button aria-label={t("jewelry.consultTitleAttr")}
         onClick={() => setConsultOpen(true)}
         className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#DDBB62] to-amber-600 text-black shadow-[0_0_24px_rgba(234,179,8,0.5)] transition hover:scale-105"
         title={t("jewelry.consultTitleAttr")}

@@ -724,7 +724,7 @@ export default function BrandingShop() {
                     <div className="mt-4 flex items-center gap-2">
                       <span className="text-xs text-white/40">{t("brandingShop.colorLabel")}</span>
                       {COLORS.map((c) => (
-                        <button
+                        <button aria-label={c.label}
                           key={c.key}
                           title={c.label}
                           onClick={() => setSel((prev) => ({ ...prev, [p.key]: { ...prev[p.key], color: c.key } }))}

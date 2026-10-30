@@ -216,7 +216,7 @@ export function SampleClearancePanel({
                 <div key={d.id} className="space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold">“{d.sourceDescription}”</p>
-                    <button
+                    <button aria-label="Remove this declaration"
                       type="button"
                       onClick={() => void remove(d.id)}
                       disabled={busy}

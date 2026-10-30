@@ -1216,7 +1216,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                       className="bg-white/[0.04] border-white/[0.10] text-white text-xs h-8"
                       autoFocus
                     />
-                    <button type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title={t("artistVault.saveNameTitle")}>
+                    <button aria-label={t("artistVault.saveNameTitle")} type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title={t("artistVault.saveNameTitle")}>
                       <CheckCircle2 className="h-4 w-4" />
                     </button>
                   </div>

@@ -159,7 +159,7 @@ export default function Books() {
               >
                 <div className="flex items-start justify-between">
                   <BookOpen className="h-8 w-8 text-[#C9A84C]" />
-                  <button
+                  <button aria-label="Delete book"
                     onClick={(e) => { e.stopPropagation(); handleDeleteBook(book.id); }}
                     className="opacity-0 group-hover:opacity-100 text-white/40 hover:text-red-400 transition-all"
                     title="Delete book"

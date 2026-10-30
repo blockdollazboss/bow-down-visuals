@@ -610,7 +610,7 @@ export function BrandKitPanel() {
             {libraryImages !== null && libraryImages.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {libraryImages.slice(0, 24).map((asset) => (
-                  <button
+                  <button aria-label={asset.label}
                     key={asset.id}
                     type="button"
                     title={asset.label}

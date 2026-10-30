@@ -476,7 +476,7 @@ export default function Messages() {
                 data-testid="dm-conv-search"
                 className="w-full rounded-full border border-white/15 bg-[#0d0a02] py-2 pl-9 pr-8 text-sm text-white placeholder:text-white/35 focus:border-[#e8c86a]/60 focus:outline-none" />
               {convQuery && (
-                <button type="button" onClick={() => setConvQuery("")} title="Clear search"
+                <button aria-label="Clear search" type="button" onClick={() => setConvQuery("")} title="Clear search"
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                   <X className="h-4 w-4" />
                 </button>
@@ -528,7 +528,7 @@ export default function Messages() {
                         </Link>
                       </>
                     )}
-                    <button type="button" onClick={block} className="text-white/40 hover:text-red-400" title="Block">
+                    <button aria-label="Block" type="button" onClick={block} className="text-white/40 hover:text-red-400" title="Block">
                       <Ban className="h-4 w-4" />
                     </button>
                   </div>
@@ -545,7 +545,7 @@ export default function Messages() {
                       data-testid="dm-thread-search"
                       className="w-full rounded-full border border-white/15 bg-black/40 py-1.5 pl-9 pr-8 text-sm text-white placeholder:text-white/35 focus:border-[#e8c86a]/60 focus:outline-none" />
                     {threadQuery && (
-                      <button type="button" onClick={() => setThreadQuery("")} title="Clear search"
+                      <button aria-label="Clear search" type="button" onClick={() => setThreadQuery("")} title="Clear search"
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                         <X className="h-4 w-4" />
                       </button>
@@ -626,7 +626,7 @@ export default function Messages() {
                         <span className="min-w-0 flex-1 truncate">
                           {dmWorkLabel(pendingAtt.type)} ready to hand off: {pendingAtt.name}
                         </span>
-                        <button type="button" onClick={() => setPendingAtt(null)} title="Remove attachment"
+                        <button aria-label="Remove attachment" type="button" onClick={() => setPendingAtt(null)} title="Remove attachment"
                           data-testid="dm-pending-attachment-remove" className="shrink-0 text-white/50 hover:text-white">
                           <X className="h-4 w-4" />
                         </button>
@@ -653,13 +653,13 @@ export default function Messages() {
                           e.target.value = "";
                           if (f) void uploadFile(f);
                         }} />
-                      <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                      <button aria-label="Attach a beat, cover, or clip (images up to 10 MB, audio/video up to 80 MB)" type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
                         title="Attach a beat, cover, or clip (images up to 10 MB, audio/video up to 80 MB)"
                         data-testid="dm-attach-button"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
                         <Paperclip className="h-4 w-4" />
                       </button>
-                      <button aria-expanded={showLink} type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
+                      <button aria-label="Attach by link — a file of yours hosted elsewhere; it's mirrored into your storage when it sends" aria-expanded={showLink} type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
                         title="Attach by link — a file of yours hosted elsewhere; it's mirrored into your storage when it sends"
                         data-testid="dm-attach-link-toggle"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">

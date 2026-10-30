@@ -1028,7 +1028,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               )}
             </button>
             {outfits.map((o) => (
-              <button
+              <button aria-label={o.label}
                 key={o.id}
                 type="button"
                 onClick={() => setPickedOutfitId(o.id)}
@@ -1332,7 +1332,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
                 title={`${REFERENCE_ROLE_LABEL[r.role]} — ${r.label}`}
               >
                 <img src={r.url} alt={r.label} className="h-full w-full object-cover object-top" loading="lazy" />
-                <button
+                <button aria-label={`Remove ${r.label}`}
                   type="button"
                   onClick={() => removeReference(r.url)}
                   title={`Remove ${r.label}`}
@@ -2270,21 +2270,21 @@ export function SceneStudio({
           <div key={scene.id} className="space-y-1.5">
             {manageable && (
               <div className="flex items-center justify-end gap-1">
-                <button
+                <button aria-label="Move up"
                   type="button" onClick={() => moveScene(i, -1)} disabled={i === 0}
                   className="h-7 w-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                   title="Move up" data-testid={`btn-scene-up-${i}`}
                 >
                   <ArrowUp className="h-3.5 w-3.5" />
                 </button>
-                <button
+                <button aria-label="Move down"
                   type="button" onClick={() => moveScene(i, 1)} disabled={i === scenes.length - 1}
                   className="h-7 w-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                   title="Move down" data-testid={`btn-scene-down-${i}`}
                 >
                   <ArrowDown className="h-3.5 w-3.5" />
                 </button>
-                <button
+                <button aria-label="Remove scene"
                   type="button" onClick={() => removeScene(scene.id)}
                   className="h-7 w-7 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center justify-center text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   title="Remove scene" data-testid={`btn-scene-remove-${i}`}

@@ -383,7 +383,7 @@ export function ClipSequencePlayer({
 
             <div className="flex-1 flex items-center gap-1.5 overflow-x-auto">
               {clips.map((clip, i) => (
-                <button
+                <button aria-label={`Scene ${numberSource.indexOf(clip) + 1}`}
                   key={clip.id ?? `${i}-${getSceneVideoUrl(clip)}`}
                   onClick={(e) => {
                     e.stopPropagation();

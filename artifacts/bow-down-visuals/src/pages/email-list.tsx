@@ -1223,7 +1223,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  {l.description && <p className="mt-2 whitespace-pre-wrap text-sm text-white/50">{l.description}</p>}
  </div>
  {confirmDeleteId !== l.id && (
- <button
+ <button aria-label={t("email-list.delete_list")}
  onClick={() => setConfirmDeleteId(l.id)}
  className="rounded-lg p-2 text-white/30 hover:bg-red-500/10 hover:text-red-300"
  title={t("email-list.delete_list")}

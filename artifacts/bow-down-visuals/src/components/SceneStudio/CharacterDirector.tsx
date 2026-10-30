@@ -409,7 +409,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
                     <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                       {t(`${ns}.shotLabel`, { n: i + 1 })}
                     </span>
-                    <button
+                    <button aria-label={t(`${ns}.removeShot`)}
                       onClick={() => removeShot(shot.id)}
                       disabled={shots.length <= 1}
                       className="ml-auto text-white/30 hover:text-red-400 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"

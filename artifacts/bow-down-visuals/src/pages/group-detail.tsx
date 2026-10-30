@@ -446,7 +446,7 @@ export default function GroupDetail() {
                     </div>
                   </div>
                   {p.can_delete && (
-                    <button type="button" onClick={() => deletePost(p.id)} data-min-stars={isMod && p.author_user_id !== user?.id ? "4" : "1"}
+                    <button aria-label="Delete post" type="button" onClick={() => deletePost(p.id)} data-min-stars={isMod && p.author_user_id !== user?.id ? "4" : "1"}
                       className="text-white/40 hover:text-red-400" title="Delete post">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -491,7 +491,7 @@ export default function GroupDetail() {
                         </>
                       )}
                       {openThread.thread.can_delete && (
-                        <button type="button" onClick={() => deleteThread(openThread.thread.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
+                        <button aria-label="Delete thread" type="button" onClick={() => deleteThread(openThread.thread.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
@@ -526,7 +526,7 @@ export default function GroupDetail() {
                           </div>
                         </div>
                         {r.can_delete && (
-                          <button type="button" onClick={() => deleteReply(openThread.thread.id, r.id)} className="text-white/40 hover:text-red-400" title="Delete reply">
+                          <button aria-label="Delete reply" type="button" onClick={() => deleteReply(openThread.thread.id, r.id)} className="text-white/40 hover:text-red-400" title="Delete reply">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
@@ -622,7 +622,7 @@ export default function GroupDetail() {
                         <span className="ml-auto shrink-0 text-xs text-white/40">{c.thread_count} threads</span>
                       </button>
                       {forumCaps.can_manage_channels && (
-                        <button type="button" onClick={() => closeChannel(c.id)} className="shrink-0 text-white/30 hover:text-red-400" title="Close channel">
+                        <button aria-label="Close channel" type="button" onClick={() => closeChannel(c.id)} className="shrink-0 text-white/30 hover:text-red-400" title="Close channel">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -722,7 +722,7 @@ export default function GroupDetail() {
                             </>
                           )}
                           {t.can_delete && (
-                            <button type="button" onClick={() => deleteThread(t.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
+                            <button aria-label="Delete thread" type="button" onClick={() => deleteThread(t.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
