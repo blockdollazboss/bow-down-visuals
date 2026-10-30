@@ -656,7 +656,7 @@ export function WallpapersDesk() {
             <label className="mt-4 block text-[11px] font-bold uppercase tracking-widest text-primary/80">
               {t("wallpapers.promptLabel", { defaultValue: "Describe your wallpaper" })}
             </label>
-            <textarea
+            <textarea aria-label={t("wallpapers.promptLabel", { defaultValue: "Describe your wallpaper" })}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
@@ -760,6 +760,7 @@ export function WallpapersDesk() {
                 type="button"
                 role="switch"
                 aria-checked={branded}
+                aria-label={t("wallpapers.brandToggleLabel", { defaultValue: "Brand my wallpapers, screensavers & themes" })}
                 onClick={() => setBranded((b) => !b)}
                 className={`relative h-7 w-12 shrink-0 rounded-full transition ${branded ? "bg-primary" : isLight ? "bg-stone-300" : "bg-white/15"}`}
               >
@@ -781,6 +782,7 @@ export function WallpapersDesk() {
                 type="button"
                 role="switch"
                 aria-checked={aiDisclosure}
+                aria-label={t("wallpapers.aiDisclosure", { defaultValue: "AI disclosure in file details" })}
                 onClick={() => setAiDisclosure((b) => !b)}
                 className={`relative h-7 w-12 shrink-0 rounded-full transition ${aiDisclosure ? "bg-primary" : isLight ? "bg-stone-300" : "bg-white/15"}`}
                 data-testid="wallpapers-disclosure-switch"
@@ -1008,13 +1010,13 @@ export function WallpapersDesk() {
                   <label className="text-[11px] font-bold uppercase tracking-widest text-primary/80">
                     {t("wallpapers.listTitleLabel", { defaultValue: "Listing title" })}
                   </label>
-                  <input value={listTitle} onChange={(e) => setListTitle(e.target.value)} maxLength={120} className={`${inputClass} mt-1.5`} />
+                  <input aria-label={t("wallpapers.listTitleLabel", { defaultValue: "Listing title" })} value={listTitle} onChange={(e) => setListTitle(e.target.value)} maxLength={120} className={`${inputClass} mt-1.5`} />
                 </div>
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-primary/80">
                     {t("wallpapers.listPriceLabel", { defaultValue: "Price (dollars)" })}
                   </label>
-                  <input value={listPrice} onChange={(e) => setListPrice(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" className={`${inputClass} mt-1.5`} />
+                  <input aria-label={t("wallpapers.listPriceLabel", { defaultValue: "Price (dollars)" })} value={listPrice} onChange={(e) => setListPrice(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" className={`${inputClass} mt-1.5`} />
                   <p className={`mt-1 text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
                     {t("wallpapers.listPriceHint", { defaultValue: "Set zero and the pack is free for your fans." })}
                   </p>
@@ -1056,7 +1058,7 @@ export function WallpapersDesk() {
           {t("wallpapers.screensaverPickVideoLabel", { defaultValue: "Pick one of your videos" })}
         </label>
         {videoAssets.length > 0 ? (
-          <select value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} className={`${inputClass} mt-1.5`}>
+          <select aria-label={t("wallpapers.screensaverPickVideoLabel", { defaultValue: "Pick one of your videos" })} value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} className={`${inputClass} mt-1.5`}>
             <option value="">{t("wallpapers.screensaverPickVideoLabel", { defaultValue: "Pick one of your videos" })}</option>
             {videoAssets.map((a) => (
               <option key={a.id} value={a.url}>{a.label}</option>
@@ -1072,7 +1074,7 @@ export function WallpapersDesk() {
         <label className="mt-4 block text-[11px] font-bold uppercase tracking-widest text-primary/80">
           {t("wallpapers.screensaverVideoPromptLabel", { defaultValue: "Or generate a video" })}
         </label>
-        <textarea
+        <textarea aria-label={t("wallpapers.screensaverVideoPromptLabel", { defaultValue: "Or generate a video" })}
           value={videoPrompt}
           onChange={(e) => setVideoPrompt(e.target.value)}
           rows={2}

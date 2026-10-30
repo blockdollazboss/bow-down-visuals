@@ -408,7 +408,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  );
  })}
  </div>
- <input
+ <input aria-label={t("coach.customNichePlaceholder")}
  value={customNiche}
  onChange={(e) => setCustomNiche(e.target.value)}
  maxLength={120}

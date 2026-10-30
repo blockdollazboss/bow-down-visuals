@@ -289,7 +289,7 @@ export default function IngestKeyPanel() {
                 Title for program-started streams
               </label>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <input
+                <input aria-label="Title for program-started streams"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={120}

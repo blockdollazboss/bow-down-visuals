@@ -724,7 +724,7 @@ export default function BrandingShop() {
                     <div className="mt-4 flex items-center gap-2">
                       <span className="text-xs text-white/40">{t("brandingShop.colorLabel")}</span>
                       {COLORS.map((c) => (
-                        <button
+                        <button aria-label={c.label}
                           key={c.key}
                           title={c.label}
                           onClick={() => setSel((prev) => ({ ...prev, [p.key]: { ...prev[p.key], color: c.key } }))}
@@ -856,7 +856,7 @@ export default function BrandingShop() {
               <div className="mt-5 space-y-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("brandingShop.brandNameLabel")}</label>
-                  <input
+                  <input aria-label={t("brandingShop.brandNameLabel")}
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
                     placeholder={t("brandingShop.brandNamePlaceholder")}
@@ -866,7 +866,7 @@ export default function BrandingShop() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("brandingShop.nicheLabel")}</label>
-                  <input
+                  <input aria-label={t("brandingShop.nicheLabel")}
                     value={niche}
                     onChange={(e) => setNiche(e.target.value)}
                     placeholder={t("brandingShop.nichePlaceholder")}
@@ -1214,13 +1214,13 @@ export default function BrandingShop() {
                   <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="mb-3 text-sm font-bold">{t("brandingShop.shippingTitle")}</h3>
                     <div className="space-y-2.5">
-                      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("brandingShop.fullNamePlaceholder")} className={inputClass} />
-                      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("brandingShop.emailPlaceholder")} type="email" className={inputClass} />
-                      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("brandingShop.streetPlaceholder")} className={inputClass} />
+                      <input aria-label={t("brandingShop.fullNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("brandingShop.fullNamePlaceholder")} className={inputClass} />
+                      <input aria-label={t("brandingShop.emailPlaceholder")} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("brandingShop.emailPlaceholder")} type="email" className={inputClass} />
+                      <input aria-label={t("brandingShop.streetPlaceholder")} value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("brandingShop.streetPlaceholder")} className={inputClass} />
                       <div className="grid grid-cols-3 gap-2.5">
-                        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("brandingShop.cityPlaceholder")} className={inputClass} />
-                        <input value={state_} onChange={(e) => setState_(e.target.value)} placeholder={t("brandingShop.statePlaceholder")} className={inputClass} />
-                        <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder={t("brandingShop.zipPlaceholder")} className={inputClass} />
+                        <input aria-label={t("brandingShop.cityPlaceholder")} value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("brandingShop.cityPlaceholder")} className={inputClass} />
+                        <input aria-label={t("brandingShop.statePlaceholder")} value={state_} onChange={(e) => setState_(e.target.value)} placeholder={t("brandingShop.statePlaceholder")} className={inputClass} />
+                        <input aria-label={t("brandingShop.zipPlaceholder")} value={zip} onChange={(e) => setZip(e.target.value)} placeholder={t("brandingShop.zipPlaceholder")} className={inputClass} />
                       </div>
                     </div>
                   </div>
@@ -1575,7 +1575,7 @@ function MerchTab() {
           {/* Title + description */}
           <div>
             <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("merch.designTitleLabel")}</label>
-            <input
+            <input aria-label={t("merch.designTitleLabel")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("merch.titlePlaceholder")}
@@ -1587,7 +1587,7 @@ function MerchTab() {
             <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
               {t("merch.describeLabel")} <span className="text-white/25 normal-case font-normal">{t("merch.describeHint")}</span>
             </label>
-            <textarea
+            <textarea aria-label={t("merch.describeLabel")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t("merch.descriptionPlaceholder")}
@@ -1726,7 +1726,7 @@ function MerchTab() {
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1.5 rounded-xl border border-white/[0.12] bg-white/[0.03] px-3 py-2">
                       <Tag className="h-3.5 w-3.5 text-white/40" />
-                      <input
+                      <input aria-label={t("merch.pricePlaceholder")}
                         value={priceInput}
                         onChange={(e) => setPriceEdits((p) => ({ ...p, [d.id]: e.target.value }))}
                         placeholder={t("merch.pricePlaceholder")}

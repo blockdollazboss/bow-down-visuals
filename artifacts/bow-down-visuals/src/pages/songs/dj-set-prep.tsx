@@ -449,7 +449,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
             {t("djSets.yourCrates")}
           </h3>
           <div className="mb-3 flex gap-2">
-            <input
+            <input aria-label={t("djSets.newCratePlaceholder")}
               type="text"
               value={newCrateName}
               onChange={(e) => setNewCrateName(e.target.value)}
@@ -506,7 +506,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
             <div className={panelCls}>
               <div className="mb-3 flex items-center justify-between gap-2">
                 {renaming ? (
-                  <input
+                  <input aria-label="Crate name"
                     type="text"
                     value={renameValue}
                     autoFocus
@@ -537,7 +537,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
                 >
                   {t("djSets.rename")}
                 </button>
-                <button
+                <button aria-label={t("djSets.deleteCrate")}
                   type="button"
                   onClick={() => void deleteCrate()}
                   className="shrink-0 text-white/40 hover:text-red-400"
@@ -570,7 +570,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
                             {tr.keyConfidence === "low" ? ` · ${t("djSets.roughGuess")}` : ""}
                           </p>
                         </div>
-                        <button
+                        <button aria-label={t("djSets.moveUp")}
                           type="button"
                           disabled={saving || i === 0}
                           onClick={() => {
@@ -583,7 +583,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
                         >
                           <ChevronUp className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("djSets.moveDown")}
                           type="button"
                           disabled={saving || i === selectedCrate.tracks.length - 1}
                           onClick={() => {
@@ -596,7 +596,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
                         >
                           <ChevronDown className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("djSets.removeFromCrate")}
                           type="button"
                           disabled={saving}
                           onClick={() =>

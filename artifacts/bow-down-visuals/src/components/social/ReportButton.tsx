@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { Flag, X, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   REPORT_REASONS,
   REPORT_REASON_LABELS,
@@ -52,6 +53,7 @@ export function ReportButton({
   const [phase, setPhase] = useState<ReportDialogPhase>("form");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState(false);
+  const dialogRef = useModalA11y<HTMLDivElement>(open, close);
 
   if (!user) return null;
 
@@ -115,6 +117,8 @@ export function ReportButton({
 
       {open && (
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
           role="dialog"
           aria-modal="true"

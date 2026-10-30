@@ -555,7 +555,7 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
         </span>
       ) : (
         <span className="inline-flex items-center gap-1.5">
-          <input
+          <input aria-label="%"
             value={pct}
             onChange={(e) => setPct(e.target.value)}
             placeholder="%"
@@ -763,6 +763,7 @@ function DropControls({ product, getToken, onChanged }: {
   return (
     <div className="inline-block text-left align-top">
       <button
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black ${
           isUpcoming
@@ -1058,7 +1059,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             : stars <= 3 ? "guided mode: kinds, descriptions, discount nudges unlocked."
             : "full commerce control: inventory, compare-at pricing, links, codes, everything."}
         </p>
-        <button
+        <button aria-expanded={showForm}
           onClick={() => setShowForm((s) => !s)}
           className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-4 py-2 text-xs font-black text-black hover:brightness-110"
         >
@@ -1138,7 +1139,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             )}
             {form.kind === "gift_card" && (
               <div className="mt-3">
-                <input value={form.denominations} onChange={(e) => setForm({ ...form, denominations: e.target.value })} placeholder="Amounts fans can pick ($) — e.g. 25, 50, 100" className={inputCls} />
+                <input aria-label="Amounts fans can pick ($) — e.g. 25, 50, 100" value={form.denominations} onChange={(e) => setForm({ ...form, denominations: e.target.value })} placeholder="Amounts fans can pick ($) — e.g. 25, 50, 100" className={inputCls} />
                 <p className="mt-1 text-[10px] text-white/35">
                   You set the amounts ($5–$500, up to 8). The listing shows the smallest as the "from" price. Fans buy it for someone else — it lands in their email as stored value for your whole store. No platform fee is taken from a gift card; the standard fee applies when it's spent, on that sale.
                 </p>
@@ -1164,7 +1165,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             {form.affiliatesEnabled && (
               <div className="mt-3 flex items-center gap-2">
                 <label className="text-xs font-semibold text-white/50">Commission you pay</label>
-                <input
+                <input aria-label="Commission you pay"
                   value={form.affiliatePct}
                   onChange={(e) => setForm({ ...form, affiliatePct: e.target.value })}
                   placeholder="10"
@@ -1266,13 +1267,13 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                       <span className="text-xs text-white/40">∞ unlimited</span>
                     ) : (
                       <span className="inline-flex items-center gap-1">
-                        <button onClick={() => setInventory(p, Math.max(0, p.inventory - 1))} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Decrease">
+                        <button aria-label="Decrease" onClick={() => setInventory(p, Math.max(0, p.inventory - 1))} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Decrease">
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className={`min-w-[3ch] text-center text-xs font-bold ${p.soldOut ? "text-red-400" : "text-white"}`}>
                           {p.inventory}
                         </span>
-                        <button onClick={() => setInventory(p, p.inventory + 1)} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Increase">
+                        <button aria-label="Increase" onClick={() => setInventory(p, p.inventory + 1)} className="rounded border border-white/15 p-1 text-white/60 hover:text-white" title="Increase">
                           <Plus className="h-3 w-3" />
                         </button>
                       </span>
@@ -1833,7 +1834,7 @@ function DiscountsTab() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex gap-2">
             <input aria-label="Discount code name" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="CODE name" className={inputCls} />
-            <button onClick={randomCode} title="Generate a code name" className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20">
+            <button aria-label="Generate a code name" onClick={randomCode} title="Generate a code name" className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20">
               <Sparkles className="h-4 w-4" />
             </button>
           </div>

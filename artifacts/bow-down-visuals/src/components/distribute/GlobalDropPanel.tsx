@@ -177,13 +177,13 @@ export function GlobalDropPanel({ releaseId, authFetch }: { releaseId: string; a
                   </Link>
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <input
+                  <input aria-label={`Translated title (${v.label})`}
                     value={titles[code] ?? ""}
                     onChange={(e) => setTitles((t) => ({ ...t, [code]: e.target.value }))}
                     placeholder={`Translated title (${v.label})`}
                     className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-xs text-white placeholder:text-white/25"
                   />
-                  <input
+                  <input aria-label="Version URL — where this language's fans land"
                     value={urls[code] ?? ""}
                     onChange={(e) => setUrls((t) => ({ ...t, [code]: e.target.value }))}
                     placeholder="Version URL — where this language's fans land"

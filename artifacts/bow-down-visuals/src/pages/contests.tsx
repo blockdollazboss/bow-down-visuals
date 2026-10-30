@@ -385,7 +385,7 @@ export default function Contests() {
             <RemixKingSection />
             <div className="mt-6 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t("contests.your_contests")}</h2>
-              <button
+              <button aria-expanded={showBuilder}
                 onClick={() => setShowBuilder((s) => !s)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black hover:brightness-110"
               >
@@ -588,14 +588,14 @@ export default function Contests() {
                     <h3 className="font-bold mb-1">{t("contests.track_entries")}</h3>
                     <p className="text-xs text-white/45 mb-4">{t("contests.log_entries_as_they_come_in_veri")}</p>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <input
+                      <input aria-label={t("contests.handle_or_email")}
                         value={entryHandle}
                         onChange={(e) => setEntryHandle(e.target.value.slice(0, 80))}
                         placeholder={t("contests.handle_or_email")}
                         maxLength={80}
                         className="flex-1 rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-2.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                       />
-                      <select
+                      <select aria-label="Entry method"
                         value={entryMethod}
                         onChange={(e) => setEntryMethod(e.target.value)}
                         className="rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-2.5 text-white outline-none focus:border-primary/60"

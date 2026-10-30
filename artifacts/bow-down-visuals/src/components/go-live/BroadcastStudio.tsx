@@ -1764,6 +1764,7 @@ export default function BroadcastStudio() {
               type="button"
               role="switch"
               aria-checked={mirror}
+              aria-label="Mirror my view"
               onClick={() => {
                 const next = !mirror;
                 setMirror(next);
@@ -1866,6 +1867,7 @@ export default function BroadcastStudio() {
                 type="button"
                 role="switch"
                 aria-checked={ticketed}
+                aria-label="Sell tickets"
                 disabled={isLivePhase}
                 onClick={() => { setupTouchedRef.current = true; setTicketed(!ticketed); }}
                 className={`relative h-6 w-10 rounded-full transition-colors ${ticketed ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
@@ -1916,6 +1918,7 @@ export default function BroadcastStudio() {
                   type="button"
                   role="switch"
                   aria-checked={isClass}
+                  aria-label="Run as a class"
                   disabled={isLivePhase}
                   onClick={() => { setupTouchedRef.current = true; setIsClass(!isClass); }}
                   className={`relative h-6 w-10 rounded-full transition-colors ${isClass ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
@@ -2132,7 +2135,7 @@ export default function BroadcastStudio() {
               ["none", "Original"],
             ] as Array<[BackgroundMode, string]>
           ).map(([m, label]) => (
-            <button
+            <button aria-pressed={mode === m}
               key={m}
               type="button"
               disabled={engineDown && m !== "none"}
@@ -2386,6 +2389,7 @@ export default function BroadcastStudio() {
               key={lvl}
               type="button"
               className={pillBtn(nc === lvl)}
+              aria-pressed={nc === lvl}
               onClick={async () => {
                 setNc(lvl);
                 if (!changerRef.current) {
@@ -2411,6 +2415,7 @@ export default function BroadcastStudio() {
               key={e.id}
               type="button"
               className={pillBtn(fx === e.id)}
+              aria-pressed={fx === e.id}
               onClick={async () => {
                 setFx(e.id);
                 if (!changerRef.current) {
@@ -2447,6 +2452,7 @@ export default function BroadcastStudio() {
               type="button"
               role="switch"
               aria-checked={hotkeysOn}
+              aria-label="Hotkeys"
               onClick={() => setHotkeysOn((v) => !v)}
               className={`relative h-5 w-9 rounded-full transition ${hotkeysOn ? "bg-[#C9A84C]" : "bg-zinc-500"}`}
               data-testid="switch-hotkeys"

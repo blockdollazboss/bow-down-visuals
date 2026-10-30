@@ -310,7 +310,7 @@ export default function TrendPredictor() {
               );
             })}
           </div>
-          <input
+          <input aria-label={t("trends.nichePlaceholder")}
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             maxLength={120}

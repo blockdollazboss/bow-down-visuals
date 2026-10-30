@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { X, AlertTriangle } from "lucide-react";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +40,8 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
     resolverRef.current = null;
   };
 
+  const dialogRef = useModalA11y<HTMLDivElement>(!!request, () => close(false));
+
   const balance = profile?.credits ?? 0;
   const affordable = request ? balance >= request.cost : true;
   /* Lane V-bucs: while part of the balance is temporary, the dialog says
@@ -53,6 +56,8 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       {request && (
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           onClick={() => close(false)}
           role="dialog"

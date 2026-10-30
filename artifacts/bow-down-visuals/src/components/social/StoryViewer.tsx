@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { X, ChevronLeft, ChevronRight, Send, BadgeCheck } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { apiJson, markStorySeen, profileHref, type Story } from "@/lib/social-api";
 import { Avatar } from "./Avatar";
 
@@ -22,6 +23,7 @@ export function StoryViewer({
   onClose: () => void;
 }) {
   const { getAccessToken } = useAuth();
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onClose);
   const [idx, setIdx] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -107,7 +109,7 @@ export function StoryViewer({
   }
 
   return (
-    <div data-dark-lock className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95" role="dialog" aria-label="Story viewer">
+    <div ref={dialogRef} tabIndex={-1} data-dark-lock className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95" role="dialog" aria-modal="true" aria-label="Story viewer">
       <div className="relative h-full w-full max-w-[480px] overflow-hidden bg-black sm:h-[92vh] sm:rounded-2xl">
         {/* media */}
         {story.media_kind === "video" ? (
@@ -166,7 +168,7 @@ export function StoryViewer({
 
         {/* reply → DM */}
         <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 p-4">
-          <input
+          <input aria-label={sent ? "Sent! 🦈" : `Reply to ${author?.display_name ?? "creator"}…`}
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendReply()}

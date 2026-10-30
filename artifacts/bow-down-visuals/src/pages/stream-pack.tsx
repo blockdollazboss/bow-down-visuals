@@ -457,7 +457,7 @@ export function StreamPackTool() {
                       <ImageIcon className="h-4 w-4 text-primary/70 shrink-0" />
                       <p className="truncate text-sm font-semibold text-white">{r.label}</p>
                       <span className="ml-auto flex gap-1.5 shrink-0">
-                        <button
+                        <button aria-label={t("streamPack.regenerate", { cost: creditCost })}
                           onClick={() => generateOne(a.key)}
                           title={t("streamPack.regenerate", { cost: creditCost })}
                           data-min-stars="3"
@@ -465,7 +465,7 @@ export function StreamPackTool() {
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                         </button>
-                        <button
+                        <button aria-label={t("streamPack.download")}
                           onClick={() => downloadUrl(r.url, `stream-pack-${a.key}.png`)}
                           title={t("streamPack.download")}
                           className="rounded-lg bg-primary p-2 text-black hover:brightness-110 transition"
@@ -525,7 +525,7 @@ export function StreamPackTool() {
                         <div className="flex items-center gap-2">
                           <ImageIcon className="h-4 w-4 text-primary/70 shrink-0" />
                           <p className="truncate text-sm font-semibold text-white">{asset.label}</p>
-                          <button
+                          <button aria-label={t("streamPack.download")}
                             onClick={() => downloadUrl(asset.url, `stream-pack-${asset.assetKey}.png`)}
                             title={t("streamPack.download")}
                             className="ml-auto shrink-0 rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"

@@ -107,7 +107,7 @@ export default function HookRewriter({ onUseAsTopic }: HookRewriterProps) {
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-white/40">
             {t("wave8.hookRewriter.postLabel")}
           </label>
-          <textarea
+          <textarea aria-label={t("wave8.hookRewriter.postLabel")}
             value={post}
             onChange={(e) => setPost(e.target.value)}
             placeholder={t("wave8.hookRewriter.postPlaceholder")}
@@ -121,7 +121,7 @@ export default function HookRewriter({ onUseAsTopic }: HookRewriterProps) {
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-white/40">
               {t("wave8.hookRewriter.nicheLabel")}
             </label>
-            <input
+            <input aria-label={t("wave8.hookRewriter.nicheLabel")}
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
               placeholder={t("wave8.hookRewriter.nichePlaceholder")}

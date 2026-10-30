@@ -362,7 +362,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
       data-testid="camera-move-planner"
     >
       {/* Header */}
-      <button
+      <button aria-expanded={expanded}
         onClick={() => setExpanded((e) => !e)}
         className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-white/[0.02] transition-colors"
       >
@@ -392,7 +392,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
               <p className="text-xs text-white/40">{t(`${ns}.noScenes`)}</p>
             ) : (
               <div className="relative">
-                <select
+                <select aria-label="Scene"
                   value={Math.min(sceneIndex, scenes.length - 1)}
                   onChange={(e) => { setSceneIndex(Number(e.target.value)); setPreview(null); setUsed(false); setProposal(null); }}
                   className="h-10 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 pr-8 text-sm focus:outline-none focus:border-primary/50 appearance-none cursor-pointer"

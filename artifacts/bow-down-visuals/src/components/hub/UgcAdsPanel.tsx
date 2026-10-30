@@ -512,12 +512,12 @@ export function UgcAdsPanel() {
           </div>
         ) : (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Product name *" maxLength={120} className={inputClass} />
-            <input value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder="Price in dollars (optional)" inputMode="decimal" className={inputClass} />
-            <input value={productImageUrl} onChange={(e) => setProductImageUrl(e.target.value)} placeholder="Product photo link (https://…)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
+            <input aria-label="Product name *" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Product name *" maxLength={120} className={inputClass} />
+            <input aria-label="Price in dollars (optional)" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder="Price in dollars (optional)" inputMode="decimal" className={inputClass} />
+            <input aria-label="Product photo link (https://…)" value={productImageUrl} onChange={(e) => setProductImageUrl(e.target.value)} placeholder="Product photo link (https://…)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
           </div>
         )}
-        <input
+        <input aria-label="One line on what makes it worth buying (optional)"
           value={productBlurb}
           onChange={(e) => setProductBlurb(e.target.value)}
           placeholder="One line on what makes it worth buying (optional)"
@@ -544,7 +544,7 @@ export function UgcAdsPanel() {
         {faceMode === "persona" && (
           <div className="mt-3">
             <div className="flex flex-col gap-3 sm:flex-row">
-              <input
+              <input aria-label="3 · The face"
                 value={personaDescription}
                 onChange={(e) => { setPersonaDescription(e.target.value); personaKeyRef.current = ""; }}
                 placeholder="Describe the creator — e.g. “a 30-year-old barber in Chicago, locs, warm laugh”"
@@ -569,7 +569,7 @@ export function UgcAdsPanel() {
           </div>
         )}
         {faceMode === "photo" && (
-          <input
+          <input aria-label="Link to your photo or character image (https://…) — your vault photos work"
             value={facePhotoUrl}
             onChange={(e) => setFacePhotoUrl(e.target.value)}
             placeholder="Link to your photo or character image (https://…) — your vault photos work"
@@ -590,8 +590,8 @@ export function UgcAdsPanel() {
           </button>
           <span className="text-xs text-white/40">Free — the script rides inside the ad. Or write your own below.</span>
         </div>
-        <input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="Hook — the first line, made to stop the scroll" maxLength={200} className={`${inputClass} mt-3`} />
-        <textarea
+        <input aria-label="4 · The script" value={hook} onChange={(e) => setHook(e.target.value)} placeholder="Hook — the first line, made to stop the scroll" maxLength={200} className={`${inputClass} mt-3`} />
+        <textarea aria-label={"Spoken lines — one per line\nSay what a real creator would say…"}
           value={scriptLines}
           onChange={(e) => setScriptLines(e.target.value)}
           placeholder={"Spoken lines — one per line\nSay what a real creator would say…"}
@@ -599,7 +599,7 @@ export function UgcAdsPanel() {
           maxLength={1400}
           className={`${inputClass} mt-3 resize-none`}
         />
-        <input value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Call to action — e.g. “Link's in my shop”" maxLength={200} className={`${inputClass} mt-3`} />
+        <input aria-label="Call to action — e.g. “Link's in my shop”" value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Call to action — e.g. “Link's in my shop”" maxLength={200} className={`${inputClass} mt-3`} />
 
         {makerError && (
           <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{makerError}</div>
@@ -743,17 +743,17 @@ export function UgcAdsPanel() {
         <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4">
           <p className="text-sm font-bold">Post a brief (for brands &amp; businesses)</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} placeholder="Product name *" maxLength={120} className={inputClass} />
-            <select value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })} className={`${inputClass} cursor-pointer appearance-none`}>
+            <input aria-label="Product name *" value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} placeholder="Product name *" maxLength={120} className={inputClass} />
+            <select aria-label="Ad style" value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })} className={`${inputClass} cursor-pointer appearance-none`}>
               {UGC_STYLES.map((s) => (
                 <option key={s.key} value={s.key} className="bg-black">{s.label}</option>
               ))}
             </select>
-            <input value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} placeholder="Product page link (optional)" maxLength={2048} className={inputClass} />
+            <input aria-label="Product page link (optional)" value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} placeholder="Product page link (optional)" maxLength={2048} className={inputClass} />
             <input type="date" value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} className={`${inputClass} [color-scheme:dark]`} aria-label="Deadline (optional)" />
-            <input value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} placeholder="Product photo link (optional)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
+            <input aria-label="Product photo link (optional)" value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} placeholder="Product photo link (optional)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
           </div>
-          <textarea
+          <textarea aria-label="What do you want in the ad? The moments it has to hit, what to say, what to never say…"
             value={briefForm.details}
             onChange={(e) => setBriefForm({ ...briefForm, details: e.target.value })}
             placeholder="What do you want in the ad? The moments it has to hit, what to say, what to never say…"
@@ -846,7 +846,7 @@ export function UgcAdsPanel() {
 
                   {actions.includes("deliver") && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <select
+                      <select aria-label="Finished ad to deliver"
                         value={deliverPick[brief.id] ?? ""}
                         onChange={(e) => setDeliverPick({ ...deliverPick, [brief.id]: e.target.value })}
                         className="min-w-44 flex-1 cursor-pointer appearance-none rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"

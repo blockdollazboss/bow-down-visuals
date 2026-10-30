@@ -137,7 +137,7 @@ export function FinishMySong() {
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("finishMySong.notesLabel", { defaultValue: "What's missing? (optional)" })}
           </label>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)}
+          <input aria-label={t("finishMySong.notesLabel", { defaultValue: "What's missing? (optional)" })} value={notes} onChange={(e) => setNotes(e.target.value)}
             placeholder={t("finishMySong.notesPh", { defaultValue: "e.g. needs a second verse and a bigger chorus" })}
             className={`${inputClass} mt-1.5`} maxLength={500} />
         </div>

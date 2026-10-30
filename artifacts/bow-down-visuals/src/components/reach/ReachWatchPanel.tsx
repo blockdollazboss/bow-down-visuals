@@ -193,7 +193,7 @@ export default function ReachWatchPanel({
           </h3>
           <p className="mt-1 text-xs text-white/50">Send your viewers to a creator who is live right now. They get a countdown, then land on that stream; the creator gets a raid alert with your real viewer count.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <select value={raidTarget} onChange={(e) => setRaidTarget(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none">
+            <select aria-label="Creator to raid" value={raidTarget} onChange={(e) => setRaidTarget(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none">
               <option value="">Pick a live stream…</option>
               {raidTargets.map((t) => (
                 <option key={t.id} value={t.id}>{t.creatorName} — {t.title}</option>

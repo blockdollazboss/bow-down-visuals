@@ -163,7 +163,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
           <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
             {t("wave8.highlights.vodUrlLabel")}
           </label>
-          <input
+          <input aria-label={t("wave8.highlights.vodUrlLabel")}
             className={inputClass}
             placeholder={t("wave8.highlights.vodUrlPlaceholder")}
             value={vodUrl}
@@ -174,7 +174,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
           <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
             {t("wave8.highlights.vodTitleLabel")}
           </label>
-          <input
+          <input aria-label={t("wave8.highlights.vodTitleLabel")}
             className={inputClass}
             placeholder={t("wave8.highlights.vodTitlePlaceholder")}
             value={vodTitle}
@@ -188,7 +188,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
           <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
             {t("wave8.highlights.chatLogLabel")}
           </label>
-          <textarea
+          <textarea aria-label={t("wave8.highlights.chatLogLabel")}
             className={`${inputClass} min-h-[140px] resize-y`}
             placeholder={t("wave8.highlights.chatLogPlaceholder")}
             value={chatLog}
@@ -199,7 +199,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
           <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
             {t("wave8.highlights.transcriptLabel")}
           </label>
-          <textarea
+          <textarea aria-label={t("wave8.highlights.transcriptLabel")}
             className={`${inputClass} min-h-[140px] resize-y`}
             placeholder={t("wave8.highlights.transcriptPlaceholder")}
             value={transcript}
@@ -268,7 +268,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
                 const width = Math.max(1.5, ((m.endSec - m.startSec) / maxTime) * 100);
                 const alpha = 0.25 + 0.75 * (m.score / 100);
                 return (
-                  <button
+                  <button aria-pressed={selectedIdx === i}
                     key={i}
                     type="button"
                     title={`${m.label} — ${m.score}`}

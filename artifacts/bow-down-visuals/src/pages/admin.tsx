@@ -1319,7 +1319,7 @@ function ContentRemovalPanel({ authHeaders }: { authHeaders: () => Promise<Heade
       <p className="text-sm text-white/60 mb-4">{t("admin.removal.description")}</p>
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input
+        <input aria-label={t("admin.removal.inputPlaceholder")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
@@ -1520,7 +1520,7 @@ function UserManagement({ authHeaders, adminEmail }: { authHeaders: () => Promis
         {t("admin.users.description")}
       </p>
       <div className="flex flex-wrap gap-2">
-        <input
+        <input aria-label={t("admin.users.emailPlaceholder")}
           type="email"
           placeholder={t("admin.users.emailPlaceholder")}
           value={email}
@@ -1830,7 +1830,7 @@ export default function AdminPage() {
               {t("admin.currentBalance", { balance: profile?.credits?.toLocaleString("en-US") ?? "—" })}
             </p>
             <div className="flex gap-2">
-              <input
+              <input aria-label="Visual Bucs amount"
                 type="number"
                 min={1}
                 max={100000}
@@ -1861,7 +1861,7 @@ export default function AdminPage() {
               {t("admin.giveFriendDescription")}
             </p>
             <div className="flex flex-wrap gap-2">
-              <input
+              <input aria-label={t("admin.friendEmailPlaceholder")}
                 type="email"
                 placeholder={t("admin.friendEmailPlaceholder")}
                 value={friendEmail}
@@ -1869,7 +1869,7 @@ export default function AdminPage() {
                 disabled={friendGranting}
                 className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
               />
-              <input
+              <input aria-label="Visual Bucs amount"
                 type="number"
                 min={1}
                 max={100000}
@@ -1897,7 +1897,7 @@ export default function AdminPage() {
               {t("admin.planDescription")}
             </p>
             <div className="flex flex-wrap gap-2">
-              <input
+              <input aria-label={t("admin.planEmailPlaceholder")}
                 type="email"
                 placeholder={t("admin.planEmailPlaceholder")}
                 value={planEmail}
@@ -1905,7 +1905,7 @@ export default function AdminPage() {
                 disabled={planSaving}
                 className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
               />
-              <select
+              <select aria-label="Plan tier"
                 value={planTier}
                 onChange={(e) => setPlanTier(e.target.value)}
                 disabled={planSaving}

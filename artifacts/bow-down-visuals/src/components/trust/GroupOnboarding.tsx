@@ -73,7 +73,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
         <div className="mt-4 border-t border-white/10 pt-4">
           <p className="text-sm font-bold text-white">Join questions (admins &amp; owner)</p>
           <p className="text-xs text-white/50">One question per line, up to five. Saving replaces the current set.</p>
-          <textarea className={input + " mt-2"} rows={3} defaultValue={questions.map((q) => q.question).join("\n")} onChange={(e) => setDraft(e.target.value)} placeholder={"Why do you want in?\nWhat do you make?"} />
+          <textarea aria-label={"Why do you want in?\nWhat do you make?"} className={input + " mt-2"} rows={3} defaultValue={questions.map((q) => q.question).join("\n")} onChange={(e) => setDraft(e.target.value)} placeholder={"Why do you want in?\nWhat do you make?"} />
           <button type="button" className={ghost + " mt-2"} onClick={async () => {
             try { const qs = (draft || questions.map((q) => q.question).join("\n")).split("\n").map((x) => x.trim()).filter(Boolean); await call("PUT", `/api/groups/${slug}/join-questions`, { questions: qs }); setMsg("Join questions saved."); void load(); }
             catch (e) { setMsg(e instanceof Error ? e.message : "Could not save questions."); }

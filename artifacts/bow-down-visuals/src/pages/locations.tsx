@@ -144,7 +144,7 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
           <Plus className="h-3.5 w-3.5" /> {t("locations.addLocation")}
         </p>
         <div className="flex flex-wrap gap-2">
-          <input
+          <input aria-label={t("locations.namePlaceholder")}
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -152,7 +152,7 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
             disabled={saving}
             className="flex-1 min-w-[160px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25"
           />
-          <input
+          <input aria-label={t("locations.imageUrlPlaceholder")}
             type="url"
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}

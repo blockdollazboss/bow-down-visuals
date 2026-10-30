@@ -309,7 +309,7 @@ export default function PressReleasePanel({
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-medium text-white/60 mb-1 block">{p("form.announcementType")}</label>
-          <select value={announcementType} onChange={(e) => setAnnouncementType(e.target.value as typeof announcementType)}
+          <select aria-label={p("form.announcementType")} value={announcementType} onChange={(e) => setAnnouncementType(e.target.value as typeof announcementType)}
                   className={`${inputCls} bg-black`}>
             {ANNOUNCEMENT_TYPES.map((tId) => (
               <option key={tId} value={tId}>{p(`types.${tId}`)}</option>
@@ -391,7 +391,7 @@ export default function PressReleasePanel({
           <div className="space-y-2">
             {savedReleases.map((r) => (
               <div key={r.id} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
-                <button onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                <button aria-expanded={expandedId === r.id} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
                         className="w-full flex items-center justify-between gap-2 text-left">
                   <div className="min-w-0">
                     <div className="font-medium text-sm truncate">{r.headline}</div>

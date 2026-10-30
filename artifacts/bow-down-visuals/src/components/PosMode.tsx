@@ -313,7 +313,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
               {t("myShop.pos.linkLabel", { defaultValue: "Or send them the payment link" })}
             </label>
             <div className="mt-1 flex items-center gap-2">
-              <input
+              <input aria-label={t("myShop.pos.linkLabel", { defaultValue: "Or send them the payment link" })}
                 readOnly
                 value={pay.url}
                 onFocus={(e) => e.target.select()}

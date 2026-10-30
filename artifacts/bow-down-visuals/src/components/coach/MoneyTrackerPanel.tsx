@@ -376,7 +376,7 @@ export default function MoneyTrackerPanel() {
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <button
+        <button aria-expanded={showForm}
           onClick={() => { setShowForm((v) => !v); setFormError(null); }}
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-5 py-2.5 text-sm font-black text-black shadow-[0_4px_20px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] active:scale-95"
         >
@@ -494,7 +494,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.category")}
                   </label>
-                  <select
+                  <select aria-label={t("moneyTracker.category")}
                     value={fCategory}
                     onChange={(e) => setFCategory(e.target.value)}
                     className={`${inputClass} appearance-none`}
@@ -508,7 +508,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.amount")}
                   </label>
-                  <input
+                  <input aria-label={t("moneyTracker.amount")}
                     value={fAmount}
                     onChange={(e) => setFAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                     inputMode="decimal"
@@ -520,7 +520,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.date")}
                   </label>
-                  <input
+                  <input aria-label={t("moneyTracker.date")}
                     type="date"
                     value={fDate}
                     onChange={(e) => setFDate(e.target.value)}
@@ -531,7 +531,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.source")}
                   </label>
-                  <input
+                  <input aria-label={t("moneyTracker.source")}
                     value={fSource}
                     onChange={(e) => setFSource(e.target.value)}
                     maxLength={120}
@@ -545,7 +545,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     Release <span className="font-normal normal-case text-white/30">(optional — applies its splits to this income)</span>
                   </label>
-                  <select
+                  <select aria-label="Release (optional — applies its splits to this income)"
                     value={fReleaseId}
                     onChange={(e) => setFReleaseId(e.target.value)}
                     className={`${inputClass} appearance-none`}
@@ -561,7 +561,7 @@ export default function MoneyTrackerPanel() {
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("moneyTracker.note")}
                 </label>
-                <input
+                <input aria-label={t("moneyTracker.note")}
                   value={fNote}
                   onChange={(e) => setFNote(e.target.value)}
                   maxLength={280}
@@ -661,7 +661,7 @@ export default function MoneyTrackerPanel() {
                         <div className="mt-1">
                           {linkingId === e.id ? (
                             <span className="inline-flex items-center gap-1.5">
-                              <select
+                              <select aria-label="Link to a release or offer"
                                 value={linkValue}
                                 onChange={(sel) => linkEntry(e.id, sel.target.value || null)}
                                 className="rounded-lg border border-primary/40 bg-black px-2 py-1 text-[11px] text-white outline-none"

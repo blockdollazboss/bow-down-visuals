@@ -107,19 +107,19 @@ export default function DreamCollabPanel() {
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("dreamCollab.collabLabel", { defaultValue: "Dream collaborator *" })}
             </label>
-            <input value={collaborator} onChange={(e) => setCollaborator(e.target.value)} placeholder={t("dreamCollab.collabPh", { defaultValue: "e.g. Doja Cat" })} className={`${inputClass} mt-1.5`} maxLength={120} />
+            <input aria-label={t("dreamCollab.collabLabel", { defaultValue: "Dream collaborator *" })} value={collaborator} onChange={(e) => setCollaborator(e.target.value)} placeholder={t("dreamCollab.collabPh", { defaultValue: "e.g. Doja Cat" })} className={`${inputClass} mt-1.5`} maxLength={120} />
           </div>
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("dreamCollab.styleLabel", { defaultValue: "Your style *" })}
             </label>
-            <input value={userStyle} onChange={(e) => setUserStyle(e.target.value)} placeholder={t("dreamCollab.stylePh", { defaultValue: "e.g. dark drill with luxury visuals" })} className={`${inputClass} mt-1.5`} maxLength={200} />
+            <input aria-label={t("dreamCollab.styleLabel", { defaultValue: "Your style *" })} value={userStyle} onChange={(e) => setUserStyle(e.target.value)} placeholder={t("dreamCollab.stylePh", { defaultValue: "e.g. dark drill with luxury visuals" })} className={`${inputClass} mt-1.5`} maxLength={200} />
           </div>
           <div className="md:col-span-2">
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("dreamCollab.themeLabel", { defaultValue: "Song theme (optional)" })}
             </label>
-            <input value={songTheme} onChange={(e) => setSongTheme(e.target.value)} placeholder={t("dreamCollab.themePh", { defaultValue: "e.g. late-night ambition" })} className={`${inputClass} mt-1.5`} maxLength={300} />
+            <input aria-label={t("dreamCollab.themeLabel", { defaultValue: "Song theme (optional)" })} value={songTheme} onChange={(e) => setSongTheme(e.target.value)} placeholder={t("dreamCollab.themePh", { defaultValue: "e.g. late-night ambition" })} className={`${inputClass} mt-1.5`} maxLength={300} />
           </div>
         </div>
 

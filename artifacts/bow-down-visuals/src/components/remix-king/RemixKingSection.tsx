@@ -169,9 +169,9 @@ export default function RemixKingSection() {
           ) : (
             <div className="mt-5 space-y-3">
               <h3 className="font-bold">Enter your remix</h3>
-              <input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))} placeholder="Remix title" maxLength={120} className={inputCls} />
-              <input value={audioUrl} onChange={(e) => setAudioUrl(e.target.value.slice(0, 1000))} placeholder="Link to your remix audio" maxLength={1000} className={inputCls} />
-              <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="A line about your flip (optional)" maxLength={500} className={inputCls} />
+              <input aria-label="Remix title" value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))} placeholder="Remix title" maxLength={120} className={inputCls} />
+              <input aria-label="Link to your remix audio" value={audioUrl} onChange={(e) => setAudioUrl(e.target.value.slice(0, 1000))} placeholder="Link to your remix audio" maxLength={1000} className={inputCls} />
+              <input aria-label="A line about your flip (optional)" value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="A line about your flip (optional)" maxLength={500} className={inputCls} />
               <button onClick={enter} disabled={busy || !title.trim() || !audioUrl.trim()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black hover:brightness-110 disabled:opacity-40">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Disc3 className="h-4 w-4" />} Enter remix — free
               </button>

@@ -227,7 +227,7 @@ export function Composer({
         </div>
       )}
 
-      <textarea
+      <textarea aria-label={placeholder ?? "What's moving in your world? 🦈"}
         ref={bodyRef}
         value={body}
         onChange={(e) => setBody(e.target.value.slice(0, 500))}
@@ -240,7 +240,7 @@ export function Composer({
       {!replyTo && threadExtras.map((t, i) => (
         <div key={i} className="mt-2 flex items-start gap-2">
           <span className="mt-2 text-[#d4af37]">↳</span>
-          <textarea
+          <textarea aria-label={`Thread ${i + 2}…`}
             value={t}
             onChange={(e) => {
               const next = [...threadExtras];
@@ -280,7 +280,7 @@ export function Composer({
             )}
             {pollOptions.length < 4 && (
               <div className="mt-2 flex gap-2">
-                <input
+                <input aria-label={pollOptions.length === 0 ? "Poll option 1…" : "Add another option…"}
                   value={pollDraft}
                   onChange={(e) => setPollDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -358,7 +358,15 @@ export function Composer({
       {/* URL attach box */}
       {showUrlBox && (
         <div className="mt-2 flex gap-2">
-          <input
+          <input aria-label={
+              urlMode === "product"
+                ? "Paste your drop link (/store/buy/…) or shop link (/shop/…)"
+                : urlMode === "track"
+                  ? "Paste your sound link (/track/… or /watch/…)"
+                  : urlMode === "event"
+                    ? "Name this event (links to /shows)"
+                    : "Paste an image or video URL…"
+            }
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -392,7 +400,7 @@ export function Composer({
       <div data-min-stars="1">
         {showAssist ? (
           <div className="mt-2 flex gap-2">
-            <input
+            <input aria-label="What should it say? (100 Visual Bucs)"
               value={assistPrompt}
               onChange={(e) => setAssistPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && assist()}
@@ -442,7 +450,7 @@ export function Composer({
             ) : (
               <>
                 <span className="shrink-0">Who can read it:</span>
-                <select
+                <select aria-label="Who can read it"
                   value={minTierId ?? ""}
                   onChange={(e) => setMinTierId(e.target.value || null)}
                   className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-1.5 text-xs text-white focus:border-[#d4af37] focus:outline-none"
@@ -495,19 +503,19 @@ export function Composer({
           {/* the King's tray — stickers + GIFs, on posts AND replies */}
           <EmojiTray onPickToken={insertBodyToken} onPickGif={pickGif} />
         {!replyTo && <>
-          <button data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Attach image/video link" aria-expanded={showUrlBox} data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <ImagePlus className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => { setUrlMode("track"); setShowUrlBox(true); }} title="Attach your sound (links to its page)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Attach your sound (links to its page)" data-min-stars="2" onClick={() => { setUrlMode("track"); setShowUrlBox(true); }} title="Attach your sound (links to its page)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Music2 className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => { setUrlMode("event"); setShowUrlBox(true); }} title="Attach your event (links to /shows)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Attach your event (links to /shows)" data-min-stars="2" onClick={() => { setUrlMode("event"); setShowUrlBox(true); }} title="Attach your event (links to /shows)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <CalendarDays className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => setThreadExtras([...threadExtras, ""])} title="Add another (thread)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-label="Add another (thread)" data-min-stars="2" onClick={() => setThreadExtras([...threadExtras, ""])} title="Add another (thread)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Plus className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => { setPollOpen((v) => !v); if (pollOpen) setPollOptions([]); }} title="Add poll" className={`rounded-full p-2 hover:bg-[#d4af37]/10 ${pollOpen ? "bg-[#d4af37]/15 text-[#f5e08c]" : "text-[#d4af37]"}`}>
+          <button aria-label="Add poll" aria-expanded={pollOpen} data-min-stars="2" onClick={() => { setPollOpen((v) => !v); if (pollOpen) setPollOptions([]); }} title="Add poll" className={`rounded-full p-2 hover:bg-[#d4af37]/10 ${pollOpen ? "bg-[#d4af37]/15 text-[#f5e08c]" : "text-[#d4af37]"}`}>
             <BarChart3 className="h-5 w-5" />
           </button>
           {/* money buttons — always visible, never gated */}
@@ -515,7 +523,7 @@ export function Composer({
             <ShoppingBag className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">link your drop</span>
           </button>
-          <button data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (100 Visual Bucs)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-expanded={showAssist} data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (100 Visual Bucs)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Sparkles className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">write it for me</span>
           </button>

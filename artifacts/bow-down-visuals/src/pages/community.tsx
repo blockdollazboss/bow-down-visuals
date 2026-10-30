@@ -610,7 +610,7 @@ export default function CommunityManager() {
               className={`text-xs ${isLight ? "text-[#7A5A12] hover:text-[#5C430C]" : "text-amber-300/80 hover:text-amber-200"}`}
             >{t("community.load_sample")}</button>
           </div>
-          <textarea
+          <textarea aria-label={t("community.paste_comments")}
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
             rows={5}

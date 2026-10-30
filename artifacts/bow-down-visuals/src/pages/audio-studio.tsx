@@ -1905,7 +1905,7 @@ function StemsPanel() {
 
             {/* Remix mode */}
             <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
-              <button
+              <button aria-expanded={remixOpen}
                 type="button"
                 onClick={() => setRemixOpen((v) => !v)}
                 className="flex w-full items-center justify-between"
@@ -1925,7 +1925,7 @@ function StemsPanel() {
                   {activeDefs().map((s) => (
                     <div key={s.key} className="flex items-center gap-3">
                       <span className="w-24 shrink-0 text-xs font-semibold text-white/60">{s.label}</span>
-                      <input
+                      <input aria-label={s.label}
                         type="range"
                         min={0}
                         max={2}
@@ -2199,7 +2199,7 @@ function ReferenceUpload({
       {file ? (
         <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5">
           <span className="min-w-0 text-sm text-white/70 truncate">{file.name}</span>
-          <button type="button" onClick={onClear} className="text-white/40 hover:text-white/80 transition shrink-0 ml-3">
+          <button type="button" aria-label="Remove file" onClick={onClear} className="text-white/40 hover:text-white/80 transition shrink-0 ml-3">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -2909,7 +2909,7 @@ function MixPanel() {
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold shrink-0 ${meta.chip}`}>
                         {t(`mixMaster.stemTypes.${stemType}`)}
                       </span>
-                      <button type="button" onClick={() => removeStem(i)} className="text-white/35 hover:text-white/80 transition shrink-0">
+                      <button type="button" aria-label="Remove stem" onClick={() => removeStem(i)} className="text-white/35 hover:text-white/80 transition shrink-0">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -2943,7 +2943,7 @@ function MixPanel() {
                 {vocalDb > 0 ? `+${vocalDb.toFixed(1)}` : vocalDb.toFixed(1)} dB
               </span>
             </div>
-            <input
+            <input aria-label="Vocal level"
               type="range"
               min={-6}
               max={4}

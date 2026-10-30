@@ -231,7 +231,7 @@ export function First100FansCard() {
       {/* ── The early fans themselves ── */}
       {status.earlyFans.length > 0 && (
         <div className="mt-4">
-          <button
+          <button aria-expanded={showFans}
             type="button"
             onClick={() => setShowFans((v) => !v)}
             data-testid="first100-fans-toggle"

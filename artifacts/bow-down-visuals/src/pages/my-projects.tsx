@@ -276,7 +276,7 @@ function ResultModal({
               data-testid="btn-modal-pdf">
               <FileDown className="h-4 w-4" /> PDF
             </Button>
-            <button onClick={onClose}
+            <button aria-label="Close" onClick={onClose}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
               data-testid="btn-modal-close">
               <X className="h-4 w-4" />
@@ -503,7 +503,7 @@ function ProjectCard({
             >
               <FolderOpen className="h-3.5 w-3.5" /> {t("myProjects.open")}
             </Button>
-            <button
+            <button aria-label={t("myProjects.deleteProject")}
               onClick={handleDelete}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors"
               title={t("myProjects.deleteProject")}
@@ -615,7 +615,7 @@ function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <button onClick={handleDownload} title={t("myProjects.downloadBackupJson")} data-min-stars="6"
+          <button aria-label={t("myProjects.downloadBackupJson")} onClick={handleDownload} title={t("myProjects.downloadBackupJson")} data-min-stars="6"
             className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors">
             <Download className="h-4 w-4" />
           </button>
@@ -623,7 +623,7 @@ function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string
             className="h-8 px-3 text-xs gap-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/25">
             <RefreshCcw className="h-3.5 w-3.5" /> {t("myProjects.recover")}
           </Button>
-          <button onClick={handleDelete}
+          <button aria-label="Delete project" onClick={handleDelete}
             className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors">
             <Trash2 className="h-4 w-4" />
           </button>
@@ -679,14 +679,14 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
                 </button>
               </Link>
             )}
-            <button onClick={handleDelete}
+            <button aria-label="Delete project" onClick={handleDelete}
               className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/5 transition-colors">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
         {clip.prompt && (
-          <button onClick={() => setShowPrompt(!showPrompt)} data-min-stars="4"
+          <button aria-expanded={showPrompt} onClick={() => setShowPrompt(!showPrompt)} data-min-stars="4"
             className="text-[11px] text-white/30 hover:text-white/50 transition-colors text-left w-full">
             {showPrompt ? t("myProjects.hidePrompt") : t("myProjects.showPrompt")}
           </button>

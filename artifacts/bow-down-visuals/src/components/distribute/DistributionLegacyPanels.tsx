@@ -62,11 +62,11 @@ export function LandingContentPanel({ releaseId }: { releaseId: string }) {
       {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
       {msg && <p className="mt-2 text-sm text-emerald-300">{msg}</p>}
       <div className="mt-4 grid gap-3">
-        <div><p className={label}>Video link (music video, visualizer…)</p><input className={input + " mt-1"} value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://…" /></div>
-        <div><p className={label}>Store link (this release in your store)</p><input className={input + " mt-1"} value={storeUrl} onChange={(e) => setStoreUrl(e.target.value)} placeholder="https://…" /></div>
+        <div><p className={label}>Video link (music video, visualizer…)</p><input aria-label="Video link" className={input + " mt-1"} value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://…" /></div>
+        <div><p className={label}>Store link (this release in your store)</p><input aria-label="Store link" className={input + " mt-1"} value={storeUrl} onChange={(e) => setStoreUrl(e.target.value)} placeholder="https://…" /></div>
         {socialKeys.map((k) => (
           <div key={k}><p className={label}>{k === "x" ? "X" : k[0]!.toUpperCase() + k.slice(1)}</p>
-            <input className={input + " mt-1"} value={socials[k] ?? ""} onChange={(e) => setSocials({ ...socials, [k]: e.target.value })} placeholder="https://…" /></div>
+            <input aria-label={k === "x" ? "X" : k[0]!.toUpperCase() + k.slice(1)} className={input + " mt-1"} value={socials[k] ?? ""} onChange={(e) => setSocials({ ...socials, [k]: e.target.value })} placeholder="https://…" /></div>
         ))}
         <div><button type="button" className={btn} onClick={save}>Save landing content · free</button></div>
       </div>
@@ -120,10 +120,10 @@ export function LyricsPackagePanel({ releaseId }: { releaseId: string }) {
       {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
       {msg && <p className="mt-2 text-sm text-emerald-300">{msg}</p>}
       <div className="mt-4 grid gap-3">
-        <textarea className={input} rows={6} value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder="Full lyrics for this release" />
+        <textarea aria-label="Full lyrics for this release" className={input} rows={6} value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder="Full lyrics for this release" />
         <div>
           <p className={label}>Synced timing — one line per lyric: start|end|text (seconds)</p>
-          <textarea className={input + " mt-1 font-mono text-xs"} rows={4} value={timedText} onChange={(e) => setTimedText(e.target.value)} placeholder={"0|1.5|First line\n1.5|3|Second line"} />
+          <textarea aria-label={"0|1.5|First line\n1.5|3|Second line"} className={input + " mt-1 font-mono text-xs"} rows={4} value={timedText} onChange={(e) => setTimedText(e.target.value)} placeholder={"0|1.5|First line\n1.5|3|Second line"} />
         </div>
         {lrc.trim() && <div><p className={label}>Synced lyrics file (.lrc) in this package</p><pre className="mt-1 max-h-40 overflow-auto rounded-xl border border-white/10 bg-black/50 p-3 text-xs text-white/70">{lrc}</pre></div>}
         <div><button type="button" className={btn} onClick={save}>Save lyrics step · free</button></div>
@@ -174,8 +174,8 @@ export function ChangeRequestsPanel({ releaseId }: { releaseId: string }) {
           <button type="button" className={kind === "takedown" ? btn : ghost} onClick={() => setKind("takedown")}>Takedown</button>
           <button type="button" className={kind === "edit" ? btn : ghost} onClick={() => setKind("edit")}>Edit</button>
         </div>
-        <input className={input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" />
-        <textarea className={input} rows={2} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Details — what should change, or why it should come down" />
+        <input aria-label="Reason (required)" className={input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)" />
+        <textarea aria-label="Details — what should change, or why it should come down" className={input} rows={2} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Details — what should change, or why it should come down" />
         <div><button type="button" className={btn} onClick={file} disabled={!reason.trim()}>File request · free</button></div>
       </div>
       {requests && requests.length > 0 && (
@@ -338,8 +338,8 @@ export function RosterPanel() {
       {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
       {msg && <p className="mt-2 text-sm text-emerald-300">{msg}</p>}
       <div className="mt-4 flex flex-wrap gap-2">
-        <input className={input + " w-52"} value={name} onChange={(e) => setName(e.target.value)} placeholder="Artist name" />
-        <input className={input + " w-64"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Artist email" />
+        <input aria-label="Artist name" className={input + " w-52"} value={name} onChange={(e) => setName(e.target.value)} placeholder="Artist name" />
+        <input aria-label="Artist email" className={input + " w-64"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Artist email" />
         <button type="button" className={btn} onClick={invite} disabled={!email.trim()}>Add to roster · free</button>
       </div>
       {members.map((m) => (

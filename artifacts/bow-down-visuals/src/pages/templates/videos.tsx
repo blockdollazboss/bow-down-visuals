@@ -128,7 +128,7 @@ export default function VideoTemplates() {
         <div className="mx-auto mb-6 max-w-md">
           <div className={`flex items-center gap-2 rounded-full border px-4 py-2.5 ${isLight ? "border-[#C9A84C]/50 bg-[#FCF7EA]" : "border-white/15 bg-white/[0.03]"}`}>
             <Search className={`h-4 w-4 shrink-0 ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`} />
-            <input
+            <input aria-label={t("videoTemplatesPage.searchPlaceholder", { defaultValue: "Search templates — try “lyric”, “promo”, “travel”…" })}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("videoTemplatesPage.searchPlaceholder", { defaultValue: "Search templates — try “lyric”, “promo”, “travel”…" })}
@@ -136,7 +136,7 @@ export default function VideoTemplates() {
               data-testid="vt-search"
             />
             {query && (
-              <button
+              <button aria-label={t("videoTemplatesPage.clearSearch", { defaultValue: "Clear search" })}
                 onClick={() => setQuery("")}
                 title={t("videoTemplatesPage.clearSearch", { defaultValue: "Clear search" })}
                 className={`shrink-0 ${isLight ? "text-[#8A7A56] hover:text-[#7A5A12]" : "text-white/40 hover:text-white"}`}
@@ -164,7 +164,7 @@ export default function VideoTemplates() {
               {cat}
             </button>
           ))}
-          <select
+          <select aria-label="Sort templates"
             value={sort}
             onChange={(e) => setSort(e.target.value as typeof sort)}
             data-testid="vt-sort"

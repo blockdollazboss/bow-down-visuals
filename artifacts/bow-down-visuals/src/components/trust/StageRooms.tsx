@@ -139,7 +139,7 @@ export function StageRooms() {
         <>
           {user && (
             <div className="mt-4 flex gap-2">
-              <input className={input} placeholder="Room title — e.g. New song listening party" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <input aria-label="Room title — e.g. New song listening party" className={input} placeholder="Room title — e.g. New song listening party" value={title} onChange={(e) => setTitle(e.target.value)} />
               <button type="button" className={btn} onClick={create} disabled={!title.trim()}>Open room</button>
             </div>
           )}
@@ -179,7 +179,7 @@ export function StageRooms() {
           </div>
           {user && (
             <div className="mt-2 flex gap-2">
-              <input className={input} value={say} onChange={(e) => setSay(e.target.value)} placeholder="Message the room" />
+              <input aria-label="Message the room" className={input} value={say} onChange={(e) => setSay(e.target.value)} placeholder="Message the room" />
               <button type="button" className={ghost} onClick={() => { if (say.trim()) { wsRef.current?.send(JSON.stringify({ type: "say", body: say.trim() })); setSay(""); } }}>Send</button>
             </div>
           )}

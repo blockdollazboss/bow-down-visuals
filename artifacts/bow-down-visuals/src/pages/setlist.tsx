@@ -254,7 +254,7 @@ export default function SetlistBuilder() {
             {t("setlist.pageDescription")}
           </p>
           <div className="no-print mt-4 max-w-md">
-            <input
+            <input aria-label={t("setlist.showTitlePlaceholder")}
               value={showTitle}
               onChange={(e) => setShowTitle(e.target.value)}
               placeholder={t("setlist.showTitlePlaceholder")}
@@ -322,14 +322,14 @@ export default function SetlistBuilder() {
             <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="text-sm font-bold uppercase tracking-widest text-white/70 mb-4">{t("setlist.addSongTitle")}</h2>
               <div className="space-y-3">
-                <input
+                <input aria-label={t("setlist.songTitlePlaceholder")}
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder={t("setlist.songTitlePlaceholder")}
                   className={inputClass}
                   maxLength={200}
                 />
-                <input
+                <input aria-label={t("setlist.artistPlaceholder")}
                   value={newArtist}
                   onChange={(e) => setNewArtist(e.target.value)}
                   placeholder={t("setlist.artistPlaceholder")}
@@ -337,7 +337,7 @@ export default function SetlistBuilder() {
                   maxLength={200}
                 />
                 <div className="grid grid-cols-2 gap-3">
-                  <input
+                  <input aria-label={t("setlist.lengthPlaceholder")}
                     value={newDuration}
                     onChange={(e) => setNewDuration(e.target.value)}
                     placeholder={t("setlist.lengthPlaceholder")}
@@ -375,7 +375,7 @@ export default function SetlistBuilder() {
               <p className="text-xs text-white/45 mb-4">
                 {t("setlist.aiFlowDirectorDesc", { cost: CREDIT_COST })}
               </p>
-              <textarea
+              <textarea aria-label={t("setlist.showContextPlaceholder")}
                 value={showNotes}
                 onChange={(e) => setShowNotes(e.target.value)}
                 placeholder={t("setlist.showContextPlaceholder")}
@@ -489,7 +489,7 @@ export default function SetlistBuilder() {
 
                       {/* per-song controls */}
                       <div className="no-print flex items-center gap-1 shrink-0">
-                        <button
+                        <button aria-label={t("setlist.stageNotesTitle")}
                           onClick={() => setNotesOpen((p) => ({ ...p, [s.id]: !p[s.id] }))}
                           data-min-stars="3"
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition"
@@ -497,7 +497,7 @@ export default function SetlistBuilder() {
                         >
                           <StickyNote className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("setlist.moveUp")}
                           onClick={() => handleMove(i, i - 1)}
                           disabled={i === 0}
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition disabled:opacity-20"
@@ -505,7 +505,7 @@ export default function SetlistBuilder() {
                         >
                           <ChevronUp className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("setlist.moveDown")}
                           onClick={() => handleMove(i, i + 1)}
                           disabled={i === songs.length - 1}
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition disabled:opacity-20"
@@ -513,7 +513,7 @@ export default function SetlistBuilder() {
                         >
                           <ChevronDown className="h-4 w-4" />
                         </button>
-                        <button
+                        <button aria-label={t("setlist.removeSong")}
                           onClick={() => removeSong(s.id)}
                           className="rounded-lg p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 transition"
                           title={t("setlist.removeSong")}
@@ -552,7 +552,7 @@ export default function SetlistBuilder() {
                     </div>
                     {notesOpen[s.id] && (
                       <div className="no-print mt-2">
-                        <textarea
+                        <textarea aria-label={t("setlist.stageNotesPlaceholder")}
                           value={s.stageNote}
                           onChange={(e) => updateSong(s.id, { stageNote: e.target.value })}
                           placeholder={t("setlist.stageNotesPlaceholder")}
@@ -590,7 +590,7 @@ export default function SetlistBuilder() {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">{t("setlist.yourSongsTitle")}</h2>
-              <button onClick={() => setLibraryOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/10">
+              <button aria-label="Close" onClick={() => setLibraryOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/10">
                 <X className="h-5 w-5" />
               </button>
             </div>

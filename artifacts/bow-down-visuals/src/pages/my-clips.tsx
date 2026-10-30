@@ -211,6 +211,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
             </div>
           </div>
           <button
+            aria-label="Close"
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
           >
@@ -568,6 +569,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
             </div>
           </div>
           <button
+            aria-label="Close"
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
           >
@@ -591,7 +593,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Title</label>
-                <input
+                <input aria-label="Title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="The title as it will appear on YouTube"
@@ -602,7 +604,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Description</label>
-                <textarea
+                <textarea aria-label="Description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Paste the full description as it will be published"
@@ -614,7 +616,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Tags <span className="normal-case font-normal text-white/25">(comma separated)</span></label>
-                <input
+                <input aria-label="Tags (comma separated)"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="ai music, creator tips, behind the scenes"
@@ -624,7 +626,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Niche</label>
-                <input
+                <input aria-label="Niche"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                   placeholder="e.g. AI music production, gaming, fitness"
@@ -900,7 +902,7 @@ function ClipCard({
         {/* Prompt toggle */}
         {clip.prompt && (
           <div>
-            <button
+            <button aria-expanded={showPrompt}
               onClick={() => setShowPrompt((s) => !s)}
               className="text-[10px] text-white/30 hover:text-white/60 transition-colors flex items-center gap-1"
             >
@@ -1014,6 +1016,7 @@ function ClipCard({
               </>
             ) : (
               <button
+                aria-label="Delete clip"
                 onClick={() => setConfirmDelete(true)}
                 className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/25 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-colors"
               >

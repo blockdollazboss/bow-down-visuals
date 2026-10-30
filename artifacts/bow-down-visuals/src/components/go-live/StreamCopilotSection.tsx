@@ -133,11 +133,11 @@ export default function StreamCopilotSection() {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("streamCopilot.titleLabel", { defaultValue: "Stream title *" })}</label>
-                <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={200} />
+                <input aria-label={t("streamCopilot.titleLabel", { defaultValue: "Stream title *" })} value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={200} />
               </div>
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">{t("streamCopilot.topicLabel", { defaultValue: "Topic / game *" })}</label>
-                <input value={topic} onChange={(e) => setTopic(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={300} />
+                <input aria-label={t("streamCopilot.topicLabel", { defaultValue: "Topic / game *" })} value={topic} onChange={(e) => setTopic(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={300} />
               </div>
             </div>
             <div>
@@ -180,7 +180,7 @@ export default function StreamCopilotSection() {
               <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("streamCopilot.recapLabel", { defaultValue: "Post-stream recap with timestamps *" })}
               </label>
-              <textarea value={recap} onChange={(e) => setRecap(e.target.value)}
+              <textarea aria-label={t("streamCopilot.recapLabel", { defaultValue: "Post-stream recap with timestamps *" })} value={recap} onChange={(e) => setRecap(e.target.value)}
                 placeholder={t("streamCopilot.recapPh", { defaultValue: "e.g. 12:40 — insane clutch comeback, chat went wild… 38:15 — funny mic fail…" })}
                 className={`${inputClass} mt-1.5 min-h-[120px] resize-y`} maxLength={3000} />
             </div>

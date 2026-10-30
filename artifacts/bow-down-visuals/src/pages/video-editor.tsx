@@ -3649,7 +3649,7 @@ export default function VideoEditor() {
                       The editor should feel like a finished product, not a sandbox. ── */}
                   {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1" && (
                   <div className="rounded-xl border vv-border-faint overflow-hidden" data-min-stars="6">
-                    <button
+                    <button aria-expanded={debugOpen}
                       type="button"
                       onClick={() => setDebugOpen((o) => !o)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-left vv-hover-wash-3 transition-colors"
@@ -3875,7 +3875,7 @@ export default function VideoEditor() {
                               <p className={`text-xs font-bold mt-1 ${scene.approved ? "text-primary" : "vv-ink-40"}`}>{scene.approved ? t("videoEditor.yes") : t("videoEditor.no")}</p>
                             </div>
                           </div>
-                          <button
+                          <button aria-pressed={scene.approved}
                             type="button"
                             onClick={() => setScenes(scenes.map((s, i) => (i === selectedIdx ? { ...s, approved: !s.approved } : s)))}
                             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"

@@ -552,7 +552,7 @@ function LobbyView({ onEnter }: { onEnter: (code: string) => void }) {
             Got a code from a stream chat or a profile? Take your seat.
           </p>
           <div className="mt-4 flex gap-2">
-            <input
+            <input aria-label="ABC234"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === "Enter" && join()}

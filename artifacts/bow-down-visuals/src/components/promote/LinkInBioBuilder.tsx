@@ -481,7 +481,7 @@ export function LinkInBioBuilder() {
             </button>
           {vaults.length > 0 && (
             <div className="flex items-center gap-2">
-              <select
+              <select aria-label="Brand vault"
                 value={vaultId}
                 onChange={(e) => {
                   setVaultId(e.target.value);
@@ -515,18 +515,18 @@ export function LinkInBioBuilder() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelClass}>{t("linkInBio.profile.displayName")}</label>
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80}
+            <input aria-label={t("linkInBio.profile.displayName")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80}
               placeholder={t("linkInBio.profile.displayNamePlaceholder")} className={`${inputClass} mt-2`} />
           </div>
           <div>
             <label className={labelClass}>{t("linkInBio.profile.headline")}</label>
-            <input value={headline} onChange={(e) => setHeadline(e.target.value)} maxLength={120}
+            <input aria-label={t("linkInBio.profile.headline")} value={headline} onChange={(e) => setHeadline(e.target.value)} maxLength={120}
               placeholder={t("linkInBio.profile.headlinePlaceholder")} className={`${inputClass} mt-2`} />
           </div>
         </div>
         <div className="mt-4">
           <label className={labelClass}>{t("linkInBio.profile.bio")}</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={600} rows={3}
+          <textarea aria-label={t("linkInBio.profile.bio")} value={bio} onChange={(e) => setBio(e.target.value)} maxLength={600} rows={3}
             placeholder={t("linkInBio.profile.bioPlaceholder")} className={`${inputClass} mt-2 resize-none`} />
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -540,13 +540,13 @@ export function LinkInBioBuilder() {
                   {(displayName || "?").charAt(0).toUpperCase()}
                 </div>
               )}
-              <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} maxLength={800}
+              <input aria-label={t("linkInBio.profile.avatarUrl")} value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} maxLength={800}
                 placeholder={t("linkInBio.profile.avatarUrlPlaceholder")} className={inputClass} />
             </div>
           </div>
           <div>
             <label className={labelClass}>{t("linkInBio.profile.slug")}</label>
-            <input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} maxLength={40}
+            <input aria-label={t("linkInBio.profile.slug")} value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} maxLength={40}
               placeholder={slugify(displayName) || "my-handle"} className={`${inputClass} mt-2`} />
             <p className="mt-1.5 text-xs text-white/35">
               {t("linkInBio.profile.slugHint", { slug: slug || slugify(displayName) || "my-handle" })}
@@ -602,10 +602,10 @@ export function LinkInBioBuilder() {
             {links.map((link, i) => (
               <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-3">
                 <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                  <input value={link.title} maxLength={60}
+                  <input aria-label={t("linkInBio.links.titlePlaceholder")} value={link.title} maxLength={60}
                     onChange={(e) => setLinks((ls) => ls.map((l, j) => (j === i ? { ...l, title: e.target.value } : l)))}
                     placeholder={t("linkInBio.links.titlePlaceholder")} className={inputClass} />
-                  <input value={link.url} maxLength={800}
+                  <input aria-label={t("linkInBio.links.urlPlaceholder")} value={link.url} maxLength={800}
                     onChange={(e) => setLinks((ls) => ls.map((l, j) => (j === i ? { ...l, url: e.target.value } : l)))}
                     placeholder={t("linkInBio.links.urlPlaceholder")} className={inputClass} />
                   <div className="flex items-center gap-1">
@@ -627,7 +627,7 @@ export function LinkInBioBuilder() {
                   <span className="text-xs text-white/40">{t("linkInBio.links.icon")}:</span>
                   <div className="flex flex-wrap gap-1">
                     {LINK_ICON_KEYS.map((key) => (
-                      <button
+                      <button aria-pressed={link.icon === key} aria-label={key}
                         key={key}
                         onClick={() => setLinks((ls) => ls.map((l, j) => (j === i ? { ...l, icon: key } : l)))}
                         title={key}
@@ -656,7 +656,7 @@ export function LinkInBioBuilder() {
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-amber-300/80">
                 <s.Icon className="h-4 w-4" />
               </span>
-              <input value={socials[s.key] ?? ""} maxLength={800}
+              <input aria-label={`${s.label} URL`} value={socials[s.key] ?? ""} maxLength={800}
                 onChange={(e) => setSocials((ss) => ({ ...ss, [s.key]: e.target.value }))}
                 placeholder={`${s.label} URL`} className={inputClass} />
             </div>
@@ -709,13 +709,13 @@ export function LinkInBioBuilder() {
       <div className={sectionClass}>
         <h3 className="mb-1 text-base font-bold">{t("linkInBio.tipJar.title")}</h3>
         <p className="mb-4 text-xs text-white/35">{t("linkInBio.tipJar.hint")}</p>
-        <input value={tipJarUrl} onChange={(e) => setTipJarUrl(e.target.value)} maxLength={800}
+        <input aria-label={t("linkInBio.tipJar.placeholder")} value={tipJarUrl} onChange={(e) => setTipJarUrl(e.target.value)} maxLength={800}
           placeholder={t("linkInBio.tipJar.placeholder")} className={inputClass} />
       </div>
 
       {/* preview */}
       <div className={sectionClass}>
-        <button onClick={() => setShowPreview((s) => !s)}
+        <button aria-expanded={showPreview} onClick={() => setShowPreview((s) => !s)}
           className="flex w-full items-center justify-between text-base font-bold">
           <span className="inline-flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> {t("linkInBio.preview")}</span>
           <ChevronDown className={`h-4 w-4 text-white/50 transition ${showPreview ? "rotate-180" : ""}`} />

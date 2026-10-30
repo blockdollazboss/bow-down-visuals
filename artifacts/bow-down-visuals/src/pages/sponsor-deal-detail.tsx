@@ -384,17 +384,17 @@ export default function SponsorDealDetail() {
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       <div>
                         <p className={sectionLabel}>{t("sponsorDealDetail.nameLabel")}</p>
-                        <input value={creatorName} onChange={(e) => setCreatorName(e.target.value)} maxLength={120}
+                        <input aria-label={t("sponsorDealDetail.namePlaceholder")} value={creatorName} onChange={(e) => setCreatorName(e.target.value)} maxLength={120}
                           placeholder={t("sponsorDealDetail.namePlaceholder")} className={inputClass} />
                       </div>
                       <div>
                         <p className={sectionLabel}>{t("sponsorDealDetail.nicheLabel")}</p>
-                        <input value={creatorNiche} onChange={(e) => setCreatorNiche(e.target.value)} maxLength={120}
+                        <input aria-label={t("sponsorDealDetail.nichePlaceholder")} value={creatorNiche} onChange={(e) => setCreatorNiche(e.target.value)} maxLength={120}
                           placeholder={t("sponsorDealDetail.nichePlaceholder")} className={inputClass} />
                       </div>
                       <div>
                         <p className={sectionLabel}>{t("sponsorDealDetail.followersLabel")}</p>
-                        <input value={creatorFollowers} onChange={(e) => setCreatorFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                        <input aria-label={t("sponsorDealDetail.followersPlaceholder")} value={creatorFollowers} onChange={(e) => setCreatorFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
                           inputMode="numeric" placeholder={t("sponsorDealDetail.followersPlaceholder")} className={inputClass} />
                       </div>
                       <div>
@@ -412,7 +412,7 @@ export default function SponsorDealDetail() {
                       </div>
                     </div>
                     <p className={`${sectionLabel} mt-4`}>{t("sponsorDealDetail.winsLabel")}</p>
-                    <input value={achievements} onChange={(e) => setAchievements(e.target.value)} maxLength={500}
+                    <input aria-label={t("sponsorDealDetail.winsPlaceholder")} value={achievements} onChange={(e) => setAchievements(e.target.value)} maxLength={500}
                       placeholder={t("sponsorDealDetail.winsPlaceholder")} className={inputClass} />
                     <button onClick={writePitch} disabled={pitchLoading}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50">
@@ -421,7 +421,7 @@ export default function SponsorDealDetail() {
                     </button>
 
                     <p className={`${sectionLabel} mt-6`}>{t("sponsorDealDetail.pitchLabel")}</p>
-                    <textarea value={pitch} onChange={(e) => setPitch(e.target.value)} maxLength={2000} rows={5}
+                    <textarea aria-label={t("sponsorDealDetail.pitchPlaceholder")} value={pitch} onChange={(e) => setPitch(e.target.value)} maxLength={2000} rows={5}
                       placeholder={t("sponsorDealDetail.pitchPlaceholder")} className={`${inputClass} resize-y`} />
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button onClick={copyPitch} disabled={!pitch.trim()}
@@ -431,7 +431,7 @@ export default function SponsorDealDetail() {
                       </button>
                     </div>
                     <p className={`${sectionLabel} mt-4`}>{t("sponsorDealDetail.portfolioLabel")}</p>
-                    <input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} maxLength={500}
+                    <input aria-label={t("sponsorDealDetail.portfolioPlaceholder")} value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} maxLength={500}
                       placeholder={t("sponsorDealDetail.portfolioPlaceholder")} className={inputClass} />
                     <button onClick={applyToDeal} disabled={busy === "apply" || !pitch.trim()}
                       className={`mt-5 inline-flex items-center gap-2 rounded-2xl px-8 py-3.5 text-base font-black transition disabled:cursor-not-allowed ${!pitch.trim() && busy !== "apply" ? (isLight ? "border border-[#C9A84C]/60 bg-[#EFE3C2] text-[#7A5A12] shadow-none" : "border border-primary/30 bg-primary/20 text-primary/70 shadow-none") : "bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] hover:scale-[1.03]"}`}>
@@ -519,7 +519,7 @@ export default function SponsorDealDetail() {
                         )}
                         {a.status === "pending" && deal.status === "active" && (
                           <div className="mt-4 flex flex-wrap items-center gap-2">
-                            <input value={agreedDollars}
+                            <input aria-label={t("sponsorDealDetail.agreedPlaceholder", { min: deal.budgetMin, max: deal.budgetMax })} value={agreedDollars}
                               onChange={(e) => setAgreedDollars(e.target.value.replace(/[^0-9.]/g, "").slice(0, 10))}
                               inputMode="decimal" placeholder={t("sponsorDealDetail.agreedPlaceholder", { min: deal.budgetMin, max: deal.budgetMax })}
                               className="w-48 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none focus:border-primary/60" />

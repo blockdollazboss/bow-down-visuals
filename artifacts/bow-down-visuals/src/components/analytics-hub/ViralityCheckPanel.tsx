@@ -315,7 +315,7 @@ export default function ViralityCheckPanel() {
  <p data-min-stars="3" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("viralityCheck.hookLabel")} <span className="normal-case tracking-normal text-white/25">({t("viralityCheck.hookHint")})</span>
  </p>
- <input
+ <input aria-label={t("viralityCheck.hookPlaceholder")}
  data-min-stars="3"
  value={hookLine}
  onChange={(e) => setHookLine(e.target.value)}
@@ -328,7 +328,7 @@ export default function ViralityCheckPanel() {
  <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("viralityCheck.captionLabel")}
  </p>
- <textarea
+ <textarea aria-label={t("viralityCheck.captionPlaceholder")}
  value={caption}
  onChange={(e) => setCaption(e.target.value)}
  maxLength={2000}
@@ -341,7 +341,7 @@ export default function ViralityCheckPanel() {
  <p data-min-stars="3" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("viralityCheck.hashtagsLabel")} <span className="normal-case tracking-normal text-white/25">({t("viralityCheck.optional")})</span>
  </p>
- <input
+ <input aria-label={t("viralityCheck.hashtagsPlaceholder")}
  data-min-stars="3"
  value={hashtags}
  onChange={(e) => setHashtags(e.target.value)}

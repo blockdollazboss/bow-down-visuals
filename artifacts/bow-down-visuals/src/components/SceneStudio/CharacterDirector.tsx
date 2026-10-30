@@ -305,7 +305,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
       data-testid="character-director"
     >
       {/* Header */}
-      <button
+      <button aria-expanded={expanded}
         onClick={() => setExpanded((e) => !e)}
         className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-white/[0.02] transition-colors"
       >
@@ -409,7 +409,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
                     <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                       {t(`${ns}.shotLabel`, { n: i + 1 })}
                     </span>
-                    <button
+                    <button aria-label={t(`${ns}.removeShot`)}
                       onClick={() => removeShot(shot.id)}
                       disabled={shots.length <= 1}
                       className="ml-auto text-white/30 hover:text-red-400 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
@@ -442,7 +442,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
                     </div>
                   )}
                   {/* Action */}
-                  <textarea
+                  <textarea aria-label={t(`${ns}.actionPlaceholder`)}
                     value={shot.action}
                     onChange={(e) => updateShot(shot.id, { action: e.target.value })}
                     rows={2}
@@ -451,7 +451,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
                     data-testid={`shot-action-${i}`}
                   />
                   {/* Camera note */}
-                  <input
+                  <input aria-label={t(`${ns}.cameraNotePlaceholder`)}
                     value={shot.cameraNote}
                     onChange={(e) => updateShot(shot.id, { cameraNote: e.target.value })}
                     placeholder={t(`${ns}.cameraNotePlaceholder`)}
@@ -465,14 +465,14 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
 
           {/* ── Plan name + style ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <input
+            <input aria-label={t(`${ns}.planNamePlaceholder`)}
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
               placeholder={t(`${ns}.planNamePlaceholder`)}
               className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-white/80 focus:outline-none focus:border-primary/40 transition-colors placeholder:text-white/20"
               data-testid="director-plan-name"
             />
-            <input
+            <input aria-label={t(`${ns}.sceneStylePlaceholder`)}
               value={sceneStyle}
               onChange={(e) => setSceneStyle(e.target.value)}
               placeholder={t(`${ns}.sceneStylePlaceholder`)}
@@ -561,7 +561,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
                       {s.characters.join(", ")}
                     </span>
                   </div>
-                  <textarea
+                  <textarea aria-label="Generated prompt"
                     value={s.generatedPrompt}
                     onChange={(e) => {
                       const next = [...result.shots];

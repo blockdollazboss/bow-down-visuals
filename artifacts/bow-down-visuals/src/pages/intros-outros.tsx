@@ -260,7 +260,7 @@ export function IntrosOutrosTool() {
             {/* Channel name */}
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("introsOutros.channelName")}</label>
-              <input
+              <input aria-label={t("introsOutros.channelName")}
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
                 placeholder={t("introsOutros.channelNamePh")}
@@ -272,7 +272,7 @@ export function IntrosOutrosTool() {
             {/* Tagline */}
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("introsOutros.taglineLabel")} <span className="text-white/25 normal-case font-normal">{t("introsOutros.taglineOptional")}</span></label>
-              <input
+              <input aria-label={t("introsOutros.taglineLabel")}
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
                 placeholder={t("introsOutros.taglinePh")}
@@ -286,7 +286,7 @@ export function IntrosOutrosTool() {
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
                 {t("introsOutros.logoUrlLabel")} <span className="text-white/25 normal-case font-normal">{t("introsOutros.logoUrlOptional")}</span>
               </label>
-              <input
+              <input aria-label={t("introsOutros.logoUrlLabel")}
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
                 placeholder="https://…"

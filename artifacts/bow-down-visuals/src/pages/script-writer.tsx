@@ -237,7 +237,7 @@ export default function ScriptWriter() {
           <label className="block text-sm font-semibold text-white/70 mb-2">
             {t("scriptWriter.topicLabel")}
           </label>
-          <input
+          <input aria-label={t("scriptWriter.topicLabel")}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder={t("scriptWriter.topicPlaceholder")}
@@ -307,7 +307,7 @@ export default function ScriptWriter() {
               <label className="block text-sm font-semibold text-white/70 mb-2">
                 {t("scriptWriter.audienceLabel")} <span className="text-white/30 font-normal">{t("scriptWriter.optionalTag")}</span>
               </label>
-              <input
+              <input aria-label={t("scriptWriter.audienceLabel")}
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
                 placeholder={t("scriptWriter.audiencePlaceholder")}
@@ -319,7 +319,7 @@ export default function ScriptWriter() {
               <label className="block text-sm font-semibold text-white/70 mb-2">
                 {t("scriptWriter.ctaGoalLabel")} <span className="text-white/30 font-normal">{t("scriptWriter.optionalTag")}</span>
               </label>
-              <input
+              <input aria-label={t("scriptWriter.ctaGoalLabel")}
                 value={ctaGoal}
                 onChange={(e) => setCtaGoal(e.target.value)}
                 placeholder={t("scriptWriter.ctaGoalPlaceholder")}
@@ -506,7 +506,7 @@ export default function ScriptWriter() {
                     >
                       {t("scriptWriter.teleprompterLaunch")}
                     </button>
-                    <button
+                    <button aria-expanded={showTeleprompter}
                       onClick={() => setShowTeleprompter((s) => !s)}
                       className="text-sm rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
                     >

@@ -322,7 +322,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
               ) : songs.length === 0 ? (
                 <p className="text-xs text-white/40">{t("lyricVideo.noSongs")}</p>
               ) : (
-                <select
+                <select aria-label="Song"
                   value={selectedSongId}
                   onChange={(e) => {
                     setSelectedSongId(e.target.value);
@@ -346,7 +346,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">2</span>
             {t("lyricVideo.step2Title")}
           </h2>
-          <textarea
+          <textarea aria-label={t("lyricVideo.lyricsPlaceholder")}
             value={lyrics}
             onChange={(e) => setLyrics(e.target.value)}
             rows={8}
@@ -404,7 +404,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                       <p className="mt-0.5 truncate text-sm">{line.text}</p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button
+                      <button aria-label={t("lyricVideo.shiftEarlier")}
                         onClick={() => nudge(i, -0.5)}
                         title={t("lyricVideo.shiftEarlier")}
                         className="rounded-lg border border-white/10 p-1.5 text-white/60 hover:border-primary/50 hover:text-primary"
@@ -433,7 +433,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
                         className="w-20 rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-center font-mono text-xs text-white outline-none focus:border-primary/60"
                         aria-label={t("lyricVideo.lineEndTime", { n: i + 1 })}
                       />
-                      <button
+                      <button aria-label={t("lyricVideo.shiftLater")}
                         onClick={() => nudge(i, 0.5)}
                         title={t("lyricVideo.shiftLater")}
                         className="rounded-lg border border-white/10 p-1.5 text-white/60 hover:border-primary/50 hover:text-primary"

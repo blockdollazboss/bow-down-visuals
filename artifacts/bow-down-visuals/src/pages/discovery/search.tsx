@@ -184,7 +184,7 @@ export default function Search() {
         }}
       >
         <SearchIcon className="h-5 w-5 shrink-0 text-[#e8c86a]" />
-        <input
+        <input aria-label="Search creators, tracks, videos, playlists…"
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -223,7 +223,7 @@ export default function Search() {
           All lanes
         </button>
         {VERTICALS.map((v) => (
-          <button
+          <button aria-pressed={vertical === v}
             key={v}
             onClick={() => setVertical(vertical === v ? "all" : v)}
             className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -239,7 +239,7 @@ export default function Search() {
       {genres.length > 0 && (
         <div className="mb-8 flex flex-wrap justify-center gap-2">
           {genres.map((g) => (
-            <button
+            <button aria-pressed={genre === g.genre}
               key={g.genre}
               onClick={() => setGenre(genre === g.genre ? null : g.genre)}
               className={`rounded-full border px-3 py-1 text-xs font-semibold ${

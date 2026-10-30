@@ -195,7 +195,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
             <Label className="text-white/70 text-sm mb-2 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5" /> {t("beatMaker.keyLabel")}
             </Label>
-            <select
+            <select aria-label={t("beatMaker.keyLabel")}
               value={musicalKey}
               onChange={(e) => setMusicalKey(e.target.value)}
               className={`${beatInputClass} w-full px-3 appearance-none cursor-pointer [&>option]:bg-zinc-900`}
@@ -205,7 +205,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           </div>
           <div>
             <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.lengthLabel")}</Label>
-            <select
+            <select aria-label={t("beatMaker.lengthLabel")}
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
               className={`${beatInputClass} w-full px-3 appearance-none cursor-pointer [&>option]:bg-zinc-900`}
@@ -905,14 +905,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Shuffle className="w-3.5 h-3.5" /> {t("beatMaker.randomize", { defaultValue: "Randomize" })}
         </button>
-        <button
+        <button aria-expanded={showMixer}
           type="button"
           onClick={() => setShowMixer((v) => !v)}
           className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showMixer ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" /> {t("beatMaker.mixer", { defaultValue: "Mixer" })}
         </button>
-        <button
+        <button aria-expanded={showBass}
           type="button"
           onClick={() => setShowBass((v) => !v)}
           className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showBass ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
@@ -927,12 +927,12 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           {TRACKS.map((tr, ti) => (
             <div key={tr.id} className="flex items-center gap-1.5">
               <div className="w-24 shrink-0 flex items-center gap-1">
-                <button
+                <button aria-pressed={mute[ti]}
                   type="button" onClick={() => setMute((m) => m.map((v, i) => (i === ti ? !v : v)))}
                   className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${mute[ti] ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}
                   title={t("beatMaker.mute", { defaultValue: "Mute" })}
                 >M</button>
-                <button
+                <button aria-pressed={solo[ti]}
                   type="button" onClick={() => setSolo((s) => s.map((v, i) => (i === ti ? !v : v)))}
                   className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${solo[ti] ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}
                   title={t("beatMaker.solo", { defaultValue: "Solo" })}
@@ -991,7 +991,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
               onChange={(e) => setBassVol(Number(e.target.value))}
               className={`flex-1 h-1 ${T.slider}`} aria-label="808 bass volume"
             />
-            <button type="button" onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
+            <button type="button" aria-pressed={bassMute} aria-label={bassMute ? "Unmute 808 bass" : "Mute 808 bass"} onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
           </div>
         </div>
       )}
@@ -1006,7 +1006,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
             </p>
             <div className="flex items-center gap-1.5">
               <span className={`text-xs ${T.label}`}>{t("beatMaker.bassPitch", { defaultValue: "Pitch" })}</span>
-              <select
+              <select aria-label={t("beatMaker.bassPitch", { defaultValue: "Pitch" })}
                 value={bassPaint}
                 onChange={(e) => setBassPaint(Number(e.target.value))}
                 className={`h-8 rounded-lg border text-xs font-bold px-2 ${isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5] text-[#2A2118]" : "border-white/15 bg-black text-white"}`}
@@ -1525,7 +1525,7 @@ function SamplesPanel() {
               <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
                 {t("samples.tempo")} — <span className="text-primary font-bold">{t("samples.bpm", { bpm })}</span>
               </label>
-              <input
+              <input aria-label={t("samples.tempo")}
                 type="range" min={60} max={180} value={bpm}
                 onChange={(e) => setBpm(Number(e.target.value))}
                 className="mt-3 w-full accent-amber-400"

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { Button } from "@/components/ui/button";
 import {
   Link2, Loader2, Check, Copy, X, Eye, EyeOff, MessageSquare,
@@ -84,7 +85,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
 
   return (
     <div>
-      <button
+      <button aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-primary border border-primary/25 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors"
       >
@@ -97,7 +98,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
             <>
               <div>
                 <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("review.linkTitle")}</label>
-                <input
+                <input aria-label={t("review.linkTitle")}
                   value={linkTitle}
                   onChange={(e) => setLinkTitle(e.target.value)}
                   placeholder={t("review.linkTitlePlaceholder")}
@@ -108,7 +109,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("review.expires")}</label>
-                  <select
+                  <select aria-label={t("review.expires")}
                     value={expiry}
                     onChange={(e) => setExpiry(e.target.value)}
                     className="mt-1 w-full rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm text-white focus:border-[#e8c86a]/50 focus:outline-none [&>option]:bg-black"
@@ -125,7 +126,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
                     {t("review.password")} <span className="text-white/25 normal-case">({t("review.optional")})</span>
                   </label>
                   <div className="relative mt-1">
-                    <input
+                    <input aria-label={t("review.password")}
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -137,6 +138,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
                       aria-label={showPassword ? t("review.hidePassword") : t("review.showPassword")}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -227,6 +229,7 @@ export function ReviewFeedbackBadge({ videoUrl, sourceType, sourceId, projectId 
   const { toast } = useToast();
   const [links, setLinks] = useState<ReviewLinkSummary[] | null>(null);
   const [modalLink, setModalLink] = useState<ReviewLinkSummary | null>(null);
+  const dialogRef = useModalA11y<HTMLDivElement>(!!modalLink, () => setModalLink(null));
   const [notifying, setNotifying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -316,7 +319,7 @@ export function ReviewFeedbackBadge({ videoUrl, sourceType, sourceId, projectId 
       </button>
 
       {modalLink && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={() => setModalLink(null)} />
           <div className="review-modal relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] shadow-[0_0_60px_rgba(232,200,106,0.12)]">
             {/* Header */}

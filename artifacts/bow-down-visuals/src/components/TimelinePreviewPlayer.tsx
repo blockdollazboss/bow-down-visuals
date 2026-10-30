@@ -835,7 +835,7 @@ function TimelinePreviewPlayer({
         </div>
 
         {/* Burn preview toggle */}
-        <button
+        <button aria-pressed={burnPreview}
           type="button"
           onClick={() => setBurnPreview(b => !b)}
           className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
@@ -928,7 +928,7 @@ function TimelinePreviewPlayer({
 
         {/* ── Debug panel ── */}
         <div className="border border-white/[0.07] rounded-lg overflow-hidden">
-          <button
+          <button aria-expanded={debugOpen}
             type="button"
             onClick={() => setDebugOpen(o => !o)}
             className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-white/30 uppercase tracking-widest hover:text-white/50 transition-colors"

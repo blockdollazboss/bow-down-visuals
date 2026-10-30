@@ -243,7 +243,7 @@ function ConsistencyModal({
               <p className="text-xs text-white/40">{vault.artist_name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
+          <button aria-label="Close" onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -290,7 +290,7 @@ function ConsistencyModal({
         </div>
 
         {/* Prompt textarea */}
-        <textarea
+        <textarea aria-label="Generated prompt"
           readOnly
           value={prompt}
           rows={12}
@@ -370,7 +370,7 @@ function StyledSelect({
   const isLight = useIsLightTheme();
   return (
     <div className="relative">
-      <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
+      <select aria-label={placeholder} name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selectClass} style={{ colorScheme: "dark" }}>
         <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o) => (
@@ -1136,7 +1136,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
             >
               <Camera className="h-3.5 w-3.5" /> {t("artistVault.generateOutfit")}
             </button>
-            <button
+            <button aria-expanded={showAdd}
               type="button"
               onClick={() => setShowAdd((v) => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
@@ -1216,7 +1216,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                       className="bg-white/[0.04] border-white/[0.10] text-white text-xs h-8"
                       autoFocus
                     />
-                    <button type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title={t("artistVault.saveNameTitle")}>
+                    <button aria-label={t("artistVault.saveNameTitle")} type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title={t("artistVault.saveNameTitle")}>
                       <CheckCircle2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -1476,7 +1476,7 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
           </span>
         )}
         {!setFull && (
-          <button
+          <button aria-expanded={showAdd}
             type="button"
             onClick={() => setShowAdd((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
@@ -1988,7 +1988,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
               color: vault.team_id ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
               fontSize: 11, fontWeight: 600, cursor: "pointer",
             }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? t("artistVault.sharedLabel") : t("artistVault.shareLabel")}</button>
-            <button onClick={onDelete} style={{
+            <button aria-label="Delete" onClick={onDelete} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "6px 10px", borderRadius: 8,
               border: isLight ? "1px solid rgba(201,168,76,0.2)" : "1px solid rgba(255,255,255,0.06)",
@@ -2458,7 +2458,7 @@ export default function ArtistVault() {
             <p className="text-sm font-bold text-white">
               {t("artistVault.profileSaved", { action: isEditing ? t("artistVault.savedActionUpdated") : t("artistVault.savedActionSaved") })}
             </p>
-            <button onClick={() => setSaveSuccess(false)} className="ml-auto text-white/30 hover:text-white transition-colors">
+            <button aria-label="Dismiss" onClick={() => setSaveSuccess(false)} className="ml-auto text-white/30 hover:text-white transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -2718,7 +2718,7 @@ export default function ArtistVault() {
                     </button>
                   );
                 })}
-                <button
+                <button aria-expanded={voiceAdvancedOpen}
                   type="button"
                   onClick={() => setVoiceAdvancedOpen((v) => !v)}
                   className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10] transition-colors"
@@ -2742,7 +2742,7 @@ export default function ArtistVault() {
                           <Label className="text-xs text-white/50">{label}</Label>
                           <span className="text-xs text-white/40">{format(current[key])}</span>
                         </div>
-                        <input
+                        <input aria-label={label}
                           type="range"
                           min={min}
                           max={max}

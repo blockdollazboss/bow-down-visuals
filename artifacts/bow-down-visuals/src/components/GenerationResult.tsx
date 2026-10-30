@@ -73,7 +73,7 @@ function CollapsibleSection({ index, title, content, defaultOpen }: { index: num
   return (
     <div className="bg-card border border-card-border rounded-xl overflow-hidden" data-testid={`result-section-${index}`}>
       <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
-        <button
+        <button aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
           className="flex items-center gap-3 flex-1 text-left"
           data-testid={`btn-toggle-section-${index}`}

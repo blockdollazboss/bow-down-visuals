@@ -426,7 +426,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">
               {t("cartoonStudio.promptLabel")}
             </label>
-            <textarea
+            <textarea aria-label={t("cartoonStudio.promptLabel")}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={4}
@@ -536,7 +536,7 @@ export default function CartoonStudio({ initialTab, embedded }: { initialTab?: S
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">
               {t("cartoonStudio.characterLabel")}
             </label>
-            <textarea
+            <textarea aria-label={t("cartoonStudio.characterLabel")}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={4}

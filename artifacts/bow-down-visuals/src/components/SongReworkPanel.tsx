@@ -260,7 +260,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
             <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
               {t("songRework.styleTweakLabel")}
             </label>
-            <input
+            <input aria-label={t("songRework.styleTweakLabel")}
               value={styleTweak}
               onChange={(e) => setStyleTweak(e.target.value)}
               placeholder={t("songRework.styleTweakPlaceholder")}
@@ -272,7 +272,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
             <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
               {t("songRework.lengthLabel")}
             </label>
-            <select
+            <select aria-label={t("songRework.lengthLabel")}
               value={remixLength}
               onChange={(e) => setRemixLength(e.target.value)}
               disabled={working !== null}
@@ -310,7 +310,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
                 <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
                   {t("songRework.sectionLabel")}
                 </label>
-                <select
+                <select aria-label={t("songRework.sectionLabel")}
                   value={sectionIdx}
                   onChange={(e) => setSectionIdx(Number(e.target.value))}
                   disabled={working !== null}
@@ -337,7 +337,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
                 <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
                   {t("songRework.directionLabel")}
                 </label>
-                <input
+                <input aria-label={t("songRework.directionLabel")}
                   value={direction}
                   onChange={(e) => setDirection(e.target.value)}
                   placeholder={t("songRework.directionPlaceholder")}
@@ -345,7 +345,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
                   className={fieldClass}
                 />
               </div>
-              <button
+              <button aria-expanded={showTiming}
                 type="button"
                 onClick={() => setShowTiming((v) => !v)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45 hover:text-white transition-colors"
@@ -359,7 +359,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
                       {t("songRework.startSec")}
                     </label>
-                    <input
+                    <input aria-label={t("songRework.startSec")}
                       type="number" min={0} step={0.5} value={startSec}
                       onChange={(e) => setStartSec(e.target.value)}
                       disabled={working !== null} className={fieldClass} placeholder="0"
@@ -369,7 +369,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/40 mb-1.5">
                       {t("songRework.endSec")}
                     </label>
-                    <input
+                    <input aria-label={t("songRework.endSec")}
                       type="number" min={0} step={0.5} value={endSec}
                       onChange={(e) => setEndSec(e.target.value)}
                       disabled={working !== null} className={fieldClass} placeholder="30"

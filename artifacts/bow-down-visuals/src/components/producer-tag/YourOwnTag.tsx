@@ -231,6 +231,7 @@ export function YourOwnTag(props: {
               type="button"
               role="switch"
               aria-checked={mine.stampEnabled}
+              aria-label="Stamp my tag onto video exports"
               disabled={toggling}
               onClick={() => void toggleStamp(!mine.stampEnabled)}
               className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${

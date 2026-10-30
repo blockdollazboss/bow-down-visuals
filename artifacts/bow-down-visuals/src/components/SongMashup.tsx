@@ -446,7 +446,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           </p>
           <Music2 className="h-4 w-4 text-white/30" />
         </div>
-        <select
+        <select aria-label={side === "A" ? t("mashup.songA") : t("mashup.songB")}
           value={selected?.id ?? ""}
           onChange={(e) => setId(e.target.value)}
           disabled={loadingSongs || isUploading}
@@ -585,7 +585,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                 {blendPointSec !== null ? fmtTime(blendPointSec) : "—"}
               </span>
             </div>
-            <input
+            <input aria-label={t("mashup.blendPointLabel")}
               type="range"
               min={10}
               max={90}
@@ -602,7 +602,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                 {balance === 50 ? "50 / 50" : balance > 50 ? `A ${balance}%` : `B ${100 - balance}%`}
               </span>
             </div>
-            <input
+            <input aria-label={t("mashup.balanceLabel")}
               type="range"
               min={10}
               max={90}
@@ -618,7 +618,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                 <label className="text-sm font-semibold text-white/70">{t("mashup.crossfadeLabel")}</label>
                 <span className="text-xs text-primary font-bold">{crossfadeSec}s</span>
               </div>
-              <input
+              <input aria-label={t("mashup.crossfadeLabel")}
                 type="range"
                 min={2}
                 max={15}
@@ -630,7 +630,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           )}
           <div>
             <label className="text-sm font-semibold text-white/70 block mb-1.5">{t("mashup.titleLabel")}</label>
-            <input
+            <input aria-label={t("mashup.titleLabel")}
               type="text"
               value={mashupTitle}
               onChange={(e) => setMashupTitle(e.target.value)}
@@ -763,7 +763,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           {albumsLoaded && !albumAdded && (
             <div className="rounded-xl border border-white/10 bg-black/50 p-4 space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
-                <select
+                <select aria-label="Album"
                   value={albumPick}
                   onChange={(e) => setAlbumPick(e.target.value)}
                   className="h-10 flex-1 rounded-xl bg-white/[0.04] border border-white/10 text-white px-3 text-sm focus:outline-none focus:border-primary/60 cursor-pointer"
@@ -774,7 +774,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                     <option key={a.id} value={a.id} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{a.title}</option>
                   ))}
                 </select>
-                <input
+                <input aria-label={t("mashup.albumNew")}
                   type="text"
                   value={newAlbumTitle}
                   onChange={(e) => setNewAlbumTitle(e.target.value)}

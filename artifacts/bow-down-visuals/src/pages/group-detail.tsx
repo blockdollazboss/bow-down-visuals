@@ -421,7 +421,7 @@ export default function GroupDetail() {
           <div className="mt-6 space-y-4">
             {user && isMember && (
               <div className="rounded-xl border border-white/10 bg-[#0d0a02] p-4">
-                <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={2000}
+                <textarea aria-label="Say something to the crew…" value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={2000}
                   placeholder="Say something to the crew…" className={goldInput} />
                 <div className="mt-2 flex justify-end">
                   <button type="button" onClick={post} disabled={busy || !draft.trim()} className={goldButton}>
@@ -446,7 +446,7 @@ export default function GroupDetail() {
                     </div>
                   </div>
                   {p.can_delete && (
-                    <button type="button" onClick={() => deletePost(p.id)} data-min-stars={isMod && p.author_user_id !== user?.id ? "4" : "1"}
+                    <button aria-label="Delete post" type="button" onClick={() => deletePost(p.id)} data-min-stars={isMod && p.author_user_id !== user?.id ? "4" : "1"}
                       className="text-white/40 hover:text-red-400" title="Delete post">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -491,7 +491,7 @@ export default function GroupDetail() {
                         </>
                       )}
                       {openThread.thread.can_delete && (
-                        <button type="button" onClick={() => deleteThread(openThread.thread.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
+                        <button aria-label="Delete thread" type="button" onClick={() => deleteThread(openThread.thread.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
@@ -526,7 +526,7 @@ export default function GroupDetail() {
                           </div>
                         </div>
                         {r.can_delete && (
-                          <button type="button" onClick={() => deleteReply(openThread.thread.id, r.id)} className="text-white/40 hover:text-red-400" title="Delete reply">
+                          <button aria-label="Delete reply" type="button" onClick={() => deleteReply(openThread.thread.id, r.id)} className="text-white/40 hover:text-red-400" title="Delete reply">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
@@ -545,7 +545,7 @@ export default function GroupDetail() {
                   </p>
                 ) : forumCaps.can_post ? (
                   <div className="mt-4 rounded-xl border border-white/10 bg-[#0d0a02] p-4">
-                    <textarea value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={3} maxLength={5000}
+                    <textarea aria-label="Write your reply…" value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={3} maxLength={5000}
                       placeholder="Write your reply…" className={goldInput} />
                     <div className="mt-2 flex justify-end">
                       <button type="button" onClick={postReply} disabled={busy || !replyDraft.trim()} className={goldButton}>
@@ -566,16 +566,16 @@ export default function GroupDetail() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-white/70">Channels</p>
                     {forumCaps.can_manage_channels && (
-                      <button type="button" onClick={() => setShowChannelForm(!showChannelForm)} className={ghostButton}>
+                      <button aria-expanded={showChannelForm} type="button" onClick={() => setShowChannelForm(!showChannelForm)} className={ghostButton}>
                         <span className="inline-flex items-center gap-1"><Plus className="h-3.5 w-3.5" /> New</span>
                       </button>
                     )}
                   </div>
                   {showChannelForm && forumCaps.can_manage_channels && (
                     <div className="rounded-xl border border-[#e8c86a]/25 bg-[#0d0a02] p-3">
-                      <input value={channelName} onChange={(e) => setChannelName(e.target.value)} maxLength={60}
+                      <input aria-label="Channel name" value={channelName} onChange={(e) => setChannelName(e.target.value)} maxLength={60}
                         placeholder="Channel name" className={goldInput} />
-                      <input value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} maxLength={500}
+                      <input aria-label="What's it for? (optional)" value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} maxLength={500}
                         placeholder="What's it for? (optional)" className={`${goldInput} mt-2`} />
                       <select value={channelGateTier} onChange={(e) => setChannelGateTier(e.target.value)}
                         className={`${goldInput} mt-2`} aria-label="Who can enter this channel">
@@ -622,7 +622,7 @@ export default function GroupDetail() {
                         <span className="ml-auto shrink-0 text-xs text-white/40">{c.thread_count} threads</span>
                       </button>
                       {forumCaps.can_manage_channels && (
-                        <button type="button" onClick={() => closeChannel(c.id)} className="shrink-0 text-white/30 hover:text-red-400" title="Close channel">
+                        <button aria-label="Close channel" type="button" onClick={() => closeChannel(c.id)} className="shrink-0 text-white/30 hover:text-red-400" title="Close channel">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -680,18 +680,18 @@ export default function GroupDetail() {
                   )}
                   {forumCaps.can_post && channelId && (
                     <div className="flex justify-end">
-                      <button type="button" onClick={() => setShowThreadForm(!showThreadForm)} className={goldButton}>
+                      <button aria-expanded={showThreadForm} type="button" onClick={() => setShowThreadForm(!showThreadForm)} className={goldButton}>
                         <span className="inline-flex items-center gap-2"><Plus className="h-4 w-4" /> Start a thread</span>
                       </button>
                     </div>
                   )}
                   {showThreadForm && forumCaps.can_post && channelId && (
                     <div className="rounded-xl border border-[#e8c86a]/25 bg-[#0d0a02] p-4">
-                      <input value={threadTitle} onChange={(e) => setThreadTitle(e.target.value)} maxLength={120}
+                      <input aria-label="Thread title" value={threadTitle} onChange={(e) => setThreadTitle(e.target.value)} maxLength={120}
                         placeholder="Thread title" className={goldInput} />
-                      <textarea value={threadBody} onChange={(e) => setThreadBody(e.target.value)} rows={4} maxLength={5000}
+                      <textarea aria-label="Start the conversation…" value={threadBody} onChange={(e) => setThreadBody(e.target.value)} rows={4} maxLength={5000}
                         placeholder="Start the conversation…" className={`${goldInput} mt-2`} />
-                      <input value={threadTags} onChange={(e) => setThreadTags(e.target.value)}
+                      <input aria-label="Tags (optional, comma-separated — e.g. releases, feedback)" value={threadTags} onChange={(e) => setThreadTags(e.target.value)}
                         placeholder="Tags (optional, comma-separated — e.g. releases, feedback)" className={`${goldInput} mt-2`} />
                       <div className="mt-2 flex justify-end">
                         <button type="button" onClick={createThread} disabled={busy || !threadTitle.trim() || !threadBody.trim()} className={goldButton}>
@@ -722,7 +722,7 @@ export default function GroupDetail() {
                             </>
                           )}
                           {t.can_delete && (
-                            <button type="button" onClick={() => deleteThread(t.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
+                            <button aria-label="Delete thread" type="button" onClick={() => deleteThread(t.id)} className="text-white/40 hover:text-red-400" title="Delete thread">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
@@ -792,13 +792,13 @@ export default function GroupDetail() {
                   <p className="flex items-center gap-2 font-semibold text-[#e8c86a]">
                     <Megaphone className="h-4 w-4" /> Broadcast DM <span className="text-xs font-normal text-white/40">(5★ power tool)</span>
                   </p>
-                  <button type="button" onClick={() => setShowBroadcast(!showBroadcast)} className={ghostButton}>
+                  <button aria-expanded={showBroadcast} type="button" onClick={() => setShowBroadcast(!showBroadcast)} className={ghostButton}>
                     {showBroadcast ? "Hide" : "Compose"}
                   </button>
                 </div>
                 {showBroadcast && (
                   <div className="mt-3">
-                    <textarea value={broadcast} onChange={(e) => setBroadcast(e.target.value)} rows={3} maxLength={2000}
+                    <textarea aria-label="One message to every member's DMs…" value={broadcast} onChange={(e) => setBroadcast(e.target.value)} rows={3} maxLength={2000}
                       placeholder="One message to every member's DMs…" className={goldInput} />
                     <div className="mt-2 flex justify-end">
                       <button type="button" onClick={sendBroadcast} disabled={busy || !broadcast.trim()} className={goldButton}>

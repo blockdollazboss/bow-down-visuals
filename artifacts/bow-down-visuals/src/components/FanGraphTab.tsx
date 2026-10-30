@@ -158,14 +158,14 @@ export default function FanGraphTab() {
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-          <input
+          <input aria-label={t("email-list.fan_graph_search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("email-list.fan_graph_search")}
             className="w-72 rounded-xl border border-white/10 bg-black/60 py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-white/25 outline-none focus:border-primary/60"
           />
         </div>
-        <select
+        <select aria-label="Sort by"
           value={sort}
           onChange={(e) => {
             setSort(e.target.value as typeof sort);

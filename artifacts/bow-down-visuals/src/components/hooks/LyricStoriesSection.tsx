@@ -99,7 +99,7 @@ export default function LyricStoriesSection() {
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("lyricStories.lyricsLabel", { defaultValue: "Song lyrics *" })}
           </label>
-          <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)}
+          <textarea aria-label={t("lyricStories.lyricsLabel", { defaultValue: "Song lyrics *" })} value={lyrics} onChange={(e) => setLyrics(e.target.value)}
             placeholder={t("lyricStories.lyricsPh", { defaultValue: "Paste your lyrics…" })}
             className={`${inputClass} mt-1.5 min-h-[140px] resize-y`} maxLength={3000} />
         </div>
@@ -122,7 +122,7 @@ export default function LyricStoriesSection() {
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("lyricStories.styleLabel", { defaultValue: "Visual style (optional)" })}
             </label>
-            <input value={style} onChange={(e) => setStyle(e.target.value)}
+            <input aria-label={t("lyricStories.styleLabel", { defaultValue: "Visual style (optional)" })} value={style} onChange={(e) => setStyle(e.target.value)}
               placeholder={t("lyricStories.stylePh", { defaultValue: "e.g. cinematic gold, anime…" })}
               className={`${inputClass} mt-1.5`} maxLength={120} />
           </div>

@@ -178,6 +178,7 @@ export function DiscordWebhookSettings() {
               onClick={() => setShowUrl((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
               aria-label={showUrl ? "Hide webhook URL" : "Show webhook URL"}
+              aria-pressed={showUrl}
             >
               {showUrl ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -201,6 +202,7 @@ export function DiscordWebhookSettings() {
                 type="button"
                 role="switch"
                 aria-checked={mentionEveryone}
+                aria-label="Default @everyone ping"
                 onClick={() => setMentionEveryone((v) => !v)}
                 className={`w-10 h-6 rounded-full transition-colors relative ${mentionEveryone ? "bg-amber-400" : "bg-white/10"}`}
                 data-testid="toggle-discord-everyone"

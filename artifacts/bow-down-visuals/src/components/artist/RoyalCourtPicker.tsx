@@ -224,7 +224,7 @@ export default function RoyalCourtPicker() {
           {/* ── Search + candidates ── */}
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-white/40" />
-            <input
+            <input aria-label="Search creators to seat…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search creators to seat…"

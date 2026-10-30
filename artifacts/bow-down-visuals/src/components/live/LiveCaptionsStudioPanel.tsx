@@ -233,7 +233,7 @@ export default function LiveCaptionsStudioPanel({ streamId }: { streamId: string
           </div>
 
           <div className="flex items-center gap-2">
-            <input
+            <input aria-label="Type a caption line — posts exactly as written"
               value={typedLine}
               onChange={(e) => setTypedLine(e.target.value)}
               onKeyDown={(e) => {

@@ -217,7 +217,7 @@ export default function MediaImport() {
               </label>
               <div className="relative">
                 <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-                <input
+                <input aria-label={t("importPage.pasteLink")}
                   type="url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}

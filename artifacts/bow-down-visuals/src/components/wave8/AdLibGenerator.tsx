@@ -137,7 +137,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
 
   return (
     <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden" data-testid="adlib-generator">
-      <button
+      <button aria-expanded={open}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
@@ -163,7 +163,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
               <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
                 {t("wave8.adlib.titleLabel")}
               </label>
-              <input
+              <input aria-label={t("wave8.adlib.titleLabel")}
                 className={inputClass}
                 placeholder={t("wave8.adlib.titlePlaceholder")}
                 value={titleText}
@@ -202,7 +202,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
                 </span>
               )}
             </label>
-            <textarea
+            <textarea aria-label={t("wave8.adlib.lyricsLabel")}
               className={`${inputClass} min-h-[110px] resize-y`}
               placeholder={t("wave8.adlib.lyricsPlaceholder")}
               value={lyricsText}
@@ -219,7 +219,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
                 </span>
               )}
             </label>
-            <input
+            <input aria-label={t("wave8.adlib.vaultVoiceLabel")}
               className={inputClass}
               placeholder={t("wave8.adlib.vaultVoicePlaceholder")}
               value={voiceText}

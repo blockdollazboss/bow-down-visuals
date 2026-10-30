@@ -280,7 +280,7 @@ function FanClubJoin({
             {p}
           </button>
         ))}
-        <input
+        <input aria-label="Gift it: recipient's user ID (optional)"
           className="ml-auto w-64 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-primary/60 focus:outline-none"
           placeholder="Gift it: recipient's user ID (optional)"
           value={giftFor}
@@ -915,7 +915,7 @@ export default function Memberships() {
                               : "bg-white/10 text-white/50"
                             }`}>{m.status.replace("_", " ")}</span>
                             {m.status === "active" && m.pauseOffered !== false && (
-                              <button
+                              <button aria-expanded={pausePickId === m.id}
                                 onClick={() => { setPauseMonths(1); setPausePickId(pausePickId === m.id ? null : m.id); }}
                                 className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 hover:border-sky-400/40 hover:text-sky-300"
                               >
@@ -1163,13 +1163,13 @@ export default function Memberships() {
               </h2>
               <div className={CARD + " space-y-4"}>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <input className={INPUT} placeholder={t("memberships.tierNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+                  <input aria-label={t("memberships.tierNamePlaceholder")} className={INPUT} placeholder={t("memberships.tierNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-                    <input className={INPUT + " pl-9"} placeholder={t("memberships.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
+                    <input aria-label={t("memberships.pricePlaceholder")} className={INPUT + " pl-9"} placeholder={t("memberships.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
                   </div>
                 </div>
-                <textarea className={INPUT} placeholder={t("memberships.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={500} />
+                <textarea aria-label={t("memberships.descriptionPlaceholder")} className={INPUT} placeholder={t("memberships.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={500} />
                 <div className="grid md:grid-cols-2 gap-4">
                   <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70 cursor-pointer">
                     <input
@@ -1193,7 +1193,7 @@ export default function Memberships() {
                   </label>
                   <div className="relative">
                     <BadgePercent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-                    <input
+                    <input aria-label="Annual discount % (fans pay yearly)"
                       className={INPUT + " pl-9"}
                       placeholder="Annual discount % (fans pay yearly)"
                       value={annualDiscount}
@@ -1204,7 +1204,7 @@ export default function Memberships() {
                 </div>
                 <div>
                   <div className="flex gap-2">
-                    <input
+                    <input aria-label={t("memberships.perkPlaceholder")}
                       className={INPUT}
                       placeholder={t("memberships.perkPlaceholder")}
                       value={perkInput}
@@ -1328,7 +1328,7 @@ export default function Memberships() {
                   {t("memberships.aiDescription")}
                 </p>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <input className={INPUT} placeholder={t("memberships.nichePlaceholder")} value={niche} onChange={(e) => setNiche(e.target.value)} maxLength={80} />
+                  <input aria-label={t("memberships.nichePlaceholder")} className={INPUT} placeholder={t("memberships.nichePlaceholder")} value={niche} onChange={(e) => setNiche(e.target.value)} maxLength={80} />
                   <div className="flex gap-2">
                     {(["starting", "growing", "established"] as const).map((s) => (
                       <button
@@ -1387,7 +1387,7 @@ export default function Memberships() {
                 </p>
                 {membersError && sectionLoadError}
                 <div className="flex flex-col md:flex-row gap-3">
-                  <select
+                  <select aria-label="Member tier filter"
                     className={INPUT + " md:w-56"}
                     value={memberTier}
                     onChange={(e) => setMemberTier(e.target.value)}
@@ -1397,7 +1397,7 @@ export default function Memberships() {
                       <option key={tier.id} value={tier.id}>{t("memberships.tierOption", { name: tier.name, price: fmt$(tier.priceDollars) })}</option>
                     ))}
                   </select>
-                  <input
+                  <input aria-label={t("memberships.fanPlaceholder")}
                     className={INPUT}
                     placeholder={t("memberships.fanPlaceholder")}
                     value={fanLabel}
@@ -1434,7 +1434,7 @@ export default function Memberships() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <select
+                          <select aria-label="Member status"
                             className="rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-xs text-white"
                             value={m.status}
                             onChange={(e) => setMemberStatus(m.id, e.target.value as Member["status"])}

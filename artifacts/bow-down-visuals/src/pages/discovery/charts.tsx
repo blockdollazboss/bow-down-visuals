@@ -437,7 +437,7 @@ export default function Charts() {
         <div className="mb-8 flex flex-col items-center gap-3">
           <WindowTabs value={window} onChange={setWindow} />
           {advanced && (
-            <button
+            <button aria-expanded={showAdvanced}
               onClick={() => setShowAdvanced((x) => !x)}
               className="flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-[#e8c86a] min-h-[40px] px-2"
             >

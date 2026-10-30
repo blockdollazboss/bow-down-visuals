@@ -100,7 +100,7 @@ function DnsEvidencePanel({ result }: { result: VerifyResult }) {
   const txtErr = found?.errors?.["txt"];
   return (
     <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
-      <button
+      <button aria-expanded={open}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between font-bold text-white"
@@ -406,7 +406,7 @@ export default function CreatorDomainsPage() {
             <p className="mb-4 text-sm text-white/60">Type it, claim it, paste two records, hit Check now. That's the whole ritual.</p>
             {error && <p className="mb-3 text-sm text-red-300">{error}</p>}
             <div className="flex flex-col gap-2 sm:flex-row">
-              <input
+              <input aria-label="yourname.com"
                 value={hostname}
                 onChange={(e) => setHostname(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && hostname.trim()) claim(); }}

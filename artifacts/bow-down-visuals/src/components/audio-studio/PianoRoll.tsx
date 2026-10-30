@@ -315,6 +315,7 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
             <span className="text-[10px] text-white/40">Velocity {selected.velocity}</span>
             <div className="w-28">
               <Slider
+                aria-label="Note velocity"
                 value={[selected.velocity]}
                 min={1}
                 max={127}

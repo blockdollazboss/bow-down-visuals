@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Play, Swords } from "lucide-react";
 
 /* ─── Thumbnail Duel cover on the showcase grid (#174) ───
@@ -37,7 +37,23 @@ export function DuelCover({ slug, children }: { slug: string; children: ReactNod
   }
 
   return (
-    <div className="relative aspect-video bg-black/60 overflow-hidden" onClick={handleClick}>
+    <div
+      className="relative aspect-video bg-black/60 overflow-hidden"
+      onClick={handleClick}
+      {...(served
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": "Count my click for this cover in the duel",
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleClick();
+              }
+            },
+          }
+        : {})}
+    >
       {served ? (
         <>
           <img src={served.coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />

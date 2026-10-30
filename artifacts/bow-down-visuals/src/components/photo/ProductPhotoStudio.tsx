@@ -237,7 +237,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
                     <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }} />
                   </label>
                   <div className="flex gap-2">
-                    <input
+                    <input aria-label={tr("pastePlaceholder", "https://…")}
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
                       placeholder={tr("pastePlaceholder", "https://…")}
@@ -264,7 +264,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
                   )}
                 </div>
               )}
-              <input
+              <input aria-label={tr("namePlaceholder", "Product name (optional — e.g. Gold Chain Tee)")}
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder={tr("namePlaceholder", "Product name (optional — e.g. Gold Chain Tee)")}
@@ -365,7 +365,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
 
               {styleMode === "custom" && (
                 <div data-min-stars="4">
-                  <textarea
+                  <textarea aria-label={tr("customPlaceholder", "e.g. Your hoodie laid flat on a marble table next to gold sunglasses, soft morning light…")}
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
                     placeholder={tr("customPlaceholder", "e.g. Your hoodie laid flat on a marble table next to gold sunglasses, soft morning light…")}

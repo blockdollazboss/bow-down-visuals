@@ -512,7 +512,7 @@ export default function ContentIdMonitor() {
             <form onSubmit={optInTrack} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]">
               <div>
                 <label className={labelClass}>Track title</label>
-                <input
+                <input aria-label="Track title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Midnight in Gold"
@@ -522,7 +522,7 @@ export default function ContentIdMonitor() {
               </div>
               <div>
                 <label className={labelClass}>Artist name <span className="font-normal normal-case text-white/30">(optional)</span></label>
-                <input
+                <input aria-label="Artist name (optional)"
                   value={artist}
                   onChange={(e) => setArtist(e.target.value)}
                   placeholder="Your artist name"
@@ -599,7 +599,7 @@ export default function ContentIdMonitor() {
                       >
                         {o.opted_in ? "Opt out" : "Opt in"}
                       </button>
-                      <button
+                      <button aria-label="Remove"
                         onClick={() => void removeOptin(o)}
                         title="Remove"
                         className="rounded-lg border border-white/10 p-1.5 text-white/40 transition hover:border-red-500/40 hover:text-red-400"
@@ -626,7 +626,7 @@ export default function ContentIdMonitor() {
                 <YouTubeGlyph />
                 Detected uses
               </h2>
-              <button onClick={() => { setShowDetForm((v) => !v); setDetError(null); }} className={ghostBtn}>
+              <button aria-expanded={showDetForm} onClick={() => { setShowDetForm((v) => !v); setDetError(null); }} className={ghostBtn}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Log a use
               </button>
@@ -641,15 +641,15 @@ export default function ContentIdMonitor() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className={labelClass}>Channel name</label>
-                    <input value={detChannel} onChange={(e) => setDetChannel(e.target.value)} placeholder="Channel that used your music" maxLength={200} className={inputClass} />
+                    <input aria-label="Channel name" value={detChannel} onChange={(e) => setDetChannel(e.target.value)} placeholder="Channel that used your music" maxLength={200} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Video URL <span className="font-normal normal-case text-white/30">(optional)</span></label>
-                    <input value={detUrl} onChange={(e) => setDetUrl(e.target.value)} placeholder="https://youtube.com/watch?v=…" maxLength={500} className={inputClass} />
+                    <input aria-label="Video URL (optional)" value={detUrl} onChange={(e) => setDetUrl(e.target.value)} placeholder="https://youtube.com/watch?v=…" maxLength={500} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Your track</label>
-                    <select value={detOptinId} onChange={(e) => setDetOptinId(e.target.value)} className={`${inputClass} appearance-none`}>
+                    <select aria-label="Your track" value={detOptinId} onChange={(e) => setDetOptinId(e.target.value)} className={`${inputClass} appearance-none`}>
                       <option value="">— pick a track —</option>
                       {optins.filter((o) => o.opted_in).map((o) => (
                         <option key={o.id} value={o.id}>{o.track_title}</option>
@@ -658,11 +658,11 @@ export default function ContentIdMonitor() {
                   </div>
                   <div>
                     <label className={labelClass}>Date spotted</label>
-                    <input type="date" value={detDate} onChange={(e) => setDetDate(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
+                    <input aria-label="Date spotted" type="date" value={detDate} onChange={(e) => setDetDate(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
                   </div>
                   <div className="sm:col-span-2">
                     <label className={labelClass}>Notes <span className="font-normal normal-case text-white/30">(optional)</span></label>
-                    <textarea value={detNotes} onChange={(e) => setDetNotes(e.target.value)} placeholder="Timestamp, how much of the song, contact attempts…" rows={2} maxLength={1000} className={inputClass} />
+                    <textarea aria-label="Notes (optional)" value={detNotes} onChange={(e) => setDetNotes(e.target.value)} placeholder="Timestamp, how much of the song, contact attempts…" rows={2} maxLength={1000} className={inputClass} />
                   </div>
                 </div>
                 {detError && (
@@ -715,7 +715,7 @@ export default function ContentIdMonitor() {
                       >
                         {DETECTION_STATUS_LABEL[d.status]}
                       </button>
-                      <button
+                      <button aria-label="Delete"
                         onClick={() => void removeDetection(d)}
                         title="Delete"
                         className="rounded-lg border border-white/10 p-1.5 text-white/40 transition hover:border-red-500/40 hover:text-red-400"
@@ -737,7 +737,7 @@ export default function ContentIdMonitor() {
                 Content ID revenue
               </h2>
               <div className="flex items-center gap-2">
-                <button onClick={() => { setShowRevForm((v) => !v); setRevError(null); }} className={ghostBtn}>
+                <button aria-expanded={showRevForm} onClick={() => { setShowRevForm((v) => !v); setRevError(null); }} className={ghostBtn}>
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Log income
                 </button>
@@ -761,7 +761,7 @@ export default function ContentIdMonitor() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_2fr]">
                   <div>
                     <label className={labelClass}>Amount (USD)</label>
-                    <input
+                    <input aria-label="Amount (USD)"
                       type="number" min={0} step="0.01"
                       value={revAmount} onChange={(e) => setRevAmount(e.target.value)}
                       placeholder="25.00" className={inputClass}
@@ -769,7 +769,7 @@ export default function ContentIdMonitor() {
                   </div>
                   <div>
                     <label className={labelClass}>Note <span className="font-normal normal-case text-white/30">(optional)</span></label>
-                    <input
+                    <input aria-label="Note (optional)"
                       value={revNote} onChange={(e) => setRevNote(e.target.value)}
                       placeholder="YouTube claim payout — March" maxLength={280} className={inputClass}
                     />

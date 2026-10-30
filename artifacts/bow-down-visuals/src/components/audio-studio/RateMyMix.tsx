@@ -121,7 +121,7 @@ export function RateMyMix() {
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("rateMyMix.genreLabel", { defaultValue: "Genre (optional)" })}
           </label>
-          <input value={genre} onChange={(e) => setGenre(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={60} />
+          <input aria-label={t("rateMyMix.genreLabel", { defaultValue: "Genre (optional)" })} value={genre} onChange={(e) => setGenre(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={60} />
         </div>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}

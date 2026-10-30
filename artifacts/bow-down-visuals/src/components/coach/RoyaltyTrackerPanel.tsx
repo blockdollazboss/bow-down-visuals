@@ -378,7 +378,7 @@ export default function RoyaltyTrackerPanel() {
               <p className="mt-1 text-sm text-white/50">
                 {t("royalties.import.desc")}
               </p>
-              <textarea
+              <textarea aria-label={t("royalties.import.title")}
                 value={csv}
                 onChange={(e) => setCsv(e.target.value)}
                 rows={6}
@@ -441,7 +441,7 @@ export default function RoyaltyTrackerPanel() {
             <div className={`mb-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-bold"><Wallet className="h-5 w-5 text-amber-300" /> {t("royalties.payouts.title")} <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">{t("royalties.free")}</span></h2>
-                <button
+                <button aria-expanded={showPayoutForm}
                   onClick={() => setShowPayoutForm((v) => !v)}
                   className="rounded-xl border border-amber-400/40 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10"
                 >
@@ -450,19 +450,19 @@ export default function RoyaltyTrackerPanel() {
               </div>
               {showPayoutForm && (
                 <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/40 p-4 sm:grid-cols-2">
-                  <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input aria-label={t("royalties.payouts.distributor")} value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
                   <div><label className={labelClass}>{t("royalties.payouts.statusLabel")}</label>
-                    <select value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
+                    <select aria-label={t("royalties.payouts.statusLabel")} value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
                       <option value="expected">{t("royalties.payouts.statusExpected")}</option>
                       <option value="received">{t("royalties.payouts.statusReceived")}</option>
                       <option value="partial">{t("royalties.payouts.statusPartial")}</option>
                       <option value="overdue">{t("royalties.payouts.statusOverdue")}</option>
                     </select>
                   </div>
-                  <div><label className={labelClass}>{t("royalties.payouts.periodStart")}</label><input type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.periodEnd")}</label><input type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.expectedAmount")}</label><input value={pExpected} onChange={(e) => setPExpected(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.receivedAmount")}</label><input value={pReceived} onChange={(e) => setPReceived(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.periodStart")}</label><input aria-label={t("royalties.payouts.periodStart")} type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.periodEnd")}</label><input aria-label={t("royalties.payouts.periodEnd")} type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.expectedAmount")}</label><input aria-label={t("royalties.payouts.expectedAmount")} value={pExpected} onChange={(e) => setPExpected(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.receivedAmount")}</label><input aria-label={t("royalties.payouts.receivedAmount")} value={pReceived} onChange={(e) => setPReceived(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
                   <div className="sm:col-span-2 flex items-center gap-3">
                     <button onClick={savePayout} disabled={payoutSaving} className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40">
                       {payoutSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("royalties.payouts.save")}

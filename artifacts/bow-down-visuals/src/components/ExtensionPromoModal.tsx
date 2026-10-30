@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePopupSlot } from "@/hooks/use-popup-slot";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
  shouldShowPromoModal,
  markPromoModalShown,
@@ -57,6 +58,8 @@ export default function ExtensionPromoModal() {
  return () => window.removeEventListener("bdv-extension-downloaded", close);
  }, [open ]);
 
+ const dialogRef = useModalA11y<HTMLDivElement>(open, () => setWantsOpen(false));
+
  if (!open) return null;
 
  const close = () => setWantsOpen(false);
@@ -72,9 +75,11 @@ export default function ExtensionPromoModal() {
 
  return (
  <div
+ ref={dialogRef}
  role="dialog"
  aria-modal="true"
  aria-label="Get Thy Cheat Code everywhere"
+ tabIndex={-1}
  className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm"
  onClick={close}
  >

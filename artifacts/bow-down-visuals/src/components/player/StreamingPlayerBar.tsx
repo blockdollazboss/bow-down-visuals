@@ -53,6 +53,19 @@ function SeekBar({ value, max, onSeek }: { value: number; max: number; onSeek: (
       aria-valuenow={Math.round(value)}
       aria-valuemax={Math.round(max)}
       aria-label="Seek"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        const step = 5;
+        let next: number | null = null;
+        if (e.key === "ArrowRight" || e.key === "ArrowUp") next = value + step;
+        else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = value - step;
+        else if (e.key === "Home") next = 0;
+        else if (e.key === "End") next = max;
+        if (next !== null) {
+          e.preventDefault();
+          onSeek(Math.max(0, Math.min(max, next)));
+        }
+      }}
     >
       <div className="relative h-1 w-full rounded-full bg-white/15 overflow-hidden">
         <div
@@ -142,8 +155,17 @@ function QueueRow({ item, active, position }: { item: QueueItem; active: boolean
       className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-l-2 transition-colors hover:bg-white/5 ${
         active ? "border-[#e8c86a] bg-[#e8c86a]/10" : "border-transparent"
       }`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Play ${item.title}`}
       onClick={() => {
         p.playItems(p.queue, position);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          p.playItems(p.queue, position);
+        }
       }}
     >
       {item.artwork ? (

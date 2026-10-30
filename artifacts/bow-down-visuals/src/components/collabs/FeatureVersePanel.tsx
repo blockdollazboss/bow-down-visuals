@@ -273,14 +273,14 @@ export function FeatureVersePanel({
               <h4 className="font-extrabold">Propose terms — feature from {selected.creatorName} · {selected.priceVb.toLocaleString("en-US")} VB</h4>
               <p className={`mt-1 text-sm ${sub}`}>These written terms — including the track splits — are what both of you will sign. Once either of you signs, they freeze.</p>
               <div className="mt-4 space-y-3">
-                <input className={input} value={trackContext} onChange={(e) => setTrackContext(e.target.value)} placeholder="The track: title, where this feature goes" />
-                <textarea className={input} value={usageTerms} onChange={(e) => setUsageTerms(e.target.value)} placeholder="Usage terms both sides are signing (where the feature may be used, credits, limits)" rows={3} />
-                <input className={input} value={deadlineAsk} onChange={(e) => setDeadlineAsk(e.target.value)} placeholder="Deadline ask (optional)" />
+                <input aria-label="The track: title, where this feature goes" className={input} value={trackContext} onChange={(e) => setTrackContext(e.target.value)} placeholder="The track: title, where this feature goes" />
+                <textarea aria-label="Usage terms both sides are signing (where the feature may be used, credits, limits)" className={input} value={usageTerms} onChange={(e) => setUsageTerms(e.target.value)} placeholder="Usage terms both sides are signing (where the feature may be used, credits, limits)" rows={3} />
+                <input aria-label="Deadline ask (optional)" className={input} value={deadlineAsk} onChange={(e) => setDeadlineAsk(e.target.value)} placeholder="Deadline ask (optional)" />
                 <div>
                   <p className={`mb-2 text-xs font-bold uppercase tracking-widest ${sub}`}>Track splits — must total 100%</p>
                   {splits.map((s, i) => (
                     <div key={i} className="mb-2 flex gap-2">
-                      <input className={input} value={s.name} onChange={(e) => setSplits(splits.map((r, j) => j === i ? { ...r, name: e.target.value } : r))} placeholder="Writer name" />
+                      <input aria-label="Writer name" className={input} value={s.name} onChange={(e) => setSplits(splits.map((r, j) => j === i ? { ...r, name: e.target.value } : r))} placeholder="Writer name" />
                       <input className={`${input} max-w-[110px]`} type="number" min="0" max="100" step="0.01" value={s.sharePct} onChange={(e) => setSplits(splits.map((r, j) => j === i ? { ...r, sharePct: Number(e.target.value) } : r))} aria-label="Share percent" />
                     </div>
                   ))}
@@ -309,7 +309,7 @@ export function FeatureVersePanel({
                 <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Open for features
               </label>
             </div>
-            <textarea className={`${input} mt-3`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What the buyer gets (a 16-bar verse, a hook, an appearance…)" rows={2} />
+            <textarea aria-label="What the buyer gets (a 16-bar verse, a hook, an appearance…)" className={`${input} mt-3`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What the buyer gets (a 16-bar verse, a hook, an appearance…)" rows={2} />
             <button className={`${goldBtn} mt-3`} disabled={busy === "listing"} onClick={() => void saveListing()}>
               {busy === "listing" ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {myListing ? "Update my listing" : "List my feature"}
             </button>
@@ -344,10 +344,10 @@ export function FeatureVersePanel({
                   {o.deliveryNote && <p className={`text-sm ${sub}`}>Delivery: {o.deliveryNote}{o.deliveryUrl ? <> · <a className="text-amber-400 underline" href={o.deliveryUrl} target="_blank" rel="noreferrer">open</a></> : null}</p>}
                   {o.disputeReason && <p className="text-sm text-red-400">Dispute: {o.disputeReason}</p>}
                   {actions.includes("deliver") && (
-                    <input className={`${input} mt-3`} value={deliveryNote[o.id] ?? ""} onChange={(e) => setDeliveryNote({ ...deliveryNote, [o.id]: e.target.value })} placeholder="Delivery note — where the finished feature is" />
+                    <input aria-label="Delivery note — where the finished feature is" className={`${input} mt-3`} value={deliveryNote[o.id] ?? ""} onChange={(e) => setDeliveryNote({ ...deliveryNote, [o.id]: e.target.value })} placeholder="Delivery note — where the finished feature is" />
                   )}
                   {actions.includes("dispute") && (
-                    <input className={`${input} mt-3`} value={disputeReason[o.id] ?? ""} onChange={(e) => setDisputeReason({ ...disputeReason, [o.id]: e.target.value })} placeholder="If disputing: what went wrong" />
+                    <input aria-label="If disputing: what went wrong" className={`${input} mt-3`} value={disputeReason[o.id] ?? ""} onChange={(e) => setDisputeReason({ ...disputeReason, [o.id]: e.target.value })} placeholder="If disputing: what went wrong" />
                   )}
                   {actions.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">

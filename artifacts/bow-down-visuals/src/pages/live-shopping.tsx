@@ -574,10 +574,10 @@ export default function LiveShopping() {
                       <div className={`mt-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <h3 className="font-bold">{editing ? t("liveShopping.editProduct") : t("liveShopping.newProduct")}</h3>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
-                          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("liveShopping.productNamePlaceholder")} className={inputClass} />
-                          <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={t("liveShopping.pricePlaceholder")} inputMode="decimal" className={inputClass} />
-                          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t("liveShopping.imageUrlPlaceholder")} className={inputClass} />
-                          <input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder={t("liveShopping.checkoutLinkPlaceholder")} className={inputClass} />
+                          <input aria-label={t("liveShopping.productNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("liveShopping.productNamePlaceholder")} className={inputClass} />
+                          <input aria-label={t("liveShopping.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} placeholder={t("liveShopping.pricePlaceholder")} inputMode="decimal" className={inputClass} />
+                          <input aria-label={t("liveShopping.imageUrlPlaceholder")} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t("liveShopping.imageUrlPlaceholder")} className={inputClass} />
+                          <input aria-label={t("liveShopping.checkoutLinkPlaceholder")} value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder={t("liveShopping.checkoutLinkPlaceholder")} className={inputClass} />
                         </div>
                         <div className="mt-4">
                           <div className="flex items-center justify-between">
@@ -587,7 +587,7 @@ export default function LiveShopping() {
                               {t("liveShopping.aiWriteButton")}
                             </button>
                           </div>
-                          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("liveShopping.descriptionPlaceholder")} rows={3} className={`${inputClass} mt-2`} />
+                          <textarea aria-label={t("liveShopping.descriptionLabel")} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("liveShopping.descriptionPlaceholder")} rows={3} className={`${inputClass} mt-2`} />
                         </div>
                         <div className="mt-4 flex gap-3">
                           <button onClick={saveProduct} disabled={saving} className={goldBtn}>
@@ -641,7 +641,7 @@ export default function LiveShopping() {
                         <Radio className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
                         <h2 className="mt-3 text-xl font-bold">{t("liveShopping.startStreamTitle")}</h2>
                         <p className="mt-2 text-sm text-white/55">{t("liveShopping.startStreamSubtitle")}</p>
-                        <input value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)} placeholder={t("liveShopping.streamTitlePlaceholder")} className={`${inputClass} mt-5`} />
+                        <input aria-label={t("liveShopping.streamTitlePlaceholder")} value={streamTitle} onChange={(e) => setStreamTitle(e.target.value)} placeholder={t("liveShopping.streamTitlePlaceholder")} className={`${inputClass} mt-5`} />
                         <button onClick={startStream} className={`${goldBtn} mt-4 w-full`}>
                           <Play className="h-4 w-4" /> {t("liveShopping.goLive")}
                         </button>
@@ -733,7 +733,7 @@ export default function LiveShopping() {
                           <h3 className="mt-5 text-sm font-bold text-white/70">{t("liveShopping.fireTestAlertTitle")}</h3>
                           <p className="text-[11px] text-white/35">{t("liveShopping.testAlertsNote")}</p>
                           <div className="mt-2 flex gap-2">
-                            <input value={testBuyer} onChange={(e) => setTestBuyer(e.target.value)} placeholder={t("liveShopping.buyerNamePlaceholder")} className={`${inputClass} !py-2.5`} />
+                            <input aria-label={t("liveShopping.buyerNamePlaceholder")} value={testBuyer} onChange={(e) => setTestBuyer(e.target.value)} placeholder={t("liveShopping.buyerNamePlaceholder")} className={`${inputClass} !py-2.5`} />
                           </div>
                           <div className="mt-2 grid gap-2">
                             {products.filter((p) => p.is_active).map((p) => (

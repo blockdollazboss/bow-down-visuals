@@ -379,7 +379,7 @@ export function PhotoEnhance() {
               </p>
 
               {/* Advanced: strength sliders */}
-              <button
+              <button aria-expanded={showAdvanced}
                 onClick={() => setShowAdvanced((v) => !v)}
                 className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white/50 transition hover:text-white"
               >

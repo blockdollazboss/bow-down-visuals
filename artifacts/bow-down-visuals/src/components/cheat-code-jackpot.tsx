@@ -15,6 +15,7 @@ import {
 import { DraggableWidget } from "@/components/draggable-widget";
 import { useLocation } from "wouter";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /**
  * Cheat Code Jackpot — the site-wide monthly prize event.
@@ -167,6 +168,8 @@ export function CheatCodeJackpot() {
  const [wrongFlash, setWrongFlash] = useState(false);
  const [toast, setToast] = useState<string | null>(null);
  const [signInPrompt, setSignInPrompt] = useState(false);
+ const padDialogRef = useModalA11y<HTMLDivElement>(padOpen, () => setPadOpen(false));
+ const signInDialogRef = useModalA11y<HTMLDivElement>(signInPrompt, () => setSignInPrompt(false));
  const [celebration, setCelebration] = useState<{
  name: string;
  prize: number;
@@ -514,6 +517,8 @@ export function CheatCodeJackpot() {
  {/* ── D-pad panel ───────────────────────────────────────────── */}
  {padOpen && phase === "live" && (
  <div
+ ref={padDialogRef}
+ tabIndex={-1}
  role="dialog"
  aria-modal="true"
  aria-label="Enter the cheat code"
@@ -626,6 +631,8 @@ export function CheatCodeJackpot() {
  {/* ── Sign-in prompt ────────────────────────────────────────── */}
  {signInPrompt && (
  <div
+ ref={signInDialogRef}
+ tabIndex={-1}
  role="dialog"
  aria-modal="true"
  aria-label="Sign in to enter the jackpot"

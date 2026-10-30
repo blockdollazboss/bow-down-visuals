@@ -428,7 +428,7 @@ function StreamVodClips() {
             <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
               <Link2 className="h-4 w-4 text-primary" /> {t("clipMaker.orPasteUrl")}
             </span>
-            <input
+            <input aria-label={t("clipMaker.urlPlaceholder")}
               className={inputClass}
               placeholder={t("clipMaker.urlPlaceholder")}
               value={videoUrl}
@@ -465,7 +465,7 @@ function StreamVodClips() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">
               {t("clipMaker.maxClips")} · <span className="text-primary">{maxClips}</span>
             </div>
-            <input
+            <input aria-label={t("clipMaker.maxClips")}
               type="range"
               min={1}
               max={8}
@@ -978,7 +978,7 @@ function SmartClipFinder() {
             <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
               <Link2 className="h-4 w-4 text-primary" /> {t("smartClips.urlLabel")}
             </span>
-            <input
+            <input aria-label={t("smartClips.urlPlaceholder")}
               className={inputClass}
               placeholder={t("smartClips.urlPlaceholder")}
               value={videoUrl}
@@ -990,7 +990,7 @@ function SmartClipFinder() {
             <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
               <Search className="h-4 w-4 text-primary" /> {t("smartClips.searchLabel")}
             </span>
-            <input
+            <input aria-label={t("smartClips.searchPlaceholder")}
               className={inputClass}
               placeholder={t("smartClips.searchPlaceholder")}
               value={query}
@@ -1614,7 +1614,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
               <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
                 <Link2 className="h-4 w-4 text-primary" /> {t("repurpose.step1.orPasteUrl")}
               </span>
-              <input
+              <input aria-label={t("repurpose.step1.urlPlaceholder")}
                 className={inputClass}
                 placeholder={t("repurpose.step1.urlPlaceholder")}
                 value={videoUrl}

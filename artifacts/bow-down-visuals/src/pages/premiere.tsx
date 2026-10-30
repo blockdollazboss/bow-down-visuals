@@ -228,13 +228,13 @@ export function SchedulePremiereForm({ onScheduled }: { onScheduled?: (p: Premie
       <p className="mt-1 text-sm text-white/50">A finished video, shown first at a set time — countdown, live chat, everyone in sync. After it ends it's a normal watch page.</p>
       {loadError && <p className="mt-3 text-sm text-red-300">{loadError}</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <select value={clipId} onChange={(e) => setClipId(e.target.value)} className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none">
+        <select aria-label="Finished video" value={clipId} onChange={(e) => setClipId(e.target.value)} className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none">
           <option value="">Pick a finished video…</option>
           {clips.map((c) => (
             <option key={c.id} value={c.id}>{c.title ?? "Untitled video"}</option>
           ))}
         </select>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Premiere title" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+        <input aria-label="Premiere title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Premiere title" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
         <label className="text-xs text-white/50">
           Video length (seconds)
           <input type="number" min={10} max={14400} value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1 w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white focus:border-[#e8c86a] focus:outline-none" />

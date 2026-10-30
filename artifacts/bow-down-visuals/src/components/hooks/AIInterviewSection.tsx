@@ -154,7 +154,7 @@ export default function AIInterviewSection() {
                 <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("aiInterview.topicLabel", { defaultValue: "Interview topic *" })}
                 </label>
-                <input value={topic} onChange={(e) => setTopic(e.target.value)}
+                <input aria-label={t("aiInterview.topicLabel", { defaultValue: "Interview topic *" })} value={topic} onChange={(e) => setTopic(e.target.value)}
                   placeholder={t("aiInterview.topicPh", { defaultValue: "e.g. my new single, touring life…" })}
                   className={`${inputClass} mt-1.5`} maxLength={300} />
               </div>
@@ -162,7 +162,7 @@ export default function AIInterviewSection() {
                 <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("aiInterview.nicheLabel", { defaultValue: "Niche (optional)" })}
                 </label>
-                <input value={niche} onChange={(e) => setNiche(e.target.value)}
+                <input aria-label={t("aiInterview.nicheLabel", { defaultValue: "Niche (optional)" })} value={niche} onChange={(e) => setNiche(e.target.value)}
                   placeholder={t("aiInterview.nichePh", { defaultValue: "e.g. hip-hop, fitness…" })}
                   className={`${inputClass} mt-1.5`} maxLength={120} />
               </div>
@@ -204,7 +204,7 @@ export default function AIInterviewSection() {
 
             {/* Answer input */}
             <div className="pl-12">
-              <textarea value={answers[currentQ] ?? ""} onChange={(e) => {
+              <textarea aria-label={t("aiInterview.answerPh", { defaultValue: "Speak your mind — the rawer the better…" })} value={answers[currentQ] ?? ""} onChange={(e) => {
                 const next = [...answers];
                 next[currentQ] = e.target.value;
                 setAnswers(next);

@@ -228,10 +228,10 @@ function FxChainEditor({ track, onChange }: { track: ArrangementTrack; onChange:
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-white/85">{idx + 1}. {FX_STEP_LABELS[step.type]}</span>
             <div className="ml-auto flex items-center gap-1">
-              <button type="button" title="Move earlier in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx - 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↑</button>
-              <button type="button" title="Move later in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx + 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↓</button>
+              <button aria-label="Move earlier in the chain" type="button" title="Move earlier in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx - 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↑</button>
+              <button aria-label="Move later in the chain" type="button" title="Move later in the chain" onClick={() => onChange({ ...track, fxChain: moveFxStep(chain, step.id, idx + 1) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-white/60 hover:text-white">↓</button>
               <Chip active={step.enabled} onClick={() => patchStep(step.id, { enabled: !step.enabled })}>{step.enabled ? "On" : "Off"}</Chip>
-              <button type="button" title="Remove step" onClick={() => onChange({ ...track, fxChain: chain.filter((s) => s.id !== step.id) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-red-300 hover:text-red-200"><Trash2 className="h-3 w-3" /></button>
+              <button aria-label="Remove step" type="button" title="Remove step" onClick={() => onChange({ ...track, fxChain: chain.filter((s) => s.id !== step.id) })} className="px-2 py-1 rounded-md text-[11px] font-bold bg-white/[0.04] text-red-300 hover:text-red-200"><Trash2 className="h-3 w-3" /></button>
             </div>
           </div>
           {step.type === "eq" && (
@@ -248,7 +248,7 @@ function FxChainEditor({ track, onChange }: { track: ArrangementTrack; onChange:
                   <Field label="Q" hint={band.q.toFixed(1)}>
                     <Slider value={[band.q]} min={0.3} max={12} step={0.1} onValueChange={([v]) => patchBand(step.id, bi, { q: v ?? 1 })} />
                   </Field>
-                  <button type="button" onClick={() => patchStep(step.id, { bands: (step.bands ?? []).filter((_, i) => i !== bi) })} className="text-red-300/70 hover:text-red-200 text-xs font-bold px-1">✕</button>
+                  <button type="button" aria-label="Remove band" onClick={() => patchStep(step.id, { bands: (step.bands ?? []).filter((_, i) => i !== bi) })} className="text-red-300/70 hover:text-red-200 text-xs font-bold px-1">✕</button>
                 </div>
               ))}
               {(step.bands ?? []).length < 5 && (
@@ -372,7 +372,7 @@ function AutomationLaneEditor({
         {points.map((p, i) => {
           const { x, y } = toXY(p.time, p.value);
           return (
-            <button
+            <button aria-label={`${meta.label}: ${p.value}${meta.unit} @ ${p.time.toFixed(2)}s`}
               key={`${p.time}-${i}`}
               type="button"
               className="absolute h-3.5 w-3.5 -ml-[7px] -mt-[7px] rounded-full bg-amber-300 border border-amber-100 cursor-grab active:cursor-grabbing z-10"
@@ -520,7 +520,7 @@ function CompEditor({
           const takeIdx = takes.findIndex((t) => t.id === r.takeId);
           const len = r.srcEnd - r.srcStart;
           return (
-            <button
+            <button aria-label={`${takes[takeIdx]?.name ?? "Take"} · ${r.startTime.toFixed(1)}s – ${(r.startTime + len).toFixed(1)}s`}
               key={r.id}
               type="button"
               className={`absolute top-1 bottom-1 rounded-md ${takeColor(takeIdx)} ${selectedRegionId === r.id ? "ring-2 ring-white/80" : ""}`}
@@ -850,7 +850,7 @@ export default function ArrangementStudio() {
         </label>
         <label className="flex items-center gap-2 text-[11px] font-bold text-white/45 ml-auto">
           Zoom
-          <div className="w-24"><Slider value={[pxPerSec]} min={10} max={110} step={2} onValueChange={([v]) => setPxPerSec(v ?? 36)} /></div>
+          <div className="w-24"><Slider aria-label="Zoom" value={[pxPerSec]} min={10} max={110} step={2} onValueChange={([v]) => setPxPerSec(v ?? 36)} /></div>
         </label>
         <span className="text-[10px] text-white/30 inline-flex items-center gap-1">
           <Save className="h-3 w-3" /> {savedAt ? `Saved ${savedAt}` : "Auto-saves as you work"}
@@ -936,7 +936,7 @@ export default function ArrangementStudio() {
                         className="h-7 min-w-0 flex-1 rounded-md bg-white/[0.04] border border-white/10 px-2 text-xs font-bold text-white/90"
                         aria-label="Track name"
                       />
-                      <button type="button" title="Delete track" onClick={(e) => { e.stopPropagation(); setArrangement((a) => ({ ...a, tracks: a.tracks.filter((t) => t.id !== track.id) })); }} className="text-white/30 hover:text-red-300 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button aria-label="Delete track" type="button" title="Delete track" onClick={(e) => { e.stopPropagation(); setArrangement((a) => ({ ...a, tracks: a.tracks.filter((t) => t.id !== track.id) })); }} className="text-white/30 hover:text-red-300 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                     {track.kind === "audio" ? (
                       <select
@@ -952,12 +952,12 @@ export default function ArrangementStudio() {
                     )}
                     <div className="flex items-center gap-2">
                       <Volume2 className="h-3 w-3 text-white/35 shrink-0" />
-                      <div className="flex-1"><Slider value={[track.volume]} min={0} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, volume: v ?? 90 })} /></div>
+                      <div className="flex-1"><Slider aria-label="Track volume" value={[track.volume]} min={0} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, volume: v ?? 90 })} /></div>
                       <span className="text-[10px] font-mono text-white/40 w-7 text-right">{track.volume}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] font-black text-white/35 w-3">L</span>
-                      <div className="flex-1"><Slider value={[track.pan]} min={-100} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, pan: v ?? 0 })} /></div>
+                      <div className="flex-1"><Slider aria-label="Track pan" value={[track.pan]} min={-100} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, pan: v ?? 0 })} /></div>
                       <span className="text-[9px] font-black text-white/35">R</span>
                     </div>
                     <div className="flex flex-wrap gap-1">

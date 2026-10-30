@@ -537,7 +537,7 @@ export default function SyncTab({
             </div>
 
             {songSource === "library" ? (
-              <select
+              <select aria-label="Library song"
                 value={librarySongId}
                 onChange={(e) => setLibrarySongId(e.target.value)}
                 className={`${inputClass} mt-4`}
@@ -550,7 +550,7 @@ export default function SyncTab({
                 ))}
               </select>
             ) : (
-              <input
+              <input aria-label={t("syncPitch.songTitlePlaceholder")}
                 value={songTitle}
                 onChange={(e) => setSongTitle(e.target.value)}
                 maxLength={200}
@@ -560,14 +560,14 @@ export default function SyncTab({
             )}
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <input
+              <input aria-label={t("syncPitch.artistNamePlaceholder")}
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
                 maxLength={200}
                 placeholder={t("syncPitch.artistNamePlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("syncPitch.genrePlaceholder")}
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 maxLength={100}
@@ -577,21 +577,21 @@ export default function SyncTab({
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <input
+              <input aria-label={t("syncPitch.moodPlaceholder")}
                 value={mood}
                 onChange={(e) => setMood(e.target.value)}
                 maxLength={200}
                 placeholder={t("syncPitch.moodPlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("syncPitch.bpmPlaceholder")}
                 value={bpm}
                 onChange={(e) => setBpm(e.target.value)}
                 maxLength={20}
                 placeholder={t("syncPitch.bpmPlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("syncPitch.keyPlaceholder")}
                 value={musicalKey}
                 onChange={(e) => setMusicalKey(e.target.value)}
                 maxLength={20}
@@ -623,7 +623,7 @@ export default function SyncTab({
             </div>
             <p className="mt-2 text-xs text-white/40">{t("syncPitch.stemsHint")}</p>
 
-            <button
+            <button aria-expanded={showAdvanced}
               onClick={() => setShowAdvanced((v) => !v)}
               className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
             >
@@ -633,7 +633,7 @@ export default function SyncTab({
 
             {showAdvanced && (
               <div className="mt-4 space-y-4">
-                <textarea
+                <textarea aria-label={t("syncPitch.descriptionPlaceholder")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={1000}
@@ -642,14 +642,14 @@ export default function SyncTab({
                   className={`${inputClass} resize-y`}
                 />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <input
+                  <input aria-label={t("syncPitch.contactNamePlaceholder")}
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     maxLength={200}
                     placeholder={t("syncPitch.contactNamePlaceholder")}
                     className={inputClass}
                   />
-                  <input
+                  <input aria-label={t("syncPitch.contactEmailPlaceholder")}
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     maxLength={200}
@@ -747,7 +747,7 @@ export default function SyncTab({
                         <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                         {shared ? t("syncPitch.linkCopied") : t("syncPitch.shareSheet")}
                       </button>
-                      <button
+                      <button aria-expanded={viewSheetId === s.id}
                         onClick={() => setViewSheetId(viewSheetId === s.id ? null : s.id)}
                         className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
                       >
@@ -795,7 +795,7 @@ export default function SyncTab({
         <div className="relative mt-6">
           <div className="flex items-center justify-between">
             <p className="max-w-xl text-sm text-white/55">{t("syncPitch.briefsIntro")}</p>
-            <button
+            <button aria-expanded={showBriefForm}
               onClick={() => setShowBriefForm((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
             >
@@ -807,14 +807,14 @@ export default function SyncTab({
           {showBriefForm && (
             <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
+                <input aria-label={t("syncPitch.briefTitlePlaceholder")}
                   value={newBrief.title}
                   onChange={(e) => setNewBrief({ ...newBrief, title: e.target.value })}
                   maxLength={200}
                   placeholder={t("syncPitch.briefTitlePlaceholder")}
                   className={inputClass}
                 />
-                <select
+                <select aria-label="Project type"
                   value={newBrief.projectType}
                   onChange={(e) => setNewBrief({ ...newBrief, projectType: e.target.value })}
                   className={inputClass}
@@ -823,28 +823,28 @@ export default function SyncTab({
                     <option key={pt} value={pt}>{t(PROJECT_TYPE_META[pt]!.labelKey)}</option>
                   ))}
                 </select>
-                <input
+                <input aria-label={t("syncPitch.briefMoodPlaceholder")}
                   value={newBrief.mood}
                   onChange={(e) => setNewBrief({ ...newBrief, mood: e.target.value })}
                   maxLength={200}
                   placeholder={t("syncPitch.briefMoodPlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("syncPitch.budgetPlaceholder")}
                   value={newBrief.budgetRange}
                   onChange={(e) => setNewBrief({ ...newBrief, budgetRange: e.target.value })}
                   maxLength={100}
                   placeholder={t("syncPitch.budgetPlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label="Deadline"
                   type="date"
                   value={newBrief.deadline}
                   onChange={(e) => setNewBrief({ ...newBrief, deadline: e.target.value })}
                   className={inputClass}
                 />
               </div>
-              <textarea
+              <textarea aria-label={t("syncPitch.briefNotesPlaceholder")}
                 value={newBrief.notes}
                 onChange={(e) => setNewBrief({ ...newBrief, notes: e.target.value })}
                 maxLength={1000}
@@ -985,7 +985,7 @@ export default function SyncTab({
                 <span className="font-black text-emerald-300">{placedCount}</span> {t("syncPitch.placedCount")}
               </span>
             </div>
-            <button
+            <button aria-expanded={showAddForm}
               onClick={() => setShowAddForm((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
             >
@@ -997,14 +997,14 @@ export default function SyncTab({
           {showAddForm && (
             <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
+                <input aria-label={t("syncPitch.songTitlePlaceholder")}
                   value={newPitch.songTitle}
                   onChange={(e) => setNewPitch({ ...newPitch, songTitle: e.target.value })}
                   maxLength={200}
                   placeholder={t("syncPitch.songTitlePlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("syncPitch.targetPlaceholder")}
                   value={newPitch.targetName}
                   onChange={(e) => setNewPitch({ ...newPitch, targetName: e.target.value })}
                   maxLength={200}
@@ -1012,7 +1012,7 @@ export default function SyncTab({
                   className={inputClass}
                 />
               </div>
-              <textarea
+              <textarea aria-label={t("syncPitch.notesPlaceholder")}
                 value={newPitch.notes}
                 onChange={(e) => setNewPitch({ ...newPitch, notes: e.target.value })}
                 maxLength={1000}
@@ -1096,7 +1096,7 @@ export default function SyncTab({
                       <span className="text-xs font-semibold text-emerald-200/90">
                         {t("syncPitch.placedPrompt")}
                       </span>
-                      <input
+                      <input aria-label={t("syncPitch.amountPlaceholder")}
                         value={incomeAmount[p.id] ?? ""}
                         onChange={(e) => setIncomeAmount((prev) => ({ ...prev, [p.id]: e.target.value }))}
                         inputMode="decimal"

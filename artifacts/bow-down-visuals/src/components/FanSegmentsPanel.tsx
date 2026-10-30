@@ -383,7 +383,7 @@ export default function FanSegmentsPanel() {
           {/* custom builder */}
           <div className={`${cardClass} mt-6`}>
             <h4 className="font-semibold">{t("email-list.fan_seg_custom_title")}</h4>
-            <input
+            <input aria-label={t("email-list.fan_seg_name_placeholder")}
               className={`${inputClass} mt-3`}
               placeholder={t("email-list.fan_seg_name_placeholder")}
               value={segName}
@@ -513,14 +513,14 @@ export default function FanSegmentsPanel() {
                   ))}
                 </select>
               </label>
-              <input
+              <input aria-label={t("email-list.subject")}
                 className={`${inputClass} mt-3`}
                 placeholder={t("email-list.subject")}
                 value={subject}
                 maxLength={200}
                 onChange={(e) => setSubject(e.target.value)}
               />
-              <textarea
+              <textarea aria-label={t("email-list.body")}
                 className={`${inputClass} mt-3`}
                 rows={6}
                 placeholder={t("email-list.body")}

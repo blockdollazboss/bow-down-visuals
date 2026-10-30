@@ -216,7 +216,7 @@ export function SampleClearancePanel({
                 <div key={d.id} className="space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold">“{d.sourceDescription}”</p>
-                    <button
+                    <button aria-label="Remove this declaration"
                       type="button"
                       onClick={() => void remove(d.id)}
                       disabled={busy}
@@ -242,19 +242,19 @@ export function SampleClearancePanel({
 
           <div className="space-y-2 border-t border-white/10 pt-3">
             <p className="text-xs font-bold uppercase tracking-wider opacity-70">Declare a sample</p>
-            <input
+            <input aria-label="What did you sample? (artist / track / sound, in your words)"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder="What did you sample? (artist / track / sound, in your words)"
               className={inputClass}
               maxLength={500}
             />
-            <select value={useKind} onChange={(e) => setUseKind(e.target.value)} className={inputClass}>
+            <select aria-label="How the sample is used" value={useKind} onChange={(e) => setUseKind(e.target.value)} className={inputClass}>
               {USE_KIND_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <select value={clearanceStatus} onChange={(e) => setClearanceStatus(e.target.value)} className={inputClass}>
+            <select aria-label="Clearance status" value={clearanceStatus} onChange={(e) => setClearanceStatus(e.target.value)} className={inputClass}>
               {CLEARANCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}

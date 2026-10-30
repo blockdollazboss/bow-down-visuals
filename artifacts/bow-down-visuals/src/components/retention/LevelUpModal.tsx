@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Star, Sparkles, Download, Copy, Check } from "lucide-react";
@@ -31,6 +32,7 @@ function Stars({ n, size = "h-7 w-7" }: { n: number; size?: string }) {
 }
 
 export default function LevelUpModal({ level, onClose }: { level: number; onClose: () => void }) {
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onClose);
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
@@ -143,6 +145,8 @@ export default function LevelUpModal({ level, onClose }: { level: number; onClos
 
   return createPortal(
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"

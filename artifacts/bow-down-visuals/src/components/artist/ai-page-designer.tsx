@@ -275,7 +275,13 @@ export default function AiPageDesigner({
             Two sentences. "Dark luxury with neon energy, like a midnight drive through the city."
             The designer reads it like a creative director — then builds the whole page.
           </p>
-          <textarea
+          <textarea aria-label={vertical === "gaming"
+              ? "e.g. High-octane neon arcade energy — clutch plays, loud chat, zero chill…"
+              : vertical === "influencer"
+                ? "e.g. Polished but real — aspirational mornings, honest reviews, brands love me…"
+                : vertical === "podcast"
+                  ? "e.g. Late-night conversation energy — curious, warm, the show everyone quotes…"
+                  : "e.g. Dark luxury with gold accents — confident, cinematic, unforgettable…"}
             value={vibe}
             onChange={(e) => setVibe(e.target.value)}
             rows={4}
@@ -391,7 +397,7 @@ export default function AiPageDesigner({
             <Sparkles className="h-4 w-4 text-amber-400" /> Bio writer — 100 Visual Bucs
           </h4>
           <p className="mb-2 text-xs text-white/50">A few facts in, a {verticalMeta.label.toLowerCase()}-ready bio out.</p>
-          <textarea
+          <textarea aria-label="Wins, style, what you're known for, where you're headed…"
             value={bioFacts}
             onChange={(e) => setBioFacts(e.target.value)}
             rows={3}

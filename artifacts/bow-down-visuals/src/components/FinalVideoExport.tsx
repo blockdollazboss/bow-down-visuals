@@ -2105,6 +2105,7 @@ function QualityPanel({
                 type="button"
                 role="switch"
                 aria-checked={qWatermark}
+                aria-label={t("proFinishing.watermarkTitle")}
                 onClick={() => setQWatermark(!qWatermark)}
                 className={`relative h-6 w-11 shrink-0 rounded-full transition-colors cursor-pointer ${
                   qWatermark ? "bg-primary" : "bg-white/15"

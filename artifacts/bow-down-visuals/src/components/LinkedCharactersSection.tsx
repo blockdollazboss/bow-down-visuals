@@ -158,7 +158,7 @@ export function LinkedCharactersSection({
                     {roleLabel(link.role)}
                   </p>
                 </div>
-                <button
+                <button aria-label="Remove link"
                   type="button"
                   onClick={() => handleUnlink(link.id)}
                   className="text-white/30 hover:text-red-400 transition-colors p-1"
@@ -174,7 +174,7 @@ export function LinkedCharactersSection({
 
       {candidates.length > 0 && (
         <div className="flex flex-col sm:flex-row gap-2">
-          <select
+          <select aria-label="Character to link"
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
             className="flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
@@ -187,7 +187,7 @@ export function LinkedCharactersSection({
               </option>
             ))}
           </select>
-          <select
+          <select aria-label="Role"
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
             className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"

@@ -149,7 +149,7 @@ export function AvatarPresenterPanel({ value, onChange }: AvatarPresenterPanelPr
             <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
               {t("avatarPresenter.avatarLabel", { defaultValue: "Avatar" })}
             </label>
-            <select
+            <select aria-label={t("avatarPresenter.avatarLabel", { defaultValue: "Avatar" })}
               value={value.avatarId}
               onChange={(e) => set({ avatarId: e.target.value })}
               className="mt-1.5 h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none cursor-pointer"
@@ -169,7 +169,7 @@ export function AvatarPresenterPanel({ value, onChange }: AvatarPresenterPanelPr
             <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
               {t("avatarPresenter.scriptLabel", { defaultValue: "Presenter script" })}
             </label>
-            <textarea
+            <textarea aria-label={t("avatarPresenter.scriptLabel", { defaultValue: "Presenter script" })}
               value={value.script}
               onChange={(e) => set({ script: e.target.value.slice(0, 4000) })}
               placeholder={t("avatarPresenter.scriptPlaceholder", { defaultValue: "What should the presenter say? (saved with your plan — generation unlocks when the provider is connected)" })}

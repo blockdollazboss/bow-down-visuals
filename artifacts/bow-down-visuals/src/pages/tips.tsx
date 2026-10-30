@@ -275,34 +275,34 @@ export default function Tips() {
                     <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.handleLabel")}</label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-white/40">/tips/</span>
-                      <input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                      <input aria-label={t("tips.handleLabel")} value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
                         placeholder={t("tips.handlePlaceholder")} className={inputClass} maxLength={30} />
                     </div>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.displayNameLabel")}</label>
-                    <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                    <input aria-label={t("tips.displayNameLabel")} value={displayName} onChange={(e) => setDisplayName(e.target.value)}
                       placeholder={t("tips.displayNamePlaceholder")} className={inputClass} maxLength={60} />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.messageLabel")}</label>
-                    <textarea value={message} onChange={(e) => setMessage(e.target.value)}
+                    <textarea aria-label={t("tips.messageLabel")} value={message} onChange={(e) => setMessage(e.target.value)}
                       placeholder={t("tips.messagePlaceholder")} className={inputClass} rows={3} maxLength={500} />
                   </div>
                   <div data-min-stars="3">
                     <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.suggestedLabel")}</label>
-                    <input value={suggested} onChange={(e) => setSuggested(e.target.value)}
+                    <input aria-label={t("tips.suggestedLabel")} value={suggested} onChange={(e) => setSuggested(e.target.value)}
                       placeholder={t("tips.suggestedPlaceholder")} className={inputClass} />
                   </div>
                   <div data-min-stars="3" className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.goalAmountLabel")}</label>
-                      <input value={goalAmount} onChange={(e) => setGoalAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                      <input aria-label={t("tips.goalAmountLabel")} value={goalAmount} onChange={(e) => setGoalAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                         placeholder={t("tips.goalAmountPlaceholder")} className={inputClass} inputMode="decimal" />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-white/50">{t("tips.goalLabelLabel")}</label>
-                      <input value={goalLabel} onChange={(e) => setGoalLabel(e.target.value)}
+                      <input aria-label={t("tips.goalLabelLabel")} value={goalLabel} onChange={(e) => setGoalLabel(e.target.value)}
                         placeholder={t("tips.goalLabelPlaceholder")} className={inputClass} maxLength={80} />
                     </div>
                   </div>

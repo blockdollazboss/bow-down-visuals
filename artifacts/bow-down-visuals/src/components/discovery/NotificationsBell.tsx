@@ -147,7 +147,7 @@ export function NotificationsBell() {
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
+      <button aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
         className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/50 text-white/70 backdrop-blur transition-colors hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"
@@ -213,7 +213,19 @@ export function NotificationsBell() {
                     <div className="cursor-pointer">{row}</div>
                   </Link>
                 ) : (
-                  <div key={n.id} onClick={() => openNotification(n)} className="cursor-pointer">
+                  <div
+                    key={n.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openNotification(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openNotification(n);
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
                     {row}
                   </div>
                 );

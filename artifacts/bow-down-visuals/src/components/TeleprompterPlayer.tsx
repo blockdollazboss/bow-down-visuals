@@ -4,6 +4,7 @@ import {
   Maximize, Minimize, X, Gauge, MonitorPlay,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 interface TeleprompterPlayerProps {
   script: string;
@@ -24,6 +25,7 @@ const FONT_STEP = 4;
  * Pure UI — no backend, no credit charge.
  */
 export function TeleprompterPlayer({ script, onClose }: TeleprompterPlayerProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onClose);
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(true);
   const [wpm, setWpm] = useState(140);
@@ -161,7 +163,11 @@ export function TeleprompterPlayer({ script, onClose }: TeleprompterPlayerProps)
 
   return (
     <div
-      ref={overlayRef}
+      ref={(el) => {
+        overlayRef.current = el;
+        dialogRef.current = el;
+      }}
+      tabIndex={-1}
       className="fixed inset-0 z-[100] bg-black text-white flex flex-col"
       data-dark-lock
       role="dialog"

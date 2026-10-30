@@ -94,14 +94,14 @@ export default function CoverInMotionPanel() {
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("coverInMotion.urlLabel", { defaultValue: "Cover art image URL *" })}
             </label>
-            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
+            <input aria-label={t("coverInMotion.urlLabel", { defaultValue: "Cover art image URL *" })} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
               placeholder="https://…" className={`${inputClass} mt-1.5`} maxLength={2000} />
           </div>
           <div className="md:col-span-2">
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("coverInMotion.styleLabel", { defaultValue: "Motion style (optional)" })}
             </label>
-            <input value={style} onChange={(e) => setStyle(e.target.value)}
+            <input aria-label={t("coverInMotion.styleLabel", { defaultValue: "Motion style (optional)" })} value={style} onChange={(e) => setStyle(e.target.value)}
               placeholder={t("coverInMotion.stylePh", { defaultValue: "e.g. slow cinematic zoom, floating particles…" })}
               className={`${inputClass} mt-1.5`} maxLength={120} />
           </div>

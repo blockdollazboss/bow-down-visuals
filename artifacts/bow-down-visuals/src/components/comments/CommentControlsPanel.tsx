@@ -119,7 +119,7 @@ export function CommentControlsPanel() {
         Keyword blocklist — comments using these words or phrases are held for your review, never deleted (comma separated)
       </label>
       <div className="mt-1 flex gap-2">
-        <input
+        <input aria-label="Keyword blocklist — comments using these words or phrases are held for your review, never deleted (comma separated)"
           value={wordsDraft}
           onChange={(e) => setWordsDraft(e.target.value)}
           placeholder="e.g. spamword, free money"

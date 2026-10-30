@@ -644,7 +644,7 @@ function NewReleaseWizard(props: {
 
           <div className="mt-5">
             <p className={labelClass}>{t("distribute.or_paste_a_manual_audio_url")}</p>
-            <input
+            <input aria-label={t("distribute.or_paste_a_manual_audio_url")}
               value={audioUrl}
               onChange={(e) => { setAudioUrl(e.target.value); if (e.target.value !== "") setSongId(null); }}
               placeholder="https://…/track.mp3"
@@ -665,11 +665,11 @@ function NewReleaseWizard(props: {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className={labelClass}>{t("distribute.release_title")}</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("distribute.midnight_frequencies")} className={inputClass} maxLength={200} />
+              <input aria-label={t("distribute.release_title")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("distribute.midnight_frequencies")} className={inputClass} maxLength={200} />
             </div>
             <div>
               <label className={labelClass}>{t("distribute.artist_name")}</label>
-              <input value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder={t("distribute.shark_king")} className={inputClass} maxLength={120} />
+              <input aria-label={t("distribute.artist_name")} value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder={t("distribute.shark_king")} className={inputClass} maxLength={120} />
             </div>
           </div>
 
@@ -697,19 +697,19 @@ function NewReleaseWizard(props: {
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div data-min-stars="3">
               <label className={labelClass}>{t("distribute.genre")}</label>
-              <input value={genre} onChange={(e) => setGenre(e.target.value)} placeholder={t("distribute.hip_hop_trap")} className={inputClass} maxLength={80} />
+              <input aria-label={t("distribute.genre")} value={genre} onChange={(e) => setGenre(e.target.value)} placeholder={t("distribute.hip_hop_trap")} className={inputClass} maxLength={80} />
             </div>
             <div>
               <label className={labelClass}>{t("distribute.release_date")}</label>
-              <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className={inputClass} />
+              <input aria-label={t("distribute.release_date")} type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className={inputClass} />
             </div>
             <div data-min-stars="3">
               <label className={labelClass}>{t("distribute.isrc")}<span className="font-normal normal-case text-white/30">{t("distribute.optional")}</span></label>
-              <input value={isrc} onChange={(e) => setIsrc(e.target.value)} placeholder={t("distribute.us_xxx_26_00001")} className={inputClass} maxLength={20} />
+              <input aria-label={t("distribute.isrc")} value={isrc} onChange={(e) => setIsrc(e.target.value)} placeholder={t("distribute.us_xxx_26_00001")} className={inputClass} maxLength={20} />
             </div>
             <div data-min-stars="3">
               <label className={labelClass}>{t("distribute.record_label")}<span className="font-normal normal-case text-white/30">{t("distribute.optional")}</span></label>
-              <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("distribute.bow_down_records")} className={inputClass} maxLength={120} />
+              <input aria-label={t("distribute.record_label")} value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("distribute.bow_down_records")} className={inputClass} maxLength={120} />
             </div>
           </div>
 
@@ -750,14 +750,14 @@ function NewReleaseWizard(props: {
                   <span className={`flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/40"}`}>
                     {i + 1}
                   </span>
-                  <input
+                  <input aria-label={t("distribute.trackTitle", { n: i + 1 })}
                     value={tr.title}
                     onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
                     placeholder={t("distribute.trackTitle", { n: i + 1 })}
                     className={inputClass}
                     maxLength={200}
                   />
-                  <input
+                  <input aria-label={t("distribute.isrc")}
                     value={tr.isrc ?? ""}
                     onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, isrc: e.target.value } : x)))}
                     placeholder={t("distribute.isrc")}
@@ -802,14 +802,14 @@ function NewReleaseWizard(props: {
             </div>
             <div className="min-w-0 flex-1">
               <p className={labelClass}>{t("distribute.paste_an_image_url")}</p>
-              <input value={artworkUrl} onChange={(e) => setArtworkUrl(e.target.value)} placeholder="https://…/cover.jpg" className={inputClass} />
+              <input aria-label={t("distribute.paste_an_image_url")} value={artworkUrl} onChange={(e) => setArtworkUrl(e.target.value)} placeholder="https://…/cover.jpg" className={inputClass} />
             </div>
           </div>
 
           <div className={`mt-6 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
             <p className={`${labelClass} flex items-center gap-2`}>
               <Sparkles className="h-3.5 w-3.5 text-primary" />{t("distribute.or_generate_with_ai")}</p>
-            <textarea
+            <textarea aria-label={t("distribute.luxury_gold_and_black_album_cove")}
               value={artPrompt}
               onChange={(e) => setArtPrompt(e.target.value)}
               placeholder={t("distribute.luxury_gold_and_black_album_cove")}
@@ -1172,7 +1172,7 @@ function ReleaseMetadataManager(props: {
       <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
         <label className={labelClass}>UPC / EAN</label>
         <div className="flex flex-wrap gap-2">
-          <input
+          <input aria-label="UPC / EAN"
             value={upc}
             onChange={(e) => { setUpc(e.target.value); if (upcKind === "official" && !officialConfirm) setOfficialConfirm(true); }}
             placeholder="12-digit UPC-A or 13-digit EAN"
@@ -1216,7 +1216,7 @@ function ReleaseMetadataManager(props: {
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
           <label className={labelClass}>Label name / imprint</label>
-          <input
+          <input aria-label="Label name / imprint"
             value={labelImprint}
             onChange={(e) => setLabelImprint(e.target.value)}
             placeholder={release.label || "e.g. Bow Down Records"}
@@ -1233,11 +1233,11 @@ function ReleaseMetadataManager(props: {
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
           <label className={labelClass}>© copyright line</label>
-          <input value={cLine} onChange={(e) => setCLine(e.target.value)} placeholder="© 2026 Bow Down Records" className={inputClass} maxLength={200} />
+          <input aria-label="© copyright line" value={cLine} onChange={(e) => setCLine(e.target.value)} placeholder="© 2026 Bow Down Records" className={inputClass} maxLength={200} />
         </div>
         <div>
           <label className={labelClass}>℗ phonographic line</label>
-          <input value={pLine} onChange={(e) => setPLine(e.target.value)} placeholder="℗ 2026 Bow Down Records" className={inputClass} maxLength={200} />
+          <input aria-label="℗ phonographic line" value={pLine} onChange={(e) => setPLine(e.target.value)} placeholder="℗ 2026 Bow Down Records" className={inputClass} maxLength={200} />
         </div>
       </div>
 
@@ -1245,7 +1245,7 @@ function ReleaseMetadataManager(props: {
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <div>
           <label className={labelClass}>Primary genre</label>
-          <select value={genre} onChange={(e) => setGenre(e.target.value)} className={`${inputClass} appearance-none`}>
+          <select aria-label="Primary genre" value={genre} onChange={(e) => setGenre(e.target.value)} className={`${inputClass} appearance-none`}>
             <option value="">Select genre…</option>
             {PRIMARY_GENRES.map((g) => (<option key={g} value={g}>{g}</option>))}
             {!PRIMARY_GENRES.includes(genre) && genre && <option value={genre}>{genre}</option>}
@@ -1253,7 +1253,7 @@ function ReleaseMetadataManager(props: {
         </div>
         <div>
           <label className={labelClass}>Subgenre</label>
-          <input value={subgenre} onChange={(e) => setSubgenre(e.target.value)} placeholder="e.g. Dark Trap" className={inputClass} maxLength={80} />
+          <input aria-label="Subgenre" value={subgenre} onChange={(e) => setSubgenre(e.target.value)} placeholder="e.g. Dark Trap" className={inputClass} maxLength={80} />
         </div>
         <div>
           <label className={labelClass}>Explicit lyrics</label>
@@ -1279,16 +1279,16 @@ function ReleaseMetadataManager(props: {
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <div>
           <label className={labelClass}>Release date</label>
-          <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className={inputClass} />
+          <input aria-label="Release date" type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className={inputClass} />
           <p className="mt-1 text-[11px] text-white/35">Custom release dates are honored in our presave + scheduler flows.</p>
         </div>
         <div>
           <label className={labelClass}>Original release date <span className="font-normal normal-case text-white/30">(first release, if reissue)</span></label>
-          <input type="date" value={origDate} onChange={(e) => setOrigDate(e.target.value)} className={inputClass} />
+          <input aria-label="Original release date (first release, if reissue)" type="date" value={origDate} onChange={(e) => setOrigDate(e.target.value)} className={inputClass} />
         </div>
         <div>
           <label className={labelClass}>Preorder date <span className="font-normal normal-case text-white/30">(on-sale)</span></label>
-          <input type="date" value={preorderDate} onChange={(e) => setPreorderDate(e.target.value)} className={inputClass} />
+          <input aria-label="Preorder date (on-sale)" type="date" value={preorderDate} onChange={(e) => setPreorderDate(e.target.value)} className={inputClass} />
         </div>
       </div>
 
@@ -1310,7 +1310,7 @@ function ReleaseMetadataManager(props: {
         </div>
         {terrMode !== "worldwide" && (
           <div className="mt-4">
-            <input
+            <input aria-label="Territories"
               value={terrSearch}
               onChange={(e) => setTerrSearch(e.target.value)}
               placeholder="Search territories…"
@@ -1358,14 +1358,14 @@ function ReleaseMetadataManager(props: {
               <span className={`flex h-[42px] w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/40"}`}>
                 {i + 1}
               </span>
-              <input
+              <input aria-label={`Track ${i + 1} title`}
                 value={tr.title}
                 onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
                 placeholder={`Track ${i + 1} title`}
                 className={inputClass}
                 maxLength={200}
               />
-              <input
+              <input aria-label="ISRC"
                 value={tr.isrc ?? ""}
                 onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, isrc: e.target.value.toUpperCase() } : x)))}
                 placeholder="ISRC"
@@ -1589,7 +1589,7 @@ function PresaveManager(props: {
           Share this link — fans get a countdown, email pre-save, and share-to-unlock bonus. On release day it flips to “stream now” automatically.
         </p>
             <div className="mt-3 flex gap-2">
-              <input value={presaveUrl} readOnly className={`${inputClass} font-mono text-xs`} />
+              <input aria-label="Pre-save share link" value={presaveUrl} readOnly className={`${inputClass} font-mono text-xs`} />
               <button onClick={copyPresave} className={`${ghostBtn} shrink-0`}>
                 {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                 {copied ? "Copied" : "Copy"}
@@ -1716,7 +1716,7 @@ function PresaveManager(props: {
             <div className={`space-y-4 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-[#F7ECD2]/70" : "border-primary/25 bg-black/40"}`}>
               <div>
                 <label className={labelClass}>Headline</label>
-                <input
+                <input aria-label="Headline"
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
                   placeholder="e.g. My hardest single yet — be the first to hear it"
@@ -1730,7 +1730,7 @@ function PresaveManager(props: {
                   {PRESAVE_PLATFORM_KEYS.map((key) => (
                     <div key={key} className="flex items-center gap-2">
                       <span className="w-32 shrink-0 text-xs font-bold text-white/60">{platformLabel(key)}</span>
-                      <input
+                      <input aria-label="Platform links (paste your pre-save / follow URLs)"
                         value={links[key] ?? ""}
                         onChange={(e) => setLinks((prev) => ({ ...prev, [key]: e.target.value }))}
                         placeholder="https://…"
@@ -1743,7 +1743,7 @@ function PresaveManager(props: {
               </div>
               <div>
                 <label className={labelClass}>Bonus content URL <span className="font-normal normal-case text-white/30">(unlocked when a fan shares)</span></label>
-                <input
+                <input aria-label="Bonus content URL (unlocked when a fan shares)"
                   value={bonusUrl}
                   onChange={(e) => setBonusUrl(e.target.value)}
                   placeholder="https://… (exclusive snippet, BTS video, download)"
@@ -1756,7 +1756,7 @@ function PresaveManager(props: {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="w-32 shrink-0 text-xs font-bold text-white/60">Meta Pixel ID</span>
-                    <input
+                    <input aria-label="Retargeting pixels (optional — your own ad accounts)"
                       value={metaPixelId}
                       onChange={(e) => setMetaPixelId(e.target.value)}
                       placeholder="e.g. 123456789012345"
@@ -1766,7 +1766,7 @@ function PresaveManager(props: {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-32 shrink-0 text-xs font-bold text-white/60">TikTok Pixel ID</span>
-                    <input
+                    <input aria-label="e.g. C9ABCDEFGHIJKLMN12"
                       value={tiktokPixelId}
                       onChange={(e) => setTiktokPixelId(e.target.value)}
                       placeholder="e.g. C9ABCDEFGHIJKLMN12"
@@ -1775,7 +1775,7 @@ function PresaveManager(props: {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-32 shrink-0 text-xs font-bold text-white/60">Google tag ID</span>
-                    <input
+                    <input aria-label="e.g. G-ABC123XYZ9"
                       value={googleTagId}
                       onChange={(e) => setGoogleTagId(e.target.value)}
                       placeholder="e.g. G-ABC123XYZ9"
@@ -2435,14 +2435,14 @@ function ReleaseDetail(props: {
           {splits.map((s, i) => (
             <div key={s.id ?? `new-${i}`} className="rounded-2xl border border-white/10 bg-black/30 p-3">
               <div className="flex flex-wrap gap-2">
-                <input
+                <input aria-label={t("distribute.name")}
                   value={s.name}
                   onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                   placeholder={t("distribute.name")}
                   className={`${inputClass} min-w-[140px] flex-1`}
                   maxLength={120}
                 />
-                <input
+                <input aria-label="Email (for invites)"
                   value={s.email ?? ""}
                   onChange={(e) => setSplits((prev) => prev.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))}
                   placeholder="Email (for invites)"
@@ -2461,7 +2461,7 @@ function ReleaseDetail(props: {
                   ))}
                 </select>
                 <div className="relative w-[110px] shrink-0">
-                  <input
+                  <input aria-label="%"
                     type="number"
                     min={0}
                     max={100}
@@ -2545,7 +2545,7 @@ function ReleaseDetail(props: {
                 Share this with your collaborators{refCode ? " — it carries your referral link" : ""}. They see the agreed shares, nothing else.
               </p>
               <div className="mt-3 flex gap-2">
-                <input value={shareUrl} readOnly className={`${inputClass} font-mono text-xs`} />
+                <input aria-label="Collaborator invite link" value={shareUrl} readOnly className={`${inputClass} font-mono text-xs`} />
                 <button onClick={copyShareLink} className={`${ghostBtn} shrink-0`}>
                   {shareCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                   {shareCopied ? "Copied" : "Copy"}
@@ -2659,11 +2659,11 @@ function ReleaseDetail(props: {
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>{t("distribute.song_vibe")}</label>
-                <input value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder={t("distribute.dark_luxury_trap_anthem_heavy_80")} className={inputClass} maxLength={500} />
+                <input aria-label={t("distribute.song_vibe")} value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder={t("distribute.dark_luxury_trap_anthem_heavy_80")} className={inputClass} maxLength={500} />
               </div>
               <div>
                 <label className={labelClass}>{t("distribute.lyrics")}<span className="font-normal normal-case text-white/30">{t("distribute.optional_sharpens_the_titles")}</span></label>
-                <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder={t("distribute.paste_a_verse_or_hook")} rows={3} className={inputClass} maxLength={4000} />
+                <textarea aria-label={t("distribute.lyrics")} value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder={t("distribute.paste_a_verse_or_hook")} rows={3} className={inputClass} maxLength={4000} />
               </div>
               <button onClick={generateMetadata} disabled={metaLoading} className={goldBtn}>
                 {metaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -3051,7 +3051,7 @@ function ReleasePlanTab() {
             <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("release.releaseTitle")}
             </p>
-            <input
+            <input aria-label={t("release.titlePlaceholder")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
@@ -3063,7 +3063,7 @@ function ReleasePlanTab() {
             <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("release.genreVibe")} <span className="font-normal normal-case text-white/30">{t("release.optional")}</span>
             </p>
-            <input
+            <input aria-label={t("release.genrePlaceholder")}
               value={genre}
               onChange={(e) => setGenre(e.target.value)}
               maxLength={120}
@@ -3076,7 +3076,7 @@ function ReleasePlanTab() {
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("release.releaseDate")}
           </p>
-          <input
+          <input aria-label={t("release.releaseDate")}
             type="date"
             value={releaseDate}
             min={new Date().toISOString().slice(0, 10)}

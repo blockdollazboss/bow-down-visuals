@@ -185,7 +185,7 @@ export default function LinkToHitPanel() {
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("linkToHit.urlLabel", { defaultValue: "Social link (TikTok / IG / YouTube)" })}
             </label>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={`${inputClass} mt-1.5`} maxLength={500} />
+            <input aria-label={t("linkToHit.urlLabel", { defaultValue: "Social link (TikTok / IG / YouTube)" })} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={`${inputClass} mt-1.5`} maxLength={500} />
             <p className="text-[11px] text-white/35 mt-1">
               {t("linkToHit.urlNote", { defaultValue: "We use whatever the link publicly exposes — never faked." })}
             </p>
@@ -204,7 +204,7 @@ export default function LinkToHitPanel() {
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("linkToHit.descLabel", { defaultValue: "Describe the video" })}
             </label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+            <textarea aria-label={t("linkToHit.descLabel", { defaultValue: "Describe the video" })} value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder={t("linkToHit.descPh", { defaultValue: "What's happening in it? What's funny/absurd about it?" })}
               className={`${inputClass} mt-1.5 min-h-[80px] resize-y`} maxLength={1000} />
           </div>
@@ -213,11 +213,11 @@ export default function LinkToHitPanel() {
               {t("linkToHit.commentsLabel", { defaultValue: "Paste the comments (the song is written from these)" })}
             </label>
             <div className="flex gap-2 mt-1.5 mb-2">
-              <input value={commentInput} onChange={(e) => setCommentInput(e.target.value)}
+              <input aria-label={t("linkToHit.commentsLabel", { defaultValue: "Paste the comments (the song is written from these)" })} value={commentInput} onChange={(e) => setCommentInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addComment()}
                 placeholder={t("linkToHit.commentsPh", { defaultValue: "Paste a comment, hit Enter…" })}
                 className={inputClass} maxLength={500} />
-              <button type="button" onClick={addComment} disabled={!commentInput.trim() || comments.length >= 20}
+              <button type="button" aria-label="Add comment" onClick={addComment} disabled={!commentInput.trim() || comments.length >= 20}
                 className="shrink-0 rounded-xl bg-white/10 px-4 text-white hover:bg-white/15 disabled:opacity-40">
                 <Plus className="h-4 w-4" />
               </button>
@@ -247,7 +247,7 @@ export default function LinkToHitPanel() {
                 </button>
               ))}
             </div>
-            <input value={customGenre} onChange={(e) => setCustomGenre(e.target.value)}
+            <input aria-label={t("linkToHit.genreLabel", { defaultValue: "Song genre — your call" })} value={customGenre} onChange={(e) => setCustomGenre(e.target.value)}
               placeholder={t("linkToHit.genreCustomPh", { defaultValue: "Or type ANY genre…" })}
               className={`${inputClass} mt-2`} maxLength={60} />
           </div>

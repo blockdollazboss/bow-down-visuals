@@ -269,14 +269,14 @@ export default function TipPage() {
                     </button>
                   ))}
                 </div>
-                <input value={customAmount} onChange={(e) => setCustomAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                <input aria-label={t("tipPage.customAmountPlaceholder")} value={customAmount} onChange={(e) => setCustomAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                   placeholder={t("tipPage.customAmountPlaceholder")} className={`${inputClass} mt-3 text-center`} inputMode="decimal" />
               </div>
 
               <div className="mt-4 space-y-3 text-left">
-                <input value={fanName} onChange={(e) => setFanName(e.target.value)}
+                <input aria-label={t("tipPage.fanNamePlaceholder")} value={fanName} onChange={(e) => setFanName(e.target.value)}
                   placeholder={t("tipPage.fanNamePlaceholder")} className={inputClass} maxLength={60} />
-                <textarea value={message} onChange={(e) => setMessage(e.target.value)}
+                <textarea aria-label={t("tipPage.messagePlaceholder")} value={message} onChange={(e) => setMessage(e.target.value)}
                   placeholder={t("tipPage.messagePlaceholder")} className={inputClass} rows={2} maxLength={280} />
               </div>
 

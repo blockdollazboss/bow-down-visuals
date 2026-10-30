@@ -193,7 +193,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-white/[0.06] last:border-0">
-      <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full py-5 text-left gap-4">
+      <button aria-expanded={open} onClick={() => setOpen(!open)} className="flex items-center justify-between w-full py-5 text-left gap-4">
         <span className="text-base font-bold text-white">{q}</span>
         <ChevronDown className={`h-4 w-4 text-white/40 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -308,6 +308,7 @@ export default function Pricing() {
                 {t("pricing.cancelledBanner.text")}
               </span>
               <button
+                aria-label="Dismiss"
                 onClick={() => setShowCancelled(false)}
                 className="text-white/30 hover:text-white/60 transition-colors text-lg leading-none ml-2"
               >

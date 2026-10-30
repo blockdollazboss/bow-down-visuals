@@ -273,7 +273,7 @@ export default function ReviewPage() {
             <h1 className="mt-4 text-xl font-black text-center">{t("review.passwordRequired")}</h1>
             <p className="mt-2 text-sm text-white/50 text-center leading-relaxed">{t("review.passwordHint")}</p>
             <div className="relative mt-6">
-              <input
+              <input aria-label={t("review.enterPassword")}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -287,6 +287,7 @@ export default function ReviewPage() {
                 onClick={() => setShowPassword((s) => !s)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
                 aria-label={showPassword ? t("review.hidePassword") : t("review.showPassword")}
+                aria-pressed={showPassword}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -418,7 +419,7 @@ export default function ReviewPage() {
                                   <PencilLine className="h-3.5 w-3.5" />
                                 </a>
                               )}
-                              <button
+                              <button aria-label={t("review.deleteComment")}
                                 onClick={() => manageAction("delete_comment", { commentId: c.id })}
                                 disabled={acting !== null}
                                 className="flex items-center justify-center h-7 w-7 rounded-full border border-white/15 text-white/50 hover:text-red-400 hover:border-red-500/40 transition-colors disabled:opacity-50"
@@ -438,7 +439,7 @@ export default function ReviewPage() {
                 {/* Comment form */}
                 <div className="border-t border-white/[0.07] p-4 space-y-3 bg-black/40">
                   <div className="flex items-center gap-2">
-                    <input
+                    <input aria-label={t("review.yourName")}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={t("review.yourName")}
@@ -449,7 +450,7 @@ export default function ReviewPage() {
                       <Clock className="h-3 w-3" /> {formatReviewTime(currentTime)}
                     </span>
                   </div>
-                  <textarea
+                  <textarea aria-label={t("review.commentPlaceholder", { time: formatReviewTime(currentTime) })}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     placeholder={t("review.commentPlaceholder", { time: formatReviewTime(currentTime) })}

@@ -67,7 +67,7 @@ export function PWAInstallPrompt() {
               </button>
             </div>
           </div>
-          <button onClick={dismiss} className="p-1 hover:bg-white/5 rounded">
+          <button aria-label="Dismiss" onClick={dismiss} className="p-1 hover:bg-white/5 rounded">
             <X className="h-4 w-4" />
           </button>
         </div>

@@ -208,7 +208,7 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
   const isLight = useIsLightTheme();
   return (
     <div className="relative">
-      <select
+      <select aria-label={placeholder}
         name={name}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -690,7 +690,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                   {/* Search */}
                   <div className="relative mb-4">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
-                    <input
+                    <input aria-label={t("promo-clip.searchPlaceholder")}
                       type="text"
                       placeholder={t("promo-clip.searchPlaceholder")}
                       value={projectSearch}
@@ -792,7 +792,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             {/* ── Clip Selector (if project has clips) — tweak option (3) ── */}
             {selectedProject && promoType && platform && projectClips.length > 0 && (
               <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-min-stars="3">
-                <button
+                <button aria-expanded={clipsOpen}
                   type="button"
                   onClick={() => setClipsOpen((v) => !v)}
                   className="flex items-center justify-between w-full"
@@ -857,7 +857,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             {/* ── Advanced Options — manual prompt editing (4) ── */}
             {selectedProject && promoType && platform && (
               <div className="rounded-2xl border border-white/[0.06] bg-transparent overflow-hidden" data-min-stars="4">
-                <button
+                <button aria-expanded={advancedOpen}
                   type="button"
                   onClick={() => setAdvancedOpen((v) => !v)}
                   className="flex items-center justify-between w-full px-5 py-4"
@@ -870,7 +870,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                     <div className="space-y-2">
                       <FieldLabel>{t("promo-clip.advanced.hookOverride")}</FieldLabel>
                       <p className="text-xs text-white/25">{t("promo-clip.advanced.hookOverrideHint")}</p>
-                      <textarea
+                      <textarea aria-label={t("promo-clip.advanced.hookPlaceholder")}
                         value={hookOverride}
                         onChange={(e) => setHookOverride(e.target.value)}
                         placeholder={t("promo-clip.advanced.hookPlaceholder")}
@@ -880,7 +880,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                     </div>
                     <div className="space-y-2">
                       <FieldLabel>{t("promo-clip.advanced.specialInstructions")}</FieldLabel>
-                      <textarea
+                      <textarea aria-label={t("promo-clip.advanced.instructionsPlaceholder")}
                         value={projSpecialInstructions}
                         onChange={(e) => setProjSpecialInstructions(e.target.value)}
                         placeholder={t("promo-clip.advanced.instructionsPlaceholder")}
@@ -1051,7 +1051,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
 
                 {/* Advanced — special instructions = manual prompt editing (4) */}
                 <div className="border border-white/[0.06] rounded-xl overflow-hidden" data-min-stars="4">
-                  <button
+                  <button aria-expanded={scratchAdvancedOpen}
                     type="button"
                     onClick={() => setScratchAdvancedOpen((v) => !v)}
                     className="flex items-center justify-between w-full px-5 py-3.5"

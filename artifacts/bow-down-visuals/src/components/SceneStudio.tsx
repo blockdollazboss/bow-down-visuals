@@ -930,6 +930,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <p className="text-[11px] text-red-400/70 mt-0.5 break-words">{error}</p>
         </div>
         <button
+          aria-label="Dismiss"
           onClick={() => { setError(null); }}
           className="text-white/30 hover:text-white/60 transition-colors shrink-0"
         >
@@ -1028,7 +1029,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               )}
             </button>
             {outfits.map((o) => (
-              <button
+              <button aria-label={o.label}
                 key={o.id}
                 type="button"
                 onClick={() => setPickedOutfitId(o.id)}
@@ -1165,7 +1166,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
       {/* Final Prompt preview */}
       <div>
-        <button
+        <button aria-expanded={showFinalPrompt}
           onClick={() => setShowFinalPrompt((s) => !s)}
           className="flex items-center gap-1.5 text-[10px] font-bold text-white/30 hover:text-white/60 transition-colors mb-1.5"
         >
@@ -1332,7 +1333,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
                 title={`${REFERENCE_ROLE_LABEL[r.role]} — ${r.label}`}
               >
                 <img src={r.url} alt={r.label} className="h-full w-full object-cover object-top" loading="lazy" />
-                <button
+                <button aria-label={`Remove ${r.label}`}
                   type="button"
                   onClick={() => removeReference(r.url)}
                   title={`Remove ${r.label}`}
@@ -1468,7 +1469,7 @@ function EndFramePicker({ scene, onPick }: {
             </button>
           </div>
         ) : (
-          <button
+          <button aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
             data-testid="end-frame-open"
@@ -1616,7 +1617,7 @@ function LocationPicker({ scene, onPick }: {
             </button>
           </div>
         ) : (
-          <button
+          <button aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
           >
@@ -1822,7 +1823,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
             </button>
           )}
           {/* Collapse toggle */}
-          <button
+          <button aria-expanded={!collapsed}
             onClick={() => setCollapsed((c) => !c)}
             className="text-white/30 hover:text-white/60 transition-colors"
             aria-label={collapsed ? "Expand" : "Collapse"}
@@ -1856,7 +1857,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 : <><Sparkles className="h-3.5 w-3.5" /> Improve Prompt for Artist</>}
             </Button>
 
-            <button
+            <button aria-expanded={showPrompt}
               onClick={() => setShowPrompt((s) => !s)}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
               data-testid={`btn-toggle-prompt-${index}`}
@@ -1952,7 +1953,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest flex items-center gap-1.5">
                   <Zap className="h-2.5 w-2.5" /> Video Prompt
                 </label>
-                <textarea
+                <textarea aria-label="Video Prompt"
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onBlur={saveAiPrompt}
@@ -1968,7 +1969,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">
                   Negative Prompt
                 </label>
-                <textarea
+                <textarea aria-label="Negative Prompt"
                   value={negPrompt}
                   onChange={(e) => setNegPrompt(e.target.value)}
                   onBlur={saveNegPrompt}
@@ -2270,21 +2271,21 @@ export function SceneStudio({
           <div key={scene.id} className="space-y-1.5">
             {manageable && (
               <div className="flex items-center justify-end gap-1">
-                <button
+                <button aria-label="Move up"
                   type="button" onClick={() => moveScene(i, -1)} disabled={i === 0}
                   className="h-7 w-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                   title="Move up" data-testid={`btn-scene-up-${i}`}
                 >
                   <ArrowUp className="h-3.5 w-3.5" />
                 </button>
-                <button
+                <button aria-label="Move down"
                   type="button" onClick={() => moveScene(i, 1)} disabled={i === scenes.length - 1}
                   className="h-7 w-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                   title="Move down" data-testid={`btn-scene-down-${i}`}
                 >
                   <ArrowDown className="h-3.5 w-3.5" />
                 </button>
-                <button
+                <button aria-label="Remove scene"
                   type="button" onClick={() => removeScene(scene.id)}
                   className="h-7 w-7 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center justify-center text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   title="Remove scene" data-testid={`btn-scene-remove-${i}`}

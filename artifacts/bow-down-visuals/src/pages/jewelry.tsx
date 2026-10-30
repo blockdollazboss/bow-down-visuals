@@ -382,7 +382,7 @@ export default function JewelryStudio() {
                 <p className={`${isLight ? "text-xs font-semibold uppercase tracking-widest text-[#8A7A56] mb-2" : "text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2"}`}>{t("jewelry.useMyLogo", { defaultValue: "Or use a logo you already made" })}</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {hubLogos.slice(0, 6).map((l) => (
-                    <button
+                    <button aria-label={l.label}
                       key={l.id}
                       type="button"
                       onClick={async () => {
@@ -491,7 +491,7 @@ export default function JewelryStudio() {
                     />
                   </label>
                   {jOpts.nfc && (
-                    <input
+                    <input aria-label="NFC card link"
                       value={jOpts.nfcUrl}
                       onChange={(e) => setJOpts({ ...jOpts, nfcUrl: e.target.value })}
                       placeholder="https://your-business-card.com/you"
@@ -503,7 +503,7 @@ export default function JewelryStudio() {
                   <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
-                  <textarea
+                  <textarea aria-label={t("jewelry.jewelryNotesPh")}
                     value={jOpts.notes}
                     onChange={(e) => setJOpts({ ...jOpts, notes: e.target.value })}
                     placeholder={t("jewelry.jewelryNotesPh")}
@@ -537,7 +537,7 @@ export default function JewelryStudio() {
                   </div>
                   <div>
                     <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.garmentColor")}</h3>
-                    <input
+                    <input aria-label={t("jewelry.garmentColorPh")}
                       value={aOpts.color}
                       onChange={(e) => setAOpts({ ...aOpts, color: e.target.value })}
                       placeholder={t("jewelry.garmentColorPh")}
@@ -549,7 +549,7 @@ export default function JewelryStudio() {
                   <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.unitsLabel")} <span className="text-zinc-600">{t("jewelry.unitsNote")}</span>
                   </h3>
-                  <input
+                  <input aria-label={t("jewelry.unitsLabel")}
                     type="number" min={1} max={1000} value={qty}
                     onChange={(e) => setQty(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
                     className="w-32 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm"
@@ -559,7 +559,7 @@ export default function JewelryStudio() {
                   <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
-                  <textarea
+                  <textarea aria-label={t("jewelry.apparelNotesPh")}
                     value={aOpts.notes}
                     onChange={(e) => setAOpts({ ...aOpts, notes: e.target.value })}
                     placeholder={t("jewelry.apparelNotesPh")}
@@ -833,7 +833,7 @@ export default function JewelryStudio() {
       </div>
 
       {/* Consultant floating button + drawer */}
-      <button
+      <button aria-label={t("jewelry.consultTitleAttr")}
         onClick={() => setConsultOpen(true)}
         className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#DDBB62] to-amber-600 text-black shadow-[0_0_24px_rgba(234,179,8,0.5)] transition hover:scale-105"
         title={t("jewelry.consultTitleAttr")}
@@ -847,7 +847,7 @@ export default function JewelryStudio() {
               <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-[#E3C566]"}`}> {t("jewelry.consultName")}</div>
               <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.consultCost", { cost: catalog?.consultCreditCost ?? 1 })}</div>
             </div>
-            <button onClick={() => setConsultOpen(false)} className={`${isLight ? "text-[#6B5B36] hover:text-[#2A1E07]" : "text-zinc-400 hover:text-white"}`}>
+            <button aria-label="Close" onClick={() => setConsultOpen(false)} className={`${isLight ? "text-[#6B5B36] hover:text-[#2A1E07]" : "text-zinc-400 hover:text-white"}`}>
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -866,7 +866,7 @@ export default function JewelryStudio() {
             <div ref={consultEndRef} />
           </div>
           <div className="flex gap-2 border-t border-[#C9A84C]/20 p-3">
-            <input
+            <input aria-label={t("jewelry.consultPlaceholder")}
               value={consultInput}
               onChange={(e) => setConsultInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendConsult()}

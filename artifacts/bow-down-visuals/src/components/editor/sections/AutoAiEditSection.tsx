@@ -50,7 +50,7 @@ function PlanCard({
   const [open, setOpen] = useState(true);
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-      <button
+      <button aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
       >

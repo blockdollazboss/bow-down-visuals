@@ -94,7 +94,7 @@ function ImageField({
           </span>
         )}
         <div className="flex flex-1 flex-col gap-2">
-          <input
+          <input aria-label={label}
             value={value ?? ""}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Paste an image URL…"
@@ -431,7 +431,7 @@ function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Par
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Display name</label>
-          <input
+          <input aria-label="Display name"
             value={profile.display_name}
             onChange={(e) => patch({ display_name: e.target.value })}
             placeholder="Your stage name"
@@ -443,7 +443,7 @@ function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Par
           <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Link slug</label>
           <div className="flex items-center gap-1">
             <span className="text-sm text-white/40">/artist/</span>
-            <input
+            <input aria-label="Link slug"
               value={profile.slug}
               onChange={(e) => patch({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
               placeholder="your-name"
@@ -459,7 +459,7 @@ function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Par
           own words; blank means no scene page claims them. */}
       <div>
         <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Your city <span className="normal-case text-white/30">(optional)</span></label>
-        <input
+        <input aria-label="Your city (optional)"
           value={profile.declared_city ?? ""}
           onChange={(e) => patch({ declared_city: e.target.value })}
           placeholder="New York, NY"
@@ -507,7 +507,7 @@ function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Par
         <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">
           Bio — bold, <em>italic</em>, [links](https://…), and lists supported
         </label>
-        <textarea
+        <textarea aria-label="Bio — bold, italic , [links](https://…), and lists supported"
           value={profile.bio}
           onChange={(e) => patch({ bio: e.target.value })}
           rows={5}
@@ -608,7 +608,7 @@ function ThemeTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Part
       <div className="grid gap-4 sm:grid-cols-2" data-min-stars="4">
         <div>
           <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Heading font</label>
-          <select
+          <select aria-label="Heading font"
             value={theme.fonts.heading}
             onChange={(e) => patch({ theme_id: "custom", theme_config: { ...theme, themeId: "custom", fonts: { ...theme.fonts, heading: e.target.value as FontId } } })}
             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-white outline-none [&>option]:bg-black"
@@ -618,7 +618,7 @@ function ThemeTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Part
         </div>
         <div>
           <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Body font</label>
-          <select
+          <select aria-label="Body font"
             value={theme.fonts.body}
             onChange={(e) => patch({ theme_id: "custom", theme_config: { ...theme, themeId: "custom", fonts: { ...theme.fonts, body: e.target.value as FontId } } })}
             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-white outline-none [&>option]:bg-black"
@@ -681,7 +681,7 @@ function ThemeTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Part
           <span>Banner overlay opacity</span>
           <span className="text-amber-300">{Math.round(theme.banner.overlayOpacity * 100)}%</span>
         </label>
-        <input
+        <input aria-label="Banner overlay opacity %"
           type="range"
           min={0}
           max={85}
@@ -762,7 +762,7 @@ function SectionsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: P
           >
             <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-white/30" />
             <div className="min-w-0 flex-1">
-              <input
+              <input aria-label="Section title"
                 value={s.title}
                 onChange={(e) => rename(s.id, e.target.value)}
                 maxLength={80}
@@ -790,7 +790,7 @@ function SectionsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: P
         ))}
       </div>
       <div className="flex gap-2">
-        <select
+        <select aria-label="New section type"
           value={newType}
           onChange={(e) => setNewType(e.target.value as SectionType)}
           className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none [&>option]:bg-black"
@@ -828,7 +828,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-white/50">Kind</label>
-            <select
+            <select aria-label="Kind"
               value={fm?.kind ?? "video"}
               onChange={(e) => setFm({ kind: e.target.value as "track" | "video" | "episode" })}
               className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none [&>option]:bg-black"
@@ -840,7 +840,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/50">Title</label>
-            <input
+            <input aria-label="Title"
               value={fm?.title ?? ""}
               onChange={(e) => setFm({ title: e.target.value })}
               placeholder="My latest drop"
@@ -849,7 +849,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/50">Media URL</label>
-            <input
+            <input aria-label="Media URL"
               value={fm?.url ?? ""}
               onChange={(e) => setFm({ url: e.target.value })}
               placeholder="https://…"
@@ -858,7 +858,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/50">Thumbnail URL</label>
-            <input
+            <input aria-label="Thumbnail URL"
               value={fm?.thumbnailUrl ?? ""}
               onChange={(e) => setFm({ thumbnailUrl: e.target.value })}
               placeholder="https://…"
@@ -875,20 +875,20 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         <div className="space-y-2">
           {(profile.merch_items ?? []).map((m, i) => (
             <div key={m.id} className="grid gap-2 rounded-lg bg-black/30 p-2 sm:grid-cols-[1fr_1fr_auto]">
-              <input
+              <input aria-label="Product name"
                 value={m.title}
                 onChange={(e) => patch({ merch_items: (profile.merch_items ?? []).map((x, j) => j === i ? { ...x, title: e.target.value } : x) })}
                 placeholder="Product name"
                 className="rounded-lg border border-white/10 bg-transparent px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/30"
               />
-              <input
+              <input aria-label="Product URL (https://… or /my-shop/…)"
                 value={m.url ?? ""}
                 onChange={(e) => patch({ merch_items: (profile.merch_items ?? []).map((x, j) => j === i ? { ...x, url: e.target.value } : x) })}
                 placeholder="Product URL (https://… or /my-shop/…)"
                 className="rounded-lg border border-white/10 bg-transparent px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/30"
               />
               <div className="flex gap-2">
-                <input
+                <input aria-label="$29"
                   value={m.price ?? ""}
                   onChange={(e) => patch({ merch_items: (profile.merch_items ?? []).map((x, j) => j === i ? { ...x, price: e.target.value } : x) })}
                   placeholder="$29"
@@ -919,19 +919,19 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         <div className="space-y-2">
           {(profile.events ?? []).map((e, i) => (
             <div key={e.id} className="grid gap-2 rounded-lg bg-black/30 p-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
-              <input
+              <input aria-label="Event name"
                 value={e.title}
                 onChange={(e2) => patch({ events: (profile.events ?? []).map((x, j) => j === i ? { ...x, title: e2.target.value } : x) })}
                 placeholder="Event name"
                 className="rounded-lg border border-white/10 bg-transparent px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/30"
               />
-              <input
+              <input aria-label="Oct 24 · 8pm"
                 value={e.date ?? ""}
                 onChange={(e2) => patch({ events: (profile.events ?? []).map((x, j) => j === i ? { ...x, date: e2.target.value } : x) })}
                 placeholder="Oct 24 · 8pm"
                 className="rounded-lg border border-white/10 bg-transparent px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/30"
               />
-              <input
+              <input aria-label="Event URL"
                 value={e.url ?? ""}
                 onChange={(e2) => patch({ events: (profile.events ?? []).map((x, j) => j === i ? { ...x, url: e2.target.value } : x) })}
                 placeholder="Event URL"
@@ -961,7 +961,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           {SOCIAL_PLATFORMS.map((platform) => (
             <div key={platform} className="flex items-center gap-2">
               <span className="w-24 shrink-0 text-xs capitalize text-white/50">{platform}</span>
-              <input
+              <input aria-label={platform}
                 value={profile.social_links[platform] ?? ""}
                 onChange={(e) => patch({ social_links: { ...profile.social_links, [platform]: e.target.value } })}
                 placeholder="https://…"
@@ -986,7 +986,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           ))}
         </div>
         <div className="mt-2 flex gap-2">
-          <input
+          <input aria-label="their-slug"
             value={newCreator}
             onChange={(e) => setNewCreator(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
             onKeyDown={(e) => {
@@ -1028,7 +1028,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           {([["followers", "Followers"], ["avgViews", "Avg. views"], ["engagement", "Engagement"]] as const).map(([k, label]) => (
             <div key={k}>
               <label className="mb-1 block text-xs text-white/50">{label}</label>
-              <input
+              <input aria-label={label}
                 value={profile.media_kit?.[k] ?? ""}
                 onChange={(e) => patch({ media_kit: { ...(profile.media_kit ?? {}), [k]: e.target.value } })}
                 placeholder={k === "followers" ? "250K" : k === "avgViews" ? "48K" : "6.2%"}
@@ -1039,7 +1039,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         </div>
         <div className="mt-2">
           <label className="mb-1 block text-xs text-white/50">Audience note</label>
-          <input
+          <input aria-label="Audience note"
             value={profile.media_kit?.audienceNote ?? ""}
             onChange={(e) => patch({ media_kit: { ...(profile.media_kit ?? {}), audienceNote: e.target.value } })}
             placeholder="e.g. 68% US, 18–34, obsessed with streetwear drops"
@@ -1048,7 +1048,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         </div>
         <div className="mt-2">
           <label className="mb-1 block text-xs text-white/50">Rates (label — price, one per line)</label>
-          <textarea
+          <textarea aria-label="Rates (label — price, one per line)"
             value={(profile.media_kit?.rates ?? []).map((r) => `${r.label} — ${r.price}`).join("\n")}
             onChange={(e) => {
               const rates = e.target.value.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
@@ -1064,7 +1064,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         </div>
         <div className="mt-2">
           <label className="mb-1 block text-xs text-white/50">Collab contact email</label>
-          <input
+          <input aria-label="Collab contact email"
             value={profile.media_kit?.contactEmail ?? ""}
             onChange={(e) => patch({ media_kit: { ...(profile.media_kit ?? {}), contactEmail: e.target.value } })}
             placeholder="collabs@you.com"
@@ -1087,7 +1087,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           </label>
           <div>
             <label className="mb-1 block text-xs text-white/50">Live URL</label>
-            <input
+            <input aria-label="Live URL"
               value={profile.stream_schedule?.liveUrl ?? ""}
               onChange={(e) => patch({ stream_schedule: { ...(profile.stream_schedule ?? {}), liveUrl: e.target.value } })}
               placeholder="https://…"
@@ -1096,7 +1096,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           </div>
           <div>
             <label className="mb-1 block text-xs text-white/50">Platform</label>
-            <input
+            <input aria-label="Platform"
               value={profile.stream_schedule?.platform ?? ""}
               onChange={(e) => patch({ stream_schedule: { ...(profile.stream_schedule ?? {}), platform: e.target.value } })}
               placeholder="Twitch"
@@ -1106,7 +1106,7 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
         </div>
         <div className="mt-2">
           <label className="mb-1 block text-xs text-white/50">Next stream</label>
-          <input
+          <input aria-label="Next stream"
             value={profile.stream_schedule?.nextStream ?? ""}
             onChange={(e) => patch({ stream_schedule: { ...(profile.stream_schedule ?? {}), nextStream: e.target.value } })}
             placeholder="Friday 8pm ET — ranked grind"
@@ -1128,13 +1128,13 @@ function ContentTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Pa
           ))}
         </div>
         <div className="mt-2 flex gap-2">
-          <input
+          <input aria-label="Friday"
             value={newSlot.day}
             onChange={(e) => setNewSlot({ ...newSlot, day: e.target.value })}
             placeholder="Friday"
             className="flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30"
           />
-          <input
+          <input aria-label="8pm ET"
             value={newSlot.time}
             onChange={(e) => setNewSlot({ ...newSlot, time: e.target.value })}
             placeholder="8pm ET"

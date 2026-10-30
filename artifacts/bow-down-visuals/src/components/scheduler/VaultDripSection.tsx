@@ -190,13 +190,13 @@ export default function VaultDripSection() {
                 <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("vaultDrip.cadence", { defaultValue: "Days between drops" })}
                 </label>
-                <input type="number" min={1} max={30} value={cadenceDays} onChange={(e) => setCadenceDays(e.target.value)} className={`${inputClass} mt-1.5`} />
+                <input aria-label={t("vaultDrip.cadence", { defaultValue: "Days between drops" })} type="number" min={1} max={30} value={cadenceDays} onChange={(e) => setCadenceDays(e.target.value)} className={`${inputClass} mt-1.5`} />
               </div>
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("vaultDrip.start", { defaultValue: "First drop" })}
                 </label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={`${inputClass} mt-1.5`} />
+                <input aria-label={t("vaultDrip.start", { defaultValue: "First drop" })} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={`${inputClass} mt-1.5`} />
               </div>
             </div>
 

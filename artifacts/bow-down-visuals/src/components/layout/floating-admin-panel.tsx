@@ -28,6 +28,8 @@ export function FloatingAdminPanel() {
           onClick={() => setOpen((v) => !v)}
           className={`h-11 w-11 rounded-full border border-primary/40 ${isLight ? "bg-[#FBF6E9]" : "bg-[#171208]/90"} text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors`}
           title="Admin quick actions"
+          aria-label="Admin quick actions"
+          aria-expanded={open}
           data-testid="floating-admin-toggle"
         >
           <ShieldCheck className="h-5 w-5" />
@@ -167,7 +169,7 @@ function AdminTools({
       {/* Upgrade user tier */}
       <div>
         <p className={labelCls}>Upgrade user tier</p>
-        <input
+        <input aria-label="user@email.com"
           type="email"
           placeholder="user@email.com"
           value={tierEmail}
@@ -175,7 +177,7 @@ function AdminTools({
           className={`${inputCls} mb-1`}
         />
         <div className="flex gap-1">
-          <select
+          <select aria-label="Plan tier"
             value={tierValue}
             onChange={(e) => setTierValue(e.target.value)}
             className={`flex-1 min-w-0 rounded-lg px-2 py-1.5 text-xs outline-none ${isLight ? "bg-white border border-[#C9A84C]/40 text-[#2A1E07]" : "bg-black/40 border border-white/10 text-white"}`}
@@ -198,7 +200,7 @@ function AdminTools({
       <div>
         <p className={labelCls}>Grant Visual Bucs (self)</p>
         <div className="flex gap-1">
-          <input
+          <input aria-label="Visual Bucs amount"
             type="number"
             min="1"
             value={creditAmount}
@@ -215,7 +217,7 @@ function AdminTools({
       {/* Give a friend credits */}
       <div>
         <p className={labelCls}>Give a friend Visual Bucs</p>
-        <input
+        <input aria-label="friend@email.com"
           type="email"
           placeholder="friend@email.com"
           value={friendEmail}
@@ -223,7 +225,7 @@ function AdminTools({
           className={`${inputCls} mb-1`}
         />
         <div className="flex gap-1">
-          <input
+          <input aria-label="Friend Visual Bucs amount"
             type="number"
             min="1"
             value={friendAmount}
@@ -504,7 +506,7 @@ function BowRaceControls({
         </span>
       </div>
       <div className="flex items-center gap-2 mb-1">
-        <input
+        <input aria-label="Reward Visual Bucs"
           type="number"
           min="1"
           value={reward}
@@ -512,7 +514,7 @@ function BowRaceControls({
           className={inputCls}
           placeholder="Reward Visual Bucs"
         />
-        <button
+        <button aria-pressed={enabled}
           type="button"
           onClick={() => setEnabled((v) => !v)}
           className={`rounded-lg px-3 py-1.5 text-xs font-black shrink-0 ${
@@ -522,7 +524,7 @@ function BowRaceControls({
           {enabled ? "ON" : "OFF"}
         </button>
       </div>
-      <input
+      <input aria-label="Target override (1000–5000, blank = random)"
         type="number"
         min="1000"
         max="5000"
@@ -619,7 +621,7 @@ function JackpotCreator({
   return (
     <div>
       <p className={labelCls}>New jackpot event</p>
-      <input
+      <input aria-label="Event name"
         type="text"
         placeholder="Event name"
         value={name}
@@ -653,7 +655,7 @@ function JackpotCreator({
           </button>
         )}
       </div>
-      <input
+      <input aria-label="Ends at"
         type="datetime-local"
         value={endsAt}
         onChange={(e) => setEndsAt(e.target.value)}
@@ -661,7 +663,7 @@ function JackpotCreator({
         style={{ colorScheme: "dark" }}
       />
       <div className="flex gap-1">
-        <input
+        <input aria-label="Prize Visual Bucs"
           type="number"
           min="1"
           value={prize}

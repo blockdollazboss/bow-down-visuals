@@ -307,7 +307,7 @@ export default function LightningSetup({
                 {avatarUrl && (
                   <img src={avatarUrl} alt="" className="h-12 w-12 rounded-full border border-amber-400/40 object-cover" />
                 )}
-                <input
+                <input aria-label="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your stage name"
@@ -351,7 +351,7 @@ export default function LightningSetup({
               </label>
               <div className="flex items-center gap-1">
                 <span className="shrink-0 text-sm text-white/40">/artist/</span>
-                <input
+                <input aria-label="Your link"
                   value={slug}
                   onChange={(e) => {
                     setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
@@ -399,7 +399,15 @@ export default function LightningSetup({
             {laneMeta.label.toLowerCase()} page — theme, layout, sections. One step left after this.
           </p>
 
-          <textarea
+          <textarea aria-label={
+              lane === "gaming"
+                ? "e.g. High-octane neon arcade energy — clutch plays, loud chat, zero chill…"
+                : lane === "influencer"
+                  ? "e.g. Polished but real — aspirational mornings, honest reviews, brands love me…"
+                  : lane === "podcast"
+                    ? "e.g. Late-night conversation energy — curious, warm, the show everyone quotes…"
+                    : "e.g. Dark luxury with gold accents — confident, cinematic, unforgettable…"
+            }
             value={vibe}
             onChange={(e) => setVibe(e.target.value)}
             rows={4}

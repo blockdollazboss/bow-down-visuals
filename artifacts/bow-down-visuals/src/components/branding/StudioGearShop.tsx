@@ -442,14 +442,14 @@ export default function StudioGearShop() {
                 {/* Custom spec fields */}
                 {s.variant === "custom" && (
                   <div className="mt-4 space-y-2">
-                    <input
+                    <input aria-label="Text for your design (name, channel, slogan…)"
                       value={s.customText}
                       onChange={(e) => patchSel(p.id, { customText: e.target.value })}
                       placeholder="Text for your design (name, channel, slogan…)"
                       maxLength={200}
                       className={inputCls}
                     />
-                    <textarea
+                    <textarea aria-label="Design notes — colors, placement, anything the proof should show"
                       value={s.specNotes}
                       onChange={(e) => patchSel(p.id, { specNotes: e.target.value })}
                       placeholder="Design notes — colors, placement, anything the proof should show"
@@ -558,13 +558,13 @@ export default function StudioGearShop() {
           ) : (
             <>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" maxLength={120} className={inputCls} />
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" maxLength={200} className={inputCls} />
-                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" maxLength={300} className={`${inputCls} sm:col-span-2`} />
-                <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" maxLength={120} className={inputCls} />
+                <input aria-label="Full name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" maxLength={120} className={inputCls} />
+                <input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" maxLength={200} className={inputCls} />
+                <input aria-label="Street address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" maxLength={300} className={`${inputCls} sm:col-span-2`} />
+                <input aria-label="City" value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" maxLength={120} className={inputCls} />
                 <div className="grid grid-cols-2 gap-3">
-                  <input value={state_} onChange={(e) => setState_(e.target.value)} placeholder="State" maxLength={120} className={inputCls} />
-                  <input value={zip} onChange={(e) => setZip(e.target.value)} placeholder="ZIP" maxLength={30} className={inputCls} />
+                  <input aria-label="State" value={state_} onChange={(e) => setState_(e.target.value)} placeholder="State" maxLength={120} className={inputCls} />
+                  <input aria-label="ZIP" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="ZIP" maxLength={30} className={inputCls} />
                 </div>
               </div>
               <button onClick={placeOrder} disabled={placing} className={`${goldBtn} mt-5 w-full`}>
@@ -658,7 +658,7 @@ export default function StudioGearShop() {
                         </button>
                       </div>
                       <div className="mt-3 flex gap-2">
-                        <input
+                        <input aria-label="What should change on the proof?"
                           value={revisionNotes[o.id] ?? ""}
                           onChange={(e) => setRevisionNotes((prev) => ({ ...prev, [o.id]: e.target.value }))}
                           placeholder="What should change on the proof?"

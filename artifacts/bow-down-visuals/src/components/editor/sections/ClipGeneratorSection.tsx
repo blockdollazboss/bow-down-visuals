@@ -780,7 +780,7 @@ export function ClipGeneratorSection({
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Timeline Controls</p>
-          <button
+          <button aria-expanded={showMoreClipControls}
             type="button"
             onClick={() => setShowMoreClipControls((v) => !v)}
             className="flex items-center gap-1 text-[10px] font-bold text-white/35 hover:text-white/60 transition-colors"
@@ -805,7 +805,7 @@ export function ClipGeneratorSection({
                 <Plus className="h-3.5 w-3.5" />
                 Add Clip
               </button>
-              <button
+              <button aria-expanded={showInsertMenu}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setShowInsertMenu((v) => !v); }}
                 className="flex items-center px-2 border-l border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/10 transition-colors"

@@ -60,7 +60,7 @@ export default function CloseFriendsPanel() {
               {f.profile?.avatarUrl ? <img src={f.profile.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e8c86a]/20 text-xs font-bold text-[#e8c86a]">{f.profile?.displayName?.[0] ?? "?"}</span>}
               <span className="truncate">{f.profile?.displayName ?? "Creator"}</span>
             </span>
-            <button
+            <button aria-label="Remove from your circle"
               type="button"
               title="Remove from your circle"
               onClick={async () => {
@@ -89,7 +89,7 @@ export default function CloseFriendsPanel() {
           }
         }}
       >
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a creator…" className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-black px-3 py-2 text-sm focus:border-[#d4af37] focus:outline-none" />
+        <input aria-label="Find a creator…" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a creator…" className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-black px-3 py-2 text-sm focus:border-[#d4af37] focus:outline-none" />
         <button type="submit" className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black">
           <Search className="h-3.5 w-3.5" /> Find
         </button>

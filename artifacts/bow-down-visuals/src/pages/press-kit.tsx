@@ -502,7 +502,7 @@ export default function PressKitBuilder() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37]">{t("press-kit.sections.bio")}</h3>
                     <div className="flex items-center gap-2">
-                      <select value={tone} onChange={(e) => setTone(e.target.value)}
+                      <select aria-label="Bio tone" value={tone} onChange={(e) => setTone(e.target.value)}
                               className="rounded-lg border border-white/10 bg-black px-2 py-1 text-xs text-white/70">
                         <option value="professional">{t("press-kit.tone.professional")}</option>
                         <option value="bold">{t("press-kit.tone.bold")}</option>
@@ -603,7 +603,7 @@ export default function PressKitBuilder() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.vaultLabel")}</label>
-                    <select value={vaultId} onChange={(e) => setVaultId(e.target.value)} className={`${inputCls} bg-black`}>
+                    <select aria-label={t("press-kit.form.vaultLabel")} value={vaultId} onChange={(e) => setVaultId(e.target.value)} className={`${inputCls} bg-black`}>
                       <option value="">{t("press-kit.form.noneOption")}</option>
                       {vaults.map((v) => <option key={v.id} value={v.id}>{v.artist_name}</option>)}
                     </select>

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useTranslation } from "react-i18next";
 
 /* ─── Sponsor Deal Pipeline (Wave 8) ──────────────────────────────────────
@@ -337,6 +338,7 @@ export default function SponsorPipeline() {
   }
 
   const openDraft = openDraftId ? drafts[openDraftId] : null;
+  const dialogRef = useModalA11y<HTMLDivElement>(!!openDraftId, () => setOpenDraftId(null));
   const openDraftDeal = openDraftId ? deals.find((d) => d.id === openDraftId) : null;
 
   return (
@@ -348,7 +350,7 @@ export default function SponsorPipeline() {
           </h2>
           <p className="mt-1 text-sm text-white/50">{t("wave8.sponsors.subtitle")}</p>
         </div>
-        <button
+        <button aria-expanded={showForm}
           onClick={() => { setShowForm((v) => !v); setFormError(null); }}
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-5 py-2.5 text-sm font-black text-black shadow-[0_4px_20px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] active:scale-95"
         >
@@ -363,7 +365,7 @@ export default function SponsorPipeline() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>{t("wave8.sponsors.sponsorName")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.sponsorName")}
                 value={fName}
                 onChange={(e) => setFName(e.target.value)}
                 maxLength={120}
@@ -373,7 +375,7 @@ export default function SponsorPipeline() {
             </div>
             <div>
               <label className={labelClass}>{t("wave8.sponsors.dealValue")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.dealValue")}
                 value={fValue}
                 onChange={(e) => setFValue(e.target.value.replace(/[^0-9.]/g, ""))}
                 inputMode="decimal"
@@ -383,7 +385,7 @@ export default function SponsorPipeline() {
             </div>
             <div>
               <label className={labelClass}>{t("wave8.sponsors.contact")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.contact")}
                 value={fContact}
                 onChange={(e) => setFContact(e.target.value)}
                 maxLength={160}
@@ -393,7 +395,7 @@ export default function SponsorPipeline() {
             </div>
             <div>
               <label className={labelClass}>{t("wave8.sponsors.notes")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.notes")}
                 value={fNotes}
                 onChange={(e) => setFNotes(e.target.value)}
                 maxLength={1000}
@@ -597,6 +599,8 @@ export default function SponsorPipeline() {
       {/* ── follow-up draft modal ────────────────────────────────────── */}
       {openDraft && openDraftDeal && (
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setOpenDraftId(null)}
           role="dialog"

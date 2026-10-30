@@ -438,7 +438,7 @@ export default function CatalogImport() {
             {listedItems.map((item) => (
               <div key={item.id} className={`flex items-start gap-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/[0.03]"}`}>
                 {(item.status === "listed" || item.status === "failed") && (
-                  <input
+                  <input aria-label="Select this item"
                     type="checkbox"
                     className="mt-1 h-4 w-4 shrink-0 accent-[#C9A84C]"
                     checked={selected.has(item.id)}

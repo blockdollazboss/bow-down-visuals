@@ -173,7 +173,7 @@ export default function Contracts() {
 
             {/* Contract text */}
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{t("contracts.paste_the_contract_text")}</label>
-            <textarea
+            <textarea aria-label={t("contracts.paste_the_contract_text")}
               value={contractText}
               onChange={(e) => setContractText(e.target.value)}
               placeholder={t("contracts.paste_the_full_contract_here_cop")}
@@ -190,7 +190,7 @@ export default function Contracts() {
             {/* Context */}
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{t("contracts.anything_we_should_know")}<span className="text-white/25 normal-case">{t("contracts.optional")}</span>
             </label>
-            <input
+            <input aria-label={t("contracts.anything_we_should_know")}
               value={context}
               onChange={(e) => setContext(e.target.value)}
               placeholder={t("contracts.e_g_they_re_offering_5k_advance")}

@@ -402,7 +402,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
             <label className="mb-1.5 block text-xs font-medium text-white/60">
               {t("podcast.guestQuestions.form.guestNameLabel")}
             </label>
-            <input
+            <input aria-label={t("podcast.guestQuestions.form.guestNameLabel")}
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               maxLength={100}
@@ -414,7 +414,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
             <label className="mb-1.5 block text-xs font-medium text-white/60">
               {t("podcast.guestQuestions.form.topicLabel")}
             </label>
-            <input
+            <input aria-label={t("podcast.guestQuestions.form.topicLabel")}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               maxLength={300}
@@ -427,7 +427,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
           <label className="mb-1.5 block text-xs font-medium text-white/60">
             {t("podcast.guestQuestions.form.bioLabel")}
           </label>
-          <textarea
+          <textarea aria-label={t("podcast.guestQuestions.form.bioLabel")}
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             rows={4}
@@ -559,7 +559,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
               </p>
             </Link>
 
-            <button
+            <button aria-expanded={introOpen}
               onClick={() => setIntroOpen((v) => !v)}
               className="rounded-xl border border-white/10 bg-black/40 p-4 text-left transition hover:border-primary/50"
             >
@@ -570,7 +570,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
               </p>
             </button>
 
-            <button
+            <button aria-expanded={postOpen}
               onClick={() => setPostOpen((v) => !v)}
               className="rounded-xl border border-white/10 bg-black/40 p-4 text-left transition hover:border-primary/50"
             >
@@ -586,14 +586,14 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
           {introOpen && (
             <div className="mt-4 rounded-xl border border-white/10 bg-black/40 p-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <input
+                <input aria-label={t("podcast.guestQuestions.chain.introPodcastName")}
                   value={podcastName}
                   onChange={(e) => setPodcastName(e.target.value)}
                   maxLength={80}
                   placeholder={t("podcast.guestQuestions.chain.introPodcastName")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("podcast.guestQuestions.chain.introHostName")}
                   value={hostName}
                   onChange={(e) => setHostName(e.target.value)}
                   maxLength={80}
@@ -601,7 +601,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
                   className={inputClass}
                 />
               </div>
-              <input
+              <input aria-label={t("podcast.guestQuestions.chain.introTaglinePh")}
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
                 maxLength={200}
@@ -676,27 +676,27 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/60">
                   {t("podcast.guestQuestions.chain.writeShowNotes")}
                 </h3>
-                <input
+                <input aria-label={t("podcast.guestQuestions.chain.showNotesTitle")}
                   value={notesTitle}
                   onChange={(e) => setNotesTitle(e.target.value)}
                   maxLength={300}
                   placeholder={t("podcast.guestQuestions.chain.showNotesTitle")}
                   className={inputClass}
                 />
-                <textarea
+                <textarea aria-label={t("podcast.guestQuestions.chain.showNotesTranscript")}
                   value={notesTranscript}
                   onChange={(e) => setNotesTranscript(e.target.value)}
                   rows={4}
                   placeholder={t("podcast.guestQuestions.chain.showNotesTranscript")}
                   className={`${inputClass} mt-3 resize-y`}
                 />
-                <input
+                <input aria-label={t("podcast.guestQuestions.chain.showNotesAudioUrl")}
                   value={notesAudioUrl}
                   onChange={(e) => setNotesAudioUrl(e.target.value)}
                   placeholder={t("podcast.guestQuestions.chain.showNotesAudioUrl")}
                   className={`${inputClass} mt-3`}
                 />
-                <textarea
+                <textarea aria-label={t("podcast.guestQuestions.chain.showNotesContext")}
                   value={notesContext}
                   onChange={(e) => setNotesContext(e.target.value)}
                   rows={2}
@@ -726,13 +726,13 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/60">
                   {t("podcast.guestQuestions.chain.makeAudiogram")}
                 </h3>
-                <input
+                <input aria-label={t("podcast.guestQuestions.chain.audiogramAudioUrl")}
                   value={agAudioUrl}
                   onChange={(e) => setAgAudioUrl(e.target.value)}
                   placeholder={t("podcast.guestQuestions.chain.audiogramAudioUrl")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("podcast.guestQuestions.chain.audiogramCoverUrl")}
                   value={agCoverUrl}
                   onChange={(e) => setAgCoverUrl(e.target.value)}
                   placeholder={t("podcast.guestQuestions.chain.audiogramCoverUrl")}

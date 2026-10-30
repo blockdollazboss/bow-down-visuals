@@ -4,6 +4,7 @@ import {
   X, Send, Share2, Copy, Download, Check, Loader2, PartyPopper,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { apiJson } from "@/lib/social-api";
 import {
   renderBragCard,
@@ -60,6 +61,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export default function BragModal({ achievement, creatorName, avatarUrl, onClose }: BragModalProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onClose);
   const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -182,6 +184,8 @@ export default function BragModal({ achievement, creatorName, avatarUrl, onClose
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"

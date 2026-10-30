@@ -348,11 +348,11 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Deal title</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Our song 'Midnight Run'" className={inputClass} />
+                <input aria-label="Deal title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Our song 'Midnight Run'" className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>Your partner</label>
-                <input
+                <input aria-label="Your partner"
                   value={partnerQuery}
                   onChange={(e) => setPartnerQuery(e.target.value)}
                   placeholder="Search creators…"
@@ -398,7 +398,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
             {kind !== "general" && (
               <div className="mb-4">
                 <label className={labelClass}>Pick the item — its money follows this split once you both sign</label>
-                <select value={itemId} onChange={(e) => setItemId(e.target.value)} className={inputClass}>
+                <select aria-label="Pick the item — its money follows this split once you both sign" value={itemId} onChange={(e) => setItemId(e.target.value)} className={inputClass}>
                   <option value="">{itemOptions.length === 0 ? "No items found yet" : "Pick one…"}</option>
                   {itemOptions.map((o) => (
                     <option key={o.id} value={o.id}>{o.title}</option>
@@ -411,20 +411,20 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
               <div className="rounded-xl border border-white/10 p-4">
                 <div className="text-xs font-black uppercase tracking-widest text-amber-300/80 mb-3">You</div>
                 <label className={labelClass}>You do</label>
-                <textarea value={myDoes} onChange={(e) => setMyDoes(e.target.value)} rows={2} placeholder="write and record the song" className={inputClass} />
+                <textarea aria-label="You do" value={myDoes} onChange={(e) => setMyDoes(e.target.value)} rows={2} placeholder="write and record the song" className={inputClass} />
                 <label className={`${labelClass} mt-3`}>You get</label>
-                <textarea value={myGets} onChange={(e) => setMyGets(e.target.value)} rows={2} placeholder="lead artist credit" className={inputClass} />
+                <textarea aria-label="You get" value={myGets} onChange={(e) => setMyGets(e.target.value)} rows={2} placeholder="lead artist credit" className={inputClass} />
                 <label className={`${labelClass} mt-3`}>Your share %</label>
-                <input value={myPct} onChange={(e) => setMyPct(e.target.value)} inputMode="decimal" className={inputClass} />
+                <input aria-label="Your share %" value={myPct} onChange={(e) => setMyPct(e.target.value)} inputMode="decimal" className={inputClass} />
               </div>
               <div className="rounded-xl border border-white/10 p-4">
                 <div className="text-xs font-black uppercase tracking-widest text-amber-300/80 mb-3">Your partner</div>
                 <label className={labelClass}>They do</label>
-                <textarea value={theirDoes} onChange={(e) => setTheirDoes(e.target.value)} rows={2} placeholder="produce the beat" className={inputClass} />
+                <textarea aria-label="They do" value={theirDoes} onChange={(e) => setTheirDoes(e.target.value)} rows={2} placeholder="produce the beat" className={inputClass} />
                 <label className={`${labelClass} mt-3`}>They get</label>
-                <textarea value={theirGets} onChange={(e) => setTheirGets(e.target.value)} rows={2} placeholder="producer credit" className={inputClass} />
+                <textarea aria-label="They get" value={theirGets} onChange={(e) => setTheirGets(e.target.value)} rows={2} placeholder="producer credit" className={inputClass} />
                 <label className={`${labelClass} mt-3`}>Their share %</label>
-                <input value={theirPct} onChange={(e) => setTheirPct(e.target.value)} inputMode="decimal" className={inputClass} />
+                <input aria-label="Their share %" value={theirPct} onChange={(e) => setTheirPct(e.target.value)} inputMode="decimal" className={inputClass} />
               </div>
             </div>
             {splitErr && (myPct !== "" || theirPct !== "") && (
@@ -433,7 +433,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
             <div className="flex flex-col md:flex-row gap-3 md:items-end">
               <div className="flex-1">
                 <label className={labelClass}>Sign your name — writing the deal signs your side</label>
-                <input value={myName} onChange={(e) => setMyName(e.target.value)} placeholder="Your name, the way you sign it" className={inputClass} />
+                <input aria-label="Sign your name — writing the deal signs your side" value={myName} onChange={(e) => setMyName(e.target.value)} placeholder="Your name, the way you sign it" className={inputClass} />
               </div>
               <button type="button" onClick={create} disabled={!canCreate} className={goldBtn}>
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
@@ -515,7 +515,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
                       <div className="flex flex-wrap items-center gap-2">
                         {actions.includes("sign") && (
                           <>
-                            <input
+                            <input aria-label="Your name, the way you sign it"
                               value={signNames[deal.id] ?? deal.viewer_side?.name ?? ""}
                               onChange={(e) => setSignNames((m) => ({ ...m, [deal.id]: e.target.value }))}
                               placeholder="Your name, the way you sign it"
@@ -550,23 +550,23 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
                           Rewrite — your partner signs the new words before anything counts
                         </div>
                         <label className={labelClass}>Title</label>
-                        <input value={amendTitle} onChange={(e) => setAmendTitle(e.target.value)} className={inputClass} />
+                        <input aria-label="Title" value={amendTitle} onChange={(e) => setAmendTitle(e.target.value)} className={inputClass} />
                         <div className="grid md:grid-cols-2 gap-4 mt-3">
                           <div>
                             <label className={labelClass}>You do</label>
-                            <textarea value={amendMyDoes} onChange={(e) => setAmendMyDoes(e.target.value)} rows={2} className={inputClass} />
+                            <textarea aria-label="You do" value={amendMyDoes} onChange={(e) => setAmendMyDoes(e.target.value)} rows={2} className={inputClass} />
                             <label className={`${labelClass} mt-3`}>You get</label>
-                            <textarea value={amendMyGets} onChange={(e) => setAmendMyGets(e.target.value)} rows={2} className={inputClass} />
+                            <textarea aria-label="You get" value={amendMyGets} onChange={(e) => setAmendMyGets(e.target.value)} rows={2} className={inputClass} />
                             <label className={`${labelClass} mt-3`}>Your share %</label>
-                            <input value={amendMyPct} onChange={(e) => setAmendMyPct(e.target.value)} inputMode="decimal" className={inputClass} />
+                            <input aria-label="Your share %" value={amendMyPct} onChange={(e) => setAmendMyPct(e.target.value)} inputMode="decimal" className={inputClass} />
                           </div>
                           <div>
                             <label className={labelClass}>They do</label>
-                            <textarea value={amendTheirDoes} onChange={(e) => setAmendTheirDoes(e.target.value)} rows={2} className={inputClass} />
+                            <textarea aria-label="They do" value={amendTheirDoes} onChange={(e) => setAmendTheirDoes(e.target.value)} rows={2} className={inputClass} />
                             <label className={`${labelClass} mt-3`}>They get</label>
-                            <textarea value={amendTheirGets} onChange={(e) => setAmendTheirGets(e.target.value)} rows={2} className={inputClass} />
+                            <textarea aria-label="They get" value={amendTheirGets} onChange={(e) => setAmendTheirGets(e.target.value)} rows={2} className={inputClass} />
                             <label className={`${labelClass} mt-3`}>Their share %</label>
-                            <input value={amendTheirPct} onChange={(e) => setAmendTheirPct(e.target.value)} inputMode="decimal" className={inputClass} />
+                            <input aria-label="Their share %" value={amendTheirPct} onChange={(e) => setAmendTheirPct(e.target.value)} inputMode="decimal" className={inputClass} />
                           </div>
                         </div>
                         <div className="flex gap-2 mt-4">

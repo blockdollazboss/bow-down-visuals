@@ -163,7 +163,7 @@ function DangerZone() {
           <p className="text-sm font-bold text-red-300">{t("settings.deleteTitle")}</p>
           <p className="mt-1 text-xs text-white/50">{t("settings.deleteDescription")}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <input
+            <input aria-label={t("settings.deletePlaceholder")}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder={t("settings.deletePlaceholder")}

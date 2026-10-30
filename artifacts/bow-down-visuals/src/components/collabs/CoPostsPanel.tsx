@@ -175,7 +175,7 @@ export function CoPostsPanel({
           <div className="space-y-4">
             <div>
               <label className={labelClass}>Co-author</label>
-              <select value={partnerUserId} onChange={(e) => setPartnerUserId(e.target.value)} className={inputClass}>
+              <select aria-label="Co-author" value={partnerUserId} onChange={(e) => setPartnerUserId(e.target.value)} className={inputClass}>
                 <option value="">Choose your collaborator…</option>
                 {partners.map((p) => (
                   <option key={p.userId} value={p.userId}>
@@ -187,7 +187,7 @@ export function CoPostsPanel({
             </div>
             <div>
               <label className={labelClass}>The post</label>
-              <textarea
+              <textarea aria-label="The post"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={4}
@@ -198,7 +198,7 @@ export function CoPostsPanel({
             </div>
             <div>
               <label className={labelClass}>Image URL (optional)</label>
-              <input
+              <input aria-label="Image URL (optional)"
                 value={mediaUrl}
                 onChange={(e) => setMediaUrl(e.target.value)}
                 placeholder="https://…"

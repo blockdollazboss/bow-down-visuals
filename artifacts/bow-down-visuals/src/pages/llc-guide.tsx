@@ -345,7 +345,7 @@ export default function LlcGuide() {
                 ))}
               </select>
               <div className="flex flex-1 gap-2">
-                <input
+                <input aria-label={user ? t("llcGuide.askPlaceholder") : t("llcGuide.askPlaceholderSignedOut")}
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") askQuestion(); }}
@@ -408,7 +408,7 @@ export default function LlcGuide() {
             </div>
             <div>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("llcGuide.businessName")}<span className="text-white/25">{t("llcGuide.businessNameOptional")}</span></p>
-              <input
+              <input aria-label={t("llcGuide.businessNamePlaceholder")}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 maxLength={120}

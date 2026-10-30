@@ -495,7 +495,7 @@ function ShortCard({
       )}
 
       {/* mute */}
-      <button onClick={() => setMuted(!muted)} title={muted ? "Unmute" : "Mute"}
+      <button onClick={() => setMuted(!muted)} title={muted ? "Unmute" : "Mute"} aria-label={muted ? "Unmute" : "Mute"} aria-pressed={muted}
         className="absolute right-4 top-16 z-10 rounded-full bg-black/60 p-2.5 text-white">
         {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
       </button>
@@ -562,7 +562,7 @@ function ShortCard({
         </div>
         {/* 4 stars: analytics */}
         <div data-min-stars="4">
-          <button onClick={() => setAnalyticsOpen((o) => !o)} className="flex flex-col items-center gap-1" title="Why am I seeing this?">
+          <button onClick={() => setAnalyticsOpen((o) => !o)} aria-expanded={analyticsOpen} className="flex flex-col items-center gap-1" title="Why am I seeing this?">
             <span className="rounded-full bg-black/60 p-3"><BarChart3 className="h-6 w-6 text-white" /></span>
             <span className="text-xs font-semibold text-white">Stats</span>
           </button>
@@ -810,7 +810,7 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
       <div className="flex max-h-[70%] flex-col rounded-t-2xl border-t border-primary/30 bg-zinc-950 p-4" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <p className="font-bold text-white">{comments.length} comment{comments.length === 1 ? "" : "s"}</p>
-          <button onClick={onClose} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
+          <button aria-label="Close" onClick={onClose} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
         </div>
         <div className="mb-3 flex-1 space-y-3 overflow-y-auto">
           {loading && <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />}
@@ -902,7 +902,7 @@ function KingDuetPanel() {
               <p className="flex items-center gap-2 font-black text-white">
                 <Crown className="h-5 w-5 text-primary" /> Duet the King
               </p>
-              <button onClick={() => setOpen(false)} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
+              <button aria-label="Close" onClick={() => setOpen(false)} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
             </div>
             <p className="mb-4 text-xs leading-relaxed text-white/50">
               Thy Cheat Code posts a clip and opens it for duets — same rails as every duet here.
@@ -1025,7 +1025,7 @@ function ShortsMenu() {
                   Sounds
                 </button>
               </div>
-              <button onClick={() => setOpen(false)} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
+              <button aria-label="Close" onClick={() => setOpen(false)} className="rounded-full bg-white/10 p-1.5 text-white"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto">
               {loading && <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />}

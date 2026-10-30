@@ -641,7 +641,11 @@ export function LufsPanel() {
       {(status === "idle" || status === "failed") && !analysis ? (
         <div className="mt-6">
           <div
+            role="button"
+            tabIndex={0}
+            aria-label={t("lufs.dropPrompt", { defaultValue: "Drop your audio here or tap to upload" })}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); void pickFile(e.dataTransfer.files[0]); }}

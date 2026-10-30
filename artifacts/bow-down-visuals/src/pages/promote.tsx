@@ -313,7 +313,7 @@ export default function Promote() {
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-gradient-to-br from-amber-400/25 to-yellow-600/10">
               <FeatureIcon className="h-5 w-5 text-primary" />
             </div>
-            <select
+            <select aria-label={t("promote.form.feature")}
               value={featureKey}
               onChange={(e) => setFeatureKey(e.target.value)}
               className={`${inputClass} cursor-pointer appearance-none`}
@@ -359,7 +359,7 @@ export default function Promote() {
           <label className="mt-7 block text-xs font-bold uppercase tracking-widest text-white/45">
             {t("promote.form.angle")} <span className="normal-case text-white/30">{t("promote.form.optional")}</span>
           </label>
-          <input
+          <input aria-label={t("promote.form.angle")}
             value={focus}
             onChange={(e) => setFocus(e.target.value)}
             placeholder={t("promote.form.focusPlaceholder")}

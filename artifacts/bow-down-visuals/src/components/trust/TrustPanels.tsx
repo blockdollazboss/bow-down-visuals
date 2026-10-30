@@ -87,8 +87,8 @@ export function LegacySettings() {
         <p className="mt-3 text-sm">Current designation: <strong>{designation.status}</strong> (heir account {designation.heirUserId})</p>
       )}
       <div className="mt-4 grid gap-3">
-        <input className={input} placeholder="Heir's account ID (ask them for it from their settings)" value={heir} onChange={(e) => setHeir(e.target.value)} />
-        <textarea className={input} rows={3} placeholder="Your instructions for your heir (optional)" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+        <input aria-label="Heir's account ID (ask them for it from their settings)" className={input} placeholder="Heir's account ID (ask them for it from their settings)" value={heir} onChange={(e) => setHeir(e.target.value)} />
+        <textarea aria-label="Your instructions for your heir (optional)" className={input} rows={3} placeholder="Your instructions for your heir (optional)" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
         <div className="flex gap-2">
           <button type="button" className={btn} onClick={save} disabled={!heir.trim()}>Save designation</button>
           {designation && designation.status !== "revoked" && <button type="button" className={ghost} onClick={revoke}>Remove designation</button>}
@@ -168,9 +168,9 @@ export function LegacyContactSettings() {
         <p className="mt-3 text-sm">Current legacy contact: <strong>{contact.name}</strong> ({contact.email})</p>
       )}
       <div className="mt-4 grid gap-3">
-        <input className={input} placeholder="Contact's name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
-        <input className={input} type="email" placeholder="Contact's email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} />
-        <textarea className={input} rows={3} placeholder="Note for us when we reach out (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+        <input aria-label="Contact's name" className={input} placeholder="Contact's name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+        <input aria-label="Contact's email" className={input} type="email" placeholder="Contact's email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} />
+        <textarea aria-label="Note for us when we reach out (optional)" className={input} rows={3} placeholder="Note for us when we reach out (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btn} onClick={save} disabled={!name.trim() || !email.trim()}>Save legacy contact</button>
           {contact && !confirmingRemove && <button type="button" className={ghost} onClick={() => setConfirmingRemove(true)}>Remove legacy contact</button>}
@@ -397,7 +397,7 @@ export function EarningsDocuments() {
         earnings — it is not a filed tax form. If a payment processor paid you, that processor issues its own tax forms.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <select className={input + " w-32"} value={year} onChange={(e) => { setYear(Number(e.target.value)); setStmt(null); }}>
+        <select aria-label="Tax year" className={input + " w-32"} value={year} onChange={(e) => { setYear(Number(e.target.value)); setStmt(null); }}>
           {[thisYear, thisYear - 1, thisYear - 2].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         <button type="button" className={btn} onClick={load}>View statement</button>
@@ -463,7 +463,7 @@ export function ClaimsPanel() {
           {c.resolutionNote && <p className="mt-1">Resolution: {c.resolutionNote}</p>}
           {c.status !== "resolved" && (
             <div className="mt-2 flex flex-wrap gap-2">
-              <input className={input + " max-w-xs"} placeholder="Note (required to resolve; recorded for review)" value={notes[c.id] ?? ""} onChange={(e) => setNotes({ ...notes, [c.id]: e.target.value })} />
+              <input aria-label="Note (required to resolve; recorded for review)" className={input + " max-w-xs"} placeholder="Note (required to resolve; recorded for review)" value={notes[c.id] ?? ""} onChange={(e) => setNotes({ ...notes, [c.id]: e.target.value })} />
               {c.youAre === "uploader" && c.status === "pending" && <button type="button" className={ghost} onClick={() => act(c.id, "dispute")}>Dispute</button>}
               {c.youAre === "owner" && c.status === "pending" && <button type="button" className={ghost} onClick={() => act(c.id, "accept")}>Accept match</button>}
               {c.youAre === "owner" && (c.status === "disputed" || c.status === "accepted") && <button type="button" className={ghost} onClick={() => act(c.id, "resolve")}>Resolve with note</button>}
@@ -490,7 +490,7 @@ export function RetentionPanel() {
       <h2 className="text-lg font-black tracking-tight">Per-video retention</h2>
       <p className="mt-1 text-sm text-muted-foreground">Built from real playback heartbeats. Videos with no recorded heartbeats say so — curves are never back-filled or invented.</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <input className={input + " max-w-sm"} placeholder="Video ID" value={videoId} onChange={(e) => setVideoId(e.target.value)} />
+        <input aria-label="Video ID" className={input + " max-w-sm"} placeholder="Video ID" value={videoId} onChange={(e) => setVideoId(e.target.value)} />
         <button type="button" className={btn} onClick={load} disabled={!videoId.trim()}>Load curve</button>
       </div>
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
@@ -562,7 +562,7 @@ export function ModConsolePanel() {
           <div>
             <label className="block text-xs font-semibold text-muted-foreground">Blocked words (comma separated — your list, your call)</label>
             <div className="mt-1 flex gap-2">
-              <input className={input} value={words} onChange={(e) => setWords(e.target.value)} />
+              <input aria-label="Blocked words (comma separated — your list, your call)" className={input} value={words} onChange={(e) => setWords(e.target.value)} />
               <button type="button" className={ghost} onClick={() => saveRules({ blockedWords: words.split(",").map((w) => w.trim()).filter(Boolean) })}>Save words</button>
             </div>
           </div>

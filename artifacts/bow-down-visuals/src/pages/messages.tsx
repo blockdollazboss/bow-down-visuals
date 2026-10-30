@@ -416,14 +416,14 @@ export default function Messages() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#e8c86a]">Slide in (respectfully)</p>
             <h1 className="mt-1 text-3xl font-bold">Messages</h1>
           </div>
-          <button type="button" onClick={() => setShowNew(!showNew)} className={ghostButton}>
+          <button aria-expanded={showNew} type="button" onClick={() => setShowNew(!showNew)} className={ghostButton}>
             <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> New message</span>
           </button>
         </div>
 
         {showNew && (
           <div className="mb-4 flex gap-2">
-            <input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="Creator slug (e.g. shark-king)"
+            <input aria-label="Creator slug (e.g. shark-king)" value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="Creator slug (e.g. shark-king)"
               className={goldInput} onKeyDown={(e) => e.key === "Enter" && startBySlug()} />
             <button type="button" onClick={startBySlug} className={goldButton}>Start</button>
           </div>
@@ -471,12 +471,12 @@ export default function Messages() {
             <PriorityDmSettingsCard api={api} onNotice={setNotice} />
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-              <input value={convQuery} onChange={(e) => setConvQuery(e.target.value)}
+              <input aria-label="Search conversations — a name, a word, a piece of work…" value={convQuery} onChange={(e) => setConvQuery(e.target.value)}
                 placeholder="Search conversations — a name, a word, a piece of work…"
                 data-testid="dm-conv-search"
                 className="w-full rounded-full border border-white/15 bg-[#0d0a02] py-2 pl-9 pr-8 text-sm text-white placeholder:text-white/35 focus:border-[#e8c86a]/60 focus:outline-none" />
               {convQuery && (
-                <button type="button" onClick={() => setConvQuery("")} title="Clear search"
+                <button aria-label="Clear search" type="button" onClick={() => setConvQuery("")} title="Clear search"
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                   <X className="h-4 w-4" />
                 </button>
@@ -528,7 +528,7 @@ export default function Messages() {
                         </Link>
                       </>
                     )}
-                    <button type="button" onClick={block} className="text-white/40 hover:text-red-400" title="Block">
+                    <button aria-label="Block" type="button" onClick={block} className="text-white/40 hover:text-red-400" title="Block">
                       <Ban className="h-4 w-4" />
                     </button>
                   </div>
@@ -540,12 +540,12 @@ export default function Messages() {
                 <div className="border-b border-white/10 px-4 py-2.5">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                    <input value={threadQuery} onChange={(e) => setThreadQuery(e.target.value)}
+                    <input aria-label="Search this thread…" value={threadQuery} onChange={(e) => setThreadQuery(e.target.value)}
                       placeholder="Search this thread…"
                       data-testid="dm-thread-search"
                       className="w-full rounded-full border border-white/15 bg-black/40 py-1.5 pl-9 pr-8 text-sm text-white placeholder:text-white/35 focus:border-[#e8c86a]/60 focus:outline-none" />
                     {threadQuery && (
-                      <button type="button" onClick={() => setThreadQuery("")} title="Clear search"
+                      <button aria-label="Clear search" type="button" onClick={() => setThreadQuery("")} title="Clear search"
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                         <X className="h-4 w-4" />
                       </button>
@@ -626,7 +626,7 @@ export default function Messages() {
                         <span className="min-w-0 flex-1 truncate">
                           {dmWorkLabel(pendingAtt.type)} ready to hand off: {pendingAtt.name}
                         </span>
-                        <button type="button" onClick={() => setPendingAtt(null)} title="Remove attachment"
+                        <button aria-label="Remove attachment" type="button" onClick={() => setPendingAtt(null)} title="Remove attachment"
                           data-testid="dm-pending-attachment-remove" className="shrink-0 text-white/50 hover:text-white">
                           <X className="h-4 w-4" />
                         </button>
@@ -634,7 +634,7 @@ export default function Messages() {
                     )}
                     {showLink && (
                       <div className="flex gap-2">
-                        <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
+                        <input aria-label="Link to your file (https://…/beat.mp3)" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
                           placeholder="Link to your file (https://…/beat.mp3)"
                           data-testid="dm-attach-link-input"
                           className={goldInput} onKeyDown={(e) => e.key === "Enter" && attachByUrl()} />
@@ -653,21 +653,21 @@ export default function Messages() {
                           e.target.value = "";
                           if (f) void uploadFile(f);
                         }} />
-                      <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                      <button aria-label="Attach a file" type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
                         title="Attach a beat, cover, or clip (images up to 10 MB, audio/video up to 80 MB)"
                         data-testid="dm-attach-button"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
                         <Paperclip className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
+                      <button aria-label="Attach by link" aria-expanded={showLink} type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
                         title="Attach by link — a file of yours hosted elsewhere; it's mirrored into your storage when it sends"
                         data-testid="dm-attach-link-toggle"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
                         <Link2 className="h-4 w-4" />
                       </button>
-                      <input ref={draftRef} value={draft} onChange={(e) => updateDraft(e.target.value)} placeholder="Type a message…"
+                      <input aria-label="Type a message…" ref={draftRef} value={draft} onChange={(e) => updateDraft(e.target.value)} placeholder="Type a message…"
                         maxLength={2000} className={goldInput} onKeyDown={(e) => e.key === "Enter" && send()} />
-                      <button type="button" onClick={send} disabled={!dmCanSend(draft, pendingAtt !== null) || uploading} className={goldButton}>
+                      <button type="button" aria-label="Send message" onClick={send} disabled={!dmCanSend(draft, pendingAtt !== null) || uploading} className={goldButton}>
                         <Send className="h-4 w-4" />
                       </button>
                     </div>

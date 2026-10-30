@@ -621,7 +621,7 @@ export default function MyShop() {
               {t("myShop.subheading")}
             </p>
           </div>
-          <button className={goldBtn} onClick={() => setShowCreate((v) => !v)}>
+          <button aria-expanded={showCreate} className={goldBtn} onClick={() => setShowCreate((v) => !v)}>
             <Plus className="w-4 h-4" /> {t("myShop.newShop")} <span className="text-[11px] font-semibold opacity-70">{t("myShop.free")}</span>
           </button>
         </div>
@@ -748,7 +748,7 @@ export default function MyShop() {
                       >
                         <Share2 className="w-4 h-4" /> {t("myShop.shareShop", { defaultValue: "Share" })}
                       </button>
-                      <button className={ghostBtn} onClick={deleteShop}>
+                      <button aria-label="Delete shop" className={ghostBtn} onClick={deleteShop}>
                         <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
                     </div>
@@ -841,7 +841,7 @@ export default function MyShop() {
                     <div className={`mt-4 rounded-xl border p-5 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/40" : "border-amber-400/25 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
                         <h3 className="font-bold text-sm">{editingProduct ? t("myShop.editProduct") : t("myShop.newProduct")}</h3>
-                        <button className="text-white/40 hover:text-white" onClick={() => setShowProductForm(false)}><X className="w-4 h-4" /></button>
+                        <button aria-label="Close" className="text-white/40 hover:text-white" onClick={() => setShowProductForm(false)}><X className="w-4 h-4" /></button>
                       </div>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>
@@ -965,7 +965,7 @@ export default function MyShop() {
                         {pAffiliates && (
                           <div className="mt-3 flex items-center gap-2">
                             <label className="text-xs font-semibold text-white/50">Commission you pay</label>
-                            <input
+                            <input aria-label="Commission you pay"
                               className="w-24 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none"
                               value={pAffiliatePct}
                               onChange={(e) => setPAffiliatePct(e.target.value)}

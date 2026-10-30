@@ -337,7 +337,7 @@ export default function InspoTab({
       {/* Step 2 — style DNA card */}
       {dna && (
         <div id="inspo-dna-card" className="rounded-2xl border border-primary/30 bg-gradient-to-b from-primary/[0.08] to-transparent p-5 md:p-6 scroll-mt-24">
-          <button
+          <button aria-expanded={dnaOpen}
             type="button"
             onClick={() => setDnaOpen((o) => !o)}
             className="w-full flex items-center justify-between gap-3"

@@ -94,8 +94,8 @@ export default function JoinList() {
             {list.description && <p className="mx-auto mt-2 max-w-md whitespace-pre-wrap text-sm leading-relaxed text-white/55">{list.description}</p>}
 
             <form onSubmit={subscribe} className="mx-auto mt-6 max-w-md space-y-3 text-left">
-              <input className={inputClass} type="text" placeholder={t("auth.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
-              <input className={inputClass} type="email" placeholder={t("auth.emailPlaceholder")} value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input aria-label={t("auth.namePlaceholder")} className={inputClass} type="text" placeholder={t("auth.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
+              <input aria-label={t("auth.emailPlaceholder")} className={inputClass} type="email" placeholder={t("auth.emailPlaceholder")} value={email} onChange={(e) => setEmail(e.target.value)} required />
               {error && (
                 <p className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
