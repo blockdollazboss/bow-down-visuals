@@ -19,7 +19,7 @@ export function SwitchToWebsite({ isLight }: { isLight: boolean }) {
     <a
       href={WEBSITE_HOME_PATH}
       data-testid="world-switch-to-website"
-      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+      className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
         isLight
           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
           : "border-white/15 text-white/75 hover:text-white"

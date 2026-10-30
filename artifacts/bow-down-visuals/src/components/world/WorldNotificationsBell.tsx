@@ -153,7 +153,7 @@ export function WorldNotificationsBell({
         aria-label={unread > 0 ? `Notifications — ${unread} unread` : "Notifications"}
         aria-expanded={open}
         onClick={() => { setOpen((o) => !o); if (!open) void load(); }}
-        className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+        className={`bdv-touch-target relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
           isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
         }`}
       >

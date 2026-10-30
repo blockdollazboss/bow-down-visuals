@@ -1641,7 +1641,7 @@ export default function StationPanel(props: StationPanelProps) {
             type="button"
             data-testid="world-station-return"
             onClick={onClose}
-            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+            className="bdv-touch-target ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
           >
             <X className="h-4 w-4" /> Return to the palace
           </button>
@@ -1685,7 +1685,7 @@ export default function StationPanel(props: StationPanelProps) {
             type="button"
             data-testid="world-studio-return"
             onClick={() => setBoardProjectId(null)}
-            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+            className="bdv-touch-target ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
           >
             <X className="h-4 w-4" /> Back to My Studio
           </button>
@@ -1941,7 +1941,7 @@ export default function StationPanel(props: StationPanelProps) {
           data-testid="world-station-close"
           onClick={onClose}
           aria-label={`Close ${name}`}
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+          className={`bdv-touch-target ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
             isLight
               ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
               : "border-white/15 text-white/75 hover:text-white"

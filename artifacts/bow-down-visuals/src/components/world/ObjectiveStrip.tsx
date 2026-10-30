@@ -303,7 +303,7 @@ export function ObjectiveStrip({
               onClick={onTutorialClaim}
               disabled={tutorialClaimBusy}
               data-testid="world-objective-tutorial-claim"
-              className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-2.5 py-0.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50"
+              className="bdv-touch-target inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-2.5 py-0.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50"
             >
               <Coins className="h-3 w-3" />{" "}
               {tutorialClaimBusy ? "Claiming…" : "Claim"}
