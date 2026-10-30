@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { RotateCcw } from "lucide-react";
 import { EarningsDocuments } from "@/components/trust/TrustPanels";
 import AffiliateDeskSection from "@/components/affiliates/AffiliateDeskSection";
 import ConnectPayoutCard from "@/components/earnings/ConnectPayoutCard";
@@ -29,12 +30,27 @@ import {
 const usd = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-function SourceCard({ title, source, detail }: { title: string; source: SourceOk | SourceErr; detail?: string }) {
+function SourceCard({ title, source, detail, onRetry }: { title: string; source: SourceOk | SourceErr; detail?: string; onRetry?: () => void }) {
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="text-sm text-muted-foreground">{title}</div>
       {source.status === "error" ? (
-        <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+        <>
+          <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+          {/* The words "try again" with no way to try is a dead end
+              (NOTHING DIFFICULT law): the retry is a real button that
+              re-runs the page load, like the full-page failure state. */}
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              data-testid="earnings-source-retry"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold hover:bg-white/5"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Try again
+            </button>
+          )}
+        </>
       ) : (
         <>
           <div className="mt-2 text-2xl font-bold">{usd(source.totalCents)}</div>
@@ -82,6 +98,7 @@ const LEDGER_KIND_LABEL: Record<string, string> = {
 function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null> }) {
   const [read, setRead] = useState<PendingPayoutRead | null>(null);
   const [failed, setFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,13 +116,23 @@ function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null
       }
     })();
     return () => { cancelled = true; };
-  }, [getToken]);
+  }, [getToken, reloadKey]);
 
   return (
     <div className="mt-4 rounded-xl border border-border bg-card p-5" data-testid="pending-payout-card">
       <div className="text-sm text-muted-foreground">Pending payout</div>
       {failed ? (
-        <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+        <>
+          <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+          <button
+            type="button"
+            onClick={() => { setFailed(false); setRead(null); setReloadKey((k) => k + 1); }}
+            data-testid="earnings-payout-retry"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold hover:bg-white/5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Try again
+          </button>
+        </>
       ) : !read ? (
         <div className="mt-2 text-sm text-muted-foreground">Loading your payable balance…</div>
       ) : (
@@ -173,6 +200,11 @@ export default function Earnings() {
     return () => { cancelled = true; };
   }, [getAccessToken, user, authLoading, reloadKey]);
 
+  /* One reload for every failure surface on this page — the full-page
+     failure, a per-source error card, the tips card — so "try again"
+     is always a working door, never just words. */
+  const reload = () => { setFailed(false); setData(null); setReloadKey((k) => k + 1); };
+
   if (!authLoading && !user) {
     return (
       <div className="mx-auto max-w-3xl p-6" data-testid="earnings-signin">
@@ -197,7 +229,7 @@ export default function Earnings() {
         <button
           type="button"
           className="mt-4 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium"
-          onClick={() => { setFailed(false); setData(null); setReloadKey((k) => k + 1); }}
+          onClick={reload}
         >
           Try again
         </button>
@@ -235,6 +267,7 @@ export default function Earnings() {
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <SourceCard
+          onRetry={reload}
           title="Store sales"
           source={sources.storeSales}
           detail={
@@ -261,6 +294,7 @@ export default function Earnings() {
           }
         />
         <SourceCard
+          onRetry={reload}
           title="Beats (licenses sold)"
           source={sources.beats}
           detail={
@@ -269,12 +303,22 @@ export default function Earnings() {
               : undefined
           }
         />
-        <SourceCard title="Memberships" source={sources.memberships} />
-        <SourceCard title="Brand deals (escrow released)" source={sources.brandDeals} />
+        <SourceCard title="Memberships" source={sources.memberships} onRetry={reload} />
+        <SourceCard title="Brand deals (escrow released)" source={sources.brandDeals} onRetry={reload} />
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="text-sm text-muted-foreground">Tips</div>
           {sources.tips.status === "error" ? (
-            <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+            <>
+              <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
+              <button
+                type="button"
+                onClick={reload}
+                data-testid="earnings-tips-retry"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold hover:bg-white/5"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Try again
+              </button>
+            </>
           ) : (
             <>
               <div className="mt-2 text-2xl font-bold">{(sources.tips.streamTipsVb ?? 0).toLocaleString("en-US")} VB</div>
