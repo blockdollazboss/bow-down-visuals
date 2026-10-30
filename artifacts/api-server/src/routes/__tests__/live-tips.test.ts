@@ -290,7 +290,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db };
 });
 
-import router from "../live-tips";
+import router, { __setLiveTipEventNotifier, buildLiveTipEvent } from "../live-tips";
 import { liveChatHub } from "../live-chat";
 
 let server: Server;
@@ -411,6 +411,43 @@ describe("POST /live/:id/tips", () => {
     const second = await req("POST", `/api/live/${STREAM}/tips`, { user: FAN, body });
     expect(second.status).toBe(200);
     expect(h.notifications).toHaveLength(1);
+  });
+
+  it("notification-truth: the tip tell rides the money channel, exactly once per landed tip", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    __setLiveTipEventNotifier(async (input: unknown) => {
+      seen.push(input as Record<string, unknown>);
+    });
+    try {
+      const body = { amountVb: 1000, body: "love this song", idempotencyKey: "tip-key-channel" };
+      const first = await req("POST", `/api/live/${STREAM}/tips`, { user: FAN, body });
+      expect(first.status).toBe(201);
+      const second = await req("POST", `/api/live/${STREAM}/tips`, { user: FAN, body });
+      expect(second.status).toBe(200);
+    } finally {
+      __setLiveTipEventNotifier(null);
+    }
+    // One landed tip = one event on the money channel, copy naming
+    // the tipper and the amount, body = the tipper's own message.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      userId: OWNER,
+      category: "money",
+      kind: "tip",
+      body: "love this song",
+      link: `/live/${STREAM}`,
+    });
+    expect(String(seen[0]!["title"])).toContain("Fan One");
+    expect(String(seen[0]!["title"])).toContain("1,000");
+    expect(
+      buildLiveTipEvent({
+        creatorUserId: OWNER,
+        tipperName: "Fan One",
+        amountVb: 250,
+        message: "encore",
+        streamId: STREAM,
+      }),
+    ).toMatchObject({ category: "money", kind: "tip", body: "encore" });
   });
 
   it("insufficient balance is an honest 402 and nothing moves", async () => {

@@ -9,7 +9,6 @@ import {
   liveStreamTipsTable,
   creatorProfilesTable,
   creditUsageTable,
-  notificationsTable,
   type LiveStream,
   type LiveStreamTip,
 } from "@workspace/db";
@@ -36,6 +35,41 @@ import {
 import { liveChatHub, effectiveStatus, getActivePin, chatMessageDtos, stageManagerTipFollowUp } from "./live-chat";
 import { isTicketed, canEnterStream } from "../lib/live-tickets";
 import { awardTipPoints } from "../lib/loyalty";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
+
+/* ── Tip-received push (notification-truth audit, stack900 L4) ──────────
+   A landed live tip is a money moment for the creator — the same event
+   family the push scope assigned to "money" and the World stage-tip
+   rail already rides (lib/world-stage-tips.ts). This 2D-live twin
+   still inserted its bell directly, so a creator with money pings ON
+   heard about shop sales and stage tips on their phone but never
+   about a live tip. The bell now rides the one event door: same bell
+   row, same copy, plus the category-gated ping. Exactly-once is
+   unchanged — the call site still sits inside the
+   creator_credited_at transition, which a retry never re-enters. */
+export function buildLiveTipEvent(opts: {
+  creatorUserId: string;
+  tipperName: string;
+  amountVb: number;
+  message: string;
+  streamId: string;
+}): UserEventInput {
+  return {
+    userId: opts.creatorUserId,
+    category: "money",
+    kind: "tip",
+    title: `${opts.tipperName} tipped you ${opts.amountVb.toLocaleString("en-US")} Visual Bucs 💰`,
+    body: opts.message,
+    link: `/live/${opts.streamId}`,
+  };
+}
+
+type LiveTipEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _liveTipEventNotifier: LiveTipEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setLiveTipEventNotifier(fn: LiveTipEventNotifier | null): void {
+  _liveTipEventNotifier = fn ?? notifyUserEvent;
+}
 
 /* ── Stream tips + paid pinned messages ──────────────────────────────────
    POST /live/:id/tips   (auth) tip the stream's creator in Visual Bucs
@@ -375,13 +409,15 @@ router.post("/live/:id/tips", requireAuth, async (req: Request, res: Response) =
       // a failed insert never fails the tip.
       try {
         const tipper = await tipperCard(tipperUserId);
-        await db.insert(notificationsTable).values({
-          userId: stream.user_id,
-          kind: "tip",
-          title: `${tipper.displayName} tipped you ${amountVb.toLocaleString("en-US")} Visual Bucs 💰`,
-          body,
-          link: `/live/${stream.id}`,
-        });
+        await _liveTipEventNotifier(
+          buildLiveTipEvent({
+            creatorUserId: stream.user_id,
+            tipperName: tipper.displayName,
+            amountVb,
+            message: body,
+            streamId: stream.id,
+          }),
+        );
       } catch (notifyErr) {
         logger.warn({ notifyErr, tipId: tip.id }, "live tip: bell notification failed (tip itself landed)");
       }
