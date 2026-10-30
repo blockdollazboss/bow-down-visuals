@@ -111,6 +111,20 @@ import { DEFAULT_ACTION_PAGE, type ActionPageId } from "./bindings";
 import { controllerProfileFromPad } from "./controller-profile";
 import { WALK_SPEED, moveSpeed, sprintFromInputs } from "./sprint";
 import {
+  STICK_NUB_DIAMETER_PX,
+  STICK_RING_DIAMETER_PX,
+  STICK_VISUAL_FADE_MS,
+  STICK_VISUAL_REST,
+  stickVisualBlur,
+  stickVisualDown,
+  stickVisualMove,
+  stickVisualPositions,
+  stickVisualRelease,
+  stickVisualStyleFor,
+  stickVisualVisible,
+  type StickVisualState,
+} from "./stick-visual";
+import {
   figureWidthForHeight,
   defaultFigureCanvasSize,
   guardCharacterUrl,
@@ -1791,6 +1805,19 @@ export class KingsHallScene {
   private pitch = 0;
   private lookDrag: { id: number; lastX: number; lastY: number } | null = null;
   private stick: { id: number; ox: number; oy: number; dx: number; dy: number } | null = null;
+  /* The stick's drawn face (stick-visual.ts): the ring + nub a
+   * touch walker sees under their thumb. Pure drawing — the
+   * scene feeds it the stick's own events AFTER its own stick
+   * writes and renders what the pure state returns; nothing here
+   * ever writes back into the stick above, so movement is
+   * exactly what it was before the stick had a face. The layer
+   * is pointer-events:none, so it can lie over the canvas
+   * without ever intercepting a touch meant for look-drag or a
+   * control. */
+  private stickVisual: StickVisualState = STICK_VISUAL_REST;
+  private stickVisualLayer: HTMLDivElement | null = null;
+  private stickVisualRing: HTMLDivElement | null = null;
+  private stickVisualNub: HTMLDivElement | null = null;
   private lastPose = { x: Number.NaN, y: Number.NaN, z: Number.NaN, rotY: Number.NaN };
   private video: HTMLVideoElement | null = null;
   private videoTexture: THREE.VideoTexture | null = null;
@@ -1974,6 +2001,8 @@ export class KingsHallScene {
     if (theme === this.theme || this.disposed) return;
     this.theme = theme;
     this.applyLook(theme);
+    /* The stick's face re-dresses with the scene. */
+    this.applyStickVisualStyle();
   }
 
   get currentTheme(): HallTheme {
@@ -9323,6 +9352,77 @@ export class KingsHallScene {
     this.boundHandlers.push([type, fn, target]);
   }
 
+  /* ── The stick's drawn face (stick-visual.ts) ── */
+
+  /** Build the drawing's layer once, on first use: a
+   *  pointer-events:none sheet laid over the canvas inside the
+   *  room, holding the ring and the nub. Inserted directly after
+   *  the canvas, it paints above the 3D and below the page's
+   *  z-10 HUD — the furniture always outranks the stick. */
+  private ensureStickVisualLayer(): boolean {
+    if (this.stickVisualLayer) return true;
+    const parent = this.canvas.parentElement;
+    if (!parent) return false;
+    const layer = document.createElement("div");
+    layer.dataset.testid = "world-stick-visual";
+    layer.setAttribute("aria-hidden", "true");
+    layer.style.cssText =
+      "position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:0;" +
+      `transition:opacity ${STICK_VISUAL_FADE_MS}ms ease;`;
+    const ring = document.createElement("div");
+    ring.style.cssText =
+      `position:absolute;width:${STICK_RING_DIAMETER_PX}px;height:${STICK_RING_DIAMETER_PX}px;` +
+      "border-radius:9999px;box-sizing:border-box;";
+    const nub = document.createElement("div");
+    nub.style.cssText =
+      `position:absolute;width:${STICK_NUB_DIAMETER_PX}px;height:${STICK_NUB_DIAMETER_PX}px;` +
+      "border-radius:9999px;box-sizing:border-box;";
+    layer.appendChild(ring);
+    layer.appendChild(nub);
+    parent.insertBefore(layer, this.canvas.nextSibling);
+    this.stickVisualLayer = layer;
+    this.stickVisualRing = ring;
+    this.stickVisualNub = nub;
+    this.applyStickVisualStyle();
+    return true;
+  }
+
+  /** Dress the drawing for the scene's current theme — the gold
+   *  treatment stick-visual.ts resolves per theme. Runs when the
+   *  layer is built and again from setTheme. */
+  private applyStickVisualStyle(): void {
+    if (!this.stickVisualRing || !this.stickVisualNub) return;
+    const style = stickVisualStyleFor(this.theme);
+    this.stickVisualRing.style.border = style.ringBorder;
+    this.stickVisualRing.style.background = style.ringBackground;
+    this.stickVisualRing.style.boxShadow = style.ringBoxShadow;
+    this.stickVisualNub.style.border = style.nubBorder;
+    this.stickVisualNub.style.background = style.nubBackground;
+    this.stickVisualNub.style.boxShadow = style.nubBoxShadow;
+  }
+
+  /** Paint the drawing from its state: positions from the pure
+   *  geometry, opacity from its visibility. A hidden state just
+   *  fades the layer — the elements stay mounted (built once)
+   *  and pointer-events:none keeps them inert either way. */
+  private renderStickVisual(): void {
+    if (!stickVisualVisible(this.stickVisual)) {
+      if (this.stickVisualLayer) this.stickVisualLayer.style.opacity = "0";
+      return;
+    }
+    if (!this.ensureStickVisualLayer()) return;
+    const layer = this.stickVisualLayer;
+    const ring = this.stickVisualRing;
+    const nub = this.stickVisualNub;
+    if (!layer || !ring || !nub) return;
+    const pos = stickVisualPositions(this.stickVisual);
+    ring.style.left = `${pos.ringLeft}px`;
+    ring.style.top = `${pos.ringTop}px`;
+    nub.style.left = `${pos.nubLeft}px`;
+    nub.style.top = `${pos.nubTop}px`;
+    layer.style.opacity = "1";
+  }
+
   private bindControls(): void {
     const canvas = this.canvas;
     this.on(window, "keydown", ((e: KeyboardEvent) => {
@@ -9365,12 +9465,29 @@ export class KingsHallScene {
       /* A focus loss mid-hold ends the touch sprint too — a
        * sprint must never stick on (sprint.ts). */
       this.touchSprint = false;
+      /* The stick's face hides with the focus too — the stick
+       * itself rides the blur out (its release still arrives
+       * with the pointer), but a drawing left hanging over a
+       * blurred window would be a lie. Its next move re-syncs
+       * it (stick-visual.ts). */
+      this.stickVisual = stickVisualBlur(this.stickVisual);
+      this.renderStickVisual();
     }) as EventListener);
 
     canvas.addEventListener("pointerdown", (e) => {
       const rect = canvas.getBoundingClientRect();
       if (e.pointerType === "touch" && e.clientX - rect.left < rect.width * 0.45 && !this.stick) {
         this.stick = { id: e.pointerId, ox: e.clientX, oy: e.clientY, dx: 0, dy: 0 };
+        /* The stick gets its face: the ring lands where the
+         * thumb did, in canvas-local coords. Drawing only —
+         * raised after the stick write, from the same event. */
+        this.stickVisual = stickVisualDown(
+          this.stickVisual,
+          e.pointerType,
+          e.clientX - rect.left,
+          e.clientY - rect.top,
+        );
+        this.renderStickVisual();
       } else if (!this.lookDrag) {
         this.lookDrag = { id: e.pointerId, lastX: e.clientX, lastY: e.clientY };
         if (e.pointerType === "mouse") {
@@ -9384,6 +9501,16 @@ export class KingsHallScene {
         const max = 52;
         this.stick.dx = clamp((e.clientX - this.stick.ox) / max, -1, 1);
         this.stick.dy = clamp((e.clientY - this.stick.oy) / max, -1, 1);
+        /* The nub follows the same thumb — fed after the stick
+         * writes above, from the same event, and writing nothing
+         * back: the movement math is exactly what it was. */
+        const rect = canvas.getBoundingClientRect();
+        this.stickVisual = stickVisualMove(
+          this.stickVisual,
+          e.clientX - rect.left,
+          e.clientY - rect.top,
+        );
+        this.renderStickVisual();
         return;
       }
       const locked = document.pointerLockElement === canvas;
@@ -9402,6 +9529,14 @@ export class KingsHallScene {
     const release = (e: PointerEvent) => {
       if (this.stick && e.pointerId === this.stick.id) this.stick = null;
       if (this.lookDrag && e.pointerId === this.lookDrag.id) this.lookDrag = null;
+      /* The stick's face ends with the stick it mirrors — up and
+       * cancel share this one release, so both fade the drawing,
+       * and a look-drag release while the stick lives leaves it
+       * standing. */
+      if (!this.stick && this.stickVisual.active) {
+        this.stickVisual = stickVisualRelease(this.stickVisual);
+        this.renderStickVisual();
+      }
     };
     canvas.addEventListener("pointerup", release);
     canvas.addEventListener("pointercancel", release);
@@ -10268,6 +10403,14 @@ export class KingsHallScene {
     this.disposed = true;
     this.renderer.setAnimationLoop(null);
     this.resizeObs?.disconnect();
+    /* The stick's face is the scene's own DOM — it leaves with
+     * the scene, never as litter in the room. */
+    if (this.stickVisualLayer) {
+      this.stickVisualLayer.remove();
+      this.stickVisualLayer = null;
+      this.stickVisualRing = null;
+      this.stickVisualNub = null;
+    }
     for (const [type, fn, target] of this.boundHandlers) {
       (target as Window).removeEventListener(type, fn as EventListener);
     }
