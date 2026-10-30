@@ -1322,6 +1322,15 @@ html, body {
    buttons the file already branches for light sit on it unchanged. */
 .light .bg-\[\#171208\]\/65:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.72); }
 
+/* Storefront product page: its success ink is the emerald-100 family —
+   the /80 and /60 steps were deepened in Stack-28 (A4-D3) but the plain
+   step (the gift-code reveal — the one string the buyer must read) and
+   the /70 step (fulfilment notes) never got rungs, so both printed
+   #D1FAE5 on the ivory ground. They join the family's 700 step at the
+   ladder's own alphas. */
+.light .text-emerald-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #047857; }
+.light .text-emerald-100\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.82); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
