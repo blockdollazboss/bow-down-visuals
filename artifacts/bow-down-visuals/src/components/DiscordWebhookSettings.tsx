@@ -202,6 +202,7 @@ export function DiscordWebhookSettings() {
                 type="button"
                 role="switch"
                 aria-checked={mentionEveryone}
+                aria-label="Default @everyone ping"
                 onClick={() => setMentionEveryone((v) => !v)}
                 className={`w-10 h-6 rounded-full transition-colors relative ${mentionEveryone ? "bg-amber-400" : "bg-white/10"}`}
                 data-testid="toggle-discord-everyone"

@@ -760,6 +760,7 @@ export function WallpapersDesk() {
                 type="button"
                 role="switch"
                 aria-checked={branded}
+                aria-label={t("wallpapers.brandToggleLabel", { defaultValue: "Brand my wallpapers, screensavers & themes" })}
                 onClick={() => setBranded((b) => !b)}
                 className={`relative h-7 w-12 shrink-0 rounded-full transition ${branded ? "bg-primary" : isLight ? "bg-stone-300" : "bg-white/15"}`}
               >
@@ -781,6 +782,7 @@ export function WallpapersDesk() {
                 type="button"
                 role="switch"
                 aria-checked={aiDisclosure}
+                aria-label={t("wallpapers.aiDisclosure", { defaultValue: "AI disclosure in file details" })}
                 onClick={() => setAiDisclosure((b) => !b)}
                 className={`relative h-7 w-12 shrink-0 rounded-full transition ${aiDisclosure ? "bg-primary" : isLight ? "bg-stone-300" : "bg-white/15"}`}
                 data-testid="wallpapers-disclosure-switch"
