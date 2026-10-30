@@ -38,6 +38,7 @@ const h = vi.hoisted(() => ({
     insertedFollows: [] as Array<Record<string, unknown>>,
     deletedFollows: [] as Array<Record<string, unknown>>,
     notifications: [] as Array<Record<string, unknown>>,
+    profileUpdates: [] as Array<Record<string, unknown>>,
   },
 }));
 
@@ -90,6 +91,14 @@ vi.mock("@workspace/db", async (importOriginal) => {
   const { creatorProfilesTable, followsTable, notificationsTable } = actual;
 
   function rowsFor(table: unknown, cond: unknown): unknown[] {
+    if (table === followsTable) {
+      // The follow handler's prior-follow probe:
+      // and(eq(followerUserId, user), eq(profileId, profile.id)).
+      const { params } = render(cond);
+      return state.follows.has(followKey(params[0], params[1]))
+        ? [{ profileId: params[1] }]
+        : [];
+    }
     if (table === creatorProfilesTable) {
       const { sql, params } = render(cond);
       // Owner-by-user lookup (the DE-17 follower-card fetch): answer
@@ -142,8 +151,13 @@ vi.mock("@workspace/db", async (importOriginal) => {
     insert: (table: unknown) => ({
       values: (v: Record<string, unknown>) => {
         if (table === followsTable) {
-          state.insertedFollows.push(v);
-          state.follows.add(followKey(v["followerUserId"], v["profileId"]));
+          // ON CONFLICT DO NOTHING, faithfully: a replayed insert of
+          // an existing follow records nothing new.
+          const key = followKey(v["followerUserId"], v["profileId"]);
+          if (!state.follows.has(key)) {
+            state.insertedFollows.push(v);
+            state.follows.add(key);
+          }
         }
         if (table === notificationsTable) {
           state.notifications.push(v);
@@ -156,10 +170,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
         });
       },
     }),
-    update: (_table: unknown) => ({
-      set: (_patch: unknown) => ({
-        where: (_cond: unknown) => thenable(),
-      }),
+    update: (table: unknown) => ({
+      set: (patch: unknown) => {
+        if (table === creatorProfilesTable) {
+          state.profileUpdates.push(patch as Record<string, unknown>);
+        }
+        return {
+          where: (_cond: unknown) => thenable(),
+        };
+      },
     }),
     delete: (table: unknown) => ({
       where: (cond: unknown) => ({
@@ -186,7 +205,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: fakeDb };
 });
 
-import router from "../creator-platform";
+import router, { __setFollowEventNotifier, buildFollowEvent } from "../creator-platform";
 
 const realFetch = globalThis.fetch;
 let server: any;
@@ -216,6 +235,7 @@ beforeEach(() => {
   s.insertedFollows = [];
   s.deletedFollows = [];
   s.notifications = [];
+  s.profileUpdates = [];
 
   s.profilesById.set(PROFILE_ID, {
     id: PROFILE_ID,
@@ -267,6 +287,60 @@ describe("POST /api/creator-profiles/:id/follow", () => {
     const { status } = await post(`/creator-profiles/no-such-creator/follow`);
     expect(status).toBe(404);
     expect(h.state.insertedFollows).toHaveLength(0);
+  });
+
+  it("notification-truth: a replayed follow POST neither re-bells nor re-counts", async () => {
+    const first = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+    expect(first.status).toBe(200);
+    expect(first.json.follower_count).toBe(8);
+    expect(h.state.notifications.filter((n) => n["kind"] === "follow")).toHaveLength(1);
+    expect(h.state.profileUpdates).toHaveLength(1);
+
+    // The replay: same user, same profile, no unfollow in between —
+    // a double-tap or a client retry of the same follow.
+    const replay = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+    expect(replay.status).toBe(200);
+    expect(replay.json.followed).toBe(true);
+    // Still exactly one bell and one count bump for an event that
+    // did not newly happen. (The response count itself is computed
+    // from the handler's profile read, which this fake does not
+    // write back — the update count is the honest signal here.)
+    expect(h.state.notifications.filter((n) => n["kind"] === "follow")).toHaveLength(1);
+    expect(h.state.profileUpdates).toHaveLength(1);
+  });
+
+  it("notification-truth: the follow bell carries the social category through the event door", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    __setFollowEventNotifier(async (input: unknown) => {
+      seen.push(input as Record<string, unknown>);
+    });
+    try {
+      const { status } = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+      expect(status).toBe(200);
+    } finally {
+      __setFollowEventNotifier(null);
+    }
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      userId: PROFILE_OWNER,
+      category: "social",
+      kind: "follow",
+      link: "/artist/wall-owner",
+    });
+    // The pure builder on its own: named follower + their page.
+    expect(
+      buildFollowEvent({
+        ownerUserId: PROFILE_OWNER,
+        followerName: "Faithful Follower",
+        followerSlug: "the-follower",
+        profileSlug: PROFILE_SLUG,
+      }),
+    ).toMatchObject({
+      category: "social",
+      kind: "follow",
+      title: "Faithful Follower followed you 🦈",
+      link: "/artist/the-follower",
+    });
   });
 
   it("DE-17: the follow bell names the follower and links THEIR profile — not the recipient's own", async () => {

@@ -40,6 +40,7 @@ const optionalAuth: RequestHandler = async (req, _res, next) => {
   next();
 };
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { pricePointFor } from "./store";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { getPublicSocialProof } from "../lib/social-proof";
@@ -365,6 +366,54 @@ async function bumpCounter(
     SET ${sql.identifier(col)} = GREATEST(${sql.identifier(col)} + ${delta}, 0)
     WHERE ${sql.identifier("id")} = ${id}
   `);
+}
+
+/* ── Follow push (notification-truth audit, stack900 L4) ────────────────
+   A NEW follow rides the one event door (category "social", the
+   Settings card's own description of the switch): the bell always
+   lands, and the ping obeys the creator's "social" preference
+   (default OFF — a follow never pings a member who didn't turn
+   social pings on). Exactly-once is structural: the handler fires
+   this only for a follow row that just landed (the isNewFollow
+   gate), so a replayed follow POST can neither re-bell nor
+   re-count. */
+export function buildFollowEvent(opts: {
+  ownerUserId: string;
+  followerName: string | null;
+  followerSlug: string | null;
+  profileSlug: string;
+}): UserEventInput {
+  return {
+    userId: opts.ownerUserId,
+    category: "social",
+    kind: "follow",
+    title: opts.followerName ? `${opts.followerName} followed you 🦈` : "New follower on deck 🦈",
+    body: opts.followerName
+      ? `${opts.followerName} just followed your creator profile — tap through to their page.`
+      : "Someone just followed your creator profile — keep the cheat code coming.",
+    link: opts.followerSlug ? `/artist/${opts.followerSlug}` : `/artist/${opts.profileSlug}`,
+  };
+}
+
+type FollowEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _followEventNotifier: FollowEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setFollowEventNotifier(fn: FollowEventNotifier | null): void {
+  _followEventNotifier = fn ?? notifyUserEvent;
+}
+
+/** Best-effort: a ping failure never fails the follow that landed. */
+export async function notifyFollowed(opts: {
+  ownerUserId: string;
+  followerName: string | null;
+  followerSlug: string | null;
+  profileSlug: string;
+}): Promise<void> {
+  try {
+    await _followEventNotifier(buildFollowEvent(opts));
+  } catch (err) {
+    console.error("[creator-platform] follow push failed", err);
+  }
 }
 
 /** Best-effort notification to the profile owner; never fails the request. */
@@ -1697,18 +1746,25 @@ router.post("/creator-profiles/:id/follow", requireAuth, async (req, res) => {
         /* alert delivery is non-critical */
       }
     }
-    await db.update(creatorProfilesTable)
-      .set({ followerCount: sql`${creatorProfilesTable.followerCount} + 1`, updatedAt: new Date() })
-      .where(eq(creatorProfilesTable.id, profile.id));
-    await notify(profile.userId, {
-      kind: "follow",
-      title: followerName ? `${followerName} followed you 🦈` : "New follower on deck 🦈",
-      body: followerName
-        ? `${followerName} just followed your creator profile — tap through to their page.`
-        : "Someone just followed your creator profile — keep the cheat code coming.",
-      link: followerSlug ? `/artist/${followerSlug}` : `/artist/${profile.slug}`,
-    });
-    res.json({ followed: true, follower_count: (profile.followerCount ?? 0) + 1 });
+    /* Notification-truth (stack900 L4): the count bump and the bell
+       belong to the follow that LANDED. A replayed POST (double-tap,
+       client retry) finds the row already there — isNewFollow is
+       false — and must neither inflate followerCount nor ring the
+       bell a second time for an event that did not newly happen.
+       (The DELETE twin already gates its decrement on the deleted
+       row; the POST side now holds the same line.) */
+    if (isNewFollow) {
+      await db.update(creatorProfilesTable)
+        .set({ followerCount: sql`${creatorProfilesTable.followerCount} + 1`, updatedAt: new Date() })
+        .where(eq(creatorProfilesTable.id, profile.id));
+      await notifyFollowed({
+        ownerUserId: profile.userId,
+        followerName,
+        followerSlug,
+        profileSlug: profile.slug,
+      });
+    }
+    res.json({ followed: true, follower_count: (profile.followerCount ?? 0) + (isNewFollow ? 1 : 0) });
   } catch (err) {
     req.log.error({ err }, "follow error");
     res.status(500).json({ error: "The follow didn't stick. Try again." });
