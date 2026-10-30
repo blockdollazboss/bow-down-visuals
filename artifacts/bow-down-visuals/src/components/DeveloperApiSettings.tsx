@@ -12,7 +12,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
    v1 surface (honest subset, mirrored in the docs section below):
      GET  /api/v1/me, GET /api/v1/content, GET /api/v1/balance,
-     POST /api/v1/generate/bio (charged — same 50 Visual Bucs the
+     POST /api/v1/generate/bio (charged — same 100 Visual Bucs the
      website's Bio Generator charges, from the same price constant).
    Everything else is NOT exposed yet, and says so below. */
 
@@ -248,7 +248,7 @@ export function DeveloperApiSettings() {
               <p><code>GET /api/v1/me</code> (profile:read) — your profile.<br />
                  <code>GET /api/v1/content</code> (content:read) — your recent generations.<br />
                  <code>GET /api/v1/balance</code> (earnings:read) — your Visual Bucs balance, earnings summary, lifetime spend.<br />
-                 <code>POST /api/v1/generate/bio</code> (generate:bio) — body: {"{ niche, personality[], achievements?[], cta?, handle? }"}. Costs <strong>50 Visual Bucs</strong> — the same price as the website's Bio Generator — charged only when the generation succeeds; failures are refunded. Send an <code>Idempotency-Key</code> header to make retries safe.</p>
+                 <code>POST /api/v1/generate/bio</code> (generate:bio) — body: {"{ niche, personality[], achievements?[], cta?, handle? }"}. Costs <strong>100 Visual Bucs</strong> — the same price as the website's Bio Generator — charged only when the generation succeeds; failures are refunded. Send an <code>Idempotency-Key</code> header to make retries safe.</p>
               <p>Errors come back as <code>{"{ error, message }"}</code>: 401 invalid_api_key (missing, unknown, or revoked key), 403 insufficient_scope, 402 out_of_credits, 429 rate_limited, 400 invalid_request.</p>
               <p><strong>Not in v1:</strong> songs, music videos, video generation/editing, lip-sync, image generation, publishing/social posting, the store, payouts, and anything admin. Keys can only ever act as you — never as anyone else.</p>
             </div>
