@@ -232,7 +232,7 @@ export default function ControllerMapPanel({
           type="button"
           data-testid="world-controller-map-close"
           onClick={onClose}
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${
+          className={`bdv-touch-target ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${
             isLight
               ? "border-[#C9A84C]/70 text-[#7A5A12] hover:bg-[#d4af37]/15"
               : "border-[#d4af37]/50 text-[#e8c86a] hover:bg-[#d4af37]/10"
@@ -277,7 +277,7 @@ export default function ControllerMapPanel({
               <li
                 key={node.id}
                 data-map-row={node.id}
-                className={`rounded-lg px-2.5 py-1.5 text-xs transition ${
+                className={`bdv-touch-target rounded-lg px-2.5 py-1.5 text-xs transition ${
                   isLit
                     ? "bg-[#d4af37] text-black"
                     : isLight

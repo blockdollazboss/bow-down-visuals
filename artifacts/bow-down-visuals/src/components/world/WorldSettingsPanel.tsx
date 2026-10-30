@@ -142,7 +142,7 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
   } = props;
   const padConnected = padProfile.gamepadId !== null;
 
-  const pillCls = `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+  const pillCls = `bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"
@@ -240,7 +240,7 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
                 data-testid={testId}
                 aria-pressed={viewMode === mode}
                 onClick={() => onViewModeChange(mode)}
-                className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                className={`bdv-touch-target rounded-full px-3 py-1.5 text-sm font-bold transition ${
                   viewMode === mode
                     ? "bg-[#d4af37] text-black"
                     : isLight
@@ -272,7 +272,7 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
             aria-checked={!announceMuted}
             data-testid="world-settings-announce"
             onClick={onToggleAnnounceMuted}
-            className={`inline-flex items-center gap-2 self-start rounded-full border px-4 py-2 text-sm font-bold transition ${
+            className={`bdv-touch-target inline-flex items-center gap-2 self-start rounded-full border px-4 py-2 text-sm font-bold transition ${
               !announceMuted
                 ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
                 : isLight
@@ -299,7 +299,7 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
               aria-checked={!worldVolume.muted}
               data-testid="world-settings-volume-mute"
               onClick={() => onWorldVolumeChange(withWorldVolumeMuted(worldVolume, !worldVolume.muted))}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+              className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
                 !worldVolume.muted
                   ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
                   : isLight
