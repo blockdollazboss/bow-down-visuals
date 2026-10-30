@@ -194,7 +194,7 @@ export default function ChannelAuditPanel() {
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <p className={labelClass}>{t("audit.nicheLabel")}</p>
-              <input
+              <input aria-label={t("audit.nichePlaceholder")}
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
                 placeholder={t("audit.nichePlaceholder")}
@@ -203,7 +203,7 @@ export default function ChannelAuditPanel() {
             </div>
             <div>
               <p className={labelClass}>{t("audit.handleLabel")} <span className="normal-case font-normal text-white/30">{t("audit.optional")}</span></p>
-              <input
+              <input aria-label={t("audit.handlePlaceholder")}
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
                 placeholder={t("audit.handlePlaceholder")}
@@ -233,7 +233,7 @@ export default function ChannelAuditPanel() {
 
           <div className="mt-5">
             <p className={labelClass}>{t("audit.bioLabel")} <span className="normal-case font-normal text-white/30">{t("audit.bioOptional")}</span></p>
-            <textarea
+            <textarea aria-label={t("audit.bioPlaceholder")}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder={t("audit.bioPlaceholder")}
@@ -244,7 +244,7 @@ export default function ChannelAuditPanel() {
 
           <div className="mt-5">
             <p className={labelClass}>{t("audit.cadenceLabel")} <span className="normal-case font-normal text-white/30">{t("audit.optional")}</span></p>
-            <input
+            <input aria-label={t("audit.cadencePlaceholder")}
               value={postsPerWeek}
               onChange={(e) => setPostsPerWeek(e.target.value)}
               placeholder={t("audit.cadencePlaceholder")}
@@ -256,7 +256,7 @@ export default function ChannelAuditPanel() {
             <p className={labelClass}>
               {t("audit.recentPostsLabel")} <span className="normal-case font-normal text-white/30">{t("audit.recentPostsOptional")}</span>
             </p>
-            <textarea
+            <textarea aria-label={t("audit.recentPostsPlaceholder")}
               value={recentPosts}
               onChange={(e) => setRecentPosts(e.target.value)}
               placeholder={t("audit.recentPostsPlaceholder")}

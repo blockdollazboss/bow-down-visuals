@@ -550,7 +550,7 @@ export default function SyncTab({
                 ))}
               </select>
             ) : (
-              <input
+              <input aria-label={t("syncPitch.songTitlePlaceholder")}
                 value={songTitle}
                 onChange={(e) => setSongTitle(e.target.value)}
                 maxLength={200}
@@ -560,14 +560,14 @@ export default function SyncTab({
             )}
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <input
+              <input aria-label={t("syncPitch.artistNamePlaceholder")}
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
                 maxLength={200}
                 placeholder={t("syncPitch.artistNamePlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("syncPitch.genrePlaceholder")}
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 maxLength={100}
@@ -577,21 +577,21 @@ export default function SyncTab({
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <input
+              <input aria-label={t("syncPitch.moodPlaceholder")}
                 value={mood}
                 onChange={(e) => setMood(e.target.value)}
                 maxLength={200}
                 placeholder={t("syncPitch.moodPlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("syncPitch.bpmPlaceholder")}
                 value={bpm}
                 onChange={(e) => setBpm(e.target.value)}
                 maxLength={20}
                 placeholder={t("syncPitch.bpmPlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("syncPitch.keyPlaceholder")}
                 value={musicalKey}
                 onChange={(e) => setMusicalKey(e.target.value)}
                 maxLength={20}
@@ -633,7 +633,7 @@ export default function SyncTab({
 
             {showAdvanced && (
               <div className="mt-4 space-y-4">
-                <textarea
+                <textarea aria-label={t("syncPitch.descriptionPlaceholder")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={1000}
@@ -642,14 +642,14 @@ export default function SyncTab({
                   className={`${inputClass} resize-y`}
                 />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <input
+                  <input aria-label={t("syncPitch.contactNamePlaceholder")}
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     maxLength={200}
                     placeholder={t("syncPitch.contactNamePlaceholder")}
                     className={inputClass}
                   />
-                  <input
+                  <input aria-label={t("syncPitch.contactEmailPlaceholder")}
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     maxLength={200}
@@ -807,7 +807,7 @@ export default function SyncTab({
           {showBriefForm && (
             <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
+                <input aria-label={t("syncPitch.briefTitlePlaceholder")}
                   value={newBrief.title}
                   onChange={(e) => setNewBrief({ ...newBrief, title: e.target.value })}
                   maxLength={200}
@@ -823,14 +823,14 @@ export default function SyncTab({
                     <option key={pt} value={pt}>{t(PROJECT_TYPE_META[pt]!.labelKey)}</option>
                   ))}
                 </select>
-                <input
+                <input aria-label={t("syncPitch.briefMoodPlaceholder")}
                   value={newBrief.mood}
                   onChange={(e) => setNewBrief({ ...newBrief, mood: e.target.value })}
                   maxLength={200}
                   placeholder={t("syncPitch.briefMoodPlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("syncPitch.budgetPlaceholder")}
                   value={newBrief.budgetRange}
                   onChange={(e) => setNewBrief({ ...newBrief, budgetRange: e.target.value })}
                   maxLength={100}
@@ -844,7 +844,7 @@ export default function SyncTab({
                   className={inputClass}
                 />
               </div>
-              <textarea
+              <textarea aria-label={t("syncPitch.briefNotesPlaceholder")}
                 value={newBrief.notes}
                 onChange={(e) => setNewBrief({ ...newBrief, notes: e.target.value })}
                 maxLength={1000}
@@ -997,14 +997,14 @@ export default function SyncTab({
           {showAddForm && (
             <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
+                <input aria-label={t("syncPitch.songTitlePlaceholder")}
                   value={newPitch.songTitle}
                   onChange={(e) => setNewPitch({ ...newPitch, songTitle: e.target.value })}
                   maxLength={200}
                   placeholder={t("syncPitch.songTitlePlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("syncPitch.targetPlaceholder")}
                   value={newPitch.targetName}
                   onChange={(e) => setNewPitch({ ...newPitch, targetName: e.target.value })}
                   maxLength={200}
@@ -1012,7 +1012,7 @@ export default function SyncTab({
                   className={inputClass}
                 />
               </div>
-              <textarea
+              <textarea aria-label={t("syncPitch.notesPlaceholder")}
                 value={newPitch.notes}
                 onChange={(e) => setNewPitch({ ...newPitch, notes: e.target.value })}
                 maxLength={1000}
@@ -1096,7 +1096,7 @@ export default function SyncTab({
                       <span className="text-xs font-semibold text-emerald-200/90">
                         {t("syncPitch.placedPrompt")}
                       </span>
-                      <input
+                      <input aria-label={t("syncPitch.amountPlaceholder")}
                         value={incomeAmount[p.id] ?? ""}
                         onChange={(e) => setIncomeAmount((prev) => ({ ...prev, [p.id]: e.target.value }))}
                         inputMode="decimal"

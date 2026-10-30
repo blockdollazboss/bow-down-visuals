@@ -193,7 +193,7 @@ export default function MerchDropPlanner() {
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
             <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("wave8.merchDrop.nicheLabel")}</label>
-            <input
+            <input aria-label={t("wave8.merchDrop.nicheLabel")}
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
               placeholder={t("wave8.merchDrop.nichePlaceholder")}
@@ -222,7 +222,7 @@ export default function MerchDropPlanner() {
         </div>
         <div className="mt-4">
           <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("wave8.merchDrop.audienceLabel")}</label>
-          <input
+          <input aria-label={t("wave8.merchDrop.audienceLabel")}
             value={audience}
             onChange={(e) => setAudience(e.target.value)}
             placeholder={t("wave8.merchDrop.audiencePlaceholder")}
@@ -321,7 +321,7 @@ export default function MerchDropPlanner() {
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("wave8.merchDrop.planNameLabel")}</label>
-                    <input
+                    <input aria-label={t("wave8.merchDrop.planNameLabel")}
                       value={planName}
                       onChange={(e) => setPlanName(e.target.value)}
                       placeholder={t("wave8.merchDrop.planNamePlaceholder")}
@@ -331,7 +331,7 @@ export default function MerchDropPlanner() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-white/60">{t("wave8.merchDrop.weekStartLabel")}</label>
-                    <input
+                    <input aria-label={t("wave8.merchDrop.weekStartLabel")}
                       type="date"
                       value={weekStart}
                       onChange={(e) => setWeekStart(e.target.value)}

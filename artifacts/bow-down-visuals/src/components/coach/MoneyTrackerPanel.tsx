@@ -494,7 +494,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.category")}
                   </label>
-                  <select
+                  <select aria-label={t("moneyTracker.category")}
                     value={fCategory}
                     onChange={(e) => setFCategory(e.target.value)}
                     className={`${inputClass} appearance-none`}
@@ -508,7 +508,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.amount")}
                   </label>
-                  <input
+                  <input aria-label={t("moneyTracker.amount")}
                     value={fAmount}
                     onChange={(e) => setFAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                     inputMode="decimal"
@@ -520,7 +520,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.date")}
                   </label>
-                  <input
+                  <input aria-label={t("moneyTracker.date")}
                     type="date"
                     value={fDate}
                     onChange={(e) => setFDate(e.target.value)}
@@ -531,7 +531,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     {t("moneyTracker.source")}
                   </label>
-                  <input
+                  <input aria-label={t("moneyTracker.source")}
                     value={fSource}
                     onChange={(e) => setFSource(e.target.value)}
                     maxLength={120}
@@ -545,7 +545,7 @@ export default function MoneyTrackerPanel() {
                   <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                     Release <span className="font-normal normal-case text-white/30">(optional — applies its splits to this income)</span>
                   </label>
-                  <select
+                  <select aria-label="Release (optional — applies its splits to this income)"
                     value={fReleaseId}
                     onChange={(e) => setFReleaseId(e.target.value)}
                     className={`${inputClass} appearance-none`}
@@ -561,7 +561,7 @@ export default function MoneyTrackerPanel() {
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("moneyTracker.note")}
                 </label>
-                <input
+                <input aria-label={t("moneyTracker.note")}
                   value={fNote}
                   onChange={(e) => setFNote(e.target.value)}
                   maxLength={280}

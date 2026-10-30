@@ -524,7 +524,7 @@ export default function SourcesPanel({
 
               {selected.avatar.character === "upload" && (
                 <div className="space-y-1.5">
-                  <input
+                  <input aria-label="Picture URL — or upload below (PNG with transparency reads best)"
                     value={selected.avatar.imageUrl ?? ""}
                     onChange={(e) =>
                       update(selected, {
@@ -690,7 +690,7 @@ export default function SourcesPanel({
 
           {selected.type === "image" && (
             <div className="space-y-1.5">
-              <input
+              <input aria-label="Image URL — or upload below"
                 value={selected.imageUrl ?? ""}
                 onChange={(e) => update(selected, { imageUrl: e.target.value })}
                 placeholder="Image URL — or upload below"
@@ -722,7 +722,7 @@ export default function SourcesPanel({
 
           {selected.type === "media" && (
             <div className="space-y-1.5">
-              <input
+              <input aria-label="Direct media URL (video or image file)"
                 value={selected.mediaUrl ?? ""}
                 onChange={(e) => update(selected, { mediaUrl: e.target.value })}
                 placeholder="Direct media URL (video or image file)"

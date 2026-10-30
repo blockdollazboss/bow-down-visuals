@@ -585,7 +585,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                 {blendPointSec !== null ? fmtTime(blendPointSec) : "—"}
               </span>
             </div>
-            <input
+            <input aria-label={t("mashup.blendPointLabel")}
               type="range"
               min={10}
               max={90}
@@ -602,7 +602,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                 {balance === 50 ? "50 / 50" : balance > 50 ? `A ${balance}%` : `B ${100 - balance}%`}
               </span>
             </div>
-            <input
+            <input aria-label={t("mashup.balanceLabel")}
               type="range"
               min={10}
               max={90}
@@ -618,7 +618,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                 <label className="text-sm font-semibold text-white/70">{t("mashup.crossfadeLabel")}</label>
                 <span className="text-xs text-primary font-bold">{crossfadeSec}s</span>
               </div>
-              <input
+              <input aria-label={t("mashup.crossfadeLabel")}
                 type="range"
                 min={2}
                 max={15}
@@ -630,7 +630,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           )}
           <div>
             <label className="text-sm font-semibold text-white/70 block mb-1.5">{t("mashup.titleLabel")}</label>
-            <input
+            <input aria-label={t("mashup.titleLabel")}
               type="text"
               value={mashupTitle}
               onChange={(e) => setMashupTitle(e.target.value)}
@@ -774,7 +774,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
                     <option key={a.id} value={a.id} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{a.title}</option>
                   ))}
                 </select>
-                <input
+                <input aria-label={t("mashup.albumNew")}
                   type="text"
                   value={newAlbumTitle}
                   onChange={(e) => setNewAlbumTitle(e.target.value)}

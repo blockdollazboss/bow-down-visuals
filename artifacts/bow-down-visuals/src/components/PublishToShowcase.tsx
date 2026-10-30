@@ -87,7 +87,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
         <div className="mt-3 rounded-xl border border-white/10 bg-black/60 p-4 space-y-3">
           <div>
             <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("showcasePublish.titleLabel")}</label>
-            <input
+            <input aria-label={t("showcasePublish.titleLabel")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("showcasePublish.titlePlaceholder")}
@@ -97,7 +97,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
           </div>
           <div>
             <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("showcasePublish.descLabel")} <span className="text-white/25 normal-case">{t("showcasePublish.optionalTag")}</span></label>
-            <textarea
+            <textarea aria-label={t("showcasePublish.descLabel")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t("showcasePublish.descPlaceholder")}
@@ -108,7 +108,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
           </div>
           <div>
             <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("showcasePublish.creatorLabel")} <span className="text-white/25 normal-case">{t("showcasePublish.optionalTag")}</span></label>
-            <input
+            <input aria-label={t("showcasePublish.creatorLabel")}
               value={creatorName}
               onChange={(e) => setCreatorName(e.target.value)}
               placeholder={t("showcasePublish.creatorPlaceholder")}

@@ -116,7 +116,7 @@ export default function CommentToVideoSection() {
         </p>
 
         <div className="flex gap-2 mb-3">
-          <input
+          <input aria-label={t("commentToVideo.pastePh", { defaultValue: "Paste a comment, hit Enter…" })}
             value={commentInput}
             onChange={(e) => setCommentInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addComment()}
@@ -152,7 +152,7 @@ export default function CommentToVideoSection() {
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("commentToVideo.nicheLabel", { defaultValue: "Your niche (optional)" })}
           </label>
-          <input value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={120} />
+          <input aria-label={t("commentToVideo.nicheLabel", { defaultValue: "Your niche (optional)" })} value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={120} />
         </div>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}

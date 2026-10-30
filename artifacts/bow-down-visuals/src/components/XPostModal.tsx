@@ -249,7 +249,7 @@ export function XPostModal({ open, onClose, videoUrl, accounts }: Props) {
             {usable.length > 1 && (
               <div>
                 <label className="text-xs font-bold text-white/60 uppercase tracking-wider">Account</label>
-                <select
+                <select aria-label="Account"
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   disabled={publishing}
@@ -287,7 +287,7 @@ export function XPostModal({ open, onClose, videoUrl, accounts }: Props) {
                   </button>
                 </div>
               </div>
-              <textarea
+              <textarea aria-label="Post text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 disabled={publishing}

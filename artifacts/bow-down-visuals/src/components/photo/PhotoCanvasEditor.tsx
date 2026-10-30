@@ -557,7 +557,7 @@ export function PhotoCanvasEditor() {
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
           <h3 className="text-sm font-bold text-white">Batch look-sync</h3>
           <p className="text-xs text-white/40">Apply the current photo's develop recipe to many photos at once — one hosted image URL per line. Every photo gets its own result below.</p>
-          <textarea value={batchInput} onChange={(e) => setBatchInput(e.target.value)} rows={4} className="w-full rounded-lg border border-white/10 bg-black/30 p-2 text-xs text-white" placeholder={"https://…/photo1.jpg\nhttps://…/photo2.jpg"} />
+          <textarea aria-label={"https://…/photo1.jpg\nhttps://…/photo2.jpg"} value={batchInput} onChange={(e) => setBatchInput(e.target.value)} rows={4} className="w-full rounded-lg border border-white/10 bg-black/30 p-2 text-xs text-white" placeholder={"https://…/photo1.jpg\nhttps://…/photo2.jpg"} />
           <Button size="sm" variant="outline" onClick={() => void runBatch()} disabled={busy === "batch"}>
             {busy === "batch" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Sync look to all
           </Button>

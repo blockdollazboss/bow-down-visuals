@@ -1953,7 +1953,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest flex items-center gap-1.5">
                   <Zap className="h-2.5 w-2.5" /> Video Prompt
                 </label>
-                <textarea
+                <textarea aria-label="Video Prompt"
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onBlur={saveAiPrompt}
@@ -1969,7 +1969,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">
                   Negative Prompt
                 </label>
-                <textarea
+                <textarea aria-label="Negative Prompt"
                   value={negPrompt}
                   onChange={(e) => setNegPrompt(e.target.value)}
                   onBlur={saveNegPrompt}

@@ -265,7 +265,7 @@ export default function NicheAnalyzerPanel() {
       <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
         The niche to dissect
       </p>
-      <input
+      <input aria-label={useMyData ? "Optional — leave blank and we'll read it from your work" : "e.g. fitness, indie music production, skincare, true crime…"}
         value={niche}
         onChange={(e) => setNiche(e.target.value)}
         maxLength={120}
@@ -541,7 +541,7 @@ export default function NicheAnalyzerPanel() {
               <p className="mt-1 text-xs text-white/45">
                 Niche locked to “{analysis.niche}” — 75 Visual Bucs per check
               </p>
-              <input
+              <input aria-label="Your raw idea — e.g. ranking my beats from worst to best"
                 value={idea}
                 onChange={(e) => setIdea(e.target.value)}
                 maxLength={500}

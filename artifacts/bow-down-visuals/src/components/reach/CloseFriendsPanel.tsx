@@ -89,7 +89,7 @@ export default function CloseFriendsPanel() {
           }
         }}
       >
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a creator…" className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-black px-3 py-2 text-sm focus:border-[#d4af37] focus:outline-none" />
+        <input aria-label="Find a creator…" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a creator…" className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-black px-3 py-2 text-sm focus:border-[#d4af37] focus:outline-none" />
         <button type="submit" className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black">
           <Search className="h-3.5 w-3.5" /> Find
         </button>

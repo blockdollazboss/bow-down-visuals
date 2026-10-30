@@ -114,7 +114,7 @@ export function SocialKitPanel() {
           <label className="block text-xs font-bold uppercase tracking-widest text-white/45 mb-2">
             {t("hubSpine.socialKit.brandLabel")}
           </label>
-          <input
+          <input aria-label={t("hubSpine.socialKit.brandLabel")}
             value={brandName}
             onChange={(e) => setBrandName(e.target.value)}
             placeholder={t("hubSpine.socialKit.brandPlaceholder")}
@@ -126,7 +126,7 @@ export function SocialKitPanel() {
           <label className="block text-xs font-bold uppercase tracking-widest text-white/45 mb-2">
             {t("hubSpine.socialKit.taglineLabel")}
           </label>
-          <input
+          <input aria-label={t("hubSpine.socialKit.taglineLabel")}
             value={tagline}
             onChange={(e) => setTagline(e.target.value)}
             placeholder={t("hubSpine.socialKit.taglinePlaceholder")}

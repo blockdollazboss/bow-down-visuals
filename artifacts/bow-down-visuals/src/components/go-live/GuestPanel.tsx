@@ -491,7 +491,7 @@ export default function GuestPanel() {
               )}
             </div>
             <div className="mt-2 flex gap-2">
-              <input
+              <input aria-label={tr("liveGuests.chatPlaceholder")}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {

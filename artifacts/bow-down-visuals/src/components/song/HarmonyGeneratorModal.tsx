@@ -479,7 +479,7 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
                   <label className="block text-sm font-medium text-white/70 mb-1.5">
                     {t("harmony.keyHintLabel")} <span className="text-white/30 font-normal">{t("harmony.optional")}</span>
                   </label>
-                  <input
+                  <input aria-label={t("harmony.keyHintLabel")}
                     value={keyHint}
                     onChange={(e) => setKeyHint(e.target.value.slice(0, 16))}
                     placeholder={t("harmony.keyHintPlaceholder")}
@@ -491,7 +491,7 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
                   <label className="block text-sm font-medium text-white/70 mb-1.5">
                     {t("harmony.mixLabel")} <span className="text-primary font-bold">{mixLevel}%</span>
                   </label>
-                  <input
+                  <input aria-label={t("harmony.mixLabel")}
                     type="range"
                     min={0}
                     max={100}
@@ -512,7 +512,7 @@ export function HarmonyGeneratorModal({ open, onClose, source, initialLyrics = "
                 <label className="block text-sm font-medium text-white/70 mb-1.5">
                   {t("harmony.lyricsLabel")} <span className="text-white/30 font-normal">{t("harmony.lyricsOptional")}</span>
                 </label>
-                <textarea
+                <textarea aria-label={t("harmony.lyricsLabel")}
                   value={lyrics}
                   onChange={(e) => setLyrics(e.target.value)}
                   placeholder={t("harmony.lyricsPlaceholder")}

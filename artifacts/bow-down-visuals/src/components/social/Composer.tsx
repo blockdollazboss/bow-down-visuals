@@ -227,7 +227,7 @@ export function Composer({
         </div>
       )}
 
-      <textarea
+      <textarea aria-label={placeholder ?? "What's moving in your world? 🦈"}
         ref={bodyRef}
         value={body}
         onChange={(e) => setBody(e.target.value.slice(0, 500))}
@@ -240,7 +240,7 @@ export function Composer({
       {!replyTo && threadExtras.map((t, i) => (
         <div key={i} className="mt-2 flex items-start gap-2">
           <span className="mt-2 text-[#d4af37]">↳</span>
-          <textarea
+          <textarea aria-label={`Thread ${i + 2}…`}
             value={t}
             onChange={(e) => {
               const next = [...threadExtras];
@@ -280,7 +280,7 @@ export function Composer({
             )}
             {pollOptions.length < 4 && (
               <div className="mt-2 flex gap-2">
-                <input
+                <input aria-label={pollOptions.length === 0 ? "Poll option 1…" : "Add another option…"}
                   value={pollDraft}
                   onChange={(e) => setPollDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -358,7 +358,15 @@ export function Composer({
       {/* URL attach box */}
       {showUrlBox && (
         <div className="mt-2 flex gap-2">
-          <input
+          <input aria-label={
+              urlMode === "product"
+                ? "Paste your drop link (/store/buy/…) or shop link (/shop/…)"
+                : urlMode === "track"
+                  ? "Paste your sound link (/track/… or /watch/…)"
+                  : urlMode === "event"
+                    ? "Name this event (links to /shows)"
+                    : "Paste an image or video URL…"
+            }
             value={urlDraft}
             onChange={(e) => setUrlDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -392,7 +400,7 @@ export function Composer({
       <div data-min-stars="1">
         {showAssist ? (
           <div className="mt-2 flex gap-2">
-            <input
+            <input aria-label="What should it say? (100 Visual Bucs)"
               value={assistPrompt}
               onChange={(e) => setAssistPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && assist()}

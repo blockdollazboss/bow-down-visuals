@@ -246,7 +246,7 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-white/40">
             {t("wave8.calendar.pillarsLabel")}
           </label>
-          <input
+          <input aria-label={t("wave8.calendar.pillarsLabel")}
             ref={pillarsRef}
             value={pillarsText}
             onChange={(e) => setPillarsText(e.target.value)}
@@ -259,7 +259,7 @@ export default function CalendarAutofill({ onOpenComposer }: CalendarAutofillPro
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-white/40">
             {t("wave8.calendar.voiceLabel")}
           </label>
-          <input
+          <input aria-label={t("wave8.calendar.voiceLabel")}
             value={voice}
             onChange={(e) => setVoice(e.target.value)}
             placeholder={t("wave8.calendar.voicePlaceholder")}

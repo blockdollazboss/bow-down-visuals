@@ -160,7 +160,7 @@ export default function PromoteButton({ product }: { product: StoreProductDTO })
           Attach a discount code
         </label>
         <div className="mb-3 flex gap-2">
-          <select
+          <select aria-label="Attach a discount code"
             value={pickedCode}
             onChange={(e) => setPickedCode(e.target.value)}
             className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-white"

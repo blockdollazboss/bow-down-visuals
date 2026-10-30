@@ -75,14 +75,14 @@ export function UnlockGatesPanel() {
       {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
       {msg && <p className="mt-2 text-sm text-emerald-300">{msg}</p>}
       <div className="mt-4 grid gap-3">
-        <div><p className={label}>What fans unlock</p><input className={input + " mt-1"} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Exclusive demo, unreleased video…" /></div>
+        <div><p className={label}>What fans unlock</p><input aria-label="Exclusive demo, unreleased video…" className={input + " mt-1"} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Exclusive demo, unreleased video…" /></div>
         <div className="flex gap-2">
           <button type="button" className={action === "follow" ? btn : ghost} onClick={() => setAction("follow")}>Follow to unlock</button>
           <button type="button" className={action === "share" ? btn : ghost} onClick={() => setAction("share")}>Share to unlock</button>
         </div>
         {action === "follow" && !profileId && <p className="text-xs text-amber-300">Follow gates need your creator page — create your profile first, then the gate can check real follows.</p>}
-        <div><p className={label}>Content link (hidden until unlocked)</p><input className={input + " mt-1"} value={contentUrl} onChange={(e) => setContentUrl(e.target.value)} placeholder="https://…" /></div>
-        <div><p className={label}>Content label (optional)</p><input className={input + " mt-1"} value={contentLabel} onChange={(e) => setContentLabel(e.target.value)} placeholder="Unreleased track" /></div>
+        <div><p className={label}>Content link (hidden until unlocked)</p><input aria-label="Content link" className={input + " mt-1"} value={contentUrl} onChange={(e) => setContentUrl(e.target.value)} placeholder="https://…" /></div>
+        <div><p className={label}>Content label (optional)</p><input aria-label="Unreleased track" className={input + " mt-1"} value={contentLabel} onChange={(e) => setContentLabel(e.target.value)} placeholder="Unreleased track" /></div>
         <div><button type="button" className={btn} onClick={create} disabled={!title.trim() || !contentUrl.trim() || (action === "follow" && !profileId)}>Create gate · free</button></div>
       </div>
       {gates && gates.length > 0 && (

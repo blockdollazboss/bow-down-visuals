@@ -115,13 +115,13 @@ export function StoriesRail() {
       {composerOpen && (
         <div className="mt-3 rounded-xl border border-[#d4af37]/30 bg-[#111] p-4">
           <p className="mb-2 text-sm font-semibold text-[#d4af37]">New story — live for 24 hours 🦈</p>
-          <input
+          <input aria-label="Paste an image or video URL…"
             value={mediaUrl}
             onChange={(e) => setMediaUrl(e.target.value)}
             placeholder="Paste an image or video URL…"
             className="mb-2 w-full rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-[#d4af37] focus:outline-none"
           />
-          <input
+          <input aria-label="Caption (optional)…"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Caption (optional)…"

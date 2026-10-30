@@ -211,7 +211,7 @@ export function KaraokePanel({ songId, audioUrl, title, isLight }: {
                     <label className={`text-[11px] font-bold uppercase tracking-wider ${textDim}`}>
                       Timed lyrics (LRC — one [m:ss] line at a time, your song's own words)
                     </label>
-                    <textarea
+                    <textarea aria-label="Timed lyrics (LRC — one [m:ss] line at a time, your song's own words)"
                       value={lyricsDraft}
                       onChange={(e) => setLyricsDraft(e.target.value)}
                       placeholder={"[0:05] First line of your song\n[0:12] Second line"}

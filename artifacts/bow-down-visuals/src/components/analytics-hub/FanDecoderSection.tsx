@@ -100,7 +100,7 @@ export default function FanDecoderSection() {
         </p>
 
         <div className="flex gap-2 mb-3">
-          <input value={input} onChange={(e) => setInput(e.target.value)}
+          <input aria-label={t("fanDecoder.pastePh", { defaultValue: "Paste a comment or DM, hit Enter…" })} value={input} onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
             placeholder={t("fanDecoder.pastePh", { defaultValue: "Paste a comment or DM, hit Enter…" })}
             className={inputClass} maxLength={500} />
@@ -127,7 +127,7 @@ export default function FanDecoderSection() {
           <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("fanDecoder.nicheLabel", { defaultValue: "Your niche (optional)" })}
           </label>
-          <input value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={120} />
+          <input aria-label={t("fanDecoder.nicheLabel", { defaultValue: "Your niche (optional)" })} value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={120} />
         </div>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}

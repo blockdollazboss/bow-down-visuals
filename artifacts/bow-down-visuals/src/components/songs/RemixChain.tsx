@@ -330,7 +330,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <input
+              <input aria-label={t("wave9.remix.labelPlaceholder")}
                 className="w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none focus:border-primary/50"
                 placeholder={t("wave9.remix.labelPlaceholder")}
                 value={label}
@@ -348,13 +348,13 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
                   </option>
                 ))}
               </select>
-              <textarea
+              <textarea aria-label={t("wave9.remix.notesPlaceholder")}
                 className="w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none focus:border-primary/50 min-h-[56px] resize-y"
                 placeholder={t("wave9.remix.notesPlaceholder")}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
-              <input
+              <input aria-label={t("wave9.remix.audioUrlPlaceholder")}
                 className="w-full rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none focus:border-primary/50"
                 placeholder={t("wave9.remix.audioUrlPlaceholder")}
                 value={audioUrl}

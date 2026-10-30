@@ -206,7 +206,7 @@ export default function TutorialsPanel() {
       {/* ── Search ── */}
       <div className={`mt-6 flex items-center gap-2 rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/40 bg-white/70" : "border-white/10 bg-white/[0.04]"}`}>
         <Search className={`h-4 w-4 shrink-0 ${sub}`} />
-        <input
+        <input aria-label={t("tutorials.searchPlaceholder", { defaultValue: "How do I…? (try “get paid” or “make a song”)" })}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("tutorials.searchPlaceholder", { defaultValue: "How do I…? (try “get paid” or “make a song”)" })}

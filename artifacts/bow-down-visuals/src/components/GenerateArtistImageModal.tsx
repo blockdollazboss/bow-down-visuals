@@ -271,7 +271,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
                 </button>
               ))}
             </div>
-            <input
+            <input aria-label="Or describe a custom outfit…"
               value={outfit}
               onChange={(e) => applyShootChange({ outfit: e.target.value })}
               disabled={generating}
@@ -308,7 +308,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
                 </button>
               ))}
             </div>
-            <input
+            <input aria-label="Or describe a custom backdrop…"
               value={background}
               onChange={(e) => applyShootChange({ background: e.target.value })}
               disabled={generating}
@@ -321,7 +321,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {/* Prompt */}
         <div className={isShoot ? "mt-4" : undefined}>
         <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{isShoot ? "Shoot brief" : "Look description"}</label>
-        <textarea
+        <textarea aria-label={isShoot ? "Shoot brief" : "Look description"}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           disabled={generating}

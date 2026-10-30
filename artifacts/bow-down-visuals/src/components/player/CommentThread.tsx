@@ -93,7 +93,7 @@ export function CommentThread({ kind, mediaId }: { kind: MediaKind; mediaId: str
 
       {user ? (
         <div className="mt-4 flex gap-2">
-          <input
+          <input aria-label="Say something worth reading…"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handlePost(); }}

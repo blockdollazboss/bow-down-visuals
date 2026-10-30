@@ -241,7 +241,7 @@ export function PodcastTranscriptEditor() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <input
+        <input aria-label="Episode audio URL (MP3, WAV, M4A…)"
           value={mediaUrl}
           onChange={(e) => setMediaUrl(e.target.value)}
           placeholder="Episode audio URL (MP3, WAV, M4A…)"

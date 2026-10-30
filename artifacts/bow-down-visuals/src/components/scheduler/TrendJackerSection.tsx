@@ -174,19 +174,19 @@ export default function TrendJackerSection() {
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("trendJacker.trendLabel", { defaultValue: "The trend / sound / format" })}
             </label>
-            <input value={trend} onChange={(e) => setTrend(e.target.value)} placeholder={t("trendJacker.trendPh", { defaultValue: "e.g. Sped-up phonk edits, GRWM voiceovers…" })} className={`${inputClass} mt-1.5`} maxLength={200} />
+            <input aria-label={t("trendJacker.trendLabel", { defaultValue: "The trend / sound / format" })} value={trend} onChange={(e) => setTrend(e.target.value)} placeholder={t("trendJacker.trendPh", { defaultValue: "e.g. Sped-up phonk edits, GRWM voiceovers…" })} className={`${inputClass} mt-1.5`} maxLength={200} />
           </div>
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("trendJacker.nicheLabel", { defaultValue: "Your niche" })}
             </label>
-            <input value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={120} />
+            <input aria-label={t("trendJacker.nicheLabel", { defaultValue: "Your niche" })} value={niche} onChange={(e) => setNiche(e.target.value)} className={`${inputClass} mt-1.5`} maxLength={120} />
           </div>
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {t("trendJacker.styleLabel", { defaultValue: "Your style (optional)" })}
             </label>
-            <input value={styleNotes} onChange={(e) => setStyleNotes(e.target.value)} placeholder={t("trendJacker.stylePh", { defaultValue: "e.g. high-energy, luxury aesthetic…" })} className={`${inputClass} mt-1.5`} maxLength={500} />
+            <input aria-label={t("trendJacker.styleLabel", { defaultValue: "Your style (optional)" })} value={styleNotes} onChange={(e) => setStyleNotes(e.target.value)} placeholder={t("trendJacker.stylePh", { defaultValue: "e.g. high-energy, luxury aesthetic…" })} className={`${inputClass} mt-1.5`} maxLength={500} />
           </div>
         </div>
 

@@ -223,7 +223,7 @@ export default function SplitsEditor({
       {/* The picker. */}
       <p className="mt-4 text-xs font-bold uppercase tracking-widest text-white/50">{t("splits.addTitle")}</p>
       <div className="mt-2 flex gap-2">
-        <input
+        <input aria-label={t("splits.searchPlaceholder")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {

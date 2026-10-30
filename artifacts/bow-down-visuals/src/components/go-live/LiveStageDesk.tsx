@@ -383,9 +383,9 @@ function RuleAdder({ onAdd }: { onAdd: (rule: LinkRule) => void }) {
   const ready = keyword.trim().length >= 2 && label.trim().length >= 1 && /^https?:\/\//i.test(url.trim());
   return (
     <div className="grid gap-2 pt-1 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
-      <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Keyword (e.g. merch)" className={inputClass} maxLength={40} />
-      <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" className={inputClass} maxLength={60} />
-      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={inputClass} maxLength={500} />
+      <input aria-label="Keyword (e.g. merch)" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Keyword (e.g. merch)" className={inputClass} maxLength={40} />
+      <input aria-label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" className={inputClass} maxLength={60} />
+      <input aria-label="Link URL" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={inputClass} maxLength={500} />
       <button type="button" disabled={!ready} onClick={() => { onAdd({ keyword: keyword.trim().toLowerCase(), label: label.trim(), url: url.trim() }); setKeyword(""); setLabel(""); setUrl(""); }}
         className="inline-flex items-center gap-1 rounded-xl border border-primary/40 px-3 py-2 text-xs font-black text-primary transition hover:bg-primary/10 disabled:opacity-40">
         <Plus className="h-3.5 w-3.5" /> Add

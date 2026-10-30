@@ -263,7 +263,7 @@ export default function MediaKitBuilder() {
           {vaults.length > 0 && (
             <div className="min-w-[220px]">
               <label className={`mb-1.5 block text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>{t("wave8.mediaKit.vaultLabel")}</label>
-              <select
+              <select aria-label={t("wave8.mediaKit.vaultLabel")}
                 value={vaultId}
                 onChange={(e) => setVaultId(e.target.value)}
                 className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none ${isLight ? "border-[#C9A84C]/40 bg-white text-[#2A1E07] focus:border-[#C9A84C]" : "border-white/10 bg-black text-white focus:border-[#d4af37]/60"}`}

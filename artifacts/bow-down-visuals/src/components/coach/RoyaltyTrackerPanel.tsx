@@ -378,7 +378,7 @@ export default function RoyaltyTrackerPanel() {
               <p className="mt-1 text-sm text-white/50">
                 {t("royalties.import.desc")}
               </p>
-              <textarea
+              <textarea aria-label={"Song,Platform,Period Start,Period End,Streams,Amount\nMidnight Crown,Spotify,01/01/2026,01/31/2026,12400,45.67"}
                 value={csv}
                 onChange={(e) => setCsv(e.target.value)}
                 rows={6}
@@ -452,7 +452,7 @@ export default function RoyaltyTrackerPanel() {
                 <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/40 p-4 sm:grid-cols-2">
                   <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
                   <div><label className={labelClass}>{t("royalties.payouts.statusLabel")}</label>
-                    <select value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
+                    <select aria-label={t("royalties.payouts.statusLabel")} value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
                       <option value="expected">{t("royalties.payouts.statusExpected")}</option>
                       <option value="received">{t("royalties.payouts.statusReceived")}</option>
                       <option value="partial">{t("royalties.payouts.statusPartial")}</option>

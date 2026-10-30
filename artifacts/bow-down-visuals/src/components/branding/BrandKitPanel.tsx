@@ -238,7 +238,7 @@ export function BrandKitPanel() {
     <div className="space-y-2">
       {lines.map((line, i) => (
         <div key={i} className="flex items-center gap-2">
-          <input
+          <input aria-label={placeholder}
             className={inputCls}
             value={line}
             maxLength={400}
@@ -358,15 +358,15 @@ export function BrandKitPanel() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelCls}>{t("brandingKit.brand.brandName", { defaultValue: "Brand name" })}</label>
-            <input className={inputCls} value={brandName} maxLength={80} onChange={(e) => setBrandName(e.target.value)} placeholder="Bow Down Visuals" />
+            <input aria-label={t("brandingKit.brand.brandName", { defaultValue: "Brand name" })} className={inputCls} value={brandName} maxLength={80} onChange={(e) => setBrandName(e.target.value)} placeholder="Bow Down Visuals" />
           </div>
           <div>
             <label className={labelCls}>{t("brandingKit.brand.industry", { defaultValue: "Industry (optional)" })}</label>
-            <input className={inputCls} value={industry} maxLength={80} onChange={(e) => setIndustry(e.target.value)} placeholder="Music, gaming, fitness…" />
+            <input aria-label={t("brandingKit.brand.industry", { defaultValue: "Industry (optional)" })} className={inputCls} value={industry} maxLength={80} onChange={(e) => setIndustry(e.target.value)} placeholder="Music, gaming, fitness…" />
           </div>
           <div className="sm:col-span-2">
             <label className={labelCls}>{t("brandingKit.brand.vibe", { defaultValue: "The vibe" })}</label>
-            <textarea className={inputCls} value={vibe} maxLength={500} rows={2} onChange={(e) => setVibe(e.target.value)} placeholder="Royal, bold, gold-on-black luxury with a street edge" />
+            <textarea aria-label={t("brandingKit.brand.vibe", { defaultValue: "The vibe" })} className={inputCls} value={vibe} maxLength={500} rows={2} onChange={(e) => setVibe(e.target.value)} placeholder="Royal, bold, gold-on-black luxury with a street edge" />
           </div>
         </div>
         <button
@@ -575,7 +575,7 @@ export function BrandKitPanel() {
             <img src={logoUrl.trim()} alt="" className="h-16 w-16 rounded-xl border border-white/15 object-contain bg-white/[0.03]" />
           )}
           <div className="min-w-[220px] flex-1">
-            <input className={inputCls} value={logoUrl} maxLength={2000} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/my-logo.png" />
+            <input aria-label={t("brandingKit.brand.logo", { defaultValue: "Your logo" })} className={inputCls} value={logoUrl} maxLength={2000} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/my-logo.png" />
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 type="button"

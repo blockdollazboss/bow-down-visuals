@@ -163,7 +163,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
               <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/45">
                 {t("wave8.adlib.titleLabel")}
               </label>
-              <input
+              <input aria-label={t("wave8.adlib.titleLabel")}
                 className={inputClass}
                 placeholder={t("wave8.adlib.titlePlaceholder")}
                 value={titleText}
@@ -202,7 +202,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
                 </span>
               )}
             </label>
-            <textarea
+            <textarea aria-label={t("wave8.adlib.lyricsLabel")}
               className={`${inputClass} min-h-[110px] resize-y`}
               placeholder={t("wave8.adlib.lyricsPlaceholder")}
               value={lyricsText}
@@ -219,7 +219,7 @@ export function AdLibGenerator({ lyrics, songTitle, artistName, vaultVoice }: Ad
                 </span>
               )}
             </label>
-            <input
+            <input aria-label={t("wave8.adlib.vaultVoiceLabel")}
               className={inputClass}
               placeholder={t("wave8.adlib.vaultVoicePlaceholder")}
               value={voiceText}

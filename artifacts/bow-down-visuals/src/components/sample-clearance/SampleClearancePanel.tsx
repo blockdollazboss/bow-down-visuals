@@ -242,7 +242,7 @@ export function SampleClearancePanel({
 
           <div className="space-y-2 border-t border-white/10 pt-3">
             <p className="text-xs font-bold uppercase tracking-wider opacity-70">Declare a sample</p>
-            <input
+            <input aria-label="What did you sample? (artist / track / sound, in your words)"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder="What did you sample? (artist / track / sound, in your words)"

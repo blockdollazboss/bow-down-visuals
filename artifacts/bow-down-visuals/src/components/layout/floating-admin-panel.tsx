@@ -169,7 +169,7 @@ function AdminTools({
       {/* Upgrade user tier */}
       <div>
         <p className={labelCls}>Upgrade user tier</p>
-        <input
+        <input aria-label="user@email.com"
           type="email"
           placeholder="user@email.com"
           value={tierEmail}
@@ -217,7 +217,7 @@ function AdminTools({
       {/* Give a friend credits */}
       <div>
         <p className={labelCls}>Give a friend Visual Bucs</p>
-        <input
+        <input aria-label="friend@email.com"
           type="email"
           placeholder="friend@email.com"
           value={friendEmail}
@@ -506,7 +506,7 @@ function BowRaceControls({
         </span>
       </div>
       <div className="flex items-center gap-2 mb-1">
-        <input
+        <input aria-label="Reward Visual Bucs"
           type="number"
           min="1"
           value={reward}
@@ -524,7 +524,7 @@ function BowRaceControls({
           {enabled ? "ON" : "OFF"}
         </button>
       </div>
-      <input
+      <input aria-label="Target override (1000–5000, blank = random)"
         type="number"
         min="1000"
         max="5000"
@@ -621,7 +621,7 @@ function JackpotCreator({
   return (
     <div>
       <p className={labelCls}>New jackpot event</p>
-      <input
+      <input aria-label="Event name"
         type="text"
         placeholder="Event name"
         value={name}
@@ -663,7 +663,7 @@ function JackpotCreator({
         style={{ colorScheme: "dark" }}
       />
       <div className="flex gap-1">
-        <input
+        <input aria-label="Prize Visual Bucs"
           type="number"
           min="1"
           value={prize}

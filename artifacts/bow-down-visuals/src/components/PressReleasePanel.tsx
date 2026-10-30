@@ -309,7 +309,7 @@ export default function PressReleasePanel({
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-medium text-white/60 mb-1 block">{p("form.announcementType")}</label>
-          <select value={announcementType} onChange={(e) => setAnnouncementType(e.target.value as typeof announcementType)}
+          <select aria-label={p("form.announcementType")} value={announcementType} onChange={(e) => setAnnouncementType(e.target.value as typeof announcementType)}
                   className={`${inputCls} bg-black`}>
             {ANNOUNCEMENT_TYPES.map((tId) => (
               <option key={tId} value={tId}>{p(`types.${tId}`)}</option>

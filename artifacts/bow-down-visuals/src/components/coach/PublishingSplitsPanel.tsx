@@ -309,19 +309,19 @@ export default function PublishingSplitsPanel() {
           <div className="mt-3 space-y-2">
             {rows.map((row, i) => (
               <div key={i} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-                <input
+                <input aria-label="Songwriter name"
                   value={row.name}
                   onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))}
                   placeholder="Songwriter name"
                   className="rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/30"
                 />
-                <input
+                <input aria-label="Creator profile ID (optional — links their account)"
                   value={row.profileId}
                   onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, profileId: e.target.value } : r)))}
                   placeholder="Creator profile ID (optional — links their account)"
                   className="hidden rounded-xl border border-white/15 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/30 sm:block"
                 />
-                <input
+                <input aria-label="%"
                   value={row.sharePct}
                   onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, sharePct: e.target.value } : r)))}
                   placeholder="%"
@@ -479,7 +479,7 @@ export default function PublishingSplitsPanel() {
                     )}
                     {actions.includes("dispute") && (
                       <>
-                        <input
+                        <input aria-label="Why is this share wrong? (optional)"
                           value={disputeNote[item.id] ?? ""}
                           onChange={(e) => setDisputeNote({ ...disputeNote, [item.id]: e.target.value })}
                           placeholder="Why is this share wrong? (optional)"

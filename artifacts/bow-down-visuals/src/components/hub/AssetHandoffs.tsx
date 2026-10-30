@@ -324,14 +324,14 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
               </button>
               {id === "meme" && (
                 <div className="flex flex-col gap-1.5">
-                  <input
+                  <input aria-label={t("hubSpine.handoffs.meme.topPlaceholder")}
                     value={memeTexts.top}
                     onChange={(e) => setMemeTexts((m) => ({ ...m, top: e.target.value }))}
                     placeholder={t("hubSpine.handoffs.meme.topPlaceholder")}
                     maxLength={120}
                     className="h-8 rounded-lg bg-white/[0.04] border border-white/10 px-2.5 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-primary/50"
                   />
-                  <input
+                  <input aria-label={t("hubSpine.handoffs.meme.bottomPlaceholder")}
                     value={memeTexts.bottom}
                     onChange={(e) => setMemeTexts((m) => ({ ...m, bottom: e.target.value }))}
                     placeholder={t("hubSpine.handoffs.meme.bottomPlaceholder")}

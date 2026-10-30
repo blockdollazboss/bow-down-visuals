@@ -118,7 +118,7 @@ export function AddToPlaylist({
         ) : (
           <>
             <div className="flex gap-2 mb-4">
-              <input
+              <input aria-label="New playlist name…"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}

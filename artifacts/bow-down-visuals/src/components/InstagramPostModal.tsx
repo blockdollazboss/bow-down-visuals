@@ -242,7 +242,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
             {usable.length > 1 && (
               <div>
                 <label className="text-xs font-bold text-white/60 uppercase tracking-wider">Account</label>
-                <select
+                <select aria-label="Account"
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   disabled={publishing}
@@ -280,7 +280,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
                   </button>
                 </div>
               </div>
-              <textarea
+              <textarea aria-label="Caption"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value.slice(0, CAPTION_LIMIT))}
                 disabled={publishing}

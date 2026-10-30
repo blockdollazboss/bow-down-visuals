@@ -758,7 +758,7 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
       )}
       {!preview && user && (
         <div className="mb-3 flex gap-2">
-          <input
+          <input aria-label="Leave some love on the wall…"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void send(); }}

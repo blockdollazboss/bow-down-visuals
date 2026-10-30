@@ -160,7 +160,7 @@ export default function DestinationKeysPanel() {
             }
           }}
         >
-          <input
+          <input aria-label="Platform"
             list="bdv-destination-platforms"
             value={platform}
             onChange={(e) => setPlatform(e.target.value)}
@@ -172,13 +172,13 @@ export default function DestinationKeysPanel() {
               <option key={p} value={p} />
             ))}
           </datalist>
-          <input
+          <input aria-label="RTMP ingest URL (rtmp://…)"
             value={ingestUrl}
             onChange={(e) => setIngestUrl(e.target.value)}
             placeholder="RTMP ingest URL (rtmp://…)"
             className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none"
           />
-          <input
+          <input aria-label="Stream key (never shown again)"
             type="password"
             autoComplete="off"
             value={streamKey}

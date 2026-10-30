@@ -623,7 +623,7 @@ export function HumToSong() {
               {!instrumental && (
                 <div className="space-y-2 sm:col-span-2">
                   <FieldLabel>Lyrics (optional — unlocks the lyric-video handoff)</FieldLabel>
-                  <textarea
+                  <textarea aria-label="Paste or write the lyrics for the vocal line…"
                     value={lyrics}
                     onChange={(e) => setLyrics(e.target.value)}
                     placeholder="Paste or write the lyrics for the vocal line…"

@@ -98,7 +98,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
             <>
               <div>
                 <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("review.linkTitle")}</label>
-                <input
+                <input aria-label={t("review.linkTitle")}
                   value={linkTitle}
                   onChange={(e) => setLinkTitle(e.target.value)}
                   placeholder={t("review.linkTitlePlaceholder")}
@@ -109,7 +109,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{t("review.expires")}</label>
-                  <select
+                  <select aria-label={t("review.expires")}
                     value={expiry}
                     onChange={(e) => setExpiry(e.target.value)}
                     className="mt-1 w-full rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm text-white focus:border-[#e8c86a]/50 focus:outline-none [&>option]:bg-black"
@@ -126,7 +126,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
                     {t("review.password")} <span className="text-white/25 normal-case">({t("review.optional")})</span>
                   </label>
                   <div className="relative mt-1">
-                    <input
+                    <input aria-label={t("review.password")}
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

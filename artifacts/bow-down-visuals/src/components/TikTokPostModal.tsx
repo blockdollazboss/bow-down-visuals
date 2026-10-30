@@ -258,7 +258,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
             {usable.length > 1 && (
               <div>
                 <label className="text-xs font-bold text-white/60 uppercase tracking-wider">Account</label>
-                <select
+                <select aria-label="Account"
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   disabled={uploading}
@@ -298,7 +298,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
                   </button>
                 </div>
               </div>
-              <textarea
+              <textarea aria-label="Caption · paste it in TikTok"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value.slice(0, CAPTION_LIMIT))}
                 disabled={uploading}

@@ -172,7 +172,7 @@ export function DeveloperApiSettings() {
           <div>
             <p className="text-sm font-bold">Create a key</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <input
+              <input aria-label="Key name — e.g. My agent"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Key name — e.g. My agent"
@@ -451,7 +451,7 @@ function WebhooksSettings({
           <div>
             <p className="text-sm font-bold">Register an endpoint</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <input
+              <input aria-label="Webhook endpoint URL"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://your-server.example/webhooks/bowdown"

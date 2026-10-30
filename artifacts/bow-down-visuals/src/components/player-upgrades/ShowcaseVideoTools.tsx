@@ -147,7 +147,7 @@ export function ShowcaseVideoTools({ itemId }: { itemId: string }) {
                 </div>
               ))}
             </div>
-            <textarea
+            <textarea aria-label="Watch-page summary"
               value={editSummary}
               maxLength={600}
               rows={2}
@@ -194,7 +194,7 @@ export function ShowcaseVideoTools({ itemId }: { itemId: string }) {
               rotation and counts real views and clicks — the winner takes over as your thumbnail
               automatically.
             </p>
-            <input
+            <input aria-label="Challenger cover image URL (cover B)"
               value={coverB}
               onChange={(e) => setCoverB(e.target.value)}
               placeholder="Challenger cover image URL (cover B)"

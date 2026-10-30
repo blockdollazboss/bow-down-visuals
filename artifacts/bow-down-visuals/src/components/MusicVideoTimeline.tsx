@@ -887,7 +887,7 @@
 
               {editing ? (
                 <div className="space-y-2">
-                  <textarea
+                  <textarea aria-label="Describe the AI video prompt for this scene..."
                     value={editedPrompt}
                     onChange={(e) => setEditedPrompt(e.target.value)}
                     rows={4}

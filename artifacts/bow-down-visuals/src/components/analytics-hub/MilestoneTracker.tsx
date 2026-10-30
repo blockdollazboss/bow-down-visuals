@@ -358,14 +358,14 @@ export default function MilestoneTracker() {
               {t("milestones.logTitle")}
             </h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input
+              <input aria-label={t("milestones.trackPlaceholder")}
                 value={trackTitle}
                 onChange={(e) => setTrackTitle(e.target.value)}
                 placeholder={t("milestones.trackPlaceholder")}
                 className={inputClass}
                 maxLength={200}
               />
-              <input
+              <input aria-label={t("milestones.artistPlaceholder")}
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
                 placeholder={t("milestones.artistPlaceholder")}
@@ -377,7 +377,7 @@ export default function MilestoneTracker() {
                   <option key={p} value={p} className="bg-black">{p}</option>
                 ))}
               </select>
-              <input
+              <input aria-label={t("milestones.countPlaceholder")}
                 value={streamCount}
                 onChange={(e) => setStreamCount(e.target.value)}
                 placeholder={t("milestones.countPlaceholder")}
@@ -404,7 +404,7 @@ export default function MilestoneTracker() {
                   <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   {t("milestones.csvHelp")}
                 </p>
-                <textarea
+                <textarea aria-label="track_title,platform,streams&#10;Midnight Run,spotify,102400&#10;Midnight Run,apple music,38200"
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
                   rows={4}

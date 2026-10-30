@@ -387,7 +387,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-white/70 mb-1.5">Cover title</label>
-                    <input
+                    <input aria-label="Cover title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder={`${src.title} (Cover)`}
@@ -396,7 +396,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-white/70 mb-1.5">New style</label>
-                    <textarea
+                    <textarea aria-label="New style"
                       value={stylePrompt}
                       onChange={(e) => setStylePrompt(e.target.value)}
                       placeholder="e.g. a smoky jazz-club cover with upright bass, brushed drums and a late-night vocal…"
@@ -449,7 +449,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
                     <label className="block text-sm font-medium text-white/70 mb-1.5">
                       Lyrics <span className="text-white/30 font-normal">(carried into the cover — optional)</span>
                     </label>
-                    <textarea
+                    <textarea aria-label="Lyrics (carried into the cover — optional)"
                       value={lyrics}
                       onChange={(e) => setLyrics(e.target.value)}
                       placeholder="Paste the lyrics so the cover keeps the same words…"

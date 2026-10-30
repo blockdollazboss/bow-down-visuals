@@ -459,7 +459,7 @@ export default function SplitCalculator() {
           <p className={sectionTitle}>{t("wave8.splits.newSheet")}</p>
           <div>
             <label className={labelClass}>{t("wave8.splits.songTitle")}</label>
-            <input
+            <input aria-label={t("wave8.splits.songTitle")}
               value={fTitle}
               onChange={(e) => setFTitle(e.target.value)}
               maxLength={120}
@@ -664,7 +664,7 @@ export default function SplitCalculator() {
                   <div className="mt-4 flex flex-wrap items-end gap-3">
                     <div className="w-44">
                       <label className={labelClass}>{t("wave8.splits.royaltyAmount")}</label>
-                      <input
+                      <input aria-label={t("wave8.splits.royaltyAmount")}
                         value={amounts[sheet.id] ?? ""}
                         onChange={(e) => setAmounts((prev) => ({ ...prev, [sheet.id]: e.target.value.replace(/[^0-9.]/g, "") }))}
                         inputMode="decimal"

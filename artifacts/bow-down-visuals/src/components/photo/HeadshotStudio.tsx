@@ -226,7 +226,7 @@ export function HeadshotStudio() {
           <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
             {t("headshotStudio.manualLabel", { defaultValue: "Your prompt — full control" })}
           </label>
-          <textarea
+          <textarea aria-label={t("headshotStudio.manualLabel", { defaultValue: "Your prompt — full control" })}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             disabled={generating}
@@ -245,7 +245,7 @@ export function HeadshotStudio() {
         <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
           {t("headshotStudio.refLabel", { defaultValue: "Face reference (optional)" })}
         </label>
-        <input
+        <input aria-label={t("headshotStudio.refLabel", { defaultValue: "Face reference (optional)" })}
           value={referenceUrl}
           onChange={(e) => setReferenceUrl(e.target.value)}
           disabled={generating}

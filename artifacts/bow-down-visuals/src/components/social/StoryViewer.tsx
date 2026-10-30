@@ -168,7 +168,7 @@ export function StoryViewer({
 
         {/* reply → DM */}
         <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 p-4">
-          <input
+          <input aria-label={sent ? "Sent! 🦈" : `Reply to ${author?.display_name ?? "creator"}…`}
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendReply()}

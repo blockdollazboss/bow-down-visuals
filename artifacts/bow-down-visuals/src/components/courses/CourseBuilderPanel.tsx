@@ -212,8 +212,8 @@ export default function CourseBuilderPanel() {
 
       {/* create */}
       <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_140px_auto]">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Course title" className={inputCls} maxLength={160} />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will they learn? (one line sells it)" className={inputCls} maxLength={5000} />
+        <input aria-label="Course title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Course title" className={inputCls} maxLength={160} />
+        <input aria-label="What will they learn? (one line sells it)" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will they learn? (one line sells it)" className={inputCls} maxLength={5000} />
         <input value={priceDollars} onChange={(e) => setPriceDollars(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="Your price $" inputMode="decimal" className={inputCls} aria-label="Course price in dollars — you set it" />
         <button type="button" onClick={() => void onCreate()} disabled={busy === "create"} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black disabled:opacity-50">
           {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create course
@@ -261,7 +261,7 @@ export default function CourseBuilderPanel() {
                   {draft.map((section, si) => (
                     <div key={si} className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/[0.07] bg-black/30"}`}>
                       <div className="flex items-center gap-2">
-                        <input value={section.title} onChange={(e) => setDraft((d) => d.map((s, i) => (i === si ? { ...s, title: e.target.value } : s)))} placeholder={`Section ${si + 1} title`} className={inputCls} maxLength={200} />
+                        <input aria-label={`Section ${si + 1} title`} value={section.title} onChange={(e) => setDraft((d) => d.map((s, i) => (i === si ? { ...s, title: e.target.value } : s)))} placeholder={`Section ${si + 1} title`} className={inputCls} maxLength={200} />
                         <button type="button" aria-label="Move section up" onClick={() => setDraft((d) => move(d, si, -1))} className="shrink-0 text-white/50 hover:text-primary"><ArrowUp className="h-4 w-4" /></button>
                         <button type="button" aria-label="Move section down" onClick={() => setDraft((d) => move(d, si, 1))} className="shrink-0 text-white/50 hover:text-primary"><ArrowDown className="h-4 w-4" /></button>
                         <button type="button" aria-label="Remove section" onClick={() => setDraft((d) => d.filter((_, i) => i !== si))} className="shrink-0 text-white/50 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
@@ -270,7 +270,7 @@ export default function CourseBuilderPanel() {
                         {section.lessons.map((lesson, li) => (
                           <div key={li} className={`rounded-lg border p-3 ${isLight ? "border-[#C9A84C]/20" : "border-white/[0.06]"}`}>
                             <div className="flex items-center gap-2">
-                              <input value={lesson.title} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, title: e.target.value } : l)) } : s))} placeholder={`Lesson ${li + 1} title`} className={inputCls} maxLength={200} />
+                              <input aria-label={`Lesson ${li + 1} title`} value={lesson.title} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, title: e.target.value } : l)) } : s))} placeholder={`Lesson ${li + 1} title`} className={inputCls} maxLength={200} />
                               <select value={lesson.kind} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, kind: e.target.value as "video" | "text" } : l)) } : s))} className={`shrink-0 rounded-lg border px-2 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/70 text-zinc-900" : "border-white/10 bg-black/40 text-white"}`} aria-label="Lesson kind">
                                 <option value="video">Video</option>
                                 <option value="text">Text</option>
@@ -280,12 +280,12 @@ export default function CourseBuilderPanel() {
                               <button type="button" aria-label="Remove lesson" onClick={() => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.filter((_, j) => j !== li) } : s))} className="shrink-0 text-white/50 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
                             </div>
                             {lesson.kind === "video" && (
-                              <input value={lesson.videoId} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, videoId: e.target.value } : l)) } : s))} placeholder="Your published video's ID (from its creator-tools page)" className={`${inputCls} mt-2`} />
+                              <input aria-label="Your published video's ID (from its creator-tools page)" value={lesson.videoId} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, videoId: e.target.value } : l)) } : s))} placeholder="Your published video's ID (from its creator-tools page)" className={`${inputCls} mt-2`} />
                             )}
-                            <textarea value={lesson.body} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, body: e.target.value } : l)) } : s))} placeholder={lesson.kind === "text" ? "The lesson itself — write it out in full." : "Lesson notes (optional for video lessons)"} className={`${inputCls} mt-2 min-h-[64px]`} maxLength={50000} />
+                            <textarea aria-label={lesson.kind === "text" ? "The lesson itself — write it out in full." : "Lesson notes (optional for video lessons)"} value={lesson.body} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, body: e.target.value } : l)) } : s))} placeholder={lesson.kind === "text" ? "The lesson itself — write it out in full." : "Lesson notes (optional for video lessons)"} className={`${inputCls} mt-2 min-h-[64px]`} maxLength={50000} />
                             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                              <input value={lesson.attachmentTitle} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, attachmentTitle: e.target.value } : l)) } : s))} placeholder="Attachment title (optional)" className={inputCls} maxLength={200} />
-                              <input value={lesson.attachmentUrl} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, attachmentUrl: e.target.value } : l)) } : s))} placeholder="Attachment link (optional)" className={inputCls} maxLength={2048} />
+                              <input aria-label="Attachment title (optional)" value={lesson.attachmentTitle} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, attachmentTitle: e.target.value } : l)) } : s))} placeholder="Attachment title (optional)" className={inputCls} maxLength={200} />
+                              <input aria-label="Attachment link (optional)" value={lesson.attachmentUrl} onChange={(e) => setDraft((d) => d.map((s, i) => i === si ? { ...s, lessons: s.lessons.map((l, j) => (j === li ? { ...l, attachmentUrl: e.target.value } : l)) } : s))} placeholder="Attachment link (optional)" className={inputCls} maxLength={2048} />
                             </div>
                             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs">
                               <label className={`inline-flex items-center gap-1.5 ${sub}`}>

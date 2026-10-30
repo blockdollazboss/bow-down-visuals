@@ -353,7 +353,7 @@ export function PromoCardsPanel() {
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">
             {t("hubSpine.promoCards.releaseLabel")}
           </label>
-          <input
+          <input aria-label={t("hubSpine.promoCards.releaseLabel")}
             value={releaseTitle}
             onChange={(e) => setReleaseTitle(e.target.value)}
             placeholder={t("hubSpine.promoCards.releasePlaceholder")}
@@ -365,7 +365,7 @@ export function PromoCardsPanel() {
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">
             {t("hubSpine.promoCards.artistLabel")}
           </label>
-          <input
+          <input aria-label={t("hubSpine.promoCards.artistLabel")}
             value={artistName}
             onChange={(e) => setArtistName(e.target.value)}
             placeholder={t("hubSpine.promoCards.artistPlaceholder")}
@@ -403,7 +403,7 @@ export function PromoCardsPanel() {
             <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">
               {t("hubSpine.promoCards.milestoneLabel")}
             </label>
-            <input
+            <input aria-label={t("hubSpine.promoCards.milestoneLabel")}
               value={milestoneLabel}
               onChange={(e) => setMilestoneLabel(e.target.value.toUpperCase())}
               maxLength={24}
@@ -441,7 +441,7 @@ export function PromoCardsPanel() {
             {t("hubSpine.promoCards.coverLabel")}
           </label>
           {projectImages.length > 0 ? (
-            <select
+            <select aria-label={t("hubSpine.promoCards.coverLabel")}
               value={coverArt}
               onChange={(e) => setCoverArt(e.target.value)}
               className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm text-white focus:border-primary/60 focus:outline-none"
@@ -452,7 +452,7 @@ export function PromoCardsPanel() {
               ))}
             </select>
           ) : (
-            <input
+            <input aria-label={t("hubSpine.promoCards.coverPlaceholder")}
               value={coverArt}
               onChange={(e) => setCoverArt(e.target.value)}
               placeholder={t("hubSpine.promoCards.coverPlaceholder")}

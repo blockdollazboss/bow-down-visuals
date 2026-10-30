@@ -244,7 +244,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
             {usable.length > 1 && (
               <div>
                 <label className="text-xs font-bold text-white/60 uppercase tracking-wider">Page</label>
-                <select
+                <select aria-label="Page"
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   disabled={publishing}
@@ -282,7 +282,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
                   </button>
                 </div>
               </div>
-              <textarea
+              <textarea aria-label="Description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value.slice(0, DESCRIPTION_LIMIT))}
                 disabled={publishing}

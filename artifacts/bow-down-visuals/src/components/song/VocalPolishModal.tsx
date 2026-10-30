@@ -310,7 +310,7 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
                   <span>{t("vocalPolish.strengthLabel")}</span>
                   <span className="text-primary font-bold">{t("vocalPolish.strengthValue", { n: strength })}</span>
                 </label>
-                <input
+                <input aria-label={t("vocalPolish.strengthLabel")}
                   type="range"
                   min={0}
                   max={100}
@@ -330,7 +330,7 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
                   </span>
                   <span className="text-primary font-bold">{t("vocalPolish.keyShiftValue", { n: keyLabel })}</span>
                 </label>
-                <input
+                <input aria-label={t("vocalPolish.keyShiftLabel")}
                   type="range"
                   min={-6}
                   max={6}
@@ -355,7 +355,7 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
                   </span>
                   <span className="text-primary font-bold">{t("vocalPolish.tempoValue", { n: tempoPct })}</span>
                 </label>
-                <input
+                <input aria-label={t("vocalPolish.tempoLabel")}
                   type="range"
                   min={80}
                   max={120}

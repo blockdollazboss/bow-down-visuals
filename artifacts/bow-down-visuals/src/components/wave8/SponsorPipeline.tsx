@@ -365,7 +365,7 @@ export default function SponsorPipeline() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>{t("wave8.sponsors.sponsorName")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.sponsorName")}
                 value={fName}
                 onChange={(e) => setFName(e.target.value)}
                 maxLength={120}
@@ -375,7 +375,7 @@ export default function SponsorPipeline() {
             </div>
             <div>
               <label className={labelClass}>{t("wave8.sponsors.dealValue")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.dealValue")}
                 value={fValue}
                 onChange={(e) => setFValue(e.target.value.replace(/[^0-9.]/g, ""))}
                 inputMode="decimal"
@@ -385,7 +385,7 @@ export default function SponsorPipeline() {
             </div>
             <div>
               <label className={labelClass}>{t("wave8.sponsors.contact")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.contact")}
                 value={fContact}
                 onChange={(e) => setFContact(e.target.value)}
                 maxLength={160}
@@ -395,7 +395,7 @@ export default function SponsorPipeline() {
             </div>
             <div>
               <label className={labelClass}>{t("wave8.sponsors.notes")}</label>
-              <input
+              <input aria-label={t("wave8.sponsors.notes")}
                 value={fNotes}
                 onChange={(e) => setFNotes(e.target.value)}
                 maxLength={1000}
