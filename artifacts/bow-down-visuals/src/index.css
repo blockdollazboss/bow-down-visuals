@@ -964,6 +964,14 @@ html, body {
   textarea.bdv-touch-target {
     font-size: 16px;
   }
+  .bdv-touch-switch {
+    position: relative;
+  }
+  .bdv-touch-switch::after {
+    content: "";
+    position: absolute;
+    inset: -10px 0;
+  }
 }
 
 /* ── 17. Dark-spot sweep: pages & components that bypassed the theme ── */
