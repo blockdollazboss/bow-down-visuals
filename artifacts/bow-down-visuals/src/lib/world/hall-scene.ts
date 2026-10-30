@@ -1119,6 +1119,13 @@ interface FigureLoopFeed {
   video: HTMLVideoElement;
   /** canplay reached — frames are drawable. */
   ready: boolean;
+  /** The budget pass has told the element to load at least once.
+   *  Feeds attach with preload "none" (stack1000/world-load-
+   *  truth): an unselected feed must fetch NOTHING — with the old
+   *  "metadata", every attached feed in a crowded room pulled its
+   *  head before the budget ever picked it. Selection kicks the
+   *  load; canplay still gates the blend-in. */
+  loadKicked: boolean;
   /** Terminal failure (error, repeated play rejection, mask could
    *  not be built): the figure stays its still, forever. */
   failed: boolean;
@@ -9970,7 +9977,15 @@ export class KingsHallScene {
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    video.preload = "metadata";
+    /* preload "none": the feed fetches NOTHING until the budget
+     * pass selects it (serviceLoopFeeds kicks the load). Until
+     * stack1000/world-load-truth this was "metadata" — in a room
+     * of twenty loop-wearing figures, twenty video heads loaded
+     * at swap time for at most MAX_LIVE_LOOPS players. The still
+     * is the figure's first paint either way, and canplay still
+     * gates the blend, so a selected feed simply starts its load
+     * on selection instead of on attach. */
+    video.preload = "none";
     video.crossOrigin = "anonymous";
     // No poster attribute: the element is never displayed — the
     // figure's still IS the first paint; the registry's poster
@@ -9981,6 +9996,7 @@ export class KingsHallScene {
       def,
       video,
       ready: false,
+      loadKicked: false,
       failed: false,
       active: false,
       alpha: 0,
@@ -10173,6 +10189,17 @@ export class KingsHallScene {
     const live = selectLiveLoops(decorated);
     for (let i = 0; i < count; i++) {
       const d = decorated[i]!;
+      /* Selection is also the load trigger (stack1000/world-load-
+       * truth): feeds attach with preload "none", so a feed the
+       * budget has never picked has fetched nothing. The first
+       * pass that picks it kicks its load; canplay marks it ready
+       * and the play below starts on a later pass — the still
+       * stands throughout, exactly as it did while metadata
+       * trickled in under the old preload. */
+      if (live.has(d.key) && !d.feed.failed && !d.feed.loadKicked) {
+        d.feed.loadKicked = true;
+        d.feed.video.load();
+      }
       const shouldLive = live.has(d.key) && d.feed.ready;
       d.feed.active = shouldLive;
       const v = d.feed.video;
