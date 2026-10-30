@@ -205,7 +205,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
             <p className="text-xs text-white/40 mt-1">{instagramPostCost} Visual Bucs · publishes as a Reel</p>
           </div>
           {!publishing && (
-            <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
+            <button onClick={onClose} className="p-3 -m-3 text-white/40 hover:text-white transition-colors" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
           )}
