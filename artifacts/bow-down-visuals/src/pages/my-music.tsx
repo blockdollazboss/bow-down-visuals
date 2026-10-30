@@ -1,7 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink, Play, KeyRound, Copy, Check } from "lucide-react";
+import { Loader2, Download, Music2, ReceiptText, RefreshCw, Share2, ExternalLink, Play, KeyRound, Copy, Check, Store } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { KIND_LABELS } from "./store-buy";
 import { shareDrop } from "@/lib/share-drop";
@@ -158,6 +158,16 @@ export default function MyMusic() {
             <p className="mt-2 text-amber-100/60">
               When you buy a track, course, pack, or any digital drop, it lands here forever.
             </p>
+            {/* The door to the thing that fills this page — an empty
+                library that names buying but offers no way to browse
+                is a dead end (NOTHING DIFFICULT law). */}
+            <Link
+              href="/storefronts"
+              data-testid="my-music-browse-drops"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-3 font-bold text-black hover:brightness-110"
+            >
+              <Store className="h-5 w-5" /> Browse the drops
+            </Link>
           </div>
         ) : (
           <div className="mt-6 space-y-4">
