@@ -1,9 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { Loader2, Link2Off, BadgeCheck } from "lucide-react";
 import { fetchPublicProfile, themeVars, type CreatorProfile } from "@/lib/artist-profiles";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { ProfileSections, ProfileActions } from "@/components/artist/profile-sections";
 import { FloatingThemeToggle } from "@/components/FloatingThemeToggle";
 import { JsonLd } from "@/components/seo/json-ld";
 import { MAIN_SITE_URL, isMainAppHost, resolveSite } from "@/lib/domains";
@@ -25,6 +24,23 @@ import { MAIN_SITE_URL, isMainAppHost, resolveSite } from "@/lib/domains";
    MOUNT: the coordinator mounts <SiteModeGate> in App.tsx — see
    SITE_MODE_MOUNT.md for the exact lines. This file is mount-agnostic.
 */
+
+/* Speed-truth (Stack1000 N3): the profile section renderer (~53 KB
+   rendered) is used only on creator custom domains, but the static
+   import put it in the entry chunk every visitor downloads. It is now
+   a lazy chunk behind the same splash this surface already shows while
+   the profile loads — the house lazy() pattern (video-editor sections,
+   StationPanel). The main app domain never fetches it. */
+const ProfileSections = lazy(() =>
+  import("@/components/artist/profile-sections").then((m) => ({
+    default: m.ProfileSections,
+  })),
+);
+const ProfileActions = lazy(() =>
+  import("@/components/artist/profile-sections").then((m) => ({
+    default: m.ProfileActions,
+  })),
+);
 
 const SOCIAL_ICONS: Record<string, string> = {
   instagram: "📸", tiktok: "🎵", youtube: "▶️", x: "𝕏",
@@ -202,8 +218,10 @@ export function SiteMode({ slug }: { slug: string }) {
       >
         {/* Full link graph: the same section renderer as /artist/:slug —
             profile → store → content → social, all relative links. */}
-        <ProfileSections profile={profile} mode="public" />
-        <ProfileActions profile={profile} />
+        <Suspense fallback={<SiteModeSplash />}>
+          <ProfileSections profile={profile} mode="public" />
+          <ProfileActions profile={profile} />
+        </Suspense>
         {socials.length > 0 && (
           <div className="flex justify-center gap-2 px-4 pb-6">
             {socials.map(([platform, url]) => (
