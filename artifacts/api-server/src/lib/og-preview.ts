@@ -43,6 +43,8 @@ import {
   shopProductsTable,
   photoPresetsTable,
   socialUnlockGatesTable,
+  postsTable,
+  type Attachment,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { logger } from "./logger";
@@ -110,6 +112,7 @@ export type ShareKind =
   | "track"
   | "video"
   | "playlist"
+  | "post"
   | "artist"
   | "showcase"
   | "challenge"
@@ -153,6 +156,11 @@ const ROUTE_PATTERNS: Array<{ kind: ShareKind; re: RegExp }> = [
   { kind: "track", re: new RegExp(`^/track/(${ID_RE})$`) },
   { kind: "video", re: new RegExp(`^/watch/(${ID_RE})$`) },
   { kind: "playlist", re: new RegExp(`^/playlist/(${ID_RE})$`) },
+  /* Stack1000 P4 (share truth): posts and events are public, shareable
+     surfaces (GET /api/posts/:id and /api/events/:id are public) that had
+     no bot card at all — scrapers fell through to the generic homepage
+     card. */
+  { kind: "post", re: new RegExp(`^/post/(${ID_RE})$`) },
   { kind: "artist", re: new RegExp(`^/artist/(${SLUG_RE})$`) },
   { kind: "showcase", re: new RegExp(`^/showcase/(${SLUG_RE})$`) },
   { kind: "challenge", re: new RegExp(`^/challenge/(${SLUG_RE})$`) },
@@ -244,6 +252,7 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     track: `/track/${match.param}`,
     video: `/watch/${match.param}`,
     playlist: `/playlist/${match.param}`,
+    post: `/post/${match.param}`,
     artist: `/artist/${match.param}`,
     showcase: `/showcase/${match.param}`,
     challenge: `/challenge/${match.param}`,
@@ -280,6 +289,7 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     track: { title: "Listen on Bow Down Visuals", description: "Stream creator audio on Bow Down Visuals — the content creator's cheat code." },
     video: { title: "Watch on Bow Down Visuals", description: "Watch creator videos on Bow Down Visuals — the content creator's cheat code." },
     playlist: { title: "Playlist on Bow Down Visuals", description: "A creator playlist on Bow Down Visuals — the content creator's cheat code." },
+    post: { title: "Post on Bow Down Visuals", description: "A creator post on Bow Down Visuals." },
     artist: { title: "Creator on Bow Down Visuals", description: "A creator profile on Bow Down Visuals — the content creator's cheat code." },
     showcase: { title: "Showcase on Bow Down Visuals", description: "Community showcase on Bow Down Visuals — the content creator's cheat code." },
     challenge: { title: "Challenge on Bow Down Visuals", description: "A creator challenge on Bow Down Visuals — join in and take the crown." },
@@ -466,6 +476,103 @@ async function resolvePlaylist(id: string, origin: string): Promise<ShareCard | 
       ...(pl.description ? { description: truncate(pl.description, 200) } : {}),
     },
   };
+}
+
+/* ── Stack1000 P4 (share truth): posts ─────────────────────────────────────
+   /post/:id is a public, shareable surface (GET /api/posts/:id is public)
+   that had no bot card: a pasted post link unfurled as the generic
+   homepage card. The card below speaks in the post's own words — its text
+   is the title/description, its first attachment image is the card image. */
+
+/** First shareable image on a post, from its own attachments: a photo, a
+    video's cover frame, a track's artwork, a watch link's thumbnail, or a
+    product shot — the attachment kinds the schema defines
+    (creator-stories-posts.ts). Returns the raw stored value. */
+export function postAttachmentImage(
+  media: Attachment[] | null | undefined,
+): { url: string; alt?: string } | null {
+  if (!Array.isArray(media)) return null;
+  for (const att of media) {
+    if (!att) continue;
+    const pick = (url: string, alt?: string) => ({ url, ...(alt ? { alt } : {}) });
+    if (att.kind === "image" && att.url) return pick(att.url, att.alt);
+    if (att.kind === "video" && att.thumb) return pick(att.thumb, att.alt);
+    if (att.kind === "track" && att.artwork) return pick(att.artwork, att.alt);
+    if (att.kind === "watch" && att.thumb) return pick(att.thumb, att.alt);
+    if (att.kind === "product" && att.image) return pick(att.image, att.alt);
+  }
+  return null;
+}
+
+export interface PostCardSource {
+  id: string;
+  body: string;
+  mediaUrls: Attachment[] | null | undefined;
+  contentWarnings: readonly string[] | null | undefined;
+  createdAt: Date | string;
+}
+
+export interface CardAuthor {
+  displayName: string;
+  slug: string;
+  avatarUrl: string | null;
+}
+
+/** Pure card builder for a public post; the audience/visibility gates live
+    in resolvePost. */
+export function buildPostCard(post: PostCardSource, author: CardAuthor, origin: string): ShareCard {
+  const text = (post.body ?? "").replace(/\s+/g, " ").trim();
+  /* Content-warned posts keep their media covered on-site until a viewer
+     taps to reveal it — the card must not splash that media into every
+     chat app, so a warned post's card falls back to the author's avatar. */
+  const warned = Array.isArray(post.contentWarnings) && post.contentWarnings.length > 0;
+  const att = warned ? null : postAttachmentImage(post.mediaUrls);
+  const attImage = att ? absoluteMediaUrl(att.url, origin) : null;
+  const image = attImage ?? absoluteMediaUrl(author.avatarUrl, origin) ?? fallbackImage(origin);
+  return {
+    title: text
+      ? `${truncate(text, 80)} — ${author.displayName}`
+      : `${author.displayName} — post on Bow Down Visuals`,
+    description: truncate(text || `A post by ${author.displayName} on Bow Down Visuals.`, 200),
+    image,
+    imageAlt: att?.alt ?? `${author.displayName} — post`,
+    url: `${origin}/post/${post.id}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SocialMediaPosting",
+      headline: text ? truncate(text, 110) : `${author.displayName} on Bow Down Visuals`,
+      ...(text ? { articleBody: truncate(text, 200) } : {}),
+      author: {
+        "@type": "Person",
+        name: author.displayName,
+        url: `${origin}/artist/${author.slug}`,
+      },
+      datePublished:
+        post.createdAt instanceof Date ? post.createdAt.toISOString() : String(post.createdAt),
+      image,
+      url: `${origin}/post/${post.id}`,
+    },
+  };
+}
+
+async function resolvePost(id: string, origin: string): Promise<ShareCard | null> {
+  const [post] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+  if (!post) return null;
+  /* Only the post's own public surface gets a card: scoped audiences
+     (followers / close friends / members), moderation-removed posts, and
+     not-yet-published scheduled posts resolve to no card — nothing leaks.
+     Reposts and thread replies are pointers/context, not the shareable
+     surface itself. */
+  if (post.audience !== "public") return null;
+  if (post.kind !== "post" && post.kind !== "quote") return null;
+  if (post.removedAt) return null;
+  if (post.scheduledFor && post.scheduledFor.getTime() > Date.now()) return null;
+  const author = await publicProfileById(post.profileId);
+  if (!author) return null;
+  return buildPostCard(post, author, origin);
 }
 
 async function resolveArtist(slug: string, origin: string): Promise<ShareCard | null> {
@@ -1081,6 +1188,7 @@ export async function resolveShareCard(
     case "track": return resolveTrack(match.param, origin);
     case "video": return resolveVideo(match.param, origin);
     case "playlist": return resolvePlaylist(match.param, origin);
+    case "post": return resolvePost(match.param, origin);
     case "artist": return resolveArtist(match.param, origin);
     case "showcase": return resolveShowcase(match.param, origin);
     case "challenge": return resolveChallenge(match.param, origin);
