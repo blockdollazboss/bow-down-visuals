@@ -5,6 +5,23 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 import { playSignatureSound } from "@/lib/signature-sounds"
+import { isErrorCodeShape, messageForErrorCode } from "@/lib/api-error"
+
+/* Error-truth (stack900 Lane L1): a toast is a render point, and a raw
+   server code ("credits_disabled", "out_of_credits") must never be the
+   words a customer reads — the Gate #3 law. When a toast's whole title
+   or description is exactly a code-shaped string, swap in the shared
+   plain words (or one generic plain sentence for an unknown code).
+   Sentences pass through untouched. Non-destructive toasts are only
+   touched when the string is a known code or carries an underscore —
+   display copy like a promo code is never an error and never has one. */
+function toastText(value: React.ReactNode, destructive: boolean): React.ReactNode {
+  if (typeof value !== "string") return value
+  const s = value.trim()
+  if (!isErrorCodeShape(s)) return value
+  if (!destructive && !s.includes("_") && !messageForErrorCode(s)) return value
+  return messageForErrorCode(s) ?? "Something went wrong — please try again."
+}
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -153,10 +170,16 @@ function toast({ ...props }: Toast) {
      toast, so they never sound either. */
   playSignatureSound(props.variant === "destructive" ? "error" : "success")
 
+  const destructive = props.variant === "destructive"
   const update = (props: ToasterToast) =>
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: {
+        ...props,
+        title: toastText(props.title, destructive),
+        description: toastText(props.description, destructive),
+        id,
+      },
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
@@ -164,6 +187,8 @@ function toast({ ...props }: Toast) {
     type: "ADD_TOAST",
     toast: {
       ...props,
+      title: toastText(props.title, destructive),
+      description: toastText(props.description, destructive),
       id,
       open: true,
       onOpenChange: (open) => {
