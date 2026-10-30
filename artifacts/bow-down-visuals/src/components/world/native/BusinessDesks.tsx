@@ -160,21 +160,21 @@ function GuestGate({ isLight, desk }: { isLight: boolean; desk: string }) {
 }
 
 const selectCls = (isLight: boolean) =>
-  `rounded-full border px-3 py-1.5 text-xs font-bold outline-none transition focus:border-[#d4af37] ${
+  `rounded-full border px-3 py-1.5 text-xs font-bold outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]"
       : "border-white/15 bg-white/5 text-white/80"
   }`;
 
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 
 /** A folded row's own quiet transfer to its bench (new tab). */
 function RowTransfer({ websitePath, isLight }: { websitePath: string; isLight: boolean }) {
@@ -183,7 +183,7 @@ function RowTransfer({ websitePath, isLight }: { websitePath: string; isLight: b
       href={websitePath}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#d4af37]/50 px-3 py-1.5 text-xs font-bold transition ${
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#d4af37]/50 px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
         isLight ? "text-[#7A5A12] hover:text-[#2a1e07]" : "text-[#e8c86a] hover:text-white"
       }`}
     >
@@ -817,7 +817,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                       type="button"
                       disabled={kitBusy !== null}
                       onClick={() => void pickTagline(line)}
-                      className={`block w-full rounded-xl border px-3 py-2 text-left text-xs font-semibold transition disabled:opacity-50 ${
+                      className={`block w-full rounded-xl border px-3 py-2 text-left text-xs font-semibold transition disabled:opacity-50 bdv-touch-target ${
                         chosen
                           ? "border-[#d4af37] bg-[#d4af37]/10 " + strong
                           : isLight
@@ -837,7 +837,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                 type="button"
                 disabled={kitBusy !== null || kit.colors.length === 0 || kit.fonts.length === 0}
                 onClick={() => void applyKit()}
-                className={`inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-2 text-xs font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-40 ${
+                className={`inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-2 text-xs font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-40 bdv-touch-target ${
                   isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
                 }`}
               >
@@ -851,7 +851,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                 data-testid="world-brand-kit-edit-open"
                 disabled={kitBusy !== null}
                 onClick={openKitEditor}
-                className={`inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-2 text-xs font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-40 ${
+                className={`inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-2 text-xs font-bold transition hover:bg-[#d4af37]/10 disabled:opacity-40 bdv-touch-target ${
                   isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
                 }`}
               >
@@ -879,7 +879,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                     <input
                       type="color"
                       aria-label={`Color ${i + 1} picker`}
-                      className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-[#d4af37]/40 bg-transparent p-0.5"
+                      className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-[#d4af37]/40 bg-transparent p-0.5 bdv-touch-target"
                       value={/^#[0-9a-fA-F]{6}$/.test(c.hex) ? c.hex : "#000000"}
                       onChange={(e) => setEditDraft({ ...editDraft, colors: editDraft.colors.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)) })}
                     />
@@ -890,7 +890,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
-                    <button type="button" aria-label={`Remove color ${i + 1}`} disabled={editDraft.colors.length <= 1} onClick={() => setEditDraft({ ...editDraft, colors: editDraft.colors.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white disabled:opacity-30">
+                    <button type="button" aria-label={`Remove color ${i + 1}`} disabled={editDraft.colors.length <= 1} onClick={() => setEditDraft({ ...editDraft, colors: editDraft.colors.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white disabled:opacity-30 bdv-touch-box">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -898,7 +898,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                 {(() => {
                   const next = nextBrandKitColor(editDraft.colors);
                   return next ? (
-                    <button type="button" data-testid="world-brand-kit-color-add" onClick={() => setEditDraft({ ...editDraft, colors: [...editDraft.colors, next] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                    <button type="button" data-testid="world-brand-kit-color-add" onClick={() => setEditDraft({ ...editDraft, colors: [...editDraft.colors, next] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                       <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a color
                     </button>
                   ) : null;
@@ -914,13 +914,13 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                     <input aria-label={`Pairing ${i + 1} heading font`} className={inputCls(isLight)} style={{ flex: "1 1 8rem" }} value={f.heading} maxLength={120} placeholder="Heading font" onChange={(e) => setEditDraft({ ...editDraft, fonts: editDraft.fonts.map((x, j) => (j === i ? { ...x, heading: e.target.value } : x)) })} />
                     <input aria-label={`Pairing ${i + 1} body font`} className={inputCls(isLight)} style={{ flex: "1 1 8rem" }} value={f.body} maxLength={120} placeholder="Body font" onChange={(e) => setEditDraft({ ...editDraft, fonts: editDraft.fonts.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)) })} />
                     <input aria-label={`Pairing ${i + 1} usage`} className={inputCls(isLight)} style={{ flex: "1 1 8rem" }} value={f.usage} maxLength={240} placeholder="When to use it" onChange={(e) => setEditDraft({ ...editDraft, fonts: editDraft.fonts.map((x, j) => (j === i ? { ...x, usage: e.target.value } : x)) })} />
-                    <button type="button" aria-label={`Remove font pairing ${i + 1}`} disabled={editDraft.fonts.length <= 1} onClick={() => setEditDraft({ ...editDraft, fonts: editDraft.fonts.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white disabled:opacity-30">
+                    <button type="button" aria-label={`Remove font pairing ${i + 1}`} disabled={editDraft.fonts.length <= 1} onClick={() => setEditDraft({ ...editDraft, fonts: editDraft.fonts.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white disabled:opacity-30 bdv-touch-box">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
                 {editDraft.fonts.length < BRAND_KIT_MAX_FONT_PAIRINGS ? (
-                  <button type="button" data-testid="world-brand-kit-font-add" onClick={() => setEditDraft({ ...editDraft, fonts: [...editDraft.fonts, { heading: "", body: "", usage: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                  <button type="button" data-testid="world-brand-kit-font-add" onClick={() => setEditDraft({ ...editDraft, fonts: [...editDraft.fonts, { heading: "", body: "", usage: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                     <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a font pairing
                   </button>
                 ) : null}
@@ -937,13 +937,13 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                   {editDraft[field].map((line, i) => (
                     <div key={i} className="flex gap-1.5">
                       <input aria-label={`${label} ${i + 1}`} className={inputCls(isLight)} value={line} maxLength={300} placeholder={placeholder} onChange={(e) => setEditDraft({ ...editDraft, [field]: editDraft[field].map((x, j) => (j === i ? e.target.value : x)) })} />
-                      <button type="button" aria-label={`Remove line ${i + 1}`} onClick={() => setEditDraft({ ...editDraft, [field]: editDraft[field].filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white">
+                      <button type="button" aria-label={`Remove line ${i + 1}`} onClick={() => setEditDraft({ ...editDraft, [field]: editDraft[field].filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
                   {editDraft[field].length < max ? (
-                    <button type="button" onClick={() => setEditDraft({ ...editDraft, [field]: [...editDraft[field], ""] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                    <button type="button" onClick={() => setEditDraft({ ...editDraft, [field]: [...editDraft[field], ""] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                       <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a line
                     </button>
                   ) : null}
@@ -956,7 +956,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
               <button type="button" data-testid="world-brand-kit-edit-save" onClick={() => void saveKitEdits()} disabled={editBusy} className={goldBtn}>
                 <Check className="h-4 w-4" /> {editBusy ? "Saving…" : "Save my brand kit — free"}
               </button>
-              <button type="button" onClick={() => { setEditOpen(false); setEditError(null); }} className={`text-xs font-bold ${muted}`}>
+              <button type="button" onClick={() => { setEditOpen(false); setEditError(null); }} className={`text-xs font-bold bdv-touch-target ${muted}`}>
                 Done editing
               </button>
             </div>
@@ -1138,7 +1138,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
             disabled={hsBusy}
             rows={3}
             placeholder="Describe the look — e.g. dramatic black-and-white headshot, hard shadows, film-noir mood…"
-            className={`mb-3 w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+            className={`mb-3 w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
               isLight
                 ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
                 : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
@@ -1290,7 +1290,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                               data-testid={`world-stream-pack-apply-${asset.id}`}
                               onClick={() => void toggleSpApplied(asset)}
                               disabled={spApplyingId === asset.id}
-                              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 bdv-touch-target ${
                                 isLight
                                   ? "border-[#C9A84C]/40 text-[#6B5B36] hover:border-[#d4af37]"
                                   : "border-white/15 text-white/60 hover:border-white/30 hover:text-white"
@@ -1305,7 +1305,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
                             data-testid={`world-stream-pack-apply-${asset.id}`}
                             onClick={() => void toggleSpApplied(asset)}
                             disabled={spApplyingId === asset.id}
-                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-[1.02] disabled:opacity-60"
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-[1.02] disabled:opacity-60 bdv-touch-target"
                           >
                             <Plus className="h-3.5 w-3.5" />
                             {spApplyingId === asset.id ? "Saving…" : "Add to my studio"}
@@ -1690,10 +1690,10 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     {pkDraft.achievements.map((a, i) => (
                       <div key={i} className="flex gap-1.5">
                         <input aria-label={`Achievement ${i + 1}`} className={inputCls(isLight)} value={a} maxLength={200} placeholder="An achievement" onChange={(e) => setPkDraft({ ...pkDraft, achievements: pkDraft.achievements.map((x, j) => (j === i ? e.target.value : x)) })} />
-                        <button type="button" aria-label={`Remove achievement ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, achievements: pkDraft.achievements.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white"><Trash2 className="h-4 w-4" /></button>
+                        <button type="button" aria-label={`Remove achievement ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, achievements: pkDraft.achievements.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     ))}
-                    <button type="button" data-testid="world-press-kit-achievement-add" onClick={() => setPkDraft({ ...pkDraft, achievements: [...pkDraft.achievements, ""] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add an achievement</button>
+                    <button type="button" data-testid="world-press-kit-achievement-add" onClick={() => setPkDraft({ ...pkDraft, achievements: [...pkDraft.achievements, ""] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add an achievement</button>
                   </div>
                 </div>
 
@@ -1704,10 +1704,10 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                       <div key={i} className="flex gap-1.5" data-testid="world-press-kit-quote-row">
                         <input aria-label={`Quote ${i + 1}`} className={inputCls(isLight)} value={q.quote} maxLength={500} placeholder="The quote" onChange={(e) => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.map((x, j) => (j === i ? { ...x, quote: e.target.value } : x)) })} />
                         <input aria-label={`Quote ${i + 1} source`} className={inputCls(isLight)} style={{ flex: "0 0 30%" }} value={q.source} maxLength={120} placeholder="Who said it" onChange={(e) => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.map((x, j) => (j === i ? { ...x, source: e.target.value } : x)) })} />
-                        <button type="button" aria-label={`Remove quote ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white"><Trash2 className="h-4 w-4" /></button>
+                        <button type="button" aria-label={`Remove quote ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, press_quotes: pkDraft.press_quotes.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     ))}
-                    <button type="button" data-testid="world-press-kit-quote-add" onClick={() => setPkDraft({ ...pkDraft, press_quotes: [...pkDraft.press_quotes, { quote: "", source: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a quote</button>
+                    <button type="button" data-testid="world-press-kit-quote-add" onClick={() => setPkDraft({ ...pkDraft, press_quotes: [...pkDraft.press_quotes, { quote: "", source: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a quote</button>
                   </div>
                 </div>
 
@@ -1718,10 +1718,10 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                       <div key={i} className="flex gap-1.5" data-testid="world-press-kit-track-row">
                         <input aria-label={`Track ${i + 1} title`} className={inputCls(isLight)} value={tr.title} maxLength={120} placeholder="Track title" onChange={(e) => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} />
                         <input aria-label={`Track ${i + 1} link`} className={inputCls(isLight)} value={tr.url} maxLength={500} placeholder="Listen link (https://…)" onChange={(e) => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
-                        <button type="button" aria-label={`Remove track ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white"><Trash2 className="h-4 w-4" /></button>
+                        <button type="button" aria-label={`Remove track ${i + 1}`} onClick={() => setPkDraft({ ...pkDraft, top_tracks: pkDraft.top_tracks.filter((_, j) => j !== i) })} className="shrink-0 rounded-lg border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     ))}
-                    <button type="button" data-testid="world-press-kit-track-add" onClick={() => setPkDraft({ ...pkDraft, top_tracks: [...pkDraft.top_tracks, { title: "", url: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a track</button>
+                    <button type="button" data-testid="world-press-kit-track-add" onClick={() => setPkDraft({ ...pkDraft, top_tracks: [...pkDraft.top_tracks, { title: "", url: "" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}><Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a track</button>
                   </div>
                 </div>
 
@@ -1730,7 +1730,7 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                   <textarea aria-label="Photo URLs, one per line" data-testid="world-press-kit-photos" className={inputCls(isLight)} rows={3} value={pkDraft.photo_urls.join("\n")} onChange={(e) => setPkDraft({ ...pkDraft, photo_urls: e.target.value.split("\n") })} placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"} />
                 </label>
 
-                <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="world-press-kit-public-toggle">
+                <label className="flex items-center gap-2 text-sm cursor-pointer bdv-touch-target" data-testid="world-press-kit-public-toggle">
                   <input type="checkbox" checked={pkDraft.is_public} onChange={(e) => setPkDraft({ ...pkDraft, is_public: e.target.checked })} className="h-4 w-4 accent-[#d4af37]" />
                   <span className={strong}>Public — anyone with the link can read this kit</span>
                 </label>
@@ -1745,9 +1745,9 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                         <div key={entry.key} className={`flex items-center gap-1.5 rounded-xl border border-[#d4af37]/25 px-3 py-2 ${entry.visible ? "" : "opacity-60"}`} data-testid="world-press-kit-layout-row">
                           <span className={`flex-1 text-sm ${strong}`}>{labels[entry.key]}</span>
                           {!entry.visible ? <span className={`text-[11px] uppercase tracking-wider ${muted}`}>Hidden</span> : null}
-                          <button type="button" aria-label={`Move ${labels[entry.key]} up`} disabled={i === 0} onClick={() => setPkDraft({ ...pkDraft, layout: movePressKitLayoutEntry(pkDraft.layout, entry.key, -1) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
-                          <button type="button" aria-label={`Move ${labels[entry.key]} down`} disabled={i === pkDraft.layout.length - 1} onClick={() => setPkDraft({ ...pkDraft, layout: movePressKitLayoutEntry(pkDraft.layout, entry.key, 1) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
-                          <button type="button" aria-label={`${entry.visible ? "Hide" : "Show"} ${labels[entry.key]}`} onClick={() => setPkDraft({ ...pkDraft, layout: setPressKitSectionVisible(pkDraft.layout, entry.key, !entry.visible) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white">{entry.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+                          <button type="button" aria-label={`Move ${labels[entry.key]} up`} disabled={i === 0} onClick={() => setPkDraft({ ...pkDraft, layout: movePressKitLayoutEntry(pkDraft.layout, entry.key, -1) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white disabled:opacity-30 bdv-touch-box"><ArrowUp className="h-4 w-4" /></button>
+                          <button type="button" aria-label={`Move ${labels[entry.key]} down`} disabled={i === pkDraft.layout.length - 1} onClick={() => setPkDraft({ ...pkDraft, layout: movePressKitLayoutEntry(pkDraft.layout, entry.key, 1) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white disabled:opacity-30 bdv-touch-box"><ArrowDown className="h-4 w-4" /></button>
+                          <button type="button" aria-label={`${entry.visible ? "Hide" : "Show"} ${labels[entry.key]}`} onClick={() => setPkDraft({ ...pkDraft, layout: setPressKitSectionVisible(pkDraft.layout, entry.key, !entry.visible) })} className="shrink-0 rounded-lg p-1.5 text-white/50 transition hover:text-white bdv-touch-box">{entry.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
                         </div>
                       );
                     })}
@@ -1759,7 +1759,7 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                   <button type="button" data-testid="world-press-kit-save" onClick={() => void savePkEdits()} disabled={pkBusy !== null} className={goldBtn}>
                     <Check className="h-4 w-4" /> {pkBusy === "save" ? "Saving…" : "Save changes — free"}
                   </button>
-                  <button type="button" onClick={() => { setPkEditing(false); setPkError(null); }} className={`text-xs font-bold ${muted}`}>Done editing</button>
+                  <button type="button" onClick={() => { setPkEditing(false); setPkError(null); }} className={`text-xs font-bold bdv-touch-target ${muted}`}>Done editing</button>
                 </div>
               </div>
             ) : null}
@@ -2001,7 +2001,7 @@ function BioPageEditor({ isLight, onChanged }: { isLight: boolean; onChanged?: (
               </div>
             ))}
             {draft.links.length < BIO_MAX_LINKS ? (
-              <button type="button" data-testid="world-bio-link-add" onClick={() => set({ links: [...draft.links, { title: "", url: "", icon: "link" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+              <button type="button" data-testid="world-bio-link-add" onClick={() => set({ links: [...draft.links, { title: "", url: "", icon: "link" }] })} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                 <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a link
               </button>
             ) : null}
@@ -2020,7 +2020,7 @@ function BioPageEditor({ isLight, onChanged }: { isLight: boolean; onChanged?: (
               <Check className="h-4 w-4" /> {busy === "save" ? "Saving…" : page ? "Save changes — free" : "Create my page — free"}
             </button>
             {page ? (
-              <button type="button" onClick={() => { setEditing(false); setDraft(bioDraftFromPage(page)); setError(null); }} className={`text-xs font-bold ${muted}`}>
+              <button type="button" onClick={() => { setEditing(false); setDraft(bioDraftFromPage(page)); setError(null); }} className={`text-xs font-bold bdv-touch-target ${muted}`}>
                 Done editing
               </button>
             ) : null}
@@ -2163,7 +2163,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
-  const cardChipCls = `inline-flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition ${
+  const cardChipCls = `inline-flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold transition bdv-touch-target ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
   const feature = SITE_FEATURES.find((f) => f.key === featureKey) ?? SITE_FEATURES[0]!;
@@ -2755,7 +2755,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                           data-testid={`world-coach-platform-${p.key}`}
                           aria-pressed={picked}
                           onClick={() => setCoachInputs({ ...coachInputs, platforms: picked ? coachInputs.platforms.filter((k) => k !== p.key) : [...coachInputs.platforms, p.key] })}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${picked ? "border-[#d4af37] bg-[#d4af37]/15 " + strong : isLight ? "border-[#C9A84C]/30 text-[#6B5B36]" : "border-white/15 text-white/55"}`}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${picked ? "border-[#d4af37] bg-[#d4af37]/15 " + strong : isLight ? "border-[#C9A84C]/30 text-[#6B5B36]" : "border-white/15 text-white/55"}`}
                         >
                           {p.label}
                         </button>

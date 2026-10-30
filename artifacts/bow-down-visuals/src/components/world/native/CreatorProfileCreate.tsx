@@ -37,7 +37,7 @@ function useProfileAuthHeaders() {
 }
 
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
@@ -299,7 +299,7 @@ export function CreatorProfileCreateCard({
               data-testid="world-profile-create-submit"
               onClick={create}
               disabled={busy}
-              className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
             >
               <Crown className="h-4 w-4" /> {busy ? "Claiming…" : "Create my creator profile — free"}
             </button>

@@ -174,7 +174,7 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
           <div className="mt-2 flex flex-wrap gap-1.5">
             {page.suggestedAmounts.map((a) => (
               <button key={a} type="button" onClick={() => { setAmount(a); setCustom(""); }}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                   amount === a && !custom.trim()
                     ? "bg-[#d4af37] text-black"
                     : isLight ? "border border-[#7A5A12]/30 text-[#6B5B36]" : "border border-white/15 text-white/75"
@@ -184,17 +184,17 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
             ))}
             <input aria-label="Custom tip amount" value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder="Custom $" inputMode="decimal"
-              className={`w-24 rounded-full border px-3 py-1.5 text-xs outline-none ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
+              className={`w-24 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <input aria-label="Your name" value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder="Your name (optional)" maxLength={60}
-              className={`min-w-32 flex-1 rounded-xl border px-3 py-1.5 text-xs outline-none ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
+              className={`min-w-32 flex-1 rounded-xl border px-3 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
             <input aria-label="Tip message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Say something kind (optional)" maxLength={280}
-              className={`min-w-32 flex-1 rounded-xl border px-3 py-1.5 text-xs outline-none ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
+              className={`min-w-32 flex-1 rounded-xl border px-3 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
           </div>
           {error && <p className="mt-2 text-xs font-semibold text-red-400">{error}</p>}
           <button type="button" data-testid="world-portrait-tip-send" onClick={() => void send()} disabled={sending}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Heart className="h-3.5 w-3.5" />}
             {sending ? "Sending…" : `Send tip${effective && effective > 0 ? ` — $${effective.toFixed(2)}` : ""}`}
           </button>
@@ -207,7 +207,7 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
           </p>
           <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
           <button type="button" onClick={() => setEmbeddedSecret(null)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
             Close — nothing is charged until you complete the form
           </button>
         </div>

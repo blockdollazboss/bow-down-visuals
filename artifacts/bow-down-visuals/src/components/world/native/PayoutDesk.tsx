@@ -147,7 +147,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/55";
   const heading = isLight ? "text-[#2a1e07]" : "text-white";
-  const goldBtn = `inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2.5 text-sm font-black text-black transition hover:scale-105 disabled:opacity-40`;
+  const goldBtn = `inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2.5 text-sm font-black text-black transition hover:scale-105 disabled:opacity-40 bdv-touch-target`;
 
   if (noProfile) {
     return (
@@ -175,7 +175,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
         <button
           type="button"
           onClick={() => { setLoadFailed(false); void load(); }}
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <RotateCcw className="h-4 w-4" /> Try again
         </button>
@@ -256,7 +256,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
                 {confirmingPayout ? `Send ${payoutDollars(status.pendingCents)} to your bank? Tap again to send` : `Cash out ${payoutDollars(status.pendingCents)}`}
               </button>
               {confirmingPayout && (
-                <button type="button" onClick={() => setConfirmingPayout(false)} className={`text-xs font-bold ${muted}`}>
+                <button type="button" onClick={() => setConfirmingPayout(false)} className={`text-xs font-bold bdv-touch-target ${muted}`}>
                   Not yet
                 </button>
               )}
@@ -265,7 +265,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
                 data-testid="world-payout-manage"
                 onClick={() => void goOnboard("/api/connect/refresh")}
                 disabled={busy === "connect"}
-                className={`inline-flex items-center gap-1.5 text-xs font-bold ${muted} hover:underline`}
+                className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${muted} hover:underline`}
               >
                 {busy === "connect" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
                 Manage payout setup
@@ -287,7 +287,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
             <button
               type="button"
               onClick={() => { setErr(""); void load(); }}
-              className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+              className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
             >
               <RotateCcw className="h-4 w-4" /> Try again
             </button>

@@ -60,15 +60,15 @@ async function apiJson<T>(
 }
 
 const goldBtn =
-  "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100";
+  "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target";
 const chipBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"
   }`;
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
@@ -172,7 +172,7 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2 px-1">
-            <label className={`inline-flex flex-1 min-w-[180px] items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/60" : "border-white/10 bg-white/5"}`}>
+            <label className={`inline-flex flex-1 min-w-[180px] items-center gap-2 rounded-xl border px-3 py-2 bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60" : "border-white/10 bg-white/5"}`}>
               <Search className={`h-4 w-4 ${muted}`} />
               <input
                 data-testid="world-groups-search"
@@ -197,7 +197,7 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                   <p className={`text-xs ${muted}`}>Its palace address: <span className="font-bold">/groups/{cSlug || "…"}</span></p>
                 )}
                 <textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} placeholder="What's this crew about?" rows={2} maxLength={2000} className={inputCls(isLight)} />
-                <label className={`inline-flex items-center gap-2 text-xs font-semibold ${muted}`}>
+                <label className={`inline-flex items-center gap-2 text-xs font-semibold bdv-touch-target ${muted}`}>
                   <input type="checkbox" checked={cPublic} onChange={(e) => setCPublic(e.target.checked)} />
                   {cPublic ? "Public — anyone can browse and join" : "Private — only members see inside"}
                 </label>
@@ -222,7 +222,7 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
             <div className="grid gap-2 sm:grid-cols-2">
               {groups.map((g) => (
                 <NativeCard key={g.id} isLight={isLight}>
-                  <button type="button" data-testid={`world-group-open-${g.slug}`} onClick={() => setOpenSlug(g.slug)} className="flex w-full flex-col gap-1 text-left">
+                  <button type="button" data-testid={`world-group-open-${g.slug}`} onClick={() => setOpenSlug(g.slug)} className="flex w-full flex-col gap-1 text-left bdv-touch-target">
                     <span className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
                       {g.name}
                       {g.is_public ? <Globe className="h-3.5 w-3.5 text-[#d4af37]" /> : <Lock className="h-3.5 w-3.5 text-[#d4af37]" />}
@@ -639,7 +639,7 @@ function GroupForum({
         channels.map((c) => (
           <NativeCard key={c.id} isLight={isLight}>
             <div className="flex items-center gap-2">
-              <button type="button" data-testid={`world-forum-channel-${c.id}`} onClick={() => (forumChannelKnock(c) ? setKnockChannelId(c.id) : setChannelId(c.id))} className="min-w-0 flex-1 text-left">
+              <button type="button" data-testid={`world-forum-channel-${c.id}`} onClick={() => (forumChannelKnock(c) ? setKnockChannelId(c.id) : setChannelId(c.id))} className="min-w-0 flex-1 text-left bdv-touch-target">
                 <span className={`flex items-center gap-2 text-sm font-black ${strong}`}><Hash className="h-4 w-4 text-[#d4af37]" /> {c.name}</span>
                 {c.description && <span className={`mt-0.5 block truncate text-xs ${muted}`}>{c.description}</span>}
                 <span className={`text-xs font-semibold ${muted}`}>{c.thread_count} thread{c.thread_count === 1 ? "" : "s"}</span>
@@ -751,7 +751,7 @@ function ForumChannelView({
 
   return (
     <div data-testid="world-forum-channel" className="flex flex-col gap-2">
-      <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold ${muted}`}>
+      <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold bdv-touch-target ${muted}`}>
         <ArrowLeft className="h-3.5 w-3.5" /> All channels
       </button>
       <h5 className={`flex items-center gap-2 px-1 text-sm font-black ${strong}`}><Hash className="h-4 w-4 text-[#d4af37]" /> {channelName}</h5>
@@ -766,7 +766,7 @@ function ForumChannelView({
           ) : (
             threads.map((t) => (
               <NativeCard key={t.id} isLight={isLight}>
-                <button type="button" data-testid={`world-forum-thread-${t.id}`} onClick={() => onOpenThread(t.id)} className="flex w-full flex-col gap-1 text-left">
+                <button type="button" data-testid={`world-forum-thread-${t.id}`} onClick={() => onOpenThread(t.id)} className="flex w-full flex-col gap-1 text-left bdv-touch-target">
                   <span className={`flex items-center gap-2 text-sm font-black ${strong}`}>
                     {t.is_pinned && <Pin className="h-3.5 w-3.5 text-[#d4af37]" />}
                     {t.title}
@@ -887,7 +887,7 @@ function ForumThreadView({
 
   return (
     <div data-testid="world-forum-thread" className="flex flex-col gap-2">
-      <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold ${muted}`}>
+      <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold bdv-touch-target ${muted}`}>
         <ArrowLeft className="h-3.5 w-3.5" /> Back to threads
       </button>
       <NativeCard isLight={isLight}>

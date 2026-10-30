@@ -169,7 +169,7 @@ function AddToPlaylistPicker({
     }
   };
 
-  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"
@@ -220,7 +220,7 @@ function AddToPlaylistPicker({
           placeholder="New playlist name…"
           maxLength={80}
           data-testid="world-shelf-playlist-new-name"
-          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none ${
+          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
             isLight
               ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
               : "border-white/15 bg-white/5 text-white placeholder:text-white/35"
@@ -231,7 +231,7 @@ function AddToPlaylistPicker({
           data-testid="world-shelf-playlist-create"
           disabled={busy || !newTitle.trim()}
           onClick={() => void createAndAdd()}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           <Plus className="h-3.5 w-3.5" /> Create &amp; add
         </button>
@@ -522,7 +522,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     return <NativeLoadingState isLight={isLight} message="Lining up your shelf…" />;
   }
 
-  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"
@@ -557,7 +557,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                   data-testid="world-shelf-playlist-play"
                   onClick={() => void playPlaylist(pl)}
                   disabled={resolvingId === pl.id}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   <Play className="h-3.5 w-3.5" />
                   {resolvingId === pl.id ? "Opening…" : "Play it here"}
@@ -576,7 +576,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
           placeholder="New playlist name…"
           maxLength={80}
           data-testid="world-shelf-playlist-start-name"
-          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none ${
+          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
             isLight
               ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
               : "border-white/15 bg-white/5 text-white placeholder:text-white/35"
@@ -587,7 +587,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
           data-testid="world-shelf-playlist-start"
           disabled={creatingList || !newListTitle.trim()}
           onClick={() => void startPlaylist()}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           <Plus className="h-3.5 w-3.5" /> Start a playlist
         </button>
@@ -638,7 +638,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           data-testid="world-shelf-play"
                           onClick={() => void playHere(p)}
                           disabled={resolvingId === p.id}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                         >
                           {isCurrent && shelfPlayer.playing ? (
                             <Pause className="h-3.5 w-3.5" />
@@ -780,7 +780,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           type="button"
                           data-testid="world-my-music-play"
                           onClick={() => playMyMusic(row)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                         >
                           {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                           {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Play it here"}

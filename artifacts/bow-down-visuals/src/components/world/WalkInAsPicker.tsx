@@ -111,7 +111,7 @@ function AppearanceFields({
   isLight: boolean;
   testidPrefix: string;
 }) {
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]"
       : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"
@@ -348,7 +348,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                 <button
                   type="button"
                   onClick={() => (manageId === c.id ? closeManage() : openManage(c))}
-                  className={`absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border shadow ${
+                  className={`absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border shadow bdv-touch-box ${
                     isLight
                       ? "border-[#7A5A12]/60 bg-[#FBF6E9] text-[#7A5A12] hover:bg-[#F7ECD2]"
                       : "border-[#d4af37]/60 bg-[#171106] text-[#e8c86a] hover:bg-[#2a1e07]"
@@ -503,7 +503,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
             <button
               type="button"
               onClick={() => setCreateOpen(false)}
-              className={`flex h-6 w-6 items-center justify-center rounded-full ${isLight ? "text-[#6B5B36] hover:bg-[#C9A84C]/20" : "text-white/60 hover:bg-white/10"}`}
+              className={`flex h-6 w-6 items-center justify-center rounded-full bdv-touch-box ${isLight ? "text-[#6B5B36] hover:bg-[#C9A84C]/20" : "text-white/60 hover:bg-white/10"}`}
               data-testid="walk-in-create-close"
               aria-label="Close character creator"
             >
@@ -517,7 +517,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
               onChange={(e) => setCreateName(e.target.value)}
               maxLength={80}
               placeholder="Who are they?"
-              className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${isLight ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]" : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"}`}
+              className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]" : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"}`}
               data-testid="walk-in-create-name"
               aria-label="New character name"
             />
@@ -529,7 +529,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
             type="button"
             onClick={() => void submitCreate()}
             disabled={createBusy || !createName.trim()}
-            className="mt-3 rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-3 rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50 bdv-touch-target"
             data-testid="walk-in-create-save"
           >
             {createBusy ? "Creating…" : "Create character"}
@@ -561,7 +561,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
             <button
               type="button"
               onClick={closeManage}
-              className={`flex h-6 w-6 items-center justify-center rounded-full ${isLight ? "text-[#6B5B36] hover:bg-[#C9A84C]/20" : "text-white/60 hover:bg-white/10"}`}
+              className={`flex h-6 w-6 items-center justify-center rounded-full bdv-touch-box ${isLight ? "text-[#6B5B36] hover:bg-[#C9A84C]/20" : "text-white/60 hover:bg-white/10"}`}
               data-testid="walk-in-manage-close"
               aria-label="Close character manager"
             >
@@ -581,7 +581,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
                 maxLength={80}
-                className={`min-w-[180px] flex-1 rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${
+                className={`min-w-[180px] flex-1 rounded-xl border px-3 py-2 text-sm font-semibold outline-none bdv-touch-target ${
                   isLight
                     ? "border-[#C9A84C]/50 bg-white text-[#2a1e07] focus:border-[#7A5A12]"
                     : "border-white/15 bg-black/40 text-white focus:border-[#d4af37]/60"
@@ -592,7 +592,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
               <button
                 type="submit"
                 disabled={manageBusy || !draftName.trim() || draftName.trim() === manageChar.name}
-                className="rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50 bdv-touch-target"
                 data-testid="walk-in-rename-save"
               >
                 {manageBusy ? "Saving…" : "Save name"}
@@ -610,7 +610,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                   type="button"
                   onClick={() => void confirmRemove()}
                   disabled={manageBusy}
-                  className="rounded-xl border border-red-400/60 bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-500 transition hover:bg-red-500/25 disabled:opacity-50 dark:text-red-300"
+                  className="rounded-xl border border-red-400/60 bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-500 transition hover:bg-red-500/25 disabled:opacity-50 dark:text-red-300 bdv-touch-target"
                   data-testid="walk-in-remove-confirm"
                 >
                   {manageBusy ? "Removing…" : "Yes, remove"}
@@ -619,7 +619,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                   type="button"
                   onClick={() => setConfirmingRemove(false)}
                   disabled={manageBusy}
-                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/15 text-white/70"}`}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/15 text-white/70"}`}
                   data-testid="walk-in-remove-keep"
                 >
                   Keep
@@ -632,7 +632,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                   setConfirmingRemove(true);
                   setManageError(null);
                 }}
-                className={`mt-2 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                className={`mt-2 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                   isLight
                     ? "border-red-700/40 text-red-800 hover:bg-red-500/10"
                     : "border-red-400/40 text-red-300 hover:bg-red-500/10"
@@ -657,7 +657,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                     type="button"
                     onClick={() => void saveRestyle()}
                     disabled={manageBusy}
-                    className="rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl bg-[#C9A84C] px-3 py-2 text-sm font-bold text-[#2a1e07] transition hover:bg-[#d4af37] disabled:cursor-not-allowed disabled:opacity-50 bdv-touch-target"
                     data-testid="walk-in-restyle-save"
                   >
                     {manageBusy ? "Saving…" : "Save the look"}
@@ -666,7 +666,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                     type="button"
                     onClick={() => { setRestyleOpen(false); setRestyleDraft(null); }}
                     disabled={manageBusy}
-                    className={`rounded-xl border px-3 py-2 text-xs font-bold ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/15 text-white/70"}`}
+                    className={`rounded-xl border px-3 py-2 text-xs font-bold bdv-touch-target ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/15 text-white/70"}`}
                     data-testid="walk-in-restyle-cancel"
                   >
                     Cancel
@@ -678,7 +678,7 @@ export default function WalkInAsPicker({ characters, loadFailed, selectedId, onS
                 type="button"
                 onClick={() => void openRestyle()}
                 disabled={restyleLoading || manageBusy}
-                className={`mt-3 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#7A5A12] hover:bg-[#C9A84C]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                className={`mt-3 inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#7A5A12] hover:bg-[#C9A84C]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
                 data-testid="walk-in-restyle-open"
               >
                 <Palette className="h-3.5 w-3.5" /> {restyleLoading ? "Reading the look…" : "Restyle — portrait, look, theme"}

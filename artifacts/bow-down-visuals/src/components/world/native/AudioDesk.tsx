@@ -412,7 +412,7 @@ export function AudioDesk(props: CreateDeskProps) {
             aria-selected={deskTab === t.id}
             data-testid={`world-audio-desk-tab-${t.id}`}
             onClick={() => setDeskTab(t.id)}
-            className={`rounded-full border px-3.5 py-1.5 text-xs font-black transition ${
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-black transition bdv-touch-target ${
               deskTab === t.id
                 ? "border-[#d4af37] bg-[#d4af37] text-black"
                 : isLight
@@ -442,7 +442,7 @@ export function AudioDesk(props: CreateDeskProps) {
               setResultSourceFile(null);
               setError(null);
             }}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
               tool === t
                 ? "border-[#d4af37] bg-[#d4af37] text-black"
                 : isLight
@@ -459,7 +459,7 @@ export function AudioDesk(props: CreateDeskProps) {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <label
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                 isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
               }`}
             >
@@ -495,7 +495,7 @@ export function AudioDesk(props: CreateDeskProps) {
                   data-testid="world-create-audio-library-pick"
                   disabled={pickingId !== null}
                   onClick={() => void pickSong(song)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 bdv-touch-target ${
                     sourceSongId === song.id
                       ? "border-[#d4af37] bg-[#d4af37]/15"
                       : isLight
@@ -1060,7 +1060,7 @@ function AudioFullBench(props: {
               setResultSource(null);
               setError(null);
             }}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
               benchId === b.id
                 ? "border-[#d4af37] bg-[#d4af37] text-black"
                 : isLight
@@ -1079,7 +1079,7 @@ function AudioFullBench(props: {
         </p>
       ) : null}
       {def.input === "stem-files" ? (
-        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
           {stemFiles.length > 0 ? `${stemFiles.length} stem file(s) ready` : "Add the stem files"}
           <input type="file" accept="audio/*" multiple className="hidden" onChange={(e) => setStemFiles(Array.from(e.target.files ?? []))} />
         </label>
@@ -1097,7 +1097,7 @@ function AudioFullBench(props: {
           ) : null}
           <label className="block">
             <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{benchId === "podcast" ? "Script / topic" : "Voiceover script"}</span>
-            <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
           </label>
           {benchId === "voiceover" ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1121,7 +1121,7 @@ function AudioFullBench(props: {
         <DeskSelectField isLight={isLight} label="Preset" value={preset} onChange={setPreset} options={["balanced", "warm", "bright", "loud", "gentle"].map((g) => ({ value: g, label: g }))} />
       )}
       {benchId === "stems" && (
-        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
           <input type="checkbox" checked={proStems} onChange={(e) => setProStems(e.target.checked)} />
           Pro stems (adds guitar + piano — same {audioBenchOf("stems").cost().toLocaleString("en-US")} Visual Bucs)
         </label>
@@ -1150,7 +1150,7 @@ function AudioFullBench(props: {
                   aria-selected={harmonyMode === m}
                   data-testid={`world-audio-harmony-mode-${m}`}
                   onClick={() => setHarmonyMode(m)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                     harmonyMode === m
                       ? "border-[#d4af37] bg-[#d4af37] text-black"
                       : isLight
@@ -1174,7 +1174,7 @@ function AudioFullBench(props: {
               type="button"
               data-testid="world-audio-harmony-classic-fallback"
               onClick={() => setHarmonyMode("classic")}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}
             >
               Use classic doubles instead · {harmonyModeCost(harmonyProbe, "classic").toLocaleString("en-US")} VB
             </button>
@@ -1199,7 +1199,7 @@ function AudioFullBench(props: {
             <DeskSelectField isLight={isLight} label="Singing voice" value={singVoiceId} onChange={setSingVoiceId} options={singVoices.length > 0 ? singVoices.map((v) => ({ value: v.id, label: `${v.name} — ${v.style}` })) : [{ value: "", label: "Voices loading…" }]} />
             <DeskTextField isLight={isLight} label="Strength (0–1)" value={String(strength)} onChange={(v) => setStrength(Math.min(1, Math.max(0, Number(v) || 0)))} />
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
             <input type="checkbox" checked={keepInstrumental} onChange={(e) => setKeepInstrumental(e.target.checked)} />
             Keep the instrumental under the new voice
           </label>
@@ -1245,7 +1245,7 @@ function AudioFullBench(props: {
           <span className={`text-xs font-semibold ${muted}`}>
             {cost === 0 ? "Free — shown before anything runs." : `Costs ${cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
           </span>
-          <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+          <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {busy ? "Working…" : `Run — ${def.label}`}
           </button>

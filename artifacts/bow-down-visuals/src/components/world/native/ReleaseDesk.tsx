@@ -83,17 +83,17 @@ function useReleaseAuthHeaders() {
 }
 
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 
 const chipBtn = (isLight: boolean, active: boolean) =>
-  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     active
       ? "border-[#d4af37] bg-[#d4af37] text-black"
       : isLight
@@ -274,7 +274,7 @@ function ReleaseFormFields({
         <div className="flex flex-wrap items-center gap-1.5">
           <button type="button" disabled={locked} aria-pressed={draft.explicit === false} onClick={() => set({ explicit: false })} className={chipBtn(isLight, draft.explicit === false)}>Clean</button>
           <button type="button" disabled={locked} aria-pressed={draft.explicit === true} onClick={() => set({ explicit: true })} className={chipBtn(isLight, draft.explicit === true)}>Explicit</button>
-          <label className={`ml-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
+          <label className={`ml-2 inline-flex items-center gap-2 text-xs font-semibold bdv-touch-target ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
             <input type="checkbox" checked={draft.explicitConfirmed} disabled={locked} onChange={(e) => set({ explicitConfirmed: e.target.checked })} />
             I confirm this declaration
           </label>

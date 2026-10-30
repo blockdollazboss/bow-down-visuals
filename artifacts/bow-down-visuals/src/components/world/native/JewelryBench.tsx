@@ -152,14 +152,14 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const goldBtn =
-    "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+    "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
   const optBtn = (active: boolean) =>
-    `rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
+    `rounded-xl border px-3 py-2 text-left text-sm font-semibold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37]/15 " + strong
         : isLight
@@ -440,7 +440,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     </div>
                   </div>
                 ))}
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-[#d4af37]/25 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-[#d4af37]/25 px-3 py-2 bdv-touch-target">
                   <span className={`inline-flex items-center gap-2 text-sm font-semibold ${strong}`}>
                     <Nfc className="h-4 w-4 text-[#d4af37]" /> NFC chip pocket
                   </span>
@@ -543,7 +543,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     ))}
                   </div>
                   {estimate.disclaimer ? <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">{estimate.disclaimer}</p> : null}
-                  <button type="button" onClick={() => void loadEstimate()} className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                  <button type="button" onClick={() => void loadEstimate()} className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                     <RefreshCw className="h-3.5 w-3.5 text-[#d4af37]" /> Recalculate
                   </button>
                 </div>
@@ -615,7 +615,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     <button type="button" data-testid="world-jewelry-consult-send" onClick={() => void sendConsult()} disabled={consultBusy || !consultInput.trim()} className={goldBtn}>
                       Send — {catalog.consultCreditCost} VB
                     </button>
-                    <button type="button" aria-label="Close the consultant" onClick={() => setConsultOpen(false)} className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white">
+                    <button type="button" aria-label="Close the consultant" onClick={() => setConsultOpen(false)} className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box">
                       <X className="h-4 w-4" />
                     </button>
                   </div>

@@ -85,7 +85,7 @@ function CopyLine({ text, isLight }: { text: string; isLight: boolean }) {
             setTimeout(() => setCopied(false), 1400);
           }).catch(() => {});
         }}
-        className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+        className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold bdv-touch-box ${
           isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/70"
         }`}
       >
@@ -249,7 +249,7 @@ export function HookDesk(props: CreateDeskProps) {
   };
 
   const chipCls = (active: boolean) =>
-    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37] text-black"
         : isLight
@@ -371,7 +371,7 @@ export function HookDesk(props: CreateDeskProps) {
           data-testid="world-hook-desk-run"
           onClick={() => void run()}
           disabled={busy || !ready}
-          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {busy ? "Writing…" : RUN_LABEL[mode]}

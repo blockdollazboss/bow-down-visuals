@@ -319,7 +319,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const tabBtn = (active: boolean) =>
-    `rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+    `rounded-full px-3.5 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active ? "bg-[#d4af37] text-black" : isLight ? "border border-[#7A5A12]/30 text-[#6B5B36]" : "border border-white/15 text-white/75"
     }`;
   const inputCls = deskInputCls(isLight);
@@ -331,7 +331,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
     <NativeCard isLight={isLight}>
       <p className={`inline-flex flex-wrap items-center gap-2 text-sm ${muted}`}>
         {what} is members&rsquo; business — sign in and it happens right here.
-        <Link href={GUEST_SIGN_IN_HREF} className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105">
+        <Link href={GUEST_SIGN_IN_HREF} className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target">
           <LogIn className="h-3 w-3" /> Sign in
         </Link>
       </p>
@@ -377,7 +377,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
               {beats.map((beat) => (
                 <NativeCard key={beat.id} isLight={isLight}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" data-testid="world-beats-preview" onClick={() => togglePlay(beat)} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105">
+                    <button type="button" data-testid="world-beats-preview" onClick={() => togglePlay(beat)} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target">
                       {playingId === beat.id ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                       {playingId === beat.id ? "Pause" : "Preview"}
                     </button>
@@ -390,7 +390,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                     </span>
                     <span className="text-xs font-bold text-[#d4af37]">from {moneyCents(beat.basicPriceCents)}</span>
                     {isGuest ? null : (
-                      <button type="button" data-testid="world-beats-license-open" onClick={() => { setLicenseBeat(licenseBeat?.id === beat.id ? null : beat); setOfferKey("basic"); setLicenseError(null); setLicenseNote(null); setLicenseSecret(null); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                      <button type="button" data-testid="world-beats-license-open" onClick={() => { setLicenseBeat(licenseBeat?.id === beat.id ? null : beat); setOfferKey("basic"); setLicenseError(null); setLicenseNote(null); setLicenseSecret(null); }} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
                         License
                       </button>
                     )}
@@ -429,14 +429,14 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                       {licenseNote && <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{licenseNote}</p>}
                       {licenseError && <p className="text-xs font-semibold text-red-400">{licenseError}</p>}
                       <button type="button" data-testid="world-beats-license-buy" onClick={() => void reserveLicense()} disabled={licensing}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                         {licensing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeDollarSign className="h-3.5 w-3.5" />}
                         {licensing ? "Reserving…" : "License this beat"}
                       </button>
                       {licenseSecret && (
                         <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-beats-embedded-checkout">
                           <EmbeddedSessionCheckout clientSecret={licenseSecret} />
-                          <button type="button" onClick={() => setLicenseSecret(null)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                          <button type="button" onClick={() => setLicenseSecret(null)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
                             Close — the license stays reserved as pending
                           </button>
                         </div>
@@ -446,7 +446,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 </NativeCard>
               ))}
               {hasMore && (
-                <button type="button" data-testid="world-beats-more" onClick={() => void loadBrowse(offset + BEATS_PAGE_SIZE, true)} className={`w-full rounded-full border px-4 py-2 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+                <button type="button" data-testid="world-beats-more" onClick={() => void loadBrowse(offset + BEATS_PAGE_SIZE, true)} className={`w-full rounded-full border px-4 py-2 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
                   More beats
                 </button>
               )}
@@ -492,7 +492,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           {listNote && <p className={`mt-2 text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{listNote}</p>}
           {listError && <p className="mt-2 text-xs font-semibold text-red-400">{listError}</p>}
           <button type="button" data-testid="world-beats-list-submit" onClick={() => void submitListing()} disabled={listing}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {listing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Disc3 className="h-3.5 w-3.5" />}
             {listing ? "Listing…" : "List this beat"}
           </button>
@@ -559,16 +559,16 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                       <span className="block font-bold">{tpl.name} · {moneyCents(tpl.priceCents)}</span>
                       <span className={`block text-[11px] ${muted}`}>{describeTermsInline(templateTerms(tpl))}</span>
                     </span>
-                    <button type="button" data-testid="world-beats-template-edit" onClick={() => { setTplEditingId(tpl.id); setTplForm(beatTemplateFormFromDto(tpl)); setTplError(null); }} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${isLight ? "border-[#7A5A12]/30" : "border-white/15"}`}>
+                    <button type="button" data-testid="world-beats-template-edit" onClick={() => { setTplEditingId(tpl.id); setTplForm(beatTemplateFormFromDto(tpl)); setTplError(null); }} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30" : "border-white/15"}`}>
                       <Pencil className="mr-1 inline h-3 w-3" /> Edit
                     </button>
                     {confirmingDeleteTpl === tpl.id ? (
                       <>
-                        <button type="button" data-testid="world-beats-template-delete-confirm" onClick={() => void deleteTemplate(tpl.id)} className="rounded-full border border-red-400/50 bg-red-400/10 px-2.5 py-1 text-[11px] font-bold text-red-300">Delete?</button>
-                        <button type="button" onClick={() => setConfirmingDeleteTpl(null)} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${isLight ? "border-[#7A5A12]/30" : "border-white/15"}`}>Keep</button>
+                        <button type="button" data-testid="world-beats-template-delete-confirm" onClick={() => void deleteTemplate(tpl.id)} className="rounded-full border border-red-400/50 bg-red-400/10 px-2.5 py-1 text-[11px] font-bold text-red-300 bdv-touch-target">Delete?</button>
+                        <button type="button" onClick={() => setConfirmingDeleteTpl(null)} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30" : "border-white/15"}`}>Keep</button>
                       </>
                     ) : (
-                      <button type="button" data-testid="world-beats-template-delete" onClick={() => setConfirmingDeleteTpl(tpl.id)} className="rounded-full border border-red-400/40 px-2.5 py-1 text-[11px] font-bold text-red-300">
+                      <button type="button" data-testid="world-beats-template-delete" onClick={() => setConfirmingDeleteTpl(tpl.id)} className="rounded-full border border-red-400/40 px-2.5 py-1 text-[11px] font-bold text-red-300 bdv-touch-target">
                         <Trash2 className="mr-1 inline h-3 w-3" /> Delete
                       </button>
                     )}
@@ -594,25 +594,25 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 </div>
                 <input aria-label="Terms note" value={tplForm.termsNote} onChange={(e) => setT({ termsNote: e.target.value })} placeholder="Terms note (optional)" className={inputCls} />
                 <div className="flex flex-wrap gap-3 text-xs">
-                  <label className={`inline-flex items-center gap-1.5 ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
+                  <label className={`inline-flex items-center gap-1.5 bdv-touch-target ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
                     <input type="checkbox" checked={tplForm.radioTvAllowed} onChange={(e) => setT({ radioTvAllowed: e.target.checked })} /> Radio/TV allowed
                   </label>
-                  <label className={`inline-flex items-center gap-1.5 ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
+                  <label className={`inline-flex items-center gap-1.5 bdv-touch-target ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
                     <input type="checkbox" checked={tplForm.isExclusive} onChange={(e) => setT({ isExclusive: e.target.checked })} /> Exclusive offer
                   </label>
                 </div>
                 {tplError && <p className="text-xs font-semibold text-red-400">{tplError}</p>}
                 <div className="flex flex-wrap gap-1.5">
-                  <button type="button" data-testid="world-beats-template-save" onClick={() => void saveTemplate()} disabled={tplSaving} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                  <button type="button" data-testid="world-beats-template-save" onClick={() => void saveTemplate()} disabled={tplSaving} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                     {tplSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save license
                   </button>
-                  <button type="button" onClick={() => { setTplForm(null); setTplEditingId(null); }} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+                  <button type="button" onClick={() => { setTplForm(null); setTplEditingId(null); }} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
                     <X className="h-3 w-3" /> Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button type="button" data-testid="world-beats-template-new" onClick={() => { setTplEditingId(null); setTplForm(emptyBeatTemplateForm()); setTplError(null); }} className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+              <button type="button" data-testid="world-beats-template-new" onClick={() => { setTplEditingId(null); setTplForm(emptyBeatTemplateForm()); setTplError(null); }} className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
                 <Plus className="h-3.5 w-3.5" /> New custom license
               </button>
             )}

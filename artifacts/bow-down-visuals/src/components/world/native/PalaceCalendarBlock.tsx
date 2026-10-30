@@ -157,7 +157,7 @@ export function PalaceCalendarBlock({
           type="button"
           data-testid={`world-calendar-goto-${e.id}`}
           onClick={() => onEnterRoom(action.roomId)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <DoorOpen className="h-3.5 w-3.5" /> Go to the room
         </button>
@@ -170,7 +170,7 @@ export function PalaceCalendarBlock({
           type="button"
           data-testid={`world-calendar-station-${e.id}`}
           onClick={() => onOpenStation(action.stationId)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <Swords className="h-3.5 w-3.5" />{" "}
           {e.kind === QUEST_RESET_KIND ? "See the quests" : "See the contest"}

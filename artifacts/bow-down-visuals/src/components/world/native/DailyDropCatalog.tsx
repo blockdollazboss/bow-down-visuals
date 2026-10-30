@@ -78,9 +78,9 @@ const KIND_LABEL: Record<DailyDropKind, string> = {
 };
 
 const useBtn =
-  "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105";
+  "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target";
 const tidyBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"

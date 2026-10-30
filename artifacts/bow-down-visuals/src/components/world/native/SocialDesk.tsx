@@ -85,15 +85,15 @@ async function apiJson<T>(
 }
 
 const chipBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"
   }`;
 const goldBtn =
-  "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
@@ -460,7 +460,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
           type="button"
           data-testid="world-dm-tab-inbox"
           onClick={() => setTab("inbox")}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+          className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition bdv-touch-target ${
             tab === "inbox" ? "bg-[#d4af37] text-black" : chipBtn(isLight)
           }`}
         >
@@ -470,7 +470,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
           type="button"
           data-testid="world-dm-tab-requests"
           onClick={() => setTab("requests")}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+          className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition bdv-touch-target ${
             tab === "requests" ? "bg-[#d4af37] text-black" : chipBtn(isLight)
           }`}
         >
@@ -599,7 +599,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   type="button"
                   data-testid="world-dm-block"
                   onClick={() => void requestAction("block")}
-                  className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold ${isLight ? "text-red-900/70 hover:text-red-900" : "text-white/40 hover:text-red-300"}`}
+                  className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold bdv-touch-target ${isLight ? "text-red-900/70 hover:text-red-900" : "text-white/40 hover:text-red-300"}`}
                   title="Block this conversation"
                 >
                   <Ban className="h-3.5 w-3.5" /> Block
@@ -708,7 +708,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   <button
                     type="button"
                     onClick={() => setPendingAtt(null)}
-                    className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold ${muted}`}
+                    className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold bdv-touch-target ${muted}`}
                     data-testid="world-dm-attachment-remove"
                   >
                     <X className="h-3.5 w-3.5" /> Remove
@@ -1400,7 +1400,7 @@ function NoticePostCard({
                   onClick={() => void vote(o.id)}
                   data-testid="world-feed-poll-option"
                   aria-pressed={mine}
-                  className={`relative w-full overflow-hidden rounded-xl border px-3 py-1.5 text-left text-xs ${
+                  className={`relative w-full overflow-hidden rounded-xl border px-3 py-1.5 text-left text-xs bdv-touch-target ${
                     mine
                       ? "border-[#d4af37] text-[#e8c86a]"
                       : isLight ? "border-[#C9A84C]/40 text-[#2a1e07]" : "border-white/10 text-white/80"

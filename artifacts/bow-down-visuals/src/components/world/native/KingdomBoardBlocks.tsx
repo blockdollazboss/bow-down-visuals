@@ -406,7 +406,7 @@ export function KingdomBoardBlocks({
                         data-testid={`world-kingdom-party-invite-${room.code}`}
                         onClick={() => void copyInvite(room.code)}
                         title="Copy a World invite link — it lands your friend at this table"
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                           isLight
                             ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                             : "border-white/15 text-white/75 hover:text-white"
@@ -435,7 +435,7 @@ export function KingdomBoardBlocks({
                           type="button"
                           data-testid={`world-kingdom-party-join-${room.code}`}
                           onClick={() => onJoinPartyTable(room)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                         >
                           <Swords className="h-3.5 w-3.5" /> Take a seat
                         </button>

@@ -102,17 +102,17 @@ function useCoachAuthHeaders() {
 }
 
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target disabled:hover:scale-100";
 
 const chipBtn = (isLight: boolean, active: boolean) =>
-  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     active
       ? "border-[#d4af37] bg-[#d4af37] text-black"
       : isLight
@@ -121,7 +121,7 @@ const chipBtn = (isLight: boolean, active: boolean) =>
   }`;
 
 const smallBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+  `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/70 hover:text-white"
@@ -1388,7 +1388,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                         data-testid="world-coach-tracker-toggle"
                         disabled={itemBusyId === item.id}
                         onClick={() => void toggleItem(item)}
-                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition ${
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition bdv-touch-box ${
                           item.done
                             ? "border-[#d4af37] bg-[#d4af37] text-black"
                             : isLight

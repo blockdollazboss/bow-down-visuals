@@ -174,7 +174,7 @@ function GameStepthrough({
           type="button"
           data-testid="world-games-return"
           onClick={onReturn}
-          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <X className="h-4 w-4" /> Return to the palace
         </button>
@@ -427,7 +427,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
                   type="button"
                   data-testid={`world-arcade-play-${cabinet.id}`}
                   onClick={() => setPlaying(cabinet.id)}
-                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
                 >
                   <Play className="h-4 w-4" /> Play
                 </button>
@@ -915,7 +915,7 @@ function MarbleTablePanel({
             type="button"
             aria-label="Dismiss the summons"
             onClick={() => setSummonsDismissed(true)}
-            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+            className={`rounded-full border px-2 py-1 text-xs font-bold bdv-touch-box ${
               isLight
                 ? "border-[#7A5A12]/30 text-[#6B5B36]"
                 : "border-white/15 text-white/70"
@@ -971,7 +971,7 @@ function MarbleTablePanel({
                       data-testid={`world-party-invite-${room.code}`}
                       onClick={() => void copyInvite(room.code)}
                       title="Copy a World invite link — it lands your friend at this table"
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                         isLight
                           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                           : "border-white/15 text-white/75 hover:text-white"
@@ -988,7 +988,7 @@ function MarbleTablePanel({
                       type="button"
                       data-testid={`world-party-join-${room.code}`}
                       onClick={() => setActiveCode(room.code)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
                       <Users className="h-3.5 w-3.5" /> Take a seat
                     </button>
@@ -1035,7 +1035,7 @@ function MarbleTablePanel({
                 type="button"
                 data-testid="world-party-home-plain"
                 onClick={() => setHomeKind("plain")}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                   homeKind === "plain"
                     ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
                     : isLight
@@ -1050,7 +1050,7 @@ function MarbleTablePanel({
                   type="button"
                   data-testid="world-party-home-profile"
                   onClick={() => setHomeKind("profile")}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                     homeKind === "profile"
                       ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
                       : isLight
@@ -1066,7 +1066,7 @@ function MarbleTablePanel({
                   type="button"
                   data-testid="world-party-home-stream"
                   onClick={() => setHomeKind("stream")}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                     homeKind === "stream"
                       ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
                       : isLight
@@ -1096,7 +1096,7 @@ function MarbleTablePanel({
           data-testid="world-party-create"
           onClick={() => void create()}
           disabled={creating}
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
           {creating ? "Opening…" : "Open a table & take the host seat"}
@@ -1112,7 +1112,7 @@ function MarbleTablePanel({
             placeholder="ABC234"
             maxLength={6}
             data-testid="world-party-join-input"
-            className={`w-36 rounded-xl border px-3 py-2 text-center text-sm font-black uppercase tracking-[0.25em] ${
+            className={`w-36 rounded-xl border px-3 py-2 text-center text-sm font-black uppercase tracking-[0.25em] bdv-touch-target ${
               isLight
                 ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/50"
                 : "border-white/15 bg-black/40 text-white placeholder:text-white/30"
@@ -1121,7 +1121,7 @@ function MarbleTablePanel({
           <button
             type="button"
             onClick={join}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
               isLight
                 ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                 : "border-white/15 text-white/75 hover:text-white"

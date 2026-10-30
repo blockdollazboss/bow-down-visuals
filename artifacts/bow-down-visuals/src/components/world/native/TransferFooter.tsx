@@ -40,7 +40,7 @@ export function TransferFooter({ context, websitePath, isLight }: TransferFooter
         href={websitePath}
         target="_blank"
         rel="noopener noreferrer"
-        className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#d4af37]/50 px-3 py-1.5 text-xs font-bold transition ${
+        className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#d4af37]/50 px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
           isLight
             ? "text-[#7A5A12] hover:border-[#7A5A12] hover:text-[#2a1e07]"
             : "text-[#e8c86a] hover:border-[#d4af37] hover:text-white"

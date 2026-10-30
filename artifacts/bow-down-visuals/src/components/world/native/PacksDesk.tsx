@@ -189,7 +189,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
                 data-testid={`world-pack-buy-${pack.key}`}
                 onClick={() => void buy(pack)}
                 disabled={busyKey !== null}
-                className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
               >
                 {busyKey === pack.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
                 {busyKey === pack.key ? "Processing…" : CHECKOUT_TRANSFER_LABEL}
@@ -211,7 +211,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
             <button
               type="button"
               onClick={() => setEmbedded(null)}
-              className={`mt-2 w-full text-center text-xs ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
+              className={`mt-2 w-full text-center text-xs bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
             >
               Cancel — no charge
             </button>

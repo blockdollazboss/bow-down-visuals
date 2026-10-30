@@ -57,7 +57,7 @@ import type { ShelfPlayerController } from "./ShelfPlayer";
    as it is for the desk's benches. */
 
 const tabChip = (isLight: boolean, active: boolean) =>
-  `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     active
       ? "border-[#d4af37] bg-[#d4af37] text-black"
       : isLight
@@ -65,12 +65,12 @@ const tabChip = (isLight: boolean, active: boolean) =>
         : "border-white/15 text-white/75 hover:text-white"
   }`;
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 const chipBtn =
-  "inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/75 transition hover:text-white disabled:opacity-50";
+  "inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/75 transition hover:text-white disabled:opacity-50 bdv-touch-target";
 const chipBtnFor = (isLight: boolean) =>
   isLight
-    ? "inline-flex items-center gap-1.5 rounded-full border border-[#7A5A12]/30 px-3 py-1.5 text-xs font-bold text-[#6B5B36] transition hover:text-[#2a1e07] disabled:opacity-50"
+    ? "inline-flex items-center gap-1.5 rounded-full border border-[#7A5A12]/30 px-3 py-1.5 text-xs font-bold text-[#6B5B36] transition hover:text-[#2a1e07] disabled:opacity-50 bdv-touch-target"
     : chipBtn;
 
 /* ─── Stack-100 #51 — the stems remix-levels mixdown ───────────────
@@ -140,7 +140,7 @@ export function StemRemixPanel({
               value={level}
               data-testid={`world-audio-stem-remix-level-${key}`}
               onChange={(e) => setLevels((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-              className="flex-1 accent-[#d4af37]"
+              className="flex-1 accent-[#d4af37] bdv-touch-target"
             />
             <span className={`w-12 shrink-0 text-right ${muted}`}>{Math.round(level * 100)}%</span>
           </label>
@@ -313,7 +313,7 @@ export function SoundPacksTab({
       </div>
       <label className="block text-xs font-bold">
         Tempo — {bpm} BPM
-        <input type="range" min={60} max={180} value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="mt-1 w-full accent-[#d4af37]" />
+        <input type="range" min={60} max={180} value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="mt-1 w-full accent-[#d4af37] bdv-touch-target" />
       </label>
       <div>
         <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Pack size</span>
@@ -383,7 +383,7 @@ export function SoundPacksTab({
                         type="button"
                         data-testid="world-audio-packs-audition"
                         onClick={() => audition(sample)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                       >
                         {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                         {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Audition"}
@@ -500,7 +500,7 @@ export function LibraryTab({
                         type="button"
                         data-testid="world-audio-library-play"
                         onClick={() => playRow(row)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                       >
                         {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                         {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Play it here"}
@@ -667,7 +667,7 @@ export function StemsTab({
               </button>
             ))}
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
             <input type="checkbox" checked={pro} onChange={(e) => setPro(e.target.checked)} />
             Pro stems (adds guitar + piano — same {cost.toLocaleString("en-US")} Visual Bucs)
           </label>

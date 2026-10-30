@@ -62,7 +62,7 @@ export function CreateDeskRunner({
           onChange={(e) => onPromptChange(e.target.value)}
           disabled={running}
           rows={3}
-          className={`w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+          className={`w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
             isLight
               ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
               : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
@@ -81,7 +81,7 @@ export function CreateDeskRunner({
           data-testid="world-native-create-run"
           onClick={onRun}
           disabled={!canRun}
-          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {running ? (
             <Loader2 className="h-4 w-4 animate-spin" />

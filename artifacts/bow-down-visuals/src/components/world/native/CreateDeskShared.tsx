@@ -32,7 +32,7 @@ export function useDeskAuthHeaders() {
 }
 
 export function deskInputCls(isLight: boolean): string {
-  return `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  return `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
@@ -120,7 +120,7 @@ export function AdvancedExpander({
         data-testid="world-create-advanced-toggle"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`flex w-full items-center gap-2 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] ${
+        className={`flex w-full items-center gap-2 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] bdv-touch-target ${
           isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
         }`}
       >
@@ -148,7 +148,7 @@ export function ClipModelPicker(props: {
   const { isLight, settings, onChange } = props;
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+    `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37] text-black"
         : isLight
@@ -210,7 +210,7 @@ export function ClipModelPicker(props: {
               ))
             )}
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
             <input
               type="checkbox"
               data-testid="world-clip-draft-toggle"
@@ -301,13 +301,13 @@ export function ResultChips(props: ResultChipsProps) {
   const { isLight } = props;
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
-  const chipCls = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  const chipCls = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"
   }`;
   const goldChipCls =
-    "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50";
+    "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
   const trackId = jukeboxTrackIdOf(props.jukeboxTrackId);
   const jukeboxChip = jukeboxChipStateOf({
     candidate: props.jukeboxTrackId,
@@ -498,7 +498,7 @@ export function SongAudioRail(props: {
         data-testid="world-create-make-audio"
         onClick={props.onMakeAudio}
         disabled={props.state === "running"}
-        className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
       >
         <Music className="h-4 w-4" />
         {props.state === "running"
@@ -766,7 +766,7 @@ export function ABAudioPlayer(props: {
   };
 
   const tabCls = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+    `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37] text-black"
         : isLight

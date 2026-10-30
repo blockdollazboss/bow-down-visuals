@@ -60,9 +60,9 @@ import { SchedulerComposeStandalone } from "./SchedulerDesk";
    the publish door offered as an explicit link. */
 
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 const chipBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
 
@@ -347,7 +347,7 @@ export function ThumbnailBenches({
           />
         </label>
         {facePreview ? <img src={facePreview} alt="Face or asset for the thumbnail" className="h-10 w-10 rounded-lg object-cover" /> : null}
-        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
           <input type="checkbox" checked={attribution} onChange={(e) => setAttribution(e.target.checked)} />
           Made-with credit on the thumbnail
         </label>
