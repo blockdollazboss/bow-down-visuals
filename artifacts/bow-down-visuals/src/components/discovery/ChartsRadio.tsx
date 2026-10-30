@@ -24,7 +24,18 @@ import { formatCount } from "@/lib/streaming";
    choice is remembered (PATCH /radio/prefs) purely so the panel can
    offer the resume hint next visit. Listening is free. */
 
-export function ChartsRadioPanel({ compact = false }: { compact?: boolean }) {
+export function ChartsRadioPanel({
+  compact = false,
+  volumeScale = 1,
+}: {
+  compact?: boolean;
+  /** A host surface's master fader, applied to the station element
+   *  in series (the World's master volume passes its gain when the
+   *  panel stands in the World). The Charts page passes nothing —
+   *  the station sounds at full level there, as it always has. The
+   *  radio holds no volume of its own; the scale IS its volume. */
+  volumeScale?: number;
+}) {
   const isLight = useIsLightTheme();
   const { user, getAccessToken } = useAuth();
   const [station, setStation] = useState<RadioStationPayload | null>(null);
@@ -106,6 +117,7 @@ export function ChartsRadioPanel({ compact = false }: { compact?: boolean }) {
     if (!entry) return;
     if (!audioRef.current) audioRef.current = new Audio();
     const el = audioRef.current;
+    el.volume = Math.min(1, Math.max(0, volumeScale));
     el.src = entry.audioUrl;
     setCurrent(idx);
     void el
@@ -168,6 +180,14 @@ export function ChartsRadioPanel({ compact = false }: { compact?: boolean }) {
     },
     [],
   );
+
+  /* The host's fader, live: a level change lands on the element
+     mid-song, and the element is born at the current scale. */
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = Math.min(1, Math.max(0, volumeScale));
+    }
+  }, [volumeScale]);
 
   const now = current >= 0 ? rotation[current] : undefined;
   const hint = !playing && current < 0 ? radioResumeHint(tunedInBefore) : null;

@@ -216,6 +216,55 @@ describe("signature sound engine — restraint", () => {
   });
 });
 
+describe("signature sound engine — the output scale (the World's master fader sits here)", () => {
+  it("defaults to 1: handles are born at their role volumes", () => {
+    const w = makeWorld();
+    expect(w.engine.getOutputScale()).toBe(1);
+    expect(w.engine.play("sting")).toBe(true);
+    expect(w.handles[0]!.volume).toBeCloseTo(0.55);
+  });
+
+  it("scales handles born after the fader moves, per role", () => {
+    const w = makeWorld();
+    w.engine.setOutputScale(0.5);
+    expect(w.engine.play("sting")).toBe(true);
+    expect(w.handles[0]!.volume).toBeCloseTo(0.275);
+    w.advance(SOUND_COOLDOWN_MS + 1);
+    expect(w.engine.play("notification")).toBe(true);
+    expect(w.handles[1]!.volume).toBeCloseTo(0.225);
+  });
+
+  it("re-fades a handle already sounding when the fader moves", () => {
+    const w = makeWorld();
+    expect(w.engine.play("sting")).toBe(true);
+    expect(w.handles[0]!.volume).toBeCloseTo(0.55);
+    w.engine.setOutputScale(0.2);
+    expect(w.handles[0]!.volume).toBeCloseTo(0.11);
+    w.engine.setOutputScale(1);
+    expect(w.handles[0]!.volume).toBeCloseTo(0.55);
+  });
+
+  it("clamps the scale to 0–1 and ignores non-finite asks", () => {
+    const w = makeWorld();
+    w.engine.setOutputScale(2);
+    expect(w.engine.getOutputScale()).toBe(1);
+    w.engine.setOutputScale(-1);
+    expect(w.engine.getOutputScale()).toBe(0);
+    w.engine.setOutputScale(Number.NaN);
+    expect(w.engine.getOutputScale()).toBe(0);
+  });
+
+  it("the fader can only quiet: at scale 0 the gate still governs play, and no scale resurrects a switched-off kind", () => {
+    const w = makeWorld();
+    w.engine.setOutputScale(0);
+    expect(w.engine.canPlay("sting")).toBe(true); // the fader is not a gate
+    w.engine.setPrefs({ ...DEFAULT_SOUND_PREFS, success_stings_enabled: false });
+    w.engine.setOutputScale(1);
+    expect(w.engine.play("sting")).toBe(false);
+    expect(w.totalPlays()).toBe(0);
+  });
+});
+
 describe("arrival tracker — bells seed silently, then sound new arrivals once", () => {
   const item = (id: string, kind = "follow", is_read = false) => ({ id, kind, is_read });
 
