@@ -134,7 +134,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
               placeholder="yourname.com" autoComplete="off" spellCheck={false}
               className={`${inputCls} min-w-44 flex-1 font-mono`} />
             <button type="button" data-testid="world-domains-claim" onClick={() => void claim()} disabled={claiming || !hostname.trim()}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
               {claiming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
               {claiming ? "Claiming…" : "Claim my domain"}
             </button>
@@ -174,7 +174,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {d.status !== "active" && (
                     <button type="button" data-testid="world-domains-verify" onClick={() => void verify(d)} disabled={verifyingId !== null}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                       {verifyingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                       {verifyingId === d.id ? "Checking…" : "Check now"}
                     </button>
@@ -182,14 +182,14 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
                   {confirmingDeleteId === d.id ? (
                     <>
                       <button type="button" data-testid="world-domains-delete-confirm" onClick={() => void remove(d)} disabled={deletingId !== null}
-                        className="rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-[11px] font-bold text-red-300 disabled:opacity-50">
+                        className="rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-[11px] font-bold text-red-300 disabled:opacity-50 bdv-touch-target">
                         {deletingId === d.id ? "Removing…" : "Remove it?"}
                       </button>
-                      <button type="button" onClick={() => setConfirmingDeleteId(null)} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>Keep</button>
+                      <button type="button" onClick={() => setConfirmingDeleteId(null)} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>Keep</button>
                     </>
                   ) : (
                     <button type="button" data-testid="world-domains-delete" onClick={() => setConfirmingDeleteId(d.id)}
-                      className="inline-flex items-center gap-1 rounded-full border border-red-400/40 px-3 py-1.5 text-[11px] font-bold text-red-300">
+                      className="inline-flex items-center gap-1 rounded-full border border-red-400/40 px-3 py-1.5 text-[11px] font-bold text-red-300 bdv-touch-target">
                       <Trash2 className="h-3 w-3" /> Remove
                     </button>
                   )}

@@ -125,7 +125,7 @@ const inputCls = (isLight: boolean) =>
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 const selectCls = (isLight: boolean) =>
-  `rounded-lg border px-2 py-1.5 text-sm focus:border-[#d4af37] focus:outline-none ${
+  `rounded-lg border px-2 py-1.5 text-sm focus:border-[#d4af37] focus:outline-none bdv-touch-target ${
     isLight ? "border-[#C9A84C]/40 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black text-white"
   }`;
 
@@ -705,7 +705,7 @@ function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Pro
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
-  const rowCls = `flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`;
+  const rowCls = `flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm bdv-touch-target ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`;
 
   return (
     <LiveCard isLight={isLight} testId="world-live-loyalty">

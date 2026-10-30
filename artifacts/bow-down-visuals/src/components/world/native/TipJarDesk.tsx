@@ -150,7 +150,7 @@ export function TipJarDesk({ isLight }: { isLight: boolean }) {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? "Link copied" : `Copy your link — ${tipUrl}`}
               </button>
@@ -218,7 +218,7 @@ export function TipJarDesk({ isLight }: { isLight: boolean }) {
           {savedNote && <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{savedNote}</p>}
           <button type="button" data-testid="world-tipjar-save" onClick={() => void save()}
             disabled={saving || !(form?.handle ?? "").trim() || !(form?.displayName ?? "").trim()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <HandCoins className="h-3.5 w-3.5" />}
             {saving ? "Saving…" : dashboard.hasPage ? "Update my tip page" : "Create my tip page"}
           </button>

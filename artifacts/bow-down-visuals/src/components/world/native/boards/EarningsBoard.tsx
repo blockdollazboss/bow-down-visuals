@@ -285,7 +285,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
   };
 
   const tabBtn = (active: boolean) =>
-    `rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+    `rounded-full px-3.5 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "bg-[#d4af37] text-black"
         : isLight
@@ -388,7 +388,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   aria-label="Statement year"
                   value={year}
                   onChange={(e) => pickYear(Number(e.target.value))}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${
                     isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"
                   }`}
                 >
@@ -403,7 +403,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   data-testid="world-earnings-statement-view"
                   onClick={() => void viewStatement()}
                   disabled={stmtBusy}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold transition hover:scale-105 disabled:opacity-50 ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold transition hover:scale-105 disabled:opacity-50 bdv-touch-target ${
                     isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"
                   }`}
                 >
@@ -537,7 +537,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   data-testid="world-ledger-prev"
                   disabled={page.page === 0}
                   onClick={() => setLedgerPg(page.page - 1)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 bdv-touch-target ${
                     isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
                   }`}
                 >
@@ -551,7 +551,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   data-testid="world-ledger-next"
                   disabled={page.page >= page.pageCount - 1}
                   onClick={() => setLedgerPg(page.page + 1)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 bdv-touch-target ${
                     isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
                   }`}
                 >

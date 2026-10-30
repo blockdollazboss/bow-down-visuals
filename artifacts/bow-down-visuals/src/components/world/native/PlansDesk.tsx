@@ -364,7 +364,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                     {isMine ? (
                       paid ? (
                         <button type="button" data-testid="world-plan-manage" onClick={() => void openPortal()} disabled={portalBusy}
-                          className={`mt-3 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                          className={`mt-3 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
                           {portalBusy ? t("worldPlansDesk.opening") : t("worldPlansDesk.manage")}
                         </button>
                       ) : (
@@ -401,7 +401,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                 <button
                   type="button"
                   onClick={() => setEmbedded(null)}
-                  className={`mt-2 w-full text-center text-xs ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
+                  className={`mt-2 w-full text-center text-xs bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
                 >
                   {t("worldPlansDesk.cancelNoCharge")}
                 </button>
@@ -426,12 +426,12 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                 )}
                 <div className="mt-3 flex gap-2">
                   <button type="button" data-testid="world-plans-change-apply" onClick={() => void applyChange()} disabled={changing}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                     {changing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
                     {changing ? t("worldPlansDesk.switching") : t("worldPlansDesk.switchYes", { name: changePreview.toPlanName })}
                   </button>
                   <button type="button" data-testid="world-plans-change-cancel" onClick={() => setChangePreview(null)} disabled={changing}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
                     {t("worldPlansDesk.notNow")}
                   </button>
                 </div>
