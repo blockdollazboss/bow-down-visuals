@@ -261,7 +261,7 @@ export default function VideoTemplates() {
                     link and the share is recorded per template key. The
                     strip is a dark grounded panel in both themes so the
                     menu's buttons stay legible on the ivory light card. */}
-                <div className={`mt-3 rounded-xl border px-3.5 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#241a08]" : "border-white/[0.07] bg-black/40"}`}>
+                <div data-dark-lock className={`mt-3 rounded-xl border px-3.5 py-3 ${isLight ? "border-[#C9A84C]/30 bg-[#241a08]" : "border-white/[0.07] bg-black/40"}`}>
                   <p className="text-[11px] uppercase tracking-wider text-[#e8c86a]/80 mb-2">
                     {t("videoTemplatesPage.shareTemplate", { defaultValue: "Share this template" })}
                   </p>
