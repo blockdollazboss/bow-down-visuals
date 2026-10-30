@@ -248,6 +248,12 @@ export interface LiveBattleStore {
   }): Promise<BattleRow>;
   getBattle(id: string): Promise<BattleRow | null>;
   updateBattle(id: string, patch: Partial<Omit<BattleRow, "id" | "createdAt">>): Promise<BattleRow>;
+  /** Atomic completion claim: apply `patch` ONLY while the battle is
+   *  still live. Returns the updated row when this caller's write
+   *  landed, or null when the battle had already left 'live' — a
+   *  concurrent finalize won. The exactly-once gate for finalize's
+   *  side effects (the drop-claim CAS pattern, applied to battles). */
+  claimCompletion(id: string, patch: Partial<Omit<BattleRow, "id" | "createdAt">>): Promise<BattleRow | null>;
   /** Battles where the user is either participant, newest first. */
   listBattlesForUser(userId: string): Promise<BattleRow[]>;
   /** Open (pending/accepted/live) battle between a pair, if any. */
@@ -321,6 +327,31 @@ function toCard(r: {
 
 const OPEN_STATUSES = ["pending", "accepted", "live"];
 
+/** The one column mapping for battle patches — shared, so the
+ *  unconditional update and the conditional completion claim can
+ *  never drift apart. */
+function battlePatchSet(patch: Partial<Omit<BattleRow, "id" | "createdAt">>): Record<string, unknown> {
+  const set: Record<string, unknown> = { updated_at: new Date() };
+  if (patch.challengerUserId !== undefined) set["challenger_user_id"] = patch.challengerUserId;
+  if (patch.challengerProfileId !== undefined) set["challenger_profile_id"] = patch.challengerProfileId;
+  if (patch.opponentUserId !== undefined) set["opponent_user_id"] = patch.opponentUserId;
+  if (patch.opponentProfileId !== undefined) set["opponent_profile_id"] = patch.opponentProfileId;
+  if (patch.streamId !== undefined) set["stream_id"] = patch.streamId;
+  if (patch.theme !== undefined) set["theme"] = patch.theme;
+  if (patch.status !== undefined) set["status"] = patch.status;
+  if (patch.roundCount !== undefined) set["round_count"] = patch.roundCount;
+  if (patch.roundSeconds !== undefined) set["round_seconds"] = patch.roundSeconds;
+  if (patch.startsAt !== undefined) set["starts_at"] = patch.startsAt;
+  if (patch.endsAt !== undefined) set["ends_at"] = patch.endsAt;
+  if (patch.winnerUserId !== undefined) set["winner_user_id"] = patch.winnerUserId;
+  if (patch.result !== undefined) set["result"] = patch.result;
+  if (patch.challengerVotes !== undefined) set["challenger_votes"] = patch.challengerVotes;
+  if (patch.opponentVotes !== undefined) set["opponent_votes"] = patch.opponentVotes;
+  if (patch.voidReason !== undefined) set["void_reason"] = patch.voidReason;
+  if (patch.spectacleAnnouncedAt !== undefined) set["spectacle_announced_at"] = patch.spectacleAnnouncedAt;
+  return set;
+}
+
 export const dbLiveBattleStore: LiveBattleStore = {
   async profileByUserId(userId) {
     const rows = await db.select().from(creatorProfilesTable)
@@ -355,27 +386,15 @@ export const dbLiveBattleStore: LiveBattleStore = {
     return rows[0] ? toBattleRow(rows[0]) : null;
   },
   async updateBattle(id, patch) {
-    const set: Record<string, unknown> = { updated_at: new Date() };
-    if (patch.challengerUserId !== undefined) set["challenger_user_id"] = patch.challengerUserId;
-    if (patch.challengerProfileId !== undefined) set["challenger_profile_id"] = patch.challengerProfileId;
-    if (patch.opponentUserId !== undefined) set["opponent_user_id"] = patch.opponentUserId;
-    if (patch.opponentProfileId !== undefined) set["opponent_profile_id"] = patch.opponentProfileId;
-    if (patch.streamId !== undefined) set["stream_id"] = patch.streamId;
-    if (patch.theme !== undefined) set["theme"] = patch.theme;
-    if (patch.status !== undefined) set["status"] = patch.status;
-    if (patch.roundCount !== undefined) set["round_count"] = patch.roundCount;
-    if (patch.roundSeconds !== undefined) set["round_seconds"] = patch.roundSeconds;
-    if (patch.startsAt !== undefined) set["starts_at"] = patch.startsAt;
-    if (patch.endsAt !== undefined) set["ends_at"] = patch.endsAt;
-    if (patch.winnerUserId !== undefined) set["winner_user_id"] = patch.winnerUserId;
-    if (patch.result !== undefined) set["result"] = patch.result;
-    if (patch.challengerVotes !== undefined) set["challenger_votes"] = patch.challengerVotes;
-    if (patch.opponentVotes !== undefined) set["opponent_votes"] = patch.opponentVotes;
-    if (patch.voidReason !== undefined) set["void_reason"] = patch.voidReason;
-    if (patch.spectacleAnnouncedAt !== undefined) set["spectacle_announced_at"] = patch.spectacleAnnouncedAt;
-    const rows = await db.update(liveBattlesTable).set(set)
+    const rows = await db.update(liveBattlesTable).set(battlePatchSet(patch))
       .where(eq(liveBattlesTable.id, id)).returning();
     return toBattleRow(rows[0]!);
+  },
+  async claimCompletion(id, patch) {
+    const rows = await db.update(liveBattlesTable).set(battlePatchSet(patch))
+      .where(and(eq(liveBattlesTable.id, id), eq(liveBattlesTable.status, "live")))
+      .returning();
+    return rows[0] ? toBattleRow(rows[0]) : null;
   },
   async listBattlesForUser(userId) {
     const rows = await db.select().from(liveBattlesTable)

@@ -106,6 +106,15 @@ function memoryStore() {
       Object.assign(r, patch, { updatedAt: new Date() });
       return { ...r };
     },
+    async claimCompletion(id, patch) {
+      const r = battles.get(id);
+      // Atomic compare-and-set: the status check and the stamp run
+      // in one synchronous step, so no concurrent finalize can slip
+      // between them — the in-memory twin of the SQL predicate.
+      if (!r || r.status !== "live") return null;
+      Object.assign(r, patch, { updatedAt: new Date() });
+      return { ...r };
+    },
     async listBattlesForUser(userId) {
       return [...battles.values()]
         .filter((b) => b.challengerUserId === userId || b.opponentUserId === userId)
@@ -447,6 +456,49 @@ describe("winner determination", () => {
     expect(done.result).toBe("tie");
     expect(done.challengerVotes).toBe(0);
     expect(await s.svc.getCrown()).toBeNull();
+  });
+});
+
+describe("finalize race", () => {
+  it("two concurrent finalizes fire the herald and the result bells exactly once", async () => {
+    const s = setup();
+    const b = await liveBattle(s);
+    await s.svc.castVote({ battleId: b.id, voterUserId: FAN1, side: "challenger" });
+    await s.svc.castVote({ battleId: b.id, voterUserId: FAN2, side: "challenger" });
+    await s.svc.castVote({ battleId: b.id, voterUserId: FAN3, side: "opponent" });
+    s.setNow(new Date("2026-10-26T12:05:00Z"));
+    // Both calls read the battle while it is still live; only the
+    // one whose completion claim lands may speak or ring.
+    const [first, second] = await Promise.all([s.svc.finalize(b.id), s.svc.finalize(b.id)]);
+    expect(first.status).toBe("completed");
+    expect(second.status).toBe("completed");
+    expect(first.result).toBe("challenger");
+    expect(second.result).toBe("challenger");
+    expect(first.challengerVotes).toBe(2);
+    expect(second.challengerVotes).toBe(2);
+    expect(s.spoken).toHaveLength(1);
+    expect(s.notifications.filter((n) => n.kind === "live_battle_result")).toHaveLength(2);
+    // and a later replay is still the plain idempotent return
+    const again = await s.svc.finalize(b.id);
+    expect(again.status).toBe("completed");
+    expect(s.spoken).toHaveLength(1);
+    expect(s.notifications.filter((n) => n.kind === "live_battle_result")).toHaveLength(2);
+  });
+
+  it("a read-side settle racing the explicit finalize settles a tie exactly once", async () => {
+    const s = setup();
+    const b = await liveBattle(s);
+    await s.svc.castVote({ battleId: b.id, voterUserId: FAN1, side: "challenger" });
+    await s.svc.castVote({ battleId: b.id, voterUserId: FAN2, side: "opponent" });
+    s.setNow(new Date("2026-10-26T12:05:00Z"));
+    const snapshot = (await s.store.getBattle(b.id))!;
+    const [settled, explicit] = await Promise.all([s.svc.settle(snapshot), s.svc.finalize(b.id)]);
+    expect(settled.status).toBe("completed");
+    expect(explicit.status).toBe("completed");
+    expect(settled.result).toBe("tie");
+    expect(explicit.result).toBe("tie");
+    expect(s.spoken).toHaveLength(0);
+    expect(s.notifications.filter((n) => n.kind === "live_battle_result")).toHaveLength(2);
   });
 });
 

@@ -78,6 +78,14 @@ const h = vi.hoisted(() => {
       Object.assign(r, patch, { updatedAt: new Date(now) });
       return { ...r };
     },
+    async claimCompletion(id: string, patch: any) {
+      const r = battles.get(id);
+      // Atomic compare-and-set, the in-memory twin of the SQL
+      // predicate: check and stamp in one synchronous step.
+      if (!r || r.status !== "live") return null;
+      Object.assign(r, patch, { updatedAt: new Date(now) });
+      return { ...r };
+    },
     async listBattlesForUser(userId: string) {
       return [...battles.values()].filter((b) => b.challengerUserId === userId || b.opponentUserId === userId).map((b) => ({ ...b }));
     },
