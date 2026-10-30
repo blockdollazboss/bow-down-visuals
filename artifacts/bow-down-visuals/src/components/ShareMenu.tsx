@@ -235,7 +235,7 @@ export default function ShareMenu({
       "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white hover:bg-white/5";
     return (
       <div className={`relative shrink-0 ${className}`}>
-        <button
+        <button aria-expanded={menuOpen}
           type="button"
           onClick={() => {
             if ("share" in navigator) void doNative();

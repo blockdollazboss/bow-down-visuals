@@ -905,7 +905,7 @@ export default function Memberships() {
                               : "bg-white/10 text-white/50"
                             }`}>{m.status.replace("_", " ")}</span>
                             {m.status === "active" && m.pauseOffered !== false && (
-                              <button
+                              <button aria-expanded={pausePickId === m.id}
                                 onClick={() => { setPauseMonths(1); setPausePickId(pausePickId === m.id ? null : m.id); }}
                                 className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/60 hover:border-sky-400/40 hover:text-sky-300"
                               >

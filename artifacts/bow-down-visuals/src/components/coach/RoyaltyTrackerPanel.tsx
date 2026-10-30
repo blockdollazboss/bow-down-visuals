@@ -378,7 +378,7 @@ export default function RoyaltyTrackerPanel() {
               <p className="mt-1 text-sm text-white/50">
                 {t("royalties.import.desc")}
               </p>
-              <textarea aria-label={"Song,Platform,Period Start,Period End,Streams,Amount\nMidnight Crown,Spotify,01/01/2026,01/31/2026,12400,45.67"}
+              <textarea aria-label={t("royalties.import.title")}
                 value={csv}
                 onChange={(e) => setCsv(e.target.value)}
                 rows={6}
@@ -450,7 +450,7 @@ export default function RoyaltyTrackerPanel() {
               </div>
               {showPayoutForm && (
                 <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/40 p-4 sm:grid-cols-2">
-                  <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input aria-label={t("royalties.payouts.distributor")} value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
                   <div><label className={labelClass}>{t("royalties.payouts.statusLabel")}</label>
                     <select aria-label={t("royalties.payouts.statusLabel")} value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
                       <option value="expected">{t("royalties.payouts.statusExpected")}</option>
@@ -459,10 +459,10 @@ export default function RoyaltyTrackerPanel() {
                       <option value="overdue">{t("royalties.payouts.statusOverdue")}</option>
                     </select>
                   </div>
-                  <div><label className={labelClass}>{t("royalties.payouts.periodStart")}</label><input type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.periodEnd")}</label><input type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.expectedAmount")}</label><input value={pExpected} onChange={(e) => setPExpected(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
-                  <div><label className={labelClass}>{t("royalties.payouts.receivedAmount")}</label><input value={pReceived} onChange={(e) => setPReceived(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.periodStart")}</label><input aria-label={t("royalties.payouts.periodStart")} type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.periodEnd")}</label><input aria-label={t("royalties.payouts.periodEnd")} type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.expectedAmount")}</label><input aria-label={t("royalties.payouts.expectedAmount")} value={pExpected} onChange={(e) => setPExpected(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.receivedAmount")}</label><input aria-label={t("royalties.payouts.receivedAmount")} value={pReceived} onChange={(e) => setPReceived(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
                   <div className="sm:col-span-2 flex items-center gap-3">
                     <button onClick={savePayout} disabled={payoutSaving} className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40">
                       {payoutSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("royalties.payouts.save")}

@@ -927,12 +927,12 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           {TRACKS.map((tr, ti) => (
             <div key={tr.id} className="flex items-center gap-1.5">
               <div className="w-24 shrink-0 flex items-center gap-1">
-                <button
+                <button aria-pressed={mute[ti]}
                   type="button" onClick={() => setMute((m) => m.map((v, i) => (i === ti ? !v : v)))}
                   className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${mute[ti] ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}
                   title={t("beatMaker.mute", { defaultValue: "Mute" })}
                 >M</button>
-                <button
+                <button aria-pressed={solo[ti]}
                   type="button" onClick={() => setSolo((s) => s.map((v, i) => (i === ti ? !v : v)))}
                   className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${solo[ti] ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}
                   title={t("beatMaker.solo", { defaultValue: "Solo" })}

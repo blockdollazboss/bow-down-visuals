@@ -1252,7 +1252,7 @@ function FAQSection() {
                     : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] hover:border-primary/40"
               }`}
             >
-              <button
+              <button aria-expanded={openIndex === i}
                 className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left"
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
               >

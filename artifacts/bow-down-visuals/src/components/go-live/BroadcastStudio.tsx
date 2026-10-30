@@ -1908,7 +1908,7 @@ export default function BroadcastStudio() {
               ["none", "Original"],
             ] as Array<[BackgroundMode, string]>
           ).map(([m, label]) => (
-            <button
+            <button aria-pressed={mode === m}
               key={m}
               type="button"
               disabled={engineDown && m !== "none"}

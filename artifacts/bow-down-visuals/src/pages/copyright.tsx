@@ -716,7 +716,7 @@ export default function CopyrightAssistant() {
           <div className="mt-4 space-y-2.5">
             {FAQ.map((f, i) => (
               <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03]">
-                <button
+                <button aria-expanded={openFaq === i}
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left font-bold text-white"
                 >

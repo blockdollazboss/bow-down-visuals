@@ -747,7 +747,7 @@ export default function SyncTab({
                         <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                         {shared ? t("syncPitch.linkCopied") : t("syncPitch.shareSheet")}
                       </button>
-                      <button
+                      <button aria-expanded={viewSheetId === s.id}
                         onClick={() => setViewSheetId(viewSheetId === s.id ? null : s.id)}
                         className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
                       >

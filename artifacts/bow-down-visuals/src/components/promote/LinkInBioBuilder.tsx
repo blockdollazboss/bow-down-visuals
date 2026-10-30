@@ -627,7 +627,7 @@ export function LinkInBioBuilder() {
                   <span className="text-xs text-white/40">{t("linkInBio.links.icon")}:</span>
                   <div className="flex flex-wrap gap-1">
                     {LINK_ICON_KEYS.map((key) => (
-                      <button aria-label={key}
+                      <button aria-pressed={link.icon === key} aria-label={key}
                         key={key}
                         onClick={() => setLinks((ls) => ls.map((l, j) => (j === i ? { ...l, icon: key } : l)))}
                         title={key}

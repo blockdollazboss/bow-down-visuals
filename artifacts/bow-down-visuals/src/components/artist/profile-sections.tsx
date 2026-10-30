@@ -308,7 +308,7 @@ export function MediaRowSection({ title, items, kind }: { title: string; items: 
                   {[it.duration, typeof it.plays === "number" ? `${it.plays.toLocaleString()} plays` : null].filter(Boolean).join(" · ")}
                 </span>
               </span>
-              <button
+              <button aria-expanded={activeId === it.id}
                 onClick={() => setActiveId(activeId === it.id ? null : it.id)}
                 aria-label={activeId === it.id ? "Hide player" : "Preview"}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
@@ -342,7 +342,7 @@ export function SeriesSection({ title, series }: { title: string; series: Series
             className="overflow-hidden rounded-lg border"
             style={{ backgroundColor: "var(--ap-card)", borderColor: "var(--ap-border)" }}
           >
-            <button
+            <button aria-expanded={open === s.id}
               onClick={() => setOpen(open === s.id ? null : s.id)}
               className="flex w-full items-center gap-3 p-3 text-left"
             >

@@ -268,7 +268,7 @@ export function HighlightCutter({ vodUrlPrefill }: { vodUrlPrefill?: string | nu
                 const width = Math.max(1.5, ((m.endSec - m.startSec) / maxTime) * 100);
                 const alpha = 0.25 + 0.75 * (m.score / 100);
                 return (
-                  <button
+                  <button aria-pressed={selectedIdx === i}
                     key={i}
                     type="button"
                     title={`${m.label} — ${m.score}`}

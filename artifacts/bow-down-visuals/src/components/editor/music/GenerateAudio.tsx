@@ -1775,7 +1775,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
 
             {/* ── Working-song action row ── */}
             <div className="flex flex-wrap gap-1.5" data-testid="song-action-row">
-              <button
+              <button aria-expanded={openPanel === "extend"}
                 type="button"
                 onClick={() => setOpenPanel(openPanel === "extend" ? null : "extend")}
                 className={actionBtn(openPanel === "extend")}
@@ -1795,7 +1795,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               >
                 <Disc3 className="h-3.5 w-3.5" /> Cover
               </button>
-              <button
+              <button aria-expanded={openPanel === "replace"}
                 type="button"
                 onClick={() => setOpenPanel(openPanel === "replace" ? null : "replace")}
                 className={actionBtn(openPanel === "replace")}
