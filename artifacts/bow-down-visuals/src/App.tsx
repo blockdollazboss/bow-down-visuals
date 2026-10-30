@@ -663,7 +663,7 @@ function AppShell() {
           <Route path="/hashtag"><Redirect to="/trending" /></Route>
           <Route path="/playlist/:id"><StreamPlaylistPage /></Route>
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
-          {/* Staging-only fog comparison lab (hidden route, no nav link) */}
+          {/* Cursor Settings — permanent page (linked from Settings; no sidebar link) */}
           <Route path="/cursor-lab"><CursorLab /></Route>
           <Route path="/tour"><TourPlanner /></Route>
           {/* Phase 2: de-hosted money-hub pages — real routes, no

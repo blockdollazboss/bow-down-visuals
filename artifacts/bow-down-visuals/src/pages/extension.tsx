@@ -16,9 +16,10 @@ import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /* ─── Thy Cheat Code browser extension promo page ─── */
-/* Coming soon to the Chrome Web Store. Email notify-me form posts to the
-   existing /api/waitlist endpoint with an extension message so launch
-   notifications go to the right list. */
+/* Not yet listed on the Chrome Web Store: today the page offers the
+   working unpacked download (the real extension zip) plus an email
+   notify-me form posting to the existing /api/waitlist endpoint with
+   an extension message so launch notifications go to the right list. */
 
 const TABS = [
   {
