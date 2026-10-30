@@ -1097,23 +1097,93 @@ router.delete("/distribution/releases/:id", requireAuth, async (req, res) => {
    a restart re-registers in-flight deliveries from the DB via
    resumeActiveDeliveries(). Mock-mode jobs are re-submitted to rebuild the
    adapter's in-memory simulation clock. */
-const activeDeliveries = new Map<string, { aggregatorReleaseId: string }>();
+
+/* Lane F1 (QC-200 G2): this map only ever deleted on the happy path
+ * (every platform terminal). A delivery whose fetches keep throwing,
+ * keep coming back empty (the adapter lost the job — e.g. its own
+ * TTL/cap evicted the payload), or never reach a terminal status was
+ * polled every 15s for the LIFE OF THE PROCESS: the never-evicting
+ * store in G2's "distribution jobs" line. Three bounds now apply,
+ * none of which can corrupt an in-flight delivery — the durable
+ * record is the distribution_releases row (it keeps its last known
+ * statuses), and resumeActiveDeliveries() re-registers anything
+ * still 'packaged' at the next boot:
+ *  - AGE: a delivery registered >7 days ago leaves the poller. The
+ *    mock timeline finishes in 4 minutes; a real aggregator that
+ *    hasn't settled a release in a week is not settled by polling.
+ *  - EMPTY: 8 consecutive empty fetches (2 minutes of ticks) mean
+ *    the adapter has no such job; polling can never succeed again
+ *    in this process. An empty fetch also no longer WRITES its []
+ *    over the row's last known statuses (the old tick erased them).
+ *  - COUNT: 5,000 registrations max (entries are ~120 B → ≲1 MB),
+ *    least-recently-registered evicted first — 10× the resume
+ *    query's own LIMIT 500. */
+const MAX_ACTIVE_DELIVERIES = 5000;
+const MAX_DELIVERY_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_EMPTY_TICKS = 8;
+
+interface ActiveDelivery {
+  aggregatorReleaseId: string;
+  registeredAt: number;
+  emptyStreak: number;
+}
+const activeDeliveries = new Map<string, ActiveDelivery>();
 let deliveryPollerStarted = false;
+
+/** Register (or refresh) a delivery for polling, enforcing the
+ *  count cap. Delete + set keeps Map order == registration order,
+ *  so the cap evicts the least-recently-registered first. */
+function registerActiveDelivery(releaseId: string, aggregatorReleaseId: string, now: number = Date.now()): void {
+  activeDeliveries.delete(releaseId);
+  activeDeliveries.set(releaseId, { aggregatorReleaseId, registeredAt: now, emptyStreak: 0 });
+  while (activeDeliveries.size > MAX_ACTIVE_DELIVERIES) {
+    const oldest = activeDeliveries.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    activeDeliveries.delete(oldest);
+    logger.warn({ releaseId: oldest }, "[distribution] delivery evicted from poller (registration cap)");
+  }
+}
+
+/** Test seam (Lane F1): drive the real register/tick against the
+ *  real map without booting the poller interval. */
+export const __activeDeliveriesForTest = {
+  map: activeDeliveries,
+  register: registerActiveDelivery,
+  tick: tickDeliveries,
+  clear: (): void => activeDeliveries.clear(),
+};
 
 function ensureDeliveryPoller(): void {
   if (deliveryPollerStarted) return;
   deliveryPollerStarted = true;
-  const timer = setInterval(tickDeliveries, 15_000);
+  const timer = setInterval(() => void tickDeliveries(), 15_000);
   /* Don't hold the process open in tests / serverless. */
   (timer as unknown as { unref?: () => void }).unref?.();
 }
 
-async function tickDeliveries(): Promise<void> {
+async function tickDeliveries(now: number = Date.now()): Promise<void> {
   if (activeDeliveries.size === 0) return;
   const aggregator = getAggregator();
-  for (const [releaseId, job] of activeDeliveries) {
+  for (const [releaseId, job] of [...activeDeliveries]) {
+    if (now - job.registeredAt > MAX_DELIVERY_AGE_MS) {
+      activeDeliveries.delete(releaseId);
+      logger.warn({ releaseId }, "[distribution] delivery evicted from poller (age ceiling)");
+      continue;
+    }
     try {
       const statuses = await aggregator.fetchPlatformStatuses(job.aggregatorReleaseId);
+      if (statuses.length === 0) {
+        /* The adapter has no such job. Never write the empty set
+         * over the row's last known statuses; count the miss and
+         * evict once it is clearly permanent. */
+        job.emptyStreak += 1;
+        if (job.emptyStreak >= MAX_EMPTY_TICKS) {
+          activeDeliveries.delete(releaseId);
+          logger.warn({ releaseId }, "[distribution] delivery evicted from poller (adapter lost the job)");
+        }
+        continue;
+      }
+      job.emptyStreak = 0;
       await db.execute(sql`
         UPDATE distribution_releases
         SET platform_statuses = ${JSON.stringify(statuses)}::jsonb,
@@ -1121,7 +1191,7 @@ async function tickDeliveries(): Promise<void> {
         WHERE id = ${releaseId}
       `);
       const terminal = (s: string) => s === "live" || s === "failed";
-      if (statuses.length > 0 && statuses.every((s) => terminal(s.status))) {
+      if (statuses.every((s) => terminal(s.status))) {
         activeDeliveries.delete(releaseId);
         logger.info({ releaseId }, "[distribution] delivery completed");
       }
@@ -1161,13 +1231,13 @@ export async function resumeActiveDeliveries(): Promise<void> {
               SET aggregator_release_id = ${sub.aggregatorReleaseId}, updated_at = now()
               WHERE id = ${r.id}
             `);
-            activeDeliveries.set(r.id, { aggregatorReleaseId: sub.aggregatorReleaseId });
+            registerActiveDelivery(r.id, sub.aggregatorReleaseId);
           } catch (err) {
             logger.error({ err, releaseId: r.id }, "[distribution] mock resume failed");
           }
         }
       } else {
-        activeDeliveries.set(r.id, { aggregatorReleaseId: r.aggregator_release_id });
+        registerActiveDelivery(r.id, r.aggregator_release_id);
       }
     }
     if (activeDeliveries.size > 0) ensureDeliveryPoller();
@@ -1477,7 +1547,7 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
     `);
     const row = result.rows[0] as unknown as ReleaseRow;
 
-    activeDeliveries.set(row.id, { aggregatorReleaseId });
+    registerActiveDelivery(row.id, aggregatorReleaseId);
     ensureDeliveryPoller();
 
     /* Announce: profile presence + follower fan-out. Awaited so the

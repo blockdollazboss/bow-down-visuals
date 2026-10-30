@@ -39,6 +39,7 @@
  */
 
 import { attachJobMapTtl } from "./job-map-sweeper";
+import { capMapSize } from "./sweep-map";
 
 export type PlatformDeliveryStatus =
   | "queued"
@@ -116,6 +117,18 @@ interface MockJob {
   submittedAt: number;
 }
 
+/* Lane F1 (QC-200 G2): count cap behind the mock jobs map's 2h TTL.
+ * The TTL bounds a job's LIFETIME, not the map's SIZE — inside any
+ * 2h window the count was whatever the submission rate made it, and
+ * these values are the largest of any job store (a full release
+ * payload each). 1,000 payloads ≲ 10 MB worst case against the
+ * 400 MB heap, and ~4× the most in-flight deliveries the route's
+ * own resume query will re-register (LIMIT 500). Evicting the
+ * oldest is safe: statuses are a pure function of submittedAt, the
+ * DB row owns the durable record, and boot resume re-submits mock
+ * jobs whose payloads were evicted. */
+const MOCK_JOBS_MAX_ENTRIES = 1000;
+
 export class MockAggregatorAdapter implements AggregatorAdapter {
   readonly name = "mock";
   readonly live = false;
@@ -134,6 +147,7 @@ export class MockAggregatorAdapter implements AggregatorAdapter {
   async submitRelease(payload: AggregatorReleasePayload): Promise<AggregatorSubmission> {
     const aggregatorReleaseId = `mock_${payload.clientReleaseId}`;
     this.jobs.set(aggregatorReleaseId, { payload, submittedAt: Date.now() });
+    capMapSize(this.jobs, MOCK_JOBS_MAX_ENTRIES, (j) => j.submittedAt);
     return { aggregatorReleaseId, raw: { sandbox: true } };
   }
 

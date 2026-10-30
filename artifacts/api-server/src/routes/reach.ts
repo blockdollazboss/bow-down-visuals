@@ -28,7 +28,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { protectKey } from "../lib/multistream";
-import { sweepIfLarge } from "../lib/sweep-map";
+import { sweepIfLarge, capMapSize } from "../lib/sweep-map";
 import { attemptFanOut, stopDestinationRelay } from "../lib/fanout";
 import { countViewers } from "./live-streams";
 import { liveChatHub } from "./live-chat";
@@ -539,6 +539,12 @@ router.get("/reach/streams/:id/raid-incoming", publicApiLimiter, async (req: Req
    the client never states seconds. A delta is capped at 30s, so a
    forgotten tab or a lying client can't mint watch time. */
 
+/* Lane F1 (QC-200 G2): session ids are client-supplied (see the
+ * sweep note at the write site), so keys are mintable and all-fresh
+ * floods defeat the age sweep — a hard cap backstops it. Eviction
+ * forgets one viewer's last heartbeat; their next delta is 0, the
+ * same answer a brand-new session gets. 10,000 entries ≈ 1 MB. */
+const WATCH_PACING_MAX_ENTRIES = 10_000;
 const watchLastAt = new Map<string, number>();
 export function __resetWatchTracker(): void {
   watchLastAt.clear();
@@ -601,8 +607,10 @@ router.post("/reach/streams/:id/watch", requireAuth, async (req: Request, res: R
     watchLastAt.set(key, now);
     /* Flag S-4: session ids are client-supplied, so keys are mintable —
        sweep entries idle past 10 minutes (a delta from them would cap
-       at 30s anyway; past that they're indistinguishable from new). */
+       at 30s anyway; past that they're indistinguishable from new).
+       Lane F1: the hard cap behind the sweep, for all-fresh floods. */
     sweepIfLarge(watchLastAt, 5000, 10 * 60_000, now);
+    capMapSize(watchLastAt, WATCH_PACING_MAX_ENTRIES, (t) => t);
 
     let secondsWatched = 0;
     if (delta > 0) {
