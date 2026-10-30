@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "2562262bb9e3672d78ea7544a370e5dfd942b05d",
+  "baseCommit": "cdd59edfa6ab26f1b37db9cac048f27cfd33ee71",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,21 +9,21 @@
   },
   "generatedAt": "2026-10-30",
   "counts": {
-    "routesInApp": 241,
-    "pageFiles": 185,
-    "features": 248,
-    "excludedRoutes": 73,
+    "routesInApp": 245,
+    "pageFiles": 188,
+    "features": 251,
+    "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 216,
+    "pricedActions": 217,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 238,
-    "withoutDescriptions": 10,
-    "serverRouteFiles": 427,
-    "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1036,
+    "withDescriptions": 251,
+    "withoutDescriptions": 0,
+    "serverRouteFiles": 429,
+    "serverEndpoints": 1721,
+    "serverEndpointsVisible": 1045,
     "serverFilesClassified": 101
   },
   "packs": [
@@ -5479,7 +5479,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/winners.tsx DESCRIPTION constant"
     },
     {
       "id": "charts",
@@ -5747,7 +5749,14 @@
         "/api/distribution/releases",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Collab Match Report",
+          "vb": 100,
+          "endpoint": "/api/collabs/match",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Browse creators by niche and audience, get an AI compatibility score before you reach out, and send collab requests — free.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"collabs.subtitle\" (page's own string)",
       "nextSteps": []
@@ -7448,7 +7457,9 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your money home on Bow Down Visuals: track what your songs, videos, beats, and shop sales earn, and watch every payout line up in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/earnings.tsx usePageTitle meta description"
     },
     {
       "id": "email-list",
@@ -7764,7 +7775,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse music by genre — find creators, tracks, and beats in the style you love, gathered in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/genre.tsx usePageTitle meta description"
     },
     {
       "id": "genres",
@@ -7926,6 +7939,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -7935,6 +7949,7 @@
         "/api/live-streams/ingest-key/regenerate",
         "/api/live-streams/ingest-key/reveal",
         "/api/live-streams/ingest-key/revoke",
+        "/api/live-streams/mine",
         "/api/live-streams/status",
         "/api/live/:param/song-requests",
         "/api/live/:param/song-requests/:param",
@@ -8082,6 +8097,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8091,6 +8107,7 @@
         "/api/live-streams/ingest-key/regenerate",
         "/api/live-streams/ingest-key/reveal",
         "/api/live-streams/ingest-key/revoke",
+        "/api/live-streams/mine",
         "/api/live-streams/status",
         "/api/live/:param/song-requests",
         "/api/live/:param/song-requests/:param",
@@ -8172,6 +8189,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8181,6 +8199,7 @@
         "/api/live-streams/ingest-key/regenerate",
         "/api/live-streams/ingest-key/reveal",
         "/api/live-streams/ingest-key/revoke",
+        "/api/live-streams/mine",
         "/api/live-streams/status",
         "/api/live/:param/song-requests",
         "/api/live/:param/song-requests/:param",
@@ -8262,6 +8281,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8271,6 +8291,7 @@
         "/api/live-streams/ingest-key/regenerate",
         "/api/live-streams/ingest-key/reveal",
         "/api/live-streams/ingest-key/revoke",
+        "/api/live-streams/mine",
         "/api/live-streams/status",
         "/api/live/:param/song-requests",
         "/api/live/:param/song-requests/:param",
@@ -8352,7 +8373,9 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your stream remote: pair this screen with your studio and drive scenes, transitions, mic, camera, and recording from your phone.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream-controller.tsx usePageTitle meta description"
     },
     {
       "id": "group--slug",
@@ -8447,7 +8470,7 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/hashtag.tsx usePageTitle meta description"
     },
     {
-      "id": "home",
+      "id": "feed",
       "name": "Feed",
       "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/home",
@@ -10086,6 +10109,51 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
     },
     {
+      "id": "overlay-alerts",
+      "name": "Overlay Alerts Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/alerts",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx",
+      "component": "OverlayAlertsPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: a card pops on the creator's stream the moment a tip lands, a fan follows, or a member joins.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx usePageTitle meta description"
+    },
+    {
+      "id": "overlay-goal",
+      "name": "Overlay Goal Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/goal",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx",
+      "component": "OverlayGoalPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the creator's tip-goal bar for their current stream, filling live as tips land.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx usePageTitle meta description"
+    },
+    {
+      "id": "overlay-now-playing",
+      "name": "Overlay Now Playing Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/now-playing",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx",
+      "component": "OverlayNowPlayingPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the track playing on the creator's stream right now, shown as their studio reports it — title, artist, and progress.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx usePageTitle meta description"
+    },
+    {
       "id": "party",
       "name": "Party Games",
       "nameSource": "app-sidebar.tsx nav label (en.json)",
@@ -10119,7 +10187,9 @@
       "component": "PhotoPresetPage",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A shared photo look from a Bow Down Visuals creator — preview the preset here, then make it your own in the photo editor.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/photo-preset.tsx usePageTitle meta description"
     },
     {
       "id": "pitch-fix",
@@ -10181,7 +10251,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A playlist on Bow Down Visuals — play through a creator's set of videos and episodes in order, right in your browser.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/playlist.tsx DESCRIPTION constant"
     },
     {
       "id": "post--id",
@@ -10443,6 +10515,13 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/drop-day-kits",
+        "/api/drop-day-kits/:param/status",
+        "/api/drop-day-kits/mine",
+        "/api/embed/mine",
+        "/api/overlay/me",
+        "/api/overlay/test-alert",
+        "/api/overlay/token/reset",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -11096,7 +11175,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Search Bow Down Visuals — find creators, songs, videos, beats, and storefronts from one box.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/search.tsx usePageTitle meta description"
     },
     {
       "id": "setlist",
@@ -11846,7 +11927,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Build your storefront: lay out your shop, arrange your products, and make your corner of Bow Down Visuals unmistakably yours.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-builder.tsx usePageTitle meta description"
     },
     {
       "id": "sync-one-sheet--token",
@@ -12046,6 +12129,9 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
+        "/api/showcase-items/:param/duel",
+        "/api/showcase-items/:param/duel/cancel",
+        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12207,6 +12293,9 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
+        "/api/showcase-items/:param/duel",
+        "/api/showcase-items/:param/duel/cancel",
+        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12387,6 +12476,9 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
+        "/api/showcase-items/:param/duel",
+        "/api/showcase-items/:param/duel/cancel",
+        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12573,6 +12665,9 @@
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/remove-background",
+        "/api/showcase-items/:param/duel",
+        "/api/showcase-items/:param/duel/cancel",
+        "/api/showcase/mine",
         "/api/showcase/publish",
         "/api/social-kit",
         "/api/thumbnail-ab",
@@ -12987,7 +13082,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Made for your kind of creator — see the tools, desks, and workflows Bow Down Visuals shapes around your craft.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/vertical.tsx usePageTitle meta description"
     },
     {
       "id": "video-editor",
@@ -16205,7 +16302,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/winners.tsx DESCRIPTION constant"
     },
     {
       "id": "world",
@@ -16254,6 +16353,8 @@
         "/api/world/locks/door/unlock",
         "/api/world/locks/person/lock",
         "/api/world/locks/person/unlock",
+        "/api/world/room-invites/candidates",
+        "/api/world/room-invites/mine",
         "/api/world/screen",
         "/api/world/screen-catalog",
         "/api/world/tutorial",
@@ -16367,6 +16468,11 @@
       "kind": "route",
       "key": "/shows",
       "reason": "Redirect to /go-live?tab=shows — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/presave",
+      "reason": "Redirect to /distribute — the target carries the knowledge entry."
     },
     {
       "kind": "route",
@@ -17334,8 +17440,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/drop-day-kits.ts",
-        "endpoints": 3,
-        "visible": 3,
+        "endpoints": 4,
+        "visible": 4,
         "unseen": []
       },
       {
@@ -17360,20 +17466,20 @@
       },
       {
         "file": "artifacts/api-server/src/routes/embed.ts",
-        "endpoints": 6,
-        "visible": 0,
+        "endpoints": 11,
+        "visible": 1,
         "unseen": [
+          "/api/embed/latest/:slug",
+          "/api/embed/live/:slug",
           "/api/embed/playlist/:id",
+          "/api/embed/product/:id",
           "/api/embed/profile/:slug",
           "/api/embed/refcode/:slug",
+          "/api/embed/tips/:handle",
           "/api/embed/track/:id",
           "/api/embed/video/:id",
           "/api/oembed"
-        ],
-        "classification": {
-          "surface": "plumbing",
-          "reason": "Public embed + oEmbed rails (plus the twin page router's chrome-less embed pages): consumed by other sites, not a member surface."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/embedded-checkout.ts",
@@ -19533,13 +19639,12 @@
       {
         "file": "artifacts/api-server/src/routes/live-streams.ts",
         "endpoints": 16,
-        "visible": 10,
+        "visible": 11,
         "unseen": [
           "/api/live-streams",
           "/api/live-streams/:id/class-roster",
           "/api/live-streams/:id/hls/:file",
           "/api/live-streams/:id/ingest/segment",
-          "/api/live-streams/mine",
           "/api/live-streams/profile/:slug"
         ]
       },
@@ -19676,6 +19781,19 @@
         "endpoints": 7,
         "visible": 7,
         "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/now-playing.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/now-playing",
+          "/api/overlay/now-playing"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Now-playing rails (report / clear / token read) — the Go Live studio reports the track on its program and the /overlay/now-playing browser source reads it by overlay token (the C2 overlay family's feed); the calls ride the studio and overlay surfaces past the scan's one hop, so no feature entry carries these endpoints."
+        }
       },
       {
         "file": "artifacts/api-server/src/routes/open-verse.ts",
@@ -20130,8 +20248,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/showcase.ts",
-        "endpoints": 5,
-        "visible": 1,
+        "endpoints": 6,
+        "visible": 2,
         "unseen": [
           "/api/showcase",
           "/api/showcase/:id",
@@ -20283,6 +20401,14 @@
           "surface": "creator-tools",
           "reason": "Storyboard planner CRUD (boards + panels) — the member's video-plan store behind the editor's planning surface; no page of its own."
         }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/stream-overlays.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/overlay/state"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/stripe-connect.ts",
@@ -20683,12 +20809,15 @@
       },
       {
         "file": "artifacts/api-server/src/routes/world.ts",
-        "endpoints": 14,
-        "visible": 11,
+        "endpoints": 19,
+        "visible": 13,
         "unseen": [
           "/api/world/creator-rooms/:slug",
           "/api/world/creator-rooms/:slug/dressing",
-          "/api/world/my-music"
+          "/api/world/creator-rooms/:slug/invites",
+          "/api/world/my-music",
+          "/api/world/room-invites/:id/accept",
+          "/api/world/room-invites/:id/decline"
         ]
       }
     ]

@@ -2419,7 +2419,14 @@ function main() {
     }
 
     const entry = {
-      id: (basePath === "/" ? "home" : basePath.replace(/^\//, "").replace(/[/:]/g, "-")) + (route.path.includes("?") ? "-" + route.path.split("?")[1].replace(/[^a-z0-9]+/gi, "-") : ""),
+      /* Feature ids derive from the path — with one composed exception
+         (stack900 join, K4 flag): the members' Feed lives at /home,
+         whose slug would collide with the public Home page's special
+         "home" id for "/". The Feed's id is "feed" (its own name, its
+         own page file) so every feature id is unique; consumers match
+         on name + path as well, so nothing that keyed on the old
+         duplicate loses its footing. */
+      id: (basePath === "/" ? "home" : basePath === "/home" ? "feed" : basePath.replace(/^\//, "").replace(/[/:]/g, "-")) + (route.path.includes("?") ? "-" + route.path.split("?")[1].replace(/[^a-z0-9]+/gi, "-") : ""),
       name,
       nameSource,
       path: route.path,
