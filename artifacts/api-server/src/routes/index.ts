@@ -689,8 +689,8 @@ router.use(groupDigestRouter);           // /api/group-digest-prefs (per-group a
 router.use(viralSpikeRouter);            // /api/viral-spike-prefs + /api/viral-spike-kits (viral-spike response kit, orphan wave)
 router.use(secondLifeRouter);            // /api/second-life/* (Second Life revival queue + watch switch, UPGRADE #161)
 router.use(trendRadarRouter);            // /api/trend-radar (real-signal trend feed, UPGRADE #178)
-router.use(dropDayKitsRouter);
-router.use(globalDropRouter);           // /api/drop-day-kits (one-tap release kit assembly, UPGRADE #169)
+router.use(dropDayKitsRouter);           // /api/drop-day-kits (one-tap release kit assembly, UPGRADE #169)
+router.use(globalDropRouter);            // /api/global-drop (five-language release package, UPGRADE #165)
 router.use(livePrefsRouter);             // /api/live-prefs (live automation switches, UPGRADE #172/#166)
 router.use(liveHighlightsRouter);        // /api/live-streams/:id/highlights (Auto-Highlights proposals, UPGRADE #172)
 router.use(liveStageManagerRouter);       // /api/live-streams/:id/stage-manager (co-host state/mute/unpin, UPGRADE #166)
