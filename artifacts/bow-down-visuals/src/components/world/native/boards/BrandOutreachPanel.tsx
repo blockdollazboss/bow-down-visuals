@@ -278,7 +278,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
           data-testid="world-outreach-submit"
           onClick={() => void submitOutreach()}
           disabled={!outreachPayload || drafting}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target"
         >
           <Sparkles className="h-3.5 w-3.5" />
           {drafting ? "Drafting…" : `Draft my pitch — ${BRAND_OUTREACH_COST_VB} Visual Bucs`}
@@ -406,7 +406,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
           data-testid="world-brief-submit"
           onClick={() => void submitBrief()}
           disabled={!briefPayload || posting}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target"
         >
           <Send className="h-3.5 w-3.5" />
           {posting ? "Posting…" : "Post the brief"}

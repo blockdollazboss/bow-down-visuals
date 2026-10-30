@@ -189,7 +189,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
                 data-testid={`world-pack-buy-${pack.key}`}
                 onClick={() => void buy(pack)}
                 disabled={busyKey !== null}
-                className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
               >
                 {busyKey === pack.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
                 {busyKey === pack.key ? "Processing…" : CHECKOUT_TRANSFER_LABEL}

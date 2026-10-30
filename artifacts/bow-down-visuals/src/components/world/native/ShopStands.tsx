@@ -1938,7 +1938,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                             <button type="button" onClick={() => setRugLogo(null)} className={chipBtn(isLight)}>Change</button>
                           </p>
                         ) : (
-                          <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#d4af37]/50 px-3 py-2 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                          <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#d4af37]/50 px-3 py-2 text-xs font-bold bdv-touch-target ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                             <Upload className="h-3.5 w-3.5" />
                             {rugUploading ? "Uploading your logo…" : "Upload your logo for the rug"}
                             <input type="file" accept="image/*" className="hidden" disabled={rugUploading} onChange={(e) => void uploadLogo(e.target.files?.[0])} />
