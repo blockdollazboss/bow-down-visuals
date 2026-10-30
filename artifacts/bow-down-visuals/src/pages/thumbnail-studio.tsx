@@ -38,6 +38,8 @@ import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { RasterVectorExportNote } from "@/components/VectorExport";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import { ThumbnailDuelDesk } from "@/components/player-upgrades/ThumbnailDuelDesk";
+import { mergeCandidateCovers } from "@/lib/thumbnail-duels";
 import { CostBadge } from "@/components/CostBadge";
 import { CreatorFontPicker } from "@/components/CreatorFontPicker";
 
@@ -649,6 +651,15 @@ export function ThumbnailMakerModule() {
 
   const selectedImage = images.find((i) => i.variation === selected) ?? images[0] ?? null;
 
+  /* #174: covers made in this session are the duel desk's candidate
+     challengers — the AI-picked winner first, then the A/B variants,
+     then everything generated here. Deduped by URL in the helper. */
+  const duelCandidates = mergeCandidateCovers(
+    winnerUrl ? [{ url: winnerUrl, label: "AI test winner" }] : [],
+    abVariants.map((v) => ({ url: v.url, label: v.label })),
+    images.map((img) => ({ url: img.url, label: `Generated cover ${img.variation}` })),
+  );
+
   return (
     <>
       <ProjectFlowBar
@@ -1118,6 +1129,11 @@ export function ThumbnailMakerModule() {
             </div>
           </div>
         )}
+      {/* #174 Thumbnail Duels — the real-count counterpart to the AI
+          test above: covers made here fight on the published video. */}
+      <div className="mt-8">
+        <ThumbnailDuelDesk candidateCovers={duelCandidates} />
+      </div>
       {/* Lightbox */}
       {lightbox && (
         <div
