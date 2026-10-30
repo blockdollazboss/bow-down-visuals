@@ -210,8 +210,8 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
     express.static(frontendDist, {
       setHeaders: (res, filePath) => {
         /* Policy lives in lib/cache-policy.ts (index.html revalidates;
-           hashed assets AND the version-pinned /engines/* files are
-           immutable for a year). */
+           hashed assets and the /engines/* heavy binaries are
+           immutable for a year; engine script glue never is). */
         const cc = cacheControlForFile(filePath);
         if (cc) res.setHeader("Cache-Control", cc);
       },
