@@ -632,7 +632,7 @@ function OfficeHoursBlock({
     }
   }
 
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]"
       : "border-[#d4af37]/25 bg-white/5 text-white"
@@ -1422,7 +1422,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
 
   const mutedCls = isLight ? "text-[#6B5B36]" : "text-white/55";
   const cardCls = isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/25 bg-white/5";
-  const chipCls = `inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`;
+  const chipCls = `inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`;
 
   return (
     <div className="space-y-2">
@@ -1564,7 +1564,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                     onChange={(e) => setBuyerEmail(e.target.value)}
                     type="email"
                     placeholder="Email for your receipt (optional)"
-                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                   />
                   {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}
                   <button type="button" data-testid="world-room-store-checkout" onClick={() => void checkoutCart()} disabled={placing} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">

@@ -57,7 +57,7 @@ import type { ShelfPlayerController } from "./ShelfPlayer";
    as it is for the desk's benches. */
 
 const tabChip = (isLight: boolean, active: boolean) =>
-  `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     active
       ? "border-[#d4af37] bg-[#d4af37] text-black"
       : isLight
@@ -65,7 +65,7 @@ const tabChip = (isLight: boolean, active: boolean) =>
         : "border-white/15 text-white/75 hover:text-white"
   }`;
 const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 const chipBtn =
   "inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white/75 transition hover:text-white disabled:opacity-50";
 const chipBtnFor = (isLight: boolean) =>

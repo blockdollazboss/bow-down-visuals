@@ -53,7 +53,7 @@ import {
    and the panel says so rather than implying a purse. */
 
 const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]"
       : "border-white/10 bg-white/5 text-white"
@@ -62,7 +62,7 @@ const inputCls = (isLight: boolean) =>
 const goldBtn =
   "rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100";
 const ghostBtn = (isLight: boolean) =>
-  `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/75 hover:text-white"

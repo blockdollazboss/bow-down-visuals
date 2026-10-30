@@ -98,7 +98,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60" : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 

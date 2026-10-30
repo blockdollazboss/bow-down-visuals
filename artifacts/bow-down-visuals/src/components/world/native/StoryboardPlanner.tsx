@@ -381,10 +381,10 @@ export function StoryboardPlanner(props: {
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
-  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
-  const inputCls = `w-full rounded-lg border px-2 py-1.5 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`;
+  const inputCls = `w-full rounded-lg border px-2 py-1.5 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`;
   const frameCost = artistImageCost(DEFAULT_ARTIST_IMAGE_MODEL);
 
   return (
@@ -515,7 +515,7 @@ export function StoryboardPlanner(props: {
             <button type="button" data-testid="world-storyboard-add-panel" onClick={() => void addPanel()} disabled={busy !== null} className={chipCls}>
               {busy === "add-panel" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add a panel
             </button>
-            <button type="button" data-testid="world-storyboard-handoff" onClick={() => void handoff()} disabled={busy !== null || props.editorBusy || board.panels.length === 0} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+            <button type="button" data-testid="world-storyboard-handoff" onClick={() => void handoff()} disabled={busy !== null || props.editorBusy || board.panels.length === 0} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
               {props.onSendToEditor ? "Use in a video — save + open in the editor" : "Use in a video — save as a project"}
             </button>
             {savedProject ? (

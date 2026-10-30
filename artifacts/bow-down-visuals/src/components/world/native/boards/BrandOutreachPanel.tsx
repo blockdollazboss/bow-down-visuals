@@ -50,7 +50,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]"
       : "border-white/10 bg-white/5 text-white"
@@ -306,7 +306,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
                 type="button"
                 data-testid="world-outreach-copy"
                 onClick={() => void copyDraft()}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                   isLight
                     ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                     : "border-white/15 text-white/75 hover:text-white"

@@ -152,14 +152,14 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const goldBtn =
-    "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50";
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+    "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
   const optBtn = (active: boolean) =>
-    `rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
+    `rounded-xl border px-3 py-2 text-left text-sm font-semibold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37]/15 " + strong
         : isLight

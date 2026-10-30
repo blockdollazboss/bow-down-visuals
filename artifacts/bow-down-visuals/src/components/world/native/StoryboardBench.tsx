@@ -290,7 +290,7 @@ export function StoryboardBench(props: {
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
-  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
 
@@ -376,7 +376,7 @@ export function StoryboardBench(props: {
               {scene.demoClipUrl ? <video src={scene.demoClipUrl} controls playsInline className="mt-2 max-h-[200px] w-full rounded-lg" /> : null}
             </div>
           ))}
-          <button type="button" data-testid="world-storyboard-save" onClick={() => void saveProject()} disabled={busy !== null || props.editorBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+          <button type="button" data-testid="world-storyboard-save" onClick={() => void saveProject()} disabled={busy !== null || props.editorBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {props.onSendToEditor ? "Save + open in the editor" : "Save as a project"}
           </button>
           {savedProject ? <p className={`text-xs font-semibold ${muted}`}>Saved — the editor step-through opens on this storyboard.</p> : null}

@@ -467,7 +467,7 @@ export function SongDesk(props: CreateDeskProps) {
   });
 
   const songTabBtn = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+    `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37] text-black"
         : isLight
@@ -568,7 +568,7 @@ export function SongDesk(props: CreateDeskProps) {
                     type="button"
                     data-testid="world-song-finisher-cover"
                     onClick={() => setCoverOpen(true)}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                       isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
                     }`}
                   >
@@ -579,7 +579,7 @@ export function SongDesk(props: CreateDeskProps) {
                       type="button"
                       data-testid="world-song-finisher-lrc"
                       onClick={() => setLrcOpen(true)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                         isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
                       }`}
                     >
@@ -885,7 +885,7 @@ function SongVideoWizard(props: {
 
   const lyrics = transcript.trim();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
-  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+  const chipCls = `inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
 
@@ -1142,7 +1142,7 @@ function SongVideoWizard(props: {
             <button type="button" data-testid="world-song-video-apply-plan" onClick={() => void applyPlan()} disabled={busy !== null} className={chipCls}>
               {busy === "plan" ? "Applying…" : planApplied ? "Auto-edit plan applied ✓" : `Apply the auto-edit plan · ${aiEditPlanCost().toLocaleString("en-US")} Visual Bucs`}
             </button>
-            <button type="button" data-testid="world-song-video-save" onClick={() => void savePackage()} disabled={busy !== null} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+            <button type="button" data-testid="world-song-video-save" onClick={() => void savePackage()} disabled={busy !== null} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
               {busy === "save" ? "Saving…" : "Save the finished package"}
             </button>
             {props.onSendToEditor ? (
@@ -1288,7 +1288,7 @@ export function VideoDesk(props: CreateDeskProps) {
             data-testid="world-create-video-plan"
             onClick={runPlan}
             disabled={planState === "running" || !prompt.trim()}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
               isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
             }`}
           >
@@ -1606,7 +1606,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                 setStyle(preset.style);
                 setPrompt(preset.mood);
               }}
-              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                 style === preset.style
                   ? "border-[#d4af37] bg-[#d4af37] text-black"
                   : isLight
@@ -1659,7 +1659,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
             data-testid="world-create-artist-image-run"
             onClick={runArtistImage}
             disabled={imageState === "running" || !imagePrompt.trim()}
-            className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
           >
             {imageState === "running" ? "Making it…" : `Make the image · ${artistImageCost(imageModel).toLocaleString("en-US")} Visual Bucs`}
           </button>
@@ -1689,7 +1689,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                   data-testid="world-create-cover-motion"
                   onClick={runMotion}
                   disabled={motionState === "running"}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target disabled:opacity-50 ${
                     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
                   }`}
                 >
@@ -1735,7 +1735,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                 }}
               />
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button type="button" data-testid="world-cover-share" onClick={() => void shareCover()} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
+                <button type="button" data-testid="world-cover-share" onClick={() => void shareCover()} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
                   Share this cover
                 </button>
                 {showcaseSlug ? (
@@ -1743,7 +1743,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                     Live on the showcase — view it
                   </a>
                 ) : (
-                  <button type="button" data-testid="world-cover-showcase" onClick={() => void publishToShowcase()} disabled={showcaseBusy} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                  <button type="button" data-testid="world-cover-showcase" onClick={() => void publishToShowcase()} disabled={showcaseBusy} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                     {showcaseBusy ? "Publishing…" : "Publish to the showcase · Free"}
                   </button>
                 )}

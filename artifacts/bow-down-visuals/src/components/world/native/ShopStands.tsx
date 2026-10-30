@@ -119,19 +119,19 @@ function openCheckoutTab(url: string) {
 }
 
 function goldBtn(disabled = false) {
-  return `inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 ${disabled ? "opacity-50 hover:scale-100" : ""}`;
+  return `inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target ${disabled ? "opacity-50 hover:scale-100" : ""}`;
 }
 function chipBtn(isLight: boolean) {
-  return `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  return `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
 }
 function standTabBtn(isLight: boolean, active: boolean) {
-  if (active) return "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-black text-black transition";
+  if (active) return "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-black text-black transition bdv-touch-target";
   return chipBtn(isLight);
 }
 function inputCls(isLight: boolean) {
-  return `w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+  return `w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60 focus:border-[#7A5A12]"
       : "border-white/15 bg-black/50 text-white placeholder:text-white/30 focus:border-[#d4af37]/60"
@@ -451,7 +451,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                     type="button"
                     data-testid="world-shop-add-to-cart"
                     onClick={() => setCart((c) => addToCartLines(c, p.id))}
-                    className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                    className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                   >
                     <Plus className="h-3.5 w-3.5" /> Add to cart
                   </button>
@@ -489,10 +489,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{l.product.name}</span>
                 <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty)}</span>
                 <span className="inline-flex items-center gap-1.5">
-                  <button type="button" aria-label="One less" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={chipBtn(isLight)}><Minus className="h-3 w-3" /></button>
+                  <button type="button" aria-label="One less" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Minus className="h-3 w-3" /></button>
                   <span className="w-5 text-center text-sm font-bold">{l.qty}</span>
-                  <button type="button" aria-label="One more" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={chipBtn(isLight)}><Plus className="h-3 w-3" /></button>
-                  <button type="button" aria-label="Remove from cart" onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={chipBtn(isLight)}><Trash2 className="h-3 w-3" /></button>
+                  <button type="button" aria-label="One more" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Plus className="h-3 w-3" /></button>
+                  <button type="button" aria-label="Remove from cart" onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={`${chipBtn(isLight)} bdv-touch-box`}><Trash2 className="h-3 w-3" /></button>
                 </span>
               </div>
             ))}
@@ -600,7 +600,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 <span className={`text-xs font-semibold ${muted(isLight)}`}>
                   {s.product_count} {s.product_count === 1 ? "product" : "products"}
                 </span>
-                <button type="button" data-testid="world-shop-open-stand" onClick={() => void openStand(s.handle)} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105">
+                <button type="button" data-testid="world-shop-open-stand" onClick={() => void openStand(s.handle)} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target">
                   Visit the stand
                 </button>
               </div>
@@ -1241,7 +1241,7 @@ function StandManager({
                     data-testid="world-shop-manage-delete-confirm"
                     onClick={() => void deleteProduct(p)}
                     disabled={deletingId === p.id}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                   >
                     {deletingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Remove it
                   </button>
@@ -1439,7 +1439,7 @@ function StandManager({
                   data-testid="world-shop-settings-delete-confirm"
                   onClick={() => void deleteShop()}
                   disabled={deletingShop}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   {deletingShop ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Close it
                 </button>
@@ -1950,7 +1950,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                       type="button"
                       data-testid="world-branding-add-to-cart"
                       onClick={() => addToCart(p.key)}
-                      className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                      className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
                       <ShoppingCart className="h-3.5 w-3.5" /> Add to cart
                     </button>
