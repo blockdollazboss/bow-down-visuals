@@ -133,7 +133,12 @@ describe("World — guest voice chip + gamepad help scoping", () => {
     expect(pad).toContain(
       'padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at',
     );
-    expect(pad).toContain('padWord(padProfile, "rightMenu")} frames a photo.');
+    /* stack900 join composition: B8 gave the menu button its dual
+       job — the line now reads "opens these settings (hold it to
+       frame a photo)" (tap = settings is the owner's Options-button
+       law; the photo job survives on the hold). The guest scoping
+       above is untouched. */
+    expect(pad).toContain('padWord(padProfile, "rightMenu")} opens these settings (hold it to frame a photo).');
     /* The action-performing claims are member-scoped too (the
        world-actions expansion): a guest's pad performs nothing,
        so the line never advertises performing to one. The D-pad

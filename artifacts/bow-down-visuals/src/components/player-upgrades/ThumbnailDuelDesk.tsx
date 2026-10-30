@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -158,7 +159,7 @@ function DuelVideoCard({
     try {
       const res = await authFetch(path, init);
       const data = await res?.json().catch(() => ({}));
-      if (!res || !res.ok) throw new Error(data?.error || "Something went wrong.");
+      if (!res || !res.ok) throw new Error(apiErrorMessage(data, "Something went wrong."));
       if (data?.duel) {
         setDuel(data.duel);
         if (data.results) setResults(data.results);

@@ -436,7 +436,7 @@ function CreatorRoomInvitesBlock({
       );
       setTick((n) => n + 1);
     } catch (err) {
-      setAnswerError(err instanceof Error ? err.message : "Couldn't answer that invite. Try again.");
+      setAnswerError(plainErrorText(err, "Couldn't answer that invite. Try again."));
     } finally {
       setAnsweringId(null);
     }
@@ -451,7 +451,7 @@ function CreatorRoomInvitesBlock({
       await sendRoomInvite(mySlug, candidate.userId, token);
       setSentIds((prev) => new Set(prev).add(candidate.userId));
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : "Couldn't send that invite. Try again.");
+      setSendError(plainErrorText(err, "Couldn't send that invite. Try again."));
     } finally {
       setSendingId(null);
     }

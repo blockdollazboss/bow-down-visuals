@@ -239,6 +239,7 @@ export function WidgetsDeskPanel() {
               </label>
               <select
                 value={product?.id ?? ""}
+                aria-label={t("promote.widgets.pickProduct", { defaultValue: "Which item?" })}
                 onChange={(e) => setProductId(e.target.value)}
                 className="mt-2 w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/60"
               >

@@ -15,13 +15,14 @@ import {
  * of the bound, not at the next poll. A 401 marks the token dead
  * (it was reset) and the page goes quiet instead of spinning.
  *
- * JOIN NOTE (stack900): lane C2's overlay socket gains a
- * { type: "now-playing" } frame at the join (the seam C2's report
- * names); when it does, this hook folds into C2's useOverlayFeed —
- * the poll stays as the fallback, the socket becomes the fast path.
- * The transparent-stage hook is C2's own export
- * (@/lib/use-overlay-feed) since the join — this lane's deliberate
- * copy was deduped away there, per its note.
+ * JOIN NOTE (stack900, as joined): the optional socket fast-path
+ * seam (a { type: "now-playing" } frame on C2's overlay socket) was
+ * NOT taken at the join — this hook stays poll-only, which the page
+ * copy already states honestly (≤5 s stale). If a future lane adds
+ * the frame, this hook folds into C2's useOverlayFeed then. The
+ * transparent-stage hook is C2's own export (@/lib/use-overlay-feed)
+ * since the join — this lane's deliberate copy was deduped away
+ * there, per its note.
  */
 export interface NowPlayingFeed {
   nowPlaying: NowPlayingData | null;

@@ -29,7 +29,10 @@ describe("virtual keyboard wiring — pad arbitration", () => {
   });
 
   it("the scene stands down for the board through the same derivation", () => {
-    expect(page).toContain("hostPanelOpen || vkbdOpen;");
+    /* stack900 join composition: B6/B7 widened the same one-line
+       derivation (the map and the settings panel hold the scene too);
+       vkbdOpen still stands the scene down through it. */
+    expect(page).toContain("hostPanelOpen || vkbdOpen || padMapOpen;");
     expect(page).toContain("const [vkbdOpen, setVkbdOpen] = useState(false);");
   });
 

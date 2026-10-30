@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import {
   Package, Loader2, Check, Circle, ArrowRight, AlertTriangle, ChevronDown,
 } from "lucide-react";
+import { apiErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-handoff";
@@ -120,7 +121,7 @@ export function DropDayPanel() {
             body: JSON.stringify({ status: "active" }),
           });
       const d = (await res.json().catch(() => null)) as KitViewWire | { error?: string } | null;
-      if (!res.ok) throw new Error((d as { error?: string } | null)?.error ?? "That didn't work");
+      if (!res.ok) throw new Error(apiErrorMessage(d, "That didn't work"));
       const view = d as KitViewWire;
       setEntries((prev) => (prev ?? []).map((e) => (e.release.id === releaseId ? { ...e, kit: view } : e)));
       setNotice({

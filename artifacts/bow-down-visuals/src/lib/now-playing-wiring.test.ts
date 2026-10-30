@@ -22,6 +22,12 @@ const read = (...parts: string[]) => readFileSync(join(root, ...parts), "utf8");
 const appSrc = read("App.tsx");
 const pageSrc = read("pages", "overlay-now-playing.tsx");
 const feedSrc = read("lib", "use-now-playing-feed.ts");
+/* stack900 join composition: the transparent-stage hook was deduped
+   to C2's canonical copy in use-overlay-feed.ts (D3's duplicate was
+   deleted); the transparency pins below read it at its joined home,
+   and the page-side pin above ("useTransparentStage()") plus the
+   import assertion in the feed describe keep the wiring honest. */
+const stageSrc = read("lib", "use-overlay-feed.ts");
 const cardSrc = read("components", "overlay", "NowPlayingCard.tsx");
 const studioSrc = read("components", "go-live", "BroadcastStudio.tsx");
 const reporterSrc = read("lib", "go-live", "now-playing-reporter.ts");
@@ -49,10 +55,13 @@ describe("chromeless routing", () => {
 
 describe("the feed", () => {
   it("makes the document transparent while mounted and restores it after", () => {
-    expect(feedSrc).toContain('root.style.background = "transparent"');
-    expect(feedSrc).toContain('body.style.background = "transparent"');
-    expect(feedSrc).toContain("root.style.background = prev.rootBackground");
-    expect(feedSrc).toContain("body.style.background = prev.bodyBackground");
+    expect(stageSrc).toContain('root.style.background = "transparent"');
+    expect(stageSrc).toContain('body.style.background = "transparent"');
+    expect(stageSrc).toContain("root.style.background = prev.rootBackground");
+    expect(stageSrc).toContain("body.style.background = prev.bodyBackground");
+    // The feed hook itself is poll-only at the join (the optional
+    // socket fast-path seam was not taken — see the manifest).
+    expect(feedSrc).not.toContain("useTransparentStage");
   });
 
   it("polls the token read and goes quiet on a dead token", () => {

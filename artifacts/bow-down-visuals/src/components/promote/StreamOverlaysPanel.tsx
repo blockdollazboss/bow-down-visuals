@@ -194,7 +194,7 @@ export function StreamOverlaysPanel() {
       </div>
       <p className={`mt-1 text-sm font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
         Copy the link, paste it into your streaming app as a browser source, and your tips and
-        fans — and the song you&rsquo;re playing — show up live on screen.
+        fans show up live on screen. The song you&rsquo;re playing shows there too.
       </p>
 
       {!user ? (
