@@ -106,6 +106,16 @@ export function __resetGuestPacing(): void {
   joinAttempts.clear();
   mintAttempts.clear();
 }
+/** Test seam (Lane F1 store-eviction audit): the pacing maps and
+ *  their two drivers, so a test can flood fresh keys and measure
+ *  the maps directly instead of guessing at growth through HTTP. */
+export const __guestPacingForTest = {
+  lastPostAt,
+  joinAttempts,
+  mintAttempts,
+  windowHit,
+  postTooSoon,
+};
 function windowHit(map: Map<string, number[]>, key: string, windowMs: number, max: number, now: number): boolean {
   const hits = (map.get(key) ?? []).filter((t) => now - t < windowMs);
   if (hits.length >= max) {
