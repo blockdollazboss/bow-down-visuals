@@ -21,6 +21,11 @@ import { describe, expect, it } from "vitest";
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const profileSections = read("../components/artist/profile-sections.tsx");
 const worldSource = read("../pages/world.tsx");
+/* The pad help line's home since stack900 (world settings): the
+   World Settings panel's Help section — the footer strip it used
+   to ride was retired for one settings door. Its guest scoping
+   is pinned here, in its new file, unchanged. */
+const settingsPanelSource = read("../components/world/WorldSettingsPanel.tsx");
 const earningsSource = read("../pages/earnings.tsx");
 const earningsDataSource = read("./earnings-data.ts");
 
@@ -116,7 +121,7 @@ describe("World — guest voice chip + gamepad help scoping", () => {
   });
 
   it("the gamepad voice step is scoped to members; the rest of the help line stays", () => {
-    const pad = segment(worldSource, 'data-testid="world-pad-line"', "</p>");
+    const pad = segment(settingsPanelSource, 'data-testid="world-pad-line"', "</p>");
     /* The button words resolve through the controller profile
        since stack900 — the line names the pad in hand (Cross /
        L1 / Create on a DualSense; A / LB / View on Xbox). The
@@ -141,9 +146,10 @@ describe("World — guest voice chip + gamepad help scoping", () => {
     expect(pad.indexOf("D-pad and face buttons perform the")).toBeGreaterThan(
       pad.indexOf("{!isGuest && <>"),
     );
-    /* The voice step is advertised exactly once in the page — inside
+    /* The voice step is advertised exactly once across the page
+       and the settings panel that now carries the line — inside
        that member-only conditional. */
-    expect(worldSource.split("steps voice").length - 1).toBe(1);
+    expect((worldSource + settingsPanelSource).split("steps voice").length - 1).toBe(1);
   });
 });
 

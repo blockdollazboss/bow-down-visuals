@@ -417,7 +417,11 @@ describe("the wiring — page, scene and panels read the one profile", () => {
     expect(page).not.toContain("Back switches the action page");
     expect(page).not.toContain("hold Back for full");
     /* The two kbd chips at the prompts render the profile's
-       interact word (L1 on the owner's pad). */
-    expect(page.split('padWord(padProfile, "leftBumper")').length - 1).toBeGreaterThanOrEqual(3);
+       interact word (L1 on the owner's pad) — and so does the
+       help line, which moved out of the page's footer into the
+       World Settings panel (stack900, world settings): the
+       count spans both files that render pad prompts. */
+    const panel = read("../../components/world/WorldSettingsPanel.tsx");
+    expect((page + panel).split('padWord(padProfile, "leftBumper")').length - 1).toBeGreaterThanOrEqual(3);
   });
 });
