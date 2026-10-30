@@ -37,6 +37,12 @@ export interface SiteFeature {
   key: string;
   name: string;
   tagline: string;
+  /** Alias words the /features search matches beyond name + tagline —
+      the registry twin of the sidebar's searchTerms (search-truth,
+      Stack1000 N5): the plain words a newcomer types for this feature
+      ("get paid", "sell beats", "now playing") that its real name
+      doesn't happen to contain. English, lowercase. */
+  keywords?: string;
   route: string;
   category: FeatureCategory;
   /** Display price, e.g. "1 credit", "1.5 credits/sec", "Free". */

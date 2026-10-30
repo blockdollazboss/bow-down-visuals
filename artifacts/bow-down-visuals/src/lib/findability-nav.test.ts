@@ -177,15 +177,25 @@ describe("findability — the doors are hung in their home sections", () => {
   });
 
   it("the sidebar search filters on the rendered (real-name) labels", () => {
-    expect(sidebar).toContain("t(link.labelKey).toLowerCase().includes(q)");
+    /* Deliberate pin correction (search-truth, Stack1000 lane N5): the
+       filter no longer matches the whole typed string as one substring
+       of the label — it runs the shared plain-words matcher over a
+       haystack that STARTS with the rendered real-name label, so the
+       label stays the primary thing searched (this pin's intent) while
+       multi-word queries ("get paid") can land at all. */
+    expect(sidebar).toContain("matchesQuery(");
+    expect(sidebar).toContain("${t(link.labelKey)} ${link.searchTerms ?? \"\"} ${link.href}");
   });
 
   it("the sidebar search also matches alias terms and routes (Stack-200 lane 1)", () => {
     /* The label alone can't find "stream" (Go Live), "logo" (Branding
        Kit) or an English alias typed in a non-English locale — the
-       per-link searchTerms carry those words and the filter reads them. */
-    expect(sidebar).toContain('(link.searchTerms ?? "").toLowerCase().includes(q)');
-    expect(sidebar).toContain("link.href.toLowerCase().includes(q)");
+       per-link searchTerms carry those words and the filter reads them.
+       Pin correction (Stack1000 N5): the three fields are now composed
+       into ONE haystack string for the plain-words matcher instead of
+       three separate whole-string includes() checks — the alias words
+       below are still the words that make each door findable. */
+    expect(sidebar).toContain("${t(link.labelKey)} ${link.searchTerms ?? \"\"} ${link.href}");
     const aliasPins: Array<[string, string]> = [
       ["/go-live", "stream"],
       ["/go-live", "live"],

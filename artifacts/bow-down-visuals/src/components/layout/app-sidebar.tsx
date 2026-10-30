@@ -121,6 +121,7 @@ import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import { ThemedLogo } from "@/components/ThemedLogo";
 import { SHORTS_NAV_ENTRY } from "@/lib/shorts-navigation";
+import { matchesQuery } from "@/lib/search-match";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -585,15 +586,17 @@ export function AppSidebar() {
               /* Search matches the rendered real-name label PLUS the
                  link's alias terms and its route (findability closure,
                  Stack-200 lane 1) — "stream", "logo", "projects" and
-                 English aliases in any locale all land on their door. */
-              links: section.links.filter((link) => {
-                const q = searchQuery.trim().toLowerCase();
-                return (
-                  t(link.labelKey).toLowerCase().includes(q) ||
-                  (link.searchTerms ?? "").toLowerCase().includes(q) ||
-                  link.href.toLowerCase().includes(q)
-                );
-              }),
+                 English aliases in any locale all land on their door.
+                 Matching is plain-words (search-truth, Stack1000 N5):
+                 every meaningful word of the query must appear in that
+                 haystack, so "get paid" and "book a show" land too —
+                 single words match exactly as they always did. */
+              links: section.links.filter((link) =>
+                matchesQuery(
+                  `${t(link.labelKey)} ${link.searchTerms ?? ""} ${link.href}`,
+                  searchQuery,
+                ),
+              ),
             })).filter((section) => section.links.length > 0)
           : SECTIONS
         ).map((section) => (

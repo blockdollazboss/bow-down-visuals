@@ -9,6 +9,7 @@ import {
 } from "@/data/features";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { matchesQuery } from "@/lib/search-match";
 
 /* ─── Features — the showcase ─────────────────────────────────────────────
    Every user-facing Bow Down Visuals feature in one place: search it, filter
@@ -35,10 +36,11 @@ export default function Features() {
     return SITE_FEATURES.filter((f) => {
       if (filter !== "all" && f.category !== filter) return false;
       if (!q) return true;
-      return (
-        f.name.toLowerCase().includes(q) ||
-        f.tagline.toLowerCase().includes(q)
-      );
+      /* Plain-words matching (search-truth, Stack1000 N5): every
+         meaningful word of the query must appear in the feature's
+         name, tagline or alias keywords — "translate my video" and
+         "get paid" land on their real feature, not on nothing. */
+      return matchesQuery(`${f.name} ${f.tagline} ${f.keywords ?? ""}`, query);
     });
   }, [query, filter]);
 
