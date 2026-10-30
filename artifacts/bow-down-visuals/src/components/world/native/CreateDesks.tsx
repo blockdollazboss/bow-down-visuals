@@ -1106,7 +1106,7 @@ function SongVideoWizard(props: {
       </div>
       <label className="block">
         <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Lyrics (from the transcription, or paste your own)</span>
-        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
+        <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
       </label>
       <button type="button" data-testid="world-song-video-build-scenes" onClick={() => void buildScenes()} disabled={busy !== null || (!audioUrl && !props.packageResult)} className={chipCls}>
         {busy === "scenes" ? "Building scenes…" : audioUrl ? `Build scenes from my song · includes analysis ${analyzeSectionsCost().toLocaleString("en-US")} Visual Bucs` : "Review the package's scenes · Free"}
@@ -1119,7 +1119,7 @@ function SongVideoWizard(props: {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
                 <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.lyricLine || scene.action}</span>
-                <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold">
+                <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold bdv-touch-target">
                   <input type="checkbox" checked={scene.approved} onChange={(e) => setScenes((prev) => withSceneApproval(prev, scene.id, e.target.checked))} />
                   Keep
                 </label>
@@ -1623,7 +1623,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
         <DeskTextField isLight={isLight} label="Song title" value={songTitle} onChange={setSongTitle} />
         <DeskTextField isLight={isLight} label="Artist name" value={artistName} onChange={setArtistName} />
       </div>
-      <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+      <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
         <input type="checkbox" data-testid="world-cover-attribution-toggle" checked={attribution} onChange={(e) => setAttribution(e.target.checked)} />
         Made-with credit on the cover (attribution)
       </label>

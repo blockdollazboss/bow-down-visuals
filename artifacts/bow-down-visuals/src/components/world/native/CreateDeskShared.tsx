@@ -120,7 +120,7 @@ export function AdvancedExpander({
         data-testid="world-create-advanced-toggle"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`flex w-full items-center gap-2 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] ${
+        className={`flex w-full items-center gap-2 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] bdv-touch-target ${
           isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
         }`}
       >
@@ -210,7 +210,7 @@ export function ClipModelPicker(props: {
               ))
             )}
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
             <input
               type="checkbox"
               data-testid="world-clip-draft-toggle"

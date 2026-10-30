@@ -62,7 +62,7 @@ export function CreateDeskRunner({
           onChange={(e) => onPromptChange(e.target.value)}
           disabled={running}
           rows={3}
-          className={`w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] ${
+          className={`w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
             isLight
               ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
               : "border-white/10 bg-white/5 text-white placeholder:text-white/35"

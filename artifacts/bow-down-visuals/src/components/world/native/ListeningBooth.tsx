@@ -220,7 +220,7 @@ function AddToPlaylistPicker({
           placeholder="New playlist name…"
           maxLength={80}
           data-testid="world-shelf-playlist-new-name"
-          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none ${
+          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
             isLight
               ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
               : "border-white/15 bg-white/5 text-white placeholder:text-white/35"
@@ -576,7 +576,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
           placeholder="New playlist name…"
           maxLength={80}
           data-testid="world-shelf-playlist-start-name"
-          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none ${
+          className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
             isLight
               ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
               : "border-white/15 bg-white/5 text-white placeholder:text-white/35"
