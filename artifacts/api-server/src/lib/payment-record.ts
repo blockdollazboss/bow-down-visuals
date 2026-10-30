@@ -61,6 +61,38 @@ export async function getStripePaymentStatus(stripeSessionId: string): Promise<s
   return rows[0]?.status ?? null;
 }
 
+/**
+ * Read a payment row's recorded money facts (the claim of record):
+ * who it belongs to and how many credits its grant must move. The
+ * insert-first claim writes these ONCE, from the first delivery that
+ * reached the claim; nothing ever updates them afterwards
+ * (markPaymentCompleted / markPaymentFailed touch status only). That
+ * immutability is what lets fulfillCreditPurchase pin a reclaimed
+ * grant to the record (see the claim-pin there): the row, not
+ * whichever delivery happens to retry, says what the payment bought.
+ */
+export async function getStripePaymentRecord(
+  stripeSessionId: string,
+): Promise<{ userId: string; creditsAmount: number; status: string } | null> {
+  const rows = await db
+    .select({
+      userId: stripePaymentsTable.userId,
+      creditsAmount: stripePaymentsTable.creditsAmount,
+      status: stripePaymentsTable.status,
+    })
+    .from(stripePaymentsTable)
+    .where(eq(stripePaymentsTable.stripeSessionId, stripeSessionId))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    userId: row.userId,
+    creditsAmount: row.creditsAmount,
+    status: row.status,
+  };
+}
+
 /* ── Insert-first payment claiming (money-integrity) ─────────────────────
    Eliminates the check-then-insert double-grant race: the UNIQUE constraint
    on stripe_session_id is the arbiter, not a preceding SELECT.
@@ -650,6 +682,42 @@ export async function fulfillCreditPurchase(p: CreditPurchase): Promise<FulfillO
 
   if (claim === "duplicate") return { outcome: "duplicate" };
   if (claim === "inflight") return { outcome: "inflight" };
+
+  /* ── Claim pin (money-hardening round 2) ──────────────────────────────
+     The claim row is the record of what this payment bought: its
+     userId / creditsAmount were written by the FIRST delivery to
+     reach the claim and are never updated afterwards. A reclaim,
+     though, grants whatever the RECLAIMING caller carries — and the
+     doors do not all read the same copy (the webhook trusts its
+     event body; the verify endpoints re-read Stripe live). If a
+     retry ever arrives carrying a different amount or a different
+     member than the record — a replay with a different payload, a
+     door disagreement — the old code granted the new numbers while
+     the row (and the reversal engine's clawback math, which reads
+     the row) kept the old ones: credits granted ≠ credits recorded
+     ≠ credits clawed. Pin the grant to the record: a mismatch marks
+     the claim failed and throws, so the webhook 500s and Stripe
+     retries; the delivery that matches the record is the one that
+     can ever grant. A missing row cannot happen (the claim just
+     wrote or reclaimed it) — if one somehow reads back null, fail
+     the same way rather than grant unpinned. */
+  const record = await getStripePaymentRecord(p.idempotencyKey);
+  if (!record || record.userId !== p.userId || record.creditsAmount !== p.creditsAmount) {
+    await markPaymentFailed(p.idempotencyKey);
+    logger.error(
+      {
+        idempotencyKey: p.idempotencyKey,
+        callerUserId: p.userId,
+        callerCreditsAmount: p.creditsAmount,
+        recordedUserId: record?.userId ?? null,
+        recordedCreditsAmount: record?.creditsAmount ?? null,
+      },
+      "fulfillCreditPurchase: CLAIM MISMATCH — caller disagrees with the payment record; refusing to grant unpinned",
+    );
+    throw new Error(
+      "fulfillCreditPurchase: payment claim mismatch — the retry disagrees with the recorded payment",
+    );
+  }
 
   // We won the claim — grant atomically, then mark completed.
   // Dynamic import avoids a hard dependency cycle (supabase-admin is leaf).
