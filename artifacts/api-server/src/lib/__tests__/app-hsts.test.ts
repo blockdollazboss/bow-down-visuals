@@ -28,7 +28,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import express from "express";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { securityHeaders, STRICT_TRANSPORT_SECURITY } from "../security-headers";
@@ -41,11 +41,35 @@ let server: Server;
 let fixtureDir: string;
 let savedStagingPassword: string | undefined;
 
+/* Fixture location matters. The mirror below serves index.html with
+   the same no-root res.sendFile call production's SPA fallback uses,
+   and express's `send` answers 404 for any no-root path containing
+   a dotfile segment (a path part longer than "." that starts with
+   a dot — send's containsDotFile check) before the file is ever
+   read. When TMPDIR itself lives under a dot directory — this
+   workspace's suite convention points TMPDIR at a `.tmp` folder
+   because the VM's /tmp is a small tmpfs — a fixture created under
+   tmpdir() makes the fallback case 404 for sandbox reasons, while
+   production (whose dist path has no dot segments) serves it fine.
+   Create the fixture under the first dot-segment-free parent so
+   this pin tests the app, not the sandbox. (Diagnosis: stack900
+   lane E1 — the header itself was never missing; every other case
+   in this file passed because express.static sends with a root,
+   which scopes send's dotfile check to the request path.) */
+function dotFreeParent(): string {
+  const hasDotSegment = (p: string) =>
+    p.split(sep).some((part) => part.length > 1 && part.startsWith("."));
+  for (const candidate of [tmpdir(), "/tmp", process.cwd()]) {
+    if (!hasDotSegment(candidate)) return candidate;
+  }
+  return tmpdir();
+}
+
 beforeAll(async () => {
   savedStagingPassword = process.env["STAGING_PASSWORD"];
   delete process.env["STAGING_PASSWORD"];
 
-  fixtureDir = mkdtempSync(join(tmpdir(), "bdv-hsts-frontend-"));
+  fixtureDir = mkdtempSync(join(dotFreeParent(), "bdv-hsts-frontend-"));
   writeFileSync(
     join(fixtureDir, "index.html"),
     "<!doctype html><html><head><title>HSTS fixture</title></head><body>hsts-spa-entry</body></html>",
