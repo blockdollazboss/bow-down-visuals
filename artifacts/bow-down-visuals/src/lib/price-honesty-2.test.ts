@@ -227,3 +227,17 @@ describe("rendered locale strings — baked prices match their rails (all 10 cat
     }
   });
 });
+
+describe("latent fallback copy — no pre-x100 'cr' figures survive in audited surfaces", () => {
+  it("audio-studio stems mode fallbacks carry no legacy credit figures", () => {
+    const src = readFe("pages/audio-studio.tsx");
+    expect(src).not.toMatch(/· \d+cr"/);
+    expect(src).toContain('defaultValue: "Full split"');
+  });
+
+  it("thumbnail-studio's single-shot comment states the rail truth (100 + 200 = 300)", () => {
+    const src = readFe("pages/thumbnail-studio.tsx");
+    expect(src).not.toContain("1-credit single-shot");
+    expect(getCreditCost("/api/generate-thumbnail")?.cost).toBe(300);
+  });
+});
