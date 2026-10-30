@@ -21,6 +21,8 @@ import {
   type WorldRole,
 } from "@/lib/world/bindings";
 import { firstGamepad } from "@/lib/world/gamepad";
+import { padWord } from "@/lib/world/controller-profile";
+import { useControllerProfile } from "@/hooks/use-controller-profile";
 import { usePanelPadNav } from "@/hooks/use-panel-pad-nav";
 import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
 import {
@@ -722,7 +724,13 @@ export default function WorldPage() {
      * first press lands here (the nearest offer stands 7+ m out),
      * which reads exactly like a dead world (owner's live report,
      * 2026-10-25: "haven't been able to do anything"). */
-    setInteractNote("Nothing in reach — walk to a gold ring or a standing figure, then press E.");
+    /* The note names the button the walker actually pressed
+       with: the pad's own word for its interact button when a
+       pad is in hand (L1 on the owner's DualSense), E for the
+       keyboard family. */
+    setInteractNote(
+      `Nothing in reach — walk to a gold ring or a standing figure, then press ${padProfileRef.current.gamepadId ? padWord(padProfileRef.current, "leftBumper") : "E"}.`,
+    );
     if (interactNoteTimerRef.current) clearTimeout(interactNoteTimerRef.current);
     interactNoteTimerRef.current = setTimeout(() => setInteractNote(null), 4000);
   };
@@ -861,7 +869,19 @@ export default function WorldPage() {
      click re-enters, and the room shows the way back meanwhile. */
   const [fsArmed, setFsArmed] = useState(false);
   const fsRecoveryRef = useRef<FullscreenRecoveryState>(initialFullscreenRecovery);
-  const [padConnected, setPadConnected] = useState(false);
+  /* The controller in hand, as a profile (stack900): which
+     family it is, its plain-words name ("PS5 DualSense") and
+     what its buttons are called — every pad prompt on this
+     page renders its button names from it, so the World
+     speaks the language of the pad the walker actually
+     holds. Presence is derived: a profile with an id is a
+     connected pad. The ref mirror serves the press-time
+     closures above (the interact note names the pad's own
+     button when a pad made the press). */
+  const padProfile = useControllerProfile();
+  const padConnected = padProfile.gamepadId !== null;
+  const padProfileRef = useRef(padProfile);
+  padProfileRef.current = padProfile;
   const [muted, setMuted] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [xrSupported, setXrSupported] = useState<boolean | null>(null);
@@ -1473,26 +1493,12 @@ export default function WorldPage() {
     scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;
   }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
 
-  /* Controller presence: a paired gamepad announces itself; the
-     scene polls it for input (left stick walks, right stick looks,
-     A steps the voice mode, Y switches view, LB opens the door at
-     its prompt — see lib/world/gamepad). */
-  useEffect(() => {
-    const scan = () => {
-      try {
-        setPadConnected([...(navigator.getGamepads?.() ?? [])].some(Boolean));
-      } catch {
-        /* no gamepad API — the line just never shows */
-      }
-    };
-    scan();
-    window.addEventListener("gamepadconnected", scan);
-    window.addEventListener("gamepaddisconnected", scan);
-    return () => {
-      window.removeEventListener("gamepadconnected", scan);
-      window.removeEventListener("gamepaddisconnected", scan);
-    };
-  }, []);
+  /* Controller presence + identity live in the profile hook
+     (useControllerProfile, by the state declarations): a paired
+     gamepad announces itself there, its id is re-read on a slow
+     poll, and padConnected / padProfile above are the page's
+     one truth for both. The scene polls the pad itself for
+     input — see lib/world/gamepad. */
 
   /* The directory at the front door: who's in which room, fetched
      over HTTP before the socket even opens — and only as a prefill
@@ -3465,7 +3471,9 @@ export default function WorldPage() {
               className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg transition hover:scale-105 ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}
             >
               <Maximize className="h-3.5 w-3.5" />
-              Full screen dropped — tap or press any controller button to go back in
+              {padProfile.family !== "generic"
+                ? `Full screen dropped — tap, or press any button on your ${padProfile.displayName}, to go back in`
+                : "Full screen dropped — tap or press any controller button to go back in"}
             </button>
           </div>
         )}
@@ -3749,7 +3757,7 @@ export default function WorldPage() {
                     isLight ? "border-[#7A5A12]/40 text-[#7A5A12]" : "border-white/25 text-white/60"
                   }`}
                 >
-                  LB
+                  {padWord(padProfile, "leftBumper")}
                 </kbd>
               )}
             </div>
@@ -3803,7 +3811,7 @@ export default function WorldPage() {
                     isLight ? "border-[#7A5A12]/40 text-[#7A5A12]" : "border-white/25 text-white/60"
                   }`}
                 >
-                  LB
+                  {padWord(padProfile, "leftBumper")}
                 </kbd>
               )}
             </div>
@@ -3821,7 +3829,7 @@ export default function WorldPage() {
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/55 px-4 py-1.5 text-xs font-bold text-white/85 backdrop-blur-sm">
               <Camera className="h-3.5 w-3.5 text-[#e8c86a]" />
-              Photo mode — {padConnected ? "press Start" : "press P"} to bring the controls back
+              Photo mode — {padConnected ? `press ${padWord(padProfile, "rightMenu")}` : "press P"} to bring the controls back
             </span>
           </div>
         )}
@@ -4375,9 +4383,16 @@ export default function WorldPage() {
                 the sentence wrapped inside narrow items — the
                 owner's frame showed it splitting mid-phrase into
                 columns. As one item the sentence flows and wraps
-                like a paragraph again. */}
+                like a paragraph again.
+                The line names the pad it can see (stack900): the
+                display name up front, and every button word from
+                the pad's own controller profile — Cross / L1 /
+                Create on the owner's DualSense, A / LB / View on
+                an Xbox pad, positions on an unknown one. The
+                member-scoped clauses keep their exact scoping;
+                only the names resolve through the profile. */}
             <span>
-              Controller connected — left stick walks, right stick looks, trigger hurries, {!isGuest && "A steps voice (off · proximity · lobby · deafen), "}Y switches view, LB works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, Back switches the action page, R3 claims the moment</>}, Start frames a photo. In a panel, the D-pad moves, A chooses and B goes back; hold Back for full screen.
+              {padProfile.displayName} connected — left stick walks, right stick looks, trigger hurries, {!isGuest && `${padWord(padProfile, "confirm")} steps voice (off · proximity · lobby · deafen), `}{padWord(padProfile, "topFace")} switches view, {padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, {padWord(padProfile, "leftMenu")} switches the action page, {padWord(padProfile, "rightStickPress")} claims the moment</>}, {padWord(padProfile, "rightMenu")} frames a photo. In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.
             </span>
           </p>
         )}

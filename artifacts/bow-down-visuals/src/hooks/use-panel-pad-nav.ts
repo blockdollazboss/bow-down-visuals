@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { getControllerProfile, panelButtonsFor } from "@/lib/world/controller-profile";
 import { firstGamepad } from "@/lib/world/gamepad";
 import {
   IDLE_PANEL_PAD_EDGES,
@@ -94,7 +95,12 @@ export function usePanelPadNav(opts: {
       if (disposed) return;
       try {
         const pad = firstGamepad([...(navigator.getGamepads?.() ?? [])]);
-        const polled = pollPanelPad(pad, edges);
+        /* The buttons resolve through the pad in hand's
+         * controller profile (stack900): the confirm this
+         * poll reads is the button the page's help line
+         * names on that pad — Cross on a DualSense, A on an
+         * Xbox pad — never a private copy of the layout. */
+        const polled = pollPanelPad(pad, edges, panelButtonsFor(getControllerProfile()));
         edges = polled.edges;
         const { intent } = polled;
         if (intent.back) {

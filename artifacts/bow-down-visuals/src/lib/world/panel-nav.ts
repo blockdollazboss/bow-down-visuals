@@ -34,19 +34,38 @@
  * is fullscreen's, and it stands down with the rest of the scene
  * verbs while a panel owns the pad: a panel's B is the way out,
  * and out is where fullscreen lives).
+ *
+ * The button NAMES those positions wear belong to the pad in
+ * hand, not to this module (stack900): the hook resolves the
+ * indices through the connected pad's controller profile
+ * (controller-profile.ts panelButtonsFor) and hands them in —
+ * on a DualSense the confirm this poll reads is the button
+ * the page calls Cross. The default table below is the bare
+ * standard mapping, unchanged.
  */
 
 import type { GamepadLike } from "./gamepad";
 
+/** The shape of a panel button table: six standard-mapping
+ *  indices, by the job they do in a panel. */
+export interface PanelPadButtons {
+  up: number;
+  down: number;
+  left: number;
+  right: number;
+  confirm: number;
+  back: number;
+}
+
 /** The pad buttons panel navigation reads (standard mapping). */
-export const PANEL_PAD_BUTTONS = {
+export const PANEL_PAD_BUTTONS: PanelPadButtons = {
   up: 12,
   down: 13,
   left: 14,
   right: 15,
   confirm: 0,
   back: 1,
-} as const;
+};
 
 /** How far the left stick must travel before it speaks a move.
  *  Past the scene's own deadzone (0.18) by a wide margin: a
@@ -105,20 +124,24 @@ function stickDirection(value: number | undefined): number {
  * Poll one frame of panel pad input. Pure: the same
  * (pad, prev) always answers the same (intent, edges), and a
  * null pad answers the idle intent with the edges reset — a
- * reconnect never replays a stale press.
+ * reconnect never replays a stale press. `buttons` is the
+ * button table to read — the caller resolves it through the
+ * connected pad's controller profile; the default is the
+ * bare standard mapping above.
  */
 export function pollPanelPad(
   pad: GamepadLike | null | undefined,
   prev: PanelPadEdges,
+  buttons: PanelPadButtons = PANEL_PAD_BUTTONS,
 ): { intent: PanelPadIntent; edges: PanelPadEdges } {
   if (!pad) return { intent: IDLE_PANEL_PAD_INTENT, edges: IDLE_PANEL_PAD_EDGES };
   const edges: PanelPadEdges = {
-    up: pressed(pad, PANEL_PAD_BUTTONS.up),
-    down: pressed(pad, PANEL_PAD_BUTTONS.down),
-    left: pressed(pad, PANEL_PAD_BUTTONS.left),
-    right: pressed(pad, PANEL_PAD_BUTTONS.right),
-    confirm: pressed(pad, PANEL_PAD_BUTTONS.confirm),
-    back: pressed(pad, PANEL_PAD_BUTTONS.back),
+    up: pressed(pad, buttons.up),
+    down: pressed(pad, buttons.down),
+    left: pressed(pad, buttons.left),
+    right: pressed(pad, buttons.right),
+    confirm: pressed(pad, buttons.confirm),
+    back: pressed(pad, buttons.back),
     stickX: stickDirection(pad.axes[0]),
     stickY: stickDirection(pad.axes[1]),
   };

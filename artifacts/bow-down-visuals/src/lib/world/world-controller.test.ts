@@ -60,10 +60,24 @@ describe("world controller survival — fullscreen by pad", () => {
 
   it("the recovery chip names the controller road back in", () => {
     expect(page).toContain("Full screen dropped — tap or press any controller button to go back in");
+    /* With a named pad in hand the chip names THAT pad
+       (stack900): the words resolve from the controller
+       profile, the generic sentence stands for unknown pads. */
+    expect(page).toContain("press any button on your ${padProfile.displayName}, to go back in");
+    expect(page).toContain('padProfile.family !== "generic"');
   });
 
   it("the footer pad line teaches the panel keys and the fullscreen hold", () => {
-    expect(page).toContain("In a panel, the D-pad moves, A chooses and B goes back; hold Back for full");
+    /* The verbs are the pad in hand's own words now (stack900):
+       the sentence is built from the controller profile —
+       "Cross chooses and Circle goes back; hold Create" on
+       the owner's DualSense — so the pin holds the shape, and
+       controller-profile.test.ts holds the per-family words. */
+    expect(page).toContain(
+      'In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.',
+    );
+    expect(page).toContain("useControllerProfile()");
+    expect(page).toContain("{padProfile.displayName} connected —");
   });
 });
 
