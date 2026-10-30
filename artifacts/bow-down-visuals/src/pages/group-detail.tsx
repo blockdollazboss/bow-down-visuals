@@ -566,7 +566,7 @@ export default function GroupDetail() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-white/70">Channels</p>
                     {forumCaps.can_manage_channels && (
-                      <button type="button" onClick={() => setShowChannelForm(!showChannelForm)} className={ghostButton}>
+                      <button aria-expanded={showChannelForm} type="button" onClick={() => setShowChannelForm(!showChannelForm)} className={ghostButton}>
                         <span className="inline-flex items-center gap-1"><Plus className="h-3.5 w-3.5" /> New</span>
                       </button>
                     )}
@@ -680,7 +680,7 @@ export default function GroupDetail() {
                   )}
                   {forumCaps.can_post && channelId && (
                     <div className="flex justify-end">
-                      <button type="button" onClick={() => setShowThreadForm(!showThreadForm)} className={goldButton}>
+                      <button aria-expanded={showThreadForm} type="button" onClick={() => setShowThreadForm(!showThreadForm)} className={goldButton}>
                         <span className="inline-flex items-center gap-2"><Plus className="h-4 w-4" /> Start a thread</span>
                       </button>
                     </div>
@@ -792,7 +792,7 @@ export default function GroupDetail() {
                   <p className="flex items-center gap-2 font-semibold text-[#e8c86a]">
                     <Megaphone className="h-4 w-4" /> Broadcast DM <span className="text-xs font-normal text-white/40">(5★ power tool)</span>
                   </p>
-                  <button type="button" onClick={() => setShowBroadcast(!showBroadcast)} className={ghostButton}>
+                  <button aria-expanded={showBroadcast} type="button" onClick={() => setShowBroadcast(!showBroadcast)} className={ghostButton}>
                     {showBroadcast ? "Hide" : "Compose"}
                   </button>
                 </div>

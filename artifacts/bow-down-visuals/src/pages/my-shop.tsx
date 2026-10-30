@@ -621,7 +621,7 @@ export default function MyShop() {
               {t("myShop.subheading")}
             </p>
           </div>
-          <button className={goldBtn} onClick={() => setShowCreate((v) => !v)}>
+          <button aria-expanded={showCreate} className={goldBtn} onClick={() => setShowCreate((v) => !v)}>
             <Plus className="w-4 h-4" /> {t("myShop.newShop")} <span className="text-[11px] font-semibold opacity-70">{t("myShop.free")}</span>
           </button>
         </div>

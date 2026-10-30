@@ -416,7 +416,7 @@ export default function Messages() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#e8c86a]">Slide in (respectfully)</p>
             <h1 className="mt-1 text-3xl font-bold">Messages</h1>
           </div>
-          <button type="button" onClick={() => setShowNew(!showNew)} className={ghostButton}>
+          <button aria-expanded={showNew} type="button" onClick={() => setShowNew(!showNew)} className={ghostButton}>
             <span className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> New message</span>
           </button>
         </div>
@@ -659,7 +659,7 @@ export default function Messages() {
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
                         <Paperclip className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
+                      <button aria-expanded={showLink} type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
                         title="Attach by link — a file of yours hosted elsewhere; it's mirrored into your storage when it sends"
                         data-testid="dm-attach-link-toggle"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">

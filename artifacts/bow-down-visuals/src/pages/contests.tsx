@@ -385,7 +385,7 @@ export default function Contests() {
             <RemixKingSection />
             <div className="mt-6 flex items-center justify-between">
               <h2 className="text-lg font-bold">{t("contests.your_contests")}</h2>
-              <button
+              <button aria-expanded={showBuilder}
                 onClick={() => setShowBuilder((s) => !s)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black hover:brightness-110"
               >

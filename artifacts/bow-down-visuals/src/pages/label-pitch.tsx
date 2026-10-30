@@ -567,7 +567,7 @@ export default function LabelPitch() {
                 className={`${inputClass} mt-4 resize-y`}
               />
 
-              <button
+              <button aria-expanded={showAdvanced}
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="mt-4 text-sm font-semibold text-white/50 transition hover:text-white"
               >
@@ -870,7 +870,7 @@ export default function LabelPitch() {
                   )}
                 </p>
               </div>
-              <button
+              <button aria-expanded={showAddForm}
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
               >
@@ -1673,7 +1673,7 @@ function PlaylistsPitchTab() {
               </div>
             </div>
 
-            <button
+            <button aria-expanded={showAdvanced}
               onClick={() => setShowAdvanced((v) => !v)}
               className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
             >
@@ -1931,7 +1931,7 @@ function PlaylistsPitchTab() {
                 <CalendarClock className="h-5 w-5 text-primary" aria-hidden="true" />
                 {t("playlistPitch.deadlinesTitle")}
               </h3>
-              <button
+              <button aria-expanded={showDeadlineForm}
                 onClick={() => setShowDeadlineForm((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
               >
@@ -2271,7 +2271,7 @@ function PlaylistsPitchTab() {
                 <span className="font-black text-emerald-300">{acceptedCount}</span> {t("playlistPitch.acceptedCount")}
               </span>
             </div>
-            <button
+            <button aria-expanded={showAddForm}
               onClick={() => setShowAddForm((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
             >

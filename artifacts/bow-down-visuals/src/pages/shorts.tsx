@@ -495,7 +495,7 @@ function ShortCard({
       )}
 
       {/* mute */}
-      <button onClick={() => setMuted(!muted)} title={muted ? "Unmute" : "Mute"}
+      <button onClick={() => setMuted(!muted)} title={muted ? "Unmute" : "Mute"} aria-label={muted ? "Unmute" : "Mute"} aria-pressed={muted}
         className="absolute right-4 top-16 z-10 rounded-full bg-black/60 p-2.5 text-white">
         {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
       </button>
@@ -562,7 +562,7 @@ function ShortCard({
         </div>
         {/* 4 stars: analytics */}
         <div data-min-stars="4">
-          <button onClick={() => setAnalyticsOpen((o) => !o)} className="flex flex-col items-center gap-1" title="Why am I seeing this?">
+          <button onClick={() => setAnalyticsOpen((o) => !o)} aria-expanded={analyticsOpen} className="flex flex-col items-center gap-1" title="Why am I seeing this?">
             <span className="rounded-full bg-black/60 p-3"><BarChart3 className="h-6 w-6 text-white" /></span>
             <span className="text-xs font-semibold text-white">Stats</span>
           </button>

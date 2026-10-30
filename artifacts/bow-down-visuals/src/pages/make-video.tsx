@@ -191,7 +191,7 @@ function OutputCard({ label, content, icon: Icon, defaultOpen = false }: OutputS
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="lux-card-static overflow-hidden">
-      <button
+      <button aria-expanded={open}
         type="button"
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-white/[0.03] transition-colors"

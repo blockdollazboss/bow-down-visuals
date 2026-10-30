@@ -1905,7 +1905,7 @@ function StemsPanel() {
 
             {/* Remix mode */}
             <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
-              <button
+              <button aria-expanded={remixOpen}
                 type="button"
                 onClick={() => setRemixOpen((v) => !v)}
                 className="flex w-full items-center justify-between"

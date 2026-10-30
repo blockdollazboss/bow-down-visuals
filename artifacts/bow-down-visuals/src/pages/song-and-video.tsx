@@ -214,7 +214,7 @@ function ResultCard({ section, defaultOpen }: { section: ParsedSection; defaultO
   return (
     <div className={`rounded-xl border overflow-hidden ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className={`flex items-center justify-between px-5 py-3 border-b ${isLight ? "border-[#C9A84C]/25 bg-[#C9A84C]/10" : "bg-white/[0.03] border-white/[0.05]"}`}>
-        <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-3 flex-1 text-left min-w-0">
+        <button aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex items-center gap-3 flex-1 text-left min-w-0">
           {open ? <ChevronUp className="h-4 w-4 text-white/25 shrink-0" /> : <ChevronDown className="h-4 w-4 text-white/25 shrink-0" />}
           <h4 className="text-sm font-bold text-white uppercase tracking-wide truncate">{section.title}</h4>
         </button>

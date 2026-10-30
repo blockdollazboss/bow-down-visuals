@@ -686,7 +686,7 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
           </div>
         </div>
         {clip.prompt && (
-          <button onClick={() => setShowPrompt(!showPrompt)} data-min-stars="4"
+          <button aria-expanded={showPrompt} onClick={() => setShowPrompt(!showPrompt)} data-min-stars="4"
             className="text-[11px] text-white/30 hover:text-white/50 transition-colors text-left w-full">
             {showPrompt ? t("myProjects.hidePrompt") : t("myProjects.showPrompt")}
           </button>

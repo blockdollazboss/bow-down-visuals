@@ -1136,7 +1136,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
             >
               <Camera className="h-3.5 w-3.5" /> {t("artistVault.generateOutfit")}
             </button>
-            <button
+            <button aria-expanded={showAdd}
               type="button"
               onClick={() => setShowAdd((v) => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
@@ -1476,7 +1476,7 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
           </span>
         )}
         {!setFull && (
-          <button
+          <button aria-expanded={showAdd}
             type="button"
             onClick={() => setShowAdd((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
@@ -2718,7 +2718,7 @@ export default function ArtistVault() {
                     </button>
                   );
                 })}
-                <button
+                <button aria-expanded={voiceAdvancedOpen}
                   type="button"
                   onClick={() => setVoiceAdvancedOpen((v) => !v)}
                   className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10] transition-colors"

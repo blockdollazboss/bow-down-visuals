@@ -905,14 +905,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Shuffle className="w-3.5 h-3.5" /> {t("beatMaker.randomize", { defaultValue: "Randomize" })}
         </button>
-        <button
+        <button aria-expanded={showMixer}
           type="button"
           onClick={() => setShowMixer((v) => !v)}
           className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showMixer ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" /> {t("beatMaker.mixer", { defaultValue: "Mixer" })}
         </button>
-        <button
+        <button aria-expanded={showBass}
           type="button"
           onClick={() => setShowBass((v) => !v)}
           className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showBass ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
@@ -991,7 +991,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
               onChange={(e) => setBassVol(Number(e.target.value))}
               className={`flex-1 h-1 ${T.slider}`} aria-label="808 bass volume"
             />
-            <button type="button" onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
+            <button type="button" aria-pressed={bassMute} aria-label={bassMute ? "Unmute 808 bass" : "Mute 808 bass"} onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
           </div>
         </div>
       )}

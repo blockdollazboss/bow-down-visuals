@@ -915,7 +915,7 @@ export default function WebsiteBuilder() {
                 <Eye className="h-5 w-5 text-primary" /> {t("websiteBuilder.stepPreview")}
               </h2>
               <div className="flex gap-2">
-                <button
+                <button aria-expanded={showPreview}
                   onClick={() => setShowPreview((v) => !v)}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold hover:border-primary/50"
                 >
@@ -944,7 +944,7 @@ export default function WebsiteBuilder() {
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t("websiteBuilder.savedBadge", { version: currentVersion ?? "" })}
                 </span>
-                <button
+                <button aria-expanded={showVersions}
                   onClick={() => setShowVersions((v) => !v)}
                   className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
                 >

@@ -792,7 +792,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             {/* ── Clip Selector (if project has clips) — tweak option (3) ── */}
             {selectedProject && promoType && platform && projectClips.length > 0 && (
               <div className={`rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-min-stars="3">
-                <button
+                <button aria-expanded={clipsOpen}
                   type="button"
                   onClick={() => setClipsOpen((v) => !v)}
                   className="flex items-center justify-between w-full"
@@ -857,7 +857,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
             {/* ── Advanced Options — manual prompt editing (4) ── */}
             {selectedProject && promoType && platform && (
               <div className="rounded-2xl border border-white/[0.06] bg-transparent overflow-hidden" data-min-stars="4">
-                <button
+                <button aria-expanded={advancedOpen}
                   type="button"
                   onClick={() => setAdvancedOpen((v) => !v)}
                   className="flex items-center justify-between w-full px-5 py-4"
@@ -1051,7 +1051,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
 
                 {/* Advanced — special instructions = manual prompt editing (4) */}
                 <div className="border border-white/[0.06] rounded-xl overflow-hidden" data-min-stars="4">
-                  <button
+                  <button aria-expanded={scratchAdvancedOpen}
                     type="button"
                     onClick={() => setScratchAdvancedOpen((v) => !v)}
                     className="flex items-center justify-between w-full px-5 py-3.5"

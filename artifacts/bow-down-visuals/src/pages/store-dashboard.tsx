@@ -763,6 +763,7 @@ function DropControls({ product, getToken, onChanged }: {
   return (
     <div className="inline-block text-left align-top">
       <button
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black ${
           isUpcoming
@@ -1058,7 +1059,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             : stars <= 3 ? "guided mode: kinds, descriptions, discount nudges unlocked."
             : "full commerce control: inventory, compare-at pricing, links, codes, everything."}
         </p>
-        <button
+        <button aria-expanded={showForm}
           onClick={() => setShowForm((s) => !s)}
           className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-4 py-2 text-xs font-black text-black hover:brightness-110"
         >

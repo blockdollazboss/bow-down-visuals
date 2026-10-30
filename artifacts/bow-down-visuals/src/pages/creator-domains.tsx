@@ -100,7 +100,7 @@ function DnsEvidencePanel({ result }: { result: VerifyResult }) {
   const txtErr = found?.errors?.["txt"];
   return (
     <div className="rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
-      <button
+      <button aria-expanded={open}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between font-bold text-white"

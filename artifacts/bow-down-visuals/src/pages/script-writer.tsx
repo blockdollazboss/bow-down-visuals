@@ -506,7 +506,7 @@ export default function ScriptWriter() {
                     >
                       {t("scriptWriter.teleprompterLaunch")}
                     </button>
-                    <button
+                    <button aria-expanded={showTeleprompter}
                       onClick={() => setShowTeleprompter((s) => !s)}
                       className="text-sm rounded-lg border border-white/15 px-3 py-1.5 hover:border-amber-400/50 transition-colors"
                     >

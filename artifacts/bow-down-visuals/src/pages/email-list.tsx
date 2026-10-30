@@ -1183,7 +1183,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  {tab === "lists" && (
  <div className="mt-8">
  <div className="flex justify-end">
- <button className={tabBtn(true)} onClick={() => setShowNewList((v) => !v)}>
+ <button aria-expanded={showNewList} className={tabBtn(true)} onClick={() => setShowNewList((v) => !v)}>
  <Plus className="h-4 w-4" />{t("email-list.new_list")}</button>
  </div>
 

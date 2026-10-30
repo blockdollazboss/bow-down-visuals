@@ -900,7 +900,7 @@ function ClipCard({
         {/* Prompt toggle */}
         {clip.prompt && (
           <div>
-            <button
+            <button aria-expanded={showPrompt}
               onClick={() => setShowPrompt((s) => !s)}
               className="text-[10px] text-white/30 hover:text-white/60 transition-colors flex items-center gap-1"
             >

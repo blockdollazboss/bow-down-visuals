@@ -287,6 +287,7 @@ export default function ReviewPage() {
                 onClick={() => setShowPassword((s) => !s)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
                 aria-label={showPassword ? t("review.hidePassword") : t("review.showPassword")}
+                aria-pressed={showPassword}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>

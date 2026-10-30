@@ -496,7 +496,7 @@ export default function StreamPlaylistPage() {
                 {following ? t("playlist.following") : t("playlist.follow")} <span className="text-white/40">({formatCount(followers)})</span>
               </button>
               <div className="relative">
-                <button
+                <button aria-expanded={shareOpen}
                   onClick={() => setShareOpen((v) => !v)}
                   className="flex items-center gap-2 rounded-full border border-white/15 text-white/70 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] px-5 py-3 text-sm font-semibold transition-colors"
                 >

@@ -3649,7 +3649,7 @@ export default function VideoEditor() {
                       The editor should feel like a finished product, not a sandbox. ── */}
                   {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1" && (
                   <div className="rounded-xl border vv-border-faint overflow-hidden" data-min-stars="6">
-                    <button
+                    <button aria-expanded={debugOpen}
                       type="button"
                       onClick={() => setDebugOpen((o) => !o)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-left vv-hover-wash-3 transition-colors"
