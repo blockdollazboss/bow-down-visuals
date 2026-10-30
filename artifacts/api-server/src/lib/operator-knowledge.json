@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "e54d236c320f4bd0bcd8c45e54954a6e3b161a0f",
+  "baseCommit": "870ae6f4bd7dc70f216ce8f07dbfa6bcfcaa6919",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,9 +9,9 @@
   },
   "generatedAt": "2026-10-30",
   "counts": {
-    "routesInApp": 243,
-    "pageFiles": 187,
-    "features": 250,
+    "routesInApp": 242,
+    "pageFiles": 186,
+    "features": 249,
     "excludedRoutes": 73,
     "excludedPageFiles": 35,
     "pricedActions": 216,
@@ -19,12 +19,12 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 240,
+    "withDescriptions": 239,
     "withoutDescriptions": 10,
     "serverRouteFiles": 428,
-    "serverEndpoints": 1707,
-    "serverEndpointsVisible": 1006,
-    "serverFilesClassified": 128
+    "serverEndpoints": 1705,
+    "serverEndpointsVisible": 1003,
+    "serverFilesClassified": 129
   },
   "packs": [
     {
@@ -7787,6 +7787,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -7943,6 +7944,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8033,6 +8035,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8123,6 +8126,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -9933,34 +9937,19 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
     },
     {
-      "id": "overlay-alerts",
-      "name": "Overlay Alerts Page",
+      "id": "overlay-now-playing",
+      "name": "Overlay Now Playing Page",
       "nameSource": "App.tsx component name",
-      "path": "/overlay/alerts",
+      "path": "/overlay/now-playing",
       "stage": "studio",
       "access": "public",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx",
-      "component": "OverlayAlertsPage",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx",
+      "component": "OverlayNowPlayingPage",
       "endpoints": [],
       "prices": [],
       "nextSteps": [],
-      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: a card pops on the creator's stream the moment a tip lands, a fan follows, or a member joins.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx usePageTitle meta description"
-    },
-    {
-      "id": "overlay-goal",
-      "name": "Overlay Goal Page",
-      "nameSource": "App.tsx component name",
-      "path": "/overlay/goal",
-      "stage": "studio",
-      "access": "public",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx",
-      "component": "OverlayGoalPage",
-      "endpoints": [],
-      "prices": [],
-      "nextSteps": [],
-      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the creator's tip-goal bar for their current stream, filling live as tips land.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx usePageTitle meta description"
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the track playing on the creator's stream right now, shown as their studio reports it — title, artist, and progress.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx usePageTitle meta description"
     },
     {
       "id": "party",
@@ -10320,9 +10309,6 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/overlay/me",
-        "/api/overlay/test-alert",
-        "/api/overlay/token/reset",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -19534,6 +19520,19 @@
         "unseen": []
       },
       {
+        "file": "artifacts/api-server/src/routes/now-playing.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/now-playing",
+          "/api/overlay/now-playing"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Now-playing rails (report / clear / token read) — the Go Live studio reports the track on its program and the /overlay/now-playing browser source reads it by overlay token (the C2 overlay family's feed); the calls ride the studio and overlay surfaces past the scan's one hop, so no feature entry carries these endpoints."
+        }
+      },
+      {
         "file": "artifacts/api-server/src/routes/open-verse.ts",
         "endpoints": 9,
         "visible": 9,
@@ -20148,14 +20147,6 @@
           "surface": "creator-tools",
           "reason": "Storyboard planner CRUD (boards + panels) — the member's video-plan store behind the editor's planning surface; no page of its own."
         }
-      },
-      {
-        "file": "artifacts/api-server/src/routes/stream-overlays.ts",
-        "endpoints": 4,
-        "visible": 3,
-        "unseen": [
-          "/api/overlay/state"
-        ]
       },
       {
         "file": "artifacts/api-server/src/routes/stripe-connect.ts",

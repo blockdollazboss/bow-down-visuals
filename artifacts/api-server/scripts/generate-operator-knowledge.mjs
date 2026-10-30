@@ -1652,6 +1652,10 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "live",
     reason: "Live-widget rails (widgets + tip-goal) — the on-stream widget machinery; no page of its own.",
   },
+  "artifacts/api-server/src/routes/now-playing.ts": {
+    surface: "live",
+    reason: "Now-playing rails (report / clear / token read) — the Go Live studio reports the track on its program and the /overlay/now-playing browser source reads it by overlay token (the C2 overlay family's feed); the calls ride the studio and overlay surfaces past the scan's one hop, so no feature entry carries these endpoints.",
+  },
   /* World rails. */
   "artifacts/api-server/src/routes/world-contests.ts": {
     surface: "world",

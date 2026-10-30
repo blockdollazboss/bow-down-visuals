@@ -25,7 +25,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 interface OverlayDesk {
   token: string;
-  paths: { alerts: string; goal: string };
+  paths: { alerts: string; goal: string; nowPlaying: string };
 }
 
 type LoadState = "loading" | "ready" | "error";
@@ -194,7 +194,7 @@ export function StreamOverlaysPanel() {
       </div>
       <p className={`mt-1 text-sm font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
         Copy the link, paste it into your streaming app as a browser source, and your tips and
-        fans show up live on screen.
+        fans — and the song you&rsquo;re playing — show up live on screen.
       </p>
 
       {!user ? (
@@ -229,6 +229,14 @@ export function StreamOverlaysPanel() {
               url={`${origin}${desk.paths.goal}`}
               testId="overlay-link-goal"
               copyTestId="overlay-copy-goal"
+              isLight={isLight}
+            />
+            <OverlayLinkRow
+              label="Now playing"
+              hint="The track on your program right now, named as it plays. Play a song from your library in the Go Live studio and this card follows it."
+              url={`${origin}${desk.paths.nowPlaying}`}
+              testId="overlay-link-now-playing"
+              copyTestId="overlay-copy-now-playing"
               isLight={isLight}
             />
           </div>

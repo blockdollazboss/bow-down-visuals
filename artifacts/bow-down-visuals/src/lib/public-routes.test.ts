@@ -345,6 +345,7 @@ describe("isPublicPath — representative positives from every public family", (
     ["token link — sync one-sheet", "/sync-one-sheet/abc123token"],
     ["token link — stream overlay alerts", "/overlay/alerts"],
     ["token link — stream overlay goal", "/overlay/goal"],
+    ["token link — stream overlay now-playing", "/overlay/now-playing"],
     ["checkout return — store success", "/store/success"],
     ["D3 shops — directory", "/storefronts"],
     ["D3 shops — a creator's shop", "/shop/king-shark"],
@@ -465,8 +466,8 @@ describe("the shipped allowlist itself", () => {
     expect(new Set(PUBLIC_ROUTES).size).toBe(PUBLIC_ROUTES.length);
   });
 
-  it("contains exactly the approved public set (51 patterns)", () => {
-    expect(PUBLIC_ROUTES).toHaveLength(51);
+  it("contains exactly the approved public set (52 patterns)", () => {
+    expect(PUBLIC_ROUTES).toHaveLength(52);
   });
 
   it("judges a path with a query string the same as the bare path", () => {

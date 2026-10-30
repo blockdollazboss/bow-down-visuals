@@ -265,10 +265,13 @@ describe("overlay REST surface", () => {
 
     const res = await fetch(`${base}/overlay/me`, { headers: { "x-test-user": CREATOR } });
     expect(res.status).toBe(200);
-    const dto = (await res.json()) as { token: string; paths: { alerts: string; goal: string } };
+    const dto = (await res.json()) as { token: string; paths: { alerts: string; goal: string; nowPlaying: string } };
     expect(isOverlayTokenShape(dto.token)).toBe(true);
     expect(dto.paths.alerts).toBe(`/overlay/alerts?token=${dto.token}`);
     expect(dto.paths.goal).toBe(`/overlay/goal?token=${dto.token}`);
+    /* The third desk row (lane D3's now-playing) joined at the
+       stack900 join, per D3's seam note. */
+    expect(dto.paths.nowPlaying).toBe(`/overlay/now-playing?token=${dto.token}`);
     expect(dto.paths.alerts).not.toContain(CREATOR);
   });
 

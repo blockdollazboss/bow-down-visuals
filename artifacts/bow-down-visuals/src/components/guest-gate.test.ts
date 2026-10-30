@@ -163,21 +163,22 @@ describe("GuestGate — the AppShell choke point (audit §4.1)", () => {
   });
 
   it("the one Switch outside the gate is the chromeless overlay branch — token-keyed and matrix-public", () => {
-    // Stack900 C2 exception, SiteMode's class: /overlay/* pages are
-    // OBS/Streamlabs browser sources — they must render with no
-    // shell at all, so their Switch sits ahead of the gate in
-    // AppShell. The exception is fenced: the branch may carry ONLY
-    // the two overlay routes, and both are classified public in
-    // ROUTE_MATRIX (the token in the URL is their credential, like
-    // /review/:token). Any other route appearing outside the gate
-    // fails here.
+    // Stack900 C2 + D3 exception, SiteMode's class: /overlay/*
+    // pages are OBS/Streamlabs browser sources — they must render
+    // with no shell at all, so their Switch sits ahead of the gate
+    // in AppShell. The exception is fenced: the branch may carry
+    // ONLY the three overlay routes, and each is classified public
+    // in ROUTE_MATRIX (the token in the URL is their credential,
+    // like /review/:token). Any other route appearing outside the
+    // gate fails here. (The two lanes' fences composed into this
+    // one at the stack900 join.)
     const gateOpen = appSource.indexOf("<GuestGate>");
     const branchAt = appSource.indexOf('location.startsWith("/overlay/")');
     expect(branchAt).toBeGreaterThan(-1);
     expect(branchAt).toBeLessThan(gateOpen);
     const branch = appSource.slice(branchAt, appSource.indexOf("</Switch>", branchAt));
     const branchPaths = [...branch.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]);
-    expect(branchPaths).toEqual(["/overlay/alerts", "/overlay/goal"]);
+    expect(branchPaths).toEqual(["/overlay/alerts", "/overlay/goal", "/overlay/now-playing"]);
     expect(appSource.indexOf("<Switch>")).toBe(appSource.indexOf("<Switch>", branchAt));
   });
 

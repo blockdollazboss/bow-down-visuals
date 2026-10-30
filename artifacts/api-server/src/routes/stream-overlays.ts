@@ -187,7 +187,7 @@ router.get("/overlay/state", publicApiLimiter, async (req: Request, res: Respons
 
 export interface OverlayDeskDto {
   token: string;
-  paths: { alerts: string; goal: string };
+  paths: { alerts: string; goal: string; nowPlaying: string };
 }
 
 /** The overlay link paths for one token. The desk prefixes the site
@@ -196,6 +196,9 @@ export function overlayPaths(token: string): OverlayDeskDto["paths"] {
   return {
     alerts: `/overlay/alerts?token=${token}`,
     goal: `/overlay/goal?token=${token}`,
+    /* Lane D3's now-playing source — the third desk row (added at
+       the stack900 join, per D3's seam note). */
+    nowPlaying: `/overlay/now-playing?token=${token}`,
   };
 }
 

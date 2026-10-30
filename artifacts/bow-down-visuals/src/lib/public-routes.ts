@@ -45,11 +45,12 @@ export const PUBLIC_ROUTES: readonly string[] = [
   "/refund-policy",
   "/review/:token",
   "/sync-one-sheet/:token",
-  // Stream overlays (stack900 C2) — chromeless browser sources for
-  // OBS/Streamlabs, keyed by the creator's overlay token in the URL
-  // (the /review/:token pattern: the token is the credential).
+  // Stream overlays (stack900 C2 + D3) — chromeless browser sources
+  // for OBS/Streamlabs, keyed by the creator's overlay token in the
+  // URL (the /review/:token pattern: the token is the credential).
   "/overlay/alerts",
   "/overlay/goal",
+  "/overlay/now-playing",
   "/store/success",
   // Shops cluster — browse (D3, audit §1.6).
   "/storefronts",
@@ -336,6 +337,10 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/bio/:slug", disposition: "public" },
   { path: "/review/:token", disposition: "public" },
   { path: "/sync-one-sheet/:token", disposition: "public" },
+  // Stream overlays (stack900 C2 + D3) — declared in App.tsx (the
+  // AppShell chromeless branch ahead of the main Switch): token-
+  // keyed browser sources, public like /review/:token.
+  { path: "/overlay/now-playing", disposition: "public" },
   { path: "/groups", disposition: "locked" },
   { path: "/groups/:slug", disposition: "locked" },
   { path: "/events", disposition: "locked" },
