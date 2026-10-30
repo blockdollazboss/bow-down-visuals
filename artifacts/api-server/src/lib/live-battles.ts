@@ -682,8 +682,14 @@ export function createLiveBattleService(
 
   /** Declare the result from the recorded vote rows and stamp the
    *  record both creators keep. Idempotent: a completed battle
-   *  returns untouched. A tie crowns nobody and speaks no
-   *  spectacle; a win moves the crown and heralds it in the World. */
+   *  returns untouched. Race-safe: the completion write is the
+   *  conditional claim — it lands only while the battle is still
+   *  live, so when the reachable callers coincide (the just-ended
+   *  vote path, a read-side settle, the explicit finalize call),
+   *  exactly one of them runs the side effects below; the loser
+   *  re-reads and returns the finished record, firing nothing.
+   *  A tie crowns nobody and speaks no spectacle; a win moves the
+   *  crown and heralds it in the World. */
   async function finalize(battleId: string): Promise<BattleRow> {
     let battle = await mustGet(battleId);
     if (battle.status === "completed") return battle;
@@ -702,13 +708,23 @@ export function createLiveBattleService(
       result === "challenger" ? battle.challengerUserId
       : result === "opponent" ? battle.opponentUserId
       : null;
-    let updated = await store.updateBattle(battle.id, {
+    const claimed = await store.claimCompletion(battle.id, {
       status: "completed",
       result,
       winnerUserId,
       challengerVotes: tally.challenger,
       opponentVotes: tally.opponent,
     });
+    if (!claimed) {
+      // The claim did not land: a concurrent finalize completed
+      // the battle first (or a sever voided it in between). Hand
+      // back the finished record honestly — no error, and none of
+      // the side effects below; the claim winner owns those.
+      const current = await store.getBattle(battle.id);
+      if (current && current.status === "completed") return current;
+      throw new LiveBattleError("bad_status", "Only a live battle can be finished.");
+    }
+    let updated = claimed;
     if (result !== "tie" && winnerUserId) {
       const winnerSide: BattleSide = result;
       const winner = await store.profileByUserId(winnerUserId);
