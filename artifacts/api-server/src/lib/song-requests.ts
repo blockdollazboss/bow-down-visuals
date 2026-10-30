@@ -29,6 +29,41 @@ import { LIVE_TIP_MINIMUM_VB, LIVE_TIP_MAXIMUM_VB } from "./live-config";
 import { isTicketed, canEnterStream } from "./live-tickets";
 import { isUndefinedTable } from "./pg-errors";
 import { logger } from "./logger";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
+
+/* ── Request-refund push (notification-truth audit, stack900 L4) ────────
+   When a request is skipped or expires unplayed, the fan's tip lands
+   BACK in their balance — money that moved, usually while the fan is
+   no longer watching the stream. That refund bell still inserted
+   directly, so it could never ping a fan whose money channel is on.
+   It now rides the one event door (category money, kind
+   song_request_refund, same copy). Exactly-once is unchanged: the
+   call site still sits behind the refunded_at claim, which a repeat
+   call never re-wins. (The request bell above stays a plain bell by
+   design: at request time the tip is escrowed, not landed — its copy
+   says exactly that: "it's in your request queue.") */
+export function buildSongRequestRefundEvent(row: {
+  fan_user_id: string;
+  song_title: string;
+  amount_vb: number;
+  stream_id: string;
+}): UserEventInput {
+  return {
+    userId: row.fan_user_id,
+    category: "money",
+    kind: "song_request_refund",
+    title: "Your request tip was refunded",
+    body: `"${row.song_title}" didn't play, so your ${row.amount_vb.toLocaleString("en-US")} Visual Bucs tip is back in your balance.`,
+    link: `/live/${row.stream_id}`,
+  };
+}
+
+type SongRequestEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _songRequestEventNotifier: SongRequestEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setSongRequestEventNotifier(fn: SongRequestEventNotifier | null): void {
+  _songRequestEventNotifier = fn ?? notifyUserEvent;
+}
 
 /* ── Song Requests, Live (Stack-200 N18) — the queue service ─────────────
    Everything about the tipped song-request queue lives here, behind
@@ -500,13 +535,7 @@ export async function refundRequestIfNeeded(row: SongRequest, reason: "skipped" 
     return false;
   }
   try {
-    await db.insert(notificationsTable).values({
-      userId: row.fan_user_id,
-      kind: "song_request_refund",
-      title: `Your request tip was refunded`,
-      body: `"${row.song_title}" didn't play, so your ${row.amount_vb.toLocaleString("en-US")} Visual Bucs tip is back in your balance.`,
-      link: `/live/${row.stream_id}`,
-    });
+    await _songRequestEventNotifier(buildSongRequestRefundEvent(row));
   } catch (notifyErr) {
     logger.warn({ notifyErr, requestId: row.id }, "song request: refund bell failed (refund itself landed)");
   }

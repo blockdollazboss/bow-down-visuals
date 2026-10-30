@@ -38,6 +38,11 @@ const h = vi.hoisted(() => ({
     insertedFollows: [] as Array<Record<string, unknown>>,
     deletedFollows: [] as Array<Record<string, unknown>>,
     notifications: [] as Array<Record<string, unknown>>,
+    profileUpdates: [] as Array<Record<string, unknown>>,
+    mediaById: new Map<string, Record<string, unknown>>(),
+    likes: new Set<string>(),
+    reposts: new Set<string>(),
+    counterBumps: [] as string[],
   },
 }));
 
@@ -87,9 +92,30 @@ vi.mock("../../lib/mirrorMedia", () => ({
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const state = h.state;
-  const { creatorProfilesTable, followsTable, notificationsTable } = actual;
+  const {
+    creatorProfilesTable,
+    followsTable,
+    notificationsTable,
+    likesTable,
+    repostsTable,
+    profileTracksTable,
+    profileVideosTable,
+  } = actual;
 
   function rowsFor(table: unknown, cond: unknown): unknown[] {
+    if (table === profileTracksTable || table === profileVideosTable) {
+      const { params } = render(cond);
+      const row = state.mediaById.get(String(params[0] ?? ""));
+      return row ? [row] : [];
+    }
+    if (table === followsTable) {
+      // The follow handler's prior-follow probe:
+      // and(eq(followerUserId, user), eq(profileId, profile.id)).
+      const { params } = render(cond);
+      return state.follows.has(followKey(params[0], params[1]))
+        ? [{ profileId: params[1] }]
+        : [];
+    }
     if (table === creatorProfilesTable) {
       const { sql, params } = render(cond);
       // Owner-by-user lookup (the DE-17 follower-card fetch): answer
@@ -142,24 +168,51 @@ vi.mock("@workspace/db", async (importOriginal) => {
     insert: (table: unknown) => ({
       values: (v: Record<string, unknown>) => {
         if (table === followsTable) {
-          state.insertedFollows.push(v);
-          state.follows.add(followKey(v["followerUserId"], v["profileId"]));
+          // ON CONFLICT DO NOTHING, faithfully: a replayed insert of
+          // an existing follow records nothing new.
+          const key = followKey(v["followerUserId"], v["profileId"]);
+          if (!state.follows.has(key)) {
+            state.insertedFollows.push(v);
+            state.follows.add(key);
+          }
         }
         if (table === notificationsTable) {
           state.notifications.push(v);
         }
+        // Landed-row inserts (like / repost): ON CONFLICT DO NOTHING
+        // means a replay lands NO row, and returning() must say so.
+        let landedRows: Array<Record<string, unknown>> = [{ ...v }];
+        if (table === likesTable) {
+          const key = `${String(v["userId"])}:${String(v["kind"])}:${String(v["targetId"])}`;
+          if (state.likes.has(key)) landedRows = [];
+          else state.likes.add(key);
+        }
+        if (table === repostsTable) {
+          const key = `${String(v["userId"])}:${String(v["trackId"])}`;
+          if (state.reposts.has(key)) landedRows = [];
+          else state.reposts.add(key);
+        }
+        const conflictResult: any = {
+          returning: async () => landedRows,
+          then: (res: any, rej: any) => Promise.resolve(landedRows).then(res, rej),
+        };
         // notify() inserts into notificationsTable and simply awaits the
         // values() result; the follows insert chains onConflictDoNothing.
         return thenable({
-          onConflictDoNothing: (_cfg: unknown) => thenable(),
-          returning: async () => [{ ...v }],
+          onConflictDoNothing: (_cfg: unknown) => conflictResult,
+          returning: async () => landedRows,
         });
       },
     }),
-    update: (_table: unknown) => ({
-      set: (_patch: unknown) => ({
-        where: (_cond: unknown) => thenable(),
-      }),
+    update: (table: unknown) => ({
+      set: (patch: unknown) => {
+        if (table === creatorProfilesTable) {
+          state.profileUpdates.push(patch as Record<string, unknown>);
+        }
+        return {
+          where: (_cond: unknown) => thenable(),
+        };
+      },
     }),
     delete: (table: unknown) => ({
       where: (cond: unknown) => ({
@@ -179,14 +232,26 @@ vi.mock("@workspace/db", async (importOriginal) => {
         },
       }),
     }),
-    execute: async () => [],
+    execute: async (q: unknown) => {
+      // bumpCounter rides db.execute with identifier-rendered SQL;
+      // record the counter writes so tests can count them.
+      try {
+        const text = dialect.sqlToQuery(q as never).sql;
+        if (text.includes("like_count") || text.includes("repost_count")) {
+          state.counterBumps.push(text);
+        }
+      } catch {
+        /* non-query execute — nothing to record */
+      }
+      return [];
+    },
   };
   void notificationsTable;
 
   return { ...actual, db: fakeDb };
 });
 
-import router from "../creator-platform";
+import router, { __setFollowEventNotifier, buildFollowEvent } from "../creator-platform";
 
 const realFetch = globalThis.fetch;
 let server: any;
@@ -216,6 +281,11 @@ beforeEach(() => {
   s.insertedFollows = [];
   s.deletedFollows = [];
   s.notifications = [];
+  s.profileUpdates = [];
+  s.mediaById = new Map();
+  s.likes = new Set();
+  s.reposts = new Set();
+  s.counterBumps = [];
 
   s.profilesById.set(PROFILE_ID, {
     id: PROFILE_ID,
@@ -269,6 +339,60 @@ describe("POST /api/creator-profiles/:id/follow", () => {
     expect(h.state.insertedFollows).toHaveLength(0);
   });
 
+  it("notification-truth: a replayed follow POST neither re-bells nor re-counts", async () => {
+    const first = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+    expect(first.status).toBe(200);
+    expect(first.json.follower_count).toBe(8);
+    expect(h.state.notifications.filter((n) => n["kind"] === "follow")).toHaveLength(1);
+    expect(h.state.profileUpdates).toHaveLength(1);
+
+    // The replay: same user, same profile, no unfollow in between —
+    // a double-tap or a client retry of the same follow.
+    const replay = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+    expect(replay.status).toBe(200);
+    expect(replay.json.followed).toBe(true);
+    // Still exactly one bell and one count bump for an event that
+    // did not newly happen. (The response count itself is computed
+    // from the handler's profile read, which this fake does not
+    // write back — the update count is the honest signal here.)
+    expect(h.state.notifications.filter((n) => n["kind"] === "follow")).toHaveLength(1);
+    expect(h.state.profileUpdates).toHaveLength(1);
+  });
+
+  it("notification-truth: the follow bell carries the social category through the event door", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    __setFollowEventNotifier(async (input: unknown) => {
+      seen.push(input as Record<string, unknown>);
+    });
+    try {
+      const { status } = await post(`/creator-profiles/${PROFILE_SLUG}/follow`);
+      expect(status).toBe(200);
+    } finally {
+      __setFollowEventNotifier(null);
+    }
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      userId: PROFILE_OWNER,
+      category: "social",
+      kind: "follow",
+      link: "/artist/wall-owner",
+    });
+    // The pure builder on its own: named follower + their page.
+    expect(
+      buildFollowEvent({
+        ownerUserId: PROFILE_OWNER,
+        followerName: "Faithful Follower",
+        followerSlug: "the-follower",
+        profileSlug: PROFILE_SLUG,
+      }),
+    ).toMatchObject({
+      category: "social",
+      kind: "follow",
+      title: "Faithful Follower followed you 🦈",
+      link: "/artist/the-follower",
+    });
+  });
+
   it("DE-17: the follow bell names the follower and links THEIR profile — not the recipient's own", async () => {
     const FOLLOWER_PROFILE_ID = "44444444-4444-4444-8444-444444444444";
     h.state.profilesById.set(FOLLOWER_PROFILE_ID, {
@@ -286,6 +410,48 @@ describe("POST /api/creator-profiles/:id/follow", () => {
     expect(notes[0]!["userId"]).toBe(PROFILE_OWNER);
     expect(String(notes[0]!["title"])).toContain("Faithful Follower");
     expect(notes[0]!["link"]).toBe("/artist/the-follower");
+  });
+});
+
+describe("notification-truth: media like / track repost replays", () => {
+  const TRACK_ID = "33333333-3333-4333-8333-333333333333";
+
+  beforeEach(() => {
+    h.state.mediaById.set(TRACK_ID, {
+      id: TRACK_ID,
+      profileId: PROFILE_ID,
+      title: "Midnight Reel",
+      likeCount: 3,
+      repostCount: 2,
+    });
+  });
+
+  it("a replayed like neither re-bells the owner nor re-bumps the counter", async () => {
+    const first = await post(`/media/track/${TRACK_ID}/like`);
+    expect(first.status).toBe(200);
+    expect(first.json.liked).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "like")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("like_count"))).toHaveLength(1);
+
+    const replay = await post(`/media/track/${TRACK_ID}/like`);
+    expect(replay.status).toBe(200);
+    expect(replay.json.liked).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "like")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("like_count"))).toHaveLength(1);
+  });
+
+  it("a replayed repost neither re-bells the owner nor re-bumps the counter", async () => {
+    const first = await post(`/tracks/${TRACK_ID}/repost`);
+    expect(first.status).toBe(200);
+    expect(first.json.reposted).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "repost")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("repost_count"))).toHaveLength(1);
+
+    const replay = await post(`/tracks/${TRACK_ID}/repost`);
+    expect(replay.status).toBe(200);
+    expect(replay.json.reposted).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "repost")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("repost_count"))).toHaveLength(1);
   });
 });
 

@@ -42,7 +42,7 @@ const CATEGORY_ROWS: { key: PushCategory; label: string; description: string }[]
   { key: "messages", label: "Messages", description: "Direct messages and priority DMs." },
   { key: "live", label: "Live", description: "Go-live alerts — your own streams and creators you follow." },
   { key: "mentions", label: "Mentions", description: "@mentions and tags." },
-  { key: "social", label: "Social", description: "New follows, likes and other social activity. Off by default." },
+  { key: "social", label: "Social", description: "New follows, group joins and room invites. Off by default." },
 ];
 
 export function PushNotificationSettings() {

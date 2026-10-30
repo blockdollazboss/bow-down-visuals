@@ -224,6 +224,82 @@ async function notifyMany(
   } catch { /* notifications are non-critical */ }
 }
 
+/* ── Judge notifications (notification-truth audit, stack900 L4) ────────
+   Pure composition of the judge outcome bells from each winner's
+   money state AFTER this call — the old block belled EVERY entrant on
+   EVERY judge run with the same copy, which lied twice over:
+   - a budget-capped winner (prize deliberately left claimable for a
+     later re-judge) was told "N Visual Bucs just landed in your
+     balance" when nothing had landed;
+   - a designed re-judge (the cap retry) re-rang every winner's
+     "just landed" bell and every entrant's results bell.
+   The truthful matrix:
+   - paid_now      → the win bell, landed copy — the prize just moved.
+   - already_paid  → silence; their bell rang on the call that paid.
+   - queued        → on the FIRST announcement only, an honest queued
+                     bell (crowned, prize not landed yet); on later
+                     re-judges silence — the paid_now bell arrives
+                     with the call that actually pays them.
+   - entrants      → the results bell on the first announcement only.
+   Zero-prize winners keep the crown copy (no money is ever claimed). */
+export type JudgeWinnerMoneyState = "paid_now" | "already_paid" | "queued";
+
+export interface JudgeWinnerNotice {
+  userId: string;
+  place: number;
+  prizeCredits: number;
+  state: JudgeWinnerMoneyState;
+}
+
+export function buildJudgeNotifications(input: {
+  challengeTitle: string;
+  challengeSlug: string;
+  firstAnnouncement: boolean;
+  winners: JudgeWinnerNotice[];
+  entrantUserIds: string[];
+}): Array<{ userId: string; kind: string; title: string; body?: string; link?: string }> {
+  const link = `/challenge/${input.challengeSlug}/winners`;
+  const notes: Array<{ userId: string; kind: string; title: string; body?: string; link?: string }> = [];
+  const winnerIds = new Set(input.winners.map((w) => w.userId));
+  for (const w of input.winners) {
+    if (w.state === "already_paid") continue;
+    if (w.state === "queued" && !input.firstAnnouncement) continue;
+    const title = `🏆 You took ${ordinal(w.place)} place in "${input.challengeTitle}"!`;
+    if (w.prizeCredits <= 0) {
+      notes.push({ userId: w.userId, kind: "challenge_win", title, body: "The crown is yours. Wear it loud.", link });
+    } else if (w.state === "paid_now") {
+      notes.push({
+        userId: w.userId,
+        kind: "challenge_win",
+        title,
+        body: `${w.prizeCredits.toLocaleString("en-US")} Visual Bucs just landed in your balance. Wear the crown.`,
+        link,
+      });
+    } else {
+      notes.push({
+        userId: w.userId,
+        kind: "challenge_win",
+        title,
+        body: `Your ${w.prizeCredits.toLocaleString("en-US")} Visual Bucs prize hasn't landed yet — prizes pay in order as the weekly prize budget clears, and yours is on the list.`,
+        link,
+      });
+    }
+  }
+  if (input.firstAnnouncement) {
+    for (const uid of input.entrantUserIds) {
+      if (winnerIds.has(uid)) continue;
+      notes.push({
+        userId: uid,
+        kind: "challenge_results",
+        title: `Winners just dropped for "${input.challengeTitle}" 🏆`,
+        body: "See who took the crown — then run it back in the next one.",
+        link,
+      });
+    }
+  }
+  return notes;
+}
+
 /* ── GET /challenges/:slug/prizes — the prize pool, shown upfront ───────── */
 router.get("/challenges/:slug/prizes", async (req, res) => {
   try {
@@ -756,6 +832,12 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
       ]),
     );
 
+    /* Notification-truth (stack900 L4): whether THIS call is the one
+       that first crowns the winners — re-judges exist by design (the
+       budget-cap retry) and must not re-announce. Read before the
+       flip below. */
+    const firstAnnouncement = ch.status !== "winners";
+
     // Insert winners (idempotent) + flip the challenge to winners.
     await db.transaction(async (tx) => {
       for (const r of ranking) {
@@ -795,6 +877,9 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
     let weeklyPaid = Number(((paid7dRes.rows as Record<string, unknown>[])[0]?.["s"] as number | undefined) ?? 0);
     let paid = 0;
     let alreadyPaid = 0;
+    /* Winner rows THIS call actually paid — the notification matrix
+       (buildJudgeNotifications) keys the "just landed" copy off it. */
+    const paidNowIds = new Set<string>();
     const payoutErrors: string[] = [];
     const budgetCapped: string[] = [];
     for (const w of unpaid) {
@@ -816,6 +901,7 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
         await grantVisualBucs(req, w.userId, w.prizeCredits, `Challenge prize — ${ch.title} (${ordinal(w.place)} place)`);
         weeklyPaid += w.prizeCredits;
         paid++;
+        paidNowIds.add(w.id);
       } catch (e) {
         // Roll the claim back so a retry can pay it.
         await db.execute(sql`UPDATE challenge_winners SET paid_at = NULL WHERE id = ${w.id}`);
@@ -824,7 +910,14 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
       }
     }
 
-    // Notify every entrant: winners get the crown, everyone else the results.
+    /* Notify — truthfully, per winner money state (stack900 L4): the
+       old block belled every entrant on every judge run, telling
+       budget-capped winners their prize "just landed" when it had
+       deliberately been left claimable, and re-ringing everyone on
+       the designed cap-retry re-judge. The matrix lives in
+       buildJudgeNotifications; here we only classify each winner row
+       from the post-payout truth (paid by this call / paid earlier /
+       still unpaid) and whether this call is the announcement. */
     const entrants = await db.execute(sql`
       SELECT DISTINCT cp.user_id AS user_id, cp.slug AS creator_slug
       FROM challenge_entries ce
@@ -832,35 +925,28 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
       JOIN creator_profiles cp ON cp.id = pv.profile_id
       WHERE ce.challenge_id = ${ch.id} AND cp.user_id IS NOT NULL
     `);
-    const winnerUserByPlace = new Map(
-      (await db.select().from(challengeWinnersTable).where(eq(challengeWinnersTable.challengeId, ch.id)))
+    const winnerRows = await db
+      .select()
+      .from(challengeWinnersTable)
+      .where(eq(challengeWinnersTable.challengeId, ch.id));
+    const notes = buildJudgeNotifications({
+      challengeTitle: ch.title,
+      challengeSlug: ch.slug,
+      firstAnnouncement,
+      winners: winnerRows
         .filter((w) => w.userId)
-        .map((w) => [w.userId!, w]),
-    );
-    const notes: Array<{ userId: string; kind: string; title: string; body?: string; link?: string }> = [];
-    for (const r of entrants.rows as Record<string, unknown>[]) {
-      const uid = String(r["user_id"]);
-      const win = winnerUserByPlace.get(uid);
-      if (win) {
-        notes.push({
-          userId: uid,
-          kind: "challenge_win",
-          title: `🏆 You took ${ordinal(win.place)} place in "${ch.title}"!`,
-          body: win.prizeCredits > 0
-            ? `${win.prizeCredits.toLocaleString("en-US")} Visual Bucs just landed in your balance. Wear the crown.`
-            : "The crown is yours. Wear it loud.",
-          link: `/challenge/${ch.slug}/winners`,
-        });
-      } else {
-        notes.push({
-          userId: uid,
-          kind: "challenge_results",
-          title: `Winners just dropped for "${ch.title}" 🏆`,
-          body: "See who took the crown — then run it back in the next one.",
-          link: `/challenge/${ch.slug}/winners`,
-        });
-      }
-    }
+        .map((w) => ({
+          userId: w.userId!,
+          place: w.place,
+          prizeCredits: w.prizeCredits,
+          state: (paidNowIds.has(w.id)
+            ? "paid_now"
+            : w.paidAt
+              ? "already_paid"
+              : "queued") as JudgeWinnerMoneyState,
+        })),
+      entrantUserIds: (entrants.rows as Record<string, unknown>[]).map((r) => String(r["user_id"])),
+    });
     await notifyMany(notes);
 
     req.log.info(
