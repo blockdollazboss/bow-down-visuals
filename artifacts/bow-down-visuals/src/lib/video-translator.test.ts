@@ -5,6 +5,7 @@ import {
   languageLabel,
   estimateTranslateCost,
   formatDuration,
+  pickDefaultVoiceId,
   TRANSLATOR_CREDITS_PER_MIN_PER_LANG,
   TRANSLATOR_MAX_LANGUAGES,
 } from "./video-translator";
@@ -75,5 +76,23 @@ describe("video-translator lib", () => {
     expect(formatDuration(90)).toBe("1:30");
     expect(formatDuration(null)).toBe("—");
     expect(formatDuration(5)).toBe("0:05");
+  });
+});
+
+describe("pickDefaultVoiceId (EVERYTHING-SMART, stack900 K1)", () => {
+  const voices = [{ voice_id: "house-1" }, { voice_id: "clone-9" }, { voice_id: "house-2" }];
+
+  it("prefers the creator's own cloned vault voice over the first listed", () => {
+    expect(pickDefaultVoiceId(voices, "clone-9")).toBe("clone-9");
+  });
+
+  it("falls back to the first listed voice when the vault voice is absent or unset", () => {
+    expect(pickDefaultVoiceId(voices, "not-in-list")).toBe("house-1");
+    expect(pickDefaultVoiceId(voices, null)).toBe("house-1");
+    expect(pickDefaultVoiceId(voices, undefined)).toBe("house-1");
+  });
+
+  it("returns an empty id for an empty list", () => {
+    expect(pickDefaultVoiceId([], "clone-9")).toBe("");
   });
 });
