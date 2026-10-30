@@ -362,7 +362,7 @@ function ActionButton({
       data-testid={`world-action-${def.id}`}
       aria-pressed={def.kind === "toggle" ? active : undefined}
       title={def.kind === "toggle" ? `${def.label} — stays on until you stop it` : def.label}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+      className={`bdv-touch-target inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
         active
           ? "border-[#d4af37] bg-[#d4af37] text-black"
           : isLight
@@ -3058,7 +3058,7 @@ export default function WorldPage() {
   const canDriveScreen = !stageHolder || iHoldStage || isAdmin;
   const stageVideoPlaying = stageScreen?.playback?.playing ?? false;
   const panelBtnCls = (active: boolean) =>
-    `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+    `bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
       active
         ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
         : isLight
@@ -3178,7 +3178,7 @@ export default function WorldPage() {
             data-testid="world-announce-toggle"
             aria-pressed={!announceMuted}
             title={announceMuted ? "Palace announcements are muted on this device — tap to hear the palace again" : "Palace announcements — tap to mute them on this device"}
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+            className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
           >
             {announceMuted ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
             {announceMuted ? "Announcements off" : "Announcements on"}
@@ -3223,7 +3223,7 @@ export default function WorldPage() {
             onClick={toggleFs}
             data-testid="world-fullscreen"
             aria-pressed={isFs}
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+            className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
           >
             {isFs ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             {isFs ? "Exit full screen" : "Full screen"}
@@ -3326,7 +3326,7 @@ export default function WorldPage() {
             onClick={toggleAnnounceMuted}
             data-testid="world-announce-mute"
             aria-label="Mute palace announcements on this device"
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+            className={`bdv-touch-target inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
           >
             <BellOff className="h-3.5 w-3.5" /> Mute
           </button>
@@ -3335,7 +3335,7 @@ export default function WorldPage() {
             onClick={() => setAnnounce(null)}
             data-testid="world-announce-dismiss"
             aria-label="Dismiss this announcement"
-            className={`inline-flex items-center rounded-full border p-1.5 transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+            className={`bdv-touch-box inline-flex items-center rounded-full border p-1.5 transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -3376,7 +3376,7 @@ export default function WorldPage() {
                 clientRef.current?.claimKingGift();
               }}
               data-testid="world-king-claim"
-              className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+              className="bdv-touch-target rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
             >
               Claim today&rsquo;s gift
             </button>
@@ -3430,7 +3430,7 @@ export default function WorldPage() {
                 clientRef.current?.claimDrop();
               }}
               data-testid="world-drop-claim"
-              className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+              className="bdv-touch-target rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
             >
               {dropInFlight
                 ? "Claiming…"
@@ -3492,7 +3492,7 @@ export default function WorldPage() {
                     clientRef.current?.tipStage(amount);
                   }}
                   data-testid={`world-stage-tip-${amount}`}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:bg-[#d4af37]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                  className={`bdv-touch-target rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:bg-[#d4af37]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
                 >
                   {amount.toLocaleString("en-US")} VB
                 </button>
@@ -3552,7 +3552,7 @@ export default function WorldPage() {
                 aria-current={here ? "true" : undefined}
                 aria-label={`${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"} inside${r.live ? ", live now" : ""}${r.locked ? ", door locked" : ""}${here ? ", you're here" : ""}`}
                 onClick={() => goToDirectoryRoom(r)}
-                className={`inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${
+                className={`bdv-touch-target inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${
                   isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"
                 } ${
                   here
@@ -3619,7 +3619,7 @@ export default function WorldPage() {
               </p>
               <Link
                 href={`/login?next=${encodeURIComponent(`/world?party=${partyInviteCode}`)}`}
-                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
               >
                 Sign in to join the table
               </Link>
@@ -3640,7 +3640,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-party-summons-go"
                 onClick={goToInvitedTable}
-                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
               >
                 Go to the Game Rooms
               </button>
@@ -3661,7 +3661,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-party-summons-go"
                 onClick={goToInvitedTable}
-                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
               >
                 Take me to the table
               </button>
@@ -3676,7 +3676,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-party-summons-go"
                 onClick={goToInvitedTable}
-                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-sm font-bold text-black transition hover:scale-105"
               >
                 Go to the Game Rooms
               </button>
@@ -3686,7 +3686,7 @@ export default function WorldPage() {
             type="button"
             aria-label="Dismiss the summons"
             onClick={() => setInviteDismissed(true)}
-            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+            className={`bdv-touch-target rounded-full border px-2 py-1 text-xs font-bold ${
               isLight
                 ? "border-[#7A5A12]/30 text-[#6B5B36]"
                 : "border-white/15 text-white/70"
@@ -3716,7 +3716,7 @@ export default function WorldPage() {
           <button
             type="button"
             onClick={() => setCreatorNote(null)}
-            className={`rounded-full border px-2 py-1 text-xs font-bold ${
+            className={`bdv-touch-target rounded-full border px-2 py-1 text-xs font-bold ${
               isLight
                 ? "border-[#7A5A12]/30 text-[#6B5B36]"
                 : "border-white/15 text-white/70"
@@ -3756,7 +3756,7 @@ export default function WorldPage() {
               type="button"
               data-testid="world-fs-reenter"
               onClick={toggleFs}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg transition hover:scale-105 ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}
+              className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold shadow-lg transition hover:scale-105 ${isLight ? "border-[#C9A84C]/60 bg-[#FCF7EA]/95 text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/85 text-[#e8c86a]"}`}
             >
               <Maximize className="h-3.5 w-3.5" />
               {padProfile.family !== "generic"
@@ -3804,7 +3804,7 @@ export default function WorldPage() {
               <AlertTriangle className="mx-auto h-8 w-8 text-[#d4af37]" />
               <h2 className="mt-3 text-lg font-black">The hall couldn't start on this device</h2>
               <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>The 3D hall needs WebGL2, and this browser didn't hand it over — the hall itself is fine, and so is your connection. A current browser, or hardware acceleration switched on, usually settles it.</p>
-              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="bdv-touch-target mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 <RotateCcw className="h-4 w-4" /> Try again
               </button>
             </div>
@@ -3819,10 +3819,10 @@ export default function WorldPage() {
                 Everyone the palace can hold is inside right now. Give it a moment and try the door again.
               </p>
               <div className="mt-4 flex justify-center gap-2">
-                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                   <RotateCcw className="h-4 w-4" /> Try again
                 </button>
-                <Link href="/go-live" className={`rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
+                <Link href="/go-live" className={`bdv-touch-target rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
                   Back to Go Live
                 </Link>
               </div>
@@ -3835,7 +3835,7 @@ export default function WorldPage() {
               <AlertTriangle className="mx-auto h-8 w-8 text-[#d4af37]" />
               <h2 className="mt-3 text-lg font-black">The hall wouldn't open</h2>
               <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>The connection dropped or never landed. Your place in line isn't saved — just walk back in.</p>
-              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="bdv-touch-target mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 <RotateCcw className="h-4 w-4" /> Re-enter the hall
               </button>
             </div>
@@ -3850,7 +3850,7 @@ export default function WorldPage() {
               <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
                 The host removed you from the hall. The rest of the site is still yours — the shows, your page, your people.
               </p>
-              <Link href="/go-live" className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+              <Link href="/go-live" className="bdv-touch-target mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 Back to Go Live
               </Link>
             </div>
@@ -3865,7 +3865,7 @@ export default function WorldPage() {
               <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
                 This copy stepped aside — one person, one presence, so the headcount never lies. Want this tab instead? Walk back in here and the other copy will step aside.
               </p>
-              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="bdv-touch-target mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                 <RotateCcw className="h-4 w-4" /> Re-enter here
               </button>
             </div>
@@ -3888,10 +3888,10 @@ export default function WorldPage() {
                 </p>
               )}
               <div className="mt-4 flex justify-center gap-2">
-                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                   <RotateCcw className="h-4 w-4" /> {t("world.lockedTryAgain")}
                 </button>
-                <Link href="/go-live" className={`rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
+                <Link href="/go-live" className={`bdv-touch-target rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
                   {t("world.lockedGoLive")}
                 </Link>
               </div>
@@ -3908,10 +3908,10 @@ export default function WorldPage() {
                 {t("world.doorLockedBody")}
               </p>
               <div className="mt-4 flex justify-center gap-2">
-                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
+                <button type="button" onClick={() => setAttempt((n) => n + 1)} className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105">
                   <RotateCcw className="h-4 w-4" /> {t("world.lockedTryAgain")}
                 </button>
-                <Link href="/go-live" className={`rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
+                <Link href="/go-live" className={`bdv-touch-target rounded-full border px-5 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:text-[#2a1e07]" : "border-white/15 text-white/80 hover:text-white"}`}>
                   {t("world.lockedGoLive")}
                 </Link>
               </div>
@@ -4028,7 +4028,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-station-open"
                 onClick={() => setPanelTarget({ kind: "station", station: nearStation })}
-                className="shrink-0 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target shrink-0 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
               >
                 Open
               </button>
@@ -4082,7 +4082,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-courtesy-perform"
                 onClick={() => performAction(nearCourtesy.action)}
-                className="shrink-0 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target shrink-0 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
               >
                 {ACTION_BY_ID.get(nearCourtesy.action)?.label ?? "Perform"}
               </button>
@@ -4135,7 +4135,7 @@ export default function WorldPage() {
                 .then(() => setJukeboxAudible(true))
                 .catch(() => undefined);
             }}
-            className="absolute bottom-24 right-3 z-10 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 bg-black/75 px-4 py-2 text-sm font-bold text-[#e8c86a] backdrop-blur-sm transition hover:bg-black/90 sm:bottom-20"
+            className="bdv-touch-target absolute bottom-24 right-3 z-10 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 bg-black/75 px-4 py-2 text-sm font-bold text-[#e8c86a] backdrop-blur-sm transition hover:bg-black/90 sm:bottom-20"
           >
             <Music2 className="h-4 w-4" /> Tap to hear the Music Hall
           </button>
@@ -4169,7 +4169,7 @@ export default function WorldPage() {
                   data-testid="world-plaza-radio-close"
                   onClick={() => setRadioOpen(false)}
                   aria-label="Close Charts Radio"
-                  className={`absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:bg-[#C9A84C]/15" : "border-white/15 text-white/70 hover:bg-white/10"}`}
+                  className={`bdv-touch-box absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:bg-[#C9A84C]/15" : "border-white/15 text-white/70 hover:bg-white/10"}`}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -4182,7 +4182,7 @@ export default function WorldPage() {
               data-testid="world-plaza-radio-open"
               data-hud-fade
               onClick={() => setRadioOpen(true)}
-              className={`fixed bottom-24 left-3 z-30 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-lg backdrop-blur-sm transition hover:scale-105 sm:bottom-20 ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#7A5A12]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"}`}
+              className={`bdv-touch-target fixed bottom-24 left-3 z-30 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-lg backdrop-blur-sm transition hover:scale-105 sm:bottom-20 ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#7A5A12]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"}`}
             >
               <Music2 className="h-4 w-4" />
               Charts Radio
@@ -4273,7 +4273,7 @@ export default function WorldPage() {
                       type="button"
                       data-testid="world-stage-live"
                       onClick={() => clientRef.current?.takeStageLive(myStream.id)}
-                      className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:scale-105"
+                      className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:scale-105"
                     >
                       <span className="h-2 w-2 rounded-full bg-white" /> Take the stage — put my stream on the screen
                     </button>
@@ -4309,7 +4309,7 @@ export default function WorldPage() {
                     type="button"
                     data-testid="world-stage-end"
                     onClick={() => clientRef.current?.endStage()}
-                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-red-800/30 text-red-900/80 hover:text-red-900" : "border-red-400/40 text-red-300 hover:text-red-200"}`}
+                    className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-red-800/30 text-red-900/80 hover:text-red-900" : "border-red-400/40 text-red-300 hover:text-red-200"}`}
                   >
                     {iHoldStage ? "End my show" : "End the show"}
                   </button>
@@ -4344,7 +4344,7 @@ export default function WorldPage() {
                                 type="button"
                                 data-testid="world-screen-video"
                                 onClick={() => clientRef.current?.playStageVideo(item.id)}
-                                className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                                className={`bdv-touch-target inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
                               >
                                 <Play className="h-3.5 w-3.5 shrink-0 text-[#d4af37]" />
                                 <span className="truncate">{item.title}</span>
@@ -4420,7 +4420,7 @@ export default function WorldPage() {
                         type="button"
                         data-testid="world-host-mute"
                         onClick={() => clientRef.current?.adminMute(p.peerId, !p.hostMuted)}
-                        className={`rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                        className={`bdv-touch-target rounded-full border px-3 py-1 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
                       >
                         {p.hostMuted ? "Unmute voice" : "Mute voice"}
                       </button>
@@ -4438,7 +4438,7 @@ export default function WorldPage() {
                             setLockArm(p.peerId);
                           }
                         }}
-                        className={`rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${
+                        className={`bdv-touch-target rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${
                           lockArm === p.peerId
                             ? "border-red-500 bg-red-500 text-white"
                             : isLight
@@ -4460,7 +4460,7 @@ export default function WorldPage() {
                           setRemoveArm(p.peerId);
                         }
                       }}
-                      className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
+                      className={`bdv-touch-target rounded-full border px-3 py-1 text-xs font-bold transition ${
                         removeArm === p.peerId
                           ? "border-red-500 bg-red-500 text-white"
                           : isLight
@@ -4504,13 +4504,13 @@ export default function WorldPage() {
                 onChange={(e) => setHeraldDraft(e.target.value)}
                 maxLength={140}
                 placeholder="Speak to every room at once…"
-                className={`min-w-[220px] flex-1 rounded-full border px-4 py-2 text-sm font-semibold outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60" : "border-white/15 bg-white/5 text-white placeholder:text-white/35"}`}
+                className={`bdv-touch-target min-w-[220px] flex-1 rounded-full border px-4 py-2 text-sm font-semibold outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60" : "border-white/15 bg-white/5 text-white placeholder:text-white/35"}`}
               />
               <button
                 type="submit"
                 data-testid="world-herald-send"
                 disabled={!cleanHeraldText(heraldDraft)}
-                className="rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-4 py-2 text-sm font-black text-[#e8c86a] transition hover:bg-[#d4af37]/25 disabled:cursor-not-allowed disabled:opacity-40"
+                className="bdv-touch-target rounded-full border border-[#d4af37] bg-[#d4af37]/15 px-4 py-2 text-sm font-black text-[#e8c86a] transition hover:bg-[#d4af37]/25 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Herald
               </button>
@@ -4548,7 +4548,7 @@ export default function WorldPage() {
                       data-testid="world-host-door-lock"
                       disabled={lockBusy || !entry}
                       onClick={() => void runDoorLockVerb()}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                      className={`bdv-touch-target inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
                     >
                       {verb === "unlock" ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                       {verb === "unlock" ? "Unlock this room's door" : "Lock this room's door"}
@@ -4581,7 +4581,7 @@ export default function WorldPage() {
                           data-testid="world-host-unlock-person"
                           disabled={lockBusy}
                           onClick={() => void runPersonUnlock(l)}
-                          className={`ml-auto rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                          className={`bdv-touch-target ml-auto rounded-full border px-3 py-1 text-xs font-bold transition disabled:opacity-40 ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
                         >
                           Lift lock
                         </button>
@@ -4809,7 +4809,7 @@ export default function WorldPage() {
                   data-testid={`world-action-page-${page.id}`}
                   aria-pressed={actionPage === page.id}
                   onClick={() => setActionPage(page.id)}
-                  className={`px-3 py-1.5 text-xs font-black transition ${
+                  className={`bdv-touch-target px-3 py-1.5 text-xs font-black transition ${
                     actionPage === page.id
                       ? "bg-[#d4af37] text-black"
                       : isLight
@@ -4863,7 +4863,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-strip-interact"
                 onClick={() => interactRef.current()}
-                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
               >
                 <Crown className="h-4 w-4" /> {nearCourtesy.label}
               </button>
@@ -4872,7 +4872,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-strip-interact"
                 onClick={() => interactRef.current()}
-                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
               >
                 <DoorOpen className="h-4 w-4" /> Open {nearStation.name}
               </button>
@@ -4884,7 +4884,7 @@ export default function WorldPage() {
                   type="button"
                   data-testid="world-strip-claim"
                   onClick={() => claimMomentRef.current()}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                  className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
                 >
                   <Gem className="h-4 w-4" /> Claim the moment
                 </button>
@@ -4908,7 +4908,7 @@ export default function WorldPage() {
               onPointerCancel={() => applyTouchSprint("release")}
               onPointerLeave={() => applyTouchSprint("release")}
               onContextMenu={(e) => e.preventDefault()}
-              className={`inline-flex touch-none select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+              className={`bdv-touch-target inline-flex touch-none select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
                 touchSprint
                   ? "border-[#d4af37] bg-[#d4af37] text-black"
                   : isLight
@@ -4934,7 +4934,7 @@ export default function WorldPage() {
                 sceneRef.current?.queueJump();
               }}
               onContextMenu={(e) => e.preventDefault()}
-              className={`inline-flex touch-none select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105 ${
+              className={`bdv-touch-target inline-flex touch-none select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105 ${
                 isLight
                   ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                   : "border-white/15 text-white/80 hover:text-white"
@@ -4946,7 +4946,7 @@ export default function WorldPage() {
               type="button"
               data-testid="world-strip-photo"
               onClick={() => togglePhotoModeRef.current()}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105 ${
+              className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition hover:scale-105 ${
                 isLight
                   ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                   : "border-white/15 text-white/80 hover:text-white"
@@ -4978,7 +4978,7 @@ export default function WorldPage() {
               data-testid="world-guest-say-pitch"
             >
               {GUEST_SPEAK_PITCH}
-              <Link href={GUEST_SIGN_IN_HREF} className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105">
+              <Link href={GUEST_SIGN_IN_HREF} className="bdv-touch-target inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105">
                 Sign in to speak
               </Link>
             </p>
@@ -4994,7 +4994,7 @@ export default function WorldPage() {
               <EmojiTray
                 tone={isLight ? "light" : "dark"}
                 onPickToken={insertSayToken}
-                buttonClassName={`rounded-full border p-2 transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 bg-white/60" : "border-white/12 bg-black/50"}`}
+                buttonClassName={`bdv-touch-box rounded-full border p-2 transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 bg-white/60" : "border-white/12 bg-black/50"}`}
               />
               <input
                 ref={sayInputRef}
@@ -5002,10 +5002,10 @@ export default function WorldPage() {
                 onChange={(e) => setDraft(e.target.value)}
                 maxLength={300}
                 placeholder={myName ? `Say something, ${myName.split(" ")[0]}…` : "Say something…"}
-                className={`min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/70 focus:border-[#7A5A12]" : "border-white/12 bg-black/50 text-white placeholder:text-white/30 focus:border-[#d4af37]/60"}`}
+                className={`bdv-touch-target min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/70 focus:border-[#7A5A12]" : "border-white/12 bg-black/50 text-white placeholder:text-white/30 focus:border-[#d4af37]/60"}`}
                 data-testid="world-say-input"
               />
-              <button type="submit" className="rounded-full bg-[#d4af37] p-2.5 text-black transition hover:scale-105" aria-label="Send to the room">
+              <button type="submit" className="bdv-touch-box rounded-full bg-[#d4af37] p-2.5 text-black transition hover:scale-105" aria-label="Send to the room">
                 <Send className="h-4 w-4" />
               </button>
             </form>
@@ -5020,7 +5020,7 @@ export default function WorldPage() {
                 data-testid="world-quality-control"
                 aria-label="Graphics quality"
                 title="Graphics quality — Auto adapts to your device"
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
               >
                 <Gauge className="h-4 w-4" />
                 Quality: {qualityPreferenceLabel(qualityPref)}
@@ -5032,7 +5032,7 @@ export default function WorldPage() {
                 onClick={toggleViewMode}
                 data-testid="world-view-toggle"
                 aria-pressed={viewMode === "third"}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
               >
                 <Eye className="h-4 w-4" />
                 {viewMode === "third" ? "Third person" : "First person"}
@@ -5044,7 +5044,7 @@ export default function WorldPage() {
                 onClick={() => toggleStripPanel("char")}
                 data-testid="world-change-character"
                 aria-expanded={charPanelOpen}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${charPanelOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]" : isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
+                className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${charPanelOpen ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]" : isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}
               >
                 <Sparkles className="h-4 w-4" />
                 Change character
@@ -5102,7 +5102,7 @@ export default function WorldPage() {
                         aria-checked={active}
                         data-testid={`world-voice-mode-${mode}`}
                         onClick={() => setVoiceMode(mode)}
-                        className={`rounded-full px-3 py-1.5 text-sm font-bold transition ${
+                        className={`bdv-touch-target rounded-full px-3 py-1.5 text-sm font-bold transition ${
                           active
                             ? "bg-[#d4af37] text-black"
                             : isLight
@@ -5127,7 +5127,7 @@ export default function WorldPage() {
                   aria-label="Character voice"
                   onClick={toggleCharVoice}
                   data-testid="world-character-voice-switch"
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
+                  className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
                     charVoiceOn
                       ? "border-[#d4af37] bg-[#d4af37] text-black hover:scale-105"
                       : isLight
@@ -5187,7 +5187,7 @@ export default function WorldPage() {
                     type="button"
                     onClick={retryFailedVoicePeers}
                     data-testid="world-voice-retry"
-                    className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                    className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
                   >
                     Retry connection
                   </button>
@@ -5198,7 +5198,7 @@ export default function WorldPage() {
                   </span>
                 )}
                 {voiceSwitch.mode !== "off" && !voiceSwitch.inVoice && !hostMuted && (
-                  <button type="button" onClick={joinVoice} disabled={voiceBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                  <button type="button" onClick={joinVoice} disabled={voiceBusy} className="bdv-touch-target inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
                     {voiceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                     Join voice
                   </button>
@@ -5208,18 +5208,18 @@ export default function WorldPage() {
                     <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${isLight ? "border-[#476b8a]/40 bg-[#476b8a]/10 text-[#476b8a]" : "border-[#a9c3d9]/40 bg-[#a9c3d9]/10 text-[#a9c3d9]"}`} data-testid="world-deafened-chip">
                       <MicOff className="h-4 w-4" /> Deafened — mic muted
                     </span>
-                    <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
+                    <button type="button" onClick={leaveVoice} className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
                       <PhoneOff className="h-4 w-4" /> Leave voice
                     </button>
                   </>
                 )}
                 {voiceSwitch.inVoice && voiceSwitch.mode !== "deafen" && (
                   <>
-                    <button type="button" onClick={toggleMute} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : isLight ? "bg-black/5 text-[#2a1e07] border border-[#7A5A12]/30" : "bg-white/10 text-white border border-white/15"}`}>
+                    <button type="button" onClick={toggleMute} className={`bdv-touch-target inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${muted ? "bg-red-500/20 text-red-200 border border-red-400/40" : isLight ? "bg-black/5 text-[#2a1e07] border border-[#7A5A12]/30" : "bg-white/10 text-white border border-white/15"}`}>
                       {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                       {muted ? "Muted" : "Mic live"}
                     </button>
-                    <button type="button" onClick={leaveVoice} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
+                    <button type="button" onClick={leaveVoice} className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
                       <PhoneOff className="h-4 w-4" /> Leave voice
                     </button>
                     <span className={`hidden text-[11px] lg:inline ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
@@ -5240,14 +5240,14 @@ export default function WorldPage() {
               <Link
                 href="/login?next=/world"
                 data-testid="world-guest-voice-chip"
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold opacity-70 transition ${isLight ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36]" : "border-white/20 bg-white/5 text-white/60"}`}
+                className={`bdv-touch-target inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold opacity-70 transition ${isLight ? "border-[#7A5A12]/40 bg-black/5 text-[#6B5B36]" : "border-white/20 bg-white/5 text-white/60"}`}
               >
                 <MicOff className="h-4 w-4" />
                 Voice is for members — sign in to talk
               </Link>
             )}
             {xrSupported ? (
-              <button type="button" onClick={enterVr} className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10 px-4 py-2 text-sm font-bold text-[#e8c86a] transition hover:bg-[#d4af37]/20">
+              <button type="button" onClick={enterVr} className="bdv-touch-target inline-flex items-center gap-2 rounded-full border border-[#d4af37]/50 bg-[#d4af37]/10 px-4 py-2 text-sm font-bold text-[#e8c86a] transition hover:bg-[#d4af37]/20">
                 <Glasses className="h-4 w-4" /> Enter VR
               </button>
             ) : xrSupported === false ? (

@@ -937,6 +937,35 @@ html, body {
   pointer-events: none;
 }
 
+/* World touch targets (Q194, stack900 world-touch lane): the
+   World's chrome was drawn as one compact furniture set for the
+   mouse — 26–37px pills and chips — and a thumb is not a cursor.
+   On coarse pointers (phones, tablets, touch laptops) the
+   World's operation controls grow to a 44px minimum target:
+   the strip's verbs, the prompt doors, the header doors, the
+   claims, the panel doors and their returns. The rules live
+   ONLY inside this media block, so a fine pointer's World is
+   pixel-for-pixel the one that was designed, and the pad and
+   keyboard paths never see them. Size only — no colour, no
+   layout — so both themes read exactly as before, only taller
+   where a thumb lands. Text fields wearing the target class
+   also take a 16px font on coarse pointers: below it, iOS
+   Safari zooms the page on focus, and a zoomed World under a
+   keyboard is a World you have left without leaving. */
+@media (pointer: coarse) {
+  .bdv-touch-target {
+    min-height: 44px;
+  }
+  .bdv-touch-box {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  input.bdv-touch-target,
+  textarea.bdv-touch-target {
+    font-size: 16px;
+  }
+}
+
 /* ── 17. Dark-spot sweep: pages & components that bypassed the theme ── */
 
 /* Content panel (App.tsx main frame + pricing page): marble invitation card.
