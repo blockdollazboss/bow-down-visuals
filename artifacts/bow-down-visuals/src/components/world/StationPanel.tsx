@@ -231,7 +231,7 @@ class PanelBoundary extends Component<
         <button
           type="button"
           onClick={() => this.setState({ failed: false })}
-          className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+          className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           Try again
         </button>
@@ -274,7 +274,7 @@ function GuestPitch({ station, isLight }: { station: PalaceStation; isLight: boo
       </p>
       <Link
         href={GUEST_SIGN_IN_HREF}
-        className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105"
+        className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
       >
         <LogIn className="h-4 w-4" /> Sign in to open it
       </Link>
@@ -362,7 +362,7 @@ function KingdomBoard({
             aria-current={here ? "true" : undefined}
             aria-label={rowLabel}
             onClick={() => onEnterRoom(r.id)}
-            className={`w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"} ${rowClass}`}
+            className={`w-full cursor-pointer text-left bdv-touch-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"} ${rowClass}`}
           >
             {rowInner}
           </button>
@@ -435,7 +435,7 @@ function FrontRowGallery({
         <button
           type="button"
           onClick={() => setTick((n) => n + 1)}
-          className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+          className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           Try again
         </button>
@@ -629,7 +629,7 @@ function TreasuryDaily({
                 data-testid="world-treasury-claim-daily"
                 onClick={claim}
                 disabled={claiming}
-                className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
               >
                 {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
                 Claim today&rsquo;s drop
@@ -776,7 +776,7 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
               data-testid="world-treasury-claim-crate"
               onClick={claimCrate}
               disabled={busy !== null}
-              className="ml-auto rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+              className="ml-auto rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
             >
               {busy === "crate" ? "Opening…" : "Claim the crate"}
             </button>
@@ -812,7 +812,7 @@ function TreasuryShark({ isLight }: { isLight: boolean }) {
               data-testid="world-treasury-claim-drop"
               onClick={claimDrop}
               disabled={busy !== null}
-              className="ml-auto rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+              className="ml-auto rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
             >
               {busy === "drop" ? "Claiming…" : "Claim it"}
             </button>
@@ -917,7 +917,7 @@ function JukeboxPanel(props: StationPanelProps) {
   const rowCls = `flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${
     isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"
   }`;
-  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
 
@@ -932,7 +932,7 @@ function JukeboxPanel(props: StationPanelProps) {
               type="button"
               data-testid="world-jukebox-add"
               onClick={() => props.onJukeboxAdd(item.id)}
-              className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                 isLight
                   ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                   : "border-white/15 text-white/75 hover:text-white"
@@ -1048,7 +1048,7 @@ function JukeboxPanel(props: StationPanelProps) {
                   type="button"
                   data-testid="world-jukebox-remove"
                   onClick={() => props.onJukeboxRemove(entry.entryId)}
-                  className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                  className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition bdv-touch-target ${
                     isLight
                       ? "border-red-800/30 text-red-900/80 hover:text-red-900"
                       : "border-red-400/40 text-red-300 hover:text-red-200"
@@ -1151,10 +1151,10 @@ function ListeningPartySection(props: {
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const headingCls = `text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`;
-  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+  const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
   }`;
-  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none ${
+  const inputCls = `w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none bdv-touch-target ${
     isLight
       ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]"
       : "border-white/10 bg-white/5 text-white [color-scheme:dark]"
@@ -1324,7 +1324,7 @@ function ListeningPartySection(props: {
                 type="button"
                 data-testid="world-party-pick"
                 onClick={() => pickFromCatalog(item)}
-                className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                   picked
                     ? "border-[#d4af37] bg-[#d4af37]/20 text-[#d4af37]"
                     : isLight
@@ -1392,7 +1392,7 @@ function ListeningPartySection(props: {
                 data-testid="world-party-cancel"
                 disabled={busy}
                 onClick={() => void cancel(party)}
-                className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition bdv-touch-target ${
                   isLight
                     ? "border-red-800/30 text-red-900/80 hover:text-red-900"
                     : "border-red-400/40 text-red-300 hover:text-red-200"
@@ -1510,7 +1510,7 @@ function ListeningPartySection(props: {
                         aria-label="Move up"
                         disabled={i === 0}
                         onClick={() => setQueue(movePartyQueueItem(queue, i, -1))}
-                        className={chipBtn}
+                        className={`${chipBtn} bdv-touch-box`}
                       >
                         <ArrowUp className="h-3 w-3" />
                       </button>
@@ -1519,7 +1519,7 @@ function ListeningPartySection(props: {
                         aria-label="Move down"
                         disabled={i === queue.length - 1}
                         onClick={() => setQueue(movePartyQueueItem(queue, i, 1))}
-                        className={chipBtn}
+                        className={`${chipBtn} bdv-touch-box`}
                       >
                         <ArrowDown className="h-3 w-3" />
                       </button>
@@ -1527,7 +1527,7 @@ function ListeningPartySection(props: {
                         type="button"
                         aria-label="Remove"
                         onClick={() => setQueue(queue.filter((q) => q.id !== item.id))}
-                        className={chipBtn}
+                        className={`${chipBtn} bdv-touch-box`}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -1561,7 +1561,7 @@ function ListeningPartySection(props: {
               data-testid="world-party-submit"
               disabled={busy}
               onClick={() => void submit()}
-              className={`inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/20 px-4 py-2 text-xs font-black text-[#d4af37] transition hover:bg-[#d4af37]/30 disabled:opacity-50`}
+              className={`inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/20 px-4 py-2 text-xs font-black text-[#d4af37] transition hover:bg-[#d4af37]/30 disabled:opacity-50 bdv-touch-target`}
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarDays className="h-3.5 w-3.5" />}
               Book this party

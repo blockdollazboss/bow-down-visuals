@@ -269,7 +269,7 @@ export function ChartsRadioPanel({ compact = false }: { compact?: boolean }) {
               <button
                 type="button"
                 onClick={() => startAt(i)}
-                className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition bdv-touch-target ${
                   i === current
                     ? isLight
                       ? "bg-[#C9A84C]/15 font-bold"
