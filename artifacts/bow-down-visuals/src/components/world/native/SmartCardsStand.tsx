@@ -233,7 +233,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
             type="button"
             aria-label={`Remove link ${i + 1}`}
             onClick={() => setRows(rows.filter((_, j) => j !== i))}
-            className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white"
+            className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box"
           >
             <X className="h-4 w-4" />
           </button>
@@ -244,7 +244,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
           type="button"
           data-testid={`${testidPrefix}-add-link`}
           onClick={() => setRows([...rows, { label: "", url: "" }])}
-          className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}
+          className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}
         >
           <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a link
         </button>
@@ -399,7 +399,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
                     type="button"
                     data-testid="world-smart-cards-edit"
                     onClick={() => (editingSlug === p.slug ? setEditingSlug(null) : startEdit(p))}
-                    className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-bold ${strong}`}
+                    className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}
                   >
                     <Pencil className="h-3.5 w-3.5 text-[#d4af37]" /> Edit
                   </button>
@@ -414,7 +414,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
                       <button type="button" data-testid="world-smart-cards-edit-save" onClick={() => void saveEdit()} disabled={savingEdit} className={goldBtn}>
                         {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Save the card
                       </button>
-                      <button type="button" onClick={() => setEditingSlug(null)} className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                      <button type="button" onClick={() => setEditingSlug(null)} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                         <Minus className="h-3.5 w-3.5" /> Close
                       </button>
                     </div>

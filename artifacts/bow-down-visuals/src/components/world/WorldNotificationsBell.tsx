@@ -176,7 +176,7 @@ export function WorldNotificationsBell({
           <div className={`flex items-center gap-2 border-b px-4 py-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
             <p className={`text-sm font-black ${strong}`}>Notifications</p>
             {unread > 0 && (
-              <button type="button" data-testid="world-notifications-mark-all" onClick={() => void markAllRead()} className={`ml-auto inline-flex items-center gap-1.5 text-xs font-bold ${muted} hover:opacity-80`}>
+              <button type="button" data-testid="world-notifications-mark-all" onClick={() => void markAllRead()} className={`ml-auto inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${muted} hover:opacity-80`}>
                 <CheckCheck className="h-4 w-4 text-[#d4af37]" /> Mark all read
               </button>
             )}

@@ -274,7 +274,7 @@ function ReleaseFormFields({
         <div className="flex flex-wrap items-center gap-1.5">
           <button type="button" disabled={locked} aria-pressed={draft.explicit === false} onClick={() => set({ explicit: false })} className={chipBtn(isLight, draft.explicit === false)}>Clean</button>
           <button type="button" disabled={locked} aria-pressed={draft.explicit === true} onClick={() => set({ explicit: true })} className={chipBtn(isLight, draft.explicit === true)}>Explicit</button>
-          <label className={`ml-2 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
+          <label className={`ml-2 inline-flex items-center gap-2 text-xs font-semibold bdv-touch-target ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
             <input type="checkbox" checked={draft.explicitConfirmed} disabled={locked} onChange={(e) => set({ explicitConfirmed: e.target.checked })} />
             I confirm this declaration
           </label>

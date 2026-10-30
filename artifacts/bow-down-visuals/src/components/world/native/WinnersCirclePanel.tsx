@@ -60,7 +60,7 @@ const inputCls = (isLight: boolean) =>
   }`;
 
 const goldBtn =
-  "rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100";
+  "rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target";
 const ghostBtn = (isLight: boolean) =>
   `rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight

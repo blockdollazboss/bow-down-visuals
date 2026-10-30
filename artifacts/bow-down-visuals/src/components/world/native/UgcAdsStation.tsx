@@ -448,7 +448,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
               <span className={`flex-1 ${strong}`}>
                 Making this ad for a brief: <strong>{makingForBrief.productName}</strong> — “{makingForBrief.details}”
               </span>
-              <button type="button" onClick={() => { setMakingForBrief(null); set({ briefId: null }); }} className={`font-bold ${muted}`}>
+              <button type="button" onClick={() => { setMakingForBrief(null); set({ briefId: null }); }} className={`font-bold bdv-touch-target ${muted}`}>
                 Not for this brief
               </button>
             </div>

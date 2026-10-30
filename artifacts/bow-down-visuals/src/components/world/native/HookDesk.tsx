@@ -85,7 +85,7 @@ function CopyLine({ text, isLight }: { text: string; isLight: boolean }) {
             setTimeout(() => setCopied(false), 1400);
           }).catch(() => {});
         }}
-        className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+        className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold bdv-touch-box ${
           isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/70"
         }`}
       >

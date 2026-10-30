@@ -403,7 +403,7 @@ export function StoryboardPlanner(props: {
               setBoardTitleDraft(next?.title ?? "");
               setSavedProject(false);
             }}
-            className={`ml-auto rounded-lg border px-2 py-1 text-xs ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`}
+            className={`ml-auto rounded-lg border px-2 py-1 text-xs bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`}
           >
             {boards.map((b) => (
               <option key={b.id} value={b.id}>{b.title} · {b.panelCount} panels</option>

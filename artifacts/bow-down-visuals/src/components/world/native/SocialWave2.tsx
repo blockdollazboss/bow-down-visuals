@@ -1135,7 +1135,7 @@ function LayoutEditor({
                   value={b.title}
                   onChange={(e) => setDto((d) => (d ? { ...d, layout: retitleBlock(d.layout, b.type, e.target.value) } : d))}
                   maxLength={80}
-                  className={`min-w-0 flex-1 rounded-lg border px-2 py-1 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/30 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`}
+                  className={`min-w-0 flex-1 rounded-lg border px-2 py-1 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/30 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`}
                   data-testid={`world-profile-block-title-${b.type}`}
                   aria-label={`Block title for ${b.type}`}
                 />

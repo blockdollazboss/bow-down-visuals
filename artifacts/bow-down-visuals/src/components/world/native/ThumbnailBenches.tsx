@@ -347,7 +347,7 @@ export function ThumbnailBenches({
           />
         </label>
         {facePreview ? <img src={facePreview} alt="Face or asset for the thumbnail" className="h-10 w-10 rounded-lg object-cover" /> : null}
-        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
           <input type="checkbox" checked={attribution} onChange={(e) => setAttribution(e.target.checked)} />
           Made-with credit on the thumbnail
         </label>

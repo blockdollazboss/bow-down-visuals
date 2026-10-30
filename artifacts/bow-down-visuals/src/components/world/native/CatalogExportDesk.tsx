@@ -49,7 +49,7 @@ export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const chip = (active: boolean) =>
-    `rounded-full px-3 py-1.5 text-[11px] font-bold transition disabled:opacity-50 ${
+    `rounded-full px-3 py-1.5 text-[11px] font-bold transition disabled:opacity-50 bdv-touch-target ${
       active ? "bg-[#d4af37] text-black" : isLight ? "border border-[#7A5A12]/30 text-[#6B5B36]" : "border border-white/15 text-white/75"
     }`;
 

@@ -1388,7 +1388,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                         data-testid="world-coach-tracker-toggle"
                         disabled={itemBusyId === item.id}
                         onClick={() => void toggleItem(item)}
-                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition ${
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition bdv-touch-box ${
                           item.done
                             ? "border-[#d4af37] bg-[#d4af37] text-black"
                             : isLight

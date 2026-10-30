@@ -440,7 +440,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     </div>
                   </div>
                 ))}
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-[#d4af37]/25 px-3 py-2">
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-[#d4af37]/25 px-3 py-2 bdv-touch-target">
                   <span className={`inline-flex items-center gap-2 text-sm font-semibold ${strong}`}>
                     <Nfc className="h-4 w-4 text-[#d4af37]" /> NFC chip pocket
                   </span>
@@ -543,7 +543,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     ))}
                   </div>
                   {estimate.disclaimer ? <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">{estimate.disclaimer}</p> : null}
-                  <button type="button" onClick={() => void loadEstimate()} className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
+                  <button type="button" onClick={() => void loadEstimate()} className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
                     <RefreshCw className="h-3.5 w-3.5 text-[#d4af37]" /> Recalculate
                   </button>
                 </div>
@@ -615,7 +615,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     <button type="button" data-testid="world-jewelry-consult-send" onClick={() => void sendConsult()} disabled={consultBusy || !consultInput.trim()} className={goldBtn}>
                       Send — {catalog.consultCreditCost} VB
                     </button>
-                    <button type="button" aria-label="Close the consultant" onClick={() => setConsultOpen(false)} className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white">
+                    <button type="button" aria-label="Close the consultant" onClick={() => setConsultOpen(false)} className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box">
                       <X className="h-4 w-4" />
                     </button>
                   </div>

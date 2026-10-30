@@ -230,7 +230,7 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
       type="button"
       data-testid={`world-treasury-tab-${id}`}
       onClick={() => setTab(id)}
-      className={`rounded-full px-3.5 py-1.5 text-xs font-black transition ${
+      className={`rounded-full px-3.5 py-1.5 text-xs font-black transition bdv-touch-target ${
         tab === id
           ? "bg-[#d4af37] text-black"
           : isLight

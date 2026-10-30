@@ -211,7 +211,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
             <button
               type="button"
               onClick={() => setEmbedded(null)}
-              className={`mt-2 w-full text-center text-xs ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
+              className={`mt-2 w-full text-center text-xs bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
             >
               Cancel — no charge
             </button>

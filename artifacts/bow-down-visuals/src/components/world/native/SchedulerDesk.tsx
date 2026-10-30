@@ -266,7 +266,7 @@ function SchedulerComposeForm(props: ComposeFormProps) {
         <p className={`flex items-center gap-2 text-xs font-bold ${muted}`}>
           <Pencil className="h-3.5 w-3.5 text-[#d4af37]" /> Editing your {editing.status} post
           {props.onCancelEdit ? (
-            <button type="button" data-testid="world-scheduler-edit-cancel" onClick={props.onCancelEdit} className="ml-auto inline-flex items-center gap-1 underline underline-offset-2">
+            <button type="button" data-testid="world-scheduler-edit-cancel" onClick={props.onCancelEdit} className="ml-auto inline-flex items-center gap-1 underline underline-offset-2 bdv-touch-target">
               <X className="h-3.5 w-3.5" /> Stop editing
             </button>
           ) : null}

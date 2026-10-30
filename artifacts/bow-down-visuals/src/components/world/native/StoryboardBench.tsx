@@ -301,7 +301,7 @@ export function StoryboardBench(props: {
       </p>
       <label className="block">
         <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Lyrics / song words</span>
-        <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
+        <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <label className={`cursor-pointer ${chipCls}`}>
@@ -350,7 +350,7 @@ export function StoryboardBench(props: {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
                 <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.timestamp}</span>
-                <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold">
+                <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold bdv-touch-target">
                   <input
                     type="checkbox"
                     data-testid="world-storyboard-approve"
