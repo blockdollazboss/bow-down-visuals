@@ -1351,6 +1351,136 @@ html, body {
 .light .group:hover .group-hover\:text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
 .light .group:hover .group-hover\:text-amber-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #6E5514; }
 
+/* ── 20. Stack900 light-truth audit: the rungs the tables still missed.
+   Each entry names its surface; dark rendering is untouched throughout
+   (every rule is .light-scoped and dark-lock-guarded). ── */
+
+/* SocialProofBand's stats band grades from-black → via-[#0d0a04] →
+   to-black. The from/to ends remap to ivory (§3/§18) but the via hex
+   had no rule, so in light the band's middle stayed near-black while
+   its stat numbers (text-white) remapped to espresso — dark-on-dark
+   across the middle of the band. The via now fades to ivory at the
+   via-black value, so the whole band reads as one ivory panel. */
+.light .via-\[\#0d0a04\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-via: rgb(250 247 240 / 0.6) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to));
+}
+
+/* Auth footers (login + signup): the sign-in toolbar is an unconditional
+   bg-[#171208]/65 bar. The solid hex is in the §18 marble group but the
+   /65 step was not, so in light the bar stayed espresso-brown while the
+   link row inside it (text-white/45, /20) remapped to warm grays —
+   murk on murk over the light sign-in video. It takes the §17
+   bg-black/65 frosted-ivory value; the ivory input chips and gold
+   buttons the file already branches for light sit on it unchanged. */
+.light .bg-\[\#171208\]\/65:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.72); }
+
+/* Storefront product page: its success ink is the emerald-100 family —
+   the /80 and /60 steps were deepened in Stack-28 (A4-D3) but the plain
+   step (the gift-code reveal — the one string the buyer must read) and
+   the /70 step (fulfilment notes) never got rungs, so both printed
+   #D1FAE5 on the ivory ground. They join the family's 700 step at the
+   ladder's own alphas. */
+.light .text-emerald-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #047857; }
+.light .text-emerald-100\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.82); }
+
+/* Storefront product page, amber-100 ladder gaps: the ladder (§5 +
+   Stack-28 A4-D2) runs /40–/90 for text, but the page's price-hint copy
+   sits at /45 and every checkout field's placeholder at /35 — both
+   printed pale straw on the §11 ivory inputs (§11 repaints the inputs
+   white; the placeholder is the fields' only label). /45 takes its
+   interpolated rung on the ladder; the placeholder joins §11's
+   readable-placeholder value (#7A7266, 4.58:1 on the ivory ground). */
+.light .text-amber-100\/45:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.71); }
+.light .placeholder\:text-amber-100\/35:not([data-dark-lock]):not([data-dark-lock] *)::placeholder { color: #7A7266; }
+
+/* Offers panels (ProductOfferPanel, SellerOffersInbox): the offer-amount
+   inputs carry placeholder:text-amber-100/30 — the same fall-through one
+   rung lower. Their inputs repaint white in light (§11), so the
+   placeholder joins §11's readable value alongside the /35 rung above. */
+.light .placeholder\:text-amber-100\/30:not([data-dark-lock]):not([data-dark-lock] *)::placeholder { color: #7A7266; }
+
+/* ProductReviews star ratings: the unfilled star is text-amber-200/25
+   (display) and /30 (the rating input). The amber-200 ladder (§5) stops
+   at /60, so on ivory the unfilled stars vanished — a five-star control
+   showed only its filled stars and read as a shorter scale. Both steps
+   take a muted bronze, faint enough to stay "unfilled", visible enough
+   to keep the scale's structure. */
+.light .text-amber-200\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.55); }
+.light .text-amber-200\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.5); }
+
+/* Beats license modal: the "in plain words" panel heads itself with
+   text-yellow-200/90 and dots its lines with /60 bullets. §5 deepened
+   yellow-200 at /80 and /70 only, so the heading printed pale straw on
+   the panel's remapped ivory tint (bg-black/20). Both steps take the
+   amber-200 ladder's alphas at the same bronze. */
+.light .text-yellow-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-yellow-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.78); }
+
+/* DropDayKitPanel status banners: error copy runs text-red-200/85 and
+   success copy text-emerald-200/85 on faint same-hue tints. §5 deepened
+   both families at /90 and /80 but not /85, so the banners' text stayed
+   pale on ivory-adjacent tints. /85 interpolates each family's ladder. */
+.light .text-red-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.9); }
+.light .text-emerald-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.9); }
+
+/* The #d4af37 house gold as TEXT escaped the tables entirely — §5
+   deepened its near-twin #C9A84C and §19 the #e8c86a steps, but the
+   social Composer's quote label, attachment chips and action ink are
+   text-[#d4af37] (plain, /70), printed raw at ~2:1 on the remapped
+   ivory surfaces. The family takes the #e8c86a ladder: plain to
+   antique gold, steps at the ladder's alphas. Border/fill uses of the
+   hex are different class names and stay authored gold. */
+.light .text-\[\#d4af37\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+.light .text-\[\#d4af37\]\/80:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#d4af37\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#d4af37\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+
+/* text-[#d4a017] — the deeper house gold used for real text on the
+   admin Pitch & Fix queue (kind chips, ratings, reward amounts), the
+   community-grants totals and pitch-fix itself — had no rung either
+   and printed ~2.6:1 straw on the remapped ivory dashboards. It takes
+   the same antique gold as its #d4af37 sibling. */
+.light .text-\[\#d4a017\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
+/* Books writer: the chapter-title input is text-[#f5e6b8] on a
+   transparent ground over the page — in light the ground remaps to
+   ivory and the near-cream title all but vanished (the body textarea
+   beside it remaps correctly via text-white/90). The hex joins the
+   §19 single-use pale-gold family (#f0d878 precedent) at antique gold. */
+.light .text-\[\#f5e6b8\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
+/* The #C9A84C text steps: §5 deepened the plain hex and §19 deepened
+   the #e8c86a steps, but text-[#C9A84C]/NN and text-[#c9a84c]/NN are
+   distinct class names with no rungs — gold labels across albums,
+   my-projects, books, the clip generator, the video editor, broadcast,
+   group pages, timeline templates, premiere and the clip context menu
+   (whose surface remaps to frosted ivory) all printed pale gold at
+   partial alpha on ivory. Both casings take the #e8c86a ladder. */
+.light .text-\[\#C9A84C\]\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#C9A84C\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#C9A84C\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-\[\#C9A84C\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+.light .text-\[\#C9A84C\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
+.light .text-\[\#c9a84c\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#c9a84c\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-\[\#c9a84c\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
+
+/* Ghost-button hover borders: PodcastPublishPanel, PlainWordsDeals and
+   ReportButton pair border-white/15 (remapped, §6) with
+   hover:border-white/35 — a step the tables never had, so in light the
+   hover state kept a white/35 border: invisible on ivory, the button's
+   only hover feedback gone (its hover:text-white partner IS remapped,
+   §19). The hover step takes the §6 border-white/50 champagne value. */
+.light .hover\:border-white\/35:hover:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.38); }
+
+/* LipSyncSection's auto-check spinner: border-white/20 ring (remapped,
+   §6) + border-t-white/60 arc. The side-specific class is a different
+   class name from border-white/60, so the arc never remapped — in
+   light the spinner showed a static champagne ring with an invisible
+   white arc and read as frozen. The arc takes a readable gold top. */
+.light .border-t-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { border-top-color: rgb(201 168 76 / 0.65); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —

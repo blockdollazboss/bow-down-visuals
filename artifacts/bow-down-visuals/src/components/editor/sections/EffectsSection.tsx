@@ -440,7 +440,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             {(settings.watermarkType ?? "logo") === "logo" && (
               <div className="space-y-2">
                 {/* Visual preview on a mid-grey swatch so transparency is obvious */}
-                <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 border border-white/[0.08]"
+                <div data-dark-lock className="flex items-center gap-3 rounded-lg px-3 py-2.5 border border-white/[0.08]"
                   style={{ background: "linear-gradient(135deg,#2a2a2a 50%,#1a1a1a 50%)" }}>
                   <img src={getDefaultWatermarkUrl(isLight)} alt="Bow Down Visuals watermark"
                     className="h-8 w-auto"
