@@ -1292,6 +1292,32 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/wave9d/camera/prompt",
     attachToFeatureIds: ["desk-video"],
   },
+  /* Stack-900 KB triage (Lane K4): Audio Studio rails behind the
+     tab modules. The studio page renders the legacy ai-audio module
+     as its Generate Audio desk (Producer Tag Maker lives there) and
+     the legacy podcast module as its Podcast tab (Guest Questions
+     lives there) — both two hops below the scanned page. The stems
+     instrumental variant is the KB's one SHADOWED price: the
+     registry carries "/api/stems?mode=instrumental" at 300 VB
+     beside "/api/stems" at 400, and priceFor strips the query
+     before comparing, so the 300 VB mode price could never attach
+     by scan (the full-path lookup in this links pass is exact, so
+     the link carries it). Its fronts: the Audio Studio page itself
+     and the stems tab/desk call the instrumental mode, and the
+     editor Music Studio's Generate Audio generates instrumentals
+     through it. */
+  {
+    endpoint: "/api/producer-tag",
+    attachToFeatureIds: ["desk-generate-audio"],
+  },
+  {
+    endpoint: "/api/guest-questions",
+    attachToFeatureIds: ["tab-podcast"],
+  },
+  {
+    endpoint: "/api/stems?mode=instrumental",
+    attachToFeatureIds: ["audio-studio", "tab-stems", "desk-stems", "video-editor"],
+  },
 ];
 
 /** Unpriced sub-step endpoints of a priced rail — the poll and prepare
@@ -1473,10 +1499,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Video-to-GIF converter rail — an editor tool called through shared helpers; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/guest-questions.ts": {
-    surface: "creator-tools",
-    reason: "Podcast guest-question generator rail — an AI tool behind the podcast surfaces; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/hashtags.ts": {
     surface: "creator-tools",
     reason: "AI hashtag generator rail — behind the promote surfaces; no page of its own.",
@@ -1508,10 +1530,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/podcast-multiplier.ts": {
     surface: "creator-tools",
     reason: "Podcast Multiplier rail (300 VB in the registry) — turns one episode into many assets; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/producer-tag.ts": {
-    surface: "creator-tools",
-    reason: "Producer Tag Maker rail (+ vault voice) — makes the spoken tag inside the audio surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/producer-tag-lifecycle.ts": {
     surface: "creator-tools",

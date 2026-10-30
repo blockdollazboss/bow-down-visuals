@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "c8fb0878eac3a8556e503b46120ef41b5daea6d9",
+  "baseCommit": "998f8c86b2b8c8742dbbbd370138644f6ff14869",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -23,8 +23,8 @@
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
     "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1027,
-    "serverFilesClassified": 110
+    "serverEndpointsVisible": 1029,
+    "serverFilesClassified": 108
   },
   "packs": [
     {
@@ -1047,6 +1047,7 @@
         "/api/sfx/library",
         "/api/sound-finder/match",
         "/api/stems",
+        "/api/stems?mode=instrumental",
         "/api/stems/:param",
         "/api/stems/:param/midi/:param",
         "/api/stems/:param/remix",
@@ -1170,6 +1171,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Vocal Polish",
           "vb": 200,
           "endpoint": "/api/vocal-polish",
@@ -1263,6 +1270,7 @@
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
+        "/api/producer-tag",
         "/api/rate-my-mix/analyze",
         "/api/referrals/apply",
         "/api/referrals/me",
@@ -1372,6 +1380,12 @@
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Producer Tag",
+          "vb": 100,
+          "endpoint": "/api/producer-tag",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2817,6 +2831,7 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
+        "/api/guest-questions",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2905,6 +2920,12 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Guest Questions",
+          "vb": 75,
+          "endpoint": "/api/guest-questions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3276,6 +3297,7 @@
         "/api/sfx/library",
         "/api/sound-finder/match",
         "/api/stems",
+        "/api/stems?mode=instrumental",
         "/api/stems/:param",
         "/api/stems/:param/midi/:param",
         "/api/stems/:param/remix",
@@ -3396,6 +3418,12 @@
           "feature": "Stem Separation",
           "vb": 400,
           "endpoint": "/api/stems",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3499,6 +3527,7 @@
         "/api/sfx/library",
         "/api/sound-finder/match",
         "/api/stems",
+        "/api/stems?mode=instrumental",
         "/api/stems/:param",
         "/api/stems/:param/midi/:param",
         "/api/stems/:param/remix",
@@ -3619,6 +3648,12 @@
           "feature": "Stem Separation",
           "vb": 400,
           "endpoint": "/api/stems",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12997,6 +13032,7 @@
         "/api/speed-presets",
         "/api/split-screen/apply",
         "/api/stabilize",
+        "/api/stems?mode=instrumental",
         "/api/stock/import",
         "/api/stock/search",
         "/api/store/token",
@@ -13256,6 +13292,12 @@
           "feature": "Video Stabilization",
           "vb": 300,
           "endpoint": "/api/stabilize",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -17942,14 +17984,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/guest-questions.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/guest-questions"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Podcast guest-question generator rail — an AI tool behind the podcast surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/hashtags.ts",
@@ -18378,15 +18414,10 @@
       {
         "file": "artifacts/api-server/src/routes/generate/producer-tag.ts",
         "endpoints": 2,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/producer-tag",
           "/api/producer-tag/vault-voice"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Producer Tag Maker rail (+ vault voice) — makes the spoken tag inside the audio surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/product-photo.ts",
