@@ -72,17 +72,23 @@ export default defineConfig({
           ) {
             return "vendor-radix";
           }
-          // Speed-truth (Stack1000 N3): clsx is the cn() leaf imported by
-          // nearly every component AND by recharts' own modules. Rolldown's
-          // grouping parks an unpinned shared leaf inside the manual chunk
-          // of its heaviest importer — clsx landed inside vendor-recharts,
+          // Speed-truth (Stack1000 N3): two tiny shared leaves — clsx (the
+          // cn() helper nearly every component imports) and
+          // use-sync-external-store/shim (wouter + react-i18next import it)
+          // — are ALSO imported inside recharts' dependency tree (clsx
+          // directly; the shim via react-redux). Rolldown's grouping parks
+          // an unpinned shared leaf inside the manual chunk of its
+          // heaviest importer: both leaves landed inside vendor-recharts,
           // so every first load statically dragged the whole chart library
-          // (373,439 B, modulepreloaded in index.html) for a 697 B helper,
-          // though recharts is used only by the lazy analytics-hub route.
-          // Pin clsx to its own tiny vendor chunk so vendor-recharts stays
-          // behind the one route that uses it.
-          if (/[\\/]node_modules[\\/]clsx[\\/]/.test(id)) {
-            return "vendor-clsx";
+          // (373,439 B, modulepreloaded in index.html) for ~6 KB of
+          // helpers, though recharts is used only by the lazy
+          // analytics-hub route. Pin both leaves to one tiny shared vendor
+          // chunk so vendor-recharts stays behind the route that uses it.
+          if (
+            /[\\/]node_modules[\\/]clsx[\\/]/.test(id) ||
+            /[\\/]node_modules[\\/]use-sync-external-store[\\/]/.test(id)
+          ) {
+            return "vendor-shared";
           }
           // Stack-28 #51: recharts is used ONLY by the analytics-hub route — keep it in
           // its own vendor chunk so the hub's panel code stays lean and
