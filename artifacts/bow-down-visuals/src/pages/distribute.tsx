@@ -44,6 +44,7 @@ import {
   splitsTotal,
   splitsValid,
   roleLabel,
+  vaultPrefill,
   SPLIT_ROLES,
   type DistributionPlatformKey,
   type DistributionTier,
@@ -364,8 +365,11 @@ function NewReleaseWizard(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Hub prefill: artist name from the artist vault, cover art from the hub
-     project's latest image asset (title already prefills from project name). */
+  /* Hub prefill: artist name AND genre from the artist vault, cover art
+     from the hub project's latest image asset (title already prefills
+     from project name). EVERYTHING-SMART (stack900 K1): the vault fetch
+     used to carry only the name across — the genre field on the same
+     form started blank even though the vault row already states it. */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -374,13 +378,16 @@ function NewReleaseWizard(props: {
           const img = [...project.assets].reverse().find((a) => a.kind === "image" && !a.url.startsWith("blob:"));
           if (!cancelled && img?.url) setArtworkUrl(img.url);
         }
-        if (!artistName) {
+        if (!artistName || !genre) {
           const res = await authFetch("/api/artist-vaults");
           const data = (await res.json().catch(() => ({}))) as {
-            vaults?: { artist_name?: string }[];
+            vaults?: { artist_name?: string; genre?: string }[];
           };
-          const first = Array.isArray(data.vaults) ? data.vaults[0] : undefined;
-          if (!cancelled && res.ok && first?.artist_name) setArtistName(first.artist_name);
+          if (!cancelled && res.ok) {
+            const prefill = vaultPrefill(data.vaults);
+            if (!artistName && prefill.artistName) setArtistName(prefill.artistName);
+            if (!genre && prefill.genre) setGenre(prefill.genre);
+          }
         }
       } catch {
         /* prefill is best-effort — the fields stay editable */
