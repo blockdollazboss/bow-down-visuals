@@ -5,12 +5,15 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import {
   activationBlockers,
+  assembleChecklist,
   assembleKit,
   drizzleDropDayKitStore,
   effectiveKitStatus,
+  listKitReleases,
   readKitRelease,
   type KitRelease,
 } from "../lib/drop-day-kit";
+import { presaveUrl } from "../lib/presave-url";
 
 const router = Router();
 
@@ -19,6 +22,13 @@ const router = Router();
                                                  re-assemble) the kit
                                                  for the caller's own
                                                  release, as a DRAFT
+   GET   /api/drop-day-kits/mine               — every release the
+                                                 caller owns with its
+                                                 kit (or null), the
+                                                 release-day checklist,
+                                                 and the announcement
+                                                 state — the Promote
+                                                 panel's one read
    GET   /api/drop-day-kits/:releaseId         — the kit + the real
                                                  presave capture count
                                                  (the land-time
@@ -31,8 +41,11 @@ const router = Router();
                                                  or a presave page
 
    Nothing here sends, posts, or publishes: the fan heads-up at land
-   time is the existing presave sweeper over presave_follows, and the
-   teaser/banners render in Create from the kit's links. */
+   time is the existing presave sweeper over presave_follows, the
+   teaser/banners render in Create from the kit's links, and the
+   launch announcement is scheduled by the creator in the Scheduler
+   (its release-attributed posts are only READ here, for the
+   checklist). */
 
 async function ownRelease(req: Request, res: Response, releaseId: string): Promise<KitRelease | null> {
   const release = await readKitRelease(releaseId);
@@ -47,18 +60,44 @@ async function ownRelease(req: Request, res: Response, releaseId: string): Promi
   return release;
 }
 
+/** The one kit view every surface reads: the kit payload (null when
+ *  none is assembled), its effective status, the real presave
+ *  capture count, the Scheduler announcement state for the release,
+ *  and the derived release-day checklist. Built from a kit row the
+ *  caller already holds, or fetched by release when row is omitted. */
+async function buildKitView(release: KitRelease, row?: Record<string, unknown> | null) {
+  const kitRow = row === undefined ? await drizzleDropDayKitStore.getByRelease(release.id) : row;
+  const captures = await drizzleDropDayKitStore.captureCount(release.id);
+  const announce = await drizzleDropDayKitStore.announceState(release.id, release.userId);
+  const kit = kitRow ? (kitRow["kit"] as ReturnType<typeof assembleKit>) : null;
+  const status = kitRow ? effectiveKitStatus(String(kitRow["status"]), release.releaseDate) : null;
+  return {
+    id: kitRow ? kitRow["id"] : null,
+    releaseId: release.id,
+    status,
+    kit,
+    captures,
+    announce,
+    checklist: assembleChecklist({ release, kit, kitStatus: status, captures, announce }),
+    updatedAt: kitRow ? kitRow["updatedAt"] : null,
+  };
+}
+
 async function kitView(release: KitRelease) {
   const row = await drizzleDropDayKitStore.getByRelease(release.id);
   if (!row) return null;
-  const captures = await drizzleDropDayKitStore.captureCount(release.id);
-  const kit = row["kit"] as ReturnType<typeof assembleKit>;
+  return buildKitView(release, row);
+}
+
+function releaseSummary(release: KitRelease) {
   return {
-    id: row["id"],
-    releaseId: release.id,
-    status: effectiveKitStatus(String(row["status"]), release.releaseDate),
-    kit,
-    captures,
-    updatedAt: row["updatedAt"],
+    id: release.id,
+    title: release.title,
+    artistName: release.artistName,
+    releaseDate: release.releaseDate,
+    status: release.status,
+    artworkUrl: release.artworkUrl,
+    presaveUrl: release.presaveSlug ? presaveUrl(release.presaveSlug) : null,
   };
 }
 
@@ -79,6 +118,29 @@ router.post("/drop-day-kits", requireAuth, publicApiLimiter, async (req: Request
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[drop-day-kit] assemble failed");
     res.status(500).json({ error: "Could not assemble the Drop Day Kit" });
+  }
+});
+
+/* Registered BEFORE /:releaseId — "mine" is a list door, not a
+   release id. One read for the Promote panel: the caller's own
+   releases (soonest drop first), each with its kit view or the
+   checklist of a release that has no kit yet. */
+router.get("/drop-day-kits/mine", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    const releases = await listKitReleases(req.userId!);
+    const kits = await drizzleDropDayKitStore.listKitsByUser(req.userId!);
+    const kitByRelease = new Map(kits.map((k) => [String(k["releaseId"]), k]));
+    const out = [];
+    for (const release of releases) {
+      out.push({
+        release: releaseSummary(release),
+        kit: await buildKitView(release, kitByRelease.get(release.id) ?? null),
+      });
+    }
+    res.json({ releases: out });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[drop-day-kit] list failed");
+    res.status(500).json({ error: "Could not load your Drop Day Kits" });
   }
 });
 
