@@ -204,6 +204,17 @@ import { VoiceIsolator, VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIs
 import { RvmEngine, RvmEngineError, RVM_MAX_STEP, type EngineMatte, type MattingEngine } from "./rvm-engine";
 import { TasksSegmenterEngine, TasksSegmenterError, TASKS_MAX_STEP } from "./tasks-segmenter-engine";
 import { MattePostProcessor, despillRgba } from "./matte-post";
+import {
+  sanitizeFineTune,
+  composeMattePostOptions,
+  despillRetentionFor,
+  backdropFilterFor,
+  MATTE_BASE_DEFAULTS,
+  type GreenScreenFineTune,
+  type MatteBaseTuning,
+} from "./greenscreen-finetune";
+
+export type { GreenScreenFineTune } from "./greenscreen-finetune";
 import { PerfLadder } from "./perf-ladder";
 import { FrameStallTracker } from "./frame-stall";
 import { mediaUrl } from "../media-cdn";
@@ -430,6 +441,14 @@ export interface BackgroundChangerConfig {
   onEngineStatusDetail?: (detail: EngineStatusDetail) => void;
   image?: string | File | Blob | HTMLImageElement | null;
   blurAmount?: number;
+  /** The creator's green-screen fine-tune settings
+   *  (greenscreen-finetune.ts): offsets over the engines' own
+   *  matte tuning + the despill strength + the backdrop blur/dim.
+   *  Partial — missing fields take the defaults, and at the
+   *  defaults the pipeline is the shipped one, value for value.
+   *  An explicit blurAmount still wins the blur when fineTune
+   *  carries none. Change live any time with setFineTune(). */
+  fineTune?: Partial<GreenScreenFineTune>;
   mirror?: boolean;
   audio?: boolean;
   noiseCancellation?: false | NoiseCancellationLevel;
@@ -443,12 +462,13 @@ export interface BackgroundChangerConfig {
 }
 
 export class BackgroundChanger {
-  config: Required<Omit<BackgroundChangerConfig, "image" | "onNoiseStatus" | "onEngineStatus" | "onEngineStatusDetail" | "deviceId">> & {
+  config: Required<Omit<BackgroundChangerConfig, "image" | "onNoiseStatus" | "onEngineStatus" | "onEngineStatusDetail" | "deviceId" | "fineTune">> & {
     image: BackgroundChangerConfig["image"];
     onNoiseStatus: BackgroundChangerConfig["onNoiseStatus"];
     onEngineStatus: BackgroundChangerConfig["onEngineStatus"];
     onEngineStatusDetail: BackgroundChangerConfig["onEngineStatusDetail"];
     deviceId: string | null;
+    fineTune: GreenScreenFineTune;
   };
   mode: BackgroundMode;
   mirror: boolean;
@@ -517,6 +537,15 @@ export class BackgroundChanger {
      it moved — the still-photo path builds its own processor
      without it and is untouched. */
   private readonly _mattePost = new MattePostProcessor({ motionSnap: 1 });
+  /* The creator's fine-tune settings (greenscreen-finetune.ts) and
+     the BASE matte tuning the live engine state dictates (the
+     Tasks step's values / the Pro tuning / the processor
+     defaults). The pipeline always runs the COMPOSITION of the
+     two (_applyMatteTuning): a ladder retune rewrites the base
+     and re-derives; a fine-tune change rewrites the offsets and
+     re-derives. Neither side stomps the other. */
+  private _fineTune: GreenScreenFineTune;
+  private _matteBase: MatteBaseTuning = { ...MATTE_BASE_DEFAULTS };
   /* The session's output-canvas height cap: starts at the top
      (OUTPUT_HEIGHT_CAP); the perf governor can step it down once
      to the floor on a device that genuinely cannot hold the top. */
@@ -553,6 +582,16 @@ export class BackgroundChanger {
   private _personCtx: CanvasRenderingContext2D;
 
   constructor(config: BackgroundChangerConfig = {}) {
+    /* Fine-tune resolution: the settings sanitize whole, and an
+       explicit blurAmount (the kit's older knob) still wins the
+       blur when the fine-tune carries none — after which the
+       settings adopt it, so getFineTune() always reports the
+       blur the compositor is actually running. */
+    const fineTune = sanitizeFineTune(config.fineTune);
+    if (config.fineTune?.blur === undefined && config.blurAmount !== undefined) {
+      fineTune.blur = sanitizeFineTune({ blur: config.blurAmount }).blur;
+    }
+    this._fineTune = fineTune;
     this.config = {
       /* Default mode is "none" (Original/raw): backdrop effects are
          opt-in per session, so the engine path is never the
@@ -564,7 +603,8 @@ export class BackgroundChanger {
       onEngineStatus: config.onEngineStatus,
       onEngineStatusDetail: config.onEngineStatusDetail,
       image: config.image ?? null,
-      blurAmount: config.blurAmount ?? 18,
+      blurAmount: fineTune.blur,
+      fineTune,
       mirror: config.mirror ?? false,
       audio: config.audio ?? false,
       noiseCancellation: config.noiseCancellation ?? false,
@@ -796,10 +836,46 @@ export class BackgroundChanger {
     return this._backdrop !== null;
   }
 
-  /** Set blur strength (px) for mode 'blur'. */
+  /** Set blur strength (px) for mode 'blur'. The fine-tune
+   *  settings adopt the value (range-clamped there) so the two
+   *  knobs never tell different stories. */
   setBlur(amount: number): this {
     this.blurAmount = Math.max(0, Number(amount) || 0);
+    this._fineTune = { ...this._fineTune, blur: sanitizeFineTune({ blur: this.blurAmount }).blur };
+    this.config.fineTune = this._fineTune;
     return this;
+  }
+
+  /**
+   * Apply the creator's green-screen fine-tune settings live
+   * (greenscreen-finetune.ts): the matte composition re-derives
+   * over the CURRENT base tuning on the very next landed matte,
+   * the despill strength and the backdrop dim read the settings
+   * on the very next composite, and the blur is the compositor's
+   * own blurAmount. Partial patches merge over the live settings;
+   * every value is range-sanitized on the way in.
+   */
+  setFineTune(patch: Partial<GreenScreenFineTune>): this {
+    this._fineTune = sanitizeFineTune({ ...this._fineTune, ...patch });
+    this.config.fineTune = this._fineTune;
+    this.blurAmount = this._fineTune.blur;
+    this.config.blurAmount = this._fineTune.blur;
+    this._applyMatteTuning();
+    return this;
+  }
+
+  /** The fine-tune settings currently in force (a copy). */
+  getFineTune(): GreenScreenFineTune {
+    return { ...this._fineTune };
+  }
+
+  /** Re-derive the matte pipeline's tuning: the live base (engine
+   *  step / Pro tuning / processor defaults) composed with the
+   *  creator's fine-tune offsets. Called whenever either side
+   *  moves — an engine adoption, a ladder retune, a fine-tune
+   *  change — so the two never stomp each other. */
+  private _applyMatteTuning(): void {
+    this._mattePost.configure(composeMattePostOptions(this._matteBase, this._fineTune));
   }
 
   /** Mirror the processed output (selfie view). Applies to the whole frame. */
@@ -1263,10 +1339,13 @@ export class BackgroundChanger {
       if (next.kind === "pro") {
         /* A fresh Pro engine starts at the sharpest internal step:
            the ladder restarts, and the matte post-processing takes
-           the Pro tuning (the model's own alpha, un-repaired). */
+           the Pro tuning (the model's own alpha, un-repaired) as
+           the BASE — the creator's fine-tune offsets compose over
+           it, so an engine swap never stomps their hand. */
         this._perfPro.reset();
         (next as RvmEngine).setStep(this._perfPro.step);
-        this._mattePost.configure({ ...PRO_MATTE_POST });
+        this._matteBase = { ...PRO_MATTE_POST };
+        this._applyMatteTuning();
       } else {
         /* A fresh Tasks engine starts at the sharpest refinement
            step: its ladder restarts and applies feed cap + matte
@@ -1315,13 +1394,17 @@ export class BackgroundChanger {
   private _applyTasksStep(engine: TasksSegmenterEngine, step: number): void {
     const def = MATTE_REFINEMENT_STEPS[Math.max(0, Math.min(MATTE_MAX_STEP, step))];
     engine.setStep(step);
-    this._mattePost.configure({
+    /* The step's tuning becomes the BASE; the creator's fine-tune
+       offsets compose over it (greenscreen-finetune.ts), so a
+       ladder retune moves the engine's share and keeps theirs. */
+    this._matteBase = {
       emaWeight: def.emaWeight,
       choke: def.choke,
       curveLo: def.curveLo,
       curveHi: def.curveHi,
       featherPasses: def.featherPasses,
-    });
+    };
+    this._applyMatteTuning();
   }
 
   /** Feed the live engine's latest round-trip time to its perf
@@ -1753,7 +1836,10 @@ export class BackgroundChanger {
       p.restore();
       if (this._liveMatteFresh || this._compositeCount % 3 === 0) {
         const personData = p.getImageData(0, 0, W, H);
-        despillRgba(personData.data);
+        /* The band is the shipped one; the RETENTION is the
+           creator's spill fine-tune (its default reproduces the
+           shipped strength exactly). */
+        despillRgba(personData.data, 10, 245, despillRetentionFor(this._fineTune));
         p.putImageData(personData, 0, 0);
       }
       this._liveMatteFresh = false;
@@ -1771,7 +1857,19 @@ export class BackgroundChanger {
       ctx.fillStyle = GREEN;
       ctx.fillRect(0, 0, W, H);
     } else if (this.mode === "image" && this._backdrop) {
-      this._drawCover(ctx, this._backdrop, W, H);
+      /* Backdrop dim (fine-tune): a brightness filter on the
+         backdrop draw ONLY — the person layer composited over it
+         is never dimmed. At dim 0 no filter is set and the draw
+         is the shipped one, byte for byte. */
+      const bgFilter = backdropFilterFor(this._fineTune);
+      if (bgFilter) {
+        ctx.save();
+        ctx.filter = bgFilter;
+        this._drawCover(ctx, this._backdrop, W, H);
+        ctx.restore();
+      } else {
+        this._drawCover(ctx, this._backdrop, W, H);
+      }
     } else if (this.mode === "blur") {
       // Slight overscale hides the fringe the blur leaves at the frame edges.
       // The blurred backdrop is the live frame, blurred — the backdrop

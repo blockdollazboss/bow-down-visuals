@@ -1394,3 +1394,79 @@ describe("motion fix (Oct 25, 2026) — the person moves at camera rate, the bac
     await changer.stop();
   }, 30000);
 });
+
+describe("green-screen fine-tune (Oct 29, 2026)", () => {
+  it("a fresh changer runs the DEFAULTS — and its blur is the shipped 18", async () => {
+    const { GREENSCREEN_FINETUNE_DEFAULTS } = await import("./greenscreen-finetune");
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green", quality: "tasks" });
+    expect(changer.getFineTune()).toEqual(GREENSCREEN_FINETUNE_DEFAULTS);
+    expect(changer.blurAmount).toBe(18);
+    await changer.stop();
+  });
+
+  it("config fineTune is honoured (and sanitized) at construction", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({
+      mode: "blur",
+      quality: "tasks",
+      fineTune: { sensitivity: 20, edgeShift: -1, blur: 30, spill: 999 },
+    });
+    const ft = changer.getFineTune();
+    expect(ft.sensitivity).toBe(20);
+    expect(ft.edgeShift).toBe(-1);
+    expect(ft.blur).toBe(30);
+    expect(ft.spill).toBe(100); // clamped, not trusted
+    expect(changer.blurAmount).toBe(30); // the settings own the compositor's blur
+    await changer.stop();
+  });
+
+  it("an explicit legacy blurAmount still wins the blur when fineTune carries none — and the settings adopt it", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "blur", quality: "tasks", blurAmount: 24 });
+    expect(changer.blurAmount).toBe(24);
+    expect(changer.getFineTune().blur).toBe(24);
+    await changer.stop();
+  });
+
+  it("setFineTune applies live, merges partial patches, and moves the blur with it", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green", quality: "tasks" });
+    const { stream } = await changer.start();
+    expect(stream).toBeTruthy();
+    await flush();
+    await flush();
+    expect(changer.getEngineKind()).toBe("tasks");
+    changer.setFineTune({ sensitivity: -30 });
+    expect(changer.getFineTune().sensitivity).toBe(-30);
+    expect(changer.getFineTune().smoothing).toBe(50); // untouched fields ride along
+    changer.setFineTune({ blur: 8 });
+    expect(changer.blurAmount).toBe(8);
+    expect(changer.getFineTune().sensitivity).toBe(-30); // the earlier patch survives
+    await changer.stop();
+  });
+
+  it("setBlur keeps the settings' story straight", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "blur", quality: "tasks" });
+    changer.setBlur(12);
+    expect(changer.blurAmount).toBe(12);
+    expect(changer.getFineTune().blur).toBe(12);
+    await changer.stop();
+  });
+
+  it("the settings survive an engine swap (the ladder re-derives the base, never the offsets)", async () => {
+    const BackgroundChanger = await loadChanger();
+    const changer = new BackgroundChanger({ mode: "green", quality: "tasks" });
+    await changer.start();
+    await flush();
+    await flush();
+    changer.setFineTune({ edgeShift: 2, softness: 1 });
+    await changer.setQuality("pro").catch(() => undefined);
+    expect(changer.getFineTune().edgeShift).toBe(2);
+    await changer.setQuality("tasks").catch(() => undefined);
+    await flush();
+    expect(changer.getFineTune()).toMatchObject({ edgeShift: 2, softness: 1 });
+    await changer.stop();
+  });
+});

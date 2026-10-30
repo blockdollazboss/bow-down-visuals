@@ -23,7 +23,17 @@
  *      (fully transparent / fully opaque pixels are untouched).
  *   3. Levels curve — remap [lo, hi] to [0, 1]. Hardens the core of
  *      the matte while the choke + feather preserve a soft edge.
- *   4. Feather — one separable [1,2,1] blur pass (~1-2 px). Runs
+ *   4. Edge shift — a morphological pass (greenscreen fine-tune,
+ *      Oct 29, 2026): a negative shift ERODES the matte (a sliding
+ *      minimum — the cutout shrinks, killing colour halos that
+ *      cling outside the true edge); a positive shift DILATES it
+ *      (a sliding maximum — the cutout grows, filling gaps the
+ *      engine ate). Zero (the default) skips the stage entirely,
+ *      so an untouched pipeline is byte-for-byte the old one. Runs
+ *      after the curve (it moves the hardened edge, not the raw
+ *      gradient) and before the feather (which then softens the
+ *      shifted rim).
+ *   5. Feather — one separable [1,2,1] blur pass (~1-2 px). Runs
  *      AFTER the curve so the hardened core keeps a soft rim instead
  *      of a stair-stepped one.
  */
@@ -41,6 +51,10 @@ export interface MattePostOptions {
   curveHi?: number;
   /** Feather blur passes after the curve. Default 1. */
   featherPasses?: number;
+  /** Edge shift, −3..+3 (px at matte resolution): negative erodes
+   *  (shrinks) the matte, positive dilates (grows) it. Default 0 —
+   *  the stage is skipped, byte-for-byte the legacy pipeline. */
+  edgeShift?: number;
   /** Motion snap, 0..1: how strongly a large per-pixel matte change
    *  overrides the temporal blend (see the header note). 0 (the
    *  default) is the legacy pure-EMA blend, byte-for-byte; 1 makes a
@@ -62,6 +76,7 @@ export class MattePostProcessor {
   private _lo: number;
   private _hi: number;
   private _featherPasses: number;
+  private _edgeShift: number;
   private _motionSnap: number;
   private _motionLo: number;
   private _motionHi: number;
@@ -77,6 +92,7 @@ export class MattePostProcessor {
     this._lo = clamp01(options.curveLo ?? 0.06);
     this._hi = clamp01(options.curveHi ?? 0.94);
     this._featherPasses = Math.max(0, Math.floor(options.featherPasses ?? 1));
+    this._edgeShift = clampEdgeShift(options.edgeShift ?? 0);
     this._motionSnap = clamp01(options.motionSnap ?? 0);
     this._motionLo = clamp01(options.motionSnapLo ?? 0.08);
     this._motionHi = clamp01(options.motionSnapHi ?? 0.35);
@@ -95,6 +111,7 @@ export class MattePostProcessor {
     if (options.curveLo !== undefined) this._lo = clamp01(options.curveLo);
     if (options.curveHi !== undefined) this._hi = clamp01(options.curveHi);
     if (options.featherPasses !== undefined) this._featherPasses = Math.max(0, Math.floor(options.featherPasses));
+    if (options.edgeShift !== undefined) this._edgeShift = clampEdgeShift(options.edgeShift);
     if (options.motionSnap !== undefined) this._motionSnap = clamp01(options.motionSnap);
     if (options.motionSnapLo !== undefined) this._motionLo = clamp01(options.motionSnapLo);
     if (options.motionSnapHi !== undefined) this._motionHi = clamp01(options.motionSnapHi);
@@ -166,6 +183,10 @@ export class MattePostProcessor {
       out[i] = a;
     }
 
+    if (this._edgeShift !== 0) {
+      edgeShiftPass(out, this._scratch, width, height, Math.abs(this._edgeShift), this._edgeShift > 0);
+    }
+
     for (let p = 0; p < this._featherPasses; p++) featherPass(out, this._scratch, width, height);
     return out;
   }
@@ -197,15 +218,69 @@ export function featherPass(data: Float32Array, scratch: Float32Array, width: nu
 }
 
 /**
+ * One morphological pass over `data` (in place), using `scratch`
+ * as the intermediate buffer: the horizontal sliding window runs
+ * into `scratch`, the vertical one back into `data`. With
+ * `grow = false` every pixel takes the window MINIMUM (erosion —
+ * the matte shrinks by `radius` px on every side); with
+ * `grow = true` the window MAXIMUM (dilation — it grows by
+ * `radius`). Windows clamp at the frame edges, matching
+ * featherPass. Exported for tests.
+ */
+export function edgeShiftPass(
+  data: Float32Array,
+  scratch: Float32Array,
+  width: number,
+  height: number,
+  radius: number,
+  grow: boolean,
+): void {
+  const r = Math.max(1, Math.floor(radius));
+  // Horizontal.
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    for (let x = 0; x < width; x++) {
+      let best = data[row + x];
+      for (let k = 1; k <= r; k++) {
+        const xm = data[row + (x - k > 0 ? x - k : 0)];
+        const xp = data[row + (x + k < width - 1 ? x + k : width - 1)];
+        if (grow ? xm > best : xm < best) best = xm;
+        if (grow ? xp > best : xp < best) best = xp;
+      }
+      scratch[row + x] = best;
+    }
+  }
+  // Vertical.
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    const ym = y - r > 0 ? y - r : 0;
+    const yp = y + r < height - 1 ? y + r : height - 1;
+    for (let x = 0; x < width; x++) {
+      let best = scratch[row + x];
+      for (let yy = ym; yy <= yp; yy++) {
+        if (yy === y) continue;
+        const v = scratch[yy * width + x];
+        if (grow ? v > best : v < best) best = v;
+      }
+      data[row + x] = best;
+    }
+  }
+}
+
+/**
  * Green despill on a composited person layer, in place. Only the
  * edge band (alpha strictly between the bounds) is touched: where
  * green dominates both other channels — the signature of background
- * spill — it is pulled most of the way down toward the stronger of
- * red/blue. Interior pixels (solid person) and fully transparent
- * pixels are never touched, so green clothing and green screens in
- * the scene keep their color.
+ * spill — it is pulled down toward the stronger of red/blue,
+ * keeping the `retention` fraction of the excess (0.35 shipped —
+ * "most of the way down"). The fine-tune's spill control moves
+ * retention: 1 keeps all the excess (no cleanup), 0 pulls green
+ * all the way to the stronger channel. Interior pixels (solid
+ * person) and fully transparent pixels are never touched, so
+ * green clothing and green screens in the scene keep their color.
  */
-export function despillRgba(data: Uint8ClampedArray, bandLo = 10, bandHi = 245): void {
+export function despillRgba(data: Uint8ClampedArray, bandLo = 10, bandHi = 245, retention = 0.35): void {
+  const keep = retention < 0 ? 0 : retention > 1 ? 1 : retention;
   for (let i = 0; i < data.length; i += 4) {
     const a = data[i + 3];
     if (a <= bandLo || a >= bandHi) continue;
@@ -213,10 +288,15 @@ export function despillRgba(data: Uint8ClampedArray, bandLo = 10, bandHi = 245):
     const g = data[i + 1];
     const b = data[i + 2];
     const m = r > b ? r : b;
-    if (g > m) data[i + 1] = Math.round(m + (g - m) * 0.35);
+    if (g > m) data[i + 1] = Math.round(m + (g - m) * keep);
   }
 }
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+function clampEdgeShift(v: number): number {
+  const n = Math.round(Number.isFinite(v) ? v : 0);
+  return n < -3 ? -3 : n > 3 ? 3 : n;
 }

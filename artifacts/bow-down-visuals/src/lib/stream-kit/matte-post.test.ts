@@ -4,7 +4,7 @@
  * on synthetic mattes with known values.
  */
 import { describe, it, expect } from "vitest";
-import { MattePostProcessor, featherPass, despillRgba } from "./matte-post";
+import { MattePostProcessor, featherPass, edgeShiftPass, despillRgba } from "./matte-post";
 
 const filled = (v: number, n = 64) => new Float32Array(n).fill(v);
 
@@ -216,5 +216,81 @@ describe("despillRgba", () => {
     const d = px(180, 120, 90, 128);
     despillRgba(d);
     expect(d[1]).toBe(120);
+  });
+
+  it("the retention parameter IS the strength (fine-tune spill)", () => {
+    const full = px(40, 200, 60, 128);
+    despillRgba(full, 10, 245, 0); // retention 0: pulled all the way to max(r,b)
+    expect(full[1]).toBe(60);
+    const none = px(40, 200, 60, 128);
+    despillRgba(none, 10, 245, 1); // retention 1: no cleanup at all
+    expect(none[1]).toBe(200);
+    const shipped = px(40, 200, 60, 128);
+    despillRgba(shipped, 10, 245, 0.35); // the shipped strength, explicitly
+    expect(shipped[1]).toBe(109);
+  });
+});
+
+describe("edge shift (fine-tune erode/dilate)", () => {
+  const block = (w = 24, h = 12) => {
+    // A solid 8x6 block of 1s centred in a field of 0s.
+    const a = new Float32Array(w * h);
+    for (let y = 3; y < 9; y++) for (let x = 8; x < 16; x++) a[y * w + x] = 1;
+    return a;
+  };
+  const mass = (a: Float32Array) => a.reduce((s, v) => s + v, 0);
+  const base = { emaWeight: 1, choke: 0, curveLo: 0, curveHi: 1, featherPasses: 0 } as const;
+
+  it("edgeShift 0 (the default) leaves the matte untouched, byte for byte", () => {
+    const p = new MattePostProcessor({ ...base });
+    const input = block();
+    const out = p.process(input, 24, 12);
+    expect(Array.from(out)).toEqual(Array.from(input));
+  });
+
+  it("a negative shift ERODES: the block shrinks by the radius on every side", () => {
+    const p = new MattePostProcessor({ ...base, edgeShift: -1 });
+    const out = p.process(block(), 24, 12);
+    expect(mass(out)).toBe(6 * 4); // 8x6 -> 6x4
+    expect(out[3 * 24 + 8]).toBe(0); // old corner eroded away
+    expect(out[4 * 24 + 9]).toBe(1); // new corner survives
+  });
+
+  it("a positive shift DILATES: the block grows by the radius on every side", () => {
+    const p = new MattePostProcessor({ ...base, edgeShift: 2 });
+    const out = p.process(block(), 24, 12);
+    expect(mass(out)).toBe(12 * 10); // 8x6 -> 12x10
+    expect(out[1 * 24 + 6]).toBe(1); // grown corner
+    expect(out[0 * 24 + 5]).toBe(0); // beyond the growth, still empty
+  });
+
+  it("erosion eats a 1px halo line entirely (the halo case)", () => {
+    const w = 16;
+    const h = 4;
+    const a = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) a[y * w + 8] = 0.9; // a lone semi-transparent column
+    const p = new MattePostProcessor({ emaWeight: 1, choke: 0, curveLo: 0, curveHi: 1, featherPasses: 0, edgeShift: -1 });
+    const out = p.process(a, w, h);
+    expect(mass(out)).toBe(0);
+  });
+
+  it("configure() retunes the shift live, in both directions", () => {
+    const p = new MattePostProcessor({ ...base });
+    expect(mass(p.process(block(), 24, 12))).toBe(48);
+    p.configure({ edgeShift: -1 });
+    expect(mass(p.process(block(), 24, 12))).toBe(24);
+    p.configure({ edgeShift: 1 });
+    expect(mass(p.process(block(), 24, 12))).toBe(80); // 10x8
+  });
+
+  it("edgeShiftPass clamps at the frame edges instead of wrapping", () => {
+    const w = 8;
+    const h = 2;
+    const data = new Float32Array(w * h).fill(1);
+    data[0] = 0; // a hole in the corner
+    const scratch = new Float32Array(w * h);
+    edgeShiftPass(data, scratch, w, h, 1, true);
+    expect(data[0]).toBe(1); // dilation fills from in-frame neighbours
+    expect(data[w * h - 1]).toBe(1);
   });
 });
