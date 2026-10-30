@@ -1413,6 +1413,14 @@ html, body {
 .light .text-\[\#c9a84c\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
 .light .text-\[\#c9a84c\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
 
+/* Ghost-button hover borders: PodcastPublishPanel, PlainWordsDeals and
+   ReportButton pair border-white/15 (remapped, §6) with
+   hover:border-white/35 — a step the tables never had, so in light the
+   hover state kept a white/35 border: invisible on ivory, the button's
+   only hover feedback gone (its hover:text-white partner IS remapped,
+   §19). The hover step takes the §6 border-white/50 champagne value. */
+.light .hover\:border-white\/35:hover:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.38); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
