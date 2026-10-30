@@ -4,6 +4,7 @@ import { EarningsDocuments } from "@/components/trust/TrustPanels";
 import AffiliateDeskSection from "@/components/affiliates/AffiliateDeskSection";
 import ConnectPayoutCard from "@/components/earnings/ConnectPayoutCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Unified Earnings (Stack 8 #5) — one money picture per creator, served
@@ -144,6 +145,7 @@ export default function Earnings() {
   const [failed, setFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  usePageTitle("Earnings", "Your money home on Bow Down Visuals: track what your songs, videos, beats, and shop sales earn, and watch every payout line up in one place.");
 
   /* Guest honesty (access lockdown Lane 3): /api/earnings is
      member-only, so a signed-out visit used to fire a doomed fetch and

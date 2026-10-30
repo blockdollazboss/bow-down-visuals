@@ -208,28 +208,19 @@ describe("operator knowledge — description coverage (no silent thinning)", () 
   /* The deepening pass (generator: deepenDescription) covers every feature
      that has designated prose — an en.json namespace's prose fields, the
      page's own usePageTitle meta text, a SITE_FEATURES tagline, or a
-     page-file DESCRIPTION constant. These nine features have NO designated
-     source: their pages designate no meta description anywhere (variables,
-     title-only calls, or no call at all) and no registry prose exists.
-     The set is pinned in BOTH directions: a feature gaining a description
-     leaves the list (update it — that's progress), and a feature LOSING
-     one fails here instead of silently thinning the operator's answers. */
-  const DESCRIPTION_LESS: [string, string][] = [
-    ["challenge--slug-winners", "/challenge/:slug/winners"],
-    ["earnings", "/earnings"],
-    ["genre--genre", "/genre/:genre"],
-    ["go-live-controller", "/go-live/controller"],
-    ["photo-preset--slug", "/photo-preset/:slug"],
-    // playlist--id joined the set at the Stack-20 integration: the
-    // surface-wiring lane made the page's meta per-playlist dynamic
-    // (pageDescWith / pageDescDefault), and the generator's ambiguity
-    // rule refuses a two-candidate usePageTitle argument by design.
-    ["playlist--id", "/playlist/:id"],
-    ["search", "/search"],
-    ["storefronts-builder", "/storefronts/builder"],
-    ["vertical--vertical", "/vertical/:vertical"],
-    ["winners", "/winners"],
-  ];
+     page-file DESCRIPTION constant. The set is pinned in BOTH directions:
+     a feature gaining a description leaves the list (update it — that's
+     progress), and a feature LOSING one fails here instead of silently
+     thinning the operator's answers. The set stood at ten features until
+     the stack900 ledger sweep (board #97) gave every one of them a
+     designated source — literal usePageTitle meta descriptions on the
+     earnings, stream-controller, photo-preset, genre, vertical, search,
+     and storefront-builder pages, and DESCRIPTION constants on the
+     winners and playlist pages (whose per-instance meta text the
+     generator's ambiguity rule refuses by design). The allowlist is now
+     EMPTY: every feature carries a sourced description, and any feature
+     losing one fails here. */
+  const DESCRIPTION_LESS: [string, string][] = [];
 
   it("the description-less set is exactly the reviewed allowlist", () => {
     const less = OPERATOR_FEATURES.filter((f) => !f.description)

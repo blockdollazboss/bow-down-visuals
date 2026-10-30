@@ -96,7 +96,7 @@ function PlaylistCard({ playlist }: { playlist: PlaylistLite }) {
 
 export default function Search() {
   const isLight = useIsLightTheme();
-  usePageTitle("Search");
+  usePageTitle("Search", "Search Bow Down Visuals — find creators, songs, videos, beats, and storefronts from one box.");
   const [location] = useLocation();
   const initialQ = useMemo(() => {
     const m = /[?&]q=([^&]*)/.exec(location);

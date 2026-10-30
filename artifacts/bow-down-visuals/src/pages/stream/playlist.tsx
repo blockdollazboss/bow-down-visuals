@@ -21,6 +21,8 @@ import {
   type SeriesBuyer, type SeriesAssistDraft,
 } from "@/lib/streaming";
 
+const DESCRIPTION = "A playlist on Bow Down Visuals — play through a creator's set of videos and episodes in order, right in your browser.";
+
 /* ─── Playlist page — /playlist/:id (Worker 2) ───
    Audio AND video mix freely. Play-all feeds the site-wide audio queue for
    audio items; video items play on their watch pages. kind='series'
