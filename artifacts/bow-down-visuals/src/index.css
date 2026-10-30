@@ -1356,6 +1356,14 @@ html, body {
 .light .text-amber-200\/30:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.55); }
 .light .text-amber-200\/25:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.5); }
 
+/* Beats license modal: the "in plain words" panel heads itself with
+   text-yellow-200/90 and dots its lines with /60 bullets. §5 deepened
+   yellow-200 at /80 and /70 only, so the heading printed pale straw on
+   the panel's remapped ivory tint (bg-black/20). Both steps take the
+   amber-200 ladder's alphas at the same bronze. */
+.light .text-yellow-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-yellow-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.78); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
