@@ -98,7 +98,7 @@ export function ReportButton({
           aria-label={`Report this ${noun}`}
           title={`Report this ${noun}`}
           data-testid="report-button"
-          className={className ?? "rounded-full p-2 text-neutral-400 hover:text-[#d4af37]"}
+          className={className ?? "rounded-full p-[14px] -m-[6px] text-neutral-400 hover:text-[#d4af37]"}
           style={style}
         >
           <Flag className="h-[16px] w-[16px]" />
