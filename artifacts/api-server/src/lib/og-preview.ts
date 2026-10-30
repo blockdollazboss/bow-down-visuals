@@ -44,6 +44,7 @@ import {
   photoPresetsTable,
   socialUnlockGatesTable,
   postsTable,
+  eventsTable,
   type Attachment,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -113,6 +114,7 @@ export type ShareKind =
   | "video"
   | "playlist"
   | "post"
+  | "event"
   | "artist"
   | "showcase"
   | "challenge"
@@ -161,6 +163,7 @@ const ROUTE_PATTERNS: Array<{ kind: ShareKind; re: RegExp }> = [
      no bot card at all — scrapers fell through to the generic homepage
      card. */
   { kind: "post", re: new RegExp(`^/post/(${ID_RE})$`) },
+  { kind: "event", re: new RegExp(`^/events/(${ID_RE})$`) },
   { kind: "artist", re: new RegExp(`^/artist/(${SLUG_RE})$`) },
   { kind: "showcase", re: new RegExp(`^/showcase/(${SLUG_RE})$`) },
   { kind: "challenge", re: new RegExp(`^/challenge/(${SLUG_RE})$`) },
@@ -253,6 +256,7 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     video: `/watch/${match.param}`,
     playlist: `/playlist/${match.param}`,
     post: `/post/${match.param}`,
+    event: `/events/${match.param}`,
     artist: `/artist/${match.param}`,
     showcase: `/showcase/${match.param}`,
     challenge: `/challenge/${match.param}`,
@@ -290,6 +294,7 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     video: { title: "Watch on Bow Down Visuals", description: "Watch creator videos on Bow Down Visuals — the content creator's cheat code." },
     playlist: { title: "Playlist on Bow Down Visuals", description: "A creator playlist on Bow Down Visuals — the content creator's cheat code." },
     post: { title: "Post on Bow Down Visuals", description: "A creator post on Bow Down Visuals." },
+    event: { title: "Event on Bow Down Visuals", description: "An event on Bow Down Visuals — streams, drops, and premieres." },
     artist: { title: "Creator on Bow Down Visuals", description: "A creator profile on Bow Down Visuals — the content creator's cheat code." },
     showcase: { title: "Showcase on Bow Down Visuals", description: "Community showcase on Bow Down Visuals — the content creator's cheat code." },
     challenge: { title: "Challenge on Bow Down Visuals", description: "A creator challenge on Bow Down Visuals — join in and take the crown." },
@@ -573,6 +578,72 @@ async function resolvePost(id: string, origin: string): Promise<ShareCard | null
   const author = await publicProfileById(post.profileId);
   if (!author) return null;
   return buildPostCard(post, author, origin);
+}
+
+/* ── Stack1000 P4 (share truth): events ────────────────────────────────────
+   /events/:id is public (GET /api/events/:id answers signed-out) and is a
+   natural paste-into-chat surface — it had no bot card either. */
+
+export interface EventCardSource {
+  id: string;
+  title: string;
+  description: string;
+  startsAt: Date | string;
+  coverUrl: string | null;
+  rsvpCount: number;
+}
+
+/** Pure card builder for a public event; the host-visibility gate lives in
+    resolveEvent. */
+export function buildEventCard(event: EventCardSource, host: CardAuthor, origin: string): ShareCard {
+  const startIso =
+    event.startsAt instanceof Date ? event.startsAt.toISOString() : String(event.startsAt);
+  const bits = [`Hosted by ${host.displayName}`, startIso.slice(0, 10)];
+  if (event.rsvpCount) bits.push(`${formatCount(event.rsvpCount)} going`);
+  const desc = (event.description ?? "").replace(/\s+/g, " ").trim();
+  const image =
+    absoluteMediaUrl(event.coverUrl, origin) ??
+    absoluteMediaUrl(host.avatarUrl, origin) ??
+    fallbackImage(origin);
+  return {
+    title: `${event.title} — hosted by ${host.displayName}`,
+    description: truncate(
+      desc
+        ? `${desc} — ${bits.join(" · ")} on Bow Down Visuals.`
+        : `${bits.join(" · ")} on Bow Down Visuals.`,
+      200,
+    ),
+    image,
+    imageAlt: `${event.title} — event cover`,
+    url: `${origin}/events/${event.id}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      name: event.title,
+      startDate: startIso,
+      url: `${origin}/events/${event.id}`,
+      image,
+      ...(desc ? { description: truncate(desc, 200) } : {}),
+      organizer: {
+        "@type": "Person",
+        name: host.displayName,
+        url: `${origin}/artist/${host.slug}`,
+      },
+    },
+  };
+}
+
+async function resolveEvent(id: string, origin: string): Promise<ShareCard | null> {
+  const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, id)).limit(1);
+  if (!event) return null;
+  /* Same gate as every other profile-backed resolver: a non-public host
+     profile means no card — the event's title/cover never leak. */
+  const host = await publicProfileById(event.profileId);
+  if (!host) return null;
+  return buildEventCard(event, host, origin);
 }
 
 async function resolveArtist(slug: string, origin: string): Promise<ShareCard | null> {
@@ -1189,6 +1260,7 @@ export async function resolveShareCard(
     case "video": return resolveVideo(match.param, origin);
     case "playlist": return resolvePlaylist(match.param, origin);
     case "post": return resolvePost(match.param, origin);
+    case "event": return resolveEvent(match.param, origin);
     case "artist": return resolveArtist(match.param, origin);
     case "showcase": return resolveShowcase(match.param, origin);
     case "challenge": return resolveChallenge(match.param, origin);
