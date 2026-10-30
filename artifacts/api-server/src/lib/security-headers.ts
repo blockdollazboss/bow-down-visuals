@@ -77,7 +77,13 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
              post, while local benches (no CSP) stayed green. */
           "connect-src 'self' blob: https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
           "worker-src 'self' blob:",
-          "frame-src https://js.stripe.com",
+          /* 'self' joins Stripe so OUR pages can frame OUR OWN embed
+             widgets — the Widgets Desk in Promote previews a creator's
+             /embed/* widgets at phone/tablet/desktop widths. X-Frame-
+             Options: SAMEORIGIN already permits same-origin framing;
+             this only aligns CSP with it. Third-party framing of our
+             pages stays closed (no wildcard, no http:). */
+          "frame-src 'self' https://js.stripe.com",
           "font-src 'self' data: https:",
           "media-src 'self' https: blob:",
         ].join("; ")
