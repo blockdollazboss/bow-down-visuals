@@ -141,6 +141,26 @@ vi.mock("../generate/sfx", () => ({
   generateSfxHandler: async () => {},
 }));
 vi.mock("../generate/music-audio", () => ({
+  MAX_LENGTH_MS: 600_000,
+  SONG_PRICE_TIERS: [
+    { maxLengthMs: 60_000, cost: 400 },
+    { maxLengthMs: 180_000, cost: 800 },
+    { maxLengthMs: 300_000, cost: 1_200 },
+    { maxLengthMs: 600_000, cost: 2_400 },
+  ],
+  SongTooLongError: class SongTooLongError extends Error {
+    readonly lengthMs: number;
+    readonly maxLengthMs: number;
+    constructor(lengthMs: number) {
+      super(
+        `That song is ${Math.round(lengthMs / 1000)} seconds long — songs can be up to 10 minutes (600 seconds). ` +
+          `Pick a length of 10 minutes or less and try again. Nothing was charged.`,
+      );
+      this.name = "SongTooLongError";
+      this.lengthMs = lengthMs;
+      this.maxLengthMs = 600_000;
+    }
+  },
   creditCostForLength: (lengthMs: number) => (lengthMs <= 60_000 ? 400 : lengthMs <= 180_000 ? 800 : 1200),
   clampLengthMs: (raw: unknown) => {
     const n = Number(raw);
@@ -298,6 +318,15 @@ describe("detectOperatorIntent — plain words in, only stated args out", () => 
     expect(
       detectOperatorIntent("Make me a song about summer nights for 4 minutes")?.toolId,
     ).toBe("generate.song.long");
+  });
+
+  it("routes over-5-minute songs to the top-tier tool (2,400) — including past 10 minutes, where its validator rules", () => {
+    expect(
+      detectOperatorIntent("Make me a song about summer nights for 7 minutes")?.toolId,
+    ).toBe("generate.song.max");
+    expect(
+      detectOperatorIntent("Make me a song about summer nights for 12 minutes")?.toolId,
+    ).toBe("generate.song.max");
   });
 
   it("extracts brand kit, headshot, stream pack, UGC persona and video asks", () => {
