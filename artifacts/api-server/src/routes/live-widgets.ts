@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { emitOverlayRefresh } from "../lib/overlay-events";
 import { logger } from "../lib/logger";
 
 /* ── Overlay widget data ─────────────────────────────────────────────────
@@ -152,6 +153,10 @@ router.post("/live/:id/tip-goal", requireAuth, async (req: Request, res: Respons
       .update(liveStreamsTable)
       .set({ tip_goal_vb: goalVb, updated_at: new Date() })
       .where(and(eq(liveStreamsTable.id, stream.id), eq(liveStreamsTable.user_id, userId)));
+    // Stream overlays (stack900 C2): the goal bar on the creator's
+    // OBS overlay refetches on this nudge instead of waiting out
+    // its poll.
+    emitOverlayRefresh(stream.user_id);
     res.json({ streamId: stream.id, goalVb });
   } catch (err) {
     logger.error({ err }, "live tip-goal set failed");

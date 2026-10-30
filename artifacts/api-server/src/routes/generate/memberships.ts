@@ -42,6 +42,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { emitNewMemberWebhook } from "../../lib/api-webhooks";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
+import { emitOverlayMemberAlert } from "../../lib/overlay-events";
 
 const router = Router();
 
@@ -921,6 +922,9 @@ router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, 
         tierName: tier.name,
         joinKind: "free",
       });
+      // Stream overlays (stack900 C2): a brand-new member pops on
+      // the creator's stream overlay too. Fire-and-forget.
+      void emitOverlayMemberAlert(tier.user_id, recipientUserId, tier.name);
     }
     res.status(201).json({ free: true, membership: toMemberJson(member, tier.name) });
     return;
@@ -1142,6 +1146,9 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
         tierName: tier.name,
         joinKind: "paid",
       });
+      // Stream overlays (stack900 C2): brand-new paid member — the
+      // creator's stream overlay pops it too. Fire-and-forget.
+      void emitOverlayMemberAlert(tier.user_id, fanUserId, tier.name);
     }
     if (isGift) {
       await db
@@ -1223,6 +1230,9 @@ router.post("/memberships/join-trial", requireAuth, publicApiLimiter, async (req
     tierName: tier.name,
     joinKind: "trial",
   });
+  // Stream overlays (stack900 C2): a trial start is a join — the
+  // creator's stream overlay pops it too. Fire-and-forget.
+  void emitOverlayMemberAlert(tier.user_id, req.userId!, tier.name);
   res.status(201).json({
     membership: toMemberJson(member!, tier.name),
     trialDays: MEMBERSHIP_TRIAL_DAYS,

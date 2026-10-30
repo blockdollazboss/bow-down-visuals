@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { LiveWsGateway } from "./lib/live-ws";
 import { registerLiveChatWs } from "./routes/live-chat";
+import { registerOverlayWs } from "./routes/stream-overlays";
 import { registerLiveCaptionsWs } from "./routes/live-captions";
 import { registerLiveBackstageWs } from "./routes/live-guests";
 import { registerLiveControlWs } from "./routes/live-control";
@@ -173,6 +174,7 @@ const server = app.listen(port, (err) => {
    authed — see lib/live-ws.ts. */
 const wsGateway = new LiveWsGateway();
 registerLiveChatWs(wsGateway);
+registerOverlayWs(wsGateway);
 registerLiveCaptionsWs(wsGateway);
 registerLiveBackstageWs(wsGateway);
 registerLiveControlWs(wsGateway);

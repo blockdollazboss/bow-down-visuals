@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "c95a04e32b367e43c8f0937ab959256e08c4c561",
+  "baseCommit": "e54d236c320f4bd0bcd8c45e54954a6e3b161a0f",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,9 +9,9 @@
   },
   "generatedAt": "2026-10-30",
   "counts": {
-    "routesInApp": 241,
-    "pageFiles": 185,
-    "features": 248,
+    "routesInApp": 243,
+    "pageFiles": 187,
+    "features": 250,
     "excludedRoutes": 73,
     "excludedPageFiles": 35,
     "pricedActions": 216,
@@ -19,12 +19,12 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 238,
+    "withDescriptions": 240,
     "withoutDescriptions": 10,
-    "serverRouteFiles": 427,
-    "serverEndpoints": 1708,
-    "serverEndpointsVisible": 1004,
-    "serverFilesClassified": 127
+    "serverRouteFiles": 428,
+    "serverEndpoints": 1707,
+    "serverEndpointsVisible": 1006,
+    "serverFilesClassified": 128
   },
   "packs": [
     {
@@ -9933,6 +9933,36 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
     },
     {
+      "id": "overlay-alerts",
+      "name": "Overlay Alerts Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/alerts",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx",
+      "component": "OverlayAlertsPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: a card pops on the creator's stream the moment a tip lands, a fan follows, or a member joins.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-alerts.tsx usePageTitle meta description"
+    },
+    {
+      "id": "overlay-goal",
+      "name": "Overlay Goal Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/goal",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx",
+      "component": "OverlayGoalPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the creator's tip-goal bar for their current stream, filling live as tips land.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-goal.tsx usePageTitle meta description"
+    },
+    {
       "id": "party",
       "name": "Party Games",
       "nameSource": "app-sidebar.tsx nav label (en.json)",
@@ -10290,7 +10320,9 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
-        "/api/embed/mine",
+        "/api/overlay/me",
+        "/api/overlay/test-alert",
+        "/api/overlay/token/reset",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -17082,20 +17114,20 @@
       },
       {
         "file": "artifacts/api-server/src/routes/embed.ts",
-        "endpoints": 11,
-        "visible": 1,
+        "endpoints": 6,
+        "visible": 0,
         "unseen": [
-          "/api/embed/latest/:slug",
-          "/api/embed/live/:slug",
           "/api/embed/playlist/:id",
-          "/api/embed/product/:id",
           "/api/embed/profile/:slug",
           "/api/embed/refcode/:slug",
-          "/api/embed/tips/:handle",
           "/api/embed/track/:id",
           "/api/embed/video/:id",
           "/api/oembed"
-        ]
+        ],
+        "classification": {
+          "surface": "plumbing",
+          "reason": "Public embed + oEmbed rails (plus the twin page router's chrome-less embed pages): consumed by other sites, not a member surface."
+        }
       },
       {
         "file": "artifacts/api-server/src/routes/embedded-checkout.ts",
@@ -20116,6 +20148,14 @@
           "surface": "creator-tools",
           "reason": "Storyboard planner CRUD (boards + panels) — the member's video-plan store behind the editor's planning surface; no page of its own."
         }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/stream-overlays.ts",
+        "endpoints": 4,
+        "visible": 3,
+        "unseen": [
+          "/api/overlay/state"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/stripe-connect.ts",
