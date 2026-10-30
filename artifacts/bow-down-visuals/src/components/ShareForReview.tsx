@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { Button } from "@/components/ui/button";
 import {
   Link2, Loader2, Check, Copy, X, Eye, EyeOff, MessageSquare,
@@ -228,6 +229,7 @@ export function ReviewFeedbackBadge({ videoUrl, sourceType, sourceId, projectId 
   const { toast } = useToast();
   const [links, setLinks] = useState<ReviewLinkSummary[] | null>(null);
   const [modalLink, setModalLink] = useState<ReviewLinkSummary | null>(null);
+  const dialogRef = useModalA11y<HTMLDivElement>(!!modalLink, () => setModalLink(null));
   const [notifying, setNotifying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -317,7 +319,7 @@ export function ReviewFeedbackBadge({ videoUrl, sourceType, sourceId, projectId 
       </button>
 
       {modalLink && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={() => setModalLink(null)} />
           <div className="review-modal relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] shadow-[0_0_60px_rgba(232,200,106,0.12)]">
             {/* Header */}

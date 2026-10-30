@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { Button } from "@/components/ui/button";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { getCreditCost } from "@/lib/credit-costs";
@@ -39,6 +40,7 @@ const PROGRESS_STAGES = [
 ];
 
 export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const instagramPostCost = getCreditCost("/api/social/instagram/publish")?.cost ?? 100;
   const isLight = useIsLightTheme();
   const { getAccessToken, refreshProfile } = useAuth();
@@ -196,7 +198,7 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={publishing ? undefined : onClose} />
       <div className={`relative w-full max-w-lg rounded-2xl border p-6 space-y-5 shadow-[0_0_60px_rgba(218,165,32,0.15)] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <div className="flex items-start justify-between">

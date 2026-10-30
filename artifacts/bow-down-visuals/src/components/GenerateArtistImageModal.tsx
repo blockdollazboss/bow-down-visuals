@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { r2List } from "@/lib/r2-storage";
 import {
   ARTIST_IMAGE_MODELS,
@@ -34,6 +35,7 @@ interface Props {
 interface RecentImage { name: string; url: string; path: string }
 
 export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId, mode = "generate" }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
@@ -205,7 +207,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={generating ? undefined : onClose} />
       <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0c0c0e] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-1">

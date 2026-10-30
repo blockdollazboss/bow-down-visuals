@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { X, Bot, Zap, ChevronRight, Sparkles } from "lucide-react";
 import { requestOnboardingTour } from "@/lib/onboarding";
 import { getCreditCost } from "@/lib/credit-costs";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* Prices quoted in the guides below are derived from the credit-costs
    registry wherever the registry carries the figure, so the panel cannot
@@ -235,6 +236,8 @@ export function HelpPanel() {
     setOpen(v);
   }
 
+  const dialogRef = useModalA11y<HTMLDivElement>(open, () => setOpenPersist(false));
+
   function setSidePersist(s: "left" | "right") {
     writeSide(s);
     setSide(s);
@@ -259,7 +262,7 @@ export function HelpPanel() {
             onClick={() => setOpenPersist(false)}
           />
 
-          <div className={`fixed top-0 bottom-0 z-[10001] w-full max-w-[320px] bg-[#070707] shadow-2xl flex flex-col ${side === "left" ? "left-0 border-r border-white/[0.08]" : "right-0 border-l border-white/[0.08]"}`}>
+          <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className={`fixed top-0 bottom-0 z-[10001] w-full max-w-[320px] bg-[#070707] shadow-2xl flex flex-col ${side === "left" ? "left-0 border-r border-white/[0.08]" : "right-0 border-l border-white/[0.08]"}`}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">

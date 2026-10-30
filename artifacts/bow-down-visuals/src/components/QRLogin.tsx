@@ -5,6 +5,7 @@ import { QrCode, X, Loader2, CheckCircle } from "lucide-react";
 import { QRCodeImage } from "./QRCode";
 import { getSupabase } from "@/lib/supabase";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* QR Login component for the login page.
    Desktop generates a token, shows QR, polls until mobile approves, then
@@ -14,6 +15,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [open, setOpen] = useState(false);
+  const dialogRef = useModalA11y<HTMLDivElement>(open, () => setOpen(false));
   const [token, setToken] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "waiting" | "approved" | "expired" | "error">("loading");
@@ -104,7 +106,7 @@ export function QRLoginButton({ onSuccess }: { onSuccess: () => void }) {
       </button>
 
       {open && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-start justify-center p-4 pt-[12vh] overflow-y-auto" style={{ backgroundColor: "rgba(16,12,4,0.78)" }} onClick={() => setOpen(false)}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-[10000] flex items-start justify-center p-4 pt-[12vh] overflow-y-auto" style={{ backgroundColor: "rgba(16,12,4,0.78)" }} onClick={() => setOpen(false)}>
           <div className={`border rounded-2xl p-6 max-w-sm w-full text-center my-auto ${isLight ? "bg-[#FBF6E9] border-[#C9A84C]/50 shadow-[0_24px_60px_rgba(122,90,18,0.35)]" : "bg-[#171208] border-primary/30 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">{t("qrLogin.title")}</h3>

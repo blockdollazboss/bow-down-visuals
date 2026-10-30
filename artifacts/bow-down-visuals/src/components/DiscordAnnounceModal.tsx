@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X, Loader2, Send, CheckCircle2, Bell, BellOff, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const isLight = useIsLightTheme();
@@ -77,7 +79,7 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" data-testid="discord-announce-modal">
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" data-testid="discord-announce-modal">
       <div className="w-full max-w-md rounded-2xl border border-amber-400/25 bg-[#0a0a0a] p-6 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-black">

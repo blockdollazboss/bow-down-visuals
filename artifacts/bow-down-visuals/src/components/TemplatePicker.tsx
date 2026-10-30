@@ -5,6 +5,7 @@
 ------------------------------------------------------------------------ */
 
 import { useState } from "react";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   Music2, Megaphone, Mic2, Video, Smartphone, Images, Sparkles,
   LayoutDashboard, GripVertical, X,
@@ -33,6 +34,7 @@ interface TemplatePickerProps {
 }
 
 export default function TemplatePicker({ activeId, onSelect, onClose }: TemplatePickerProps) {
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onClose);
   const [order, setOrder] = useState<VideoTemplateId[]>(getTemplateOrder);
   const [dragId, setDragId] = useState<VideoTemplateId | null>(null);
 
@@ -51,6 +53,10 @@ export default function TemplatePicker({ activeId, onSelect, onClose }: Template
 
   return (
     <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
       data-testid="template-picker"
       onClick={onClose}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Timer, Sparkles, X, Gift, Loader2, Package } from "lucide-react";
 import { DraggableWidget } from "@/components/draggable-widget";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { coerceCooldownSeconds, isUsableSeconds } from "@/lib/cooldown";
 import { mediaBaseUrl } from "@/lib/media-cdn";
 
@@ -41,6 +42,7 @@ export function MysteryCrate() {
   const isLight = useIsLightTheme();
 
   const [open, setOpen] = useState(false);
+  const dialogRef = useModalA11y<HTMLDivElement>(open, () => setOpen(false));
   const [status, setStatus] = useState<BonusStatus | null>(null);
   const [phase, setPhase] = useState<BoxPhase>("closed");
   const [result, setResult] = useState<{ prize: number; isJackpot: boolean } | null>(null);
@@ -307,6 +309,10 @@ export function MysteryCrate() {
       {/* Popup modal */}
       {open && (
         <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
