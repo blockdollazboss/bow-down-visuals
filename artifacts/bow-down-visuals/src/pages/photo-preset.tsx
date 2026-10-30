@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
 import type { DevelopSettings } from "@/lib/photo-canvas";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Public preset page (Stack 7 #8) — a shared photo look. Anyone with
@@ -26,6 +27,7 @@ export default function PhotoPresetPage() {
   const slug = params?.slug ?? "";
   const [preset, setPreset] = useState<PublicPreset | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "missing">("loading");
+  usePageTitle("Photo Preset", "A shared photo look from a Bow Down Visuals creator — preview the preset here, then make it your own in the photo editor.");
 
   useEffect(() => {
     let alive = true;

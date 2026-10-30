@@ -36,7 +36,7 @@ export default function GenrePage() {
   const [, params] = useRoute("/genre/:genre");
   const [location] = useLocation();
   const genre = decodeURIComponent(params?.genre ?? "");
-  usePageTitle(genre ? `${genre} Music` : "Genre");
+  usePageTitle(genre ? `${genre} Music` : "Genre", "Browse music by genre — find creators, tracks, and beats in the style you love, gathered in one place.");
   const vertical = useMemo(() => {
     const m = /[?&]vertical=([^&]*)/.exec(location);
     return m ? decodeURIComponent(m[1]) : null;

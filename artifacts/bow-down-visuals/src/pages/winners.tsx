@@ -12,6 +12,8 @@ import ShareMenu from "@/components/ShareMenu";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { formatBucs, formatBucsShort, ordinal } from "@/lib/visual-bucs";
 
+const DESCRIPTION = "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.";
+
 /* ─── Winners' circle ──────────────────────────────────────────────────────
    /winners                  — all-time hall of fame (SEO-indexable)
    /challenge/:slug/winners  — per-challenge winners (SEO-indexable)
@@ -161,7 +163,7 @@ export default function WinnersPage() {
     : "Winners' Circle — Hall of Fame";
   const description = perChallenge
     ? (ch ? `Winners of the "${ch.challenge.title}" challenge on Bow Down Visuals — prizes paid in Visual Bucs.` : "Challenge winners on Bow Down Visuals.")
-    : "The Bow Down Visuals hall of fame — every challenge champion, every crown, every Visual Bucs prize.";
+    : DESCRIPTION;
   usePageTitle(title, description);
 
   const jsonLd = useMemo(() => {

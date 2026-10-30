@@ -42,7 +42,7 @@ export default function VerticalPage() {
   const { getAccessToken } = useAuth();
   const [, params] = useRoute("/vertical/:vertical");
   const vertical = (params?.vertical ?? "").toLowerCase();
-  usePageTitle(vertical ? `For ${vertical}` : "For Creators");
+  usePageTitle(vertical ? `For ${vertical}` : "For Creators", "Made for your kind of creator — see the tools, desks, and workflows Bow Down Visuals shapes around your craft.");
   const valid = isVerticalKey(vertical);
   const [data, setData] = useState<VerticalPayload | null>(null);
   const [loading, setLoading] = useState(true);

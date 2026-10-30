@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "8ac6e9712b764c2f2fdf3ae241f36fb976b47866",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "counts": {
     "routesInApp": 241,
     "pageFiles": 185,
@@ -19,8 +19,8 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 238,
-    "withoutDescriptions": 10,
+    "withDescriptions": 248,
+    "withoutDescriptions": 0,
     "serverRouteFiles": 427,
     "serverEndpoints": 1703,
     "serverEndpointsVisible": 1003,
@@ -5410,7 +5410,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/winners.tsx DESCRIPTION constant"
     },
     {
       "id": "charts",
@@ -7309,7 +7311,9 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your money home on Bow Down Visuals: track what your songs, videos, beats, and shop sales earn, and watch every payout line up in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/earnings.tsx usePageTitle meta description"
     },
     {
       "id": "email-list",
@@ -7625,7 +7629,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Browse music by genre — find creators, tracks, and beats in the style you love, gathered in one place.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/genre.tsx usePageTitle meta description"
     },
     {
       "id": "genres",
@@ -8213,7 +8219,9 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Your stream remote: pair this screen with your studio and drive scenes, transitions, mic, camera, and recording from your phone.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream-controller.tsx usePageTitle meta description"
     },
     {
       "id": "group--slug",
@@ -9966,7 +9974,9 @@
       "component": "PhotoPresetPage",
       "endpoints": [],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A shared photo look from a Bow Down Visuals creator — preview the preset here, then make it your own in the photo editor.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/photo-preset.tsx usePageTitle meta description"
     },
     {
       "id": "pitch-fix",
@@ -10028,7 +10038,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "A playlist on Bow Down Visuals — play through a creator's set of videos and episodes in order, right in your browser.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/stream/playlist.tsx DESCRIPTION constant"
     },
     {
       "id": "post--id",
@@ -10943,7 +10955,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Search Bow Down Visuals — find creators, songs, videos, beats, and storefronts from one box.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/search.tsx usePageTitle meta description"
     },
     {
       "id": "setlist",
@@ -11693,7 +11707,9 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Build your storefront: lay out your shop, arrange your products, and make your corner of Bow Down Visuals unmistakably yours.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/storefront-builder.tsx usePageTitle meta description"
     },
     {
       "id": "sync-one-sheet--token",
@@ -12834,7 +12850,9 @@
         "/api/store/token"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "Made for your kind of creator — see the tools, desks, and workflows Bow Down Visuals shapes around your craft.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/vertical.tsx usePageTitle meta description"
     },
     {
       "id": "video-editor",
@@ -15926,7 +15944,9 @@
         "/api/shares"
       ],
       "prices": [],
-      "nextSteps": []
+      "nextSteps": [],
+      "description": "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/winners.tsx DESCRIPTION constant"
     },
     {
       "id": "world",

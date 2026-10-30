@@ -49,7 +49,7 @@ interface DraftProduct { name: string; price: string; description: string; }
 export default function StorefrontBuilder() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
-  usePageTitle(t("storefrontBuilder.pageTitle"));
+  usePageTitle(t("storefrontBuilder.pageTitle"), "Build your storefront: lay out your shop, arrange your products, and make your corner of Bow Down Visuals unmistakably yours.");
   const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [, navigate] = useLocation();

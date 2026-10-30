@@ -12,6 +12,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Gamepad2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { usePageTitle } from "@/hooks/use-page-title";
 import StreamDeck from "@/components/live/StreamDeck";
 import {
   ControllerRemoteClient,
@@ -21,6 +22,7 @@ import {
 
 export default function StreamControllerPage() {
   const { user, getAccessToken } = useAuth();
+  usePageTitle("Stream Controller", "Your stream remote: pair this screen with your studio and drive scenes, transitions, mic, camera, and recording from your phone.");
   const isLight = useIsLightTheme();
   const [, setTick] = useState(0);
   const clientRef = useRef<ControllerRemoteClient | null>(null);
