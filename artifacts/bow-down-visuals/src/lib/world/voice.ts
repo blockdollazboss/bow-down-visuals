@@ -43,6 +43,7 @@
 
 import { SpeechLevelTracker, rmsFromTimeDomain } from "./lips";
 import { buildIceServers, type IceServerConfig } from "./voice-ice";
+import { getWorldVolume, subscribeWorldVolume, worldVolumeGain } from "./volume";
 
 export const VOICE_FULL_HEAR_DISTANCE = 2; // metres: full volume inside this
 export const VOICE_MAX_DISTANCE = 16; // metres: silence beyond this
@@ -483,6 +484,29 @@ export function createBrowserPeerConnection(
  *  user gesture upstream — joining voice IS that gesture). */
 let sharedCtx: AudioContext | null = null;
 
+/** The World's master volume, sitting in SERIES on the receive path:
+ *  every sink's per-peer gain (proximity / lobby / deafen — the modes
+ *  keep their exact math) feeds this one node, and this node feeds
+ *  the speakers. The master can only ever quiet what the modes let
+ *  through — deafen's 0 stays 0 at any master level, and raising the
+ *  master never resurrects a peer the modes silenced. One node per
+ *  shared context, created with the first sink, following the
+ *  device store (lib/world/volume) for the life of the page. */
+let sharedMasterGain: GainNode | null = null;
+
+function masterVoiceGain(ctx: AudioContext): GainNode {
+  if (!sharedMasterGain) {
+    const node = ctx.createGain();
+    node.gain.value = worldVolumeGain(getWorldVolume());
+    node.connect(ctx.destination);
+    subscribeWorldVolume((v) => {
+      node.gain.setTargetAtTime(worldVolumeGain(v), ctx.currentTime, 0.05);
+    });
+    sharedMasterGain = node;
+  }
+  return sharedMasterGain;
+}
+
 /** Your OWN voice level, tapped off your mic stream with the same
  *  analyser + smoothing the remote sinks use — so your character's
  *  lips move to your voice exactly the way everyone else's move to
@@ -520,7 +544,7 @@ export function createBrowserVoiceSink(_peerId: string, stream: unknown): VoiceS
   const gain = ctx.createGain();
   gain.gain.value = 0; // silent until the first proximity pass places them
   source.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(masterVoiceGain(ctx));
   // Lip-motion tap: an analyser on the RAW stream (pre-gain, so a
   // distant speaker's lips still move even when their voice is too
   // faint to hear) feeding the shared speech smoothing.

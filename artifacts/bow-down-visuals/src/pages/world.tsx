@@ -6,7 +6,7 @@ import {
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge, Zap,
   Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
-  Megaphone, Bell, BellOff, X, Coins, Gem, LockOpen, Camera,
+  Megaphone, Bell, BellOff, Volume2, VolumeX, X, Coins, Gem, LockOpen, Camera,
   Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash, ArrowBigUpDash,
   Navigation2,
 } from "lucide-react";
@@ -98,7 +98,18 @@ import {
   kingMomentLine,
   kingStripLine,
 } from "@/lib/world/king-moment";
-import { playSignatureSound } from "@/lib/signature-sounds";
+import { playSignatureSound, signatureSounds } from "@/lib/signature-sounds";
+import {
+  createWorldMediaChoke,
+  getWorldVolume,
+  scaledWorldVolume,
+  setWorldVolume,
+  subscribeWorldVolume,
+  withWorldVolumeLevel,
+  withWorldVolumeMuted,
+  worldVolumeGain,
+  type WorldVolume,
+} from "@/lib/world/volume";
 import { monumentBoardData } from "@/lib/world/monument-board";
 import {
   directorySlate,
@@ -461,6 +472,67 @@ export default function WorldPage() {
       if (next) setAnnounce(null);
       return next;
     });
+  }, []);
+  /* The World's master volume (lane G3): one device setting —
+     level + mute — that every sound the World makes passes
+     through (lib/world/volume.ts owns the store and the math).
+     This page is the setting's hands while the walker is here:
+     the header control writes it, and the choke points below
+     follow it. It composes with the announcements mute above,
+     never overrides it: the sting's call sites still check the
+     announce mute first, and this fader can only scale what
+     actually plays. */
+  const [worldVolume, setWorldVolumeState] = useState<WorldVolume>(() => getWorldVolume());
+  useEffect(() => subscribeWorldVolume(setWorldVolumeState), []);
+  /* Choke point — signature sounds: the engine's output scale is
+     the World's gain for as long as the page stands, and returns
+     to 1 (the site's own loudness) on the way out. */
+  useEffect(() => {
+    signatureSounds.setOutputScale(worldVolumeGain(worldVolume));
+  }, [worldVolume]);
+  useEffect(
+    () => () => {
+      signatureSounds.setOutputScale(1);
+    },
+    [],
+  );
+  /* Choke point — the page's media elements: every <audio>/<video>
+     standing in the World's DOM (desk players, the shelf player,
+     live remote video) registers with the one choke, which keeps
+     each element at its own base × the master. Discovery is a scan
+     + a mutation watch + the play event itself, so a player born
+     inside a panel that opens later is caught the moment it can
+     sound. A volumechange the choke didn't write is the walker's
+     own hand on a native control — the choke re-bases, never
+     fights. */
+  useEffect(() => {
+    const root = pageRef.current;
+    if (!root) return;
+    const choke = createWorldMediaChoke();
+    const scan = () => {
+      root.querySelectorAll("audio, video").forEach((el) => {
+        choke.register(el as HTMLMediaElement);
+      });
+    };
+    scan();
+    const observer = new MutationObserver(scan);
+    observer.observe(root, { childList: true, subtree: true });
+    const onPlay = (e: Event) => {
+      const t = e.target;
+      if (t instanceof HTMLMediaElement) choke.register(t);
+    };
+    const onVolumeChange = (e: Event) => {
+      const t = e.target;
+      if (t instanceof HTMLMediaElement) choke.noteExternalVolume(t);
+    };
+    root.addEventListener("play", onPlay, true);
+    root.addEventListener("volumechange", onVolumeChange, true);
+    return () => {
+      observer.disconnect();
+      root.removeEventListener("play", onPlay, true);
+      root.removeEventListener("volumechange", onVolumeChange, true);
+      choke.dispose();
+    };
   }, []);
   /* The host's herald compose (host panel): the one announcement
    * whose words are a person's own — the registry verifies the
@@ -1605,9 +1677,17 @@ export default function WorldPage() {
   useEffect(() => {
     const el = new Audio();
     el.preload = "auto";
-    el.volume = 0.85;
+    /* The jukebox's designed level is 0.85 — OF the World's master
+       volume (lane G3): the element is detached (never in the DOM,
+       so the page's media choke can't see it) and its owner applies
+       the store directly, following every change live. */
+    el.volume = scaledWorldVolume(0.85, getWorldVolume());
+    const unsubVolume = subscribeWorldVolume((v) => {
+      el.volume = scaledWorldVolume(0.85, v);
+    });
     jukeboxAudioRef.current = el;
     return () => {
+      unsubVolume();
       el.pause();
       el.removeAttribute("src");
       jukeboxAudioRef.current = null;
@@ -2923,6 +3003,39 @@ export default function WorldPage() {
             {announceMuted ? "Announcements off" : "Announcements on"}
           </button>
         )}
+        {status === "inside" && (
+          <div
+            data-testid="world-volume-control"
+            title="World volume — every sound in the World on this device: voices, the jukebox, the radio, players and the palace sting"
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}
+          >
+            <button
+              type="button"
+              onClick={() => setWorldVolume(withWorldVolumeMuted(worldVolume, !worldVolume.muted))}
+              data-testid="world-volume-mute"
+              aria-pressed={worldVolume.muted}
+              aria-label={worldVolume.muted ? "Unmute the World" : "Mute the World"}
+              title={worldVolume.muted ? "The World is muted on this device — tap to hear it again" : "Mute every sound in the World on this device"}
+              className={`inline-flex items-center transition ${isLight ? "hover:text-[#2a1e07]" : "hover:text-white"}`}
+            >
+              {worldVolumeGain(worldVolume) === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={worldVolume.level}
+              onChange={(e) => setWorldVolume(withWorldVolumeLevel(worldVolume, Number(e.target.value)))}
+              data-testid="world-volume-slider"
+              aria-label="World volume"
+              className="h-1 w-20 cursor-pointer accent-[#d4af37] sm:w-24"
+            />
+            <span className="min-w-10 text-right text-xs">
+              {worldVolume.muted || worldVolume.level === 0 ? "Muted" : `${worldVolume.level}%`}
+            </span>
+          </div>
+        )}
         {fsSupported && (
           <button
             type="button"
@@ -3877,7 +3990,7 @@ export default function WorldPage() {
                 >
                   <X className="h-4 w-4" />
                 </button>
-                <ChartsRadioPanel compact />
+                <ChartsRadioPanel compact volumeScale={worldVolumeGain(worldVolume)} />
               </div>
             </div>
           ) : (

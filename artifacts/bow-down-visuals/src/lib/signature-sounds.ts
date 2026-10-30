@@ -115,10 +115,19 @@ export interface SoundEngine {
   getPrefs(): SoundPrefs;
   /** The one gate, exposed for tests and honest callers. */
   canPlay(kind: SoundKind): boolean;
+  /** A surface-level output fader IN SERIES with the gate: every
+   *  handle's volume is its role volume × this scale. The World's
+   *  master volume drives it while the World page is mounted (and
+   *  restores 1 on the way out); it defaults to 1, and it can only
+   *  ever quiet — the gate above still decides whether a sound may
+   *  play at all, so no scale can resurrect a switched-off kind. */
+  setOutputScale(scale: number): void;
+  getOutputScale(): number;
 }
 
 export function createSoundEngine(deps: SoundEngineDeps): SoundEngine {
   let prefs: SoundPrefs = { ...DEFAULT_SOUND_PREFS };
+  let outputScale = 1;
   const handles = new Map<SoundKind, SoundAudioHandle>();
   const lastPlayedAt = new Map<SoundKind, number>();
   let sounding: SoundKind | null = null;
@@ -134,7 +143,7 @@ export function createSoundEngine(deps: SoundEngineDeps): SoundEngine {
     let h = handles.get(kind);
     if (!h) {
       h = deps.createAudio(SIGNATURE_SOUND_ASSETS[kind]);
-      h.volume = SOUND_VOLUMES[kind];
+      h.volume = SOUND_VOLUMES[kind] * outputScale;
       h.loop = kind === "ringtone";
       handles.set(kind, h);
     }
@@ -206,6 +215,18 @@ export function createSoundEngine(deps: SoundEngineDeps): SoundEngine {
     },
     getPrefs() {
       return { ...prefs };
+    },
+    setOutputScale(scale: number) {
+      if (!Number.isFinite(scale)) return;
+      outputScale = Math.min(1, Math.max(0, scale));
+      /* Live handles re-fade now — a sound already ringing follows
+         the fader, it doesn't finish at the old loudness. */
+      for (const [kind, h] of handles) {
+        h.volume = SOUND_VOLUMES[kind] * outputScale;
+      }
+    },
+    getOutputScale() {
+      return outputScale;
     },
   };
 }
