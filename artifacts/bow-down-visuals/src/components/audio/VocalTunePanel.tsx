@@ -344,7 +344,11 @@ export function VocalTunePanel() {
       {status === "idle" || status === "failed" ? (
         <div className="mt-6 space-y-5">
           <div
+            role="button"
+            tabIndex={0}
+            aria-label={t("vocalTune.dropPrompt", { defaultValue: "Drop your vocal here, or tap to browse" })}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files[0]); }}

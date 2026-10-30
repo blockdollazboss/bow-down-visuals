@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Lock, RotateCcw, Play, Pause } from "lucide-react";
 
 export interface SongSegment {
@@ -246,11 +246,35 @@ export function SongSegmentPicker({ audioUrl, label = "Your Song", initialSegmen
             style={{ left: `${duration ? (playhead / duration) * 100 : 0}%` }}
           />
         )}
-        {/* start handle */}
+        {/* start handle — a real slider for keyboard users (lane05 pattern):
+            arrows move 1s (Shift = 5s), same clamps as the drag path. */}
         <div
           className={`absolute inset-y-0 w-6 -ml-3 flex items-center justify-center ${locked ? "" : "cursor-ew-resize"} touch-none`}
           style={{ left: `${startPct}%` }}
           onPointerDown={onPointerDown("start")}
+          {...(locked
+            ? {}
+            : {
+                role: "slider",
+                tabIndex: 0,
+                "aria-label": "Segment start",
+                "aria-valuemin": 0,
+                "aria-valuemax": Math.round(duration),
+                "aria-valuenow": Math.round(start),
+                "aria-valuetext": fmt(start),
+                onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                  const step = e.shiftKey ? 5 : 1;
+                  let next: number | null = null;
+                  if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = start - step;
+                  else if (e.key === "ArrowRight" || e.key === "ArrowUp") next = start + step;
+                  else if (e.key === "Home") next = 0;
+                  else if (e.key === "End") next = end - 1;
+                  if (next !== null) {
+                    e.preventDefault();
+                    setStart(Math.max(0, Math.min(next, end - 1)));
+                  }
+                },
+              })}
         >
           <div className="w-[5px] h-full bg-[#C9A84C] rounded-full shadow-[0_0_10px_rgba(201,168,76,0.8)]" />
         </div>
@@ -259,6 +283,29 @@ export function SongSegmentPicker({ audioUrl, label = "Your Song", initialSegmen
           className={`absolute inset-y-0 w-6 -ml-3 flex items-center justify-center ${locked ? "" : "cursor-ew-resize"} touch-none`}
           style={{ left: `${endPct}%` }}
           onPointerDown={onPointerDown("end")}
+          {...(locked
+            ? {}
+            : {
+                role: "slider",
+                tabIndex: 0,
+                "aria-label": "Segment end",
+                "aria-valuemin": 0,
+                "aria-valuemax": Math.round(duration),
+                "aria-valuenow": Math.round(end),
+                "aria-valuetext": fmt(end),
+                onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                  const step = e.shiftKey ? 5 : 1;
+                  let next: number | null = null;
+                  if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = end - step;
+                  else if (e.key === "ArrowRight" || e.key === "ArrowUp") next = end + step;
+                  else if (e.key === "Home") next = start + 1;
+                  else if (e.key === "End") next = duration;
+                  if (next !== null) {
+                    e.preventDefault();
+                    setEnd(Math.min(duration, Math.max(next, start + 1)));
+                  }
+                },
+              })}
         >
           <div className="w-[5px] h-full bg-[#C9A84C] rounded-full shadow-[0_0_10px_rgba(201,168,76,0.8)]" />
         </div>

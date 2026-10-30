@@ -213,7 +213,19 @@ export function NotificationsBell() {
                     <div className="cursor-pointer">{row}</div>
                   </Link>
                 ) : (
-                  <div key={n.id} onClick={() => openNotification(n)} className="cursor-pointer">
+                  <div
+                    key={n.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openNotification(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openNotification(n);
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
                     {row}
                   </div>
                 );
