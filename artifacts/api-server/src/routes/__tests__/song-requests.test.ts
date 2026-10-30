@@ -316,7 +316,11 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 import router from "../song-requests";
-import { expireQueuedRequests } from "../../lib/song-requests";
+import {
+  expireQueuedRequests,
+  __setSongRequestEventNotifier,
+  buildSongRequestRefundEvent,
+} from "../../lib/song-requests";
 
 let server: Server;
 let base = "";
@@ -551,6 +555,45 @@ describe("declines after charge — the refund rails", () => {
     expect(replay.json.request.status).toBe("skipped");
     expect(h.refunds).toHaveLength(1);
     expect(h.balances.get(FAN)).toBe(10_000);
+  });
+
+  it("notification-truth: the refund tell rides the money channel, exactly once", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    __setSongRequestEventNotifier(async (input: unknown) => {
+      seen.push(input as Record<string, unknown>);
+    });
+    try {
+      const a = await submit(FAN, { songId: SONG_A, amountVb: 500, idempotencyKey: "skip-key-notify" });
+      const requestId = a.json.request.id;
+      const skip = await req("POST", `/api/live/${STREAM}/song-requests/${requestId}/skip`, { user: OWNER, body: {} });
+      expect(skip.status).toBe(200);
+      const replay = await req("POST", `/api/live/${STREAM}/song-requests/${requestId}/skip`, { user: OWNER, body: {} });
+      expect(replay.status).toBe(200);
+    } finally {
+      __setSongRequestEventNotifier(null);
+    }
+    // One refund = one event on the money channel, to the fan, copy
+    // naming the amount that actually came back.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      userId: FAN,
+      category: "money",
+      kind: "song_request_refund",
+      title: "Your request tip was refunded",
+      link: `/live/${STREAM}`,
+    });
+    expect(String(seen[0]!["body"])).toContain("500 Visual Bucs tip is back in your balance");
+    expect(
+      buildSongRequestRefundEvent({
+        fan_user_id: FAN,
+        song_title: "Midnight Reel",
+        amount_vb: 700,
+        stream_id: STREAM,
+      }),
+    ).toMatchObject({
+      category: "money",
+      body: "\"Midnight Reel\" didn't play, so your 700 Visual Bucs tip is back in your balance.",
+    });
   });
 
   it("a fan cannot skip someone else's queue", async () => {
