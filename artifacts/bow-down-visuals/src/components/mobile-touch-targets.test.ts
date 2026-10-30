@@ -107,7 +107,9 @@ describe("S27-07 — Charts pills/tabs", () => {
 
 describe("S27-08 — share buttons, language switcher, World door", () => {
   it("home share buttons are h-11 w-11", () => {
-    expect(homeSource).toContain("flex h-11 w-11 items-center justify-center rounded-full");
+    // stack900 K2: shrink-0 added — without it flex shrink rendered the
+    // buttons 33px wide at phone widths and this pin passed on a lie.
+    expect(homeSource).toContain("flex h-11 w-11 shrink-0 items-center justify-center rounded-full");
   });
 
   it("language switcher trigger has a ≥40px hit area", () => {
