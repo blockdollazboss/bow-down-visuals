@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Bookmark, Music2, Clapperboard, AlertTriangle, RotateCcw } from "lucide-react";
+import { Bookmark, Music2, Clapperboard, AlertTriangle, RotateCcw, Compass } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { apiJson, type FeedPost, type SocialAuthor } from "@/lib/social-api";
@@ -85,6 +85,16 @@ export default function SavedPage() {
         <div className="rounded-2xl border border-[#2a2a2a] bg-[#111] p-10 text-center">
           <p className="text-lg font-bold text-white">Nothing saved here yet 🦈</p>
           <p className="mt-2 text-sm text-neutral-400">Tap the bookmark on any post, sound, video, or creator to stash it here.</p>
+          {/* The copy names the filler (posts, sounds, videos,
+              creators) but none of it lives on this page — without a
+              door the empty state is a dead end. */}
+          <Link
+            href="/explore"
+            data-testid="saved-explore-door"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-6 py-2.5 font-bold text-black hover:brightness-110"
+          >
+            <Compass className="h-4 w-4" /> Explore what's out there
+          </Link>
         </div>
       )}
 

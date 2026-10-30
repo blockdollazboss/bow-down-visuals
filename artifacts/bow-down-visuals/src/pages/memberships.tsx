@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Crown, Plus, Trash2, Pencil, Users, DollarSign, TrendingDown,
-  Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent, RotateCcw, Pause, Play,
+  Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent, RotateCcw, Pause, Play, Compass,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -880,6 +880,16 @@ export default function Memberships() {
                       creator's profile, it shows up here — with your tier, your start date, and a
                       cancel button that's always yours to press.
                     </p>
+                    {/* The copy names creator profiles as the filler but
+                        offered no way to reach one — a dead end. The door
+                        goes to Explore, where creators are found. */}
+                    <Link
+                      href="/explore"
+                      data-testid="memberships-find-creators"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-black hover:brightness-110"
+                    >
+                      <Compass className="h-4 w-4" /> Find creators to join
+                    </Link>
                   </div>
                 ) : mine ? (
                   <div className={CARD + " space-y-3"}>
