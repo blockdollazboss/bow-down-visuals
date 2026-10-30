@@ -17,7 +17,7 @@ import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { getModeratorIds, chatRoleFor } from "../lib/live-moderators";
 import { isTicketed, canEnterStream, ticketDoorInfo, countActiveTickets } from "../lib/live-tickets";
-import { sweepIfLarge } from "../lib/sweep-map";
+import { sweepIfLarge, capMapSize } from "../lib/sweep-map";
 import {
   createUnifiedChatRegistry,
   mergeUnifiedFeed,
@@ -205,7 +205,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Sockets subscribed to each stream's chat, keyed by stream id. */
 export const liveChatHub = new RoomHub();
 
-/* Per-user-per-stream post pacing (in-memory; single instance). */
+/* Per-user-per-stream post pacing (in-memory; single instance).
+ * Lane F1 (QC-200 G2): the age sweep below cannot bound a flood of
+ * fresh keys (every entry too young to sweep), so a hard cap
+ * backstops it — least-recently-posted evicted first; eviction only
+ * forgets a pacing timestamp, which fails open to "not too soon".
+ * 10,000 tiny entries ≈ 1 MB against the 400 MB heap. */
+const CHAT_PACING_MAX_ENTRIES = 10_000;
 const lastPostAt = new Map<string, number>();
 export function __resetChatRateLimit(): void {
   lastPostAt.clear();
@@ -554,8 +560,10 @@ router.post("/live/:id/chat", requireAuth, async (req: Request, res: Response) =
     lastPostAt.set(rateKey, now);
     /* Flag S-4: pacing entries older than the 1.5s window are dead
        weight — sweep them once the map grows past a threshold so it
-       can't accumulate one entry per chatter forever. */
+       can't accumulate one entry per chatter forever. Lane F1 adds
+       the hard cap behind the sweep (fresh keys are unsweepable). */
     sweepIfLarge(lastPostAt, 5000, 60_000, now);
+    capMapSize(lastPostAt, CHAT_PACING_MAX_ENTRIES, (t) => t);
 
     const dto = (await toDtos([row]))[0];
     liveChatHub.broadcast(stream.id, { type: "message", message: dto });

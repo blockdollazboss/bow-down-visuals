@@ -17,7 +17,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
-import { sweepIfLarge, sweepTtlIfLarge } from "../lib/sweep-map";
+import { sweepIfLarge, sweepTtlIfLarge, capMapSize } from "../lib/sweep-map";
 import { effectiveStatus } from "./live-chat";
 import {
   GUEST_ROOM_CAP,
@@ -101,6 +101,18 @@ const lastPostAt = new Map<string, number>();
 const joinAttempts = new Map<string, number[]>();
 const mintAttempts = new Map<string, number[]>();
 const PACING_SWEEP_THRESHOLD = 5000;
+/* Lane F1 (QC-200 G2): hard cap backstopping the age sweeps. The
+ * sweeps only remove entries OLDER than their window, so a flood of
+ * fresh keys (join keys carry the caller IP; floods measured at
+ * 12,000 entries for 12,000 keys) grew these maps for the life of
+ * the process. The cap evicts least-recently-active first — the
+ * same backstop the rank/podcast caches already carry. Eviction is
+ * fail-open by design: a forgotten key simply paces as new, and the
+ * hard abuse rails live in the DB (invite max_joins, GUEST_ROOM_CAP),
+ * never in these maps. Size: 10,000 entries × ≲250 B worst case
+ * ≈ 2.5 MB per map against the 400 MB heap — and 2× the sweep
+ * threshold, so honest traffic never touches it. */
+const PACING_MAX_ENTRIES = 10_000;
 export function __resetGuestPacing(): void {
   lastPostAt.clear();
   joinAttempts.clear();
@@ -119,26 +131,40 @@ export const __guestPacingForTest = {
 function windowHit(map: Map<string, number[]>, key: string, windowMs: number, max: number, now: number): boolean {
   const hits = (map.get(key) ?? []).filter((t) => now - t < windowMs);
   if (hits.length >= max) {
-    map.set(key, hits);
+    touchSet(map, key, hits);
     sweepPacingWindows(map, windowMs, now);
     return true;
   }
   hits.push(now);
-  map.set(key, hits);
+  touchSet(map, key, hits);
   sweepPacingWindows(map, windowMs, now);
   return false;
 }
 /** Age of a hit-window entry = its newest hit (arrays stay
  *  window-pruned and ascending in windowHit). */
+function newestHit(hits: number[]): number {
+  return hits.length ? hits[hits.length - 1]! : 0;
+}
 function sweepPacingWindows(map: Map<string, number[]>, windowMs: number, now: number): void {
-  sweepTtlIfLarge(map, PACING_SWEEP_THRESHOLD, windowMs, (hits) => (hits.length ? hits[hits.length - 1]! : 0), now);
+  sweepTtlIfLarge(map, PACING_SWEEP_THRESHOLD, windowMs, newestHit, now);
+  capMapSize(map, PACING_MAX_ENTRIES);
+}
+/** Write a pacing entry as most-recently-touched: delete + set moves
+ *  the key to the Map's newest slot, so capMapSize's insertion-order
+ *  eviction is a true least-recently-touched order (a key that keeps
+ *  pacing is never the one evicted). */
+function touchSet<V>(map: Map<string, V>, key: string, value: V): void {
+  map.delete(key);
+  map.set(key, value);
 }
 function postTooSoon(key: string, now: number): boolean {
   const last = lastPostAt.get(key) ?? 0;
   if (now - last < POST_INTERVAL_MS) return true;
-  lastPostAt.set(key, now);
-  // Same sweep the live-chat rail runs on its pacing map.
+  touchSet(lastPostAt, key, now);
+  // Same sweep the live-chat rail runs on its pacing map, plus the
+  // Lane F1 hard cap (the sweep alone cannot bound fresh keys).
   sweepIfLarge(lastPostAt, PACING_SWEEP_THRESHOLD, 60_000, now);
+  capMapSize(lastPostAt, PACING_MAX_ENTRIES);
   return false;
 }
 
