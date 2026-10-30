@@ -19,6 +19,7 @@ import {
   type MidiRollNote,
 } from "@/lib/arrangement";
 import { auditionNote } from "@/lib/midi-synth";
+import { noteKeyAction } from "@/lib/piano-roll-keys";
 import { downloadMidiPolyphonic } from "@/lib/midi-export";
 import { openWebMidi, pairRecordedNotes, webMidiSupported, type WebMidiNoteEvent, type WebMidiSession } from "@/lib/web-midi";
 
@@ -43,6 +44,7 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
   const notes = track.notes ?? [];
   const instrument = track.instrument ?? "keys";
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState("");
   const [recording, setRecording] = useState(false);
   const [recordedCount, setRecordedCount] = useState(0);
   const [midiState, setMidiState] = useState<"idle" | "unavailable" | "ready">("idle");
@@ -93,6 +95,13 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
     auditionNote(instrument, note.pitch, note.velocity);
   }
 
+  /* The one delete path — footer button, right-click menu and the
+   * keyboard Delete key all land here. */
+  function deleteNote(id: string) {
+    onChange({ ...track, notes: notes.filter((n) => n.id !== id) });
+    if (selectedId === id) setSelectedId(null);
+  }
+
   function handleGridPointerDown(e: React.PointerEvent) {
     if (e.button !== 0) return;
     const { time, pitch } = gridPos(e);
@@ -139,6 +148,29 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
       if (note) auditionNote(instrument, note.pitch, note.velocity);
     }
     void e;
+  }
+
+  /* Keyboard path for a focused note — same state functions, same
+   * formulas (via noteKeyAction) as the pointer handlers above. Pitch
+   * moves audition the new pitch, mirroring the click-to-hear path. */
+  function handleNoteKeyDown(e: React.KeyboardEvent, note: MidiRollNote) {
+    const action = noteKeyAction(note, e.key, e.shiftKey, snapSec);
+    if (!action) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (action.type === "move") {
+      onChange({ ...track, notes: moveNote(notes, note.id, action.start, action.pitch) });
+      if (action.pitch !== note.pitch) auditionNote(instrument, action.pitch, note.velocity);
+      setAnnounce(`${pitchLabel(action.pitch)}, beat ${(action.start / beatSec).toFixed(1)}`);
+    } else if (action.type === "resize") {
+      onChange({ ...track, notes: resizeNote(notes, note.id, action.duration) });
+      setAnnounce(`${pitchLabel(note.pitch)}, length ${(action.duration / beatSec).toFixed(1)} beats`);
+    } else if (action.type === "delete") {
+      deleteNote(note.id);
+      setAnnounce(`${pitchLabel(note.pitch)} note deleted`);
+    } else {
+      auditionNote(instrument, note.pitch, note.velocity);
+    }
   }
 
   async function toggleRecord() {
@@ -291,9 +323,13 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
                 onPointerUp={handleNotePointerUp}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  onChange({ ...track, notes: notes.filter((n) => n.id !== note.id) });
-                  if (selectedId === note.id) setSelectedId(null);
+                  deleteNote(note.id);
                 }}
+                tabIndex={0}
+                role="button"
+                aria-label={`${pitchLabel(note.pitch)} note, beat ${(note.start / beatSec).toFixed(1)}, length ${(note.duration / beatSec).toFixed(1)} beats`}
+                onFocus={() => setSelectedId(note.id)}
+                onKeyDown={(e) => handleNoteKeyDown(e, note)}
                 data-testid={`roll-note-${note.id}`}
                 title={`${pitchLabel(note.pitch)} · right-click deletes`}
               >
@@ -304,9 +340,12 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
         </div>
       </div>
 
+      <div aria-live="polite" className="sr-only">{announce}</div>
+
       <div className="flex flex-wrap items-center gap-4">
         <p className="text-[11px] text-white/40">
           Click the grid to place a note · drag to move · drag the right edge to resize · right-click a note to delete it.
+          Keyboard: focus a note, then arrow keys move it, Shift+arrows resize it, Delete removes it, Enter plays it.
           Notes play through the {MIDI_INSTRUMENTS.find((i) => i.id === instrument)?.label} voice — synthesized in your browser, no samples.
         </p>
         {selected && (
@@ -328,10 +367,7 @@ export function PianoRoll({ track, bpm, pxPerSec, durationSec, onChange }: Piano
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                onChange({ ...track, notes: notes.filter((n) => n.id !== selected.id) });
-                setSelectedId(null);
-              }}
+              onClick={() => deleteNote(selected.id)}
               className="h-8 text-[11px] font-bold border-white/12 bg-white/[0.03] text-red-300"
               data-testid="btn-note-delete"
             >
