@@ -463,6 +463,53 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── DIGITAL STORE AUTO-REFUND (stack900) ──────────────────────────
+  // Digital-store sessions (routes/store.ts checkout stamps
+  // buyer_user_id + profile_id + item_kind + item_id; storefront
+  // sessions carry product_id instead and never match this) used to
+  // fall through this dispatch untouched: their only refund trigger
+  // was the buyer returning to /store/verify, so a buyer who never
+  // came back stranded their money when the item turned undeliverable.
+  // Now the webhook asks the store's own probe and, when a refund is
+  // due, fires the SAME idempotent helper verify's rail uses —
+  // refundCheckoutSessionPayment keys the Stripe refund
+  // refund:<sessionId>, exactly the key verify's inline refund uses,
+  // so webhook-then-verify, verify-then-webhook, and webhook replays
+  // can never double-refund. Deliverable items answer "not due" and
+  // fulfillment stays with verify, untouched.
+  const storeMeta = session.metadata ?? {};
+  if (storeMeta["buyer_user_id"] && storeMeta["profile_id"] && storeMeta["item_kind"] && storeMeta["item_id"]) {
+    const itemKind = storeMeta["item_kind"];
+    const itemId = storeMeta["item_id"];
+    try {
+      const { isStoreSessionAutoRefundDue } = await import("../routes/store");
+      const refundDue = await isStoreSessionAutoRefundDue(session.id, itemKind, itemId);
+      if (!refundDue) {
+        res.status(200).json({ received: true, kind: "digital_store" });
+        return;
+      }
+      const { refundCheckoutSessionPayment } = await import("./stripe-checkout");
+      const refunded = await refundCheckoutSessionPayment(session);
+      if (refunded) {
+        logger.error({ sessionId: session.id, itemKind, itemId }, "Stripe webhook: store item undeliverable after payment — auto-refunded without waiting for verify");
+      } else {
+        logger.error({ sessionId: session.id, itemKind, itemId }, "Stripe webhook: store item undeliverable after payment but the auto-refund did NOT land — reconcile manually");
+      }
+      res.status(200).json({ received: true, kind: "digital_store", refunded });
+    } catch (err: unknown) {
+      /* A probe failure (e.g. the DB hiccuped) is TRANSIENT: refunding
+         on a guess could hand back money for a deliverable purchase,
+         and a 500 would start a retry storm over a session verify
+         still owns. Log loudly, answer 200, and leave the session to
+         the buyer's verify — which re-probes and refunds there. */
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, sessionId: session.id }, "Stripe webhook: store auto-refund probe failed — no refund fired");
+      res.status(200).json({ received: true, kind: "digital_store", warning: "auto-refund probe failed" });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const userId = session.metadata?.user_id;
   const creditPack = session.metadata?.credit_pack ?? "unknown";
   const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);
