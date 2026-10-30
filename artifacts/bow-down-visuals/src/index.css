@@ -1313,6 +1313,15 @@ html, body {
   --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to));
 }
 
+/* Auth footers (login + signup): the sign-in toolbar is an unconditional
+   bg-[#171208]/65 bar. The solid hex is in the §18 marble group but the
+   /65 step was not, so in light the bar stayed espresso-brown while the
+   link row inside it (text-white/45, /20) remapped to warm grays —
+   murk on murk over the light sign-in video. It takes the §17
+   bg-black/65 frosted-ivory value; the ivory input chips and gold
+   buttons the file already branches for light sit on it unchanged. */
+.light .bg-\[\#171208\]\/65:not([data-dark-lock]):not([data-dark-lock] *) { background-color: rgb(253 251 246 / 0.72); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
