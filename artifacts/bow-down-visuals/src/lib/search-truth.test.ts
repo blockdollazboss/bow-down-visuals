@@ -11,11 +11,13 @@
  *
  * Before this lane both matched the WHOLE typed string as one
  * substring and the registry didn't list several shipped surfaces at
- * all, so the table below scored 17/28 against the real data
- * (sidebar 10/14, registry 7/14 — measured with the lane's runner
- * over the pre-fix tree @1fe340a60). The table is the regression
- * guard: a creator typing plain words must land on the real feature,
- * by its real name, on BOTH surfaces.
+ * all. Measured against the pristine pre-fix tree (@1fe340a60) with
+ * the lane's runner, the table below scores 7/28 (sidebar 4/14,
+ * registry 3/14) — and 7/28 again under plain-words semantics over
+ * the same data, because the words themselves were missing from the
+ * indexes. The table is the regression guard: a creator typing plain
+ * words must land on the real feature, by its real name, on BOTH
+ * surfaces.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
