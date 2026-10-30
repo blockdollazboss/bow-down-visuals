@@ -101,6 +101,14 @@ describe("assembleChecklist — teaser and banners never tick themselves", () =>
     expect(step(steps, "banners").state).toBe("todo");
     expect(step(steps, "banners").detail).toContain("cover art");
   });
+
+  it("inputs present but no kit assembled: 'todo' — there is no spec yet to render", () => {
+    const steps = assembleChecklist({ release: FULL, kit: null, kitStatus: null, captures: 0, announce: NONE });
+    expect(step(steps, "teaser").state).toBe("todo");
+    expect(step(steps, "teaser").detail).toContain("Assemble the kit");
+    expect(step(steps, "banners").state).toBe("todo");
+    expect(step(steps, "banners").detail).toContain("Assemble the kit");
+  });
 });
 
 describe("assembleChecklist — the announcement reads the Scheduler's buckets", () => {

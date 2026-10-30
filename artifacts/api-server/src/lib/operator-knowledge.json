@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "1b2f5dc3f92b00a6f5219b4114cb9fc86d9dcc28",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "counts": {
     "routesInApp": 241,
     "pageFiles": 185,
@@ -22,8 +22,8 @@
     "withDescriptions": 238,
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
-    "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1003,
+    "serverEndpoints": 1704,
+    "serverEndpointsVisible": 1004,
     "serverFilesClassified": 128
   },
   "packs": [
@@ -10290,6 +10290,9 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/drop-day-kits",
+        "/api/drop-day-kits/:param/status",
+        "/api/drop-day-kits/mine",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -17055,8 +17058,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/drop-day-kits.ts",
-        "endpoints": 3,
-        "visible": 3,
+        "endpoints": 4,
+        "visible": 4,
         "unseen": []
       },
       {

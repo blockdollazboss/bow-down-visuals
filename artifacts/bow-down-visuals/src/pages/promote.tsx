@@ -17,6 +17,7 @@ import { LinkInBioBuilder } from "@/components/promote/LinkInBioBuilder";
 import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
 import { ResultsWallPanel } from "@/components/promote/ResultsWallPanel";
 import { ViralSpikeKitPanel } from "@/components/promote/ViralSpikeKitPanel";
+import { DropDayPanel } from "@/components/promote/DropDayPanel";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
@@ -274,6 +275,15 @@ export default function Promote() {
           honest still-measuring note, or the opted-out state. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
         <ViralSpikeKitPanel />
+      </div>
+      {/* Drop Day Kit (#169) — the kit's Promote home: every release,
+          its kit state, and the release-day checklist the server
+          derives from the real rails. The kit itself is assembled in
+          the Distribute release editor; this panel works the same
+          endpoints and never posts, sends, or schedules itself.
+          Visible in both tabs, like the panels above it. */}
+      <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
+        <DropDayPanel />
       </div>
 
       <section className="mx-auto max-w-4xl px-5 md:px-8 pb-20">

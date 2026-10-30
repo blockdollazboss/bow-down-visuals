@@ -233,11 +233,15 @@ export function assembleChecklist(input: {
 
   steps.push(!release.audioUrl
     ? { id: "teaser", label: "Teaser short", state: "todo", detail: "Needs the track audio first — the teaser is cut from it." }
-    : { id: "teaser", label: "Teaser short", state: "action", detail: "The 15-second teaser spec is ready — it renders in Create, so this step stays open until you've made it." });
+    : input.kit?.teaser
+      ? { id: "teaser", label: "Teaser short", state: "action", detail: "The 15-second teaser spec is ready — it renders in Create, so this step stays open until you've made it." }
+      : { id: "teaser", label: "Teaser short", state: "todo", detail: "Assemble the kit — the teaser spec is built from your track." });
 
   steps.push(!release.artworkUrl
     ? { id: "banners", label: "Banner set", state: "todo", detail: "Needs the cover art first — every banner is built from it." }
-    : { id: "banners", label: "Banner set", state: "action", detail: "Four banner sizes are specced from your cover art — they render in Create, so this step stays open until you've made them." });
+    : input.kit && input.kit.banners.length > 0
+      ? { id: "banners", label: "Banner set", state: "action", detail: "Four banner sizes are specced from your cover art — they render in Create, so this step stays open until you've made them." }
+      : { id: "banners", label: "Banner set", state: "todo", detail: "Assemble the kit — the banner set is specced from your cover art." });
 
   if (announce.posted > 0) {
     steps.push({ id: "announce", label: "Launch announcement", state: "done", detail: "Posted through the Scheduler." });
