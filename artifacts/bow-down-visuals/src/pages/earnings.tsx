@@ -265,6 +265,43 @@ export default function Earnings() {
         </div>
       </div>
 
+      {/* Zero state: a wall of $0.00 with no next step is a dead end —
+          the money page hands back to the surfaces that fill it
+          (SELL → PROMOTE → deals), the same handoff the Dashboard's
+          money-empty card makes. Only on a complete, honest zero:
+          never over a partial load. */}
+      {data.totalCents === 0 && !data.partial && (
+        <div className="mt-4 rounded-xl border border-border bg-card p-5" data-testid="earnings-zero-next-steps">
+          <div className="text-lg font-bold">No earnings yet — here&apos;s how the first dollar happens</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every source above starts at zero for everyone. Pick a door and make the first one move.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/my-shop"
+              data-testid="earnings-zero-sell"
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-bold text-black transition hover:scale-105"
+            >
+              Sell something
+            </Link>
+            <Link
+              href="/brand-deals"
+              data-testid="earnings-zero-deals"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-bold hover:bg-white/5"
+            >
+              Find brand deals
+            </Link>
+            <Link
+              href="/promote"
+              data-testid="earnings-zero-promote"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-bold hover:bg-white/5"
+            >
+              Promote your work
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <SourceCard
           onRetry={reload}
