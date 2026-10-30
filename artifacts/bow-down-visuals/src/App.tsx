@@ -162,6 +162,7 @@ const AnalyticsHub = lazyWithRetry(() => import("@/pages/analytics-hub"));
 const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
+const OverlayNowPlayingPage = lazyWithRetry(() => import("@/pages/overlay-now-playing"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const World = lazyWithRetry(() => import("@/pages/world"));
 const StreamControllerPage = lazyWithRetry(() => import("@/pages/stream-controller"));
@@ -530,6 +531,25 @@ function AppShell() {
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
   const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals"]
     .includes(location.split("?")[0].split("#")[0]);
+  /* Stream overlays (stack900 C2 + D3): /overlay/* pages are browser
+   * sources for OBS / Streamlabs — the program output itself. They
+   * render with NO shell at all (no sidebar, no floating furniture,
+   * no chat, no guest gate): the page must be a clean transparent
+   * stage, and the overlay token in the URL is its only credential.
+   * An unknown /overlay/* path renders nothing — a browser source
+   * showing a 404 page on stream would be worse than a blank one.
+   * JOIN NOTE: lane C2's branch carries /overlay/alerts +
+   * /overlay/goal in a Switch at this exact seat — at the join the
+   * two branches merge into ONE Switch holding all three routes. */
+  if (location.startsWith("/overlay/")) {
+    return (
+      <Suspense fallback={null}>
+        <Switch>
+          <Route path="/overlay/now-playing"><OverlayNowPlayingPage /></Route>
+        </Switch>
+      </Suspense>
+    );
+  }
   return (
     <>
       <PushSubscriptionRepair />

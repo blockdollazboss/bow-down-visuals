@@ -158,8 +158,30 @@ describe("GuestGate — the AppShell choke point (audit §4.1)", () => {
     const gateOpen = appSource.indexOf("<GuestGate>");
     const gateClose = appSource.indexOf("</GuestGate>");
     expect(gateOpen).toBeGreaterThan(-1);
-    expect(appSource.indexOf("<Switch>")).toBeGreaterThan(gateOpen);
+    expect(appSource.indexOf("<Switch>", gateOpen)).toBeGreaterThan(gateOpen);
     expect(gateClose).toBeGreaterThan(appSource.lastIndexOf("</Switch>"));
+  });
+
+  it("the one Switch outside the gate is the chromeless overlay branch — token-keyed and matrix-public", () => {
+    // Stack900 exception, SiteMode's class: /overlay/* pages are
+    // OBS/Streamlabs browser sources — they must render with no
+    // shell at all, so their Switch sits ahead of the gate in
+    // AppShell. The exception is fenced: the branch may carry ONLY
+    // the overlay routes, and each is classified public in
+    // ROUTE_MATRIX (the token in the URL is their credential, like
+    // /review/:token). Any other route appearing outside the gate
+    // fails here.
+    // JOIN NOTE: lane C2's fence expects ["/overlay/alerts",
+    // "/overlay/goal"] from the same seat — at the join the merged
+    // branch expects all three paths and the two fences become one.
+    const gateOpen = appSource.indexOf("<GuestGate>");
+    const branchAt = appSource.indexOf('location.startsWith("/overlay/")');
+    expect(branchAt).toBeGreaterThan(-1);
+    expect(branchAt).toBeLessThan(gateOpen);
+    const branch = appSource.slice(branchAt, appSource.indexOf("</Switch>", branchAt));
+    const branchPaths = [...branch.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]);
+    expect(branchPaths).toEqual(["/overlay/now-playing"]);
+    expect(appSource.indexOf("<Switch>")).toBe(appSource.indexOf("<Switch>", branchAt));
   });
 
   it("adds no routes of its own (the census in public-routes.test.ts still owns the table)", () => {

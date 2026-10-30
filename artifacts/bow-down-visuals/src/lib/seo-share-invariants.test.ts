@@ -147,6 +147,11 @@ describe("sitemap ↔ public allowlist agreement (D-11)", () => {
     "/qr-login",
     "/reset-password",
     "/store/success",
+    // Stream overlays (stack900 C2 + D3): chromeless OBS/Streamlabs
+    // browser sources keyed by a private per-creator token — a
+    // sitemap entry would publish a door that only works with the
+    // token and means nothing to a crawler or a visitor.
+    "/overlay/now-playing",
   ]);
 
   it("every sitemap URL is on the public allowlist", () => {
