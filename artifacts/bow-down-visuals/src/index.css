@@ -1331,6 +1331,16 @@ html, body {
 .light .text-emerald-100:not([data-dark-lock]):not([data-dark-lock] *) { color: #047857; }
 .light .text-emerald-100\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.82); }
 
+/* Storefront product page, amber-100 ladder gaps: the ladder (§5 +
+   Stack-28 A4-D2) runs /40–/90 for text, but the page's price-hint copy
+   sits at /45 and every checkout field's placeholder at /35 — both
+   printed pale straw on the §11 ivory inputs (§11 repaints the inputs
+   white; the placeholder is the fields' only label). /45 takes its
+   interpolated rung on the ladder; the placeholder joins §11's
+   readable-placeholder value (#7A7266, 4.58:1 on the ivory ground). */
+.light .text-amber-100\/45:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.71); }
+.light .placeholder\:text-amber-100\/35:not([data-dark-lock]):not([data-dark-lock] *)::placeholder { color: #7A7266; }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
