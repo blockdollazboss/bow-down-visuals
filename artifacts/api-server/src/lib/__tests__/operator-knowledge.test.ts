@@ -335,6 +335,75 @@ describe("operator knowledge — sourced facts only", () => {
   });
 });
 
+describe("operator knowledge — price carriage (no invisible registry prices)", () => {
+  /* Stack-900 KB triage (Lane K4): the one-hop page scan cannot see
+     rails whose callers sit two or more hops below a page, so 37
+     registry-priced actions were quotable NOWHERE in the KB — the
+     operator could not state their prices at all (the invisible twin
+     of a price that lies). FEATURE_PRICE_LINKS in the generator plus
+     the books-cover registry key fix closed 36 of them; this pin
+     keeps the class closed. Matching mirrors the generator's
+     priceFor: param-normalized exact or prefix, and a key carrying
+     a query string only matches facts recorded with that same query
+     (so the 400 VB full-stems fact can never "carry" the 300 VB
+     instrumental-mode key). */
+  const normParamsK = (p: string) =>
+    p.split("/").map((s) => (s.startsWith(":") ? ":param" : s)).join("/");
+
+  function deriveRegistry() {
+    const src = read(path.join(FE_SRC, "lib", "credit-costs.ts"));
+    const entries = new Map<string, number>();
+    const re = /"(\/api\/[^"]+)":\s*\{\s*cost:\s*(\d+),\s*feature:\s*"([^"]+)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(src))) entries.set(m[1], Number(m[2]));
+    return entries;
+  }
+
+  function factMatchesKey(factEndpoint: string, key: string) {
+    const [factPath, factQuery] = factEndpoint.split("?");
+    const [keyPath, keyQuery] = key.split("?");
+    if (keyQuery && factQuery !== keyQuery) return false;
+    return (
+      normParamsK(factPath) === normParamsK(keyPath) ||
+      normParamsK(factPath).startsWith(`${normParamsK(keyPath)}/`)
+    );
+  }
+
+  /* The one registry price the KB deliberately does NOT carry.
+     /api/chat: the owner ruled (Oct 27) that chat carries NO
+     separate charge — charged tools carry their own prices — while
+     the rail still records a 1 VB default (Lane J1 log, item D-5,
+     OWNER-DECISION). Publishing the 1 VB figure would put a charge
+     the owner says does not exist into the operator's mouth, so the
+     key stays uncarried until the rail and the ruling are
+     reconciled. Any OTHER uncarried key fails this test. */
+  const UNCARRIED_ALLOWLIST = new Map([
+    ["/api/chat", "owner ruled chat carries no separate charge (Oct 27); the rail's recorded 1 VB default is an open owner-decision (Lane J1 D-5)"],
+  ]);
+
+  it("every registry price is carried by at least one feature, except the reviewed allowlist", () => {
+    const registry = deriveRegistry();
+    expect(registry.size).toBeGreaterThan(200);
+    const facts = OPERATOR_FEATURES.flatMap((f) => f.prices);
+    const uncarried = [...registry.keys()].filter(
+      (key) => !facts.some((p) => p.vb === registry.get(key) && factMatchesKey(p.endpoint, key)),
+    );
+    expect(uncarried.sort()).toEqual([...UNCARRIED_ALLOWLIST.keys()].sort());
+  });
+
+  it("every carried price fact agrees with the registry entry it matches", () => {
+    const registry = deriveRegistry();
+    for (const f of OPERATOR_FEATURES) {
+      for (const p of f.prices) {
+        const agreeing = [...registry.keys()].some(
+          (key) => registry.get(key) === p.vb && factMatchesKey(p.endpoint, key),
+        );
+        expect(agreeing, `${f.id}: ${p.endpoint} at ${p.vb} VB matches no registry entry at that price`).toBe(true);
+      }
+    }
+  });
+});
+
 describe("operator knowledge — matching and grounding", () => {
   it("matches the song panel for a make-a-song question, guide attached", () => {
     const hits = findFeatures("how do I make a song");

@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "870ae6f4bd7dc70f216ce8f07dbfa6bcfcaa6919",
+  "baseCommit": "2562262bb9e3672d78ea7544a370e5dfd942b05d",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -9,9 +9,9 @@
   },
   "generatedAt": "2026-10-30",
   "counts": {
-    "routesInApp": 242,
-    "pageFiles": 186,
-    "features": 249,
+    "routesInApp": 241,
+    "pageFiles": 185,
+    "features": 248,
     "excludedRoutes": 73,
     "excludedPageFiles": 35,
     "pricedActions": 216,
@@ -19,12 +19,12 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 239,
+    "withDescriptions": 238,
     "withoutDescriptions": 10,
-    "serverRouteFiles": 428,
-    "serverEndpoints": 1705,
-    "serverEndpointsVisible": 1003,
-    "serverFilesClassified": 129
+    "serverRouteFiles": 427,
+    "serverEndpoints": 1703,
+    "serverEndpointsVisible": 1036,
+    "serverFilesClassified": 101
   },
   "packs": [
     {
@@ -338,10 +338,12 @@
         "/api/analytics/insights",
         "/api/analytics/overview",
         "/api/analytics/suggestions",
+        "/api/analyze-hook",
         "/api/catalog-export",
         "/api/catalog-export/build",
         "/api/channel-audit",
         "/api/competitor-analysis",
+        "/api/content-calendar",
         "/api/content-id/claim/:param",
         "/api/content-id/claims",
         "/api/content-id/claims/:param",
@@ -401,6 +403,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Hook Analyzer",
+          "vb": 75,
+          "endpoint": "/api/analyze-hook",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Channel Audit",
           "vb": 300,
           "endpoint": "/api/channel-audit",
@@ -410,6 +418,12 @@
           "feature": "Competitor Tracker",
           "vb": 200,
           "endpoint": "/api/competitor-analysis",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Content Calendar",
+          "vb": 150,
+          "endpoint": "/api/content-calendar",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -1047,6 +1061,7 @@
         "/api/sfx/library",
         "/api/sound-finder/match",
         "/api/stems",
+        "/api/stems?mode=instrumental",
         "/api/stems/:param",
         "/api/stems/:param/midi/:param",
         "/api/stems/:param/remix",
@@ -1170,6 +1185,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Vocal Polish",
           "vb": 200,
           "endpoint": "/api/vocal-polish",
@@ -1263,6 +1284,7 @@
         "/api/podcast/dialogue",
         "/api/podcast/dialogue/status",
         "/api/podcast/generate",
+        "/api/producer-tag",
         "/api/rate-my-mix/analyze",
         "/api/referrals/apply",
         "/api/referrals/me",
@@ -1372,6 +1394,12 @@
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Producer Tag",
+          "vb": 100,
+          "endpoint": "/api/producer-tag",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2817,6 +2845,7 @@
         "/api/finish-my-song/complete",
         "/api/generate-music-audio/extend",
         "/api/generate-sfx",
+        "/api/guest-questions",
         "/api/hub/project",
         "/api/hum-to-song",
         "/api/lufs/analyze",
@@ -2905,6 +2934,12 @@
           "feature": "Generate SFX",
           "vb": 100,
           "endpoint": "/api/generate-sfx",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Guest Questions",
+          "vb": 75,
+          "endpoint": "/api/guest-questions",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3276,6 +3311,7 @@
         "/api/sfx/library",
         "/api/sound-finder/match",
         "/api/stems",
+        "/api/stems?mode=instrumental",
         "/api/stems/:param",
         "/api/stems/:param/midi/:param",
         "/api/stems/:param/remix",
@@ -3396,6 +3432,12 @@
           "feature": "Stem Separation",
           "vb": 400,
           "endpoint": "/api/stems",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3499,6 +3541,7 @@
         "/api/sfx/library",
         "/api/sound-finder/match",
         "/api/stems",
+        "/api/stems?mode=instrumental",
         "/api/stems/:param",
         "/api/stems/:param/midi/:param",
         "/api/stems/:param/remix",
@@ -3619,6 +3662,12 @@
           "feature": "Stem Separation",
           "vb": 400,
           "endpoint": "/api/stems",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4005,6 +4054,12 @@
         "/api/books/ai/assist"
       ],
       "prices": [
+        {
+          "feature": "Thy Books AI Cover Generation",
+          "vb": 200,
+          "endpoint": "/api/books/:id/cover/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Thy Books AI Writing Assist",
           "vb": 100,
@@ -4852,6 +4907,7 @@
         "/api/generate-intro-outro/:param",
         "/api/generate-logo",
         "/api/generate-logo/:param",
+        "/api/generate-product-photo",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
@@ -4869,7 +4925,8 @@
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
         "/api/wallpapers/render",
-        "/api/wallpapers/screensaver-render"
+        "/api/wallpapers/screensaver-render",
+        "/api/wave8/merch-drop/plan"
       ],
       "prices": [
         {
@@ -4894,6 +4951,12 @@
           "feature": "Logo Generator",
           "vb": 100,
           "endpoint": "/api/generate-logo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Product Photo (Packshot) (price TBD)",
+          "vb": 100,
+          "endpoint": "/api/generate-product-photo",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4948,6 +5011,12 @@
           "feature": "Screensaver Loop Render",
           "vb": 300,
           "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Merch Drop Planner",
+          "vb": 100,
+          "endpoint": "/api/wave8/merch-drop/plan",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -5572,7 +5641,8 @@
         "/api/money",
         "/api/money/:param",
         "/api/referrals/apply",
-        "/api/validate-idea"
+        "/api/validate-idea",
+        "/api/wave8/splits/pdf"
       ],
       "prices": [
         {
@@ -5591,6 +5661,12 @@
           "feature": "Idea Validator",
           "vb": 75,
           "endpoint": "/api/validate-idea",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Royalty Split Sheet PDF",
+          "vb": 50,
+          "endpoint": "/api/wave8/splits/pdf",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -6447,6 +6523,7 @@
         "/api/dream-collab/concept",
         "/api/generate-artist-image",
         "/api/generate-artist-image/:param",
+        "/api/generate-harmony",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
         "/api/generate-song",
@@ -6456,6 +6533,11 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/singing-voice",
+        "/api/song-inspo/analyze",
+        "/api/song-inspo/generate",
+        "/api/song-remix",
+        "/api/song-replace-section",
         "/api/storefront/products",
         "/api/transcribe",
         "/api/upload-clip",
@@ -6480,6 +6562,12 @@
           "feature": "Generate Artist Image (Pro)",
           "vb": 200,
           "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Harmony Generator (Classic doubles)",
+          "vb": 300,
+          "endpoint": "/api/generate-harmony",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6535,6 +6623,36 @@
           "feature": "Edit Plan",
           "vb": 100,
           "endpoint": "/api/generate/ai-edit-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Singing-Voice Conversion (price TBD)",
+          "vb": 800,
+          "endpoint": "/api/singing-voice",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Inspo Vibe Analysis (free)",
+          "vb": 0,
+          "endpoint": "/api/song-inspo/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Inspo Mode Song",
+          "vb": 200,
+          "endpoint": "/api/song-inspo/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Song Remix (new arrangement)",
+          "vb": 400,
+          "endpoint": "/api/song-remix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Replace Song Section",
+          "vb": 300,
+          "endpoint": "/api/song-replace-section",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6732,6 +6850,7 @@
       "component": "Create",
       "endpoints": [
         "/api/analyze-sections",
+        "/api/avatar-presenter",
         "/api/cover-art",
         "/api/cover-in-motion/animate",
         "/api/drafts",
@@ -6753,13 +6872,21 @@
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
         "/api/wallpapers/render",
-        "/api/wallpapers/screensaver-render"
+        "/api/wallpapers/screensaver-render",
+        "/api/wave9d/camera/prompt",
+        "/api/wave9d/director/plan"
       ],
       "prices": [
         {
           "feature": "Analyze Song Sections",
           "vb": 100,
           "endpoint": "/api/analyze-sections",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Avatar Presenter",
+          "vb": 1200,
+          "endpoint": "/api/avatar-presenter",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6820,6 +6947,18 @@
           "feature": "Screensaver Loop Render",
           "vb": 300,
           "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Camera Move Planner",
+          "vb": 100,
+          "endpoint": "/api/wave9d/camera/prompt",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Character Director",
+          "vb": 150,
+          "endpoint": "/api/wave9d/director/plan",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -7787,7 +7926,6 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
-        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -7944,7 +8082,6 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
-        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8035,7 +8172,6 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
-        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8126,7 +8262,6 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
-        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8664,6 +8799,7 @@
         "/api/script-writer",
         "/api/shares",
         "/api/title-studio",
+        "/api/wave8/caption-styler/burn",
         "/api/wave8/hook-rewriter/rewrite"
       ],
       "prices": [
@@ -8707,6 +8843,12 @@
           "feature": "Title Studio",
           "vb": 100,
           "endpoint": "/api/title-studio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Styled Caption Burn-in",
+          "vb": 100,
+          "endpoint": "/api/wave8/caption-styler/burn",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -9719,6 +9861,7 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/album-publish",
         "/api/albums",
         "/api/albums/:param",
         "/api/analyze-sections",
@@ -9754,6 +9897,12 @@
         "/api/website-builder/projects/:param"
       ],
       "prices": [
+        {
+          "feature": "Publish Album",
+          "vb": 300,
+          "endpoint": "/api/album-publish",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Analyze Song Sections",
           "vb": 100,
@@ -9935,21 +10084,6 @@
       ],
       "description": "A premium physical card with an NFC chip inside. Tap it on any phone and your digital card opens instantly — links, booking, socials, everything. Update it anytime without reprinting.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
-    },
-    {
-      "id": "overlay-now-playing",
-      "name": "Overlay Now Playing Page",
-      "nameSource": "App.tsx component name",
-      "path": "/overlay/now-playing",
-      "stage": "studio",
-      "access": "public",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx",
-      "component": "OverlayNowPlayingPage",
-      "endpoints": [],
-      "prices": [],
-      "nextSteps": [],
-      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the track playing on the creator's stream right now, shown as their studio reports it — title, artist, and progress.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx usePageTitle meta description"
     },
     {
       "id": "party",
@@ -12870,16 +13004,23 @@
         "/api/ai-copilot/analyze",
         "/api/ai-upscale/status",
         "/api/analyze-sections",
+        "/api/apply-lut",
+        "/api/apply-mask",
         "/api/apply-speed",
         "/api/artist-vaults",
         "/api/auto-captions",
         "/api/auto-captions/info",
+        "/api/auto-chapters",
+        "/api/auto-video-plan",
         "/api/bg-generate",
         "/api/bg-generate/status",
         "/api/canvas/generate",
         "/api/canvas/styles",
         "/api/caption-styler",
         "/api/caption-styler/:param",
+        "/api/cinematic-fx",
+        "/api/clone-voice",
+        "/api/color-grade",
         "/api/credits/claim-trial",
         "/api/export-final-video",
         "/api/export-multi-ratio",
@@ -12913,6 +13054,9 @@
         "/api/lyric-video/render",
         "/api/lyric-video/render/:param",
         "/api/meme-machine/captions",
+        "/api/mix-plan",
+        "/api/motion-track/apply",
+        "/api/motion-track/track",
         "/api/music/export",
         "/api/music/export/job/:param",
         "/api/music/preview-render",
@@ -12938,10 +13082,14 @@
         "/api/slow-motion",
         "/api/smart-clips",
         "/api/smart-clips/propose",
+        "/api/song-replace-section",
         "/api/songs",
         "/api/speed-presets",
+        "/api/split-screen/apply",
         "/api/stabilize",
+        "/api/stems?mode=instrumental",
         "/api/stock/import",
+        "/api/stock/search",
         "/api/store/token",
         "/api/streamer-clips/analyze",
         "/api/streamer-clips/cut",
@@ -12969,7 +13117,10 @@
         "/api/voices",
         "/api/watermark-removal",
         "/api/watermark-removal/:param",
+        "/api/wave8/adlib/generate",
         "/api/wave8/thumbnail-ab/variants",
+        "/api/wave9a/lyrics/timing",
+        "/api/wave9a/structure/generate",
         "/api/wave9b/beats/detect",
         "/api/wave9b/bg/charge",
         "/api/wave9b/templates/apply",
@@ -12989,6 +13140,18 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "LUT Apply",
+          "vb": 150,
+          "endpoint": "/api/apply-lut",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Mask Effect",
+          "vb": 200,
+          "endpoint": "/api/apply-mask",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Speed Preset",
           "vb": 150,
           "endpoint": "/api/apply-speed",
@@ -12998,6 +13161,18 @@
           "feature": "Auto-Captions",
           "vb": 300,
           "endpoint": "/api/auto-captions",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Auto Chapters",
+          "vb": 150,
+          "endpoint": "/api/auto-chapters",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Auto Video Plan",
+          "vb": 200,
+          "endpoint": "/api/auto-video-plan",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13016,6 +13191,24 @@
           "feature": "Caption Styler",
           "vb": 300,
           "endpoint": "/api/caption-styler",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Cinematic FX Render",
+          "vb": 150,
+          "endpoint": "/api/cinematic-fx",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Voice Clone",
+          "vb": 500,
+          "endpoint": "/api/clone-voice",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Color Grade",
+          "vb": 150,
+          "endpoint": "/api/color-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13097,6 +13290,24 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Mix Plan",
+          "vb": 200,
+          "endpoint": "/api/mix-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Motion Track Burn-in",
+          "vb": 350,
+          "endpoint": "/api/motion-track/apply",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Motion Tracking",
+          "vb": 350,
+          "endpoint": "/api/motion-track/track",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
@@ -13121,15 +13332,39 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Replace Song Section",
+          "vb": 300,
+          "endpoint": "/api/song-replace-section",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Split-Screen Grid",
+          "vb": 200,
+          "endpoint": "/api/split-screen/apply",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Video Stabilization",
           "vb": 300,
           "endpoint": "/api/stabilize",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Stem Separation — Instrumental",
+          "vb": 300,
+          "endpoint": "/api/stems?mode=instrumental",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Stock Media Import",
           "vb": 50,
           "endpoint": "/api/stock/import",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stock Media Search (free)",
+          "vb": 0,
+          "endpoint": "/api/stock/search",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13223,9 +13458,27 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Ad-Lib Generator",
+          "vb": 150,
+          "endpoint": "/api/wave8/adlib/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Thumbnail A/B Variants",
           "vb": 75,
           "endpoint": "/api/wave8/thumbnail-ab/variants",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Lyrics-to-Timeline",
+          "vb": 50,
+          "endpoint": "/api/wave9a/lyrics/timing",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Song Structure Builder",
+          "vb": 200,
+          "endpoint": "/api/wave9a/structure/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -14687,6 +14940,7 @@
         "/api/voices",
         "/api/watermark-removal",
         "/api/watermark-removal/:param",
+        "/api/wave8/highlights/cut",
         "/api/wave8/thumbnail-ab/variants",
         "/api/wave9b/beats/detect",
         "/api/wave9b/bg/charge",
@@ -14926,6 +15180,12 @@
           "feature": "Remove Watermark",
           "vb": 200,
           "endpoint": "/api/watermark-removal",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stream Highlight Auto-Editor",
+          "vb": 300,
+          "endpoint": "/api/wave8/highlights/cut",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -17292,14 +17552,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/auto-chapters.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/auto-chapters"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Auto Chapters rail (150 VB in the registry) — generates chapter markers from a transcript inside the editor; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/auto-edit.ts",
@@ -17322,28 +17576,17 @@
       {
         "file": "artifacts/api-server/src/routes/generate/auto-video-plan.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/auto-video-plan"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Auto video-plan rail — an AI planning tool behind the create surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/avatar-presenter.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/avatar-presenter",
           "/api/avatar-presenter/:jobId",
           "/api/avatar-presenter/status"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Avatar presenter rail (Hedra, 1,200 VB; ships dark until the wallet is funded) — job + status endpoints behind the presenter surface; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/background-removal.ts",
@@ -17513,14 +17756,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/cinematic-fx.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/cinematic-fx"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Cinematic FX rail — an editor tool called through shared helpers; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/clip-descriptions.ts",
@@ -17552,15 +17789,10 @@
       {
         "file": "artifacts/api-server/src/routes/generate/color-grade.ts",
         "endpoints": 2,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/color-grade",
           "/api/color-presets"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Color-grade rail (+ presets) — an editor tool called through shared helpers; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/comment-replies.ts",
@@ -17599,14 +17831,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/content-calendar.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/content-calendar"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "AI content-calendar rail — generates a 30-day posting plan behind the promote/coach surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/contests.ts",
@@ -17790,10 +18016,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/freeze-mask.ts",
         "endpoints": 3,
-        "visible": 2,
-        "unseen": [
-          "/api/apply-mask"
-        ]
+        "visible": 3,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/gamers.ts",
@@ -17816,14 +18040,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/guest-questions.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/guest-questions"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Podcast guest-question generator rail — an AI tool behind the podcast surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/hashtags.ts",
@@ -17846,14 +18064,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/hook-analyzer.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/analyze-hook"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "AI hook analyzer rail — scores a video's opening transcript behind the create surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/hook-studio.ts",
@@ -18092,14 +18304,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/mix-plan.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/mix-plan"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Mix-plan rail — an AI audio tool behind the Audio Studio surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/monetization-coach.ts",
@@ -18110,16 +18316,10 @@
       {
         "file": "artifacts/api-server/src/routes/generate/motion-track.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 2,
         "unseen": [
-          "/api/motion-track/apply",
-          "/api/motion-track/job/:jobId",
-          "/api/motion-track/track"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Motion-track rails (track / apply / job) — an editor tool called through shared helpers; no page of its own."
-        }
+          "/api/motion-track/job/:jobId"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/movies.ts",
@@ -18264,27 +18464,16 @@
       {
         "file": "artifacts/api-server/src/routes/generate/producer-tag.ts",
         "endpoints": 2,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/producer-tag",
           "/api/producer-tag/vault-voice"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Producer Tag Maker rail (+ vault voice) — makes the spoken tag inside the audio surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/product-photo.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/generate-product-photo"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Product Photo Studio rail — AI product photography for the branding/storefront sell flow; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/promo-cards.ts",
@@ -18500,17 +18689,12 @@
       {
         "file": "artifacts/api-server/src/routes/generate/singing-voice.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/singing-voice",
           "/api/singing-voice/jobs/:jobId",
           "/api/singing-voice/status",
           "/api/singing-voice/voices"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Singing-voice rails (generate / jobs / status / voices) — behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/slideshow.ts",
@@ -18564,31 +18748,20 @@
       {
         "file": "artifacts/api-server/src/routes/generate/song-harmony.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/generate-harmony",
           "/api/generate-harmony/modes",
           "/api/generate-harmony/using/:songId"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "AI harmony generator rails (generate / modes / using) — behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/song-inspo.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 2,
         "unseen": [
-          "/api/song-inspo/analyze",
-          "/api/song-inspo/generate",
           "/api/song-inspo/presets",
           "/api/song-inspo/presets/:id"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Inspo Mode rails (analyze / generate / presets) — playlist-vibe-to-song behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/song-video.ts",
@@ -18619,16 +18792,11 @@
       {
         "file": "artifacts/api-server/src/routes/generate/split-screen.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/split-screen/apply",
           "/api/split-screen/job/:jobId",
           "/api/split-screen/layouts"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Split-screen rails (layouts / apply / job) — an editor tool called through shared helpers; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/sponsor-read.ts",
@@ -19033,17 +19201,12 @@
       {
         "file": "artifacts/api-server/src/routes/generate/voice-clone.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/clone-voice",
           "/api/clone-voice/:id",
           "/api/cloned-voices",
           "/api/speak-as"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Voice-clone rails (clone / list / speak-as) — behind the voice surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/voice-effects.ts",
@@ -19440,9 +19603,8 @@
       {
         "file": "artifacts/api-server/src/routes/lut.ts",
         "endpoints": 8,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/apply-lut",
           "/api/lut/my",
           "/api/lut/my/:id",
           "/api/lut/presets",
@@ -19450,11 +19612,7 @@
           "/api/lut/preview",
           "/api/lut/upload",
           "/api/lut/validate"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "LUT library rails (presets / upload / validate / preview / apply / my) — the color-look library behind the editor's color surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/mashup.ts",
@@ -19518,19 +19676,6 @@
         "endpoints": 7,
         "visible": 7,
         "unseen": []
-      },
-      {
-        "file": "artifacts/api-server/src/routes/now-playing.ts",
-        "endpoints": 2,
-        "visible": 0,
-        "unseen": [
-          "/api/live/:id/now-playing",
-          "/api/overlay/now-playing"
-        ],
-        "classification": {
-          "surface": "live",
-          "reason": "Now-playing rails (report / clear / token read) — the Go Live studio reports the track on its program and the /overlay/now-playing browser source reads it by overlay token (the C2 overlay family's feed); the calls ride the studio and overlay surfaces past the scan's one hop, so no feature entry carries these endpoints."
-        }
       },
       {
         "file": "artifacts/api-server/src/routes/open-verse.ts",
@@ -20037,15 +20182,8 @@
       {
         "file": "artifacts/api-server/src/routes/song-remix.ts",
         "endpoints": 2,
-        "visible": 0,
-        "unseen": [
-          "/api/song-remix",
-          "/api/song-replace-section"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Song Remix + Replace Section rails — new arrangements of a song behind the song surfaces; no page of its own."
-        }
+        "visible": 2,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/song-requests.ts",
@@ -20091,10 +20229,8 @@
       {
         "file": "artifacts/api-server/src/routes/stock.ts",
         "endpoints": 2,
-        "visible": 1,
-        "unseen": [
-          "/api/stock/search"
-        ]
+        "visible": 2,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/store.ts",
@@ -20377,14 +20513,8 @@
       {
         "file": "artifacts/api-server/src/routes/wave8-adlib.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/wave8/adlib/generate"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-8 AI ad-lib generator rail — a vocal-production sidekick behind the song surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/wave8-calendar.ts",
@@ -20397,26 +20527,14 @@
       {
         "file": "artifacts/api-server/src/routes/wave8-caption-styler.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/wave8/caption-styler/burn"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-8 caption-styler burn rail (100 VB, registry-matched) — an editor tool; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/wave8-highlights.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/wave8/highlights/cut"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-8 stream-highlight scorer rail — scores moments from a transcript (honestly: it does not cut video); no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/wave8-hook-rewriter.ts",
@@ -20433,30 +20551,20 @@
       {
         "file": "artifacts/api-server/src/routes/wave8-merch-drop.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/wave8/merch-drop/plan",
           "/api/wave8/merch-drop/plans",
           "/api/wave8/merch-drop/save"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-8 merch-drop planner rails (plan / plans / save) — an AI planning tool behind the promote/store surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/wave8-splits.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
           "/api/wave8/splits",
-          "/api/wave8/splits/:id",
-          "/api/wave8/splits/pdf"
-        ],
-        "classification": {
-          "surface": "money",
-          "reason": "Wave-8 royalty split-sheet rails (CRUD + PDF) — split sheets behind the money surfaces; no page of its own."
-        }
+          "/api/wave8/splits/:id"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/wave8-thumbnail-ab.ts",
@@ -20467,19 +20575,13 @@
       {
         "file": "artifacts/api-server/src/routes/wave9a-music.ts",
         "endpoints": 6,
-        "visible": 0,
+        "visible": 2,
         "unseen": [
-          "/api/wave9a/lyrics/timing",
-          "/api/wave9a/structure/generate",
           "/api/wave9a/structures",
           "/api/wave9a/structures/:id",
           "/api/wave9a/versions",
           "/api/wave9a/versions/:id"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-9A music rails (structures / versions / lyrics timing) — the song-workbench store behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/wave9b-editor.ts",
@@ -20496,29 +20598,19 @@
       {
         "file": "artifacts/api-server/src/routes/wave9d-camera.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
           "/api/wave9d/camera/design",
-          "/api/wave9d/camera/presets",
-          "/api/wave9d/camera/prompt"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-9D camera rails (design / presets / prompt) — the camera planner's store (planner priced 100 VB in the registry); no page of its own."
-        }
+          "/api/wave9d/camera/presets"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/wave9d-director.ts",
         "endpoints": 2,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/wave9d/director/plan",
           "/api/wave9d/director/plans"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-9D character-director planning rails — a planning layer over the Scene Studio pipeline; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/webauthn.ts",
