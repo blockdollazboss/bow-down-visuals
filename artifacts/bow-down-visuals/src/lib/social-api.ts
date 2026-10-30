@@ -309,7 +309,20 @@ export async function apiJson<T>(
   const res = await apiFetch(getAccessToken, path, init, options);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { message?: string }).message || `Request failed (${res.status})`);
+    /* A failure must carry its reason: most rails answer with
+       { error } or a zod details list, not { message } — reading only
+       `message` reduced every refusal to a bare "Request failed (400)"
+       and left the person guessing which field to fix. Prefer the
+       message, then the error, then the first validation detail. */
+    const b = body as {
+      message?: string;
+      error?: string;
+      details?: (string | { message?: string })[];
+    };
+    const detail = b.details
+      ?.map((d) => (typeof d === "string" ? d : d?.message))
+      .find((d): d is string => typeof d === "string" && d.length > 0);
+    throw new Error(b.message || detail || b.error || `Request failed (${res.status})`);
   }
   return (await res.json()) as T;
 }

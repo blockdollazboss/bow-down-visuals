@@ -12,6 +12,7 @@ import {
   performanceBookingStep,
   bookingNextActions,
   bookingMoney,
+  BOOKING_LIMITS,
   BOOKING_STATUS_LABEL,
   ESCROW_STATUS_LABEL,
   type PerformanceBookingDto,
@@ -205,11 +206,11 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
           <form onSubmit={submit} className="mt-5 grid gap-3 sm:grid-cols-2">
             <div>
               <label className={labelCls} htmlFor="pb-promoter">Who is booking</label>
-              <input id="pb-promoter" required value={form.promoterName} onChange={set("promoterName")} placeholder="Venue, company, or your name" className={inputCls} style={inputStyle} />
+              <input id="pb-promoter" required value={form.promoterName} onChange={set("promoterName")} placeholder="Venue, company, or your name" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.promoterName} />
             </div>
             <div>
               <label className={labelCls} htmlFor="pb-title">Show name</label>
-              <input id="pb-title" required value={form.eventTitle} onChange={set("eventTitle")} placeholder="Harbor Nights Live" className={inputCls} style={inputStyle} />
+              <input id="pb-title" required value={form.eventTitle} onChange={set("eventTitle")} placeholder="Harbor Nights Live" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.eventTitle} />
             </div>
             <div>
               <label className={labelCls} htmlFor="pb-date">Show date &amp; time</label>
@@ -221,19 +222,19 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
             </div>
             <div>
               <label className={labelCls} htmlFor="pb-venue">Venue</label>
-              <input id="pb-venue" required value={form.venueName} onChange={set("venueName")} placeholder="The Harbor Room" className={inputCls} style={inputStyle} />
+              <input id="pb-venue" required value={form.venueName} onChange={set("venueName")} placeholder="The Harbor Room" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.venueName} />
             </div>
             <div>
               <label className={labelCls} htmlFor="pb-city">City</label>
-              <input id="pb-city" required value={form.venueCity} onChange={set("venueCity")} placeholder="Norfolk" className={inputCls} style={inputStyle} />
+              <input id="pb-city" required value={form.venueCity} onChange={set("venueCity")} placeholder="Norfolk" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.venueCity} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls} htmlFor="pb-address">Venue address</label>
-              <input id="pb-address" required value={form.venueAddress} onChange={set("venueAddress")} placeholder="12 Pier Street" className={inputCls} style={inputStyle} />
+              <input id="pb-address" required value={form.venueAddress} onChange={set("venueAddress")} placeholder="12 Pier Street" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.venueAddress} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls} htmlFor="pb-performance">The performance</label>
-              <input id="pb-performance" required value={form.performance} onChange={set("performance")} placeholder="A 45-minute headline set" className={inputCls} style={inputStyle} />
+              <input id="pb-performance" required value={form.performance} onChange={set("performance")} placeholder="A 45-minute headline set" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.performance} />
             </div>
             <div>
               <label className={labelCls} htmlFor="pb-set">Set length (minutes, optional)</label>
@@ -241,15 +242,15 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
             </div>
             <div>
               <label className={labelCls} htmlFor="pb-production">Sound / lights / setup (optional)</label>
-              <input id="pb-production" value={form.productionNotes} onChange={set("productionNotes")} placeholder="The venue provides sound and lights" className={inputCls} style={inputStyle} />
+              <input id="pb-production" value={form.productionNotes} onChange={set("productionNotes")} placeholder="The venue provides sound and lights" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.productionNotes} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls} htmlFor="pb-cancel">Cancellation terms (optional)</label>
-              <input id="pb-cancel" value={form.cancellationTerms} onChange={set("cancellationTerms")} placeholder="Leave blank for a full refund if the show is cancelled" className={inputCls} style={inputStyle} />
+              <input id="pb-cancel" value={form.cancellationTerms} onChange={set("cancellationTerms")} placeholder="Leave blank for a full refund if the show is cancelled" className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.cancellationTerms} />
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls} htmlFor="pb-notes">Anything else (optional)</label>
-              <textarea id="pb-notes" value={form.notes} onChange={set("notes")} rows={2} className={inputCls} style={inputStyle} />
+              <textarea id="pb-notes" value={form.notes} onChange={set("notes")} rows={2} className={inputCls} style={inputStyle} maxLength={BOOKING_LIMITS.notes} />
             </div>
             <div className="sm:col-span-2">
               <button

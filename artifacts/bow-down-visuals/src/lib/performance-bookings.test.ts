@@ -10,7 +10,10 @@ import {
   bookingMoney,
   BOOKING_STATUS_LABEL,
   ESCROW_STATUS_LABEL,
+  validateBookingInput,
+  BOOKING_LIMITS,
   type PerformanceBookingDto,
+  type CreatePerformanceBookingInput,
 } from "./performance-bookings";
 
 function booking(over: Partial<PerformanceBookingDto> = {}): PerformanceBookingDto {
@@ -68,6 +71,60 @@ describe("bookingNextActions", () => {
       expect(ids(booking({ status }))).toEqual([]);
     }
     expect(ids(booking({ role: null }))).toEqual([]);
+  });
+});
+
+/* ── validateBookingInput — the mirror of createPerformanceBookingSchema.
+   The client must refuse exactly what the server refuses, at the same
+   boundary values, before the request is made. */
+describe("validateBookingInput (server schema mirror)", () => {
+  const good: CreatePerformanceBookingInput = {
+    profileId: "p1",
+    promoterName: "Harbor Lights Venue",
+    eventTitle: "Harbor Nights Live",
+    eventDate: "2026-11-14T01:00:00.000Z",
+    venueName: "The Harbor Room",
+    venueAddress: "12 Pier Street",
+    venueCity: "Norfolk",
+    feeCents: 250_00,
+    terms: { performance: "A 45-minute headline set" },
+  };
+
+  it("accepts a complete booking", () => {
+    expect(validateBookingInput(good)).toBeNull();
+  });
+
+  it("caps every text field at the server's limit, at the boundary", () => {
+    const fields = [
+      ["promoterName", BOOKING_LIMITS.promoterName],
+      ["eventTitle", BOOKING_LIMITS.eventTitle],
+      ["venueName", BOOKING_LIMITS.venueName],
+      ["venueAddress", BOOKING_LIMITS.venueAddress],
+      ["venueCity", BOOKING_LIMITS.venueCity],
+    ] as const;
+    for (const [key, max] of fields) {
+      expect(validateBookingInput({ ...good, [key]: "x".repeat(max) })).toBeNull();
+      expect(validateBookingInput({ ...good, [key]: "x".repeat(max + 1) })).toContain(String(max));
+    }
+    expect(validateBookingInput({ ...good, terms: { performance: "x".repeat(501) } })).toContain("500");
+    expect(validateBookingInput({ ...good, terms: { performance: "ok", productionNotes: "x".repeat(1001) } })).toContain("1000");
+    expect(validateBookingInput({ ...good, terms: { performance: "ok", cancellationTerms: "x".repeat(1001) } })).toContain("1000");
+    expect(validateBookingInput({ ...good, notes: "x".repeat(2001) })).toContain("2000");
+    expect(validateBookingInput({ ...good, notes: "x".repeat(2000) })).toBeNull();
+  });
+
+  it("fee: $0.99 fails, $1 passes, $1,000,000 passes, $1,000,000.01 fails", () => {
+    expect(validateBookingInput({ ...good, feeCents: 99 })).toContain("$1");
+    expect(validateBookingInput({ ...good, feeCents: 100 })).toBeNull();
+    expect(validateBookingInput({ ...good, feeCents: 100_000_000 })).toBeNull();
+    expect(validateBookingInput({ ...good, feeCents: 100_000_001 })).toContain("$1,000,000");
+  });
+
+  it("set length: absent is fine, 0 and 1441 fail, 1440 passes", () => {
+    expect(validateBookingInput({ ...good, terms: { performance: "ok", setLengthMin: null } })).toBeNull();
+    expect(validateBookingInput({ ...good, terms: { performance: "ok", setLengthMin: 0 } })).toContain("1440");
+    expect(validateBookingInput({ ...good, terms: { performance: "ok", setLengthMin: 1440 } })).toBeNull();
+    expect(validateBookingInput({ ...good, terms: { performance: "ok", setLengthMin: 1441 } })).toContain("1440");
   });
 });
 
