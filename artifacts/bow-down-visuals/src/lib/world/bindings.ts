@@ -78,23 +78,58 @@ export type WorldVerb =
   | "pageCycle"
   | "momentClaim"
   | "photoMode"
+  | "settingsToggle"
   | "fullscreen"
   | "jump";
 
 /** Fixed (never paged) pad verbs: button index → verb. Back (8)
- *  cycles the action page; Start (9) frames a photo; R3 (11) is
- *  the moment claim — the three buttons that were still free.
- *  A (0) carries TWO gestures (stack300, below): its entry here
- *  is the long-press one. */
+ *  cycles the action page; Start (9) frames a photo ON A HOLD
+ *  (its tap opens the World settings — see PAD_MENU_BUTTON);
+ *  R3 (11) is the moment claim — the three buttons that were
+ *  still free. A (0) carries TWO gestures (stack300, below): its
+ *  entry here is the long-press one. */
 export const PAD_VERBS: Readonly<Record<number, WorldVerb>> = {
   0: "voiceStep", // A / Cross — LONG-PRESS (see PAD_JUMP_BUTTON)
   6: "voiceBack", // LT / L2
   3: "viewToggle", // Y / Triangle
   4: "interact", // LB / L1
   8: "pageCycle", // Back / Select
-  9: "photoMode", // Start / Menu
+  9: "photoMode", // Start / Menu — LONG-PRESS (see PAD_MENU_BUTTON)
   11: "momentClaim", // R3 (right-stick click)
 };
+
+/** The settings toggle's pad home (stack900): Start (9) — the
+ *  menu button, the profile's rightMenu role (Options on the
+ *  owner's DualSense, Menu on an Xbox pad, + on a Switch Pro).
+ *  The owner's order was that settings open "pushing your menu
+ *  button, your start button, like normal stuff" — and Start
+ *  was the photo button, so Start SHARES by gesture, the third
+ *  share of its kind in this table (A: tap jumps, hold steps
+ *  the voice; Back: tap cycles the page, hold toggles
+ *  fullscreen): a TAP of Start toggles the World settings
+ *  panel; HOLDING Start for PAD_PHOTO_LONG_PRESS_MS frames the
+ *  photo, exactly what Start always did. The documented cost
+ *  of the share, mirroring A's: the tap that begins the hold
+ *  opens the settings first — and photo mode's own entry
+ *  retires every panel, settings included, so the hold lands
+ *  in a clean frame with nothing left open under it. While
+ *  photo mode is UP the share inverts by state, not gesture:
+ *  the same tap leaves photo mode (photo's toggle stays live,
+ *  as it always was), and a hold means nothing there — the
+ *  page's settings path checks the photo state first and the
+ *  poll's photo intent is enter-only. The keyboard family
+ *  never shares: P still frames the photo, and the settings
+ *  panel's keyboard road is its footer door chip — Esc, the
+ *  key a menu would want, is the browser's fullscreen exit
+ *  and cannot be a page verb (see the settings panel's Help
+ *  section for the words the walker reads). gamepad.ts polls
+ *  this split. */
+export const PAD_MENU_BUTTON = 9;
+/** How long Start must be held before the press becomes the
+ *  photo frame instead of the settings toggle (ms). A's line,
+ *  not Back's: framing a photo is the smaller act, and a
+ *  settings tap in a hurry is a real pad habit. */
+export const PAD_PHOTO_LONG_PRESS_MS = 400;
 
 /** The jump's pad home (stack300): A / Cross (0), the bottom
  *  face button — where every player's thumb already looks for a
@@ -203,7 +238,17 @@ export function pageForAction(action: WorldActionId): ActionPageId | null {
  */
 export function verbRoleOk(verb: WorldVerb, role: WorldRole): boolean {
   if (role !== "guest") return true;
-  return verb === "photoMode" || verb === "viewToggle" || verb === "jump" || verb === "fullscreen";
+  /* The settings toggle rides with the looking verbs
+   *  (stack900): the settings panel is device settings and
+   *  help — its door chip already serves guests, and the pad
+   *  road to the same panel can hardly refuse them. */
+  return (
+    verb === "photoMode" ||
+    verb === "viewToggle" ||
+    verb === "jump" ||
+    verb === "fullscreen" ||
+    verb === "settingsToggle"
+  );
 }
 
 export function actionRoleOk(role: WorldRole): boolean {

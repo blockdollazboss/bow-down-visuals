@@ -26,7 +26,15 @@
  *   shipped layout — D↑ Bow · D→ Cheer · D↓ Sit · D← Wave · X Clap
  *   · B Dance · RB Spin — and Back (8) cycles to page 2 (Point ·
  *   Laugh · Kneel · Beckon · Salute · High-five · Shrug).
- *   Start (9)                → photo mode (edge)
+ *   Start (9) tap            → toggle the World settings
+ *                              (edge; bindings.ts PAD_MENU_BUTTON
+ *                              carries the why — the owner's menu
+ *                              button, "like normal stuff")
+ *   Start (9) held ≥ 400 ms  → photo mode (long-press edge;
+ *                              the same share as A and Back —
+ *                              the tap that begins the hold has
+ *                              already opened the settings, and
+ *                              photo mode's entry retires them)
  *   Back (8) held ≥ 600 ms   → toggle fullscreen (long-press
  *                              edge; bindings.ts PAD_PAGE_BUTTON
  *                              carries the why — Back's tap stays
@@ -46,6 +54,8 @@ import {
   PAD_VOICE_LONG_PRESS_MS,
   PAD_PAGE_BUTTON,
   PAD_FULLSCREEN_LONG_PRESS_MS,
+  PAD_MENU_BUTTON,
+  PAD_PHOTO_LONG_PRESS_MS,
   actionForPadButton,
   actionForSlot,
   DEFAULT_ACTION_PAGE,
@@ -90,8 +100,17 @@ export interface GamepadEdges {
   /** The current Back hold has already fired its fullscreen
    *  toggle. */
   pageFiredFs: boolean;
-  /** Start held at the last poll (the photo edge state). */
+  /** Start held at the last poll (the menu button's edge state —
+   *  one button, two gestures: the settings tap and the photo
+   *  hold below). */
   photo: boolean;
+  /** When the current Start hold began (poll clock ms), 0 =
+   *  Start is up. Start's TAP is the settings toggle; the
+   *  hold's age is what turns the same press into the photo
+   *  frame. */
+  menuHeldSince: number;
+  /** The current Start hold has already fired its photo frame. */
+  menuFiredPhoto: boolean;
   /** R3 held at the last poll (the moment-claim edge state). */
   claim: boolean;
   /** Action buttons held at the last poll, by action id. */
@@ -131,7 +150,18 @@ export interface GamepadIntent {
    *  cycled the page — the documented cost of the share,
    *  bindings.ts.) */
   fullscreenToggle: boolean;
-  /** Edge-triggered: Start went down — toggle photo mode. */
+  /** Edge-triggered: Start went down — toggle the World
+   *  settings panel. (Start's TAP now rides the menu button:
+   *  settings is what a walker opening a menu means; the photo
+   *  frame moved to the hold, below — bindings.ts
+   *  PAD_MENU_BUTTON carries the why.) */
+  settingsToggle: boolean;
+  /** Edge-triggered: Start's hold crossed
+   *  PAD_PHOTO_LONG_PRESS_MS this frame — toggle photo mode.
+   *  The tap that started the hold has already toggled the
+   *  settings (open), and entering photo mode retires every
+   *  panel, settings included — the documented cost of the
+   *  share, bindings.ts. */
   photoMode: boolean;
   /** Edge-triggered: R3 went down — claim the live moment. */
   momentClaim: boolean;
@@ -153,6 +183,7 @@ export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   interact: false,
   pageCycle: false,
   fullscreenToggle: false,
+  settingsToggle: false,
   photoMode: false,
   momentClaim: false,
   action: null,
@@ -169,6 +200,8 @@ export const IDLE_GAMEPAD_EDGES: GamepadEdges = {
   pageHeldSince: 0,
   pageFiredFs: false,
   photo: false,
+  menuHeldSince: 0,
+  menuFiredPhoto: false,
   claim: false,
   actions: {},
 };
@@ -177,6 +210,10 @@ export const IDLE_GAMEPAD_EDGES: GamepadEdges = {
 const VERB_BUTTON: Record<WorldVerb, number> = (() => {
   const out = {} as Record<WorldVerb, number>;
   for (const [btn, verb] of Object.entries(PAD_VERBS)) out[verb] = Number(btn);
+  /* The settings toggle has no PAD_VERBS row of its own — its
+   *  button IS the photo button, shared by gesture — so the
+   *  inversion names it explicitly. */
+  out.settingsToggle = PAD_MENU_BUTTON;
   return out;
 })();
 
@@ -262,6 +299,17 @@ export function pollGamepad(
     backDown &&
     (prev.pageFiredFs === true ||
       (pageHeldSince > 0 && nowMs - pageHeldSince >= PAD_FULLSCREEN_LONG_PRESS_MS));
+  /* Start (PAD_MENU_BUTTON = VERB_BUTTON.settingsToggle — one
+   *  button, two gestures, Back's pattern): the press edge is
+   *  the settings toggle; the hold crossing
+   *  PAD_PHOTO_LONG_PRESS_MS is the photo frame, once per hold. */
+  const menuDown = pressed(pad, verbs ? verbs.menu : PAD_MENU_BUTTON);
+  const prevMenuHeldSince = typeof prev.menuHeldSince === "number" ? prev.menuHeldSince : 0;
+  const menuHeldSince = menuDown ? (prevMenuHeldSince > 0 ? prevMenuHeldSince : nowMs) : 0;
+  const menuFiredPhoto =
+    menuDown &&
+    (prev.menuFiredPhoto === true ||
+      (menuHeldSince > 0 && nowMs - menuHeldSince >= PAD_PHOTO_LONG_PRESS_MS));
   const edges: GamepadEdges = {
     voice: aDown,
     view: pressed(pad, verbs ? verbs.viewToggle : VERB_BUTTON.viewToggle),
@@ -272,7 +320,9 @@ export function pollGamepad(
     page: backDown,
     pageHeldSince,
     pageFiredFs,
-    photo: pressed(pad, verbs ? verbs.photoMode : VERB_BUTTON.photoMode),
+    photo: menuDown,
+    menuHeldSince,
+    menuFiredPhoto,
     claim: pressed(pad, verbs ? verbs.momentClaim : VERB_BUTTON.momentClaim),
     actions: actionEdges,
   };
@@ -290,7 +340,8 @@ export function pollGamepad(
       interact: edges.interact && !prev.interact,
       pageCycle: edges.page && !prev.page,
       fullscreenToggle: pageFiredFs && prev.pageFiredFs !== true,
-      photoMode: edges.photo && !prev.photo,
+      settingsToggle: edges.photo && !prev.photo,
+      photoMode: menuFiredPhoto && prev.menuFiredPhoto !== true,
       momentClaim: edges.claim && !prev.claim,
       action,
     },

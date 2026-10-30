@@ -21,8 +21,10 @@ import {
   type WorldRole,
 } from "@/lib/world/bindings";
 import { firstGamepad } from "@/lib/world/gamepad";
-import { padWord } from "@/lib/world/controller-profile";
+import { getControllerProfile, padButtonIndex, padWord } from "@/lib/world/controller-profile";
+import { isTextEntryElement } from "@/lib/world/hud-idle";
 import { useControllerProfile } from "@/hooks/use-controller-profile";
+import { useHudIdle } from "@/hooks/use-hud-idle";
 import { usePanelPadNav } from "@/hooks/use-panel-pad-nav";
 import { nearestCourtesy, type FixtureCourtesy } from "@/lib/world/courtesies";
 import {
@@ -764,6 +766,10 @@ export default function WorldPage() {
    * refs above; the real closure is assigned beside toggleFs,
    * whose declaration it needs. */
   const fsToggleRef = useRef<() => void>(() => {});
+  /* The pad's settings toggle (the Start TAP, stack900), shaped
+   * like fsToggleRef: the real closure is assigned beside
+   * toggleSettingsPanel, whose declaration it needs. */
+  const settingsToggleRef = useRef<() => void>(() => {});
   togglePhotoModeRef.current = () => {
     if (!verbRoleOk("photoMode", myRole())) return;
     if (!photoModeRef.current) {
@@ -771,6 +777,11 @@ export default function WorldPage() {
       setCharPanelOpen(false);
       setScreenPanelOpen(false);
       setHostPanelOpen(false);
+      /* The settings strip retires too (stack900): photo mode's
+       * entry closes EVERY panel — and the Start hold that
+       * lands here began with a tap that opened the settings,
+       * so this close is what makes the hold's frame clean. */
+      setSettingsPanelOpen(false);
     }
     setPhotoMode((on) => !on);
   };
@@ -1512,6 +1523,86 @@ export default function WorldPage() {
     scene.padPanelHold = scene.padPanelHold || settingsPanelOpen;
   }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen, settingsPanelOpen]);
 
+  /* The menu button while a panel owns the pad (stack900): the
+   * scene's settings verb is discarded under padPanelHold by
+   * design, so the Start tap that must open the World settings
+   * OVER an open desk — or close the settings panel itself —
+   * needs a reader on this side of the hold. This watcher is
+   * that reader, and the arbitration is structural, never
+   * timed: it runs ONLY while a panel is open (exactly when
+   * the scene discards the intent), and the scene's verb fires
+   * only while none is — one owner per state, so a press can
+   * never toggle twice. No panel family reads Start (the panel
+   * poll speaks D-pad/stick/confirm/back only), so nothing in
+   * the panel layer double-fires either. The press routes
+   * through the one toggle: opening settings over a desk
+   * retires the desk (toggleSettingsPanel's own law) and Back
+   * from settings returns to the World, not the desk. A focused
+   * text field stands the watcher down — while a field owns
+   * the input, the panel's own rules win. The edge state seeds
+   * from the pad's live state on activation, so the press that
+   * OPENED the panel (whose tail the scene already consumed)
+   * can never re-fire here as a phantom close. */
+  const menuWatchActive =
+    status === "inside" &&
+    (Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen || settingsPanelOpen);
+  useEffect(() => {
+    if (!menuWatchActive) return;
+    let raf = 0;
+    let disposed = false;
+    let prevDown: boolean | null = null;
+    const loop = () => {
+      if (disposed) return;
+      raf = requestAnimationFrame(loop);
+      const pad = firstGamepad([...(navigator.getGamepads?.() ?? [])]);
+      if (!pad) {
+        prevDown = null;
+        return;
+      }
+      const idx = padButtonIndex(getControllerProfile(), "rightMenu");
+      const down = pad.buttons[idx]?.pressed === true;
+      if (prevDown === null) {
+        prevDown = down;
+        return;
+      }
+      const edge = down && !prevDown;
+      prevDown = down;
+      if (!edge) return;
+      if (isTextEntryElement(document.activeElement as Element | null)) return;
+      settingsToggleRef.current();
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [menuWatchActive]);
+
+  /* The furniture idle (stack900): while the walker is simply
+   * in the World — no panel, desk, settings, radio or photo
+   * frame open, no room overlay up — untouched controls fade
+   * the header, footer, radio chip and compass out of the
+   * frame (index.css [data-hud-fade] under .hud-idle); any
+   * pointer or pad touch brings them straight back. The same
+   * rule windowed as fullscreen: the furniture is the same
+   * furniture. Announcements, prompts and the re-enter chip
+   * never carry the fade mark — the hook only ever asks. */
+  const hudIdle = useHudIdle({
+    enabled:
+      status === "inside" &&
+      !photoMode &&
+      /* The room overlay, derived here the way the render
+       * derives it below (worldOverlay(status)) — the const
+       * itself is declared with the render's other truths. */
+      worldOverlay(status) === null &&
+      !panelTarget &&
+      !charPanelOpen &&
+      !screenPanelOpen &&
+      !hostPanelOpen &&
+      !settingsPanelOpen &&
+      !radioOpen,
+  });
+
   /* Controller presence + identity live in the profile hook
      (useControllerProfile, by the state declarations): a paired
      gamepad announces itself there, its id is re-read on a slow
@@ -2072,8 +2163,23 @@ export default function WorldPage() {
       scene.onPadPageCycle = () => {
         if (!cancelled) cycleActionPageRef.current();
       };
+      /* Start's TAP toggles the World settings (stack900 — the
+         menu button, the owner's "like normal stuff"); Start's
+         HOLD is the photo frame, and it is ENTER-ONLY here: the
+         same button's tap is photo mode's way out (the settings
+         path checks the photo state first), so a hold that
+         began inside photo mode must not re-enter on its own
+         crossing — the tap already left. The keyboard's P and
+         the deck's camera button keep the full toggle through
+         togglePhotoModeRef itself. While any panel is open the
+         scene discards both intents (padPanelHold) and the
+         page-side menu watcher owns the tap instead — one
+         owner per state. */
+      scene.onPadSettingsToggle = () => {
+        if (!cancelled) settingsToggleRef.current();
+      };
       scene.onPadPhotoMode = () => {
-        if (!cancelled) togglePhotoModeRef.current();
+        if (!cancelled && !photoModeRef.current) togglePhotoModeRef.current();
       };
       scene.onPadFullscreenToggle = () => {
         if (!cancelled) fsToggleRef.current();
@@ -2883,6 +2989,22 @@ export default function WorldPage() {
     if (!settingsPanelOpen) { setCharPanelOpen(false); setScreenPanelOpen(false); setHostPanelOpen(false); setPanelTarget(null); }
     setSettingsPanelOpen((o) => !o);
   };
+  /* The pad's road to the same toggle (stack900): the scene's
+   * Start tap and the page-side menu watcher both land here.
+   * While photo mode is up, the tap is photo's way OUT — the
+   * settings panel never opens over a photo frame, so the
+   * press retires the frame instead. Otherwise the verb gate
+   * (guests keep it; the door chip already serves them) and
+   * the one toggle — chip, tap and watcher all end at the
+   * same function, so the one-panel law holds on every road. */
+  settingsToggleRef.current = () => {
+    if (photoModeRef.current) {
+      togglePhotoModeRef.current();
+      return;
+    }
+    if (!verbRoleOk("settingsToggle", myRole())) return;
+    toggleSettingsPanel();
+  };
   useEffect(() => {
     if (panelTarget || charPanelOpen || screenPanelOpen || hostPanelOpen) setSettingsPanelOpen(false);
   }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
@@ -2906,14 +3028,14 @@ export default function WorldPage() {
     <div
       ref={pageRef}
       data-testid="world-page-root"
-      className={`flex min-h-screen flex-col ${isLight ? "bg-[#f3ead3] text-[#2a1e07]" : "bg-black text-white"}`}
+      className={`world-hud flex min-h-screen flex-col ${hudIdle ? "hud-idle" : ""} ${isLight ? "bg-[#f3ead3] text-[#2a1e07]" : "bg-black text-white"}`}
       {...(isLight ? {} : { "data-dark-lock": true })}
     >
       {/* ── Chrome ── (photo mode steps ALL of it aside — the
           header, the moment bars and the footer below; only the
           world and one small chip stay) */}
       {!photoMode && (
-      <header className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
+      <header data-hud-fade className={`relative z-20 flex flex-wrap items-center gap-3 border-b px-4 py-3 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         <Link href="/go-live" className={`inline-flex items-center gap-1.5 text-sm transition ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/50 hover:text-white"}`}>
           <ArrowLeft className="h-4 w-4" /> Go Live
         </Link>
@@ -3518,7 +3640,7 @@ export default function WorldPage() {
             sits below the top-3 line the reconnect pill and the
             stage plate share. */}
         {status === "inside" && guide && !nearStation && !nearCourtesy && !panelTarget && !photoMode && !reconnecting && overlay === null && (
-          <div className="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2 text-center" data-testid="world-guide">
+          <div className="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2 text-center" data-testid="world-guide" data-hud-fade>
             <p
               className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-lg backdrop-blur-sm ${
                 isLight
@@ -3718,7 +3840,7 @@ export default function WorldPage() {
             too was frame clutter for exactly the walker who
             cannot use it (stack700). */}
         {status === "inside" && !photoMode && !padConnected && (
-          <p className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
+          <p data-hud-fade className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-full bg-black/50 px-3 py-1 text-[11px] text-white/55 backdrop-blur-sm md:block">
             WASD to walk · drag or click to look · Shift to hurry · E opens what&rsquo;s in reach
           </p>
         )}
@@ -3923,6 +4045,7 @@ export default function WorldPage() {
             <button
               type="button"
               data-testid="world-plaza-radio-open"
+              data-hud-fade
               onClick={() => setRadioOpen(true)}
               className={`fixed bottom-24 left-3 z-30 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold shadow-lg backdrop-blur-sm transition hover:scale-105 sm:bottom-20 ${isLight ? "border-[#C9A84C]/70 bg-[#FCF7EA]/95 text-[#7A5A12]" : "border-[#d4af37]/50 bg-black/80 text-[#e8c86a]"}`}
             >
@@ -4428,7 +4551,7 @@ export default function WorldPage() {
           reservation, other corner — the footer's rows start
           clear of both parked buttons. */}
       {!photoMode && (
-      <footer className={`relative z-20 border-t py-3 pl-24 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
+      <footer data-hud-fade className={`relative z-20 border-t py-3 pl-24 pr-24 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"}`}>
         {isGuest && status === "inside" ? (
           <p className={`mb-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
             You're visiting as a <span className={`font-bold ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>guest</span> — look around all you like.{" "}

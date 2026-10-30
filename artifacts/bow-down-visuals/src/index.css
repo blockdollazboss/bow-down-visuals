@@ -913,6 +913,30 @@ html, body {
   outline-offset: 2px;
 }
 
+/* The World's furniture steps aside (stack900, owner's
+   directive: no "bunch of selections around" the fullscreen).
+   The page root wears .world-hud always and .hud-idle once
+   the controls have sat untouched (hooks/use-hud-idle.ts; the
+   pure rule lives in lib/world/hud-idle.ts). ONLY the marked
+   seats fade — header, footer, radio chip, compass, keyboard
+   hint — and only by opacity: nothing moves, nothing is
+   removed, and every seat is exactly where it was when the
+   furniture is present. Announcements, prompts, panels and
+   the fullscreen re-enter chip NEVER carry the mark: the
+   World speaking is not furniture. Faded seats take no
+   pointer input — an invisible button must not be clickable —
+   and the first touch of pointer or pad wakes them instantly
+   (the hook clears .hud-idle on activity; this transition is
+   the visible part of that wake). Same rule in both themes:
+   the rule is structural, no colour is named here. */
+.world-hud [data-hud-fade] {
+  transition: opacity 0.6s ease;
+}
+.world-hud.hud-idle [data-hud-fade] {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ── 17. Dark-spot sweep: pages & components that bypassed the theme ── */
 
 /* Content panel (App.tsx main frame + pricing page): marble invitation card.
