@@ -492,6 +492,48 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       const refunded = await refundCheckoutSessionPayment(session);
       if (refunded) {
         logger.error({ sessionId: session.id, itemKind, itemId }, "Stripe webhook: store item undeliverable after payment — auto-refunded without waiting for verify");
+        /* The buyer tell (stack900 join — L4 join item J1): this
+           refund path exists for the buyer who never came back, so
+           without a tell they would simply never learn their money
+           moved. Exactly-once rides the job-notifications UNIQUE
+           gate with jobId refund:<sessionId> — the same key the
+           refund itself carries: that key space is free here (this
+           branch only refunds sessions with NO digital_sales row, so
+           no sale finale ever claimed it), and the helper returns
+           true on idempotent replays too, so the claim — never the
+           refund result — is what gates the tell. A replayed webhook
+           therefore tells at most once. Best-effort like every money
+           finale: a tell failure never fails the webhook. */
+        try {
+          const { createJobNotification } = await import("./job-notifications");
+          const { storeItemTitleForRefundTell, storeItemKindNoun } = await import("../routes/store");
+          const itemTitle = await storeItemTitleForRefundTell(itemKind, itemId);
+          const itemName = itemTitle ? `“${itemTitle}”` : `Your ${storeItemKindNoun(itemKind)}`;
+          const tellTitle = "Your payment was refunded";
+          const tellMessage = `${itemName} is no longer for sale, so your payment has been refunded in full.`;
+          const claimed = await createJobNotification({
+            jobType: "sale",
+            jobId: `refund:${session.id}`,
+            userId: storeMeta["buyer_user_id"],
+            status: "completed",
+            title: tellTitle,
+            message: tellMessage,
+          });
+          if (claimed) {
+            const { notifyUserEvent } = await import("./push-events");
+            await notifyUserEvent({
+              userId: storeMeta["buyer_user_id"],
+              category: "money",
+              kind: "refund",
+              title: tellTitle,
+              body: tellMessage,
+              link: "/library",
+            });
+          }
+        } catch (tellErr: unknown) {
+          const tellMsg = (tellErr as { message?: string })?.message ?? "unknown";
+          logger.error({ err: tellErr, msg: tellMsg, sessionId: session.id }, "Stripe webhook: store auto-refund buyer tell failed (non-fatal)");
+        }
       } else {
         logger.error({ sessionId: session.id, itemKind, itemId }, "Stripe webhook: store item undeliverable after payment but the auto-refund did NOT land — reconcile manually");
       }

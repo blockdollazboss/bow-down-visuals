@@ -42,6 +42,11 @@ const h = vi.hoisted(() => ({
   refundCalls: [] as Array<{ params: unknown; options: unknown }>,
   refundsByKey: new Map<string, { id: string }>(),
   refundCreations: 0,
+  /* The buyer tell (join item J1): the claim gate's landed keys and
+     every notification call the branch makes. */
+  jobNotifClaims: new Set<string>(),
+  jobNotifCalls: [] as Array<Record<string, unknown>>,
+  userEvents: [] as Array<Record<string, unknown>>,
 }));
 
 const dialect = new PgDialect();
@@ -116,11 +121,24 @@ vi.mock("../../routes/generate/storefronts", () => ({
 }));
 
 vi.mock("../job-notifications", () => ({
-  createJobNotification: vi.fn(async () => undefined),
+  /* The UNIQUE(job_type, job_id) gate, faked faithfully: the first
+     claim for a key lands (true), every later one does not (false). */
+  createJobNotification: vi.fn(
+    async (input: { jobType: string; jobId: string }) => {
+      h.jobNotifCalls.push(input as Record<string, unknown>);
+      const key = `${input.jobType}:${input.jobId}`;
+      if (h.jobNotifClaims.has(key)) return false;
+      h.jobNotifClaims.add(key);
+      return true;
+    },
+  ),
 }));
 
 vi.mock("../push-events", () => ({
-  notifyUserEvent: vi.fn(async () => undefined),
+  notifyUserEvent: vi.fn(async (input: Record<string, unknown>) => {
+    h.userEvents.push(input);
+    return { bellLanded: true, push: null, pushSkippedReason: null };
+  }),
 }));
 
 vi.mock("../objectStorage", () => ({
@@ -224,6 +242,9 @@ beforeEach(() => {
   h.refundCalls = [];
   h.refundsByKey.clear();
   h.refundCreations = 0;
+  h.jobNotifClaims.clear();
+  h.jobNotifCalls = [];
+  h.userEvents = [];
   process.env["STRIPE_SECRET_KEY"] = "sk_test_fake";
   process.env["STRIPE_WEBHOOK_SECRET"] = "whsec_fake";
 });
@@ -342,6 +363,67 @@ describe("checkout.session.completed — digital store auto-refund", () => {
     expect(res.body).toMatchObject({ received: true, warning: "Missing user_id in metadata" });
     expect(h.queries.some((q) => q.includes("profile_tracks"))).toBe(false);
     expect(h.refundCreations).toBe(0);
+  });
+
+  /* ── The buyer tell (stack900 join — L4 join item J1) ──────────────
+     The auto-refund exists for the buyer who never came back; until
+     this item they were never told. The tell rides the refund's own
+     idempotency key space through the job-notifications UNIQUE gate:
+     jobType "sale", jobId refund:<sessionId> — claimed at most once,
+     and only a landed claim fires the bell/push. */
+  it("buyer tell: a webhook refund tells the buyer once, on the money channel, naming the item by kind when its row is gone", async () => {
+    h.trackRow = null;
+    const res = await deliver(completedEvent(storeSession("cs_store_tell_gone")));
+    expect(res.body).toMatchObject({ refunded: true });
+    expect(h.jobNotifCalls).toHaveLength(1);
+    expect(h.jobNotifCalls[0]).toMatchObject({
+      jobType: "sale",
+      jobId: "refund:cs_store_tell_gone",
+      userId: BUYER_ID,
+      status: "completed",
+      title: "Your payment was refunded",
+    });
+    expect(String(h.jobNotifCalls[0]!["message"])).toContain("Your track is no longer for sale");
+    expect(h.userEvents).toHaveLength(1);
+    expect(h.userEvents[0]).toMatchObject({
+      userId: BUYER_ID,
+      category: "money",
+      kind: "refund",
+      title: "Your payment was refunded",
+      link: "/library",
+    });
+    expect(String(h.userEvents[0]!["body"])).toContain("refunded in full");
+  });
+
+  it("buyer tell: an unpublished item is named by its title", async () => {
+    h.trackRow = { ...deliverableTrackRow(), is_published: false };
+    const res = await deliver(completedEvent(storeSession("cs_store_tell_named")));
+    expect(res.body).toMatchObject({ refunded: true });
+    expect(h.userEvents).toHaveLength(1);
+    expect(String(h.userEvents[0]!["body"])).toContain("“Midnight Run” is no longer for sale");
+  });
+
+  it("buyer tell: a replayed webhook event never tells twice (the claim gate, not the refund result, decides)", async () => {
+    h.trackRow = null;
+    const event = completedEvent(storeSession("cs_store_tell_replay"));
+    await deliver(event);
+    await deliver(event);
+    /* refundCheckoutSessionPayment answered true BOTH times (the
+       idempotent replay) — yet the tell fired exactly once, because
+       the second claim did not land. */
+    expect(h.jobNotifCalls).toHaveLength(2);
+    expect(h.userEvents).toHaveLength(1);
+  });
+
+  it("buyer tell: no refund, no tell — deliverable purchase and sold session stay silent", async () => {
+    const ok = await deliver(completedEvent(storeSession("cs_store_tell_ok")));
+    expect(ok.body).toMatchObject({ kind: "digital_store" });
+    h.trackRow = null;
+    h.soldSessions.add("cs_store_tell_sold");
+    const sold = await deliver(completedEvent(storeSession("cs_store_tell_sold")));
+    expect(sold.body).toMatchObject({ kind: "digital_store" });
+    expect(h.jobNotifCalls).toHaveLength(0);
+    expect(h.userEvents).toHaveLength(0);
   });
 
   it("a session with no store metadata at all is untouched by the branch", async () => {

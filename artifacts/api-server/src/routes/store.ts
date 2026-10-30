@@ -499,6 +499,54 @@ export async function isStoreSessionAutoRefundDue(
   return "notForSale" in item || "notWired" in item;
 }
 
+/* ── Refund tell title (stack900 join — L4 join item J1) ───────────────
+   When the webhook auto-refunds a stranded buyer, the buyer is told
+   (lib/stripe-webhook.ts) — and the tell names the item. The session
+   metadata carries only kind + id, and resolveSellableItem answers
+   notForSale for exactly the items being refunded, so the title is
+   read straight from the kind's catalog table, sale state aside: an
+   unpublished item still has its name. A deleted row answers null and
+   the tell falls back to the kind's plain noun — never an invented
+   name. Defensive like the bump reads above: any failure is null. */
+export async function storeItemTitleForRefundTell(
+  kind: string,
+  itemId: string
+): Promise<string | null> {
+  if (!UUID_RE.test(itemId)) return null;
+  const table =
+    kind === "track"
+      ? "profile_tracks"
+      : kind === "video"
+        ? "profile_videos"
+        : kind === "series" || kind === BUNDLE_KIND
+          ? "playlists"
+          : null;
+  if (!table) return null;
+  try {
+    const r = await db.execute(sql`
+      SELECT title FROM ${sql.raw(table)} WHERE id = ${itemId} LIMIT 1
+    `);
+    const title = r.rows[0]?.["title"];
+    return typeof title === "string" && title.trim() ? title.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The buyer's plain noun for a store item kind (the refund tell's
+ *  fallback when the item's row — and with it its title — is gone). */
+export function storeItemKindNoun(kind: string): string {
+  return kind === "track"
+    ? "track"
+    : kind === "video"
+      ? "video"
+      : kind === "series"
+        ? "series"
+        : kind === BUNDLE_KIND
+          ? "bundle"
+          : "item";
+}
+
 /* ── Order bumps (feature #13 — digital store rail) ────────────────────
    The storefront rail's pattern (routes/storefront.ts) carried here:
    a seller attaches ONE add-on item (same seller, seller-set price or
