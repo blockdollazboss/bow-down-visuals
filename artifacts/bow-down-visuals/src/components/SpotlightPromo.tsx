@@ -36,7 +36,7 @@ export default function SpotlightPromo() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex items-center gap-2 text-sm font-medium text-[#e8c86a]"
+          className="flex items-center gap-2 py-3 -my-3 text-sm font-medium text-[#e8c86a]"
           aria-label="Advertise on this screen"
         >
           <Sparkles className="h-4 w-4" />
