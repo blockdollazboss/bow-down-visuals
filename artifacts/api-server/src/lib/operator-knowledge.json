@@ -1,17 +1,17 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "870ae6f4bd7dc70f216ce8f07dbfa6bcfcaa6919",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "counts": {
-    "routesInApp": 241,
-    "pageFiles": 185,
-    "features": 248,
+    "routesInApp": 242,
+    "pageFiles": 186,
+    "features": 249,
     "excludedRoutes": 73,
     "excludedPageFiles": 35,
     "pricedActions": 216,
@@ -19,12 +19,12 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 238,
+    "withDescriptions": 239,
     "withoutDescriptions": 10,
-    "serverRouteFiles": 427,
-    "serverEndpoints": 1703,
+    "serverRouteFiles": 428,
+    "serverEndpoints": 1705,
     "serverEndpointsVisible": 1003,
-    "serverFilesClassified": 128
+    "serverFilesClassified": 129
   },
   "packs": [
     {
@@ -7787,6 +7787,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -7943,6 +7944,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8033,6 +8035,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -8123,6 +8126,7 @@
         "/api/discord/status",
         "/api/discord/streams",
         "/api/discord/streams/:param",
+        "/api/dj/library",
         "/api/gamers/ideas",
         "/api/generated-clips",
         "/api/live-streams/:param",
@@ -9931,6 +9935,21 @@
       ],
       "description": "A premium physical card with an NFC chip inside. Tap it on any phone and your digital card opens instantly — links, booking, socials, everything. Update it anytime without reprinting.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"nfcCards.heroDescription\""
+    },
+    {
+      "id": "overlay-now-playing",
+      "name": "Overlay Now Playing Page",
+      "nameSource": "App.tsx component name",
+      "path": "/overlay/now-playing",
+      "stage": "studio",
+      "access": "public",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx",
+      "component": "OverlayNowPlayingPage",
+      "endpoints": [],
+      "prices": [],
+      "nextSteps": [],
+      "description": "The Bow Down Visuals overlay for OBS and Streamlabs: the track playing on the creator's stream right now, shown as their studio reports it — title, artist, and progress.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/pages/overlay-now-playing.tsx usePageTitle meta description"
     },
     {
       "id": "party",
@@ -19499,6 +19518,19 @@
         "endpoints": 7,
         "visible": 7,
         "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/now-playing.ts",
+        "endpoints": 2,
+        "visible": 0,
+        "unseen": [
+          "/api/live/:id/now-playing",
+          "/api/overlay/now-playing"
+        ],
+        "classification": {
+          "surface": "live",
+          "reason": "Now-playing rails (report / clear / token read) — the Go Live studio reports the track on its program and the /overlay/now-playing browser source reads it by overlay token (the C2 overlay family's feed); the calls ride the studio and overlay surfaces past the scan's one hop, so no feature entry carries these endpoints."
+        }
       },
       {
         "file": "artifacts/api-server/src/routes/open-verse.ts",
