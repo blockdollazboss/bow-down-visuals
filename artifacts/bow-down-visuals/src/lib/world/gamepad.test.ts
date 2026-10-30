@@ -9,8 +9,11 @@ import {
   pollGamepad,
   firstGamepad,
   IDLE_GAMEPAD_EDGES,
+  type GamepadEdges,
   type GamepadLike,
 } from "./gamepad";
+import { PAD_PHOTO_LONG_PRESS_MS } from "./bindings";
+import { classifyGamepadId, type ControllerProfile } from "./controller-profile";
 
 function pad(axes: number[], pressedIdx: number[] = []): GamepadLike {
   return {
@@ -294,7 +297,7 @@ describe("the paged layout + the three new verbs", () => {
     expect(pollGamepad(pad([0, 0, 0, 0], [12]), IDLE_GAMEPAD_EDGES, "perform").intent.action).toBe("bow");
   });
 
-  it("Back, Start and R3 edge-fire page, photo and claim — and steal nothing", () => {
+  it("Back, Start and R3 edge-fire page, settings and claim — and steal nothing", () => {
     const back = pollGamepad(pad([0, 0, 0, 0], [8]), IDLE_GAMEPAD_EDGES);
     expect(back.intent.pageCycle).toBe(true);
     expect(back.intent.action).toBeNull();
@@ -302,8 +305,12 @@ describe("the paged layout + the three new verbs", () => {
     const held = pollGamepad(pad([0, 0, 0, 0], [8]), back.edges);
     expect(held.intent.pageCycle).toBe(false);
 
+    /* Start's TAP edge-fires the settings toggle now (stack900);
+     * the photo frame moved to the hold — the share suite below
+     * carries it. */
     const start = pollGamepad(pad([0, 0, 0, 0], [9]), IDLE_GAMEPAD_EDGES);
-    expect(start.intent.photoMode).toBe(true);
+    expect(start.intent.settingsToggle).toBe(true);
+    expect(start.intent.photoMode).toBe(false);
     expect(start.intent.action).toBeNull();
 
     const r3 = pollGamepad(pad([0, 0, 0, 0], [11]), IDLE_GAMEPAD_EDGES);
@@ -319,5 +326,82 @@ describe("the paged layout + the three new verbs", () => {
     expect(gone.edges).toEqual(IDLE_GAMEPAD_EDGES);
     const back_ = pollGamepad(pad([0, 0, 0, 0], [8]), gone.edges);
     expect(back_.intent.pageCycle).toBe(true);
+  });
+});
+
+describe("the menu button share — Start's tap is settings, its hold is the photo (stack900)", () => {
+  /* One press script, replayed per family: down at t, held
+   * frames, release. The poll resolves the button through the
+   * profile each family hands it. */
+  const press = (
+    pressedIdx: number[],
+    times: number[],
+    profile?: ControllerProfile,
+  ) => {
+    let edges: GamepadEdges = IDLE_GAMEPAD_EDGES;
+    return times.map((now) => {
+      const r = pollGamepad(pad([0, 0, 0, 0], pressedIdx), edges, "perform", now, profile);
+      edges = r.edges;
+      return r.intent;
+    });
+  };
+
+  it("a tap fires settingsToggle once and never the photo frame", () => {
+    const down = pollGamepad(pad([0, 0, 0, 0], [9]), IDLE_GAMEPAD_EDGES, "perform", 1000);
+    expect(down.intent.settingsToggle).toBe(true);
+    expect(down.intent.photoMode).toBe(false);
+    const stillDown = pollGamepad(pad([0, 0, 0, 0], [9]), down.edges, "perform", 1100);
+    expect(stillDown.intent.settingsToggle).toBe(false); // held ≠ re-fired
+    const up = pollGamepad(pad([0, 0, 0, 0], []), stillDown.edges, "perform", 1200);
+    expect(up.intent.settingsToggle).toBe(false);
+    const again = pollGamepad(pad([0, 0, 0, 0], [9]), up.edges, "perform", 2000);
+    expect(again.intent.settingsToggle).toBe(true); // a fresh tap toggles back
+  });
+
+  it("a hold crosses into the photo frame exactly once, at the line", () => {
+    const frames = press([9], [1000, 1000 + PAD_PHOTO_LONG_PRESS_MS - 1, 1000 + PAD_PHOTO_LONG_PRESS_MS, 2000]);
+    expect(frames[0]!.settingsToggle).toBe(true); // the tap that begins the hold opens settings
+    expect(frames[0]!.photoMode).toBe(false);
+    expect(frames[1]!.photoMode).toBe(false); // one ms short of the line: still just a tap
+    expect(frames[2]!.photoMode).toBe(true); // the crossing frame
+    expect(frames[2]!.settingsToggle).toBe(false);
+    expect(frames[3]!.photoMode).toBe(false); // held past the line: no machine-gun
+  });
+
+  it("releasing before the line is a pure settings tap — no photo, ever", () => {
+    let edges: GamepadEdges = IDLE_GAMEPAD_EDGES;
+    const t0 = 5000;
+    const down = pollGamepad(pad([0, 0, 0, 0], [9]), edges, "perform", t0);
+    edges = down.edges;
+    const mid = pollGamepad(pad([0, 0, 0, 0], [9]), edges, "perform", t0 + PAD_PHOTO_LONG_PRESS_MS - 50);
+    edges = mid.edges;
+    const up = pollGamepad(pad([0, 0, 0, 0], []), edges, "perform", t0 + PAD_PHOTO_LONG_PRESS_MS + 500);
+    expect(down.intent.settingsToggle).toBe(true);
+    expect(mid.intent.photoMode).toBe(false);
+    expect(up.intent.photoMode).toBe(false);
+    expect(up.edges.menuHeldSince).toBe(0); // the hold clock resets with the button
+    expect(up.edges.menuFiredPhoto).toBe(false);
+  });
+
+  it("every family gets the same share through its own profile — the button is the profile's rightMenu", () => {
+    const ids: Array<[string, string]> = [
+      ["DualSense Wireless Controller (Vendor: 054c Product: 0ce6)", "playstation"],
+      ["Xbox Wireless Controller (Vendor: 045e Product: 0b13)", "xbox"],
+      ["Pro Controller (Vendor: 057e Product: 2009)", "switch"],
+      ["8BitDo Pro 2 (Vendor: 2dc8 Product: 6001)", "generic"],
+    ];
+    for (const [id, family] of ids) {
+      const profile = classifyGamepadId(id);
+      expect(profile.family).toBe(family);
+      const tap = press([9], [100], profile);
+      expect(tap[0]!.settingsToggle).toBe(true);
+      expect(tap[0]!.photoMode).toBe(false);
+      const hold = press([9], [100, 100 + PAD_PHOTO_LONG_PRESS_MS], profile);
+      expect(hold[1]!.photoMode).toBe(true);
+      /* …and with no profile at all, the bindings fallback reads
+       * the identical button (PAD_MENU_BUTTON). */
+      const bare = press([9], [100]);
+      expect(bare[0]!.settingsToggle).toBe(true);
+    }
   });
 });

@@ -288,7 +288,7 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
             >
               <Gamepad2 className="mt-px h-4 w-4 shrink-0 text-[#d4af37]" />
               <span>
-                {padProfile.displayName} connected — left stick walks, right stick looks, trigger hurries, {!isGuest && `${padWord(padProfile, "confirm")} steps voice (off · proximity · lobby · deafen), `}{padWord(padProfile, "topFace")} switches view, {padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, {padWord(padProfile, "leftMenu")} switches the action page, {padWord(padProfile, "rightStickPress")} claims the moment</>}, {padWord(padProfile, "rightMenu")} frames a photo. In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.
+                {padProfile.displayName} connected — left stick walks, right stick looks, trigger hurries, {!isGuest && `${padWord(padProfile, "confirm")} steps voice (off · proximity · lobby · deafen), `}{padWord(padProfile, "topFace")} switches view, {padWord(padProfile, "leftBumper")} works the prompt you&rsquo;re standing at{!isGuest && <>, D-pad and face buttons perform the <span className="text-[#e8c86a]">{actionPageById(actionPage).label}</span> actions below, {padWord(padProfile, "leftMenu")} switches the action page, {padWord(padProfile, "rightStickPress")} claims the moment</>}, {padWord(padProfile, "rightMenu")} opens these settings (hold it to frame a photo). In a panel, the D-pad moves, {padWord(padProfile, "confirm")} chooses and {padWord(padProfile, "back")} goes back; hold {padWord(padProfile, "leftMenu")} for full screen.
               </span>
             </p>
           ) : (
@@ -304,6 +304,33 @@ export function WorldSettingsPanel(props: WorldSettingsPanelProps) {
               your pad.
             </p>
           )}
+          {/* The menu button + the clean screen (stack900): the
+              owner's two asks, named where a walker looks for
+              how things work. The pad sentence speaks the
+              profile's own word for the button; without a pad,
+              the door chip is the honest road in. */}
+          <p
+            className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}
+            data-testid="world-menu-line"
+          >
+            {padConnected ? (
+              <>
+                {padWord(padProfile, "rightMenu")} opens these settings from
+                anywhere in the World — press it again to put them away.
+                Leave the controls alone for a few seconds and the bars
+                around the screen fade away while you play; any touch of
+                the pad or the mouse brings them back.
+              </>
+            ) : (
+              <>
+                The Settings &amp; help chip below opens this panel from
+                anywhere in the World. Leave the controls alone for a few
+                seconds and the bars around the screen fade away while
+                you play; any touch of the mouse or a connected pad
+                brings them back.
+              </>
+            )}
+          </p>
         </Section>
 
         {/* ── Display: fullscreen through the header button's own

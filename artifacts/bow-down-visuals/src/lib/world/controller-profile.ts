@@ -330,6 +330,12 @@ export interface PadVerbIndices {
   interact: number;
   pageCycle: number;
   photoMode: number;
+  /** The settings toggle's tap (stack900): the same physical
+   *  button as photoMode — the rightMenu role carries both
+   *  gestures (bindings.ts PAD_MENU_BUTTON), tap for settings,
+   *  hold for the photo frame. Kept as its own field so the
+   *  poll reads both jobs by name. */
+  menu: number;
   momentClaim: number;
   sprint: readonly number[];
   slots: readonly number[];
@@ -344,6 +350,7 @@ export function padVerbIndices(profile: ControllerProfile): PadVerbIndices {
     interact: i.leftBumper,
     pageCycle: i.leftMenu,
     photoMode: i.rightMenu,
+    menu: i.rightMenu,
     momentClaim: i.rightStickPress,
     sprint: [i.rightTrigger, i.leftStickPress],
     slots: [i.dpadUp, i.dpadRight, i.dpadDown, i.dpadLeft, i.leftFace, i.back, i.rightBumper],

@@ -1735,7 +1735,12 @@ export class KingsHallScene {
   /** A controller's Back HOLD (the page toggles fullscreen — the
    *  tap's sibling gesture on the same button, bindings.ts). */
   onPadFullscreenToggle: (() => void) | null = null;
-  /** A controller's Start press (the page toggles photo mode). */
+  /** A controller's Start TAP (the page toggles the World
+   *  settings — the menu button's primary job, stack900). */
+  onPadSettingsToggle: (() => void) | null = null;
+  /** A controller's Start HOLD (the page toggles photo mode —
+   *  the button's long-standing job, now on the hold gesture;
+   *  bindings.ts PAD_MENU_BUTTON carries the share). */
   onPadPhotoMode: (() => void) | null = null;
   /** A panel owns the walker's input (stack700): while the page
    *  holds this true, the pad poll still runs — edges stay fresh,
@@ -10191,6 +10196,7 @@ export class KingsHallScene {
       if (intent.interact) this.onPadInteract?.();
       if (intent.pageCycle) this.onPadPageCycle?.();
       if (intent.fullscreenToggle) this.onPadFullscreenToggle?.();
+      if (intent.settingsToggle) this.onPadSettingsToggle?.();
       if (intent.photoMode) this.onPadPhotoMode?.();
       if (intent.momentClaim) this.onPadMomentClaim?.();
       /* A's tap (stack300): the pad's jump joins Space and the

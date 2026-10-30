@@ -172,19 +172,24 @@ describe("classifyGamepadId — Xbox, Switch, unknown", () => {
 });
 
 describe("the help line, composed per family", () => {
-  /* The exact compositions world.tsx renders: display name up
-   * front, then the verbs in the pad's own words. */
+  /* The exact compositions the settings panel renders: display
+   * name up front, then the verbs in the pad's own words.
+   * Updated stack900: rightMenu's sentence now leads with its
+   * primary job — it "opens these settings (hold it to frame a
+   * photo)" — since Start's tap moved to the settings toggle
+   * and the photo frame rides the hold (bindings.ts
+   * PAD_MENU_BUTTON). */
   const line = (p: ControllerProfile) =>
     `${p.displayName} connected — ${padWord(p, "confirm")} steps voice, ` +
     `${padWord(p, "topFace")} switches view, ${padWord(p, "leftBumper")} works the prompt, ` +
     `${padWord(p, "leftMenu")} switches the action page, ${padWord(p, "rightStickPress")} claims the moment, ` +
-    `${padWord(p, "rightMenu")} frames a photo. In a panel, ${padWord(p, "confirm")} chooses and ` +
+    `${padWord(p, "rightMenu")} opens these settings (hold it to frame a photo). In a panel, ${padWord(p, "confirm")} chooses and ` +
     `${padWord(p, "back")} goes back; hold ${padWord(p, "leftMenu")} for full screen.`;
 
   it("the owner's DualSense hears its own names", () => {
     expect(line(classifyGamepadId(DUALSENSE_CHROME))).toBe(
       "PS5 DualSense connected — Cross steps voice, Triangle switches view, L1 works the prompt, " +
-        "Create switches the action page, R3 claims the moment, Options frames a photo. " +
+        "Create switches the action page, R3 claims the moment, Options opens these settings (hold it to frame a photo). " +
         "In a panel, Cross chooses and Circle goes back; hold Create for full screen.",
     );
   });
@@ -192,7 +197,7 @@ describe("the help line, composed per family", () => {
   it("an Xbox pad hears the names the old line hard-coded", () => {
     expect(line(classifyGamepadId(XBOX_WIRELESS))).toBe(
       "Xbox controller connected — A steps voice, Y switches view, LB works the prompt, " +
-        "View switches the action page, RS claims the moment, Menu frames a photo. " +
+        "View switches the action page, RS claims the moment, Menu opens these settings (hold it to frame a photo). " +
         "In a panel, A chooses and B goes back; hold View for full screen.",
     );
   });
@@ -242,6 +247,11 @@ describe("the index table — one positional table, pinned against every reader"
       expect(v.interact).toBe(4);
       expect(v.pageCycle).toBe(8);
       expect(v.photoMode).toBe(9);
+      /* The settings tap rides the same button as the photo
+       * hold (stack900): menu IS photoMode's index, by name. */
+      expect(v.menu).toBe(9);
+      expect(v.menu).toBe(v.photoMode);
+      expect(v.menu).toBe(padButtonIndex(classifyGamepadId(id), "rightMenu"));
       expect(v.momentClaim).toBe(11);
       expect(v.slots).toEqual([...PAD_SLOTS]);
       expect(v.sprint).toEqual([...PAD_SPRINT_BUTTONS]);
@@ -334,7 +344,11 @@ describe("the polls resolve through the profile", () => {
     expect(baseline[6]!.fullscreenToggle).toBe(true);
     expect(baseline[8]!.toggleView).toBe(true);
     expect(baseline[9]!.interact).toBe(true);
-    expect(baseline[10]!.photoMode).toBe(true);
+    /* Frame 10 is a one-poll Start TAP (stack900): the settings
+     * toggle fires, the photo frame does NOT — the frame rides
+     * the 400 ms hold now (gamepad.test.ts carries the hold). */
+    expect(baseline[10]!.settingsToggle).toBe(true);
+    expect(baseline[10]!.photoMode).toBe(false);
     expect(baseline[11]!.momentClaim).toBe(true);
     expect(baseline[12]!.sprint).toBe(true);
     expect(baseline[13]!.action).toBe("sit");

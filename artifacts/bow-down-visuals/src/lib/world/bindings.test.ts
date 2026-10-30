@@ -14,6 +14,8 @@ import {
   PAD_VERBS,
   PAD_JUMP_BUTTON,
   PAD_VOICE_LONG_PRESS_MS,
+  PAD_MENU_BUTTON,
+  PAD_PHOTO_LONG_PRESS_MS,
   KEY_VERBS,
   actionForPadButton,
   padButtonForAction,
@@ -98,6 +100,14 @@ describe("one input, one job", () => {
     expect(PAD_JUMP_BUTTON).toBe(0);
     expect(claimed.get(PAD_JUMP_BUTTON)).toBe("verb:voiceStep");
     expect(PAD_VOICE_LONG_PRESS_MS).toBeGreaterThan(0);
+    /* The settings toggle (stack900) claims NO seventeenth
+     *  button either: it shares Start with photoMode by
+     *  gesture — tap opens the settings, the long-press frames
+     *  the photo — so Start's claim stays the photo verb's and
+     *  the face stays exactly sixteen. */
+    expect(PAD_MENU_BUTTON).toBe(9);
+    expect(claimed.get(PAD_MENU_BUTTON)).toBe("verb:photoMode");
+    expect(PAD_PHOTO_LONG_PRESS_MS).toBeGreaterThan(0);
   });
 
   it("keyboard verbs never collide with the digit slots or movement", () => {
@@ -129,6 +139,13 @@ describe("role gates", () => {
     expect(verbRoleOk("fullscreen", "guest")).toBe(true);
     expect(verbRoleOk("fullscreen", "member")).toBe(true);
     expect(verbRoleOk("fullscreen", "admin")).toBe(true);
+    /* The settings toggle is a looking verb too (stack900):
+     *  the settings panel is device settings and help, its
+     *  door chip already serves guests, so the pad's road to
+     *  the same panel serves them as well. */
+    expect(verbRoleOk("settingsToggle", "guest")).toBe(true);
+    expect(verbRoleOk("settingsToggle", "member")).toBe(true);
+    expect(verbRoleOk("settingsToggle", "admin")).toBe(true);
     for (const verb of ["voiceStep", "voiceBack", "interact", "pageCycle", "momentClaim"] as WorldVerb[]) {
       expect(verbRoleOk(verb, "guest")).toBe(false);
       expect(verbRoleOk(verb, "member")).toBe(true);
