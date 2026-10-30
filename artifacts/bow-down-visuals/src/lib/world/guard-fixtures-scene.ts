@@ -113,21 +113,41 @@ function softShadowTexture(): THREE.Texture {
  * bodies themselves landed through it. onFail runs only after
  * the whole plan is spent — the capsule is the last resort
  * again, not the first failure's answer.
+ *
+ * The walk is SHARED per build (stack1000/world-load-truth): the
+ * two posts of one body wear the SAME art, and until now each
+ * post walked the plan with its own loader — the two guard
+ * mattes (≈1.9 MB + ≈1.7 MB) and the King's portrait were each
+ * fetched twice in the entry burst, racing the bodies and the
+ * look textures for the same connection. `shared` is one build's
+ * map from source path to the walk's promise: the second post of
+ * a body attaches to the first post's walk and lands the same
+ * texture object. A spent walk is evicted, so a failure is never
+ * cached as a promise-shaped capsule sentence for a later build.
  */
 function loadStandinTexture(
   src: string,
+  shared: Map<string, Promise<THREE.Texture>>,
   onLoad: (tex: THREE.Texture) => void,
   onFail: () => void,
 ): void {
-  const attempt = (url: string) =>
-    new Promise<THREE.Texture>((resolve, reject) => {
-      new THREE.TextureLoader().load(url, resolve, undefined, reject);
+  let walk = shared.get(src);
+  if (!walk) {
+    const attempt = (url: string) =>
+      new Promise<THREE.Texture>((resolve, reject) => {
+        new THREE.TextureLoader().load(url, resolve, undefined, reject);
+      });
+    walk = attemptLoadPlan(
+      fixtureStandinArtPlan(mediaUrl(src), src),
+      attempt,
+      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    );
+    shared.set(src, walk);
+    walk.catch(() => {
+      if (shared.get(src) === walk) shared.delete(src);
     });
-  void attemptLoadPlan(
-    fixtureStandinArtPlan(mediaUrl(src), src),
-    attempt,
-    (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-  ).then(onLoad, onFail);
+  }
+  void walk.then(onLoad, onFail);
 }
 
 /* ── Texture repair: the texture step's second mechanism ──────────
@@ -285,7 +305,11 @@ async function repairBodyTextures(gltf: {
   }
 }
 
-function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Group {
+function buildStandin(
+  def: WorldFixtureDef,
+  shadowTex: THREE.Texture,
+  sharedStandins: Map<string, Promise<THREE.Texture>>,
+): THREE.Group {
   const body = FIXTURE_BODIES[def.body];
   const fallback = fixtureFallbackFor(def.body);
   const group = new THREE.Group();
@@ -313,6 +337,7 @@ function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Gro
     group.add(mesh);
     loadStandinTexture(
       fallback.src,
+      sharedStandins,
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
@@ -334,7 +359,7 @@ function buildStandin(def: WorldFixtureDef, shadowTex: THREE.Texture): THREE.Gro
       },
     );
   } else if (fallback.kind === "portrait") {
-    buildPortraitStandin(group, body.height, fallback.src);
+    buildPortraitStandin(group, body.height, fallback.src, sharedStandins);
   } else {
     group.add(buildCapsule(body.height, fallback.color));
   }
@@ -356,7 +381,12 @@ const FIXTURE_PORTRAIT_BASE_Y = 0.5;
  * the last resort — a post is never empty — but the capsule is no
  * longer any post's PLANNED face.
  */
-function buildPortraitStandin(group: THREE.Group, bodyHeight: number, src: string): void {
+function buildPortraitStandin(
+  group: THREE.Group,
+  bodyHeight: number,
+  src: string,
+  sharedStandins: Map<string, Promise<THREE.Texture>>,
+): void {
   const goldMat = new THREE.MeshStandardMaterial({
     color: 0xd4af37,
     emissive: 0x8a6a1c,
@@ -389,6 +419,7 @@ function buildPortraitStandin(group: THREE.Group, bodyHeight: number, src: strin
   group.add(post);
   loadStandinTexture(
     src,
+    sharedStandins,
     (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 4;
@@ -503,13 +534,18 @@ export function buildWorldFixtures(opts?: {
   const shadowTex = softShadowTexture();
   const slots: FixtureSlot[] = [];
   const liveBodies = new Set<FixtureBodyId>();
+  /* One stand-in walk per source per build (see loadStandinTexture):
+   * the two posts of a body share their art's single load. Scoped
+   * to THIS build — a later scene builds its own map, so a texture
+   * this build's dispose() retires is never handed to a new scene. */
+  const sharedStandins = new Map<string, Promise<THREE.Texture>>();
 
   for (const def of WORLD_FIXTURES) {
     const group = new THREE.Group();
     group.name = `fixture-${def.id}`;
     group.position.set(def.position.x, def.position.y, def.position.z);
     group.rotation.y = fixtureRotY(def);
-    const standin = buildStandin(def, shadowTex);
+    const standin = buildStandin(def, shadowTex, sharedStandins);
     group.add(standin);
     /* Key light per post (Oct 24 readability lift — owner: "the
      * dark theme too dark", the King and guards near-silhouettes):
