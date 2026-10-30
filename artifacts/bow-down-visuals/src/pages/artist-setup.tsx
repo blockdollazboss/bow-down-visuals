@@ -13,6 +13,7 @@ import {
   VERTICALS, THEME_PRESETS, SAFE_FONTS, SECTION_TYPE_LABELS,
   emptyProfile, fetchMyProfile, saveMyProfile, createProfile,
   presetById, themeVars, isValidHex, profileUrl,
+  profileSlugError, PROFILE_SLUG_RULE,
 } from "@/lib/artist-profiles";
 import AiPageDesigner from "@/components/artist/ai-page-designer";
 import LightningSetup from "@/components/artist/lightning-setup";
@@ -258,6 +259,21 @@ export default function ArtistSetup() {
   const save = async (p?: Partial<CreatorProfile>) => {
     if (!profile || saving) return;
     const next = { ...profile, ...(p ?? {}) };
+    /* Form truth: refuse up front, with the server's own rule, what the
+       server is certain to refuse — instead of a round trip that ends
+       in a generic rejection. Display name is required on both rails;
+       the slug rule binds at create (the update rail carries no slug). */
+    if (!next.display_name.trim()) {
+      toast({ title: "Save failed", description: "Add a display name first — your profile needs one." });
+      return;
+    }
+    if (!exists) {
+      const slugErr = profileSlugError(next.slug);
+      if (slugErr) {
+        toast({ title: "Save failed", description: slugErr });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const saved = exists ? await saveMyProfile(next) : await createProfile(next);
@@ -388,7 +404,7 @@ export default function ArtistSetup() {
       {tab === "designer" && (
         <AiPageDesigner profile={profile} onApply={(p) => void save(p)} onGoTab={(t) => setTab(t)} />
       )}
-      {tab === "basics" && <BasicsTab profile={profile} patch={patch} />}
+      {tab === "basics" && <BasicsTab profile={profile} patch={patch} exists={exists} />}
       {tab === "theme" && <ThemeTab profile={profile} patch={patch} />}
       {tab === "sections" && <SectionsTab profile={profile} patch={patch} />}
       {tab === "content" && <ContentTab profile={profile} patch={patch} />}
@@ -425,7 +441,7 @@ export default function ArtistSetup() {
 }
 
 /* ─── BASICS ─── */
-function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Partial<CreatorProfile>) => void }) {
+function BasicsTab({ profile, patch, exists }: { profile: CreatorProfile; patch: (p: Partial<CreatorProfile>) => void; exists: boolean }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -441,16 +457,38 @@ function BasicsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: Par
         </div>
         <div>
           <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-white/50">Link slug</label>
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-white/40">/artist/</span>
-            <input
-              value={profile.slug}
-              onChange={(e) => patch({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
-              placeholder="your-name"
-              maxLength={60}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-white outline-none placeholder:text-white/30 focus:border-amber-400/60"
-            />
-          </div>
+          {exists ? (
+            /* Form truth: the update rail (PUT /creator-profiles/me)
+               carries no slug — an editable field here took the edit,
+               showed "Saved", and silently kept the old link. Once the
+               profile exists the slug is shown as what it is: fixed. */
+            <>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-white/40">/artist/</span>
+                <span className="w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-white/70">
+                  {profile.slug}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-white/40">Your link is set when your profile is created and can't be changed — every link you've shared keeps working.</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-white/40">/artist/</span>
+                <input
+                  value={profile.slug}
+                  onChange={(e) => patch({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
+                  placeholder="your-name"
+                  maxLength={40}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-white outline-none placeholder:text-white/30 focus:border-amber-400/60"
+                />
+              </div>
+              <p className="mt-1 text-xs text-white/40">{PROFILE_SLUG_RULE}</p>
+              {profile.slug.length > 0 && profileSlugError(profile.slug) && (
+                <p className="mt-1 text-xs text-red-300">That slug won't be accepted yet — check the rule above.</p>
+              )}
+            </>
+          )}
         </div>
       </div>
 
