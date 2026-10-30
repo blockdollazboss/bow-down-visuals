@@ -322,7 +322,7 @@ function isImperativeAsk(t: string): boolean {
   return false;
 }
 
-const SONG_TIERS = ["generate.song.short", "generate.song.standard", "generate.song.long"] as const;
+const SONG_TIERS = ["generate.song.short", "generate.song.standard", "generate.song.long", "generate.song.max"] as const;
 
 function songIntent(t: string): OperatorIntent | null {
   if (!/\b(song|track)\b/i.test(t)) return null;
@@ -331,7 +331,7 @@ function songIntent(t: string): OperatorIntent | null {
   if (seconds !== null) args["lengthSeconds"] = seconds;
   const about = t.match(/\babout\s+(.+)$/i) ?? t.match(/\bsong\s*:\s*(.+)$/i);
   if (about) args["prompt"] = cleanPhrase(stripDuration(about[1]!));
-  const tier = seconds === null || seconds <= 60 ? SONG_TIERS[0] : seconds <= 180 ? SONG_TIERS[1] : SONG_TIERS[2];
+  const tier = seconds === null || seconds <= 60 ? SONG_TIERS[0] : seconds <= 180 ? SONG_TIERS[1] : seconds <= 300 ? SONG_TIERS[2] : SONG_TIERS[3];
   return { toolId: tier, args };
 }
 
