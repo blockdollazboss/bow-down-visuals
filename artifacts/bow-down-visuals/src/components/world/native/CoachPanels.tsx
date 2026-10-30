@@ -121,7 +121,7 @@ const chipBtn = (isLight: boolean, active: boolean) =>
   }`;
 
 const smallBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+  `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition bdv-touch-target ${
     isLight
       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
       : "border-white/15 text-white/70 hover:text-white"

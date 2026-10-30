@@ -500,7 +500,7 @@ export function NowPlayingCard({
                 type="button"
                 data-testid="world-shelf-playpause"
                 onClick={player.toggle}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
               >
                 {player.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 {player.playing ? "Pause" : "Play"}
@@ -513,7 +513,7 @@ export function NowPlayingCard({
                 step={0.1}
                 value={Math.min(player.positionSec, player.durationSec || player.positionSec)}
                 onChange={(e) => player.seek(Number(e.target.value))}
-                className="min-w-24 flex-1 accent-[#d4af37]"
+                className="min-w-24 flex-1 accent-[#d4af37] bdv-touch-target"
               />
               <span className={`text-[11px] font-semibold tabular-nums ${muted}`}>
                 {formatShelfClock(player.positionSec)} / {formatShelfClock(player.durationSec)}
@@ -523,7 +523,7 @@ export function NowPlayingCard({
                 data-testid="world-shelf-like"
                 onClick={onLike}
                 disabled={likeBusy}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 bdv-touch-target ${
                   liked
                     ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
                     : isLight
@@ -553,7 +553,7 @@ export function NowPlayingCard({
                     data-testid="world-shelf-repost"
                     onClick={() => void onRepost()}
                     disabled={repostBusy}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 bdv-touch-target ${
                       reposted
                         ? "border-[#d4af37] bg-[#d4af37]/15 text-[#e8c86a]"
                         : isLight
@@ -568,7 +568,7 @@ export function NowPlayingCard({
                   type="button"
                   data-testid="world-shelf-embed"
                   onClick={() => void onCopyEmbed()}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                     isLight
                       ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                       : "border-white/15 text-white/75 hover:text-white"
@@ -626,7 +626,7 @@ export function NowPlayingCard({
                 type="button"
                 data-testid="world-shelf-queue-clear"
                 onClick={player.clearQueue}
-                className={`text-[11px] font-bold transition ${isLight ? "text-[#6B5B36] hover:text-[#92600a]" : "text-white/50 hover:text-red-300"}`}
+                className={`text-[11px] font-bold transition bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#92600a]" : "text-white/50 hover:text-red-300"}`}
               >
                 Clear
               </button>
@@ -646,7 +646,7 @@ export function NowPlayingCard({
                     data-testid="world-shelf-queue-remove"
                     onClick={() => player.removeQueued(q)}
                     aria-label={`Remove ${q.title} from the queue`}
-                    className={`rounded-full border p-1 transition ${
+                    className={`rounded-full border p-1 transition bdv-touch-box ${
                       isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/60 hover:text-white"
                     }`}
                   >
@@ -676,7 +676,7 @@ export function NowPlayingCard({
                     type="button"
                     data-testid="world-shelf-more-play"
                     onClick={() => void playMore(m.kind, m.id)}
-                    className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-2.5 py-1 text-[11px] font-bold text-black transition hover:scale-105"
+                    className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-2.5 py-1 text-[11px] font-bold text-black transition hover:scale-105 bdv-touch-target"
                   >
                     <Play className="h-3 w-3" /> Play
                   </button>
@@ -751,7 +751,7 @@ export function NowPlayingCard({
                   placeholder="Say something about what's playing…"
                   maxLength={500}
                   data-testid="world-shelf-comment-input"
-                  className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none ${
+                  className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
                     isLight
                       ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
                       : "border-white/15 bg-white/5 text-white placeholder:text-white/35"
@@ -762,7 +762,7 @@ export function NowPlayingCard({
                   data-testid="world-shelf-comment-post"
                   onClick={() => void onPost()}
                   disabled={posting || !draft.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   <Send className="h-3.5 w-3.5" /> {posting ? "Posting…" : "Post"}
                 </button>
