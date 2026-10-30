@@ -75,7 +75,7 @@ export default function SpotlightModal({ open, onClose }: { open: boolean; onClo
       aria-label="Advertise on the sign-in screen"
     >
       <div
-        className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9] shadow-[0_24px_60px_rgba(122,90,18,0.35)]" : "border-[#c9a84c]/30 bg-[#0d0d0f] shadow-[0_0_60px_rgba(201,168,76,0.2)]"}`}
+        className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9] shadow-[0_24px_60px_rgba(122,90,18,0.35)]" : "border-[#c9a84c]/30 bg-[#0d0d0f] shadow-[0_0_60px_rgba(201,168,76,0.2)]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         {done ? (
