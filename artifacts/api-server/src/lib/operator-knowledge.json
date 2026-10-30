@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "8ac6e9712b764c2f2fdf3ae241f36fb976b47866",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "counts": {
     "routesInApp": 241,
     "pageFiles": 185,
@@ -23,8 +23,8 @@
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
     "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1003,
-    "serverFilesClassified": 128
+    "serverEndpointsVisible": 1018,
+    "serverFilesClassified": 117
   },
   "packs": [
     {
@@ -12851,16 +12851,23 @@
         "/api/ai-copilot/analyze",
         "/api/ai-upscale/status",
         "/api/analyze-sections",
+        "/api/apply-lut",
+        "/api/apply-mask",
         "/api/apply-speed",
         "/api/artist-vaults",
         "/api/auto-captions",
         "/api/auto-captions/info",
+        "/api/auto-chapters",
+        "/api/auto-video-plan",
         "/api/bg-generate",
         "/api/bg-generate/status",
         "/api/canvas/generate",
         "/api/canvas/styles",
         "/api/caption-styler",
         "/api/caption-styler/:param",
+        "/api/cinematic-fx",
+        "/api/clone-voice",
+        "/api/color-grade",
         "/api/credits/claim-trial",
         "/api/export-final-video",
         "/api/export-multi-ratio",
@@ -12894,6 +12901,9 @@
         "/api/lyric-video/render",
         "/api/lyric-video/render/:param",
         "/api/meme-machine/captions",
+        "/api/mix-plan",
+        "/api/motion-track/apply",
+        "/api/motion-track/track",
         "/api/music/export",
         "/api/music/export/job/:param",
         "/api/music/preview-render",
@@ -12921,8 +12931,10 @@
         "/api/smart-clips/propose",
         "/api/songs",
         "/api/speed-presets",
+        "/api/split-screen/apply",
         "/api/stabilize",
         "/api/stock/import",
+        "/api/stock/search",
         "/api/store/token",
         "/api/streamer-clips/analyze",
         "/api/streamer-clips/cut",
@@ -12950,7 +12962,10 @@
         "/api/voices",
         "/api/watermark-removal",
         "/api/watermark-removal/:param",
+        "/api/wave8/adlib/generate",
         "/api/wave8/thumbnail-ab/variants",
+        "/api/wave9a/lyrics/timing",
+        "/api/wave9a/structure/generate",
         "/api/wave9b/beats/detect",
         "/api/wave9b/bg/charge",
         "/api/wave9b/templates/apply",
@@ -12970,6 +12985,18 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "LUT Apply",
+          "vb": 150,
+          "endpoint": "/api/apply-lut",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Mask Effect",
+          "vb": 200,
+          "endpoint": "/api/apply-mask",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Speed Preset",
           "vb": 150,
           "endpoint": "/api/apply-speed",
@@ -12979,6 +13006,18 @@
           "feature": "Auto-Captions",
           "vb": 300,
           "endpoint": "/api/auto-captions",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Auto Chapters",
+          "vb": 150,
+          "endpoint": "/api/auto-chapters",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Auto Video Plan",
+          "vb": 200,
+          "endpoint": "/api/auto-video-plan",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12997,6 +13036,24 @@
           "feature": "Caption Styler",
           "vb": 300,
           "endpoint": "/api/caption-styler",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Cinematic FX Render",
+          "vb": 150,
+          "endpoint": "/api/cinematic-fx",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Voice Clone",
+          "vb": 500,
+          "endpoint": "/api/clone-voice",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Color Grade",
+          "vb": 150,
+          "endpoint": "/api/color-grade",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13078,6 +13135,24 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Mix Plan",
+          "vb": 200,
+          "endpoint": "/api/mix-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Motion Track Burn-in",
+          "vb": 350,
+          "endpoint": "/api/motion-track/apply",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Motion Tracking",
+          "vb": 350,
+          "endpoint": "/api/motion-track/track",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Export Audio (free)",
           "vb": 0,
           "endpoint": "/api/music/export",
@@ -13102,6 +13177,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Split-Screen Grid",
+          "vb": 200,
+          "endpoint": "/api/split-screen/apply",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Video Stabilization",
           "vb": 300,
           "endpoint": "/api/stabilize",
@@ -13111,6 +13192,12 @@
           "feature": "Stock Media Import",
           "vb": 50,
           "endpoint": "/api/stock/import",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Stock Media Search (free)",
+          "vb": 0,
+          "endpoint": "/api/stock/search",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -13204,9 +13291,27 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Ad-Lib Generator",
+          "vb": 150,
+          "endpoint": "/api/wave8/adlib/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Thumbnail A/B Variants",
           "vb": 75,
           "endpoint": "/api/wave8/thumbnail-ab/variants",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Lyrics-to-Timeline",
+          "vb": 50,
+          "endpoint": "/api/wave9a/lyrics/timing",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Song Structure Builder",
+          "vb": 200,
+          "endpoint": "/api/wave9a/structure/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -17273,14 +17378,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/auto-chapters.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/auto-chapters"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Auto Chapters rail (150 VB in the registry) — generates chapter markers from a transcript inside the editor; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/auto-edit.ts",
@@ -17303,14 +17402,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/auto-video-plan.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/auto-video-plan"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Auto video-plan rail — an AI planning tool behind the create surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/avatar-presenter.ts",
@@ -17494,14 +17587,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/cinematic-fx.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/cinematic-fx"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Cinematic FX rail — an editor tool called through shared helpers; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/clip-descriptions.ts",
@@ -17533,15 +17620,10 @@
       {
         "file": "artifacts/api-server/src/routes/generate/color-grade.ts",
         "endpoints": 2,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/color-grade",
           "/api/color-presets"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Color-grade rail (+ presets) — an editor tool called through shared helpers; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/comment-replies.ts",
@@ -17771,10 +17853,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/freeze-mask.ts",
         "endpoints": 3,
-        "visible": 2,
-        "unseen": [
-          "/api/apply-mask"
-        ]
+        "visible": 3,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/gamers.ts",
@@ -18073,14 +18153,8 @@
       {
         "file": "artifacts/api-server/src/routes/generate/mix-plan.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/mix-plan"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Mix-plan rail — an AI audio tool behind the Audio Studio surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/generate/monetization-coach.ts",
@@ -18091,16 +18165,10 @@
       {
         "file": "artifacts/api-server/src/routes/generate/motion-track.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 2,
         "unseen": [
-          "/api/motion-track/apply",
-          "/api/motion-track/job/:jobId",
-          "/api/motion-track/track"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Motion-track rails (track / apply / job) — an editor tool called through shared helpers; no page of its own."
-        }
+          "/api/motion-track/job/:jobId"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/movies.ts",
@@ -18600,16 +18668,11 @@
       {
         "file": "artifacts/api-server/src/routes/generate/split-screen.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/split-screen/apply",
           "/api/split-screen/job/:jobId",
           "/api/split-screen/layouts"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Split-screen rails (layouts / apply / job) — an editor tool called through shared helpers; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/sponsor-read.ts",
@@ -19014,17 +19077,12 @@
       {
         "file": "artifacts/api-server/src/routes/generate/voice-clone.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/clone-voice",
           "/api/clone-voice/:id",
           "/api/cloned-voices",
           "/api/speak-as"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Voice-clone rails (clone / list / speak-as) — behind the voice surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/voice-effects.ts",
@@ -19421,9 +19479,8 @@
       {
         "file": "artifacts/api-server/src/routes/lut.ts",
         "endpoints": 8,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/apply-lut",
           "/api/lut/my",
           "/api/lut/my/:id",
           "/api/lut/presets",
@@ -19431,11 +19488,7 @@
           "/api/lut/preview",
           "/api/lut/upload",
           "/api/lut/validate"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "LUT library rails (presets / upload / validate / preview / apply / my) — the color-look library behind the editor's color surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/mashup.ts",
@@ -20059,10 +20112,8 @@
       {
         "file": "artifacts/api-server/src/routes/stock.ts",
         "endpoints": 2,
-        "visible": 1,
-        "unseen": [
-          "/api/stock/search"
-        ]
+        "visible": 2,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/store.ts",
@@ -20345,14 +20396,8 @@
       {
         "file": "artifacts/api-server/src/routes/wave8-adlib.ts",
         "endpoints": 1,
-        "visible": 0,
-        "unseen": [
-          "/api/wave8/adlib/generate"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-8 AI ad-lib generator rail — a vocal-production sidekick behind the song surfaces; no page of its own."
-        }
+        "visible": 1,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/wave8-calendar.ts",
@@ -20435,19 +20480,13 @@
       {
         "file": "artifacts/api-server/src/routes/wave9a-music.ts",
         "endpoints": 6,
-        "visible": 0,
+        "visible": 2,
         "unseen": [
-          "/api/wave9a/lyrics/timing",
-          "/api/wave9a/structure/generate",
           "/api/wave9a/structures",
           "/api/wave9a/structures/:id",
           "/api/wave9a/versions",
           "/api/wave9a/versions/:id"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-9A music rails (structures / versions / lyrics timing) — the song-workbench store behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/wave9b-editor.ts",

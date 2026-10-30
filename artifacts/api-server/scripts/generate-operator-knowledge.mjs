@@ -1170,6 +1170,77 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/lip-sync/run-all",
     attachToFeatureIds: ["video-editor"],
   },
+  /* Stack-900 KB triage (Lane K4): the editor's section-card rails the
+     one-hop scan cannot reach. Every caller sits two or more hops below
+     the editor page — the section components under
+     components/editor/sections/* and components/video-editor/* (Auto
+     Director, Color Grade, LUT import, Cinematic FX, Mask, Motion
+     Track, Auto Chapters, Split Screen, Stock Library) and the
+     editor's docked Music Studio under components/editor/music/*
+     (AI Auto Mix, Song Structure Builder, Lyrics-to-Timeline,
+     Ad-Lib Generator, and Generate Audio's voice clone). Without
+     these links the operator could not quote any of these tools'
+     registry prices — 15 priced rails were invisible in the KB. */
+  {
+    endpoint: "/api/auto-video-plan",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/color-grade",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/apply-lut",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/cinematic-fx",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/apply-mask",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/motion-track/track",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/motion-track/apply",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/auto-chapters",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/split-screen/apply",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/stock/search",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/mix-plan",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/wave9a/structure/generate",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/wave9a/lyrics/timing",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/wave8/adlib/generate",
+    attachToFeatureIds: ["video-editor"],
+  },
+  {
+    endpoint: "/api/clone-voice",
+    attachToFeatureIds: ["video-editor"],
+  },
 ];
 
 /** Unpriced sub-step endpoints of a priced rail — the poll and prepare
@@ -1291,17 +1362,9 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Audio ducking rail — an editor/audio tool called through shared helpers; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/auto-chapters.ts": {
-    surface: "creator-tools",
-    reason: "Auto Chapters rail (150 VB in the registry) — generates chapter markers from a transcript inside the editor; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/auto-edit.ts": {
     surface: "creator-tools",
     reason: "AI auto-edit rail — called by the World Create Desk and template surfaces through shared helpers; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/auto-video-plan.ts": {
-    surface: "creator-tools",
-    reason: "Auto video-plan rail — an AI planning tool behind the create surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/avatar-presenter.ts": {
     surface: "creator-tools",
@@ -1335,17 +1398,9 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Video chapter-markers rail (ffmpeg silencedetect + transcription) — an editor tool; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/cinematic-fx.ts": {
-    surface: "creator-tools",
-    reason: "Cinematic FX rail — an editor tool called through shared helpers; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/collage.ts": {
     surface: "creator-tools",
     reason: "Collage rail (+ layouts) — an editor tool called through shared helpers; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/color-grade.ts": {
-    surface: "creator-tools",
-    reason: "Color-grade rail (+ presets) — an editor tool called through shared helpers; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/content-calendar.ts": {
     surface: "creator-tools",
@@ -1398,14 +1453,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/lyrics-generator.ts": {
     surface: "creator-tools",
     reason: "AI lyrics generator rail (100 VB per its header) — behind the song surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/mix-plan.ts": {
-    surface: "creator-tools",
-    reason: "Mix-plan rail — an AI audio tool behind the Audio Studio surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/motion-track.ts": {
-    surface: "creator-tools",
-    reason: "Motion-track rails (track / apply / job) — an editor tool called through shared helpers; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/podcast-intro.ts": {
     surface: "creator-tools",
@@ -1479,10 +1526,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Song Remix + Replace Section rails — new arrangements of a song behind the song surfaces; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/split-screen.ts": {
-    surface: "creator-tools",
-    reason: "Split-screen rails (layouts / apply / job) — an editor tool called through shared helpers; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/storyboard.ts": {
     surface: "creator-tools",
     reason: "Storyboard generator rail (+ styles) — the generation half of storyboarding, behind the editor; no page of its own (the planner CRUD half is routes/storyboards.ts).",
@@ -1535,10 +1578,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Virtual-background rails (apply + list) — behind the live/editor background surfaces; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/voice-clone.ts": {
-    surface: "creator-tools",
-    reason: "Voice-clone rails (clone / list / speak-as) — behind the voice surfaces; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/voice-effects.ts": {
     surface: "creator-tools",
     reason: "Voice-effect rails (apply + list) — an audio tool called through shared helpers; no page of its own.",
@@ -1558,10 +1597,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/watermark.ts": {
     surface: "creator-tools",
     reason: "Watermark rails (add + positions) — the member-facing watermark tool behind the editor (distinct from the house export watermark); no page of its own.",
-  },
-  "artifacts/api-server/src/routes/lut.ts": {
-    surface: "creator-tools",
-    reason: "LUT library rails (presets / upload / validate / preview / apply / my) — the color-look library behind the editor's color surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/proxy-editing.ts": {
     surface: "creator-tools",
@@ -1583,10 +1618,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Generation-history rail (list + read) — the member's own generations behind the Library/studio surfaces, reached past the scan's one hop; no page of its own.",
   },
-  "artifacts/api-server/src/routes/wave8-adlib.ts": {
-    surface: "creator-tools",
-    reason: "Wave-8 AI ad-lib generator rail — a vocal-production sidekick behind the song surfaces; no page of its own.",
-  },
   "artifacts/api-server/src/routes/wave8-caption-styler.ts": {
     surface: "creator-tools",
     reason: "Wave-8 caption-styler burn rail (100 VB, registry-matched) — an editor tool; no page of its own.",
@@ -1598,10 +1629,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/wave8-merch-drop.ts": {
     surface: "creator-tools",
     reason: "Wave-8 merch-drop planner rails (plan / plans / save) — an AI planning tool behind the promote/store surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/wave9a-music.ts": {
-    surface: "creator-tools",
-    reason: "Wave-9A music rails (structures / versions / lyrics timing) — the song-workbench store behind the song surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/wave9d-camera.ts": {
     surface: "creator-tools",
