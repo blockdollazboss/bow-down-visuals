@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "8ac6e9712b764c2f2fdf3ae241f36fb976b47866",
+  "baseCommit": "2ffa25e3dcde0622ce4357db7a252e25a9e17f12",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -23,8 +23,8 @@
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
     "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1018,
-    "serverFilesClassified": 117
+    "serverEndpointsVisible": 1024,
+    "serverFilesClassified": 113
   },
   "packs": [
     {
@@ -6447,6 +6447,7 @@
         "/api/dream-collab/concept",
         "/api/generate-artist-image",
         "/api/generate-artist-image/:param",
+        "/api/generate-harmony",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
         "/api/generate-song",
@@ -6456,6 +6457,11 @@
         "/api/link-to-hit/analyze",
         "/api/projects",
         "/api/projects/:param",
+        "/api/singing-voice",
+        "/api/song-inspo/analyze",
+        "/api/song-inspo/generate",
+        "/api/song-remix",
+        "/api/song-replace-section",
         "/api/storefront/products",
         "/api/transcribe",
         "/api/upload-clip",
@@ -6480,6 +6486,12 @@
           "feature": "Generate Artist Image (Pro)",
           "vb": 200,
           "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Harmony Generator (Classic doubles)",
+          "vb": 300,
+          "endpoint": "/api/generate-harmony",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6535,6 +6547,36 @@
           "feature": "Edit Plan",
           "vb": 100,
           "endpoint": "/api/generate/ai-edit-plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Singing-Voice Conversion (price TBD)",
+          "vb": 800,
+          "endpoint": "/api/singing-voice",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Inspo Vibe Analysis (free)",
+          "vb": 0,
+          "endpoint": "/api/song-inspo/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Inspo Mode Song",
+          "vb": 200,
+          "endpoint": "/api/song-inspo/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Song Remix (new arrangement)",
+          "vb": 400,
+          "endpoint": "/api/song-remix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Replace Song Section",
+          "vb": 300,
+          "endpoint": "/api/song-replace-section",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -12929,6 +12971,7 @@
         "/api/slow-motion",
         "/api/smart-clips",
         "/api/smart-clips/propose",
+        "/api/song-replace-section",
         "/api/songs",
         "/api/speed-presets",
         "/api/split-screen/apply",
@@ -13174,6 +13217,12 @@
           "feature": "AI Slow Motion",
           "vb": 300,
           "endpoint": "/api/slow-motion",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Replace Song Section",
+          "vb": 300,
+          "endpoint": "/api/song-replace-section",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -18549,17 +18598,12 @@
       {
         "file": "artifacts/api-server/src/routes/generate/singing-voice.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/singing-voice",
           "/api/singing-voice/jobs/:jobId",
           "/api/singing-voice/status",
           "/api/singing-voice/voices"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Singing-voice rails (generate / jobs / status / voices) — behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/slideshow.ts",
@@ -18613,31 +18657,20 @@
       {
         "file": "artifacts/api-server/src/routes/generate/song-harmony.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/generate-harmony",
           "/api/generate-harmony/modes",
           "/api/generate-harmony/using/:songId"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "AI harmony generator rails (generate / modes / using) — behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/song-inspo.ts",
         "endpoints": 4,
-        "visible": 0,
+        "visible": 2,
         "unseen": [
-          "/api/song-inspo/analyze",
-          "/api/song-inspo/generate",
           "/api/song-inspo/presets",
           "/api/song-inspo/presets/:id"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Inspo Mode rails (analyze / generate / presets) — playlist-vibe-to-song behind the song surfaces; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/song-video.ts",
@@ -20058,15 +20091,8 @@
       {
         "file": "artifacts/api-server/src/routes/song-remix.ts",
         "endpoints": 2,
-        "visible": 0,
-        "unseen": [
-          "/api/song-remix",
-          "/api/song-replace-section"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Song Remix + Replace Section rails — new arrangements of a song behind the song surfaces; no page of its own."
-        }
+        "visible": 2,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/song-requests.ts",

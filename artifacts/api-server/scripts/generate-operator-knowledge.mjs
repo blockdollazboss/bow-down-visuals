@@ -1241,6 +1241,39 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/clone-voice",
     attachToFeatureIds: ["video-editor"],
   },
+  /* Stack-900 KB triage (Lane K4): the Make a Song module's rails.
+     The song panel on /create renders MakeSongModule from the legacy
+     pages/make-song.tsx, whose tool components (InspoTab,
+     SongReworkPanel, HarmonyGeneratorModal, SingingVoiceModal) sit
+     two hops below pages/create.tsx — past the scan. The World song
+     desks call the same rails natively; their prices ride the web
+     surface here, per the standing parity pattern. Song Replace
+     Section is also called by the editor Music Studio's Generate
+     Audio, so it attaches to the editor too. */
+  {
+    endpoint: "/api/song-inspo/generate",
+    attachToFeatureIds: ["desk-song"],
+  },
+  {
+    endpoint: "/api/song-inspo/analyze",
+    attachToFeatureIds: ["desk-song"],
+  },
+  {
+    endpoint: "/api/song-remix",
+    attachToFeatureIds: ["desk-song"],
+  },
+  {
+    endpoint: "/api/song-replace-section",
+    attachToFeatureIds: ["desk-song", "video-editor"],
+  },
+  {
+    endpoint: "/api/generate-harmony",
+    attachToFeatureIds: ["desk-song"],
+  },
+  {
+    endpoint: "/api/singing-voice",
+    attachToFeatureIds: ["desk-song"],
+  },
 ];
 
 /** Unpriced sub-step endpoints of a priced rail — the poll and prepare
@@ -1502,10 +1535,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "creator-tools",
     reason: "Silence-removal rail (remove-silence) — an editor tool called through shared helpers; no page of its own.",
   },
-  "artifacts/api-server/src/routes/generate/singing-voice.ts": {
-    surface: "creator-tools",
-    reason: "Singing-voice rails (generate / jobs / status / voices) — behind the song surfaces; no page of its own.",
-  },
   "artifacts/api-server/src/routes/generate/slideshow.ts": {
     surface: "creator-tools",
     reason: "Slideshow rail (+ transitions) — an editor tool called through shared helpers; no page of its own.",
@@ -1513,18 +1542,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/social-analytics.ts": {
     surface: "creator-tools",
     reason: "Social analytics rails (analyze-post + trending-topics) — AI scoring behind the promote surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/song-harmony.ts": {
-    surface: "creator-tools",
-    reason: "AI harmony generator rails (generate / modes / using) — behind the song surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/song-inspo.ts": {
-    surface: "creator-tools",
-    reason: "Inspo Mode rails (analyze / generate / presets) — playlist-vibe-to-song behind the song surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/song-remix.ts": {
-    surface: "creator-tools",
-    reason: "Song Remix + Replace Section rails — new arrangements of a song behind the song surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/storyboard.ts": {
     surface: "creator-tools",
