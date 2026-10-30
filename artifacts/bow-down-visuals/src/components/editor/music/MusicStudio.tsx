@@ -441,7 +441,7 @@ export function MusicStudio({
 
       {/* ── Bow Down AI Guide — collapsible ── */}
       <div className="rounded-xl border border-white/10 bg-[#0c0c0c] overflow-hidden">
-        <button
+        <button aria-expanded={guideOpen}
           type="button"
           onClick={() => setGuideOpen(o => !o)}
           className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors"

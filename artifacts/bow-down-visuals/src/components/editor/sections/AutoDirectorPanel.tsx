@@ -219,7 +219,7 @@ export function AutoDirectorPanel({
 
   return (
     <div className="rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/[0.07] to-transparent overflow-hidden">
-      <button
+      <button aria-expanded={expanded}
         type="button"
         onClick={() => setExpanded((e) => !e)}
         className="w-full flex items-center gap-3 px-4 py-3.5 text-left"

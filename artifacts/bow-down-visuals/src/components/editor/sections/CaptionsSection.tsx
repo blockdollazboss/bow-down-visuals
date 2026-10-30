@@ -1772,7 +1772,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             })}
           </div>
           {filteredCaptionPresets.length < CAPTION_STYLE_PRESET_DEFS.length && (
-            <button
+            <button aria-expanded={showAllCaptionPresets}
               type="button"
               onClick={() => setShowAllCaptionPresets((v) => !v)}
               className="mt-2.5 text-[11px] font-bold text-[#C9A84C] hover:text-[#C9A84C]"

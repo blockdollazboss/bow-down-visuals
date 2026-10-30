@@ -1478,7 +1478,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                 <option value={voiceId}>{voiceName ?? "Persona voice"}</option>
               )}
             </select>
-            <button
+            <button aria-expanded={cloneOpen}
               type="button"
               onClick={() => { setCloneOpen((v) => !v); setCloneError(null); }}
               className="flex h-10 shrink-0 items-center gap-1 rounded-xl border border-primary/30 bg-primary/[0.08] px-3 text-xs font-black text-primary transition hover:bg-primary/[0.16]"
@@ -1681,7 +1681,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
           </Field>
         ) : (
           <div>
-            <button
+            <button aria-expanded={showLyrics}
               type="button"
               onClick={() => setShowLyrics(!showLyrics)}
               className="text-xs font-bold text-primary hover:underline"
@@ -1812,7 +1812,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               >
                 {stemsBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Layers className="h-3.5 w-3.5" />} Stems
               </button>
-              <button
+              <button aria-pressed={stemsPro}
                 type="button"
                 onClick={() => setStemsPro((v) => !v)}
                 disabled={stemsBusy}
@@ -1840,7 +1840,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               >
                 {captionsBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />} Lyrics to Captions
               </button>
-              <button
+              <button aria-expanded={showPersonaSave}
                 type="button"
                 onClick={() => setShowPersonaSave((v) => !v)}
                 className={actionBtn(showPersonaSave)}
@@ -2012,7 +2012,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                     testId="input-replace-direction"
                   />
                 </Field>
-                <button
+                <button aria-expanded={showTiming}
                   type="button"
                   onClick={() => setShowTiming((v) => !v)}
                   className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/45 hover:text-white transition-colors"
@@ -2152,7 +2152,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
                   ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Finishing…</>
                   : <><Wand2 className="h-3.5 w-3.5 mr-1.5" /> Finish My Song · 400 Visual Bucs</>}
               </Button>
-              <button
+              <button aria-expanded={uploadExtendOpen}
                 type="button"
                 onClick={() => setUploadExtendOpen((v) => !v)}
                 className={actionBtn(uploadExtendOpen)}

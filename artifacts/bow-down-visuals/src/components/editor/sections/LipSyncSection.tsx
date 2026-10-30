@@ -2937,7 +2937,7 @@ export function LipSyncSection({
                           ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Stop Preview</>
                           : <><Play className="h-3.5 w-3.5" /> Preview Audio Segment</>}
                       </button>
-                      <button
+                      <button aria-expanded={showTimingValidation}
                         type="button"
                         onClick={() => setShowTimingValidation(v => !v)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/5 transition-colors"

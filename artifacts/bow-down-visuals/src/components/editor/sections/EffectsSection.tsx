@@ -273,7 +273,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
       )}
 
       {/* ── Pro color grade — one-tap AI presets, auto-grade, manual wheels ── */}
-      <button
+      <button aria-expanded={showColorGrade}
         type="button"
         onClick={() => {
           setShowColorGrade((v) => !v);

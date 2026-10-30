@@ -513,7 +513,7 @@ export function MotionTrackCard({
                 <p className="text-[11px] font-black text-white/50 uppercase tracking-widest">
                   {t("videoEditor.motionTrack.anchors", { count: anchors.length })}
                 </p>
-                <button
+                <button aria-pressed={useManual}
                   type="button"
                   onClick={() => setUseManual((v) => !v)}
                   className="flex items-center gap-1.5 text-xs font-bold text-[#C9A84C]"

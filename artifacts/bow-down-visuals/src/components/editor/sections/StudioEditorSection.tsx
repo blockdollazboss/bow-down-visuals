@@ -117,7 +117,7 @@ function ClipValidRow({ v }: { v: ClipValidation }) {
   const [open, setOpen] = useState(!v.ready);
   return (
     <div className={`rounded-lg border mb-1 overflow-hidden ${v.ready ? "border-green-500/15 bg-green-500/[0.03]" : "border-amber-500/30 bg-amber-500/[0.04]"}`}>
-      <button type="button" onClick={() => setOpen(o => !o)}
+      <button aria-expanded={open} type="button" onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left">
         <span className={`text-[10px] w-4 text-center shrink-0 ${v.ready ? "text-green-400" : "text-amber-400"}`}>
           {v.ready ? "✓" : "⚠"}
@@ -737,7 +737,7 @@ export function StudioEditorSection({
       {/* ── Per-clip validation results (after Lock attempt) ── */}
       {showValidation && validationResults && (
         <div className={`rounded-xl border overflow-hidden ${validationError ? "border-red-500/25 bg-red-500/[0.03]" : "border-green-500/20 bg-green-500/[0.02]"}`}>
-          <button type="button" onClick={() => setShowValidation(o => !o)}
+          <button aria-expanded={showValidation} type="button" onClick={() => setShowValidation(o => !o)}
             className={`w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-black uppercase tracking-widest ${validationError ? "text-red-400" : "text-green-400"}`}>
             <span className="flex items-center gap-1.5">
               {validationError ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}
@@ -755,7 +755,7 @@ export function StudioEditorSection({
       {/* ── Locked Timeline JSON ── */}
       {lockedTimeline && (
         <div className="rounded-xl border border-primary/20 bg-primary/[0.03] overflow-hidden">
-          <button type="button" onClick={() => setJsonOpen(o => !o)}
+          <button aria-expanded={jsonOpen} type="button" onClick={() => setJsonOpen(o => !o)}
             className="w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-black text-primary/70 uppercase tracking-widest hover:text-primary/90 transition-colors">
             <span className="flex items-center gap-1.5">
               <Lock className="h-3 w-3" />
@@ -818,7 +818,7 @@ export function StudioEditorSection({
 
       {/* ── Debug panel ── */}
       <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] overflow-hidden">
-        <button type="button" onClick={() => setDebugOpen(o => !o)}
+        <button aria-expanded={debugOpen} type="button" onClick={() => setDebugOpen(o => !o)}
           className="w-full flex items-center justify-between px-3 py-2 text-[8px] font-black text-white/25 uppercase tracking-widest hover:text-white/40 transition-colors">
           <span>Studio Editor Readiness — Debug</span>
           {debugOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
