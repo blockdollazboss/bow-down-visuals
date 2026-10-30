@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "8d24735cc987c3c2dc7295db658c6fa35bf3666c",
+  "baseCommit": "2562262bb9e3672d78ea7544a370e5dfd942b05d",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -4054,6 +4054,12 @@
         "/api/books/ai/assist"
       ],
       "prices": [
+        {
+          "feature": "Thy Books AI Cover Generation",
+          "vb": 200,
+          "endpoint": "/api/books/:id/cover/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
         {
           "feature": "Thy Books AI Writing Assist",
           "vb": 100,

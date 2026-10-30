@@ -69,7 +69,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-quality": { cost: 400, feature: "Quality-Controlled Export" },
   "/api/carousel/export": { cost: 100, feature: "Carousel Export" },
   "/api/books/ai/assist": { cost: 100, feature: "Thy Books AI Writing Assist" },
-  "/api/books/cover/generate": { cost: 200, feature: "Thy Books AI Cover Generation" },
+  /* The cover rail serves at /api/books/:id/cover/generate (the id sits
+     mid-path) — recorded in the rail's true shape, like the vault and
+     live-streams entries. The old "/api/books/cover/generate" key could
+     never match the served rail in any lookup, which also kept the
+     operator KB from attaching this price to the Books entry. */
+  "/api/books/:id/cover/generate": { cost: 200, feature: "Thy Books AI Cover Generation" },
   // ── Video processing (editor tools) ──────────────────────────
   "/api/stabilize": { cost: 300, feature: "Video Stabilization" },
   "/api/apply-speed": { cost: 150, feature: "Speed Preset" },
