@@ -256,11 +256,11 @@ const SECTIONS: NavSection[] = [
       /* The beat shelf gets its own front door with the shell wrap
          (2026-10-18): creators pick beats for their songs here; the
          page used to render outside the sidebar shell entirely. */
-      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3, searchTerms: "beats marketplace buy beats instrumental" },
-      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard, searchTerms: "video editor visual vibes edit clips" },
+      { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3, searchTerms: "beats marketplace buy beats instrumental sell" },
+      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard, searchTerms: "video editor visual vibes edit clips subtitles captions translate dub" },
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform, searchTerms: "audio studio music sound voice podcast mastering" },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb, searchTerms: "hook hooks studio ideas titles scripts" },
-      { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles, searchTerms: "thumbnail thumbnails studio click image" },
+      { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles, searchTerms: "thumbnail thumbnails studio click image duels" },
       { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen, searchTerms: "books book ebook read" },
     ],
   },
@@ -278,10 +278,10 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: "nav.promote",
     links: [
-      { href: "/promote", labelKey: "nav.promote", icon: Megaphone, searchTerms: "promote promotion marketing grow audience" },
+      { href: "/promote", labelKey: "nav.promote", icon: Megaphone, searchTerms: "promote promotion marketing grow audience share social post widgets overlays now playing drop day kit" },
       { href: "/referrals", labelKey: "nav.referrals", icon: Gift, searchTerms: "referrals invite earn friends" },
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock, searchTerms: "scheduler schedule calendar posts" },
-      { href: "/go-live", labelKey: "nav.goLive", icon: Radio, searchTerms: "live stream streaming broadcast go live" },
+      { href: "/go-live", labelKey: "nav.goLive", icon: Radio, searchTerms: "live stream streaming broadcast go live green screen background backdrop" },
       { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart, searchTerms: "live shopping shop live sell stream" },
       { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper, searchTerms: "press kit media kit epk bio" },
       { href: "/email-list", labelKey: "nav.emailList", icon: Mail, searchTerms: "email list subscribers newsletter audience" },
@@ -305,7 +305,7 @@ const SECTIONS: NavSection[] = [
       /* Community Grants (N15): the monthly community-voted VB grant —
          filed in Social beside Contests and Pitch & Fix, its family. */
       { href: "/community-grants", labelKey: "nav.communityGrants", icon: HandCoins, badge: "NEW", searchTerms: "community grants grant pool vote project funding visual bucs" },
-      { href: "/events", labelKey: "nav.events", icon: CalendarDays, searchTerms: "events shows calendar" },
+      { href: "/events", labelKey: "nav.events", icon: CalendarDays, searchTerms: "events shows calendar book a show bookings" },
       { href: "/messages", labelKey: "nav.messages", icon: MessageCircle, searchTerms: "messages chat dm inbox" },
       { href: "/collabs", labelKey: "nav.collabs", icon: UsersRound, searchTerms: "collabs collaborations features partners" },
       { href: "/contests", labelKey: "nav.contests", icon: Trophy, searchTerms: "contests competitions win prizes" },
@@ -324,11 +324,11 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: "nav.getPaid",
     links: [
-      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign, searchTerms: "coach monetization money earn revenue" },
+      { href: "/coach", labelKey: "nav.monetizationCoach", icon: DollarSign, searchTerms: "coach monetization money earn revenue get paid" },
       /* The money-ops cluster gets real doors (findability fix,
          2026-10-18): Earnings had NO website link anywhere; Memberships
          and Tips were footer-only; Team hid inside the Coach. */
-      { href: "/earnings", labelKey: "nav.earnings", icon: Wallet, searchTerms: "earnings money payouts revenue income paid" },
+      { href: "/earnings", labelKey: "nav.earnings", icon: Wallet, searchTerms: "earnings money payouts revenue income paid get" },
       { href: "/memberships", labelKey: "nav.memberships", icon: Ticket, searchTerms: "memberships members subscribers fans plans" },
       { href: "/team", labelKey: "nav.team", icon: Users, searchTerms: "team workspace collaborators staff" },
       { href: "/tips", labelKey: "nav.tips", icon: HeartHandshake, searchTerms: "tips tip jar donations fans" },
