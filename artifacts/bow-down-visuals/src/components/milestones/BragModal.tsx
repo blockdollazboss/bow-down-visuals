@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -123,7 +124,7 @@ export default function BragModal({ achievement, creatorName, avatarUrl, onClose
         body: blob,
       });
       const upData = (await up.json().catch(() => ({}))) as { url?: string; message?: string };
-      if (!up.ok || !upData.url) throw new Error(upData.message ?? t("milestones.bragUploadFailed"));
+      if (!up.ok || !upData.url) throw new Error(apiErrorMessage(upData, t("milestones.bragUploadFailed")));
       /* 2 — post to the BDV feed with the card attached. Free. */
       await apiJson(getAccessToken, "/api/posts", {
         method: "POST",
@@ -136,7 +137,7 @@ export default function BragModal({ achievement, creatorName, avatarUrl, onClose
       });
       setPhase("posted");
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("milestones.bragPostFailed"));
+      setError(plainErrorText(e, t("milestones.bragPostFailed")));
       setPhase("ready");
     }
   }
@@ -161,7 +162,7 @@ export default function BragModal({ achievement, creatorName, avatarUrl, onClose
       }
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") return; /* user dismissed the sheet */
-      setError(e instanceof Error ? e.message : t("milestones.bragShareFailed"));
+      setError(plainErrorText(e, t("milestones.bragShareFailed")));
     }
   }
 

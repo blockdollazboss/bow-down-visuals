@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Send, Check, X, Ban, Plus, Pin, MessageCircle, Star, BarChart3, Loader2,
@@ -80,7 +81,7 @@ async function apiJson<T>(
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
     error?: string; message?: string;
   };
-  if (!res.ok) throw new Error(data.message || data.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
   return data as T;
 }
 
@@ -338,7 +339,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
       setTab(d.conversation.status === "request" ? "requests" : "inbox");
       setActiveId(d.conversation.id);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Creator not found.");
+      setNotice(plainErrorText(e, "Creator not found."));
     } finally {
       setStarting(false);
     }
@@ -365,13 +366,13 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
         error?: string; message?: string;
       };
       if (!res.ok || !data.ref || !data.type) {
-        throw new Error(data.message || data.error || "The upload didn't land.");
+        throw new Error(apiErrorMessage(data, "The upload didn't land."));
       }
       /* Send the permanent ref, never the signed URL — the server
          persists the ref and mints fresh URLs on every read. */
       setPendingAtt({ url: data.ref, type: data.type, name: data.name ?? file.name });
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "The upload didn't land.");
+      setNotice(plainErrorText(e, "The upload didn't land."));
     } finally {
       setUploading(false);
     }
@@ -415,7 +416,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
       await loadThread(activeId);
       await loadConvs();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't send.");
+      setNotice(plainErrorText(e, "Couldn't send."));
     } finally {
       setSending(false);
     }
@@ -435,7 +436,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
         await loadConvs();
       }
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "That didn't land — try again.");
+      setNotice(plainErrorText(e, "That didn't land — try again."));
     }
   }
 
@@ -930,7 +931,7 @@ function ThreadReplyNode({
       setDraft("");
       setComposerOpen(false);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "The reply didn't land — try again.");
+      setNote(plainErrorText(e, "The reply didn't land — try again."));
     } finally {
       setSending(false);
     }
@@ -1351,7 +1352,7 @@ function NoticePostCard({
       replyWordsRef.current = { text: "", tone: replyTone };
       setDraftState("idle");
     } catch (e) {
-      setReplyNote(e instanceof Error ? e.message : "The reply didn't land — try again.");
+      setReplyNote(plainErrorText(e, "The reply didn't land — try again."));
     } finally {
       setReplying(false);
     }
@@ -1696,7 +1697,7 @@ function ReplyDraftsBench({
       setDrafts(replies);
       if (replies.length === 0) setNote("Nothing came back — nothing was charged twice over; try again.");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "The drafts didn't land — try again.");
+      setNote(plainErrorText(e, "The drafts didn't land — try again."));
     } finally {
       setBusy(false);
     }
@@ -1712,7 +1713,7 @@ function ReplyDraftsBench({
       setNote("Posted to the board — your reply is live under the Hall's posts.");
       onPosted();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "The post didn't land — try again.");
+      setNote(plainErrorText(e, "The post didn't land — try again."));
     } finally {
       setPosting(null);
     }
@@ -1829,7 +1830,7 @@ function FeedComposerCard({
       setNote("Posted — it's live on the board below.");
       onPosted();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "The post didn't land — try again.");
+      setNote(plainErrorText(e, "The post didn't land — try again."));
     } finally {
       setPosting(false);
     }
@@ -2001,7 +2002,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         setSentiment(d.report ?? null);
       }
     } catch (e) {
-      setScanNote(e instanceof Error ? e.message : "The scan didn't land — try again.");
+      setScanNote(plainErrorText(e, "The scan didn't land — try again."));
     } finally {
       setScanBusy(null);
     }
@@ -2022,7 +2023,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         setPinNote("Nothing came back — nothing was pinned.");
       }
     } catch (e) {
-      setPinNote(e instanceof Error ? e.message : "The draft didn't land — try again.");
+      setPinNote(plainErrorText(e, "The draft didn't land — try again."));
     } finally {
       setGenerating(false);
     }
@@ -2039,7 +2040,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
       setTopic("");
       setTick((n) => n + 1);
     } catch (e) {
-      setPinNote(e instanceof Error ? e.message : "The pin didn't land — try again.");
+      setPinNote(plainErrorText(e, "The pin didn't land — try again."));
     } finally {
       setPinning(null);
     }

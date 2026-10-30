@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Plus, Check, Rocket } from "lucide-react";
@@ -55,7 +56,7 @@ export function FollowButton({
         headers,
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error ?? "Follow failed");
+      if (!r.ok) throw new Error(apiErrorMessage(d, "Follow failed"));
       const next = !following;
       setFollowing(next);
       onToggle?.(next, typeof d.follower_count === "number" ? d.follower_count : null);

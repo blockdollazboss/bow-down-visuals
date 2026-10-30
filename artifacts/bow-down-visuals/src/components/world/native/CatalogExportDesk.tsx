@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
@@ -98,7 +99,7 @@ export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
         parsed ?? { kind, format, count: -1, truncated: truncatedHeader, exportedAt: null },
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not build that export.");
+      setError(plainErrorText(e, "Could not build that export."));
     } finally { setBusy(false); }
   };
 

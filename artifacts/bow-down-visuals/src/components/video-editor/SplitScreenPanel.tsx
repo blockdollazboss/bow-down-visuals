@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -186,7 +187,7 @@ export default function SplitScreenPanel({
       setLayouts(data.layouts ?? []);
       if (typeof data.price === "number") setPrice(data.price);
     } catch (err) {
-      setCatalogError(err instanceof Error ? err.message : t("splitScreen.catalogFailed"));
+      setCatalogError(plainErrorText(err, t("splitScreen.catalogFailed")));
     }
   }, [getAccessToken, t]);
 
@@ -296,13 +297,13 @@ export default function SplitScreenPanel({
           toast({ title: t("splitScreen.renderDoneTitle"), description: t("splitScreen.renderDoneDesc") });
         } else if (job.state === "failed") {
           if (pollRef.current) clearInterval(pollRef.current);
-          setJobError(job.error ?? t("splitScreen.renderFailedDefault"));
+          setJobError(apiErrorMessage(job, t("splitScreen.renderFailedDefault")));
           setPhase("configure");
           toast({ title: t("splitScreen.renderFailedTitle"), description: t("splitScreen.refundedNote") });
         }
       } catch (err) {
         if (pollRef.current) clearInterval(pollRef.current);
-        setJobError(err instanceof Error ? err.message : t("splitScreen.pollFailed"));
+        setJobError(plainErrorText(err, t("splitScreen.pollFailed")));
         setPhase("configure");
       }
     }, 3000);
@@ -348,18 +349,18 @@ export default function SplitScreenPanel({
       }
       if (res.status === 402) {
         const data = await res.json().catch(() => ({}));
-        setJobError(data.message ?? t("splitScreen.outOfCredits"));
+        setJobError(apiErrorMessage(data, t("splitScreen.outOfCredits")));
         setPhase("configure");
         return;
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? t("splitScreen.renderFailedDefault"));
+        throw new Error(apiErrorMessage(data, t("splitScreen.renderFailedDefault")));
       }
       const data = await res.json();
       pollJob(data.jobId);
     } catch (err) {
-      setJobError(err instanceof Error ? err.message : t("splitScreen.renderFailedDefault"));
+      setJobError(plainErrorText(err, t("splitScreen.renderFailedDefault")));
       setPhase("configure");
     }
   }

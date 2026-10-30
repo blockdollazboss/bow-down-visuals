@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -151,7 +152,7 @@ export default function CatalogImport() {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const json = (await res.json().catch(() => ({}))) as any;
-      if (!res.ok) throw new Error(json.error ?? t("catalogImport.genericError"));
+      if (!res.ok) throw new Error(apiErrorMessage(json, t("catalogImport.genericError")));
       return json;
     },
     [getAccessToken, t, i18n.language],
@@ -201,7 +202,7 @@ export default function CatalogImport() {
       await fn();
       setNotice(success);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("catalogImport.genericError"));
+      setError(plainErrorText(e, t("catalogImport.genericError")));
     } finally {
       setBusy("");
     }
@@ -299,7 +300,7 @@ export default function CatalogImport() {
         await refresh();
         setNotice(t("catalogImport.uploadRegisteredNotice", { count: done.length }));
       } catch (e) {
-        setError(e instanceof Error ? e.message : t("catalogImport.registrationError"));
+        setError(plainErrorText(e, t("catalogImport.registrationError")));
       }
     }
     if (fileRef.current) fileRef.current.value = "";

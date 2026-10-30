@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
@@ -164,7 +165,7 @@ export default function Promote() {
         return;
       }
       if (!res.ok || (!data.title && !data.body)) {
-        throw new Error(data.message || data.error || t("promote.errorGenerationFailed"));
+        throw new Error(apiErrorMessage(data, t("promote.errorGenerationFailed")));
       }
       setResult(data);
       refreshProfile();
@@ -172,7 +173,7 @@ export default function Promote() {
         document.getElementById("promo-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("promote.errorGenerationFailed"));
+      setError(plainErrorText(err, t("promote.errorGenerationFailed")));
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, Megaphone } from "lucide-react";
@@ -115,7 +116,7 @@ export default function BroadcastPage() {
                 setDescription("");
                 await loadData();
               } catch (err) {
-                setNote(err instanceof Error ? err.message : "Your channel couldn't be opened.");
+                setNote(plainErrorText(err, "Your channel couldn't be opened."));
               }
             }}
           >

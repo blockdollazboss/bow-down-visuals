@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText, Loader2, Sparkles, CheckCircle2, AlertTriangle,
@@ -200,7 +201,7 @@ export function TranscriptCutCard({
       setAnalyzeStage("queued");
       setPhase("analyzing");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start the transcription.");
+      setError(plainErrorText(err, "Could not start the transcription."));
     }
   }
 
@@ -268,7 +269,7 @@ export function TranscriptCutCard({
       setRenderStage("queued");
       setPhase("rendering");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start the render.");
+      setError(plainErrorText(err, "Could not start the render."));
     }
   }
 

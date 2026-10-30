@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 /* ── Arrangement Studio (Stack 6) ────────────────────────────────────────
  * The Audio desk as an instrument: songs/stems live on a timeline as
  * tracks with clips you can move and trim, per-track parametric FX chains
@@ -764,7 +765,7 @@ export default function ArrangementStudio() {
         toast({ title: "Export complete", description: `${btn.label} is ready to download.` });
       }
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : "Export failed. Please try again.");
+      setExportError(plainErrorText(err, "Export failed. Please try again."));
     } finally {
       setExporting(null);
     }

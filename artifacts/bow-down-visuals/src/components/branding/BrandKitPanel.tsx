@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -120,7 +121,7 @@ export function BrandKitPanel() {
       );
     } catch (err) {
       if (err instanceof BrandKitRequestError && err.outOfCredits) setOutOfCredits(true);
-      else setError(err instanceof Error ? err.message : t("brandingKit.brand.generateFailed", { defaultValue: "Brand kit generation failed. Please try again." }));
+      else setError(plainErrorText(err, t("brandingKit.brand.generateFailed", { defaultValue: "Brand kit generation failed. Please try again." })));
     } finally {
       setGenerating(false);
     }
@@ -157,7 +158,7 @@ export function BrandKitPanel() {
       hydrate(saved);
       setNotice(t("brandingKit.brand.saved", { defaultValue: "Brand kit saved — every surface that reads your brand now uses this." }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandingKit.brand.saveFailed", { defaultValue: "Couldn't save your brand kit. Please try again." }));
+      setError(plainErrorText(err, t("brandingKit.brand.saveFailed", { defaultValue: "Couldn't save your brand kit. Please try again." })));
     } finally {
       setSaving(false);
     }
@@ -210,7 +211,7 @@ export function BrandKitPanel() {
       await applyBrandKit(getAccessToken);
       setNotice(t("brandingKit.brand.applied", { defaultValue: "Applied — your profile now wears your brand kit's colors and fonts." }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandingKit.brand.applyFailed", { defaultValue: "Couldn't apply your brand kit. Please try again." }));
+      setError(plainErrorText(err, t("brandingKit.brand.applyFailed", { defaultValue: "Couldn't apply your brand kit. Please try again." })));
     } finally {
       setApplying(false);
     }

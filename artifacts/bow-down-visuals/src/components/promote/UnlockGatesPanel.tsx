@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -57,11 +58,11 @@ export function UnlockGatesPanel() {
       setTitle(""); setContentUrl(""); setContentLabel("");
       setMsg(`Gate live: ${d.gate.url} — fans unlock it by ${action === "follow" ? "following you (checked against your real follower graph)" : "sharing (recorded on their account first)"}.`);
       void load();
-    } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't create the gate."); }
+    } catch (e) { setErr(plainErrorText(e, "Couldn't create the gate.")); }
   }
   async function deactivate(id: string) {
     try { const t = await getAccessToken(); await api(t, "DELETE", `/api/promote/unlock-gates/${id}`); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Couldn't deactivate the gate."); }
+    catch (e) { setErr(plainErrorText(e, "Couldn't deactivate the gate.")); }
   }
 
   return (

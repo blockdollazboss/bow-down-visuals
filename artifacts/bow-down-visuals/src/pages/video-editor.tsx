@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Link, useSearch } from "wouter";
 import {
@@ -1277,7 +1278,7 @@ export default function VideoEditor() {
         resetHistory();
         hydrated.current = true;
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : t("videoEditor.loadProjectFailed"));
+        if (!cancelled) setLoadError(plainErrorText(err, t("videoEditor.loadProjectFailed")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1822,13 +1823,13 @@ export default function VideoEditor() {
       }
       if (synced === 0 && recovered === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? t("videoEditor.noNewClipsMsg"));
+        setSyncMsg(apiErrorMessage(json, t("videoEditor.noNewClipsMsg")));
         toast({ title: t("videoEditor.nothingToSyncTitle"), description: json.message ?? t("videoEditor.nothingToSyncDesc") });
         return;
       }
       if (recovered > 0 && synced === 0) {
         setSyncState("done");
-        setSyncMsg(json.message ?? t("videoEditor.recoveredClipsMsg", { count: recovered }));
+        setSyncMsg(apiErrorMessage(json, t("videoEditor.recoveredClipsMsg", { count: recovered })));
         toast({
           title: t("videoEditor.clipsRecoveredTitle", { count: recovered }),
           description: t("videoEditor.clipsRecoveredDesc"),

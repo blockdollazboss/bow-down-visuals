@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2, Clapperboard, ClipboardList, Eye, Handshake, Loader2, Pin, PinOff,
@@ -200,7 +201,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       });
       set({ hook: script.hook, scriptLines: script.lines.join("\n"), cta: script.cta });
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "The script didn't come through — try again.");
+      setMakerError(plainErrorText(err, "The script didn't come through — try again."));
     } finally {
       setScriptBusy(false);
     }
@@ -229,7 +230,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (!res.ok || typeof data.personaUrl !== "string") {
         /* A failed attempt was refunded — the retry is a NEW intent. */
         personaKeyRef.current = "";
-        setMakerError(data.message ?? data.error ?? "The persona didn't come through — try again.");
+        setMakerError(apiErrorMessage(data, "The persona didn't come through — try again."));
         return;
       }
       set({ personaUrl: data.personaUrl });
@@ -257,7 +258,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
     const ad = normalizeUgcAd((data as { ad?: unknown }).ad);
     if (!res.ok || !ad) {
       const d = data as { error?: string; message?: string };
-      throw new Error(d.message ?? d.error ?? "Generation failed — any charge was refunded.");
+      throw new Error(apiErrorMessage(d, "Generation failed — any charge was refunded."));
     }
     return ad;
   };
@@ -284,7 +285,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       setAdsState("ready");
       refreshProfile();
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "Generation failed — any charge was refunded.");
+      setMakerError(plainErrorText(err, "Generation failed — any charge was refunded."));
       void loadAds();
     } finally {
       setGenerating(false);
@@ -301,7 +302,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "Generation failed — any charge was refunded.");
+      setMakerError(plainErrorText(err, "Generation failed — any charge was refunded."));
       void loadAds();
     } finally {
       setBusyAdId(null);
@@ -318,7 +319,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === saved.id) setLatestAd(saved);
       void loadProducts();
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "That pin didn't land — try again.");
+      setMakerError(plainErrorText(err, "That pin didn't land — try again."));
     } finally {
       setBusyAdId(null);
     }
@@ -332,7 +333,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === ad.id) setLatestAd(null);
       setConfirmDeleteId(null);
     } catch (err) {
-      setMakerError(err instanceof Error ? err.message : "Couldn't delete that ad.");
+      setMakerError(plainErrorText(err, "Couldn't delete that ad."));
     } finally {
       setBusyAdId(null);
     }
@@ -374,7 +375,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       setBriefsState("ready");
       setBoardNote("Brief posted — it's on the board, creators can claim it now.");
     } catch (err) {
-      setBoardNote(err instanceof Error ? err.message : "Couldn't post that brief — try again.");
+      setBoardNote(plainErrorText(err, "Couldn't post that brief — try again."));
     } finally {
       setPostingBrief(false);
     }
@@ -397,7 +398,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (action === "deliver") setBoardNote("Delivered — the brand can review your ad now.");
       if (action === "approve") setBoardNote("Approved — this brief is complete.");
     } catch (err) {
-      setBoardNote(err instanceof Error ? err.message : "That didn't land — try again.");
+      setBoardNote(plainErrorText(err, "That didn't land — try again."));
       void loadBriefs();
     } finally {
       setBusyBriefId(null);

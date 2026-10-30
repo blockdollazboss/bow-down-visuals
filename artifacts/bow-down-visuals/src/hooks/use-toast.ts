@@ -15,12 +15,12 @@ import { isErrorCodeShape, messageForErrorCode } from "@/lib/api-error"
    Sentences pass through untouched. Non-destructive toasts are only
    touched when the string is a known code or carries an underscore —
    display copy like a promo code is never an error and never has one. */
-function toastText(value: React.ReactNode, destructive: boolean): React.ReactNode {
+function toastText<T>(value: T, destructive: boolean): T {
   if (typeof value !== "string") return value
   const s = value.trim()
   if (!isErrorCodeShape(s)) return value
   if (!destructive && !s.includes("_") && !messageForErrorCode(s)) return value
-  return messageForErrorCode(s) ?? "Something went wrong — please try again."
+  return (messageForErrorCode(s) ?? "Something went wrong — please try again.") as T
 }
 
 const TOAST_LIMIT = 1

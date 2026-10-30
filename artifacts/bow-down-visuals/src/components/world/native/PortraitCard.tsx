@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Crown, Play, Plus, Check, Loader2, ShoppingBag, Ticket } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -159,7 +160,7 @@ export function PortraitCard({
         { method: following ? "DELETE" : "POST", headers: await authHeaders() },
       );
       const d = (await res.json().catch(() => ({}))) as { follower_count?: number; error?: string };
-      if (!res.ok) throw new Error(d.error ?? "follow");
+      if (!res.ok) throw new Error(apiErrorMessage(d, "follow"));
       const next = !following;
       setFollowing(next);
       setCard((c) =>

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useState } from "react";
@@ -57,14 +58,14 @@ export default function CoverInMotionPanel() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.videoUrl) throw new Error(data.message || "Animation failed.");
+      if (!res.ok || !data.videoUrl) throw new Error(apiErrorMessage(data, "Animation failed."));
       setVideoUrl(data.videoUrl);
       /* Hub project spine (Stack 4 #2): the animated cover reports into the
          active hub project so the video desk can pick it up. */
       try { addAsset({ kind: "video", url: data.videoUrl, label: "Cover in Motion", detail: "Animated cover art" }); } catch { /* non-fatal */ }
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Animation failed.");
+      setError(plainErrorText(e, "Animation failed."));
     } finally {
       setLoading(false);
     }

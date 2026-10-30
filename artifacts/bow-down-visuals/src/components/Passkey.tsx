@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Fingerprint, Loader2, Trash2, AlertTriangle, RotateCcw } from "lucide-react";
@@ -68,7 +69,7 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
         body: JSON.stringify({}),
       });
       const options = await optRes.json();
-      if (!optRes.ok) throw new Error(options.error ?? "Failed to start");
+      if (!optRes.ok) throw new Error(apiErrorMessage(options, "Failed to start"));
 
       const credential = (await navigator.credentials.get({
         publicKey: {
@@ -92,7 +93,7 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
       });
       const result = await verifyRes.json();
       if (!verifyRes.ok || !result.success || !result.actionLink) {
-        throw new Error(result.error ?? "Verification failed");
+        throw new Error(apiErrorMessage(result, "Verification failed"));
       }
 
       // Establish a real Supabase session from the magic-link action URL.
@@ -109,7 +110,7 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
 
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Passkey login failed");
+      setError(plainErrorText(err, "Passkey login failed"));
     } finally {
       setLoading(false);
     }
@@ -158,7 +159,7 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
         body: JSON.stringify({ email }),
       });
       const options = await optRes.json();
-      if (!optRes.ok) throw new Error(options.error ?? "Failed to start");
+      if (!optRes.ok) throw new Error(apiErrorMessage(options, "Failed to start"));
 
       const credential = (await navigator.credentials.create({
         publicKey: {
@@ -198,12 +199,12 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
       });
       const result = await verifyRes.json();
       if (!verifyRes.ok || !result.success) {
-        throw new Error(result.error ?? "Registration failed");
+        throw new Error(apiErrorMessage(result, "Registration failed"));
       }
 
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(plainErrorText(err, "Registration failed"));
     } finally {
       setLoading(false);
     }

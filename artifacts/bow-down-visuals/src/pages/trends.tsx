@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import {
@@ -203,7 +204,7 @@ export default function TrendPredictor() {
         return;
       }
       if (!res.ok || !Array.isArray(data.trends) || data.trends.length === 0) {
-        throw new Error(data.message || data.error || t("trends.forecastFailedError"));
+        throw new Error(apiErrorMessage(data, t("trends.forecastFailedError")));
       }
       setForecast(data);
       refreshProfile();
@@ -211,7 +212,7 @@ export default function TrendPredictor() {
         document.getElementById("trend-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("trends.forecastFailedError"));
+      setError(plainErrorText(err, t("trends.forecastFailedError")));
     } finally {
       setLoading(false);
     }
@@ -246,12 +247,12 @@ export default function TrendPredictor() {
         return;
       }
       if (!res.ok || !Array.isArray(data.ideas) || data.ideas.length === 0) {
-        throw new Error(data.message || data.error || t("trends.ideasFailedError"));
+        throw new Error(apiErrorMessage(data, t("trends.ideasFailedError")));
       }
       setIdeas(data.ideas);
       refreshProfile();
     } catch (err) {
-      setIdeasError(err instanceof Error ? err.message : t("trends.ideasFailedError"));
+      setIdeasError(plainErrorText(err, t("trends.ideasFailedError")));
     } finally {
       setIdeasLoading(false);
     }

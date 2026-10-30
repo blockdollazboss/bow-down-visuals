@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, Sparkles, Send, CheckCircle2, Copy, Gauge } from "lucide-react";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
@@ -127,12 +128,12 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
         return;
       }
       if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
-        throw new Error(data.message || "Caption generation failed.");
+        throw new Error(apiErrorMessage(data, "Caption generation failed."));
       }
       setCaption(`${data.hooks[0]}\n\nMade with @bowdownvisuals 🔥\n#fyp #musicvideo #contentcreator #aivideo`);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Caption generation failed.");
+      setError(plainErrorText(err, "Caption generation failed."));
     } finally {
       setAiLoading(false);
     }
@@ -184,7 +185,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
         return;
       }
       if (!res.ok) {
-        throw new Error(data.message || "Couldn't send the video to TikTok.");
+        throw new Error(apiErrorMessage(data, "Couldn't send the video to TikTok."));
       }
       setDelivered(true);
       /* Confirmed success: this intent is done, so a later composer session
@@ -197,7 +198,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
       refreshProfile();
       toast({ title: "Sent to TikTok drafts", description: "Open TikTok to finish posting." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't send the video to TikTok.");
+      setError(plainErrorText(err, "Couldn't send the video to TikTok."));
     } finally {
       setUploading(false);
     }

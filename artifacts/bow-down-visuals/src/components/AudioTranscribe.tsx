@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Mic, Upload, X, FileAudio } from "lucide-react";
@@ -82,7 +83,7 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
         message?: string;
       } | null;
       if (!res.ok) {
-        throw new Error(data?.message ?? data?.error ?? "Transcription failed");
+        throw new Error(apiErrorMessage(data, "Transcription failed"));
       }
       const transcript = data?.transcript?.trim();
       if (!transcript) {

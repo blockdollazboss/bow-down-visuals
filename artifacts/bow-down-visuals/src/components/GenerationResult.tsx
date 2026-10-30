@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState, useCallback } from "react";
 import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle, AudioWaveform } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -256,7 +257,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({ error: "Save failed" }))) as { error?: string };
-        throw new Error(err.error ?? "Save failed");
+        throw new Error(apiErrorMessage(err, "Save failed"));
       }
       const saved_data = (await res.json()) as { id: string };
       setSaved(true);

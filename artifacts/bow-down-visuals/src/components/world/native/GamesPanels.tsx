@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   Suspense,
   lazy,
@@ -268,7 +269,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
           body: JSON.stringify(result),
         });
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) throw new Error(data.error ?? "save failed");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "save failed"));
         setOutcomes((prev) => ({ ...prev, [result.game]: outcomeForSavedScore(result.score, data) }));
         setBoardNonce((n) => n + 1);
         void loadMyBests();
@@ -821,10 +822,10 @@ function MarbleTablePanel({
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       const code = parseCreatedPartyRoom(data);
-      if (!res.ok || !code) throw new Error(data.error ?? "Could not open the table");
+      if (!res.ok || !code) throw new Error(apiErrorMessage(data, "Could not open the table"));
       setActiveCode(code);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Could not open the table");
+      setCreateError(plainErrorText(err, "Could not open the table"));
     } finally {
       setCreating(false);
     }

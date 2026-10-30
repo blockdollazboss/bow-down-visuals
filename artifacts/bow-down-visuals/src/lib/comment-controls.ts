@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* Creator comment controls (#27) — client for the creator-owned half of
    comment moderation: pin / hide / held-for-review / keyword blocklist.
    Endpoints (api-server routes/comment-controls + creator-platform):
@@ -100,7 +101,7 @@ export async function runCommentAction(
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const d = data as { error?: string; message?: string };
-    throw new Error(d.message ?? d.error ?? "That comment action didn't stick");
+    throw new Error(apiErrorMessage(d, "That comment action didn't stick"));
   }
   return (data as { comment: ControlledComment }).comment;
 }

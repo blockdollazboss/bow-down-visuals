@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useMemo, useRef, useState } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
@@ -176,7 +177,7 @@ export function ProToolsSection({
         toast({ title: "Out of Visual Bucs", description: "Top up to use Auto-Grade.", variant: "destructive" });
         return;
       }
-      if (!res.ok || !body.correction) throw new Error(body.error ?? "Auto-grade failed");
+      if (!res.ok || !body.correction) throw new Error(apiErrorMessage(body, "Auto-grade failed"));
       patchColor(body.correction);
       toast({
         title: "✨ Auto-Grade applied",
@@ -281,7 +282,7 @@ export function ProToolsSection({
         toast({ title: "Out of Visual Bucs", description: "Top up to use AI Slow Motion.", variant: "destructive" });
         return;
       }
-      if (!res.ok || !body.url) throw new Error(body.error ?? "Slow motion render failed");
+      if (!res.ok || !body.url) throw new Error(apiErrorMessage(body, "Slow motion render failed"));
       setSlowResult(body.url as string);
       toast({
         title: `✨ ${slowFactor}× slow-mo ready`,

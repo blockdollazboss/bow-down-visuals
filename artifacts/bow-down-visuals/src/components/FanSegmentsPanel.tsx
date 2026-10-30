@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2, Mail, Plus, Send, Trash2, Users } from "lucide-react";
@@ -128,7 +129,7 @@ export default function FanSegmentsPanel() {
     try {
       const res = await authedFetch("/api/email-list/fan-segments");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "load failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "load failed"));
       setPresets(data.presets ?? []);
       setSaved(data.saved ?? []);
       setSavedAvailable(data.savedAvailable !== false);
@@ -169,7 +170,7 @@ export default function FanSegmentsPanel() {
         body: JSON.stringify({ rules: draft }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "preview failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "preview failed"));
       setDraftPreview({ count: data.count, preview: data.preview ?? [] });
     } catch {
       setSaveNote(t("email-list.fan_seg_error"));
@@ -192,7 +193,7 @@ export default function FanSegmentsPanel() {
         setSaveNote(t("email-list.fan_seg_saved_unavailable"));
         return;
       }
-      if (!res.ok) throw new Error(data.error ?? "save failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "save failed"));
       setSegName("");
       setDraft({ ...EMPTY_RULES });
       setDraftPreview(null);
@@ -231,7 +232,7 @@ export default function FanSegmentsPanel() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "send failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "send failed"));
       const seg = data.segment as { matchedFans: number; mailable: number; notMailable: { noEmail: number; notSubscribed: number; unsubscribed: number } };
       const skipped = seg.notMailable.noEmail + seg.notMailable.notSubscribed + seg.notMailable.unsubscribed;
       const sent = (data.campaign as { deliveredCount?: number })?.deliveredCount ?? 0;
@@ -243,7 +244,7 @@ export default function FanSegmentsPanel() {
         setSendError(t("email-list.fan_seg_send_failed", { reason: data.dispatch?.reason ?? data.campaign?.status ?? "failed" }));
       }
     } catch (e) {
-      setSendError(e instanceof Error ? e.message : t("email-list.fan_seg_error"));
+      setSendError(plainErrorText(e, t("email-list.fan_seg_error")));
     } finally {
       setSending(false);
     }

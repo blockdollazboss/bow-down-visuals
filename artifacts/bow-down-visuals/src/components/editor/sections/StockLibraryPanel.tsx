@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -206,7 +207,7 @@ export function StockLibraryPanel({
       setPage(nextPage);
       setSearched(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tr("errorGenericFallback"));
+      setError(plainErrorText(err, tr("errorGenericFallback")));
       setItems([]);
     } finally {
       setLoading(false);

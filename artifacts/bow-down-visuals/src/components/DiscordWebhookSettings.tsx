@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Loader2, CheckCircle2, Trash2, Eye, EyeOff, Bell, BellOff, AlertTriangle, RotateCcw } from "lucide-react";
@@ -85,7 +86,7 @@ export function DiscordWebhookSettings() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't save.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save."));
       toast({ title: "Discord connected 🎉", description: "Your server will get the hype from /go-live." });
       setUrl("");
       await load();

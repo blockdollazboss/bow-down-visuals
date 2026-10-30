@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, Loader2, Scissors, X, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -133,7 +134,7 @@ export function BeatSyncSection({
         }),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+      setError(plainErrorText(err, t(`${ns}.errorGeneric`)));
     }
   }
 

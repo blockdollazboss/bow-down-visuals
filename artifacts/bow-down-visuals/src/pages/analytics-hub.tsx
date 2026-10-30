@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
@@ -435,10 +436,10 @@ function ConnectedAccountsTab() {
     setError(null);
     try {
       const { res, data } = await authedFetch("/api/analytics/overview");
-      if (!res.ok) throw new Error(data.message || data.error || t("analytics.errorLoadStats"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("analytics.errorLoadStats")));
       setOverview(data as ConnOverviewResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("analytics.errorLoadStats"));
+      setError(plainErrorText(err, t("analytics.errorLoadStats")));
     } finally {
       setLoading(false);
     }
@@ -502,12 +503,12 @@ function ConnectedAccountsTab() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.insights) throw new Error(data.message || t("analytics.errorInsightsFailed"));
+      if (!res.ok || !data.insights) throw new Error(apiErrorMessage(data, t("analytics.errorInsightsFailed")));
       setInsights(data.insights as ConnInsights);
       refreshProfile();
       setTimeout(() => document.getElementById("ai-insights")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : t("analytics.errorInsightsFailed"));
+      setAiError(plainErrorText(err, t("analytics.errorInsightsFailed")));
     } finally {
       setInsightsLoading(false);
     }
@@ -533,12 +534,12 @@ function ConnectedAccountsTab() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !Array.isArray(data.suggestions)) throw new Error(data.message || t("analytics.errorSuggestionsFailed"));
+      if (!res.ok || !Array.isArray(data.suggestions)) throw new Error(apiErrorMessage(data, t("analytics.errorSuggestionsFailed")));
       setSuggestions(data.suggestions as ConnSuggestion[]);
       refreshProfile();
       setTimeout(() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : t("analytics.errorSuggestionsFailed"));
+      setAiError(plainErrorText(err, t("analytics.errorSuggestionsFailed")));
     } finally {
       setSuggestionsLoading(false);
     }
@@ -1097,7 +1098,7 @@ export default function AnalyticsHub() {
       const data = (await res.json().catch(() => ({}))) as InsightsResult;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.summary || !Array.isArray(data.recommendations) || data.recommendations.length === 0) {
-        throw new Error(data.message || data.error || t("analyticsHub.errorGrowthPlanFailed"));
+        throw new Error(apiErrorMessage(data, t("analyticsHub.errorGrowthPlanFailed")));
       }
       setInsights(data);
       refreshProfile();
@@ -1105,7 +1106,7 @@ export default function AnalyticsHub() {
         document.getElementById("insights-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("analyticsHub.errorGrowthPlanFailed"));
+      setError(plainErrorText(err, t("analyticsHub.errorGrowthPlanFailed")));
     } finally {
       setInsightsLoading(false);
     }
@@ -1149,7 +1150,7 @@ export default function AnalyticsHub() {
         !Array.isArray(data.opportunities) ||
         data.opportunities.length === 0
       ) {
-        throw new Error(data.message || data.error || t("analyticsHub.competitor.errorFailed"));
+        throw new Error(apiErrorMessage(data, t("analyticsHub.competitor.errorFailed")));
       }
       setCompResult(data);
       refreshProfile();
@@ -1157,7 +1158,7 @@ export default function AnalyticsHub() {
         document.getElementById("competitor-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setCompError(err instanceof Error ? err.message : t("analyticsHub.competitor.errorFailed"));
+      setCompError(plainErrorText(err, t("analyticsHub.competitor.errorFailed")));
     } finally {
       setCompLoading(false);
     }
@@ -1221,13 +1222,9 @@ export default function AnalyticsHub() {
       const data = (await res.json().catch(() => ({}))) as CoachResult;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || (!data.insights && !Array.isArray(data.patterns))) {
-        throw new Error(
-          data.message ||
-            data.error ||
-            t("analyticsHub.aiCoach.errorFailed", {
+        throw new Error(apiErrorMessage(data, t("analyticsHub.aiCoach.errorFailed", {
               defaultValue: "The coach couldn't read your numbers. Try again.",
-            })
-        );
+            })));
       }
       setCoachResult(data);
       refreshProfile();

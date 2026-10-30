@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   API_ERROR_CODE_MESSAGES,
   apiErrorMessage,
+  apiThrowMessage,
   isErrorCodeShape,
   messageForErrorCode,
   plainErrorText,
@@ -97,6 +98,21 @@ describe("api-error — the Gate #3 law: a raw server code never renders", () =>
     expect(isErrorCodeShape("Failed")).toBe(false); /* lone word, not a known code */
     expect(isErrorCodeShape("Something went wrong.")).toBe(false);
     expect(isErrorCodeShape("")).toBe(false);
+  });
+
+  it("apiThrowMessage preserves the out_of_credits signal protocol exactly", () => {
+    /* The door-opening literal survives for 402 / out_of_credits bodies… */
+    expect(apiThrowMessage({ error: "out_of_credits" }, FALLBACK)).toBe("out_of_credits");
+    expect(apiThrowMessage({ error: "out_of_credits", message: "Not enough Visual Bucs." }, FALLBACK)).toBe(
+      "out_of_credits",
+    );
+    expect(apiThrowMessage({}, FALLBACK, 402)).toBe("out_of_credits");
+    /* …and every other failure throws plain words, never a code. */
+    expect(apiThrowMessage({ error: "credits_disabled" }, FALLBACK)).toBe(
+      API_ERROR_CODE_MESSAGES.credits_disabled,
+    );
+    expect(apiThrowMessage({ error: "generation_failed" }, FALLBACK)).toContain("didn't finish");
+    expect(apiThrowMessage(null, FALLBACK)).toBe(FALLBACK);
   });
 
   it("non-object bodies degrade to the fallback", () => {

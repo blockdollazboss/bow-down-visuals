@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import {
   Loader2, Gauge, ListMusic, Sparkles, Download, Trash2,
@@ -131,7 +132,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
       const headers = await authHeaders();
       const libRes = await fetch("/api/dj/library", { headers });
       const lib = (await libRes.json()) as { tracks?: DjLibraryTrack[]; error?: string };
-      if (!libRes.ok) throw new Error(lib.error || t("djSets.errorLoad"));
+      if (!libRes.ok) throw new Error(apiErrorMessage(lib, t("djSets.errorLoad")));
       setTracks(lib.tracks ?? []);
       setLibError(false);
       return true;
@@ -146,7 +147,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
       const headers = await authHeaders();
       const crateRes = await fetch("/api/dj/crates", { headers });
       const cr = (await crateRes.json()) as { crates?: DjCrate[]; error?: string };
-      if (!crateRes.ok) throw new Error(cr.error || t("djSets.errorLoad"));
+      if (!crateRes.ok) throw new Error(apiErrorMessage(cr, t("djSets.errorLoad")));
       setCrates(cr.crates ?? []);
       setSelectedCrateId((prev) => prev ?? (cr.crates ?? [])[0]?.id ?? null);
       setCratesError(false);
@@ -183,7 +184,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
         results?: Array<{ songId: string; status: string; analysis?: DjAnalysis; error?: string }>;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || t("djSets.errorAnalyze"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("djSets.errorAnalyze")));
       const byId = new Map((data.results ?? []).map((r) => [r.songId, r]));
       setTracks((prev) =>
         prev.map((tr) => {
@@ -206,7 +207,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
         setCrates(cr.crates ?? []);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorAnalyze"));
+      setError(plainErrorText(e, t("djSets.errorAnalyze")));
     } finally {
       setAnalyzing((prev) => {
         const next = new Set(prev);
@@ -228,12 +229,12 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
         body: JSON.stringify({ name }),
       });
       const data = (await res.json()) as { crate?: DjCrate; error?: string };
-      if (!res.ok || !data.crate) throw new Error(data.error || t("djSets.errorSave"));
+      if (!res.ok || !data.crate) throw new Error(apiErrorMessage(data, t("djSets.errorSave")));
       setCrates((prev) => [data.crate!, ...prev]);
       setSelectedCrateId(data.crate.id);
       setNewCrateName("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorSave"));
+      setError(plainErrorText(e, t("djSets.errorSave")));
     } finally {
       setCreatingCrate(false);
     }
@@ -250,11 +251,11 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
         body: JSON.stringify(body),
       });
       const data = (await res.json()) as { crate?: DjCrate; error?: string };
-      if (!res.ok || !data.crate) throw new Error(data.error || t("djSets.errorSave"));
+      if (!res.ok || !data.crate) throw new Error(apiErrorMessage(data, t("djSets.errorSave")));
       setCrates((prev) => prev.map((c) => (c.id === crateId ? data.crate! : c)));
       return data.crate;
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorSave"));
+      setError(plainErrorText(e, t("djSets.errorSave")));
       return null;
     } finally {
       setSaving(false);
@@ -271,10 +272,10 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
         headers: await authHeaders(),
       });
       const data = (await res.json()) as { proposal?: SetProposal; error?: string };
-      if (!res.ok || !data.proposal) throw new Error(data.error || t("djSets.errorSave"));
+      if (!res.ok || !data.proposal) throw new Error(apiErrorMessage(data, t("djSets.errorSave")));
       setDraft({ crateId: selectedCrate.id, proposal: data.proposal });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorSave"));
+      setError(plainErrorText(e, t("djSets.errorSave")));
     } finally {
       setProposing(false);
     }
@@ -299,7 +300,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
       setSelectedCrateId(null);
       setDraft(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorSave"));
+      setError(plainErrorText(e, t("djSets.errorSave")));
     }
   }
 
@@ -313,7 +314,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t("djSets.errorSave"));
+        throw new Error(apiErrorMessage(data, t("djSets.errorSave")));
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";
@@ -328,7 +329,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("djSets.errorSave"));
+      setError(plainErrorText(e, t("djSets.errorSave")));
     } finally {
       setExporting(null);
     }

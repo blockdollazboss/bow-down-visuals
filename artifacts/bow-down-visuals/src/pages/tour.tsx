@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -168,12 +169,12 @@ export default function Tour() {
         date?: TourDate;
       } & ApiError;
       if (!res.ok || !data.date) {
-        throw new Error(data.message || data.error || t("tour.saveFailed"));
+        throw new Error(apiErrorMessage(data, t("tour.saveFailed")));
       }
       resetForm();
       await fetchDates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("tour.saveFailed"));
+      setError(plainErrorText(err, t("tour.saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -190,14 +191,14 @@ export default function Tour() {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as ApiError;
-        throw new Error(data.message || data.error || t("tour.deleteFailed"));
+        throw new Error(apiErrorMessage(data, t("tour.deleteFailed")));
       }
       setDates((prev) => prev.filter((d) => d.id !== id));
       /* Invalidate the cached plan — its stops may reference a deleted date. */
       setPlan(null);
       clearTourPlan();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("tour.deleteFailed"));
+      setError(plainErrorText(err, t("tour.deleteFailed")));
     } finally {
       setDeletingId(null);
     }
@@ -241,7 +242,7 @@ export default function Tour() {
         return;
       }
       if (!res.ok || !Array.isArray(data.stops) || !data.budget) {
-        throw new Error(data.message || data.error || t("tour.optimizeFailed"));
+        throw new Error(apiErrorMessage(data, t("tour.optimizeFailed")));
       }
       const newPlan: TourPlan = {
         stops: data.stops as OptimizedStop[],
@@ -256,7 +257,7 @@ export default function Tour() {
         document.getElementById("tour-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("tour.optimizeFailed"));
+      setError(plainErrorText(err, t("tour.optimizeFailed")));
     } finally {
       setOptimizing(false);
     }

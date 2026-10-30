@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -151,13 +152,13 @@ export default function ContentIdMonitor() {
     const loadOptins = async (): Promise<Optin[]> => {
       const res = await authed("/api/content-id/optins");
       const data = (await res.json().catch(() => ({}))) as { optins?: Optin[]; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load your opt-ins.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load your opt-ins."));
       return Array.isArray(data.optins) ? data.optins : [];
     };
     const loadDetections = async (): Promise<Detection[]> => {
       const res = await authed("/api/content-id/detections");
       const data = (await res.json().catch(() => ({}))) as { detections?: Detection[]; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "Couldn't load your detections.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load your detections."));
       return Array.isArray(data.detections) ? data.detections : [];
     };
     try {
@@ -211,14 +212,14 @@ export default function ContentIdMonitor() {
       });
       const data = (await res.json().catch(() => ({}))) as { optin?: Optin; error?: string; message?: string };
       if (!res.ok || !data.optin) {
-        throw new Error(data.message || data.error || "Couldn't opt the track in.");
+        throw new Error(apiErrorMessage(data, "Couldn't opt the track in."));
       }
       setOptins((prev) => [data.optin!, ...prev]);
       setTitle("");
       setArtist("");
       setReleaseId("");
     } catch (err) {
-      setOptinError(err instanceof Error ? err.message : "Couldn't opt the track in.");
+      setOptinError(plainErrorText(err, "Couldn't opt the track in."));
     } finally {
       setOptinSaving(false);
     }
@@ -232,10 +233,10 @@ export default function ContentIdMonitor() {
         body: JSON.stringify({ opted_in: optedIn }),
       });
       const data = (await res.json().catch(() => ({}))) as { optin?: Optin; error?: string; message?: string };
-      if (!res.ok || !data.optin) throw new Error(data.message || data.error || "Couldn't update the opt-in.");
+      if (!res.ok || !data.optin) throw new Error(apiErrorMessage(data, "Couldn't update the opt-in."));
       setOptins((prev) => prev.map((x) => (x.id === o.id ? data.optin! : x)));
     } catch (err) {
-      setClaimError(err instanceof Error ? err.message : "Couldn't update the opt-in.");
+      setClaimError(plainErrorText(err, "Couldn't update the opt-in."));
     }
   }
 
@@ -246,11 +247,11 @@ export default function ContentIdMonitor() {
       const res = await authed(`/api/content-id/optins/${o.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        throw new Error(data.message || data.error || "Couldn't remove the opt-in.");
+        throw new Error(apiErrorMessage(data, "Couldn't remove the opt-in."));
       }
       setOptins((prev) => prev.filter((x) => x.id !== o.id));
     } catch (err) {
-      setClaimError(err instanceof Error ? err.message : "Couldn't remove the opt-in.");
+      setClaimError(plainErrorText(err, "Couldn't remove the opt-in."));
     }
   }
 
@@ -263,9 +264,9 @@ export default function ContentIdMonitor() {
       const res = await authed(`/api/content-id/claim/${o.id}`, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       // 409 is the EXPECTED honest outcome — surface it, never pretend success.
-      setClaimError(data.message || data.error || "Claims can't be filed yet.");
+      setClaimError(apiErrorMessage(data, "Claims can't be filed yet."));
     } catch (err) {
-      setClaimError(err instanceof Error ? err.message : "Couldn't reach the claim endpoint.");
+      setClaimError(plainErrorText(err, "Couldn't reach the claim endpoint."));
     } finally {
       setClaimBusyId(null);
     }
@@ -293,7 +294,7 @@ export default function ContentIdMonitor() {
       });
       const data = (await res.json().catch(() => ({}))) as { detection?: Detection; error?: string; message?: string };
       if (!res.ok || !data.detection) {
-        throw new Error(data.message || data.error || "Couldn't log the detected use.");
+        throw new Error(apiErrorMessage(data, "Couldn't log the detected use."));
       }
       setDetections((prev) => [data.detection!, ...prev]);
       setDetChannel("");
@@ -303,7 +304,7 @@ export default function ContentIdMonitor() {
       setDetOptinId("");
       setShowDetForm(false);
     } catch (err) {
-      setDetError(err instanceof Error ? err.message : "Couldn't log the detected use.");
+      setDetError(plainErrorText(err, "Couldn't log the detected use."));
     } finally {
       setDetSaving(false);
     }
@@ -318,7 +319,7 @@ export default function ContentIdMonitor() {
         body: JSON.stringify({ status: next }),
       });
       const data = (await res.json().catch(() => ({}))) as { detection?: Detection; error?: string; message?: string };
-      if (!res.ok || !data.detection) throw new Error(data.message || data.error || "Couldn't update the detection.");
+      if (!res.ok || !data.detection) throw new Error(apiErrorMessage(data, "Couldn't update the detection."));
       setDetections((prev) => prev.map((x) => (x.id === d.id ? data.detection! : x)));
     } catch {
       /* non-fatal — list stays as-is */
@@ -363,14 +364,14 @@ export default function ContentIdMonitor() {
       });
       const data = (await res.json().catch(() => ({}))) as { entry?: unknown; error?: string; message?: string };
       if (!res.ok || !data.entry) {
-        throw new Error(data.message || data.error || "Couldn't log the income.");
+        throw new Error(apiErrorMessage(data, "Couldn't log the income."));
       }
       setRevAmount("");
       setRevNote("");
       setRevOk(true);
       setShowRevForm(false);
     } catch (err) {
-      setRevError(err instanceof Error ? err.message : "Couldn't log the income.");
+      setRevError(plainErrorText(err, "Couldn't log the income."));
     } finally {
       setRevSaving(false);
     }

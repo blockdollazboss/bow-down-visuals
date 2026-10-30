@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Loader2, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -133,12 +134,12 @@ export default function ProductReviews({
             }),
           });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "Your review couldn't be saved.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Your review couldn't be saved."));
       setSavedTick(true);
       setTimeout(() => setSavedTick(false), 3000);
       await Promise.all([loadReviews(), loadEligibility()]);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Your review couldn't be saved.");
+      setFormError(plainErrorText(err, "Your review couldn't be saved."));
     } finally {
       setSaving(false);
     }

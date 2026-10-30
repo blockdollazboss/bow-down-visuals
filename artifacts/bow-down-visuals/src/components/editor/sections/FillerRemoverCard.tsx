@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -246,7 +247,7 @@ export function FillerRemoverCard({
       setPhase("analyzing");
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("fillerRemover.errorAnalyze"));
+      setError(plainErrorText(err, t("fillerRemover.errorAnalyze")));
     }
   }
 
@@ -273,7 +274,7 @@ export function FillerRemoverCard({
       setRenderStage("queued");
       setPhase("rendering");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("fillerRemover.errorRender"));
+      setError(plainErrorText(err, t("fillerRemover.errorRender")));
     }
   }
 

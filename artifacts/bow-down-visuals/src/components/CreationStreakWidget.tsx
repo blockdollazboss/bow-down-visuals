@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Flame, ChevronDown, X, Check, Loader2 } from "lucide-react";
@@ -83,7 +84,7 @@ export default function CreationStreakWidget({
         onBalanceChange?.();
         await load();
       } else {
-        setToast(body.error ?? t("retention.claim_failed"));
+        setToast(apiErrorMessage(body, t("retention.claim_failed")));
       }
     } catch {
       setToast(t("retention.claim_failed"));

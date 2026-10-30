@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Globe, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,7 +67,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
       setHostname("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't claim it — try again.");
+      setError(plainErrorText(e, "Couldn't claim it — try again."));
     } finally { setClaiming(false); }
   };
 

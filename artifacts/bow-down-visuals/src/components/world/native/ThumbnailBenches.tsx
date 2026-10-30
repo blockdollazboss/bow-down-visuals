@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -182,7 +183,7 @@ export function ThumbnailBenches({
           void quest.checkAfter();
           return;
         }
-        throw new Error(data.error ?? "Thumbnail generation failed.");
+        throw new Error(apiErrorMessage(data, "Thumbnail generation failed."));
       }
       const parsed = thumbnailImagesOfResponse(data);
       if (parsed.length === 0) throw new Error("The maker came back without images — nothing to pick from.");
@@ -202,7 +203,7 @@ export function ThumbnailBenches({
          retry. A re-run's failure never clears a bench that already
          holds real images. */
       if (!landedThisRun && images.length === 0) setFailedCount(THUMBNAIL_BATCH_SIZE);
-      setError(err instanceof Error ? err.message : "Thumbnail generation failed.");
+      setError(plainErrorText(err, "Thumbnail generation failed."));
     } finally {
       setBusy(null);
     }
@@ -220,12 +221,12 @@ export function ThumbnailBenches({
         body: JSON.stringify(buildThumbnailVariantsPayload({ sourceImageUrl: selectedUrl, title: overlayText || prompt, niche: stylePreset })),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Variant generation failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Variant generation failed."));
       setVariants(thumbnailVariantsOfResponse(data));
       setVariantsSource(selectedUrl);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Variant generation failed.");
+      setError(plainErrorText(err, "Variant generation failed."));
     } finally {
       setBusy(null);
     }
@@ -259,14 +260,14 @@ export function ThumbnailBenches({
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? "The prediction didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The prediction didn't land."));
       const parsed = ctrPredictionOfResponse(data);
       if (!parsed) throw new Error("The prediction came back unreadable — nothing was concluded.");
       setCtr(parsed);
       setImprovedUrls({});
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "CTR prediction failed.");
+      setError(plainErrorText(err, "CTR prediction failed."));
     } finally {
       setBusy(null);
     }
@@ -298,14 +299,14 @@ export function ThumbnailBenches({
         setError("You're out of Visual Bucs — top up to generate improved thumbnails.");
         return;
       }
-      if (!res.ok) throw new Error(data.message ?? data.error ?? "The improved version didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The improved version didn't land."));
       const url = thumbnailImprovedUrlOfResponse(data);
       if (!url) throw new Error("The improved version came back without an image.");
       setImprovedUrls((prev) => ({ ...prev, [index]: url }));
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The improved version didn't land.");
+      setError(plainErrorText(err, "The improved version didn't land."));
     } finally {
       setImproving(null);
     }

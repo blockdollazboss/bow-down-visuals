@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Copy, Link2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -113,7 +114,7 @@ export function FanLinksPanel() {
       setContentId("");
       await load();
     } catch (err) {
-      setMintMsg(err instanceof Error ? err.message : "Could not mint your link — try again.");
+      setMintMsg(plainErrorText(err, "Could not mint your link — try again."));
     } finally {
       setMinting(false);
     }

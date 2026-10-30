@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect } from "react";
 import {
   ShieldAlert, MessageSquareHeart, BarChart3, Star, Loader2, Sparkles,
@@ -182,7 +183,7 @@ function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string;
         return;
       }
       if (!res.ok || !Array.isArray(data.replies) || data.replies.length !== comments.length) {
-        throw new Error(data.message || data.error || t("commentReplies.errorGenerateFailed"));
+        throw new Error(apiErrorMessage(data, t("commentReplies.errorGenerateFailed")));
       }
       setResults({ comments, replies: data.replies });
       setEditedReplies([...data.replies]);
@@ -192,7 +193,7 @@ function RepliesTab({ commentsText, onRestoreComments }: { commentsText: string;
         document.getElementById("replies-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("commentReplies.errorGenerateFailed"));
+      setError(plainErrorText(err, t("commentReplies.errorGenerateFailed")));
     } finally {
       setLoading(false);
     }
@@ -523,7 +524,7 @@ export default function CommunityManager() {
       setModeratedCount((data.reviewed as number) ?? comments.length);
       setReviewed([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Moderation failed.");
+      setError(plainErrorText(err, "Moderation failed."));
     } finally {
       setLoading(false);
     }
@@ -538,7 +539,7 @@ export default function CommunityManager() {
       if (!data) return;
       setSentiment((data.report as SentimentReport) ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sentiment analysis failed.");
+      setError(plainErrorText(err, "Sentiment analysis failed."));
     } finally {
       setLoading(false);
     }
@@ -553,7 +554,7 @@ export default function CommunityManager() {
       if (!data) return;
       setSuperfans((data.superfans as Superfan[]) ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Superfan scan failed.");
+      setError(plainErrorText(err, "Superfan scan failed."));
     } finally {
       setLoading(false);
     }

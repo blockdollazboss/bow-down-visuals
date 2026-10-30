@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -34,11 +35,11 @@ export function useFileUpload() {
           message?: string;
         };
         if (!res.ok || !data.url) {
-          throw new Error(data.message || data.error || `Upload failed (${res.status}).`);
+          throw new Error(apiErrorMessage(data, `Upload failed (${res.status}).`));
         }
         return data.url;
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Upload failed.");
+        setError(plainErrorText(e, "Upload failed."));
         return null;
       } finally {
         setUploading(false);

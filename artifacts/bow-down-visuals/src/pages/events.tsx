@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -74,7 +75,7 @@ export default function Events() {
       setForm({ title: "", description: "", starts_at: "", kind: "stream", destination_url: "", ticket_url: "" });
       await load();
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "Couldn't create the event.");
+      setCreateError(plainErrorText(e, "Couldn't create the event."));
     } finally { setCreating(false); }
   }
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Check, Clapperboard, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -143,7 +144,7 @@ export function StoryboardBench(props: {
       setStructure((await res.json()) as SongStructure);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Section analysis failed.");
+      setError(plainErrorText(err, "Section analysis failed."));
     } finally {
       setBusy(null);
     }
@@ -166,7 +167,7 @@ export function StoryboardBench(props: {
       setScenes(flow.scenes);
       props.onScenesReady?.(flow.scenes);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Scenes from your song didn't land.");
+      setError(plainErrorText(err, "Scenes from your song didn't land."));
     } finally {
       setBusy(null);
     }
@@ -187,7 +188,7 @@ export function StoryboardBench(props: {
       props.onScenesReady?.(parsed);
       if (result.creditsRemaining !== undefined) refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Scene building failed.");
+      setError(plainErrorText(err, "Scene building failed."));
     } finally {
       setBusy(null);
     }
@@ -216,7 +217,7 @@ export function StoryboardBench(props: {
           return;
         }
         const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
-        if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The clip make didn't start.");
+        if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The clip make didn't start."));
         const taskId = data.taskId;
         pollRef.current = setInterval(async () => {
           try {
@@ -227,7 +228,7 @@ export function StoryboardBench(props: {
               if (pollRef.current) clearInterval(pollRef.current);
               setClipBusy(null);
               if (read.failed || !read.url) {
-                setError(read.error ?? "Clip generation failed.");
+                setError(apiErrorMessage(read, "Clip generation failed."));
               } else {
                 setScenes((prev) => withSceneClip(prev, scene.id, read.url!));
                 refreshProfile();
@@ -253,7 +254,7 @@ export function StoryboardBench(props: {
         }, 5000);
       } catch (err) {
         setClipBusy(null);
-        setError(err instanceof Error ? err.message : "Clip generation failed.");
+        setError(plainErrorText(err, "Clip generation failed."));
       }
     })();
   };
@@ -283,7 +284,7 @@ export function StoryboardBench(props: {
       setSavedProject(true);
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Saving the project failed.");
+      setError(plainErrorText(err, "Saving the project failed."));
     } finally {
       setBusy(null);
     }

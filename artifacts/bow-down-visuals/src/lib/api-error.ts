@@ -303,3 +303,25 @@ export function plainErrorText(value: unknown, fallback: string): string {
   if (!isErrorCodeShape(s)) return s;
   return messageForErrorCode(s) ?? fallback;
 }
+
+/**
+ * The message for an Error thrown at a site whose catches speak the
+ * out-of-credits signal protocol: across the app, catches compare the
+ * thrown message to the literal "out_of_credits" to open the top-up
+ * door (the `handleApiError` / `msg === "out_of_credits"` idiom). For a
+ * 402 / out_of_credits body this returns exactly that literal, so the
+ * door keeps working; every other failure returns the plain words from
+ * `apiErrorMessage`. The signal is internal — any catch that renders
+ * the message without branching on it must pass it through
+ * `plainErrorText` first.
+ */
+export function apiThrowMessage(body: unknown, fallback: string, status?: number): string {
+  if (status === 402) return "out_of_credits";
+  if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    if (record.error === "out_of_credits" || record.code === "out_of_credits") {
+      return "out_of_credits";
+    }
+  }
+  return apiErrorMessage(body, fallback);
+}

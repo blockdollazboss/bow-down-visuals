@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,7 +83,7 @@ export default function TeamPage() {
       },
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
     return data;
   }
 
@@ -113,7 +114,7 @@ export default function TeamPage() {
         setSpending([]);
       }
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("team.errorLoad"));
+      setMsg(plainErrorText(e, t("team.errorLoad")));
       return false;
     } finally {
       setLoading(false);

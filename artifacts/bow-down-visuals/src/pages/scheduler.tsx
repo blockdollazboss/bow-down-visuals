@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1264,7 +1265,7 @@ function CommunityPostsTab(props: {
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code === "out_of_credits") props.onOutOfCredits();
-      else setError(err instanceof Error ? err.message : t("scheduler.communityPosts.failed"));
+      else setError(plainErrorText(err, t("scheduler.communityPosts.failed")));
     } finally {
       setLoading(false);
     }
@@ -1517,7 +1518,7 @@ function BestTimeOptimizer(props: {
       setResult(data as unknown as BestTimeResult);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("scheduler.bestTime.failed"));
+      setError(plainErrorText(err, t("scheduler.bestTime.failed")));
     } finally {
       setLoading(false);
     }
@@ -2037,7 +2038,7 @@ function ComposerModal(props: {
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; ref?: string; error?: string; message?: string };
-      if (!res.ok || !data.ref) throw new Error(data.message || data.error || t("scheduler.error.uploadFailed"));
+      if (!res.ok || !data.ref) throw new Error(apiErrorMessage(data, t("scheduler.error.uploadFailed")));
       /* Persist the stable storage ref (never expires); preview with the signed URL. */
       setMediaRef(data.ref);
       setPreviewUrl(data.url ?? "");
@@ -2046,7 +2047,7 @@ function ComposerModal(props: {
       setProvenanceAssetId(null);
       toast({ title: t("scheduler.toast.videoUploaded"), description: t("scheduler.toast.readyToSchedule") });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("scheduler.error.uploadFailed"));
+      setError(plainErrorText(err, t("scheduler.error.uploadFailed")));
     } finally {
       setUploading(false);
     }
@@ -2076,7 +2077,7 @@ function ComposerModal(props: {
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code === "out_of_credits") props.onOutOfCredits();
-      else setError(err instanceof Error ? err.message : t("scheduler.toast.aiCaptionFailed"));
+      else setError(plainErrorText(err, t("scheduler.toast.aiCaptionFailed")));
     } finally {
       setAiCaptionLoading(false);
     }
@@ -2149,7 +2150,7 @@ function ComposerModal(props: {
         props.onOutOfCredits();
         setError(t("scheduler.toast.notEnoughCredits"));
       } else {
-        setError(err instanceof Error ? err.message : t("scheduler.toast.couldntSave"));
+        setError(plainErrorText(err, t("scheduler.toast.couldntSave")));
       }
     } finally {
       setSaving(false);
@@ -2453,7 +2454,7 @@ function ComposerModal(props: {
               getAccessToken()
                 .then((token) => api(`/api/scheduler/posts/${post!.id}`, token, { method: "PATCH", body: JSON.stringify({ scheduledAt: null }) }))
                 .then(() => props.onSaved())
-                .catch((err: unknown) => { setError(err instanceof Error ? err.message : t("scheduler.toast.couldntUnschedule")); setSaving(false); });
+                .catch((err: unknown) => { setError(plainErrorText(err, t("scheduler.toast.couldntUnschedule"))); setSaving(false); });
             }}
             className="mt-3 text-[13px] font-semibold text-white/45 underline-offset-2 hover:text-white hover:underline"
           >

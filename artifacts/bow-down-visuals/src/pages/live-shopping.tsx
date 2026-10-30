@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -273,12 +274,12 @@ export default function LiveShopping() {
         : await fetch("/api/live-shopping/products", { method: "POST", headers, body: JSON.stringify(body) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? t("liveShopping.errSaveProduct"));
+        throw new Error(apiErrorMessage(data, t("liveShopping.errSaveProduct")));
       }
       resetForm();
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errSaveProduct"));
+      setError(plainErrorText(e, t("liveShopping.errSaveProduct")));
     } finally {
       setSaving(false);
     }
@@ -292,7 +293,7 @@ export default function LiveShopping() {
       if (!res.ok) throw new Error(t("liveShopping.errDeleteProduct"));
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errDeleteProduct"));
+      setError(plainErrorText(e, t("liveShopping.errDeleteProduct")));
     }
   };
 
@@ -317,13 +318,13 @@ export default function LiveShopping() {
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? t("liveShopping.errAiDescription"));
+        throw new Error(apiErrorMessage(data, t("liveShopping.errAiDescription")));
       }
       const data = await res.json();
       setDescription(data.description ?? "");
       refreshProfile?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errAiDescription"));
+      setError(plainErrorText(e, t("liveShopping.errAiDescription")));
     } finally {
       setAiDesc(false);
     }
@@ -348,7 +349,7 @@ export default function LiveShopping() {
       setOverlayKey((k) => k + 1);
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errStartStream"));
+      setError(plainErrorText(e, t("liveShopping.errStartStream")));
     }
   };
 
@@ -365,7 +366,7 @@ export default function LiveShopping() {
       setAlerts([]);
       await loadAll();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errEndStream"));
+      setError(plainErrorText(e, t("liveShopping.errEndStream")));
     }
   };
 
@@ -382,7 +383,7 @@ export default function LiveShopping() {
       const data = await res.json();
       setActiveStream(data.stream);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errPin"));
+      setError(plainErrorText(e, t("liveShopping.errPin")));
     }
   };
 
@@ -408,7 +409,7 @@ export default function LiveShopping() {
       });
       setOverlayKey((k) => k + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("liveShopping.errFireAlert"));
+      setError(plainErrorText(e, t("liveShopping.errFireAlert")));
     }
   };
 
@@ -431,10 +432,10 @@ export default function LiveShopping() {
         body: JSON.stringify({ product_id: pinned.id, stream_id: activeStream?.id, quantity: 1 }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Checkout failed."));
       window.location.href = data.url as string;
     } catch (e) {
-      setBuyMsg(e instanceof Error ? e.message : "Checkout failed.");
+      setBuyMsg(plainErrorText(e, "Checkout failed."));
       setBuying(false);
     }
   };

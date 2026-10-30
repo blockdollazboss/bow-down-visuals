@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -293,7 +294,7 @@ export default function Beats() {
       });
       const data = await res.json() as { beat?: Beat; error?: string };
       if (!res.ok) {
-        setListMsg(data.error ?? t("beats.errorListingFailed"));
+        setListMsg(apiErrorMessage(data, t("beats.errorListingFailed")));
         setListOk(false);
       } else {
         setListMsg(t("beats.listingLive", { title: data.beat?.title ?? "" }));
@@ -352,7 +353,7 @@ export default function Beats() {
       });
       const data = await res.json() as { message?: string; error?: string; checkoutUrl?: string };
       if (!res.ok) {
-        setLicenseMsg(data.error ?? t("beats.errorLicenseFailed"));
+        setLicenseMsg(apiErrorMessage(data, t("beats.errorLicenseFailed")));
         setLicensing(false);
         return;
       }
@@ -370,7 +371,7 @@ export default function Beats() {
         window.location.href = data.checkoutUrl;
         return;
       }
-      setLicenseMsg(data.message ?? t("beats.licenseReserved"));
+      setLicenseMsg(apiErrorMessage(data, t("beats.licenseReserved")));
     } catch {
       setLicenseMsg(t("beats.errorLicenseRetry"));
     }
@@ -1027,7 +1028,7 @@ function LicenseTemplatesSection() {
       );
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setFormError(data.error ?? t("beats.templateSaveFailed", { defaultValue: "Couldn't save that template — check the fields and try again." }));
+        setFormError(apiErrorMessage(data, t("beats.templateSaveFailed", { defaultValue: "Couldn't save that template — check the fields and try again." })));
         return;
       }
       setForm(null);

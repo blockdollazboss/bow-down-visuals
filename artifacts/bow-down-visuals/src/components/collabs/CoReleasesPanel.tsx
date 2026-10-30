@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Disc3, Loader2, Package, Send, Undo2, XCircle } from "lucide-react";
 import {
@@ -149,7 +150,7 @@ export function CoReleasesPanel({
       setCreateMsg("Co-release drafted — it's waiting on your collaborator to approve the split and the release. It goes live on both profiles only when they approve.");
       load();
     } catch (err) {
-      setCreateMsg(err instanceof Error ? err.message : "Couldn't create that co-release.");
+      setCreateMsg(plainErrorText(err, "Couldn't create that co-release."));
     } finally {
       setCreating(false);
     }
@@ -168,7 +169,7 @@ export function CoReleasesPanel({
       if (!res.ok) throw new Error((data.message as string) || "That action isn't available.");
       load();
     } catch (err) {
-      setCreateMsg(err instanceof Error ? err.message : "Couldn't do that.");
+      setCreateMsg(plainErrorText(err, "Couldn't do that."));
     } finally {
       setActingId(null);
     }

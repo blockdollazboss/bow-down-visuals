@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   BookOpen, Loader2, AlertTriangle, CheckCircle2, Flag, FileText, Pencil, Plus, Trash2, X,
@@ -80,10 +81,10 @@ export default function PublishingSplitsPanel() {
       const res = await confirmedFetch(PUBLISHING_SPLITS_MINE_PATH, { skipConfirm: true });
       if (!res) return;
       const json = (await res.json().catch(() => ({}))) as MineData & { error?: string };
-      if (!res.ok) throw new Error(json.error || "Couldn't load the publishing splits registry.");
+      if (!res.ok) throw new Error(apiErrorMessage(json, "Couldn't load the publishing splits registry."));
       setData(json);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load the publishing splits registry.");
+      setError(plainErrorText(err, "Couldn't load the publishing splits registry."));
     } finally {
       setLoading(false);
     }
@@ -160,12 +161,12 @@ export default function PublishingSplitsPanel() {
       });
       if (!res) return;
       const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(json.message || json.error || "Couldn't save the registration.");
+      if (!res.ok) throw new Error(apiErrorMessage(json, "Couldn't save the registration."));
       setShowForm(false);
       setAmendId(null);
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't save the registration.");
+      setFormError(plainErrorText(err, "Couldn't save the registration."));
     } finally {
       setSaving(false);
     }
@@ -183,10 +184,10 @@ export default function PublishingSplitsPanel() {
       });
       if (!res) return;
       const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(json.message || json.error || `Couldn't ${action} the share.`);
+      if (!res.ok) throw new Error(apiErrorMessage(json, `Couldn't ${action} the share.`));
       await load();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : `Couldn't ${action} the share.`);
+      setActionError(plainErrorText(err, `Couldn't ${action} the share.`));
     } finally {
       setBusyId(null);
     }
@@ -199,10 +200,10 @@ export default function PublishingSplitsPanel() {
       const res = await confirmedFetch(publishingSheetPath(item.id), { skipConfirm: true });
       if (!res) return;
       const json = (await res.json().catch(() => ({}))) as { sheet_code?: string; sheet_text?: string; error?: string };
-      if (!res.ok || !json.sheet_text) throw new Error(json.error || "Couldn't build the split sheet.");
+      if (!res.ok || !json.sheet_text) throw new Error(apiErrorMessage(json, "Couldn't build the split sheet."));
       setSheet({ code: json.sheet_code ?? "", text: json.sheet_text });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Couldn't build the split sheet.");
+      setActionError(plainErrorText(err, "Couldn't build the split sheet."));
     } finally {
       setBusyId(null);
     }

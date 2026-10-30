@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -180,7 +181,7 @@ export default function ShowFinder() {
         return;
       }
       if (!res.ok || !Array.isArray(data.opportunities) || data.opportunities.length === 0) {
-        throw new Error(data.message || data.error || t("shows.errorSearchFailed"));
+        throw new Error(apiErrorMessage(data, t("shows.errorSearchFailed")));
       }
       setResults(data.opportunities);
       setDisclaimer(data.disclaimer || "");
@@ -189,7 +190,7 @@ export default function ShowFinder() {
         document.getElementById("show-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("shows.errorSearchFailed"));
+      setError(plainErrorText(err, t("shows.errorSearchFailed")));
     } finally {
       setLoading(false);
     }
@@ -225,13 +226,13 @@ export default function ShowFinder() {
         return;
       }
       if (!res.ok || !data.pitch?.subject || !data.pitch?.body) {
-        throw new Error(data.message || data.error || t("shows.errorPitchFailed"));
+        throw new Error(apiErrorMessage(data, t("shows.errorPitchFailed")));
       }
       setPitch(data.pitch);
       setPitchTips(data.tips ?? []);
       refreshProfile();
     } catch (err) {
-      setPitchError(err instanceof Error ? err.message : t("shows.errorPitchFailed"));
+      setPitchError(plainErrorText(err, t("shows.errorPitchFailed")));
     } finally {
       setPitchLoading(false);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -128,7 +129,7 @@ function GoLiveMain() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || t("goLive.failedToPostDiscord"));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("goLive.failedToPostDiscord")));
     return data;
   }
 
@@ -186,7 +187,7 @@ function GoLiveMain() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("goLive.couldntScheduleError"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("goLive.couldntScheduleError")));
       toast({ title: t("goLive.scheduledTitle"), description: t("goLive.scheduledDesc") });
       setSchedTitle(""); setSchedGame(""); setSchedWhen("");
       await load();

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -640,7 +641,7 @@ export function ThumbnailMakerModule() {
         document.getElementById("tg-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("thumbnailMaker.generationFailed"));
+      setError(plainErrorText(err, t("thumbnailMaker.generationFailed")));
     } finally {
       setLoading(false);
       setProgress("");
@@ -1294,10 +1295,10 @@ function ThumbnailAbTester() {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(data.message || data.error || t("thumbnailTest.testFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("thumbnailTest.testFailed")));
       setResult(data.result as TestResult);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("thumbnailTest.testFailed"));
+      setError(plainErrorText(e, t("thumbnailTest.testFailed")));
     } finally {
       setTesting(false);
     }
@@ -1318,14 +1319,14 @@ function ThumbnailAbTester() {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(data.message || data.error || t("thumbnailTest.improveFailedLong"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("thumbnailTest.improveFailedLong")));
       setImprovedUrls((prev) => ({ ...prev, [index]: data.imageUrl as string }));
       /* The improved winner flows into the hub project — scheduler picks it up. */
       if (data.imageUrl) {
         try { addAsset({ kind: "thumbnail", url: data.imageUrl as string, label: `Improved thumbnail${title ? ` — ${title}` : ""}`, detail: "A/B test winner" }); } catch { /* non-fatal */ }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("thumbnailTest.improveFailed"));
+      setError(plainErrorText(e, t("thumbnailTest.improveFailed")));
     } finally {
       setImproving(null);
     }

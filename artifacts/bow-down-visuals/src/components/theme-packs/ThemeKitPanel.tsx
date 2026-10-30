@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   Check, Copy, Download, Loader2, Lock, Share2, SlidersHorizontal, Sparkles, Store,
@@ -154,7 +155,7 @@ export function ThemeKitPanel({
       if (!res.ok) throw new Error(`save failed (${res.status})`);
       setDone("save");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That save hit a snag.");
+      setError(plainErrorText(err, "That save hit a snag."));
     } finally {
       setBusy(null);
     }
@@ -390,7 +391,7 @@ export function CreatorPacksSection() {
         body: JSON.stringify({ name, basePackId, priceVb, mix: {} }),
       });
       const json = (await res.json().catch(() => null)) as { id?: string; message?: string } | null;
-      if (!res.ok || !json?.id) throw new Error(json?.message ?? "That design hit a snag.");
+      if (!res.ok || !json?.id) throw new Error(apiErrorMessage(json, "That design hit a snag."));
       if (publish) {
         await fetch(`/api/theme-packs/creator-packs/${json.id}/publish`, {
           method: "POST",
@@ -401,7 +402,7 @@ export function CreatorPacksSection() {
       setName("");
       void load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "That design hit a snag.");
+      setMessage(plainErrorText(err, "That design hit a snag."));
     } finally {
       setBusy(false);
     }
@@ -418,10 +419,10 @@ export function CreatorPacksSection() {
         body: JSON.stringify({}),
       });
       const json = (await res.json().catch(() => null)) as { message?: string } | null;
-      if (!res.ok) throw new Error(json?.message ?? "That purchase hit a snag.");
+      if (!res.ok) throw new Error(apiErrorMessage(json, "That purchase hit a snag."));
       setMessage("Pack owned — find it in your kit downloads above, wearing the creator's mix.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "That purchase hit a snag.");
+      setMessage(plainErrorText(err, "That purchase hit a snag."));
     } finally {
       setBusy(false);
     }

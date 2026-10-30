@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* R2 storage helper for the browser.
    The browser never holds R2 credentials — uploads go through presigned
    PUT URLs minted by POST /api/r2/upload, lists via GET /api/r2/list,
@@ -27,7 +28,7 @@ export async function r2UploadFile(
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? `Upload URL request failed (${res.status})`);
+    throw new Error(apiErrorMessage(data, `Upload URL request failed (${res.status})`));
   }
   const { uploadUrl, publicUrl } = (await res.json()) as { uploadUrl: string; publicUrl: string };
   const put = await fetch(uploadUrl, {
@@ -58,7 +59,7 @@ export async function r2Remove(key: string, token: string | null): Promise<void>
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? `R2 delete failed (${res.status})`);
+    throw new Error(apiErrorMessage(data, `R2 delete failed (${res.status})`));
   }
 }
 

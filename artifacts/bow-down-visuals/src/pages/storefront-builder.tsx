@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -96,7 +97,7 @@ export default function StorefrontBuilder() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 403 && data.error === "PRO_TIER_REQUIRED") { setTierBlocked(true); return; }
-      if (!res.ok) throw new Error(data.error || t("storefrontBuilder.errorCreateShop"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("storefrontBuilder.errorCreateShop")));
       const shop = data.shop;
       setShopId(shop.id); setCreatedHandle(shop.handle);
       /* apply branding immediately */
@@ -122,7 +123,7 @@ export default function StorefrontBuilder() {
       }
       setStep(4);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("storefrontBuilder.errorGeneric"));
+      setError(plainErrorText(e, t("storefrontBuilder.errorGeneric")));
     } finally { setBusy(false); }
   }
 
@@ -136,7 +137,7 @@ export default function StorefrontBuilder() {
     });
     if (!res) return; // user cancelled
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setError(data.error || t("storefrontBuilder.errorAiDescription")); return; }
+    if (!res.ok) { setError(apiErrorMessage(data, t("storefrontBuilder.errorAiDescription"))); return; }
     setDescription(data.description ?? "");
   }
 
@@ -148,9 +149,9 @@ export default function StorefrontBuilder() {
         method: "POST", body: JSON.stringify({ domain: domain.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("storefrontBuilder.errorAttachDomain"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("storefrontBuilder.errorAttachDomain")));
       setDomainInfo(data);
-    } catch (e) { setError(e instanceof Error ? e.message : t("storefrontBuilder.errorDomainAttachFailed")); }
+    } catch (e) { setError(plainErrorText(e, t("storefrontBuilder.errorDomainAttachFailed"))); }
     finally { setBusy(false); }
   }
 

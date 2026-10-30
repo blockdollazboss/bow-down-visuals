@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -968,7 +969,7 @@ export default function BroadcastStudio() {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Announce failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Announce failed"));
       if (kind === "live") setAnnouncedLive(true);
       else setAnnouncedEnd(true);
       toast({ title: "Posted to Discord", description: kind === "live" ? "Your server knows you're live." : "The wrap-up is posted." });

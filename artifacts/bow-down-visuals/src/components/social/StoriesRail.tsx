@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -64,7 +65,7 @@ export function StoriesRail() {
       setComposerOpen(false);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't post that story.");
+      setError(plainErrorText(e, "Couldn't post that story."));
     } finally {
       setPosting(false);
     }

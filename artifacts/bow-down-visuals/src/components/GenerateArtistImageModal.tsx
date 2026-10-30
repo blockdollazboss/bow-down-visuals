@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage } from "../lib/api-error";
 import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -143,7 +144,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
           setGenerating(false);
-          setError(data.error ?? "Image generation failed. Visual Bucs were not charged.");
+          setError(apiErrorMessage(data, "Image generation failed. Visual Bucs were not charged."));
         } else {
           setProgress(typeof data.progress === "number" ? data.progress : null);
         }
@@ -183,7 +184,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
       if (!res) { setGenerating(false); return; } // user cancelled the credit confirmation
       const data = await res.json() as { taskId?: string; status?: string; url?: string | null; path?: string | null; error?: string; message?: string };
       if (!res.ok || !data.taskId) {
-        throw new Error(data.message ?? data.error ?? `Image API error (HTTP ${res.status})`);
+        throw new Error(apiThrowMessage(data, `Image API error (HTTP ${res.status})`));
       }
       /* GPT Image 2.5 returns synchronously — no polling needed. */
       if (data.status === "succeeded" && data.url) {

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -69,11 +70,11 @@ export default function DreamCollabPanel() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.logline) throw new Error(data.message || "Concept failed.");
+      if (!res.ok || !data.logline) throw new Error(apiErrorMessage(data, "Concept failed."));
       setConcept(data);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Concept failed.");
+      setError(plainErrorText(e, "Concept failed."));
     } finally {
       setLoading(false);
     }

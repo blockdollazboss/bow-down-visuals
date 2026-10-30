@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
@@ -60,7 +61,7 @@ export default function ResetPassword() {
         setDone(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(plainErrorText(err, "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }

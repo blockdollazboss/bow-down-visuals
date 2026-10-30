@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
@@ -425,7 +426,7 @@ export function ClipGeneratorSection({
       const upData = (await upRes.json().catch(() => ({}))) as {
         url?: string; ref?: string; error?: string; message?: string;
       };
-      if (!upRes.ok) throw new Error(upData.message ?? upData.error ?? `Upload failed (${upRes.status})`);
+      if (!upRes.ok) throw new Error(apiErrorMessage(upData, `Upload failed (${upRes.status})`));
       if (!upData.url) throw new Error("Upload succeeded but returned no clip URL.");
 
       /* 2. Attach the clip to the existing scene (persists; the backend
@@ -438,7 +439,7 @@ export function ClipGeneratorSection({
         });
         if (!patchRes.ok) {
           const pData = (await patchRes.json().catch(() => ({}))) as { error?: string };
-          throw new Error(pData.error ?? `Could not attach the clip to the scene (${patchRes.status}).`);
+          throw new Error(apiErrorMessage(pData, `Could not attach the clip to the scene (${patchRes.status}).`));
         }
       }
 

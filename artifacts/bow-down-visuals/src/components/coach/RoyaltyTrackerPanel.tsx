@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
@@ -176,7 +177,7 @@ export default function RoyaltyTrackerPanel() {
       setInsights((data.insights as Insight[]) ?? []);
       refreshProfile().catch(() => {});
     } catch (err) {
-      setInsightsError(err instanceof Error ? err.message : t("royalties.error.insightsFailed"));
+      setInsightsError(plainErrorText(err, t("royalties.error.insightsFailed")));
     } finally {
       setInsightsLoading(false);
     }
@@ -204,7 +205,7 @@ export default function RoyaltyTrackerPanel() {
       setPDistributor(""); setPStart(""); setPEnd(""); setPExpected(""); setPReceived(""); setPStatus("expected");
       loadAll();
     } catch (err) {
-      setPayoutMsg(err instanceof Error ? err.message : t("royalties.error.payoutSaveFailed"));
+      setPayoutMsg(plainErrorText(err, t("royalties.error.payoutSaveFailed")));
     } finally {
       setPayoutSaving(false);
     }

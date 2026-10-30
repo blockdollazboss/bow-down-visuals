@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import {
@@ -128,10 +129,10 @@ export default function Contracts() {
         setResult(data.analysis);
         setDisclaimer(data.disclaimer ?? "");
       } else {
-        setError(data.message || "Analysis failed. Try again.");
+        setError(apiErrorMessage(data, "Analysis failed. Try again."));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed.");
+      setError(plainErrorText(e, "Analysis failed."));
     } finally {
       setLoading(false);
     }

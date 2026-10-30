@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /**
  * storefront-api.ts — typed client for the Sell Everything storefront API.
  *
@@ -228,7 +229,7 @@ async function req<T>(path: string, token: string | null, init?: RequestInit): P
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     const err = data as { error?: string; message?: string };
-    throw new Error(err.message ?? err.error ?? `Request failed (${res.status})`);
+    throw new Error(apiErrorMessage(err, `Request failed (${res.status})`));
   }
   return data as T;
 }
@@ -498,7 +499,7 @@ export async function downloadShopifyExport(
   });
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-    throw new Error(data.message ?? data.error ?? `Export failed (${res.status})`);
+    throw new Error(apiErrorMessage(data, `Export failed (${res.status})`));
   }
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const match = /filename="([^"]+)"/.exec(disposition);
@@ -556,7 +557,7 @@ async function giftReq<T>(path: string, token: string | null, init?: RequestInit
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     const err = data as { error?: string; message?: string };
-    throw new Error(err.message ?? err.error ?? `Request failed (${res.status})`);
+    throw new Error(apiErrorMessage(err, `Request failed (${res.status})`));
   }
   return data as T;
 }

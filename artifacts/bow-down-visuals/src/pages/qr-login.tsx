@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -52,7 +53,7 @@ export default function QRLoginApprove() {
       if (res.ok && data.success) {
         setStatus("done");
       } else {
-        setError(data.error ?? "Approval failed");
+        setError(apiErrorMessage(data, "Approval failed"));
         setStatus("error");
       }
     } catch {

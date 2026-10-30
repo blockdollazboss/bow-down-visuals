@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -535,12 +536,12 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
         return;
       }
       if (!res.ok || !data.result) {
-        throw new Error(data.message ?? data.error ?? `Server error ${res.status}`);
+        throw new Error(apiErrorMessage(data, `Server error ${res.status}`));
       }
       setResult(data.result);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "SEO score failed.");
+      setError(plainErrorText(err, "SEO score failed."));
     } finally {
       setLoading(false);
     }
@@ -849,7 +850,7 @@ function ClipCard({
       if (!res) return; // user cancelled the credit confirmation
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        throw new Error(data.error ?? t("myClips.extractAudioFailed"));
+        throw new Error(apiErrorMessage(data, t("myClips.extractAudioFailed")));
       }
       setAudioUrl(data.url);
       toast({ title: t("myClips.extractAudioDone") });
@@ -1072,7 +1073,7 @@ export default function MyClips() {
           /* names are a display nicety — never fail the list over them */
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load clips");
+        setError(plainErrorText(err, "Failed to load clips"));
       } finally {
         setLoading(false);
       }

@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -384,7 +385,7 @@ export function MakeVideoModule() {
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
     } catch (err) {
-      setAudioSceneError(err instanceof Error ? err.message : t("makeVideo.audioSceneFailed"));
+      setAudioSceneError(plainErrorText(err, t("makeVideo.audioSceneFailed")));
     } finally {
       setGeneratingScenesFromAudio(false);
     }

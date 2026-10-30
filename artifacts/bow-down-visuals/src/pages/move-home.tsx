@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -140,7 +141,7 @@ export default function MoveHome() {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const json = (await res.json().catch(() => ({}))) as { moveHome?: MoveHomeData; error?: string };
-      if (!res.ok) throw new Error(json.error ?? t("moveHome.genericError"));
+      if (!res.ok) throw new Error(apiErrorMessage(json, t("moveHome.genericError")));
       return json.moveHome ?? null;
     },
     [getAccessToken, t, i18n.language],
@@ -169,7 +170,7 @@ export default function MoveHome() {
       if (d) syncFrom(d);
       setNotice(success);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("moveHome.genericError"));
+      setError(plainErrorText(e, t("moveHome.genericError")));
     } finally {
       setBusy("");
     }

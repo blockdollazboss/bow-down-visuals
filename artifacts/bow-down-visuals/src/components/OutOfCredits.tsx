@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -24,12 +25,12 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
       const res = await fetch("/api/dev/add-credits", { method: "POST", headers });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: t("outOfCredits.errFailed") })) as { error?: string };
-        throw new Error(err.error ?? t("outOfCredits.errAdd"));
+        throw new Error(apiErrorMessage(err, t("outOfCredits.errAdd")));
       }
       await refreshProfile();
       setAdded(true);
     } catch (err) {
-      setDevError(err instanceof Error ? err.message : t("outOfCredits.errFailed"));
+      setDevError(plainErrorText(err, t("outOfCredits.errFailed")));
     } finally {
       setAdding(false);
     }

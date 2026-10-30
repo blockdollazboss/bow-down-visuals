@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Clapperboard, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
@@ -250,7 +251,7 @@ export function ManualDAW({
         toast({ title: "True Render Ready (with a note)", description: result.warnings[0] });
       }
     } catch (e) {
-      setRenderError(e instanceof Error ? e.message : "Preview render failed. Please try again.");
+      setRenderError(plainErrorText(e, "Preview render failed. Please try again."));
     } finally {
       setRendering(false);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -70,12 +71,12 @@ export default function LyricStoriesSection() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.cards?.length) throw new Error(data.message || "Generation failed.");
+      if (!res.ok || !data.cards?.length) throw new Error(apiErrorMessage(data, "Generation failed."));
       setCards(data.cards);
       setPartial(!!data.partial);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed.");
+      setError(plainErrorText(e, "Generation failed."));
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,12 +95,12 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildInspoAnalyzePayload(playlistInput, notes)),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Vibe analysis failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Vibe analysis failed."));
       const parsed = styleDnaOfResponse(data);
       if (!parsed) throw new Error("The vibe came back without a style — try describing it another way.");
       setDna(parsed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Vibe analysis failed.");
+      setError(plainErrorText(err, "Vibe analysis failed."));
     } finally {
       setBusy(null);
     }
@@ -122,7 +123,7 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
       if (result.creditsRemaining !== undefined) refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Inspo generation failed.");
+      setError(plainErrorText(err, "Inspo generation failed."));
     } finally {
       setBusy(null);
     }
@@ -254,14 +255,14 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildMashupPayload({ songAId: songA, songBId: songB, style, balance, crossfadeSec, title })),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "The mashup didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The mashup didn't land."));
       const parsed = mashupResultOfResponse(data);
       if (!parsed) throw new Error("The mashup came back without audio — nothing to play.");
       setResult(parsed);
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Mashup failed.");
+      setError(plainErrorText(err, "Mashup failed."));
     } finally {
       setBusy(false);
     }
@@ -330,13 +331,13 @@ export function SongHumBench({ isLight }: { isLight: boolean }) {
       for (const [k, v] of humAnalyzeFields()) form.append(k, v);
       const res = await fetch("/api/hum-to-song", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? "Could not analyze that audio.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not analyze that audio."));
       const parsed = humAnalysisOfResponse(data);
       if (!parsed) throw new Error("Analysis came back incomplete — try again.");
       setHumRef(parsed.humRef);
       setAnalysis(parsed.analysis);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed.");
+      setError(plainErrorText(err, "Analysis failed."));
     } finally {
       setBusy(null);
     }
@@ -352,14 +353,14 @@ export function SongHumBench({ isLight }: { isLight: boolean }) {
       for (const [k, v] of humGenerateFields({ humRef, mode, stylePrompt, songTitle, artistName })) form.append(k, v);
       const res = await fetch("/api/hum-to-song", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? "Song generation failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Song generation failed."));
       const url = humSongUrlOfResponse(data);
       if (!url) throw new Error("The song came back without audio — nothing to play.");
       setSongUrl(url);
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Song generation failed.");
+      setError(plainErrorText(err, "Song generation failed."));
     } finally {
       setBusy(null);
     }

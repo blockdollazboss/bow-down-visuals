@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -36,10 +37,10 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
     try {
       const res = await fetch("/api/locations", { headers: await authHeaders() });
       const data = (await res.json()) as { locations?: LocationRecord[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("locations.errLoad"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("locations.errLoad")));
       setLocations(data.locations ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("locations.errLoad"));
+      setError(plainErrorText(e, t("locations.errLoad")));
     } finally {
       setLoading(false);
     }
@@ -63,12 +64,12 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
         body: JSON.stringify({ label: label.trim(), image_url: imageUrl.trim() }),
       });
       const data = (await res.json()) as { location?: LocationRecord; error?: string };
-      if (!res.ok) throw new Error(data.error || t("locations.errSave"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("locations.errSave")));
       setLabel("");
       setImageUrl("");
       await loadLocations();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("locations.errSave"));
+      setError(plainErrorText(e, t("locations.errSave")));
     } finally {
       setSaving(false);
     }
@@ -95,11 +96,11 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
         body: form,
       });
       const data = (await res.json()) as { location?: LocationRecord; error?: string };
-      if (!res.ok) throw new Error(data.error || t("locations.errUpload"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("locations.errUpload")));
       setLabel("");
       await loadLocations();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("locations.errUpload"));
+      setError(plainErrorText(e, t("locations.errUpload")));
     } finally {
       setSaving(false);
     }
@@ -114,10 +115,10 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
         headers: await authHeaders(),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || t("locations.errDelete"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("locations.errDelete")));
       setLocations((prev) => prev.filter((l) => l.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("locations.errDelete"));
+      setError(plainErrorText(e, t("locations.errDelete")));
     } finally {
       setDeletingId(null);
     }

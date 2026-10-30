@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2, Search, Users } from "lucide-react";
@@ -103,7 +104,7 @@ export default function FanGraphTab() {
         },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Couldn't load your fan graph.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load your fan graph."));
       setFans(data.fans ?? []);
       setSummary(data.summary ?? EMPTY_SUMMARY);
       setTotal(data.total ?? 0);

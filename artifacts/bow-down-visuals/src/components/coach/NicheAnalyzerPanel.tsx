@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -146,7 +147,7 @@ export default function NicheAnalyzerPanel() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { items?: unknown[]; error?: string };
-      if (!res.ok) throw new Error(data.error || "Couldn't save the roadmap steps.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the roadmap steps."));
       const saved = Array.isArray(data.items) ? data.items.length : 0;
       setRoadmapMsg(
         saved > 0
@@ -154,7 +155,7 @@ export default function NicheAnalyzerPanel() {
           : "Those weeks are already in your Action Tracker.",
       );
     } catch (err) {
-      setRoadmapMsg(err instanceof Error ? err.message : "Couldn't save the roadmap steps.");
+      setRoadmapMsg(plainErrorText(err, "Couldn't save the roadmap steps."));
     } finally {
       setSavingRoadmap(false);
     }
@@ -203,7 +204,7 @@ export default function NicheAnalyzerPanel() {
         return;
       }
       if (!res.ok || !data.analysis || !data.analysis.contentPillars?.length) {
-        throw new Error(data.message || data.error || "Niche analysis failed. Try again.");
+        throw new Error(apiErrorMessage(data, "Niche analysis failed. Try again."));
       }
       setAnalysis(data.analysis);
       setGroundedIn(data.groundedIn ?? null);
@@ -212,7 +213,7 @@ export default function NicheAnalyzerPanel() {
         document.getElementById("niche-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Niche analysis failed. Try again.");
+      setError(plainErrorText(err, "Niche analysis failed. Try again."));
     } finally {
       setLoading(false);
     }
@@ -248,12 +249,12 @@ export default function NicheAnalyzerPanel() {
         return;
       }
       if (!res.ok || !data.verdict) {
-        throw new Error(data.message || data.error || "Idea validation failed. Try again.");
+        throw new Error(apiErrorMessage(data, "Idea validation failed. Try again."));
       }
       setVerdict(data.verdict);
       refreshProfile();
     } catch (err) {
-      setValidateError(err instanceof Error ? err.message : "Idea validation failed. Try again.");
+      setValidateError(plainErrorText(err, "Idea validation failed. Try again."));
     } finally {
       setValidating(false);
     }

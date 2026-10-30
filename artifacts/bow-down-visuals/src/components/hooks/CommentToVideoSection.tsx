@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -83,11 +84,11 @@ export default function CommentToVideoSection() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.scripts?.length) throw new Error(data.message || "Script generation failed.");
+      if (!res.ok || !data.scripts?.length) throw new Error(apiErrorMessage(data, "Script generation failed."));
       setScripts(data.scripts);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Script generation failed.");
+      setError(plainErrorText(e, "Script generation failed."));
     } finally {
       setLoading(false);
     }

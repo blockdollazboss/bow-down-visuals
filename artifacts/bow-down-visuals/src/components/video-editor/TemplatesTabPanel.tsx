@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -152,7 +153,7 @@ export default function TemplatesTabPanel({
       setCatalog(data.templates ?? []);
       if (typeof data.price === "number") setPrice(data.price);
     } catch (err) {
-      setCatalogError(err instanceof Error ? err.message : t("videoTemplates.catalogFailed"));
+      setCatalogError(plainErrorText(err, t("videoTemplates.catalogFailed")));
     }
   }, [getAccessToken, t]);
 
@@ -287,13 +288,13 @@ export default function TemplatesTabPanel({
           toast({ title: t("videoTemplates.renderDoneTitle"), description: t("videoTemplates.renderDoneDesc") });
         } else if (job.state === "failed") {
           if (pollRef.current) clearInterval(pollRef.current);
-          setJobError(job.error ?? t("videoTemplates.renderFailedDefault"));
+          setJobError(apiErrorMessage(job, t("videoTemplates.renderFailedDefault")));
           setPhase("configure");
           toast({ title: t("videoTemplates.renderFailedTitle"), description: t("videoTemplates.refundedNote") });
         }
       } catch (err) {
         if (pollRef.current) clearInterval(pollRef.current);
-        setJobError(err instanceof Error ? err.message : t("videoTemplates.pollFailed"));
+        setJobError(plainErrorText(err, t("videoTemplates.pollFailed")));
         setPhase("configure");
       }
     }, 3000);
@@ -333,18 +334,18 @@ export default function TemplatesTabPanel({
       }
       if (res.status === 402) {
         const data = await res.json().catch(() => ({}));
-        setJobError(data.message ?? t("videoTemplates.outOfCredits"));
+        setJobError(apiErrorMessage(data, t("videoTemplates.outOfCredits")));
         setPhase("configure");
         return;
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? t("videoTemplates.renderFailedDefault"));
+        throw new Error(apiErrorMessage(data, t("videoTemplates.renderFailedDefault")));
       }
       const data = await res.json();
       pollJob(data.jobId);
     } catch (err) {
-      setJobError(err instanceof Error ? err.message : t("videoTemplates.renderFailedDefault"));
+      setJobError(plainErrorText(err, t("videoTemplates.renderFailedDefault")));
       setPhase("configure");
     }
   }

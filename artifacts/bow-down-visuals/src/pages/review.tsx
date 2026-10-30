@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "wouter";
@@ -140,7 +141,7 @@ export default function ReviewPage() {
       });
       const data = (await res.json().catch(() => ({}))) as ReviewPayload & { error?: string };
       if (!res.ok) {
-        setUnlockError(data.error || t("review.wrongPassword"));
+        setUnlockError(apiErrorMessage(data, t("review.wrongPassword")));
         return;
       }
       setState({ kind: "ready", payload: data });
@@ -176,7 +177,7 @@ export default function ReviewPage() {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { comment?: ReviewComment; error?: string };
-      if (!res.ok || !data.comment) throw new Error(data.error || t("review.commentFailed"));
+      if (!res.ok || !data.comment) throw new Error(apiErrorMessage(data, t("review.commentFailed")));
       setState({
         kind: "ready",
         payload: { ...state.payload, comments: [...(state.payload.comments ?? []), data.comment] },
@@ -201,7 +202,7 @@ export default function ReviewPage() {
         body: JSON.stringify({ action, ...extra }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("review.actionFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("review.actionFailed")));
       if (action === "set_status" && typeof extra.status === "string" && state.kind === "ready") {
         setManage({ ...manage, status: extra.status });
         setState({ kind: "ready", payload: { ...state.payload, status: extra.status } });

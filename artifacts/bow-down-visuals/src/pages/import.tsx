@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -88,7 +89,7 @@ export default function MediaImport() {
         const data: JobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("importPage.jobNotFound"));
+          setError(apiErrorMessage(data, t("importPage.jobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -110,7 +111,7 @@ export default function MediaImport() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("importPage.importFailedRefunded", { cost: CREDIT_COST }));
+          setError(apiErrorMessage(data, t("importPage.importFailedRefunded", { cost: CREDIT_COST })));
         } else {
           setStatus(data.status as JobStatus);
           if (data.title) setTitle(data.title);
@@ -145,7 +146,7 @@ export default function MediaImport() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("importPage.startFailed"));
+        setError(apiErrorMessage(data, t("importPage.startFailed")));
         return;
       }
       setJobId(data.jobId);

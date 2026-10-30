@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, PhoneIncoming,
@@ -271,7 +272,7 @@ export function VideoCallDock(props: {
       const peer = makePeer(d.call.id);
       await peer.startOutgoing(d.ice);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't start the call — try again.");
+      setNotice(plainErrorText(e, "Couldn't start the call — try again."));
       teardownPeer();
       setPhase({ kind: "idle" });
     }

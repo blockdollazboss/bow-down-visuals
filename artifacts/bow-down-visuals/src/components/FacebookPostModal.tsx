@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, Sparkles, Send, CheckCircle2, ExternalLink, Gauge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -131,12 +132,12 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
         return;
       }
       if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
-        throw new Error(data.message || "Description generation failed.");
+        throw new Error(apiErrorMessage(data, "Description generation failed."));
       }
       setDescription(`${data.hooks[0]}\n\nMade with @bowdownvisuals 🔥\n#musicvideo #contentcreator #aivideo`);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Description generation failed.");
+      setError(plainErrorText(err, "Description generation failed."));
     } finally {
       setAiLoading(false);
     }
@@ -178,7 +179,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
         return;
       }
       if (!res.ok) {
-        throw new Error(data.message || "Couldn't publish to Facebook.");
+        throw new Error(apiErrorMessage(data, "Couldn't publish to Facebook."));
       }
       setPermalink(data.permalink || null);
       /* Confirmed success: this intent is done, so a later composer session
@@ -191,7 +192,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
       refreshProfile();
       toast({ title: "Posted to Facebook", description: "Your video is live on your Page." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't publish to Facebook.");
+      setError(plainErrorText(err, "Couldn't publish to Facebook."));
     } finally {
       setPublishing(false);
     }

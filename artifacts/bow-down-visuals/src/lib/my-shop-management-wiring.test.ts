@@ -82,21 +82,21 @@ describe("failure discipline — a failed request shows an error, never a fake s
     expect(throwAt).toBeGreaterThanOrEqual(0);
     expect(saveProductBody.indexOf("setShowProductForm(false)")).toBeGreaterThan(throwAt);
     expect(saveProductBody.indexOf("setProducts(")).toBeGreaterThan(throwAt);
-    expect(saveProductBody).toContain("setError(err instanceof Error ? err.message");
+    expect(saveProductBody).toContain("setError(plainErrorText(err,");
   });
 
   it("product delete throws on !res.ok before the product leaves the local list, and surfaces setError", () => {
     const throwAt = deleteProductBody.indexOf("if (!res.ok) throw");
     expect(throwAt).toBeGreaterThanOrEqual(0);
     expect(deleteProductBody.indexOf("ps.filter((x) => x.id !== p.id)")).toBeGreaterThan(throwAt);
-    expect(deleteProductBody).toContain("setError(err instanceof Error ? err.message");
+    expect(deleteProductBody).toContain("setError(plainErrorText(err,");
   });
 
   it("shop delete throws on !res.ok before the shop leaves the local list, and surfaces setError", () => {
     const throwAt = deleteShopBody.indexOf("if (!res.ok) throw");
     expect(throwAt).toBeGreaterThanOrEqual(0);
     expect(deleteShopBody.indexOf("s.filter((x) => x.id !== activeShop.id)")).toBeGreaterThan(throwAt);
-    expect(deleteShopBody).toContain("setError(err instanceof Error ? err.message");
+    expect(deleteShopBody).toContain("setError(plainErrorText(err,");
   });
 
   it("the page renders the error state where the seller can see it", () => {
@@ -124,7 +124,7 @@ describe("product pause/unlist — Stack-4 #6 (migration 0176)", () => {
     const throwAt = togglePauseBody.indexOf("if (!res.ok) throw");
     expect(throwAt).toBeGreaterThanOrEqual(0);
     expect(togglePauseBody.indexOf("setProducts(")).toBeGreaterThan(throwAt);
-    expect(togglePauseBody).toContain("setError(err instanceof Error ? err.message");
+    expect(togglePauseBody).toContain("setError(plainErrorText(err,");
   });
 
   it("paused products are marked, and the toggle offers the opposite action", () => {

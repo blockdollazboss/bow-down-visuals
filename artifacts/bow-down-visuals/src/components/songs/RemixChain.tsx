@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   GitBranch, Loader2, AlertTriangle, ChevronDown, ChevronUp,
@@ -72,10 +73,10 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
         headers: await authHeaders(),
       });
       const data = (await res.json()) as { versions?: SongVersion[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("wave9.remix.errorGeneric"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("wave9.remix.errorGeneric")));
       setVersions(data.versions ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave9.remix.errorGeneric"));
+      setError(plainErrorText(err, t("wave9.remix.errorGeneric")));
     } finally {
       setLoading(false);
     }
@@ -126,7 +127,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
         }),
       });
       const data = (await res.json()) as { version?: SongVersion; error?: string };
-      if (!res.ok || !data.version) throw new Error(data.error || t("wave9.remix.errorGeneric"));
+      if (!res.ok || !data.version) throw new Error(apiErrorMessage(data, t("wave9.remix.errorGeneric")));
       setVersions((vs) => [...vs, data.version!]);
       setLabel("");
       setParentId("");
@@ -138,7 +139,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
         setStructureHandoff(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave9.remix.errorGeneric"));
+      setError(plainErrorText(err, t("wave9.remix.errorGeneric")));
     } finally {
       setSaving(false);
     }
@@ -152,10 +153,10 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
         body: JSON.stringify({ promoted: true }),
       });
       const data = (await res.json()) as { version?: SongVersion; error?: string };
-      if (!res.ok || !data.version) throw new Error(data.error || t("wave9.remix.errorGeneric"));
+      if (!res.ok || !data.version) throw new Error(apiErrorMessage(data, t("wave9.remix.errorGeneric")));
       setVersions((vs) => vs.map((v) => (v.id === id ? data.version! : { ...v, promoted: false })));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave9.remix.errorGeneric"));
+      setError(plainErrorText(err, t("wave9.remix.errorGeneric")));
     }
   }
 

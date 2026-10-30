@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import {
   Palette, SlidersHorizontal, Loader2, CheckCircle2, XCircle,
@@ -183,7 +184,7 @@ export function ColorGradeSection({
       if (res === null) return; // user cancelled the credit confirm
       const data = (await res.json().catch(() => ({}))) as Partial<GradeResult> & { error?: string; message?: string };
       if (!res.ok || !data.url) {
-        setError(data.message ?? data.error ?? "Color grade failed — no Visual Bucs were spent.");
+        setError(apiErrorMessage(data, "Color grade failed — no Visual Bucs were spent."));
         return;
       }
       const presetLabel = presets.find((p) => p.key === presetKey)?.label ?? presetKey;

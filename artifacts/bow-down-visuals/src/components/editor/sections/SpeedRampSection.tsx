@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import {
   Gauge, Turtle, Rabbit, Zap, Loader2, CheckCircle2, XCircle,
@@ -155,7 +156,7 @@ export function SpeedRampSection({
         message?: string;
       };
       if (!res.ok || !data.url) {
-        setError(data.message ?? data.error ?? "Slow motion failed — no Visual Bucs were spent.");
+        setError(apiErrorMessage(data, "Slow motion failed — no Visual Bucs were spent."));
         return;
       }
       setResult({ kind: "slowmo", url: data.url, label: `${data.slowFactor ?? factor}x Buttery Slow-Mo`, factor: data.slowFactor ?? factor });
@@ -190,7 +191,7 @@ export function SpeedRampSection({
         message?: string;
       };
       if (!res.ok || !data.url) {
-        setError(data.message ?? data.error ?? "Speed change failed — no Visual Bucs were spent.");
+        setError(apiErrorMessage(data, "Speed change failed — no Visual Bucs were spent."));
         return;
       }
       setResult({ kind: "preset", url: data.url, label: activePreset.label, presetKey: activePreset.key });

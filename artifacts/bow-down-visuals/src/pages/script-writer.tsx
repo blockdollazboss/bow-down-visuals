@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import {
@@ -168,7 +169,7 @@ export default function ScriptWriter() {
         return;
       }
       if (!res.ok || !data.beats?.length) {
-        throw new Error(data.error || t("scriptWriter.errorGenerationFailed"));
+        throw new Error(apiErrorMessage(data, t("scriptWriter.errorGenerationFailed")));
       }
       setResult(data);
       if (data.teleprompter) {
@@ -181,7 +182,7 @@ export default function ScriptWriter() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("scriptWriter.errorGeneric"));
+      setError(plainErrorText(err, t("scriptWriter.errorGeneric")));
     } finally {
       setGenerating(false);
     }

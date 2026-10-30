@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -166,7 +167,7 @@ export function LinkInBioBuilder() {
           : new Error(t("linkInBio.errors.loadFailed"));
       }
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : t("linkInBio.errors.loadFailed"));
+      setLoadError(plainErrorText(err, t("linkInBio.errors.loadFailed")));
     } finally {
       setLoading(false);
     }
@@ -254,7 +255,7 @@ export function LinkInBioBuilder() {
     try {
       const res = await authed("/api/bio-pages", { method: "POST", body: JSON.stringify(draftBody()) });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || t("linkInBio.errors.saveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(d, t("linkInBio.errors.saveFailed")));
       const np: BioPageFull = d.page;
       setPages((ps) => [np, ...ps]);
       setPageId(np.id);
@@ -280,7 +281,7 @@ export function LinkInBioBuilder() {
         body: JSON.stringify({ ...draftBody(), displayName: displayName.trim(), slug: slug.trim() || undefined }),
       });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || t("linkInBio.errors.saveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(d, t("linkInBio.errors.saveFailed")));
       const np: BioPageFull = d.page;
       setPages((ps) => ps.map((p) => (p.id === pageId ? np : p)));
       fillForm(np);
@@ -328,7 +329,7 @@ export function LinkInBioBuilder() {
         setPages((ps) => ps.map((p) => (p.id === id ? { ...p, isPublished: true, url: d.url ?? p.url } : p)));
         return;
       }
-      if (!res.ok) throw new Error(d.message || d.error || t("linkInBio.errors.publishFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(d, t("linkInBio.errors.publishFailed")));
       setPages((ps) => ps.map((p) => (p.id === id ? { ...p, isPublished: true, url: d.url, slug: d.slug } : p)));
       setSlug(d.slug);
       refreshProfile();

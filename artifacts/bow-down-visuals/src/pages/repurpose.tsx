@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -282,7 +283,7 @@ function StreamVodClips() {
       const data = (await res.json().catch(() => ({}))) as StreamAnalyzeResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.highlights) || data.highlights.length === 0) {
-        throw new Error(data.message || data.error || t("clipMaker.errorAnalysisFailed"));
+        throw new Error(apiErrorMessage(data, t("clipMaker.errorAnalysisFailed")));
       }
       setAnalysis(data);
       setSelected(new Set(data.highlights.map((h) => h.id)));
@@ -291,7 +292,7 @@ function StreamVodClips() {
         document.getElementById("clip-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("clipMaker.errorAnalysisFailed"));
+      setError(plainErrorText(err, t("clipMaker.errorAnalysisFailed")));
     } finally {
       setAnalyzing(false);
     }
@@ -344,13 +345,13 @@ function StreamVodClips() {
       const data = (await res.json().catch(() => ({}))) as StreamCutJobResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.jobId) {
-        throw new Error(data.message || data.error || t("clipMaker.errorCutStartFailed"));
+        throw new Error(apiErrorMessage(data, t("clipMaker.errorCutStartFailed")));
       }
       setJobId(data.jobId);
       refreshProfile();
       pollJob(data.jobId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("clipMaker.errorCutFailed"));
+      setError(plainErrorText(err, t("clipMaker.errorCutFailed")));
       setCutting(false);
     }
   }
@@ -362,14 +363,14 @@ function StreamVodClips() {
         const res = await authedFetch(`/api/streamer-clips/cut/${id}`, { method: "GET", skipConfirm: true });
         if (!res) return; // unreachable with skipConfirm, keeps TS happy
         const data = (await res.json().catch(() => ({}))) as StreamCutJobResponse;
-        if (!res.ok) throw new Error(data.error || t("clipMaker.errorJobLookup"));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("clipMaker.errorJobLookup")));
         setJob(data);
         if (data.status === "done" || data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setCutting(false);
           refreshProfile();
           if (data.status === "failed") {
-            setError(data.error || t("clipMaker.errorCutRefunded"));
+            setError(apiErrorMessage(data, t("clipMaker.errorCutRefunded")));
           } else {
             /* Cut clips flow into the hub project — editor, captions and scheduler pick them up. */
             for (const c of data.clips ?? []) {
@@ -384,7 +385,7 @@ function StreamVodClips() {
       } catch (err) {
         if (pollRef.current) window.clearInterval(pollRef.current);
         setCutting(false);
-        setError(err instanceof Error ? err.message : t("clipMaker.errorJobLost"));
+        setError(plainErrorText(err, t("clipMaker.errorJobLost")));
       }
     };
     await tick();
@@ -856,7 +857,7 @@ function SmartClipFinder() {
       });
       const data = (await res.json().catch(() => ({}))) as SmartClipsProposeResponse;
       if (!res.ok) {
-        throw new Error(data.message || data.error || t("smartClips.errorFailed"));
+        throw new Error(apiErrorMessage(data, t("smartClips.errorFailed")));
       }
       const proposals = Array.isArray(data.proposals) ? data.proposals : [];
       setProposeMethod(data.analysisMethod ?? null);
@@ -872,7 +873,7 @@ function SmartClipFinder() {
         document.getElementById("smart-clip-proposals")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("smartClips.errorFailed"));
+      setError(plainErrorText(err, t("smartClips.errorFailed")));
     } finally {
       setFinding(false);
     }
@@ -920,7 +921,7 @@ function SmartClipFinder() {
         return;
       }
       if (!res.ok || !Array.isArray(data.clips) || data.clips.length === 0) {
-        throw new Error(data.message || data.error || t("smartClips.errorFailed"));
+        throw new Error(apiErrorMessage(data, t("smartClips.errorFailed")));
       }
       setResult(data);
       refreshProfile();
@@ -939,7 +940,7 @@ function SmartClipFinder() {
         document.getElementById("smart-clip-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("smartClips.errorFailed"));
+      setError(plainErrorText(err, t("smartClips.errorFailed")));
     } finally {
       setRendering(false);
     }
@@ -1369,7 +1370,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
       const data = (await res.json().catch(() => ({}))) as AnalyzeResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.analysis) {
-        throw new Error(data.message || data.error || t("repurpose.error.repurposeFailed"));
+        throw new Error(apiErrorMessage(data, t("repurpose.error.repurposeFailed")));
       }
       setAnalysis(data);
       refreshProfile();
@@ -1378,7 +1379,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
         document.getElementById("repurpose-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("repurpose.error.repurposeFailed"));
+      setError(plainErrorText(err, t("repurpose.error.repurposeFailed")));
     } finally {
       setAnalyzing(false);
     }
@@ -1393,12 +1394,12 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
           thumbId ? authedFetch(`/api/repurpose/jobs/${thumbId}`, { method: "GET" }) : Promise.resolve(null),
         ]);
         const clipData = (await clipRes.json().catch(() => ({}))) as JobResponse;
-        if (!clipRes.ok) throw new Error(clipData.error || t("repurpose.error.clipJobFailed"));
+        if (!clipRes.ok) throw new Error(apiErrorMessage(clipData, t("repurpose.error.clipJobFailed")));
         setClipJob(clipData);
         let thumbData: JobResponse | null = null;
         if (thumbRes) {
           thumbData = (await thumbRes.json().catch(() => ({}))) as JobResponse;
-          if (!thumbRes.ok) throw new Error(thumbData.error || t("repurpose.error.thumbJobFailed"));
+          if (!thumbRes.ok) throw new Error(apiErrorMessage(thumbData, t("repurpose.error.thumbJobFailed")));
           setThumbJob(thumbData);
         }
         const clipDone = clipData.status === "done" || clipData.status === "failed";
@@ -1418,14 +1419,14 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
           if (pollRef.current) window.clearInterval(pollRef.current);
           refreshProfile();
           if (clipData.status === "failed") {
-            setError(clipData.error || t("repurpose.error.clipCuttingFailed"));
+            setError(apiErrorMessage(clipData, t("repurpose.error.clipCuttingFailed")));
           } else if (thumbData && thumbData.status === "failed") {
             setError(t("repurpose.error.thumbFailed"));
           }
         }
       } catch (err) {
         if (pollRef.current) window.clearInterval(pollRef.current);
-        setError(err instanceof Error ? err.message : t("repurpose.error.lostJobs"));
+        setError(plainErrorText(err, t("repurpose.error.lostJobs")));
       }
     };
     await tick();
@@ -1450,7 +1451,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
       const data = (await res.json().catch(() => ({}))) as { kind?: string; result?: unknown; error?: string; message?: string };
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || data.result == null) {
-        throw new Error(data.message || data.error || t("repurpose.error.rerollFailed"));
+        throw new Error(apiErrorMessage(data, t("repurpose.error.rerollFailed")));
       }
       setAnalysis((prev) => {
         if (!prev?.analysis) return prev;
@@ -1461,7 +1462,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
       });
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("repurpose.error.rerollFailed"));
+      setError(plainErrorText(err, t("repurpose.error.rerollFailed")));
     } finally {
       setRerolling(null);
     }
@@ -1481,7 +1482,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
       const data = (await res.json().catch(() => ({}))) as { imageUrl?: string; error?: string; message?: string };
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.imageUrl) {
-        throw new Error(data.message || data.error || t("repurpose.error.thumbRerollFailed"));
+        throw new Error(apiErrorMessage(data, t("repurpose.error.thumbRerollFailed")));
       }
       setThumbJob((prev) => {
         if (!prev?.thumbnails) return prev;
@@ -1492,7 +1493,7 @@ export default function Repurpose({ embedded }: { embedded?: boolean } = {}) {
       });
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("repurpose.error.thumbRerollFailed"));
+      setError(plainErrorText(err, t("repurpose.error.thumbRerollFailed")));
     } finally {
       setRerollThumbIdx(null);
     }

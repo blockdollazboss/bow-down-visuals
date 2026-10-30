@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Download, ListPlus, Loader2, Pause, Play, Scissors } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -111,12 +112,12 @@ export function StemRemixPanel({
         body: JSON.stringify(buildStemRemixPayload(stemKeys, levels)),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? "The remix didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The remix didn't land."));
       const url = stemRemixUrlOfResponse(data);
       if (!url) throw new Error("The remix came back without audio.");
       setRemixUrl(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The remix didn't land.");
+      setError(plainErrorText(err, "The remix didn't land."));
     } finally {
       setBusy(false);
     }
@@ -237,10 +238,10 @@ export function SoundPacksTab({
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (res.status === 402) {
-        setOutOfCredits(data.message ?? `This pack costs ${cost.toLocaleString("en-US")} Visual Bucs — top up and build it here.`);
+        setOutOfCredits(apiErrorMessage(data, `This pack costs ${cost.toLocaleString("en-US")} Visual Bucs — top up and build it here.`));
         return;
       }
-      if (!res.ok) throw new Error(data.error ?? "Pack generation failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Pack generation failed."));
       const built = parseGeneratedSamples(data);
       if (built.length === 0) throw new Error("The pack came back empty — nothing was kept, try building it again.");
       setSamples(built);
@@ -248,7 +249,7 @@ export function SoundPacksTab({
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pack generation failed.");
+      setError(plainErrorText(err, "Pack generation failed."));
     } finally {
       setGenerating(false);
     }
@@ -281,7 +282,7 @@ export function SoundPacksTab({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "The pack download didn't start.");
+        throw new Error(apiErrorMessage(data, "The pack download didn't start."));
       }
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -292,7 +293,7 @@ export function SoundPacksTab({
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The pack download didn't start.");
+      setError(plainErrorText(err, "The pack download didn't start."));
     } finally {
       setZipping(false);
     }
@@ -568,7 +569,7 @@ export function StemsTab({
 
   const finishWith = (read: AudioBenchResult) => {
     if (read.failed) {
-      setError(read.error ?? "The split didn't finish.");
+      setError(apiErrorMessage(read, "The split didn't finish."));
       setBusy(false);
       return;
     }
@@ -596,7 +597,7 @@ export function StemsTab({
       for (const [k, v] of stemsFields({ pro })) form.append(k, v);
       const post = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
       const data = (await post.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-      if (!post.ok) throw new Error(data.message ?? data.error ?? "The split didn't start.");
+      if (!post.ok) throw new Error(apiErrorMessage(data, "The split didn't start."));
       const jobId = audioBenchJobIdOf(data);
       if (!jobId) throw new Error("The split didn't start.");
       setSplitJobId(jobId);
@@ -617,7 +618,7 @@ export function StemsTab({
         }
       }, 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The split hit a snag.");
+      setError(plainErrorText(err, "The split hit a snag."));
       setBusy(false);
     }
   };

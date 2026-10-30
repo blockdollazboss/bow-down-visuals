@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
@@ -116,10 +117,10 @@ export default function SponsorPipeline() {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { deals?: Deal[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("wave8.sponsors.errorLoad"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("wave8.sponsors.errorLoad")));
       setDeals(Array.isArray(data.deals) ? data.deals : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave8.sponsors.errorLoad"));
+      setError(plainErrorText(err, t("wave8.sponsors.errorLoad")));
     } finally {
       setLoading(false);
     }
@@ -139,7 +140,7 @@ export default function SponsorPipeline() {
     });
     if (!res) return null;
     const data = (await res.json().catch(() => ({}))) as { deal?: Deal; error?: string; message?: string };
-    if (!res.ok || !data.deal) throw new Error(data.message || data.error || t("wave8.sponsors.errorUpdate"));
+    if (!res.ok || !data.deal) throw new Error(apiErrorMessage(data, t("wave8.sponsors.errorUpdate")));
     return data.deal;
   }
 
@@ -163,7 +164,7 @@ export default function SponsorPipeline() {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as { deal?: Deal; error?: string };
-      if (!res.ok || !data.deal) throw new Error(data.error || t("wave8.sponsors.errorSave"));
+      if (!res.ok || !data.deal) throw new Error(apiErrorMessage(data, t("wave8.sponsors.errorSave")));
       setDeals((prev) => [data.deal!, ...prev]);
       setShowForm(false);
       setFName("");
@@ -171,7 +172,7 @@ export default function SponsorPipeline() {
       setFContact("");
       setFNotes("");
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t("wave8.sponsors.errorSave"));
+      setFormError(plainErrorText(err, t("wave8.sponsors.errorSave")));
     } finally {
       setSaving(false);
     }
@@ -218,7 +219,7 @@ export default function SponsorPipeline() {
         message?: string;
       };
       if (res.status === 402) throw new Error(t("wave8.sponsors.outOfCredits"));
-      if (!res.ok || !data.subject) throw new Error(data.message || data.error || t("wave8.sponsors.errorDraft"));
+      if (!res.ok || !data.subject) throw new Error(apiErrorMessage(data, t("wave8.sponsors.errorDraft")));
       setDrafts((prev) => ({ ...prev, [deal.id]: { subject: data.subject!, body: data.body ?? "" } }));
       setDeals((prev) =>
         prev.map((d) => (d.id === deal.id ? { ...d, lastFollowupAt: data.lastFollowupAt ?? new Date().toISOString() } : d)),
@@ -254,7 +255,7 @@ export default function SponsorPipeline() {
         message?: string;
       };
       if (!res || !res.ok || !data.deal) {
-        throw new Error(data.message || data.error || t("wave8.sponsors.errorPaid"));
+        throw new Error(apiErrorMessage(data, t("wave8.sponsors.errorPaid")));
       }
       setDeals((prev) => prev.map((d) => (d.id === deal.id ? data.deal! : d)));
       if (data.posted) {

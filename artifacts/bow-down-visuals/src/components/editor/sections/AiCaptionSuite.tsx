@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -307,7 +308,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
     });
     const upData = (await upRes.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
     if (!upRes.ok || !upData.url) {
-      throw new Error(upData.message ?? upData.error ?? t("captionSuite.uploadFailed"));
+      throw new Error(apiErrorMessage(upData, t("captionSuite.uploadFailed")));
     }
     setVideoUrl(upData.url);
     return upData.url;
@@ -335,7 +336,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
         url?: string; lineCount?: number; wordCount?: number; error?: string;
         lines?: { start: number; end: number; text: string; words: WordTiming[] }[];
       };
-      if (!res.ok) throw new Error(data.error ?? t("captionSuite.generateFailed", { status: res.status }));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("captionSuite.generateFailed", { status: res.status })));
       const raw = data.lines ?? [];
       if (raw.length === 0) throw new Error(t("captionSuite.noSpeech"));
       const mapped: SuiteLine[] = raw.map((l) => ({
@@ -350,7 +351,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
       setStep(2);
     } catch (err) {
       setGenStatus("error");
-      setGenError(err instanceof Error ? err.message : t("captionSuite.generateFailedGeneric"));
+      setGenError(plainErrorText(err, t("captionSuite.generateFailedGeneric")));
     }
   }
 
@@ -396,12 +397,12 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
         } else if (data.status === "failed") {
           if (burnPollTimer.current) window.clearInterval(burnPollTimer.current);
           setBurnStatus("error");
-          setBurnError(data.error ?? t("captionSuite.burnFailedGeneric"));
+          setBurnError(apiErrorMessage(data, t("captionSuite.burnFailedGeneric")));
         }
       } catch (err) {
         if (burnPollTimer.current) window.clearInterval(burnPollTimer.current);
         setBurnStatus("error");
-        setBurnError(err instanceof Error ? err.message : t("captionSuite.burnFailedGeneric"));
+        setBurnError(plainErrorText(err, t("captionSuite.burnFailedGeneric")));
       }
     }, 3000);
   }
@@ -437,7 +438,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
         if (!res) { setBurnStatus("idle"); return; }
         const data = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string; message?: string };
         if (!res.ok || !data.jobId) {
-          throw new Error(data.message ?? data.error ?? t("captionSuite.burnFailedGeneric"));
+          throw new Error(apiErrorMessage(data, t("captionSuite.burnFailedGeneric")));
         }
         setBurnJobStatus("queued");
         void pollBurnJob(data.jobId);
@@ -455,14 +456,14 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
         if (!res) { setBurnStatus("idle"); return; }
         const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
         if (!res.ok || !data.url) {
-          throw new Error(data.message ?? data.error ?? t("captionSuite.burnFailedGeneric"));
+          throw new Error(apiErrorMessage(data, t("captionSuite.burnFailedGeneric")));
         }
         setBurnResultUrl(data.url);
         setBurnStatus("done");
       }
     } catch (err) {
       setBurnStatus("error");
-      setBurnError(err instanceof Error ? err.message : t("captionSuite.burnFailedGeneric"));
+      setBurnError(plainErrorText(err, t("captionSuite.burnFailedGeneric")));
     }
   }
 
@@ -496,7 +497,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
         error?: string; message?: string;
       };
       if (!res.ok || !data.translations) {
-        throw new Error(data.message ?? data.error ?? t("captionSuite.translateFailedGeneric"));
+        throw new Error(apiErrorMessage(data, t("captionSuite.translateFailedGeneric")));
       }
       const mapped: Record<string, SuiteLine[]> = {};
       for (const [code, caps] of Object.entries(data.translations)) {
@@ -507,7 +508,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
       setTranslateStatus("done");
     } catch (err) {
       setTranslateStatus("error");
-      setTranslateError(err instanceof Error ? err.message : t("captionSuite.translateFailedGeneric"));
+      setTranslateError(plainErrorText(err, t("captionSuite.translateFailedGeneric")));
     }
   }
 

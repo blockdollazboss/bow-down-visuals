@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -39,9 +40,9 @@ export function StageRooms() {
       const t = await getAccessToken();
       const res = await fetch("/api/stage-rooms", { method: "POST", headers: { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify({ title: title.trim() }) });
       const j = await res.json();
-      if (!res.ok) throw new Error(j?.error ?? "Could not open the room.");
+      if (!res.ok) throw new Error(apiErrorMessage(j, "Could not open the room."));
       setTitle(""); void load(); join(j.room);
-    } catch (e) { setErr(e instanceof Error ? e.message : "Could not open the room."); }
+    } catch (e) { setErr(plainErrorText(e, "Could not open the room.")); }
   }
 
   function peerPc(peerId: string, stream: MediaStream | null): RTCPeerConnection {

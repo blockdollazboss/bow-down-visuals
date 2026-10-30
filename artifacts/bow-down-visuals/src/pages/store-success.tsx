@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -126,7 +127,7 @@ function UpsellCard({
       if (!r.order) throw new Error("The add-on couldn't be completed — no charge was made.");
       setAccepted({ order: r.order, delivery: r.delivery });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The add-on couldn't be completed — no charge was made.");
+      setError(plainErrorText(err, "The add-on couldn't be completed — no charge was made."));
     } finally {
       setBusy(null);
     }
@@ -260,7 +261,7 @@ export default function StoreSuccess() {
       } catch (err) {
         if (alive) {
           setState("error");
-          setError(err instanceof Error ? err.message : "Verification failed.");
+          setError(plainErrorText(err, "Verification failed."));
         }
       }
     })();

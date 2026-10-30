@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { useState } from "react";
@@ -164,11 +165,11 @@ export default function PlanReview({ ctx, results }: PlanReviewProps) {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { slug?: string; error?: string; message?: string };
-      if (!res.ok || !data.slug) throw new Error(data.message || data.error || t("contentIntelligence.shareFailed"));
+      if (!res.ok || !data.slug) throw new Error(apiErrorMessage(data, t("contentIntelligence.shareFailed")));
       const url = `${window.location.origin}/plan/${data.slug}${refCode ? `?ref=${refCode}` : ""}`;
       setShareUrl(url);
     } catch (err) {
-      setPublishError(err instanceof Error ? err.message : t("contentIntelligence.shareFailed"));
+      setPublishError(plainErrorText(err, t("contentIntelligence.shareFailed")));
     } finally {
       setPublishing(false);
     }

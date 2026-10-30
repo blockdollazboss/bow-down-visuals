@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -148,7 +149,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
       });
       const data = (await res.json().catch(() => ({}))) as Partial<TranslateJobState> & { error?: string };
       if (!res.ok) {
-        setError(data.error ?? t("translate.statusCheckFailed"));
+        setError(apiErrorMessage(data, t("translate.statusCheckFailed")));
         stopPolling();
         setTranslating(false);
         return;
@@ -210,12 +211,12 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
       };
       if (res.status === 402) {
         setOutOfCredits(true);
-        setError(data.message ?? t("translate.outOfCreditsMessage"));
+        setError(apiErrorMessage(data, t("translate.outOfCreditsMessage")));
         setTranslating(false);
         return;
       }
       if (!res.ok || !data.jobId) {
-        setError(data.error ?? data.message ?? t("translate.startFailed"));
+        setError(apiErrorMessage(data, t("translate.startFailed")));
         setTranslating(false);
         return;
       }
@@ -225,7 +226,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
         pollJob(data.jobId!, token);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("translate.startFailed"));
+      setError(plainErrorText(e, t("translate.startFailed")));
       setTranslating(false);
     }
   }

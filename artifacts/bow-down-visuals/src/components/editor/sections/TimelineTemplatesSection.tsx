@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layers, Loader2, Scissors, Type, User, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
@@ -155,7 +156,7 @@ export function TimelineTemplatesSection({
       setPhase("preview");
     } catch (err) {
       setPhase("idle");
-      setError(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+      setError(plainErrorText(err, t(`${ns}.errorGeneric`)));
     }
   }
 

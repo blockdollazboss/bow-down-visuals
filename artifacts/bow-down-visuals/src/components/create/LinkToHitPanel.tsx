@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -115,7 +116,7 @@ export default function LinkToHitPanel() {
         });
         const upData = (await upRes.json().catch(() => ({}))) as { url?: string; message?: string; error?: string };
         if (!upRes.ok || !upData.url) {
-          throw new Error(upData.message || upData.error || "Video upload failed — try again.");
+          throw new Error(apiErrorMessage(upData, "Video upload failed — try again."));
         }
         effectiveUrl = upData.url;
       }
@@ -143,11 +144,11 @@ export default function LinkToHitPanel() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.comedyConcept) throw new Error(data.message || "Package failed.");
+      if (!res.ok || !data.comedyConcept) throw new Error(apiErrorMessage(data, "Package failed."));
       setPkg(data);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Package failed.");
+      setError(plainErrorText(e, "Package failed."));
     } finally {
       setLoading(false);
     }

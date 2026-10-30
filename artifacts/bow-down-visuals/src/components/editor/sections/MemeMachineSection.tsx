@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Laugh, Loader2, Sparkles, Check, Upload, X, ImageIcon } from "lucide-react";
@@ -127,11 +128,11 @@ export function MemeMachineSection({ settings, setSettings, bare }: MemeMachineS
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.captions?.length) throw new Error(data.message || "Caption generation failed.");
+      if (!res.ok || !data.captions?.length) throw new Error(apiErrorMessage(data, "Caption generation failed."));
       setCaptions(data.captions.slice(0, 5));
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Caption generation failed.");
+      setError(plainErrorText(e, "Caption generation failed."));
     } finally {
       setLoading(false);
     }

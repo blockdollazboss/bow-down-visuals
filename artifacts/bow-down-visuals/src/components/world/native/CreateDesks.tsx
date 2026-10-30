@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
@@ -282,14 +283,14 @@ function useSongPublishRail(args: {
         ),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(json.message ?? json.error ?? "Publishing didn't land — try again.");
+      if (!res.ok) throw new Error(apiErrorMessage(json, "Publishing didn't land — try again."));
       const trackId = publishedTrackIdOfResponse(json);
       if (!trackId) {
         throw new Error("Publishing came back without your track — check your profile before trying again.");
       }
       setPublishedTrackId(trackId);
     } catch (err) {
-      setPublishError(err instanceof Error ? err.message : "Publishing didn't land — try again.");
+      setPublishError(plainErrorText(err, "Publishing didn't land — try again."));
     } finally {
       setPublishBusy(false);
     }
@@ -404,14 +405,14 @@ export function SongDesk(props: CreateDeskProps) {
       form.append(TRANSCRIBE_FORM_FIELD, file);
       const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Transcription failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Transcription failed."));
       const transcript = transcriptOfResponse(data);
       if (!transcript) throw new Error("The transcription came back empty — paste the words instead.");
       setPrompt(transcript.slice(0, 2000));
       setIntakeNote("Transcribed — the words are in the prompt below, ready to make the song.");
       refreshProfile();
     } catch (err) {
-      setIntakeNote(err instanceof Error ? err.message : "Transcription failed.");
+      setIntakeNote(plainErrorText(err, "Transcription failed."));
     } finally {
       setIntakeBusy(false);
     }
@@ -451,7 +452,7 @@ export function SongDesk(props: CreateDeskProps) {
       setState("done");
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Song generation failed.");
+      setError(plainErrorText(err, "Song generation failed."));
       setState("failed");
     }
   };
@@ -707,7 +708,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
       setState("done");
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Song + video generation failed.");
+      setError(plainErrorText(err, "Song + video generation failed."));
       setState("failed");
     }
   };
@@ -899,13 +900,13 @@ function SongVideoWizard(props: {
       form.append(TRANSCRIBE_FORM_FIELD, file);
       const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Transcription failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Transcription failed."));
       const text = transcriptOfResponse(data);
       if (!text) throw new Error("We couldn't auto-transcribe this audio — paste the lyrics below to continue.");
       setTranscript(text);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Transcription failed.");
+      setError(plainErrorText(err, "Transcription failed."));
     } finally {
       setTranscribing(false);
     }
@@ -936,7 +937,7 @@ function SongVideoWizard(props: {
         throw new Error("Upload a song or make the package above first — scenes come from one of those.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Scene building failed.");
+      setError(plainErrorText(err, "Scene building failed."));
     } finally {
       setBusy(null);
     }
@@ -970,7 +971,7 @@ function SongVideoWizard(props: {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "The edit plan didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The edit plan didn't land."));
       const plan = aiEditPlanOfResponse(data);
       if (plan) {
         settings = {
@@ -984,7 +985,7 @@ function SongVideoWizard(props: {
       refreshProfile();
       void token;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The edit plan didn't land — the package still saves without it.");
+      setError(plainErrorText(err, "The edit plan didn't land — the package still saves without it."));
     } finally {
       setBusy(null);
     }
@@ -1014,7 +1015,7 @@ function SongVideoWizard(props: {
           return;
         }
         const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
-        if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The clip make didn't start.");
+        if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The clip make didn't start."));
         const taskId = data.taskId;
         clipPollRef.current = setInterval(async () => {
           try {
@@ -1025,7 +1026,7 @@ function SongVideoWizard(props: {
               if (clipPollRef.current) clearInterval(clipPollRef.current);
               setClipBusy(null);
               if (read.failed || !read.url) {
-                setError(read.error ?? "Clip generation failed.");
+                setError(apiErrorMessage(read, "Clip generation failed."));
               } else {
                 setScenes((prev) => withSceneClip(prev, scene.id, read.url!));
                 refreshProfile();
@@ -1049,7 +1050,7 @@ function SongVideoWizard(props: {
         }, 5000);
       } catch (err) {
         setClipBusy(null);
-        setError(err instanceof Error ? err.message : "Clip generation failed.");
+        setError(plainErrorText(err, "Clip generation failed."));
       }
     })();
   };
@@ -1086,7 +1087,7 @@ function SongVideoWizard(props: {
       setSaved(true);
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Saving the package failed.");
+      setError(plainErrorText(err, "Saving the package failed."));
     } finally {
       setBusy(null);
     }
@@ -1200,7 +1201,7 @@ export function VideoDesk(props: CreateDeskProps) {
         if (read.done) {
           stopPolling();
           if (read.failed || !read.url) {
-            setError(read.error ?? "Clip generation failed.");
+            setError(apiErrorMessage(read, "Clip generation failed."));
             setState("failed");
           } else {
             setClipUrl(read.url);
@@ -1253,10 +1254,10 @@ export function VideoDesk(props: CreateDeskProps) {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
-      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The clip make didn't start.");
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The clip make didn't start."));
       startPolling(data.taskId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Clip generation failed.");
+      setError(plainErrorText(err, "Clip generation failed."));
       setState("failed");
     }
   };
@@ -1273,7 +1274,7 @@ export function VideoDesk(props: CreateDeskProps) {
       if (result.creditsRemaining !== undefined) refreshProfile();
       setPlanState("done");
     } catch (err) {
-      setPlanError(err instanceof Error ? err.message : "Video plan failed.");
+      setPlanError(plainErrorText(err, "Video plan failed."));
       setPlanState("failed");
     }
   };
@@ -1442,14 +1443,14 @@ export function CoverArtDesk(props: CreateDeskProps) {
         body: JSON.stringify(buildCoverArtPayload(prompt, { songTitle, artistName, style, aspectRatio, tier, attribution })),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Cover art generation failed.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Cover art generation failed."));
       setCoverUrl(data.url);
       setCoverHistory((h) => pushCoverHistory(h, data.url!));
       refreshProfile();
       setState("done");
       void coverQuest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Cover art generation failed.");
+      setError(plainErrorText(err, "Cover art generation failed."));
       setState("failed");
     }
   };
@@ -1483,12 +1484,12 @@ export function CoverArtDesk(props: CreateDeskProps) {
         body: JSON.stringify(buildCoverInMotionPayload(coverUrl)),
       });
       const data = (await res.json().catch(() => ({}))) as { videoUrl?: string; error?: string; message?: string };
-      if (!res.ok || !data.videoUrl) throw new Error(data.message || data.error || "Animation failed.");
+      if (!res.ok || !data.videoUrl) throw new Error(apiErrorMessage(data, "Animation failed."));
       setMotionUrl(data.videoUrl);
       refreshProfile();
       setMotionState("done");
     } catch (err) {
-      setMotionError(err instanceof Error ? err.message : "Animation failed.");
+      setMotionError(plainErrorText(err, "Animation failed."));
       setMotionState("failed");
     }
   };
@@ -1505,7 +1506,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
         body: JSON.stringify(buildArtistImagePayload(imagePrompt, imageModel)),
       });
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; status?: string; url?: string | null; error?: string; message?: string };
-      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The image make didn't start.");
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The image make didn't start."));
       if (data.status === "succeeded" && data.url) {
         setArtistImageUrl(data.url);
         refreshProfile();
@@ -1520,7 +1521,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
           if (read.done) {
             if (imagePollRef.current) clearInterval(imagePollRef.current);
             if (read.failed || !read.url) {
-              setImageError(read.error ?? "Image generation failed.");
+              setImageError(apiErrorMessage(read, "Image generation failed."));
               setImageState("failed");
             } else {
               setArtistImageUrl(read.url);
@@ -1535,7 +1536,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
         }
       }, 5000);
     } catch (err) {
-      setImageError(err instanceof Error ? err.message : "Image generation failed.");
+      setImageError(plainErrorText(err, "Image generation failed."));
       setImageState("failed");
     }
   };
@@ -1561,12 +1562,12 @@ export function CoverArtDesk(props: CreateDeskProps) {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Publishing to the showcase didn't land.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Publishing to the showcase didn't land."));
       const slug = showcaseSlugOfResponse(data);
       if (!slug) throw new Error("The showcase came back without your page — check the showcase before trying again.");
       setShowcaseSlug(slug);
     } catch (err) {
-      setShareNote(err instanceof Error ? err.message : "Showcase publishing failed.");
+      setShareNote(plainErrorText(err, "Showcase publishing failed."));
     } finally {
       setShowcaseBusy(false);
     }
@@ -1835,7 +1836,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
       setState("done");
       void thumbQuest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Thumbnail generation failed.");
+      setError(plainErrorText(err, "Thumbnail generation failed."));
       setState("failed");
     }
   };

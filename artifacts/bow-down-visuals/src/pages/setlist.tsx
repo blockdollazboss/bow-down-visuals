@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -130,7 +131,7 @@ export default function SetlistBuilder() {
         (data.songs ?? []).filter((s) => s.title && !inSet.has(s.title.toLowerCase()))
       );
     } catch (err) {
-      setLibraryError(err instanceof Error ? err.message : t("setlist.errorLoadLibrary"));
+      setLibraryError(plainErrorText(err, t("setlist.errorLoadLibrary")));
     } finally {
       setLibraryLoading(false);
     }
@@ -202,14 +203,14 @@ export default function SetlistBuilder() {
         return;
       }
       if (!res.ok || !data.order || !data.flowNotes) {
-        throw new Error(data.error || data.message || t("setlist.errorFlowFailed"));
+        throw new Error(apiErrorMessage(data, t("setlist.errorFlowFailed")));
       }
       setSongs((prev) => applyFlowOrder(prev, data.order!));
       setFlowNotes(data.flowNotes!);
       setNotice(t("setlist.flowApplied", { count: data.order!.length, cost: CREDIT_COST }));
       void refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("setlist.errorFlowFailed"));
+      setError(plainErrorText(err, t("setlist.errorFlowFailed")));
     } finally {
       setFlowLoading(false);
     }

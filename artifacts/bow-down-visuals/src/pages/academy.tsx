@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -138,7 +139,7 @@ async function postAcademy<T>(path: string, body: unknown, token: string | null)
  throw new Error("__OUT_OF_CREDITS__");
  }
  if (!res.ok) {
- throw new Error(data.message || data.error || "__REQUEST_FAILED__");
+ throw new Error(apiErrorMessage(data, "__REQUEST_FAILED__"));
  }
  return data;
 }
@@ -193,7 +194,7 @@ function AcademyMain() {
  } else if (err instanceof Error && err.message === "__REQUEST_FAILED__") {
  setError(t("academy.errorRequestFailed"));
  } else {
- setError(err instanceof Error ? err.message : t("academy.errorGeneric"));
+ setError(plainErrorText(err, t("academy.errorGeneric")));
  }
  }
 

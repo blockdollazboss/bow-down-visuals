@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Crown, Disc3, Heart, Loader2, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,12 +69,12 @@ export default function RemixKingSection() {
         body: JSON.stringify({ remix_title: title.trim(), audio_url: audioUrl.trim(), note: note.trim() || undefined }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not enter your remix");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not enter your remix"));
       setTitle(""); setAudioUrl(""); setNote("");
       setMsg("Your remix is in. Good luck — the winner becomes an official release.");
       void load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Could not enter your remix");
+      setMsg(plainErrorText(e, "Could not enter your remix"));
     } finally {
       setBusy(false);
     }
@@ -86,7 +87,7 @@ export default function RemixKingSection() {
         headers: await authHeaders(),
       });
       const data = (await res.json()) as { voted?: boolean; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Vote failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Vote failed"));
       setVoted((prev) => {
         const next = new Set(prev);
         if (data.voted) next.add(entryId); else next.delete(entryId);
@@ -94,7 +95,7 @@ export default function RemixKingSection() {
       });
       void load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Vote failed");
+      setMsg(plainErrorText(e, "Vote failed"));
     }
   }
 

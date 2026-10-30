@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -119,7 +120,7 @@ export function TeamSeats() {
           body: JSON.stringify({ token }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error ?? "accept failed");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "accept failed"));
         toast({
           title: t("settings.teamInviteAcceptedTitle"),
           description: data.alreadyActive
@@ -148,7 +149,7 @@ export function TeamSeats() {
         body: JSON.stringify({ email, displayName: name, role }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "invite failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "invite failed"));
       setSeats((prev) => [data.seat, ...prev]);
       setInviteLink(data.inviteLink ?? null);
       setEmail("");
@@ -176,7 +177,7 @@ export function TeamSeats() {
         body: JSON.stringify({ role: next }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "role change failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "role change failed"));
       setSeats((prev) => prev.map((s) => (s.id === seat.id ? data.seat : s)));
     } catch (err) {
       toast({
@@ -195,7 +196,7 @@ export function TeamSeats() {
       const res = await authFetch(`/api/team-seats/${seat.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "revoke failed");
+        throw new Error(apiErrorMessage(data, "revoke failed"));
       }
       setSeats((prev) => prev.filter((s) => s.id !== seat.id));
       toast({ title: t("settings.teamRevokedTitle") });

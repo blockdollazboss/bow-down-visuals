@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -137,13 +138,13 @@ export function CanvasGeneratorSection({
         if (res.status === 402) {
           setOutOfCredits(true);
         } else {
-          setError(data.error || "Canvas generation failed. Your Visual Bucs were refunded.");
+          setError(apiErrorMessage(data, "Canvas generation failed. Your Visual Bucs were refunded."));
         }
         return;
       }
       setResultUrl(data.url as string);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Canvas generation failed.");
+      setError(plainErrorText(err, "Canvas generation failed."));
     } finally {
       setGenerating(false);
     }

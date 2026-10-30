@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Crown, Loader2, Swords, Trophy, XCircle, CheckCircle2, Play, Flag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -231,7 +232,7 @@ export default function LiveBattlesPanel({
       void loadStreamBattle();
       if (showMine) void loadMine();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "That didn't go through.");
+      setMsg(plainErrorText(err, "That didn't go through."));
     } finally {
       setBusy(null);
     }
@@ -247,7 +248,7 @@ export default function LiveBattlesPanel({
       const updated = data.battle as LiveBattle;
       if (streamBattle?.id === updated.id) setStreamBattle(updated);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "That vote didn't land.");
+      setMsg(plainErrorText(err, "That vote didn't land."));
     } finally {
       setBusy(null);
     }
@@ -265,7 +266,7 @@ export default function LiveBattlesPanel({
       setMsg("Challenge sent — it waits on their answer. The theme is drawn when the challenge is created, so you both prepare for the same brief.");
       void loadMine();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "That challenge didn't go out.");
+      setMsg(plainErrorText(err, "That challenge didn't go out."));
     } finally {
       setBusy(null);
     }

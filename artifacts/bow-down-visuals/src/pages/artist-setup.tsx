@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -53,7 +54,7 @@ async function uploadImage(kind: "avatar" | "banner" | "background", file: File)
   form.append("kind", kind);
   const res = await fetch("/api/ai-page-designer/upload", { method: "POST", body: form });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Upload failed.");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "Upload failed."));
   return data.url as string;
 }
 

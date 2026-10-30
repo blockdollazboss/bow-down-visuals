@@ -98,7 +98,7 @@ describe("FanArtReviewDesk — component wiring (source pins)", () => {
   });
 
   it("a failed decision surfaces as an alert and is never swallowed", () => {
-    expect(src).toContain("setActionError(e instanceof Error ? e.message : \"That decision didn't save. Please try again.\");");
+    expect(src).toContain("setActionError(plainErrorText(e, \"That decision didn't save. Please try again.\"));");
     expect(src).toContain('role="alert"');
   });
 });

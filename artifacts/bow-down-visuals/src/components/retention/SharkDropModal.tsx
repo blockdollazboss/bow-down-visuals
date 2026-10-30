@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X, Gift, Timer } from "lucide-react";
 import { mediaUrl } from "@/lib/media-cdn";
@@ -83,14 +84,14 @@ export default function SharkDropModal({
       });
       const data = (await res.json().catch(() => ({}))) as { claimed?: boolean; amount?: number; error?: string };
       if (!res.ok || !data.claimed) {
-        throw new Error(data.error ?? t("retentionDelight.sharkDrop_failed"));
+        throw new Error(apiErrorMessage(data, t("retentionDelight.sharkDrop_failed")));
       }
       setClaimed(true);
       refreshProfile();
       // Let the success moment land, then close on its own.
       claimTimer.current = setTimeout(onClaimed, 2400);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("retentionDelight.sharkDrop_failed"));
+      setError(plainErrorText(e, t("retentionDelight.sharkDrop_failed")));
     } finally {
       setClaiming(false);
     }

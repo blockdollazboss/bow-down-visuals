@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -185,14 +186,14 @@ export function MotionTrackCard({
         toast({ title: t("videoEditor.motionTrack.outOfBucs"), variant: "destructive" });
         return;
       }
-      if (!res.ok || !body.jobId) throw new Error(body.error ?? t("videoEditor.motionTrack.trackFailed"));
+      if (!res.ok || !body.jobId) throw new Error(apiErrorMessage(body, t("videoEditor.motionTrack.trackFailed")));
       const jobId = body.jobId as string;
       setTrackJobId(jobId);
       pollTimer.current = window.setInterval(async () => {
         try {
           const pr = await fetch(`/api/motion-track/job/${jobId}`);
           const jb = await pr.json().catch(() => ({}));
-          if (!pr.ok) throw new Error(jb.error ?? "Track job lost.");
+          if (!pr.ok) throw new Error(apiErrorMessage(jb, "Track job lost."));
           setTrackStage(jb.stage ?? "");
           setTrackProgress(jb.progress ?? 0);
           if (jb.state === "done") {
@@ -204,7 +205,7 @@ export function MotionTrackCard({
           } else if (jb.state === "failed") {
             if (pollTimer.current) window.clearInterval(pollTimer.current);
             setTracking(false);
-            throw new Error(jb.error ?? t("videoEditor.motionTrack.trackFailed"));
+            throw new Error(apiErrorMessage(jb, t("videoEditor.motionTrack.trackFailed")));
           }
         } catch (err) {
           if (pollTimer.current) window.clearInterval(pollTimer.current);
@@ -278,7 +279,7 @@ export function MotionTrackCard({
         toast({ title: t("videoEditor.motionTrack.outOfBucs"), variant: "destructive" });
         return;
       }
-      if (!res.ok || !body.url) throw new Error(body.error ?? t("videoEditor.motionTrack.applyFailed"));
+      if (!res.ok || !body.url) throw new Error(apiErrorMessage(body, t("videoEditor.motionTrack.applyFailed")));
       setResultUrl(body.url as string);
       setResultRef((body.storageRef as string) ?? null);
       toast({ title: t("videoEditor.motionTrack.applyReady") });
@@ -321,7 +322,7 @@ export function MotionTrackCard({
       });
       if (!res) return;
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? body.message ?? t("videoEditor.motionTrack.shareFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(body, t("videoEditor.motionTrack.shareFailed")));
       toast({ title: t("videoEditor.motionTrack.shareOk", { platform }) });
     } catch (err) {
       toast({

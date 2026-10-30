@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -295,7 +296,7 @@ export default function LabelPitch() {
         document.getElementById("demo-kit-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("labelPitch.errKitFailed"));
+      setError(plainErrorText(err, t("labelPitch.errKitFailed")));
     } finally {
       setGenerating(false);
     }
@@ -323,7 +324,7 @@ export default function LabelPitch() {
       setNewSubmission({ songTitle: "", artistName: "", labelName: "", notes: "" });
       setShowAddForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("labelPitch.errSaveSubmission"));
+      setError(plainErrorText(err, t("labelPitch.errSaveSubmission")));
     }
   }
 
@@ -337,7 +338,7 @@ export default function LabelPitch() {
       const updated = (data as { pitch: Submission }).pitch;
       setSubmissions((prev) => prev.map((p) => (p.id === id ? updated : p)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("labelPitch.errUpdateSubmission"));
+      setError(plainErrorText(err, t("labelPitch.errUpdateSubmission")));
     }
   }
 
@@ -350,7 +351,7 @@ export default function LabelPitch() {
       if (!res.ok) throw new Error(t("labelPitch.errDeleteSubmission"));
       setSubmissions((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("labelPitch.errDeleteSubmission"));
+      setError(plainErrorText(err, t("labelPitch.errDeleteSubmission")));
     }
   }
 
@@ -1368,7 +1369,7 @@ function PlaylistsPitchTab() {
       setShowDeadlineForm(false);
       loadDeadlines();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("playlistPitch.deadlineSaveFailed"));
+      setError(plainErrorText(err, t("playlistPitch.deadlineSaveFailed")));
     }
   }
 
@@ -1454,7 +1455,7 @@ function PlaylistsPitchTab() {
         document.getElementById("pitch-kit-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("playlistPitch.kitFailed"));
+      setError(plainErrorText(err, t("playlistPitch.kitFailed")));
     } finally {
       setGenerating(false);
     }
@@ -1483,7 +1484,7 @@ function PlaylistsPitchTab() {
       setNewPitch({ songTitle: "", artistName: "", curatorName: "", playlistName: "", notes: "" });
       setShowAddForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("playlistPitch.saveFailed"));
+      setError(plainErrorText(err, t("playlistPitch.saveFailed")));
     }
   }
 

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useCallback, useEffect, useState } from "react";
@@ -200,7 +201,7 @@ export default function MyShop() {
     try {
       const res = await authed("/api/shops/mine");
       const data = (await res.json().catch(() => ({}))) as { shops?: Shop[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("myShop.loadShopsFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.loadShopsFailed")));
       setShops(data.shops ?? []);
       if (data.shops?.length && !activeShop) selectShop(data.shops[0]!);
     } catch {
@@ -255,13 +256,13 @@ export default function MyShop() {
         body: JSON.stringify({ name: newName.trim(), handle: newHandle.trim(), tagline: newTagline.trim() }),
       });
       const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
-      if (!res.ok) throw new Error(data.error || t("myShop.createShopFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.createShopFailed")));
       setShops((s) => [data.shop!, ...s]);
       setShowCreate(false);
       setNewName(""); setNewHandle(""); setNewTagline("");
       selectShop(data.shop!);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.createShopFailed"));
+      setError(plainErrorText(err, t("myShop.createShopFailed")));
     } finally {
       setCreating(false);
     }
@@ -283,13 +284,13 @@ export default function MyShop() {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
-      if (!res.ok) throw new Error(data.error || t("myShop.saveShopFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.saveShopFailed")));
       setActiveShop(data.shop!);
       setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
       setSavedTick(true);
       setTimeout(() => setSavedTick(false), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.saveShopFailed"));
+      setError(plainErrorText(err, t("myShop.saveShopFailed")));
     } finally {
       setSaving(false);
     }
@@ -308,7 +309,7 @@ export default function MyShop() {
       }),
     });
     const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string; message?: string };
-    if (!res.ok || !data.shop) throw new Error(data.error || data.message || t("commercePixels.saveFailed"));
+    if (!res.ok || !data.shop) throw new Error(apiErrorMessage(data, t("commercePixels.saveFailed")));
     setActiveShop(data.shop);
     setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
   }
@@ -322,7 +323,7 @@ export default function MyShop() {
       setActiveShop(null);
       setProducts([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.deleteShopFailed"));
+      setError(plainErrorText(err, t("myShop.deleteShopFailed")));
     }
   }
 
@@ -343,11 +344,11 @@ export default function MyShop() {
       });
       const data = (await res.json().catch(() => ({}))) as { description?: string; error?: string; message?: string };
       if (paidFailed(res, data)) return;
-      if (!res.ok || !data.description) throw new Error(data.message || data.error || t("myShop.descriptionFailed"));
+      if (!res.ok || !data.description) throw new Error(apiErrorMessage(data, t("myShop.descriptionFailed")));
       setEditDescription(data.description);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.descriptionFailed"));
+      setError(plainErrorText(err, t("myShop.descriptionFailed")));
     } finally {
       setAiShopDescLoading(false);
     }
@@ -406,7 +407,7 @@ export default function MyShop() {
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.message || data.error || "Could not save the add-on offer.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save the add-on offer."));
       setProducts((ps) =>
         ps.map((x) => (x.id === editingProduct.id ? { ...x, bumpConfig: data.bumpConfig ?? null } : x)),
       );
@@ -418,7 +419,7 @@ export default function MyShop() {
             : "Saved. The add-on isn't offered until it's active and priced.",
       );
     } catch (err) {
-      setBumpMsg(err instanceof Error ? err.message : "Could not save the add-on offer.");
+      setBumpMsg(plainErrorText(err, "Could not save the add-on offer."));
     } finally {
       setBumpSaving(false);
     }
@@ -435,13 +436,13 @@ export default function MyShop() {
         body: JSON.stringify({ status: next }),
       });
       const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string };
-      if (!res.ok) throw new Error(data.error || t("myShop.togglePauseFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.togglePauseFailed")));
       /* The row changes ONLY from the server's confirmed response —
          the delete discipline: a failed flip shows the error and
          leaves the list exactly as it was. */
       setProducts((ps) => ps.map((x) => (x.id === p.id ? data.product! : x)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.togglePauseFailed"));
+      setError(plainErrorText(err, t("myShop.togglePauseFailed")));
     } finally {
       setPauseTogglingId(null);
     }
@@ -465,12 +466,12 @@ export default function MyShop() {
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; name?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || "The file upload failed — nothing was saved. Try again, or paste a hosted URL for the file instead.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "The file upload failed — nothing was saved. Try again, or paste a hosted URL for the file instead."));
       setPDeliverableUrl(data.url);
       setPDeliverableName(data.name ?? file.name);
       setPDeliverableMsg(`Attached: ${data.name ?? file.name} — buyers receive it after paying.`);
     } catch (err) {
-      setPDeliverableMsg(err instanceof Error ? err.message : "The file upload failed — nothing was saved.");
+      setPDeliverableMsg(plainErrorText(err, "The file upload failed — nothing was saved."));
     } finally {
       setPDeliverableUploading(false);
     }
@@ -528,14 +529,14 @@ export default function MyShop() {
         : `/api/shops/${activeShop.id}/products`;
       const res = await authed(url, { method: editingProduct ? "PATCH" : "POST", body: JSON.stringify(body) });
       const data = (await res.json().catch(() => ({}))) as { product?: Product; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || t("myShop.saveProductFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.saveProductFailed")));
       setProducts((ps) =>
         editingProduct ? ps.map((x) => (x.id === editingProduct.id ? data.product! : x)) : [...ps, data.product!]
       );
       setShowProductForm(false);
       setShops((s) => s.map((x) => (x.id === activeShop.id ? { ...x, product_count: (x.product_count ?? 0) + (editingProduct ? 0 : 1) } : x)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.saveProductFailed"));
+      setError(plainErrorText(err, t("myShop.saveProductFailed")));
     } finally {
       setPSaving(false);
     }
@@ -548,7 +549,7 @@ export default function MyShop() {
       if (!res.ok) throw new Error(t("myShop.deleteProductFailed"));
       setProducts((ps) => ps.filter((x) => x.id !== p.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.deleteProductFailed"));
+      setError(plainErrorText(err, t("myShop.deleteProductFailed")));
     }
   }
 
@@ -564,11 +565,11 @@ export default function MyShop() {
       });
       const data = (await res.json().catch(() => ({}))) as { description?: string; error?: string; message?: string };
       if (paidFailed(res, data)) return;
-      if (!res.ok || !data.description) throw new Error(data.message || data.error || t("myShop.descriptionFailed"));
+      if (!res.ok || !data.description) throw new Error(apiErrorMessage(data, t("myShop.descriptionFailed")));
       setPDesc(data.description);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.descriptionFailed"));
+      setError(plainErrorText(err, t("myShop.descriptionFailed")));
     } finally {
       setAiProdDescLoading(false);
     }
@@ -586,11 +587,11 @@ export default function MyShop() {
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
       if (paidFailed(res, data)) return;
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || t("myShop.imageFailed"));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("myShop.imageFailed")));
       setPImageUrl(data.url);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("myShop.imageFailed"));
+      setError(plainErrorText(err, t("myShop.imageFailed")));
     } finally {
       setAiImageLoading(null);
     }
@@ -1328,10 +1329,10 @@ function DomainManager({
         method: "POST", body: JSON.stringify({ domain: domain.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("myShop.domainAttachFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("myShop.domainAttachFailed")));
       setToken(data.verification.value);
       onUpdate({ ...shop, custom_domain: data.domain, domain_verified: false });
-    } catch (e) { setError(e instanceof Error ? e.message : t("myShop.domainAttachFailedShort")); }
+    } catch (e) { setError(plainErrorText(e, t("myShop.domainAttachFailedShort"))); }
     finally { setBusy(false); }
   }
 
@@ -1360,7 +1361,7 @@ function DomainManager({
       if (!res.ok) throw new Error(t("myShop.domainDisconnectFailed"));
       setToken(null); setDomain("");
       onUpdate({ ...shop, custom_domain: null, domain_verified: false });
-    } catch (e) { setError(e instanceof Error ? e.message : t("myShop.domainDisconnectFailedShort")); }
+    } catch (e) { setError(plainErrorText(e, t("myShop.domainDisconnectFailedShort"))); }
   }
 
   function copyToken() {

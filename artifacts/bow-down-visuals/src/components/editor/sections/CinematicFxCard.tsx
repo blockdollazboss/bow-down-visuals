@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useMemo, useState } from "react";
 import {
   Clapperboard, Sparkles, Loader2, Share2, Link2, Check,
@@ -115,14 +116,14 @@ export function CinematicFxCard({
         setError("Out of Visual Bucs — top up to burn cinematic FX.");
         return;
       }
-      if (!res.ok || !body.url) throw new Error(body.error ?? "Cinematic FX render failed.");
+      if (!res.ok || !body.url) throw new Error(apiErrorMessage(body, "Cinematic FX render failed."));
       setResultUrl(body.url as string);
       toast({
         title: "✨ Cinematic FX burned",
         description: `${selected.join(" + ")} rendered server-side — real pixels, not a preview filter.`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Render failed. Your Visual Bucs were refunded.");
+      setError(plainErrorText(err, "Render failed. Your Visual Bucs were refunded."));
     } finally {
       setBusy(false);
     }

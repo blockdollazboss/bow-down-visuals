@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -164,7 +165,7 @@ export default function LoyaltySettingsPanel() {
               setNote("Saved. Your fans earn at these rates from now on.");
               await load(profileId);
             } catch (err) {
-              setNote(err instanceof Error ? err.message : "Settings couldn't be saved.");
+              setNote(plainErrorText(err, "Settings couldn't be saved."));
             }
           }}
         >

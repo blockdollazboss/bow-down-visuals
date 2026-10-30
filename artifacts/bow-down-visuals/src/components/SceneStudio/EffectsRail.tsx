@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import { Zap, Sparkles, TrendingUp, AlertTriangle, Check, Loader2 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
@@ -158,7 +159,7 @@ export function EffectsRail({ scene, pickedIds, onChange, getAccessToken }: Effe
         disclaimer?: string;
         error?: string;
       };
-      if (!res.ok || !data.proposals) throw new Error(data.error ?? "match failed");
+      if (!res.ok || !data.proposals) throw new Error(apiErrorMessage(data, "match failed"));
       setProposals(data.proposals);
       setMatchSource(data.source ?? "library");
       setMatchDisclaimer(data.disclaimer ?? null);

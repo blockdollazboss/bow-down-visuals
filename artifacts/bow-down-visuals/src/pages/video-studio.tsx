@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -213,7 +214,7 @@ export default function VideoStudio() {
          the hub record below uses it instead of the picker value. */
       const clipDurationSec = submitData.durationSec ?? 5;
       if (!submitRes.ok || !submitData.taskId) {
-        throw new Error(submitData.message ?? submitData.error ?? "Generation failed");
+        throw new Error(apiErrorMessage(submitData, "Generation failed"));
       }
 
       // Poll until the clip lands (the rail charges only on success).
@@ -235,7 +236,7 @@ export default function VideoStudio() {
           throw new Error("Generation finished without a clip — no Visual Bucs were charged.");
         }
         if (pollData.status === "failed" || pollData.status === "cancelled") {
-          throw new Error(pollData.error ?? "Generation failed");
+          throw new Error(apiErrorMessage(pollData, "Generation failed"));
         }
       }
       if (!videoUrl) throw new Error("Generation timed out — the clip may still finish in the background.");
@@ -259,7 +260,7 @@ export default function VideoStudio() {
         refreshProfile();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
+      setError(plainErrorText(err, "Generation failed"));
     } finally {
       setGenerating(false);
     }

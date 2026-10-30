@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -163,11 +164,11 @@ export default function JewelryStudio() {
       if (!res) return;
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
-      if (!res.ok) throw new Error(data.error || t("jewelry.previewFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("jewelry.previewFailed")));
       setPreviewUrl(data.url);
       void refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("jewelry.previewFailed"));
+      setError(plainErrorText(e, t("jewelry.previewFailed")));
     } finally {
       setPreviewBusy(false);
     }
@@ -190,11 +191,11 @@ export default function JewelryStudio() {
       if (!res) return;
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
-      if (!res.ok) throw new Error(data.error || t("jewelry.stlFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("jewelry.stlFailed")));
       setStlInfo(data);
       void refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("jewelry.stlFailed"));
+      setError(plainErrorText(e, t("jewelry.stlFailed")));
     } finally {
       setStlBusy(false);
     }
@@ -217,10 +218,10 @@ export default function JewelryStudio() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("jewelry.estimateFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("jewelry.estimateFailed")));
       setEstimate(data.estimate);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("jewelry.estimateFailed"));
+      setError(plainErrorText(e, t("jewelry.estimateFailed")));
     } finally {
       setEstimateBusy(false);
     }
@@ -250,7 +251,7 @@ export default function JewelryStudio() {
       });
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
-      if (!res.ok) throw new Error(data.error || t("jewelry.consultFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("jewelry.consultFailed")));
       setConsultMsgs((m) => [...m, { role: "assistant", content: data.reply }]);
       void refreshProfile();
     } catch {

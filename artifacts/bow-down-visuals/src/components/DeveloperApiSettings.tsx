@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { KeyRound, Loader2, Copy, Check, Trash2, AlertTriangle, BookOpen, Webhook, Pause, Play, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -349,7 +350,7 @@ function WebhooksSettings({
         body: JSON.stringify({ url: url.trim(), events: pickedEvents }),
       });
       const data = (await res.json().catch(() => ({}))) as { secret?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? "create failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "create failed"));
       setFreshSecret(data.secret ?? null);
       setSecretCopied(false);
       setUrl("");

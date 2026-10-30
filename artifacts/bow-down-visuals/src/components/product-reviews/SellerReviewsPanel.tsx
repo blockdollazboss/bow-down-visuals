@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Flag, Loader2, MessageSquare, RotateCcw, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,10 +89,10 @@ export default function SellerReviewsPanel({
     try {
       const res = await authed(path, init);
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "That didn't go through.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That didn't go through."));
       await load();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "That didn't go through.");
+      setActionError(plainErrorText(err, "That didn't go through."));
     } finally {
       setBusyId(null);
     }

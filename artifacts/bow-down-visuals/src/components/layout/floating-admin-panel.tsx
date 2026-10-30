@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useState, useEffect } from "react";
 import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,7 +96,7 @@ function AdminTools({
       body: JSON.stringify(body),
     });
     const data = (await res.json()) as { error?: string; [k: string]: unknown };
-    if (!res.ok) throw new Error(data.error || "Request failed.");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Request failed."));
     return data;
   }
 
@@ -309,7 +310,7 @@ function CopyArtists({
         credentials: "include",
       });
       const data = (await res.json()) as { ok?: boolean; deleted?: number; error?: string };
-      if (!data.ok) throw new Error(data.error || "Failed");
+      if (!data.ok) throw new Error(apiErrorMessage(data, "Failed"));
       setMsg(`✓ Removed ${data.deleted} duplicate(s).`);
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
@@ -401,7 +402,7 @@ function BowRaceControls({
         targetOverride?: number | null;
         race?: { totalBows?: number; target?: number } | null;
       };
-      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+      if (!res.ok) throw new Error(apiErrorMessage(data, `Failed (${res.status})`));
       setReward(String(data.rewardCredits ?? 50));
       setEnabled(data.enabled ?? true);
       setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
@@ -434,7 +435,7 @@ function BowRaceControls({
         }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Failed."));
       setMsg("✓ Race settings saved.");
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
@@ -602,7 +603,7 @@ function JackpotCreator({
         }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Failed."));
       setMsg("✓ Jackpot event created.");
       setName("");
       setSequence([]);

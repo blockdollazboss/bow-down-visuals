@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -146,7 +147,7 @@ export function VocalTunePanel() {
         const data: TuneJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("vocalTune.errorJobNotFound", { defaultValue: "Tuning job not found." }));
+          setError(apiErrorMessage(data, t("vocalTune.errorJobNotFound", { defaultValue: "Tuning job not found." })));
           return;
         }
         if (data.status === "done") {
@@ -165,7 +166,7 @@ export function VocalTunePanel() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("vocalTune.errorTuneFailed", { defaultValue: "Tuning failed — your Visual Bucs were refunded." }));
+          setError(apiErrorMessage(data, t("vocalTune.errorTuneFailed", { defaultValue: "Tuning failed — your Visual Bucs were refunded." })));
         } else {
           setStatus(data.status as TuneJobStatus);
         }
@@ -278,7 +279,7 @@ export function VocalTunePanel() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("vocalTune.errorStartFailed", { defaultValue: "Couldn't start tuning. Please try again." }));
+        setError(apiErrorMessage(data, t("vocalTune.errorStartFailed", { defaultValue: "Couldn't start tuning. Please try again." })));
         return;
       }
       setJobId(data.jobId);

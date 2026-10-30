@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ export default function Contact() {
       });
       const data = (await res.json()) as { error?: string; message?: string };
       if (!res.ok) {
-        setError(data.message ?? data.error ?? t("contact.genericError"));
+        setError(apiErrorMessage(data, t("contact.genericError")));
         setLoading(false);
         return;
       }

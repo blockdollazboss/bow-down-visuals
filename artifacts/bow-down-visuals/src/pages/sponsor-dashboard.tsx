@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -98,13 +99,13 @@ export default function SponsorDashboard() {
           postedDeals?: PostedDeal[]; applications?: MyApplication[];
           payouts?: Payout[]; totalEarnedCents?: number; error?: string;
         };
-        if (!res.ok) throw new Error(data.error || t("sponsorDashboard.errorLoadDashboard"));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("sponsorDashboard.errorLoadDashboard")));
         setPostedDeals(Array.isArray(data.postedDeals) ? data.postedDeals : []);
         setApplications(Array.isArray(data.applications) ? data.applications : []);
         setPayouts(Array.isArray(data.payouts) ? data.payouts : []);
         setTotalEarnedCents(Number(data.totalEarnedCents ?? 0));
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("sponsorDashboard.errorLoadDashboard"));
+        setError(plainErrorText(err, t("sponsorDashboard.errorLoadDashboard")));
       } finally {
         setLoading(false);
       }

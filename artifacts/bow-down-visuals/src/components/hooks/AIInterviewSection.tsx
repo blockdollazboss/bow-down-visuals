@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,7 +60,7 @@ export default function AIInterviewSection() {
       refreshProfile();
       return null;
     }
-    if (!res.ok) throw new Error(data.message || "Request failed.");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Request failed."));
     refreshProfile();
     return data;
   }
@@ -77,7 +78,7 @@ export default function AIInterviewSection() {
         setCurrentQ(0);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not generate questions.");
+      setError(plainErrorText(e, "Could not generate questions."));
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export default function AIInterviewSection() {
         { topic: topic.trim(), qa }, PKG_COST, "AI Interview");
       if (data?.clips) setPkg(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not build package.");
+      setError(plainErrorText(e, "Could not build package."));
     } finally {
       setLoading(false);
     }

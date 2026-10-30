@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -35,12 +36,12 @@ export function usePaidCall() {
           return null;
         }
         if (!res.ok) {
-          throw new Error(data.message || data.error || `Request failed (${res.status}).`);
+          throw new Error(apiErrorMessage(data, `Request failed (${res.status}).`));
         }
         refreshProfile();
         return data;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Request failed. Try again.");
+        setError(plainErrorText(err, "Request failed. Try again."));
         return null;
       } finally {
         setLoading(false);

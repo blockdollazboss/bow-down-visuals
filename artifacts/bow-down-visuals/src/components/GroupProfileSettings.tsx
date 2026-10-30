@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Users, Loader2, ExternalLink, PackagePlus } from "lucide-react";
@@ -144,7 +145,7 @@ export function GroupProfileSettings({ teamId, myRole }: Props) {
       await load();
       void data;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save the group profile.");
+      setError(plainErrorText(e, "Could not save the group profile."));
     } finally {
       setSaving(false);
     }
@@ -175,7 +176,7 @@ export function GroupProfileSettings({ teamId, myRole }: Props) {
       setMsg("Added to the shared store — it sells under the group's split terms.");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add this product.");
+      setError(plainErrorText(e, "Could not add this product."));
     } finally {
       setAddingProduct(false);
     }

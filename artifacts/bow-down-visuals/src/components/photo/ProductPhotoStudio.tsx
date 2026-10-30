@@ -1,3 +1,4 @@
+import { apiThrowMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -127,7 +128,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
       setProductUrl(publicUrl);
       setRecent(null); // refresh the recents list next open
     } catch (e) {
-      setError(e instanceof Error ? e.message : tr("errorUpload", "Could not start the upload. Try again."));
+      setError(plainErrorText(e, tr("errorUpload", "Could not start the upload. Try again.")));
     } finally {
       setUploading(false);
     }
@@ -176,7 +177,7 @@ export function ProductPhotoStudio({ initialProductUrl, initialProductName, onGe
       if (!res) { setGenerating(false); return; } // user cancelled the credit confirmation
       const data = await res.json() as { status?: string; url?: string | null; path?: string | null; error?: string; message?: string };
       if (!res.ok || data.status !== "succeeded" || !data.url) {
-        throw new Error(data.message ?? data.error ?? tr("errorFailed", `Photo API error (HTTP ${res.status})`));
+        throw new Error(apiThrowMessage(data, tr("errorFailed", `Photo API error (HTTP ${res.status})`), res.status));
       }
       setResult({ url: data.url, path: data.path ?? null });
       refreshProfile();

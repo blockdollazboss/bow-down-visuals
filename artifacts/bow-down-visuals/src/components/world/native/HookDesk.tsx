@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, Sparkles, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -206,7 +207,7 @@ export function HookDesk(props: CreateDeskProps) {
       }
       if (!res.ok) {
         const d = data as { message?: string; error?: string };
-        setNote(d.message ?? d.error ?? "The studio hiccupped — a failed make is refunded. Try again.");
+        setNote(apiErrorMessage(d, "The studio hiccupped — a failed make is refunded. Try again."));
         return;
       }
       /* Shape-guard the answer: a body that drifts is a failed

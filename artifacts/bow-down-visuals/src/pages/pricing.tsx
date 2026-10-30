@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -68,7 +69,7 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
       });
       const data = await res.json() as { clientSecret?: string; error?: string };
       if (!res.ok || !data.clientSecret) {
-        setErrorMsg(data.error ?? t("pricing.creditPacks.checkoutFailed"));
+        setErrorMsg(apiErrorMessage(data, t("pricing.creditPacks.checkoutFailed")));
         return;
       }
       setClientSecret(data.clientSecret);
@@ -92,10 +93,7 @@ function CreditPackCard({ pack }: { pack: CreditPack }) {
       });
       const data = await res.json() as { success?: boolean; added?: number; error?: string };
       if (!res.ok || !data.success) {
-        setErrorMsg(
-          data.error ??
-            "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.",
-        );
+        setErrorMsg(apiErrorMessage(data, "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment."));
         return;
       }
       setClientSecret(null);

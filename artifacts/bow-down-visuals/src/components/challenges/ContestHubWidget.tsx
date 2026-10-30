@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -162,11 +163,11 @@ export default function ContestHubWidget() {
         body: JSON.stringify({}),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "Launch failed");
+      if (!res.ok) throw new Error(apiErrorMessage(j, "Launch failed"));
       const w = await fetch("/api/challenges/weekly");
       if (w.ok) setData(await w.json());
     } catch (e) {
-      setLaunchError(e instanceof Error ? e.message : "Launch failed");
+      setLaunchError(plainErrorText(e, "Launch failed"));
     } finally {
       setLaunching(false);
     }

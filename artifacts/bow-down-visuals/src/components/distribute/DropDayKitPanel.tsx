@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Package, Loader2, Check, AlertTriangle, Clapperboard, LayoutTemplate, Timer, MailCheck, ExternalLink } from "lucide-react";
 
@@ -90,7 +91,7 @@ export function DropDayKitPanel(props: { releaseId: string; authFetch: AuthFetch
       setView(d as KitView);
       setNotice("Kit assembled as a draft — review it below, then activate.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Assembly failed");
+      setError(plainErrorText(e, "Assembly failed"));
     } finally {
       setWorking(null);
     }
@@ -111,7 +112,7 @@ export function DropDayKitPanel(props: { releaseId: string; authFetch: AuthFetch
       setView(d as KitView);
       setNotice("Kit is live. On release day, every fan on the presave list gets the heads-up — exactly once.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Activation failed");
+      setError(plainErrorText(e, "Activation failed"));
     } finally {
       setWorking(null);
     }

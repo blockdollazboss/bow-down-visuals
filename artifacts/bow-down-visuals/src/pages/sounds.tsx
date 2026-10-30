@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -153,12 +154,12 @@ export default function ViralSoundFinder() {
         if (mood !== "all") params.set("mood", mood);
         const res = await fetch(`/api/sound-finder/trending?${params.toString()}`);
         const data = (await res.json().catch(() => ({}))) as TrendingResponse;
-        if (!res.ok) throw new Error(data.error || t("sounds.errorLoadTrending"));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("sounds.errorLoadTrending")));
         if (cancelled) return;
         setSounds(Array.isArray(data.sounds) ? data.sounds : []);
         setDisclaimer(data.disclaimer ?? "");
       } catch (err) {
-        if (!cancelled) setBrowseError(err instanceof Error ? err.message : t("sounds.errorLoadTrending"));
+        if (!cancelled) setBrowseError(plainErrorText(err, t("sounds.errorLoadTrending")));
       } finally {
         if (!cancelled) setBrowseLoading(false);
       }
@@ -221,7 +222,7 @@ export default function ViralSoundFinder() {
         return;
       }
       if (!res.ok || !Array.isArray(data.matches) || data.matches.length === 0) {
-        throw new Error(data.message || data.error || t("sounds.errorMatchFailed"));
+        throw new Error(apiErrorMessage(data, t("sounds.errorMatchFailed")));
       }
       setMatches(data.matches);
       setMatchDisclaimer(data.disclaimer ?? "");
@@ -230,7 +231,7 @@ export default function ViralSoundFinder() {
         document.getElementById("match-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setMatchError(err instanceof Error ? err.message : t("sounds.errorMatchFailed"));
+      setMatchError(plainErrorText(err, t("sounds.errorMatchFailed")));
     } finally {
       setMatchLoading(false);
     }

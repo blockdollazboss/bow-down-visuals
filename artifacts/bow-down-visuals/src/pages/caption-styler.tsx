@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -122,7 +123,7 @@ export default function CaptionStyler() {
         const data: StylerJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("captionStyler.errorJobNotFound"));
+          setError(apiErrorMessage(data, t("captionStyler.errorJobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -134,7 +135,7 @@ export default function CaptionStyler() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("captionStyler.errorJobFailed"));
+          setError(apiErrorMessage(data, t("captionStyler.errorJobFailed")));
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -191,7 +192,7 @@ export default function CaptionStyler() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("captionStyler.errorStartFailed"));
+        setError(apiErrorMessage(data, t("captionStyler.errorStartFailed")));
         return;
       }
       setJobId(data.jobId);

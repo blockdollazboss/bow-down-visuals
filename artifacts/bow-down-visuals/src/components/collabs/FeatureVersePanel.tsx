@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { Mic2, Loader2, PenLine, ShieldCheck, PackageCheck, AlertTriangle, RotateCcw, BadgeDollarSign } from "lucide-react";
@@ -163,7 +164,7 @@ export function FeatureVersePanel({
       setMsg("Your feature listing is saved at your price.");
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Could not save your listing.");
+      setMsg(plainErrorText(e, "Could not save your listing."));
     } finally { setBusy(null); }
   }
 
@@ -190,7 +191,7 @@ export function FeatureVersePanel({
       setOrderKey(newFeatureOrderKey());
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Could not place that order.");
+      setMsg(plainErrorText(e, "Could not place that order."));
     } finally { setBusy(null); }
   }
 
@@ -207,7 +208,7 @@ export function FeatureVersePanel({
       if (!res.ok) throw new Error(String((data as { error?: string }).error ?? "That action didn't go through."));
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "That action didn't go through.");
+      setMsg(plainErrorText(e, "That action didn't go through."));
     } finally { setBusy(null); }
   }
 

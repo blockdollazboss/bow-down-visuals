@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Heart, Search, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -108,7 +109,7 @@ export default function CloseFriendsPanel() {
                     setHits((prev) => prev.filter((x) => x.profile_id !== h.profile_id));
                     void load();
                   } catch (err) {
-                    setSearchNote(err instanceof Error ? err.message : "Couldn't add them.");
+                    setSearchNote(plainErrorText(err, "Couldn't add them."));
                   }
                 }}
                 className="rounded-full border border-[#d4af37]/50 px-3 py-1 text-xs font-bold text-[#e8c86a]"

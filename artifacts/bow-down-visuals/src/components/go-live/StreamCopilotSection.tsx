@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -68,7 +69,7 @@ export default function StreamCopilotSection() {
       refreshProfile();
       return null;
     }
-    if (!res.ok) throw new Error(data.message || "Request failed.");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Request failed."));
     refreshProfile();
     return data;
   }
@@ -81,7 +82,7 @@ export default function StreamCopilotSection() {
         { streamTitle: streamTitle.trim(), topic: topic.trim(), platform }, PREP_COST, "Stream Copilot");
       if (data && data.checklist) setPrep(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Prep failed.");
+      setError(plainErrorText(e, "Prep failed."));
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,7 @@ export default function StreamCopilotSection() {
         { recap: recap.trim(), topic: topic.trim() }, CLIP_COST, "Stream Copilot");
       if (data && data.moments) setMoments(data.moments);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Clip plan failed.");
+      setError(plainErrorText(e, "Clip plan failed."));
     } finally {
       setLoading(false);
     }

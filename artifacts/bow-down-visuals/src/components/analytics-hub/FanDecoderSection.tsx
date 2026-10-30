@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -75,11 +76,11 @@ export default function FanDecoderSection() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.wants) throw new Error(data.message || "Decode failed.");
+      if (!res.ok || !data.wants) throw new Error(apiErrorMessage(data, "Decode failed."));
       setResult(data);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Decode failed.");
+      setError(plainErrorText(e, "Decode failed."));
     } finally {
       setLoading(false);
     }

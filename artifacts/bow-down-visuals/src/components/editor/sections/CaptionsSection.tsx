@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
@@ -810,7 +811,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       if (!res) return; // user cancelled the credit confirmation
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
-        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(err, `HTTP ${res.status}`));
       }
 
       const data = await res.json() as {
@@ -1069,7 +1070,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       if (!res) return; // user cancelled the credit confirmation
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
-        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(err, `HTTP ${res.status}`));
       }
 
       const data = await res.json() as { transcript: string; segments?: WhisperSegment[]; words?: WhisperWord[] };

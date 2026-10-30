@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
@@ -278,14 +279,14 @@ export default function BrandingShop() {
       });
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        throw new Error(data.error || "Upload failed");
+        throw new Error(apiErrorMessage(data, "Upload failed"));
       }
       setRugLogos((prev) => ({
         ...prev,
         rug: { url: data.url!, fileName: file.name },
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(plainErrorText(err, "Upload failed"));
     } finally {
       setRugUploading(false);
     }
@@ -344,7 +345,7 @@ export default function BrandingShop() {
         return;
       }
       if (!res.ok || !data.logo?.url) {
-        throw new Error(data.message || data.error || t("brandingShop.errorDesignFailed"));
+        throw new Error(apiErrorMessage(data, t("brandingShop.errorDesignFailed")));
       }
       setDesign(data);
       refreshProfile();
@@ -352,7 +353,7 @@ export default function BrandingShop() {
         document.getElementById("design-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandingShop.errorDesignFailed"));
+      setError(plainErrorText(err, t("brandingShop.errorDesignFailed")));
     } finally {
       setDesigning(false);
     }
@@ -377,7 +378,7 @@ export default function BrandingShop() {
         message?: string;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || t("brandingShop.errorCheckoutFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("brandingShop.errorCheckoutFailed")));
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
         return;
@@ -385,7 +386,7 @@ export default function BrandingShop() {
       /* Demo checkout completed instantly — refresh the list. */
       await loadOrders();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandingShop.errorCheckoutFailed"));
+      setError(plainErrorText(err, t("brandingShop.errorCheckoutFailed")));
     } finally {
       setPaying(null);
     }
@@ -425,7 +426,7 @@ export default function BrandingShop() {
         message?: string;
       };
       if (!res.ok || !data.order?.id) {
-        throw new Error(data.message || data.error || t("brandingShop.errorOrderFailed"));
+        throw new Error(apiErrorMessage(data, t("brandingShop.errorOrderFailed")));
       }
       const orderId = data.order.id;
       setOrdering(false);
@@ -443,17 +444,17 @@ export default function BrandingShop() {
         message?: string;
       };
       if (!coRes.ok) {
-        throw new Error(coData.error || t("brandingShop.errorCheckoutSaved"));
+        throw new Error(apiErrorMessage(coData, t("brandingShop.errorCheckoutSaved")));
       }
       if (coData.checkoutUrl) {
         window.location.href = coData.checkoutUrl;
         return;
       }
-      setOrderSuccess(coData.message || t("brandingShop.orderReceived"));
+      setOrderSuccess(apiErrorMessage(coData, t("brandingShop.orderReceived")));
       setCart([]);
       setCartOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandingShop.errorOrderFailed"));
+      setError(plainErrorText(err, t("brandingShop.errorOrderFailed")));
     } finally {
       setOrdering(false);
       setCheckingOut(false);
@@ -489,7 +490,7 @@ export default function BrandingShop() {
         trackingUrl?: string | null;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || t("brandingShop.errorRefreshFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("brandingShop.errorRefreshFailed")));
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId
@@ -498,7 +499,7 @@ export default function BrandingShop() {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("brandingShop.errorRefreshFailed"));
+      setError(plainErrorText(err, t("brandingShop.errorRefreshFailed")));
     } finally {
       setRefreshing(null);
     }
@@ -1397,7 +1398,7 @@ function MerchTab() {
         return;
       }
       if (!res.ok || data.status !== "succeeded" || !data.mockups?.length) {
-        setError(data.error || data.message || t("merch.errorGenerate"));
+        setError(apiErrorMessage(data, t("merch.errorGenerate")));
         return;
       }
       setMockups(data.mockups);
@@ -1468,7 +1469,7 @@ function MerchTab() {
     try {
       const res = await fetch(`/api/merch/designs/${id}/order`, { method: "POST" });
       const data = await res.json();
-      setOrderMsg(data.message ?? t("merch.checkoutSoon"));
+      setOrderMsg(apiErrorMessage(data, t("merch.checkoutSoon")));
     } catch {
       setOrderMsg(t("merch.checkoutSoon"));
     }

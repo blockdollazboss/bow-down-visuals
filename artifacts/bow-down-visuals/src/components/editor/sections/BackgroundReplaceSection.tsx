@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImageIcon, Loader2, AlertTriangle, Sparkles, Download, Upload } from "lucide-react";
@@ -369,7 +370,7 @@ export function BackgroundReplaceSection({
          the next Generate is a fresh, chargeable attempt instead of a
          suppressed replay that would generate free (Lane V3 F1). */
       aiAttemptKey.current = null;
-      setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+      setMessage(plainErrorText(err, t(`${ns}.errorGeneric`)));
     } finally {
       setAiGenerating(false);
     }
@@ -436,7 +437,7 @@ export function BackgroundReplaceSection({
       await collectCharge();
     } catch (err) {
       setPhase("error");
-      setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+      setMessage(plainErrorText(err, t(`${ns}.errorGeneric`)));
     }
   }
 
@@ -487,7 +488,7 @@ export function BackgroundReplaceSection({
       });
     } catch (err) {
       setPhase("error");
-      setMessage(err instanceof Error ? err.message : t(`${ns}.errorGeneric`));
+      setMessage(plainErrorText(err, t(`${ns}.errorGeneric`)));
     }
   }
 

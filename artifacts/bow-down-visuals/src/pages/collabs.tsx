@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useRef, useState } from "react";
@@ -276,7 +277,7 @@ export default function CollabFinder() {
       setProfileMsg(t("collabs.profileLive"));
       loadBrowse();
     } catch (err) {
-      setProfileMsg(err instanceof Error ? err.message : t("collabs.errorSaveFailed"));
+      setProfileMsg(plainErrorText(err, t("collabs.errorSaveFailed")));
     } finally {
       setProfileSaving(false);
     }
@@ -304,7 +305,7 @@ export default function CollabFinder() {
       setReport(data.report as MatchReport);
       document.getElementById("match-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
-      setMatchError(err instanceof Error ? err.message : t("collabs.errorMatchFailed"));
+      setMatchError(plainErrorText(err, t("collabs.errorMatchFailed")));
     } finally {
       setMatchLoading(false);
     }
@@ -337,7 +338,7 @@ export default function CollabFinder() {
       setProposalText("");
       loadInbox();
     } catch (err) {
-      setProposalMsg(err instanceof Error ? err.message : t("collabs.errorSendFailed"));
+      setProposalMsg(plainErrorText(err, t("collabs.errorSendFailed")));
     } finally {
       setProposalSending(false);
     }

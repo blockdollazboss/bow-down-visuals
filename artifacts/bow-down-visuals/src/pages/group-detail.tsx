@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
@@ -152,31 +153,31 @@ export default function GroupDetail() {
   async function join() {
     setBusy(true);
     try { await api.post(`/api/groups/${slug}/join`); setNotice("You're in. Make some noise. 🦈"); await load(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't join."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't join.")); }
     finally { setBusy(false); }
   }
   async function leave() {
     setBusy(true);
     try { await api.post(`/api/groups/${slug}/leave`); setNotice("You left the crew."); await load(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't leave."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't leave.")); }
     finally { setBusy(false); }
   }
   async function post() {
     if (!draft.trim()) return;
     setBusy(true);
     try { await api.post(`/api/groups/${slug}/posts`, { body: draft.trim() }); setDraft(""); await load(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't post."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't post.")); }
     finally { setBusy(false); }
   }
   async function deletePost(id: string) {
     if (!window.confirm("Delete this post?")) return;
     try { await api.del(`/api/groups/${slug}/posts/${id}`); await load(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't delete."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't delete.")); }
   }
   async function removeMember(userId: string) {
     if (!window.confirm("Remove this member from the group?")) return;
     try { await api.del(`/api/groups/${slug}/members/${userId}`); setNotice("Member removed."); await load(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't remove them."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't remove them.")); }
   }
   async function sendBroadcast() {
     if (!broadcast.trim()) return;
@@ -185,7 +186,7 @@ export default function GroupDetail() {
       const d = (await api.post(`/api/groups/${slug}/broadcast`, { body: broadcast.trim() })) as { sent: number };
       setNotice(`Broadcast sent to ${d.sent} members. 📣`);
       setBroadcast(""); setShowBroadcast(false);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't broadcast."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't broadcast.")); }
     finally { setBusy(false); }
   }
 
@@ -218,7 +219,7 @@ export default function GroupDetail() {
     }
     setKnock(null);
     try { await loadThreadsFor(c.id); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load threads."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't load threads.")); }
   }
   async function loadForum(openFirst = true) {
     try {
@@ -235,7 +236,7 @@ export default function GroupDetail() {
       const targetChannel = d.channels.find((c) => c.id === target) ?? null;
       if (targetChannel && openFirst) await openChannelDoor(targetChannel);
       if (!target) setThreads([]);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load the forum."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't load the forum.")); }
   }
   useEffect(() => {
     if (tab === "forum" && !forumLoaded) { void loadForum(); }
@@ -246,7 +247,7 @@ export default function GroupDetail() {
     if (c) { await openChannelDoor(c); return; }
     setChannelId(id); setOpenThread(null); setShowThreadForm(false);
     try { await loadThreadsFor(id); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't load threads."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't load threads.")); }
   }
   async function createChannel() {
     if (!channelName.trim()) return;
@@ -258,7 +259,7 @@ export default function GroupDetail() {
       });
       setChannelName(""); setChannelDesc(""); setChannelGateTier(""); setShowChannelForm(false);
       setForumLoaded(false); await loadForum();
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't open the channel."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't open the channel.")); }
     finally { setBusy(false); }
   }
   /** Channel settings: set or clear the open channel's tier gate.
@@ -273,7 +274,7 @@ export default function GroupDetail() {
       });
       setNotice(tierId === "" ? "Room reopened to the whole crew." : "Room gated — fan members at that tier and up can enter.");
       setForumLoaded(false); await loadForum();
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't change the room's gate."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't change the room's gate.")); }
     finally { setBusy(false); }
   }
   async function closeChannel(id: string) {
@@ -282,7 +283,7 @@ export default function GroupDetail() {
       await api.del(`/api/groups/${slug}/forum/channels/${id}`);
       if (channelId === id) { setChannelId(null); setThreads([]); setOpenThread(null); }
       setForumLoaded(false); await loadForum(false);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't close the channel."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't close the channel.")); }
   }
   async function createThread() {
     if (!channelId || !threadTitle.trim() || !threadBody.trim()) return;
@@ -295,7 +296,7 @@ export default function GroupDetail() {
       setThreadTitle(""); setThreadBody(""); setThreadTags(""); setShowThreadForm(false);
       await loadThreadsFor(channelId);
       setForumLoaded(false); await loadForum(false);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't start the thread."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't start the thread.")); }
     finally { setBusy(false); }
   }
   async function openThreadView(id: string) {
@@ -305,7 +306,7 @@ export default function GroupDetail() {
     } catch (e) {
       const k = knockFromError(e);
       if (k) { setKnock(k); setOpenThread(null); return; }
-      setNotice(e instanceof Error ? e.message : "Couldn't load the thread.");
+      setNotice(plainErrorText(e, "Couldn't load the thread."));
     }
   }
   async function postReply() {
@@ -316,7 +317,7 @@ export default function GroupDetail() {
       setReplyDraft("");
       await openThreadView(openThread.thread.id);
       if (channelId) await loadThreadsFor(channelId);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't post your reply."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't post your reply.")); }
     finally { setBusy(false); }
   }
   async function deleteThread(id: string) {
@@ -325,7 +326,7 @@ export default function GroupDetail() {
       await api.del(`/api/groups/${slug}/forum/threads/${id}`);
       if (openThread?.thread.id === id) setOpenThread(null);
       if (channelId) await loadThreadsFor(channelId);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't delete the thread."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't delete the thread.")); }
   }
   async function deleteReply(threadId: string, replyId: string) {
     if (!window.confirm("Delete this reply?")) return;
@@ -333,7 +334,7 @@ export default function GroupDetail() {
       await api.del(`/api/groups/${slug}/forum/threads/${threadId}/replies/${replyId}`);
       await openThreadView(threadId);
       if (channelId) await loadThreadsFor(channelId);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't delete the reply."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't delete the reply.")); }
   }
   async function moderateThread(t: ForumThread, patch: { is_pinned?: boolean; is_locked?: boolean }) {
     try {
@@ -341,7 +342,7 @@ export default function GroupDetail() {
       setThreads((prev) => prev.map((x) => (x.id === t.id ? d.thread : x)));
       if (openThread?.thread.id === t.id) setOpenThread({ thread: d.thread, replies: openThread.replies });
       if (channelId) await loadThreadsFor(channelId);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't update the thread."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't update the thread.")); }
   }
 
   if (loading) return <div className="min-h-screen bg-black text-white"><Loading label="Loading the crew" /></div>;

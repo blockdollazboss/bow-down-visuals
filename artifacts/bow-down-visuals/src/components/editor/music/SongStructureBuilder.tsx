@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   ListMusic, Loader2, AlertTriangle, ChevronDown, ChevronUp,
@@ -163,12 +164,12 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
         return;
       }
       if (!res.ok || !Array.isArray(data.arrangement) || data.arrangement.length === 0) {
-        throw new Error(data.message || data.error || t("wave9.structure.errorGeneric"));
+        throw new Error(apiErrorMessage(data, t("wave9.structure.errorGeneric")));
       }
       setResult(data);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("wave9.structure.errorGeneric"));
+      setError(plainErrorText(err, t("wave9.structure.errorGeneric")));
     } finally {
       setLoading(false);
     }

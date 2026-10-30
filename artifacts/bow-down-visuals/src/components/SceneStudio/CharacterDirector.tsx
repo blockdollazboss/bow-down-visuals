@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -254,12 +255,12 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
         shots?: PlannedShot[];
         error?: string;
       };
-      if (!res.ok || !data.shots) throw new Error(data.error ?? "Planning failed");
+      if (!res.ok || !data.shots) throw new Error(apiErrorMessage(data, "Planning failed"));
       setResult({ planId: data.planId ?? null, shots: data.shots });
       setSent(false);
       void loadSavedPlans();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t(`${ns}.errorGeneric`));
+      setError(plainErrorText(e, t(`${ns}.errorGeneric`)));
     } finally {
       setPlanning(false);
     }

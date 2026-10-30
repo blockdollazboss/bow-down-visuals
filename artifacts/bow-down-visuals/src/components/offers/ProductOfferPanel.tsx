@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Tag } from "lucide-react";
 import { useLocation } from "wouter";
@@ -72,7 +73,7 @@ export default function ProductOfferPanel({
       if (next) setOffer(next);
       else await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't go through — try again.");
+      setError(plainErrorText(e, "That didn't go through — try again."));
     } finally {
       setBusy(false);
     }
@@ -177,7 +178,7 @@ export default function ProductOfferPanel({
               type="button"
               className={goldBtn}
               disabled={busy}
-              onClick={() => { setBusy(true); setError(null); onCheckoutOffer(offer).catch((e) => { setError(e instanceof Error ? e.message : "Checkout failed."); }).finally(() => setBusy(false)); }}
+              onClick={() => { setBusy(true); setError(null); onCheckoutOffer(offer).catch((e) => { setError(plainErrorText(e, "Checkout failed.")); }).finally(() => setBusy(false)); }}
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Buy at {offerMoney(currentOfferPriceCents(offer))}
             </button>

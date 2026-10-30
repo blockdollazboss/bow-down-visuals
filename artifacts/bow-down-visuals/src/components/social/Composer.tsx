@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useMemo, useRef, useState } from "react";
 import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart, Crown, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -158,7 +159,7 @@ export function Composer({
       setAssistPrompt("");
       setShowAssist(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't draft that.");
+      setError(plainErrorText(e, "Couldn't draft that."));
     } finally {
       setAssisting(false);
     }
@@ -212,7 +213,7 @@ export function Composer({
       setScheduledFor("");
       onPosted?.(data.post);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't publish that post.");
+      setError(plainErrorText(e, "Couldn't publish that post."));
     } finally {
       setPosting(false);
     }

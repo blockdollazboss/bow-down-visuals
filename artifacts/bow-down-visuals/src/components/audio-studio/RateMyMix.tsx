@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -80,11 +81,11 @@ export function RateMyMix() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !data.notes) throw new Error(data.message || "Analysis failed.");
+      if (!res.ok || !data.notes) throw new Error(apiErrorMessage(data, "Analysis failed."));
       setResult(data);
       refreshProfile();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed.");
+      setError(plainErrorText(e, "Analysis failed."));
     } finally {
       setLoading(false);
     }

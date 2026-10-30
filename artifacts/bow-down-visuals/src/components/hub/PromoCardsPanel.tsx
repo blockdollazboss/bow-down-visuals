@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -248,7 +249,7 @@ export function PromoCardsPanel() {
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? t("hubSpine.promoCards.failed"));
+      if (!res.ok) throw new Error(apiThrowMessage(data, t("hubSpine.promoCards.failed")));
       const list = Array.isArray(data.cards) ? data.cards : [];
       if (list.length === 0) throw new Error(t("hubSpine.handoffs.noOutput"));
       setCards(list);

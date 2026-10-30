@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, CircleDollarSign, ExternalLink, Loader2, RotateCcw, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -108,7 +109,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
       window.open(url, "_blank", "noopener,noreferrer");
       setNote("Stripe's bank setup opened in a new tab — finish there, then come back; this desk re-checks your setup when you return.");
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't start bank setup.");
+      setErr(plainErrorText(e, "Couldn't start bank setup."));
     } finally {
       setBusy(null);
     }
@@ -138,7 +139,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
       setConfirmingPayout(false);
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Payout failed.");
+      setErr(plainErrorText(e, "Payout failed."));
       setConfirmingPayout(false);
     } finally {
       setBusy(null);

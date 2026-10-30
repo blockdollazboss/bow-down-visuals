@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -61,15 +62,15 @@ export function LegacySettings() {
       const d = await api(t, "POST", "/api/legacy/designation", { heirUserId: heir.trim(), instructions });
       setDesignation(d.designation);
       setMsg("Saved. Your heir sees a pending designation and chooses whether to accept.");
-    } catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+    } catch (e) { setErr(plainErrorText(e, "Could not save.")); }
   }
   async function revoke() {
     try { const t = await getAccessToken(); const d = await api(t, "DELETE", "/api/legacy/designation"); setDesignation(d.designation); setMsg("Designation removed."); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Could not remove."); }
+    catch (e) { setErr(plainErrorText(e, "Could not remove.")); }
   }
   async function respond(id: string, response: "accept" | "decline") {
     try { const t = await getAccessToken(); await api(t, "POST", `/api/legacy/inbox/${id}/respond`, { response }); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Could not record your answer."); }
+    catch (e) { setErr(plainErrorText(e, "Could not record your answer.")); }
   }
 
   return (
@@ -140,7 +141,7 @@ export function LegacyContactSettings() {
       const d = await api(t, "PUT", "/api/legacy/contact", { name: name.trim(), email: email.trim(), note: note.trim() });
       setContact(d.contact);
       setMsg("Saved. This is the person we will contact about your account and your work if you no longer can.");
-    } catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+    } catch (e) { setErr(plainErrorText(e, "Could not save.")); }
   }
   async function remove() {
     setErr(null); setMsg(null);
@@ -149,7 +150,7 @@ export function LegacyContactSettings() {
       await api(t, "DELETE", "/api/legacy/contact");
       setContact(null); setName(""); setEmail(""); setNote(""); setConfirmingRemove(false);
       setMsg("Legacy contact removed.");
-    } catch (e) { setErr(e instanceof Error ? e.message : "Could not remove."); }
+    } catch (e) { setErr(plainErrorText(e, "Could not remove.")); }
   }
 
   return (
@@ -200,11 +201,11 @@ export function PermanenceSettings() {
   useEffect(() => { void load(); }, [load]);
   async function chooseCatalog(election: string) {
     try { const t = await getAccessToken(); await api(t, "PUT", "/api/distribution/permanence/catalog", { election }); setMsg("Catalog permanence election saved."); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+    catch (e) { setErr(plainErrorText(e, "Could not save.")); }
   }
   async function chooseRelease(releaseId: string, election: string) {
     try { const t = await getAccessToken(); await api(t, "PUT", `/api/distribution/releases/${releaseId}/permanence`, { election }); void load(); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Could not save."); }
+    catch (e) { setErr(plainErrorText(e, "Could not save.")); }
   }
   return (
     <section className={card}>
@@ -264,7 +265,7 @@ export function CatalogExportPanel() {
       a.href = url; a.download = "my-catalog-manifest.json"; document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
       void load();
-    } catch (e) { setErr(e instanceof Error ? e.message : "Could not build your package."); }
+    } catch (e) { setErr(plainErrorText(e, "Could not build your package.")); }
     finally { setBusy(false); }
   }
 
@@ -304,7 +305,7 @@ export function CatalogExportPanel() {
       setBMsg(truncated
         ? "Downloaded — heads up, this file hit the 2,000-row cap, so it carries your newest 2,000 entries."
         : "Downloaded.");
-    } catch (e) { setBErr(e instanceof Error ? e.message : "Could not build that export."); }
+    } catch (e) { setBErr(plainErrorText(e, "Could not build that export.")); }
     finally { setBBusy(false); }
   }
   return (
@@ -375,7 +376,7 @@ export function EarningsDocuments() {
       if (!normalized) throw new Error("Could not load that statement.");
       setStmt(normalized);
     }
-    catch (e) { setErr(e instanceof Error ? e.message : "Could not load that statement."); }
+    catch (e) { setErr(plainErrorText(e, "Could not load that statement.")); }
   }
   async function pdf() {
     try {
@@ -483,7 +484,7 @@ export function RetentionPanel() {
   async function load() {
     setErr(null);
     try { const t = await getAccessToken(); setData(await api(t, "GET", `/api/analytics/videos/${videoId.trim()}/retention`)); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Could not load retention."); }
+    catch (e) { setErr(plainErrorText(e, "Could not load retention.")); }
   }
   return (
     <section className={card}>
@@ -540,7 +541,7 @@ export function ModConsolePanel() {
       const d = await api(t, "PUT", "/api/mod-console/automod", { profileId: data.profileId, ...patch });
       setData({ ...data, automod: d.automod });
       setMsg("Automod rules saved — they apply to your live chat right away.");
-    } catch (e) { setMsg(e instanceof Error ? e.message : "Could not save rules."); }
+    } catch (e) { setMsg(plainErrorText(e, "Could not save rules.")); }
   }
 
   if (state === "loading") return null;

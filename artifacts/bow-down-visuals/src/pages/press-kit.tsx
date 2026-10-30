@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useState } from "react";
@@ -267,7 +268,7 @@ export default function PressKitBuilder() {
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (!res.ok) { setError(data.message || data.error || t("press-kit.errors.generationFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, t("press-kit.errors.generationFailed"))); return; }
       const kit = data.kit as PressKit;
       setKits((k) => [kit, ...k]);
       loadKit(kit);
@@ -309,7 +310,7 @@ export default function PressKitBuilder() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || data.error || t("press-kit.errors.saveFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, t("press-kit.errors.saveFailed"))); return; }
       const kit = data.kit as PressKit;
       setKits((ks) => ks.map((k) => (k.id === kit.id ? kit : k)));
       setSelectedKit(kit);
@@ -338,7 +339,7 @@ export default function PressKitBuilder() {
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (!res.ok) { setError(data.message || data.error || t("press-kit.errors.bioRefreshFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, t("press-kit.errors.bioRefreshFailed"))); return; }
       const kit = data.kit as PressKit;
       setKits((ks) => ks.map((k) => (k.id === kit.id ? kit : k)));
       setSelectedKit(kit);

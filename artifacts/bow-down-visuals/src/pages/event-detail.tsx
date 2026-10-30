@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { Ticket, Radio, CalendarPlus, Download, BarChart3 } from "lucide-react";
@@ -88,13 +89,13 @@ export default function EventDetailPage() {
       setRsvped(true);
       setNotice("You're on the list — reminder's in your bell. 🔔");
       await load();
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't RSVP."); }
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't RSVP.")); }
     finally { setBusy(false); }
   }
   async function unrsvp() {
     setBusy(true);
     try { await api.post(`/api/events/${id}/unrsvp`); setRsvped(false); await load(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Couldn't cancel."); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't cancel.")); }
     finally { setBusy(false); }
   }
 

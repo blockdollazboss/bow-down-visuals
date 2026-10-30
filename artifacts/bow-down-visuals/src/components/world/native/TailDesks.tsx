@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -70,7 +71,7 @@ async function apiJson<T>(
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
     error?: string; message?: string;
   };
-  if (!res.ok) throw new Error(data.message || data.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
   return data as T;
 }
 
@@ -491,7 +492,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
       setTick((n) => n + 1);
       if (created) setOpenId(created.id);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That contest didn't save.");
+      setNote(plainErrorText(e, "That contest didn't save."));
     } finally {
       setBusy(null);
     }
@@ -509,7 +510,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
       setEHandle(""); setEEmail("");
       await loadDetail(detail.contest.id);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That entry didn't land.");
+      setNote(plainErrorText(e, "That entry didn't land."));
     } finally {
       setBusy(null);
     }
@@ -524,7 +525,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
       });
       await loadDetail(detail.contest.id);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "That verification didn't land.");
+      setNote(plainErrorText(e, "That verification didn't land."));
     } finally {
       setBusy(null);
     }
@@ -540,7 +541,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
       setTick((n) => n + 1);
       setNote("The draw is done — the winner and its audit seed are on the book, verifiable by anyone.");
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "The draw didn't run.");
+      setNote(plainErrorText(e, "The draw didn't run."));
     } finally {
       setBusy(null);
     }
@@ -558,7 +559,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
       setNote("The winner announcement graphic is made — it's on the contest, ready to share.");
     } catch (e) {
       setAnnounceArmed(false);
-      setNote(e instanceof Error ? e.message : "The announcement didn't generate — you weren't charged for a failure.");
+      setNote(plainErrorText(e, "The announcement didn't generate — you weren't charged for a failure."));
     } finally {
       setBusy(null);
     }
@@ -927,9 +928,9 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
         setOutcome(`You cracked it — ${o.prizeCredits?.toLocaleString("en-US") ?? ""} Visual Bucs are yours. The palace herald has it from here.`);
         setTick((n) => n + 1);
       } else if (!res.ok) {
-        setOutcome(o.message ?? "That try didn't count — try again in a bit.");
+        setOutcome(apiErrorMessage(o, "That try didn't count — try again in a bit."));
       } else if (o.claimed) {
-        setOutcome(o.message ?? `Already claimed${o.winnerDisplayName ? ` by ${o.winnerDisplayName}` : ""} — the next code is coming.`);
+        setOutcome(apiErrorMessage(o, `Already claimed${o.winnerDisplayName ? ` by ${o.winnerDisplayName}` : ""} — the next code is coming.`));
         setTick((n) => n + 1);
       } else {
         setOutcome(`Not the code${o.triesLeft !== null ? ` — ${o.triesLeft} ${o.triesLeft === 1 ? "try" : "tries"} left today` : ""}.`);
@@ -959,7 +960,7 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
       setAdminNote("The event is created — activate it below when its window opens.");
       await loadEvents();
     } catch (e) {
-      setAdminNote(e instanceof Error ? e.message : "That event didn't save.");
+      setAdminNote(plainErrorText(e, "That event didn't save."));
     } finally {
       setAdminBusy(null);
     }
@@ -976,7 +977,7 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
       await loadEvents();
       setTick((n) => n + 1);
     } catch (e) {
-      setAdminNote(e instanceof Error ? e.message : "That action didn't land.");
+      setAdminNote(plainErrorText(e, "That action didn't land."));
     } finally {
       setAdminBusy(null);
     }

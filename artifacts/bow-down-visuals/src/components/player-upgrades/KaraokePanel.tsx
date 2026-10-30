@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -151,7 +152,7 @@ export function KaraokePanel({ songId, audioUrl, title, isLight }: {
         body: JSON.stringify({ audioUrl: publicUrl, share }),
       });
       const data = await res?.json().catch(() => ({}));
-      if (!res || !res.ok) throw new Error(data?.error || "The take didn't save.");
+      if (!res || !res.ok) throw new Error(apiErrorMessage(data, "The take didn't save."));
       toast({ title: share ? "Sing-along shared to the showcase" : "Sing-along saved to your recordings" });
       await load();
     } catch (err) {

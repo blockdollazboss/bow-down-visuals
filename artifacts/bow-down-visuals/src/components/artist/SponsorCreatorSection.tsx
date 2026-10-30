@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { loadStripe } from "@stripe/stripe-js/pure";
@@ -195,7 +196,7 @@ export default function SponsorCreatorSection({
       },
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string };
-    if (!res.ok) throw new Error(data.error || "Something went wrong — try again.");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Something went wrong — try again."));
     return data;
   }
 
@@ -239,7 +240,7 @@ export default function SponsorCreatorSection({
         throw new Error("Card payment isn't available right now — try again shortly.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong — try again.");
+      setError(plainErrorText(err, "Something went wrong — try again."));
     } finally {
       setBusy(false);
     }

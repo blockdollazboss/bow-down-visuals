@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -243,7 +244,7 @@ export default function ViralityCheckPanel() {
  const data = (await res.json().catch(() => ({}))) as ViralityCheckResponse;
  if (handlePaidFailure(res, data)) return;
  if (!res.ok || typeof data.overallScore !== "number" || !Array.isArray(data.fixes)) {
- throw new Error(data.message || data.error || t("viralityCheck.checkFailedError"));
+ throw new Error(apiErrorMessage(data, t("viralityCheck.checkFailedError")));
  }
  setResult(data);
  refreshProfile();
@@ -251,7 +252,7 @@ export default function ViralityCheckPanel() {
  document.getElementById("virality-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : t("viralityCheck.checkFailedError"));
+ setError(plainErrorText(err, t("viralityCheck.checkFailedError")));
  } finally {
  setLoading(false);
  }

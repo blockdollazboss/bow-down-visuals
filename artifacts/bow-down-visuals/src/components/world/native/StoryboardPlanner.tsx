@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Clapperboard, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -124,7 +125,7 @@ export function StoryboardPlanner(props: {
       if (!res.ok || !next) throw new Error("The storyboard didn't start — try again.");
       adoptBoard(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The storyboard didn't start.");
+      setError(plainErrorText(err, "The storyboard didn't start."));
     } finally {
       setBusy(null);
     }
@@ -144,7 +145,7 @@ export function StoryboardPlanner(props: {
       if (!res.ok || !next) throw new Error("The rename didn't land — the old title stands.");
       adoptBoard(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The rename didn't land.");
+      setError(plainErrorText(err, "The rename didn't land."));
       setBoardTitleDraft(board.title);
     }
   };
@@ -165,7 +166,7 @@ export function StoryboardPlanner(props: {
       setBoardTitleDraft(remaining[0]?.title ?? "");
       setSavedProject(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The storyboard didn't delete.");
+      setError(plainErrorText(err, "The storyboard didn't delete."));
     } finally {
       setBusy(null);
     }
@@ -187,7 +188,7 @@ export function StoryboardPlanner(props: {
       adoptBoard(next);
       setSavedProject(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The panel didn't land.");
+      setError(plainErrorText(err, "The panel didn't land."));
     } finally {
       setBusy(null);
     }
@@ -253,7 +254,7 @@ export function StoryboardPlanner(props: {
       adoptBoard(next);
       setSavedProject(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The panel didn't delete.");
+      setError(plainErrorText(err, "The panel didn't delete."));
     } finally {
       setBusy(null);
     }
@@ -302,7 +303,7 @@ export function StoryboardPlanner(props: {
         body: JSON.stringify(buildArtistImagePayload(prompt, DEFAULT_ARTIST_IMAGE_MODEL, STORYBOARD_FRAME_RATIO)),
       });
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; status?: string; url?: string | null; error?: string; message?: string };
-      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? "The frame make didn't start.");
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The frame make didn't start."));
 
       const finishWithUrl = async (url: string) => {
         const save = await fetch(storyboardPanelPath(board.id, panel.id), {
@@ -374,7 +375,7 @@ export function StoryboardPlanner(props: {
       setSavedProject(true);
       void quest.checkAfter();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Saving the project failed.");
+      setError(plainErrorText(err, "Saving the project failed."));
     } finally {
       setBusy(null);
     }

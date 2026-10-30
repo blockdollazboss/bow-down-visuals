@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { Coins, Gift, Swords, Trophy } from "lucide-react";
@@ -208,7 +209,7 @@ export default function ReachWatchPanel({
                   const r = await reachApi.raid(getAccessToken, streamId, raidTarget);
                   setRaidNote(`Raid sent — ${r.raid.viewerCount} viewer${r.raid.viewerCount === 1 ? "" : "s"} carried over.`);
                 } catch (e) {
-                  setRaidNote(e instanceof Error ? e.message : "The raid couldn't start.");
+                  setRaidNote(plainErrorText(e, "The raid couldn't start."));
                 }
               }}
               className="rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white transition enabled:hover:scale-[1.02] disabled:opacity-50"
@@ -273,7 +274,7 @@ export default function ReachWatchPanel({
                     setLoyalty((prev) => (prev ? { ...prev, myPoints: r.myPoints } : prev));
                     setRedeemNote(`Requested: ${perk.label}. The creator sees it in their queue and fulfills it by hand.`);
                   } catch (e) {
-                    setRedeemNote(e instanceof Error ? e.message : "That redemption didn't go through.");
+                    setRedeemNote(plainErrorText(e, "That redemption didn't go through."));
                   }
                 }}
                 className="rounded-full border border-[#C9A84C]/40 px-3 py-1.5 text-xs font-bold text-[#e8c86a] transition enabled:hover:bg-[#C9A84C]/10 disabled:cursor-not-allowed disabled:opacity-40"

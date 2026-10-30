@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { CalendarClock, Clapperboard, Loader2 } from "lucide-react";
@@ -220,7 +221,7 @@ export function SchedulePremiereForm({ onScheduled }: { onScheduled?: (p: Premie
           setNote("Premiere scheduled — share its page and everyone watches together at the start time.");
           onScheduled?.(d.premiere);
         } catch (err) {
-          setNote(err instanceof Error ? err.message : "That premiere couldn't be scheduled.");
+          setNote(plainErrorText(err, "That premiere couldn't be scheduled."));
         }
       }}
     >

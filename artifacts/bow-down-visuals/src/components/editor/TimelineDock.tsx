@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 /**
  * TimelineDock — persistent full-width bottom timeline for the Studio editor.
  *
@@ -521,7 +522,7 @@ export function TimelineDock({
         setFreezeResult(body.url as string);
         return;
       }
-      if (body.status === "failed") throw new Error(body.error ?? t("videoEditor.freezeRenderFailed"));
+      if (body.status === "failed") throw new Error(apiErrorMessage(body, t("videoEditor.freezeRenderFailed")));
     }
     throw new Error(t("videoEditor.freezeTimedOut"));
   }
@@ -573,7 +574,7 @@ export function TimelineDock({
         });
         return;
       }
-      if (res.status !== 202 || !body.jobId) throw new Error(body.error ?? t("videoEditor.freezeStartFailed"));
+      if (res.status !== 202 || !body.jobId) throw new Error(apiErrorMessage(body, t("videoEditor.freezeStartFailed")));
       await pollFreezeJob(body.jobId as string);
       toast({ title: t("videoEditor.freezeReadyTitle"), description: t("videoEditor.freezeReadyDesc") });
     } catch (err) {
@@ -837,7 +838,7 @@ export function TimelineDock({
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message ?? data.error ?? `Upload failed (${res.status})`);
+      if (!res.ok) throw new Error(apiErrorMessage(data, `Upload failed (${res.status})`));
       if (!data.url) throw new Error("Upload succeeded but returned no clip URL.");
       onReplaceClipVideo(sceneId, data.url);
       toast({ title: "Clip replaced", description: file.name });

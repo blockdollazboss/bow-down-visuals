@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Loader2, Sparkles, Download, Link2, Check, Copy, RefreshCw } from "lucide-react";
@@ -214,7 +215,7 @@ export default function MediaKitBuilder() {
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
       if (res.status === 503) { setError(data.message || data.error); return; }
-      if (!res.ok) { setError(data.message || data.error || t("wave8.mediaKit.errors.buildFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, t("wave8.mediaKit.errors.buildFailed"))); return; }
       setKit(data.kit as MediaKit);
     } catch {
       setError(t("wave8.mediaKit.errors.network"));

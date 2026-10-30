@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,7 +81,7 @@ export function ShowcaseVideoTools({ itemId }: { itemId: string }) {
     try {
       const res = await authFetch(path, init);
       const data = await res?.json().catch(() => ({}));
-      if (!res || !res.ok) throw new Error(data?.error || "Something went wrong.");
+      if (!res || !res.ok) throw new Error(apiErrorMessage(data, "Something went wrong."));
       if (okMsg) toast({ title: okMsg });
       await load();
     } catch (err) {

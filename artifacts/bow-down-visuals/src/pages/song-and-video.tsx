@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -544,7 +545,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
       const saveBody = await saveRes.json() as { id?: string; error?: string; refunded?: boolean };
       if (!saveRes.ok) {
         if (saveBody.error === "out_of_credits") { setOutOfCredits(true); refreshProfile(); return; }
-        throw new Error(saveBody.error ?? "Could not save your project.");
+        throw new Error(apiErrorMessage(saveBody, "Could not save your project."));
       }
 
       toast({ title: t("create-simple.videoReady"), description: t("create-simple.videoReadyDesc") });

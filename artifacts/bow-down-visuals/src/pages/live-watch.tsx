@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { Loader2, AlertTriangle, RotateCcw, Radio, Users, Volume2, VideoOff, Ticket } from "lucide-react";
@@ -262,7 +263,7 @@ export default function LiveWatch() {
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
-        setBuyError(d?.error ?? "That purchase didn't go through. Try again.");
+        setBuyError(apiErrorMessage(d, "That purchase didn't go through. Try again."));
         return;
       }
       buyKeyRef.current = "";

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useState } from "react";
 import {
   Sparkles, Loader2, CheckCircle2, RotateCcw, Undo2, ChevronDown, ChevronUp,
@@ -111,7 +112,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (!res.ok) {
         const j = (await res.json()) as { error?: string };
-        throw new Error(j.error ?? `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(j, `HTTP ${res.status}`));
       }
       const data = (await res.json()) as { plan: AiEditPlan; source: string };
       const autoApplied = aiEdit.autoApplyTransitions && (data.plan.transitionPlan?.length ?? 0) > 0;

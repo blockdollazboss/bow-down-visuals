@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -63,7 +64,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
           ))}
           <button type="button" className={ghost} onClick={async () => {
             try { await call("POST", `/api/groups/${slug}/join-requests`, { answers: questions.map((q) => ({ questionId: q.id, answer: answers[q.id] ?? "" })) }); setMsg("Request sent — the admins have your answers."); }
-            catch (e) { setMsg(e instanceof Error ? e.message : "Could not send your request."); }
+            catch (e) { setMsg(plainErrorText(e, "Could not send your request.")); }
           }}>Request to join</button>
         </div>
       )}
@@ -76,7 +77,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
           <textarea className={input + " mt-2"} rows={3} defaultValue={questions.map((q) => q.question).join("\n")} onChange={(e) => setDraft(e.target.value)} placeholder={"Why do you want in?\nWhat do you make?"} />
           <button type="button" className={ghost + " mt-2"} onClick={async () => {
             try { const qs = (draft || questions.map((q) => q.question).join("\n")).split("\n").map((x) => x.trim()).filter(Boolean); await call("PUT", `/api/groups/${slug}/join-questions`, { questions: qs }); setMsg("Join questions saved."); void load(); }
-            catch (e) { setMsg(e instanceof Error ? e.message : "Could not save questions."); }
+            catch (e) { setMsg(plainErrorText(e, "Could not save questions.")); }
           }}>Save questions</button>
         </div>
       )}
@@ -106,7 +107,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
               {(["admin", "moderator", "member"] as const).filter((r) => r !== m.role && !(m.role === "mod" && r === "moderator")).map((r) => (
                 <button key={r} type="button" className={ghost} onClick={async () => {
                   try { await call("PATCH", `/api/groups/${slug}/members/${m.user_id}/role`, { role: r }); setMsg(`Role set to ${r}. Reload the page to see it everywhere.`); }
-                  catch (e) { setMsg(e instanceof Error ? e.message : "Your rung can't make that change."); }
+                  catch (e) { setMsg(plainErrorText(e, "Your rung can't make that change.")); }
                 }}>Make {r}</button>
               ))}
             </div>

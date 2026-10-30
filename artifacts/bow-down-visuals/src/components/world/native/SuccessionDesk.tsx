@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
@@ -121,7 +122,7 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
       setDesNote("Saved. Your heir sees a pending designation and chooses whether to accept.");
       await loadDesignation();
     } catch (e) {
-      setDesError(e instanceof Error ? e.message : "Could not save your designation.");
+      setDesError(plainErrorText(e, "Could not save your designation."));
     } finally { setDesBusy(null); }
   };
 
@@ -142,7 +143,7 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
       setInstructions("");
       await loadDesignation();
     } catch (e) {
-      setDesError(e instanceof Error ? e.message : "Could not remove your designation.");
+      setDesError(plainErrorText(e, "Could not remove your designation."));
     } finally { setDesBusy(null); }
   };
 
@@ -162,7 +163,7 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
       setDesNote(response === "accept" ? "You accepted the designation." : "You declined the designation.");
       await loadDesignation();
     } catch (e) {
-      setDesError(e instanceof Error ? e.message : "Could not record your answer.");
+      setDesError(plainErrorText(e, "Could not record your answer."));
     } finally { setDesBusy(null); }
   };
 
@@ -184,7 +185,7 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
       setContactNote("Legacy contact saved.");
       await loadContact();
     } catch (e) {
-      setContactError(e instanceof Error ? e.message : "Could not save your legacy contact.");
+      setContactError(plainErrorText(e, "Could not save your legacy contact."));
     } finally { setContactBusy(false); }
   };
 
@@ -207,7 +208,7 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
       setCNoteText("");
       await loadContact();
     } catch (e) {
-      setContactError(e instanceof Error ? e.message : "Could not remove your legacy contact.");
+      setContactError(plainErrorText(e, "Could not remove your legacy contact."));
     } finally { setContactBusy(false); }
   };
 

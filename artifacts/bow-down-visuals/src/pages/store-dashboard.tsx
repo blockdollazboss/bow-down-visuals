@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
@@ -291,10 +292,10 @@ function ConnectPayoutCard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Couldn't start bank setup.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Couldn't start bank setup."));
       window.location.href = data.url;
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't start bank setup.");
+      setErr(plainErrorText(e, "Couldn't start bank setup."));
       setBusy(null);
     }
   };
@@ -324,7 +325,7 @@ function ConnectPayoutCard() {
       );
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Payout failed.");
+      setErr(plainErrorText(e, "Payout failed."));
     } finally {
       setBusy(null);
     }
@@ -538,7 +539,7 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
       await updateProduct(token, p.id, { affiliateEnabled: nextEnabled, affiliateCommissionBps: bps });
       onChanged();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Couldn't save.");
+      setMsg(plainErrorText(e, "Couldn't save."));
     } finally {
       setBusy(false);
     }
@@ -651,7 +652,7 @@ function SplitsRowEditor({ p, ownerUserId, getAccessToken, onDone, onCancel }: {
       await updateProduct(token, p.id, { splits: payload });
       onDone();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Couldn't save the split.");
+      setMsg(plainErrorText(e, "Couldn't save the split."));
     } finally {
       setBusy(false);
     }
@@ -737,7 +738,7 @@ function DropControls({ product, getToken, onChanged }: {
       setOpen(false);
       onChanged();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't schedule this drop.");
+      setErr(plainErrorText(e, "Couldn't schedule this drop."));
     } finally {
       setBusy(false);
     }
@@ -752,7 +753,7 @@ function DropControls({ product, getToken, onChanged }: {
       setOpen(false);
       onChanged();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't cancel this drop.");
+      setErr(plainErrorText(e, "Couldn't cancel this drop."));
     } finally {
       setBusy(false);
     }
@@ -959,7 +960,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
       await load();
       onChanged();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't create that product.");
+      setErr(plainErrorText(e, "Couldn't create that product."));
     } finally {
       setBusy(false);
     }
@@ -1024,7 +1025,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         ? "Add-on is live — buyers can tick it on this product's page."
         : "Saved. It goes live when the add-on product is live and in stock.");
     } catch (e) {
-      setBumpErr(e instanceof Error ? e.message : "Couldn't save the add-on.");
+      setBumpErr(plainErrorText(e, "Couldn't save the add-on."));
     } finally {
       setBumpBusy(false);
     }
@@ -1041,7 +1042,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
       onChanged();
       setBumpEditId(null);
     } catch (e) {
-      setBumpErr(e instanceof Error ? e.message : "Couldn't remove the add-on.");
+      setBumpErr(plainErrorText(e, "Couldn't remove the add-on."));
     } finally {
       setBumpBusy(false);
     }
@@ -1606,7 +1607,7 @@ function GiftCardsTab() {
       const r = await giftCardBalance(lookupCode.trim());
       setLookup({ balance: r.card.balance, status: r.card.status, store: r.store?.name ?? "this store" });
     } catch (e) {
-      setLookupError(e instanceof Error ? e.message : "Couldn't check that card.");
+      setLookupError(plainErrorText(e, "Couldn't check that card."));
     }
   };
 
@@ -1619,7 +1620,7 @@ function GiftCardsTab() {
       setRefundMsg(r.note || `${r.refunded} refunded to your original payment method.`);
       await load();
     } catch (e) {
-      setRefundMsg(e instanceof Error ? e.message : "Couldn't refund that card.");
+      setRefundMsg(plainErrorText(e, "Couldn't refund that card."));
     } finally {
       setRefunding(null);
     }
@@ -1794,7 +1795,7 @@ function DiscountsTab() {
       setForm({ code: "", percentOff: "15", maxUses: "-1", expiresAt: "" });
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't create that code.");
+      setErr(plainErrorText(e, "Couldn't create that code."));
     } finally {
       setBusy(false);
     }
@@ -2235,7 +2236,7 @@ function ShopifyBridgeCard({ onImported }: { onImported: () => void }) {
       setCommitted(false);
     } catch (e) {
       setReport(null);
-      setErr(e instanceof Error ? e.message : "Couldn't read that file.");
+      setErr(plainErrorText(e, "Couldn't read that file."));
     } finally { setBusy(null); }
   };
 
@@ -2257,7 +2258,7 @@ function ShopifyBridgeCard({ onImported }: { onImported: () => void }) {
       setCommitted(true);
       onImported();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't import that file.");
+      setErr(plainErrorText(e, "Couldn't import that file."));
     } finally { setBusy(null); }
   };
 
@@ -2271,7 +2272,7 @@ function ShopifyBridgeCard({ onImported }: { onImported: () => void }) {
       a.href = url; a.download = filename; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Export failed.");
+      setErr(plainErrorText(e, "Export failed."));
     } finally { setBusy(null); }
   };
 
@@ -2592,7 +2593,7 @@ function DigitalBumpEditor({ product, candidates }: { product: DigitalProduct; c
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { offerLive?: boolean; error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "Could not save the add-on offer.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save the add-on offer."));
       setMsg(
         !targetKey
           ? "Add-on offer removed."
@@ -2601,7 +2602,7 @@ function DigitalBumpEditor({ product, candidates }: { product: DigitalProduct; c
             : "Saved. The add-on isn't offered until it's published and priced.",
       );
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Could not save the add-on offer.");
+      setMsg(plainErrorText(err, "Could not save the add-on offer."));
     } finally {
       setSaving(false);
     }
@@ -2712,7 +2713,7 @@ function DigitalLicenseEditor({ product }: { product: DigitalProduct }) {
         body: JSON.stringify({ licenseKeysEnabled: enabled, maxDownloads }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || "Could not save license settings.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not save license settings."));
       setMsg(
         enabled
           ? "License keys on — new purchases get a key with " +
@@ -2721,7 +2722,7 @@ function DigitalLicenseEditor({ product }: { product: DigitalProduct }) {
       );
       if (enabled) void loadKeys();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Could not save license settings.");
+      setMsg(plainErrorText(err, "Could not save license settings."));
     } finally {
       setSaving(false);
     }
@@ -2734,11 +2735,11 @@ function DigitalLicenseEditor({ product }: { product: DigitalProduct }) {
       const token = await getAccessToken();
       const res = await digitalAuthed(`/api/store/licenses/${keyId}/${action}`, token, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.message || data.error || `Could not ${action} the key.`);
+      if (!res.ok) throw new Error(apiErrorMessage(data, `Could not ${action} the key.`));
       setMsg(action === "revoke" ? "Key revoked — its downloads are stopped." : "Key re-issued — the buyer has a fresh key and a reset download count.");
       await loadKeys();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : `Could not ${action} the key.`);
+      setMsg(plainErrorText(err, `Could not ${action} the key.`));
     } finally {
       setActingKey(null);
     }
@@ -2872,7 +2873,7 @@ function DigitalSalesTab() {
       const body = (await res.json().catch(() => ({}))) as DigitalSalesData & { error?: string; message?: string };
       if (!res.ok) {
         if (res.status === 404 && body.error === "NO_PROFILE") return true;
-        throw new Error(body.message || body.error || "Couldn't load your sales.");
+        throw new Error(apiErrorMessage(body, "Couldn't load your sales."));
       }
       setData(body);
       return false;
@@ -2955,7 +2956,7 @@ function DigitalSalesTab() {
         error?: string; message?: string;
         product?: { price: string; youKeep: string; title: string; forSale: boolean };
       };
-      if (!res.ok || !body.product) throw new Error(body.message || body.error || "Couldn't set the price.");
+      if (!res.ok || !body.product) throw new Error(apiErrorMessage(body, "Couldn't set the price."));
       setNotice(
         `“${body.product.title}” priced at ${body.product.price} — you keep ${body.product.youKeep} per sale. ${body.product.forSale ? "It's live. Go get paid. 👑" : "Publish it to start selling."}`
       );
@@ -2963,7 +2964,7 @@ function DigitalSalesTab() {
          refresh exactly those two sections, not the whole surface. */
       await Promise.allSettled([loadSection("sales"), loadSection("products")]);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Couldn't set the price.");
+      setNotice(plainErrorText(err, "Couldn't set the price."));
     } finally {
       setPricing(null);
     }
@@ -2982,11 +2983,11 @@ function DigitalSalesTab() {
       const body = (await res.json().catch(() => ({}))) as {
         error?: string; message?: string; suggestedCents?: number; suggested?: string; youKeep?: string; blurb?: string;
       };
-      if (!res.ok || body.suggestedCents == null) throw new Error(body.message || body.error || "Couldn't suggest a price.");
+      if (!res.ok || body.suggestedCents == null) throw new Error(apiErrorMessage(body, "Couldn't suggest a price."));
       setPricing(null);
       await applyPrice(p.kind, p.id, body.suggestedCents);
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Couldn't suggest a price.");
+      setNotice(plainErrorText(err, "Couldn't suggest a price."));
       setPricing(null);
     }
   }
@@ -3001,12 +3002,12 @@ function DigitalSalesTab() {
         body: JSON.stringify({ saleId }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string; entry?: { amount: string } };
-      if (!res.ok) throw new Error(body.message || body.error || "Couldn't log this sale.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Couldn't log this sale."));
       setNotice(`Logged ${body.entry?.amount ?? ""} to your Money Tracker. 💰`);
       /* The logged flag lives in the sales section — refresh it alone. */
       await loadSection("sales");
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Couldn't log this sale.");
+      setNotice(plainErrorText(err, "Couldn't log this sale."));
     } finally {
       setLogging(null);
     }
@@ -3497,14 +3498,14 @@ function BundlesPanel() {
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(body.message || body.error || "Could not create the bundle.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Could not create the bundle."));
       setTitle("");
       setPriceDollars("");
       setPicked(new Set());
       setSavedNote("Bundle created — it's live on its drop page now.");
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not create the bundle.");
+      setFormError(plainErrorText(err, "Could not create the bundle."));
     } finally {
       setBusy(false);
     }
@@ -3520,11 +3521,11 @@ function BundlesPanel() {
         body: JSON.stringify(patch),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string; note?: string };
-      if (!res.ok) throw new Error(body.message || body.error || "Could not save.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Could not save."));
       setSavedNote(body.note ?? "Saved.");
       await load();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not save.");
+      setFormError(plainErrorText(err, "Could not save."));
     } finally {
       setSavingId(null);
     }

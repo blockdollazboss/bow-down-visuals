@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState } from "react";
 import {
   Loader2, Sparkles, Copy, Check, Download, Plus, Trash2, FileText, ChevronDown,
@@ -135,7 +136,7 @@ export default function PressReleasePanel({
       if (!res) return; // user cancelled the credit confirmation
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (!res.ok) { setError(data.message || data.error || p("errors.generationFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, p("errors.generationFailed"))); return; }
       setRelease(data.release as GeneratedRelease);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -184,7 +185,7 @@ export default function PressReleasePanel({
         body: JSON.stringify({ press_releases: [...savedReleases, entry] }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || data.error || p("errors.saveFailed")); return; }
+      if (!res.ok) { setError(apiErrorMessage(data, p("errors.saveFailed"))); return; }
       onKitUpdated({ ...kit, press_releases: [...savedReleases, entry] });
       setRelease(null);
     } catch {

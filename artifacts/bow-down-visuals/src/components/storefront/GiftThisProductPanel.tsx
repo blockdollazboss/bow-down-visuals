@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { Gift, Loader2, CheckCircle2, CalendarClock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,10 +71,10 @@ export default function GiftThisProductPanel({ productId, productKind, priceCent
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { note?: string; message?: string; error?: string };
-      if (!res.ok) throw new Error(body.message || body.error || "Could not send this gift.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Could not send this gift."));
       setSent(body.note ?? "Gift sent — it's held for your recipient until they claim it.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send this gift.");
+      setError(plainErrorText(err, "Could not send this gift."));
     } finally {
       setSending(false);
     }

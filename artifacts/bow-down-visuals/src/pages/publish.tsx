@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -438,7 +439,7 @@ export default function Publish() {
         }),
       });
       const j = await res.json() as { url?: string; error?: string; message?: string };
-      if (!res.ok || !j.url) throw new Error(j.message ?? j.error ?? `Generation failed (${res.status})`);
+      if (!res.ok || !j.url) throw new Error(apiErrorMessage(j, `Generation failed (${res.status})`));
       setArtworkUrl(j.url);
       setArtworkRef(null);
       toast({ title: "Artwork generated", description: "200 Visual Bucs — looking sharp." });
@@ -465,7 +466,7 @@ export default function Publish() {
       });
       const j = await res.json() as { profile?: { id?: string; slug?: string; display_name?: string }; error?: string; message?: string };
       const p = j.profile;
-      if (!res.ok || !p?.id) throw new Error(j.message ?? j.error ?? `Couldn't create profile (${res.status})`);
+      if (!res.ok || !p?.id) throw new Error(apiErrorMessage(j, `Couldn't create profile (${res.status})`));
       setProfile({ id: p.id, slug: p.slug ?? slug, display_name: p.display_name });
       setShowCreateProfile(false);
       toast({ title: "Profile created", description: `You're live at /artist/${p.slug ?? slug}` });
@@ -569,7 +570,7 @@ export default function Publish() {
         track?: { id?: string | number }; video?: { id?: string | number };
         short?: { id?: string | number };
       };
-      if (!res.ok) throw new Error(j.message ?? j.error ?? `Save failed (${res.status})`);
+      if (!res.ok) throw new Error(apiErrorMessage(j, `Save failed (${res.status})`));
 
       if (publish) {
         const itemId = String(j.track?.id ?? j.video?.id ?? j.short?.id ?? "");
@@ -589,7 +590,7 @@ export default function Publish() {
                 body: JSON.stringify({ video_id: itemId }),
               });
               const ej = await er.json().catch(() => ({}));
-              if (!er.ok) throw new Error(ej.error ?? `enter failed (${er.status})`);
+              if (!er.ok) throw new Error(apiErrorMessage(ej, `enter failed (${er.status})`));
               setEnteredState("done");
               toast({
                 title: "Entered the challenge 🏆",
@@ -636,7 +637,7 @@ export default function Publish() {
       resetForm();
       loadDrafts();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Save failed");
+      setFormError(plainErrorText(e, "Save failed"));
     } finally {
       setSaving(false);
       setUploadPct(null);
@@ -760,7 +761,7 @@ export default function Publish() {
         body: JSON.stringify({ video_id: publishedItem.itemId }),
       });
       const ej = await er.json().catch(() => ({}));
-      if (!er.ok) throw new Error(ej.error ?? `enter failed (${er.status})`);
+      if (!er.ok) throw new Error(apiErrorMessage(ej, `enter failed (${er.status})`));
       setEnteredState("done");
       setChallengeSlug(targetSlug);
       const picked = liveChallenges.find((c) => c.slug === targetSlug);

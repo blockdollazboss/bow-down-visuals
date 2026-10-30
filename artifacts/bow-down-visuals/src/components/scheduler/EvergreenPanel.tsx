@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Recycle, Loader2, Check, X, Sparkles, AlertTriangle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,7 +33,7 @@ async function api<T>(path: string, token: string | null, init?: RequestInit): P
     },
   });
   const data = (await res.json().catch(() => ({}))) as T & { message?: string };
-  if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
   return data;
 }
 
@@ -102,7 +103,7 @@ export default function EvergreenPanel() {
       setNotice("Evergreen settings saved.");
       await load();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't save settings.");
+      setNotice(plainErrorText(e, "Couldn't save settings."));
     } finally {
       setBusy(null);
     }
@@ -121,7 +122,7 @@ export default function EvergreenPanel() {
       );
       await load();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't generate proposals.");
+      setNotice(plainErrorText(e, "Couldn't generate proposals."));
     } finally {
       setBusy(null);
     }
@@ -139,7 +140,7 @@ export default function EvergreenPanel() {
       );
       await load();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't save that decision.");
+      setNotice(plainErrorText(e, "Couldn't save that decision."));
     } finally {
       setBusy(null);
     }

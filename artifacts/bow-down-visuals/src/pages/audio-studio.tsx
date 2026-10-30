@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -159,7 +160,7 @@ function CleanupPanel() {
         const data: CleanupJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("audioCleanup.errorJobNotFound"));
+          setError(apiErrorMessage(data, t("audioCleanup.errorJobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -172,7 +173,7 @@ function CleanupPanel() {
           setNoiseReductionDb(typeof data.noiseReductionDb === "number" ? data.noiseReductionDb : null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("audioCleanup.errorCleanupFailed"));
+          setError(apiErrorMessage(data, t("audioCleanup.errorCleanupFailed")));
         } else {
           setStatus(data.status as CleanupJobStatus);
         }
@@ -286,7 +287,7 @@ function CleanupPanel() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("audioCleanup.errorStartFailed"));
+        setError(apiErrorMessage(data, t("audioCleanup.errorStartFailed")));
         return;
       }
       setJobId(data.jobId);
@@ -659,7 +660,7 @@ function VocalOnlyPreset() {
         const data: VocalJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("vocalRemoval.jobNotFound"));
+          setError(apiErrorMessage(data, t("vocalRemoval.jobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -687,7 +688,7 @@ function VocalOnlyPreset() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("vocalRemoval.removalFailedRefunded", { bucs: VOCAL_CREDIT_COST * 100 }));
+          setError(apiErrorMessage(data, t("vocalRemoval.removalFailedRefunded", { bucs: VOCAL_CREDIT_COST * 100 })));
         } else {
           setStatus(data.status as VocalJobStatus);
         }
@@ -760,7 +761,7 @@ function VocalOnlyPreset() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("vocalRemoval.startFailedError"));
+        setError(apiErrorMessage(data, t("vocalRemoval.startFailedError")));
         return;
       }
       setJobId(data.jobId);
@@ -1059,7 +1060,7 @@ function InstrumentalPreset() {
         const data = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("stems.errorJobNotFound"));
+          setError(apiErrorMessage(data, t("stems.errorJobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -1075,7 +1076,7 @@ function InstrumentalPreset() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("stems.jobFailedRefund", { credits: STEMS_INSTRUMENTAL_CREDIT_COST * 100 }));
+          setError(apiErrorMessage(data, t("stems.jobFailedRefund", { credits: STEMS_INSTRUMENTAL_CREDIT_COST * 100 })));
         } else {
           setStatus(data.status);
         }
@@ -1123,7 +1124,7 @@ function InstrumentalPreset() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("stems.errorStartSplit"));
+        setError(apiErrorMessage(data, t("stems.errorStartSplit")));
         return;
       }
       setJobId(data.jobId);
@@ -1351,7 +1352,7 @@ function StemsPanel() {
         const data: StemJobResponse = await res.json();
         if (!res.ok) {
           setStatus("failed");
-          setError(data.error || t("stems.errorJobNotFound"));
+          setError(apiErrorMessage(data, t("stems.errorJobNotFound")));
           return;
         }
         if (data.status === "done") {
@@ -1369,7 +1370,7 @@ function StemsPanel() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || t("stems.jobFailedRefund", { credits: STEMS_CREDIT_COST * 100 }));
+          setError(apiErrorMessage(data, t("stems.jobFailedRefund", { credits: STEMS_CREDIT_COST * 100 })));
         } else {
           setStatus(data.status as StemsJobStatus);
         }
@@ -1486,7 +1487,7 @@ function StemsPanel() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("stems.errorStartSplit"));
+        setError(apiErrorMessage(data, t("stems.errorStartSplit")));
         return;
       }
       setJobId(data.jobId);
@@ -1517,7 +1518,7 @@ function StemsPanel() {
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
-        setRemixError(data.error || t("stems.errorRemix"));
+        setRemixError(apiErrorMessage(data, t("stems.errorRemix")));
         return;
       }
       setRemixUrl(data.url);
@@ -1539,7 +1540,7 @@ function StemsPanel() {
       const res = await fetch(`/api/stems/${jobId}/midi/${stemKey}`);
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t("stems.errorMidi"));
+        throw new Error(apiErrorMessage(data, t("stems.errorMidi")));
       }
       const blob = await res.blob();
       const disposition = res.headers.get("content-disposition") ?? "";
@@ -1553,7 +1554,7 @@ function StemsPanel() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      setMidiError(e instanceof Error ? e.message : t("stems.errorMidi"));
+      setMidiError(plainErrorText(e, t("stems.errorMidi")));
     } finally {
       setMidiBusyStem(null);
     }
@@ -2541,7 +2542,7 @@ function MasterPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || t("mixMaster.errorFailed", { defaultValue: "Mastering failed — your Visual Bucs were refunded." }));
+          setError(apiErrorMessage(data, t("mixMaster.errorFailed", { defaultValue: "Mastering failed — your Visual Bucs were refunded." })));
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -2588,7 +2589,7 @@ function MasterPanel() {
       if (res.status === 402) { setOutOfCredits(true); setStatus("idle"); return; }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("mixMaster.errorStartFailed", { defaultValue: "Could not start mastering." }));
+        setError(apiErrorMessage(data, t("mixMaster.errorStartFailed", { defaultValue: "Could not start mastering." })));
         return;
       }
       setJobId(data.jobId);
@@ -2790,7 +2791,7 @@ function MixPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || t("mixMaster.errorMixFailed", { defaultValue: "Mixing failed — your Visual Bucs were refunded." }));
+          setError(apiErrorMessage(data, t("mixMaster.errorMixFailed", { defaultValue: "Mixing failed — your Visual Bucs were refunded." })));
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -2836,7 +2837,7 @@ function MixPanel() {
       if (res.status === 402) { setOutOfCredits(true); setStatus("idle"); return; }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("mixMaster.errorStartMixFailed", { defaultValue: "Could not start the mix." }));
+        setError(apiErrorMessage(data, t("mixMaster.errorStartMixFailed", { defaultValue: "Could not start the mix." })));
         return;
       }
       setJobId(data.jobId);
@@ -3090,7 +3091,7 @@ function QuickMasterPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || t("mastering.errorFailed"));
+          setError(apiErrorMessage(data, t("mastering.errorFailed")));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -3165,7 +3166,7 @@ function QuickMasterPanel() {
       }
       if (!res.ok || !data.jobId) {
         setStatus("failed");
-        setError(data.message || data.error || t("mastering.errorStartFailed"));
+        setError(apiErrorMessage(data, t("mastering.errorStartFailed")));
         return;
       }
       setJobId(data.jobId);

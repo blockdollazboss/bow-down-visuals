@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -147,7 +148,7 @@ export default function Login() {
         setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
       }
     } catch (err) {
-      setResendError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
+      setResendError(plainErrorText(err, t("auth.somethingWentWrong")));
     } finally {
       setResendSending(false);
     }
@@ -186,7 +187,7 @@ export default function Login() {
         setResetSent(true);
       }
     } catch (err) {
-      setResetError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
+      setResetError(plainErrorText(err, t("auth.somethingWentWrong")));
     } finally {
       setResetLoading(false);
     }

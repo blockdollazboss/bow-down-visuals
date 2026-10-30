@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t("showcasePublish.errPublishFallback"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("showcasePublish.errPublishFallback")));
       setPublishedSlug(data.item.slug);
       toast({ title: t("showcasePublish.toastPublished"), description: t("showcasePublish.toastPublishedDesc") });
     } catch (err) {

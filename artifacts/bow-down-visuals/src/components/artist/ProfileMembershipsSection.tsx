@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Gem, AlertTriangle, RotateCcw, Check } from "lucide-react";
@@ -105,7 +106,7 @@ export default function ProfileMembershipsSection({
         setJoinError("Checkout didn't start — try again in a moment.");
       }
     } catch (err) {
-      setJoinError(err instanceof Error ? err.message : "Couldn't start checkout. Try again.");
+      setJoinError(plainErrorText(err, "Couldn't start checkout. Try again."));
     } finally {
       setBusyTier(null);
     }

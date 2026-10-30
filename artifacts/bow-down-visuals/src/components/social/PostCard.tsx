@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { Link } from "wouter";
 import { MessageCircle, Repeat2, Quote, Bookmark, Share2, Trash2, BadgeCheck, BarChart3, Check, ShieldAlert, Lock, Crown, AlertTriangle, Eye } from "lucide-react";
@@ -79,7 +80,7 @@ export function PostCard({
       const media = await revealPostContent(getAccessToken, post.id);
       setRevealedMedia(media);
     } catch (e) {
-      setRevealError(e instanceof Error ? e.message : "Couldn't reveal that media.");
+      setRevealError(plainErrorText(e, "Couldn't reveal that media."));
     } finally {
       setRevealing(false);
     }

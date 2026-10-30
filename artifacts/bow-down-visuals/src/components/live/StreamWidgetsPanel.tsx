@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Loader2, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,7 +81,7 @@ export default function StreamWidgetsPanel({ streamId }: { streamId: string | nu
         setWidgetData(dto);
       }
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "That goal couldn't be saved. Try again.");
+      setNote(plainErrorText(err, "That goal couldn't be saved. Try again."));
     }
     setSavingGoal(false);
   }

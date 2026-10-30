@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -154,10 +155,10 @@ export default function SongsPage() {
     try {
       const res = await fetch("/api/songs", { headers: await authHeaders() });
       const data = (await res.json()) as { songs?: SongRecord[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("songs.errorLoadSongs"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("songs.errorLoadSongs")));
       setSongs(data.songs ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("songs.errorLoadSongs"));
+      setError(plainErrorText(e, t("songs.errorLoadSongs")));
     } finally {
       setLoading(false);
     }
@@ -201,7 +202,7 @@ export default function SongsPage() {
       if (res.ok && r?.analysis) {
         setDjAnalysisById((m) => ({ ...m, [songId]: r.analysis! }));
       } else if (res.ok && r?.status === "failed") {
-        setError(r.error || t("djSets.errorAnalyze"));
+        setError(apiErrorMessage(r, t("djSets.errorAnalyze")));
       }
     } catch {
       setError(t("djSets.errorAnalyze"));
@@ -270,11 +271,11 @@ export default function SongsPage() {
         body: form,
       });
       const data = (await res.json()) as { song?: SongRecord; error?: string };
-      if (!res.ok) throw new Error(data.error || t("songs.errorUploadFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("songs.errorUploadFailed")));
       setTitle("");
       await loadSongs();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("songs.errorUploadFailed"));
+      setError(plainErrorText(e, t("songs.errorUploadFailed")));
     } finally {
       setUploading(false);
     }
@@ -291,12 +292,12 @@ export default function SongsPage() {
         body: JSON.stringify({ artistVaultId: remixVault }),
       });
       const data = (await res.json()) as { song?: SongRecord; error?: string };
-      if (!res.ok) throw new Error(data.error || t("songs.errorRemixFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("songs.errorRemixFailed")));
       setRemixTarget(null);
       setRemixVault("");
       await loadSongs();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("songs.errorRemixFailed"));
+      setError(plainErrorText(e, t("songs.errorRemixFailed")));
     } finally {
       setRemixing(false);
     }
@@ -313,7 +314,7 @@ export default function SongsPage() {
       const res = await fetch(`/api/songs/${song.id}/midi`, { headers: await authHeaders() });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || "Couldn't export that song's melody as MIDI.");
+        throw new Error(apiErrorMessage(data, "Couldn't export that song's melody as MIDI."));
       }
       const blob = await res.blob();
       const disposition = res.headers.get("content-disposition") ?? "";
@@ -327,7 +328,7 @@ export default function SongsPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't export that song's melody as MIDI.");
+      setError(plainErrorText(e, "Couldn't export that song's melody as MIDI."));
     } finally {
       setMidiBusyId(null);
     }
@@ -340,10 +341,10 @@ export default function SongsPage() {
     try {
       const res = await fetch("/api/albums", { headers: await authHeaders() });
       const data = (await res.json()) as { albums?: AlbumLite[]; error?: string };
-      if (!res.ok) throw new Error(data.error || t("songs.errorLoadSongs"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("songs.errorLoadSongs")));
       setAlbumsLite((data.albums ?? []).filter((a) => a.status === "draft"));
     } catch (e) {
-      setAlbumActionError(e instanceof Error ? e.message : "Could not load albums.");
+      setAlbumActionError(plainErrorText(e, "Could not load albums."));
     } finally {
       setAlbumsLoading(false);
     }
@@ -360,7 +361,7 @@ export default function SongsPage() {
         album?: { tracks?: { song_id: string }[] };
         error?: string;
       };
-      if (!detailRes.ok || !detail.album) throw new Error(detail.error || "Could not load album.");
+      if (!detailRes.ok || !detail.album) throw new Error(apiErrorMessage(detail, "Could not load album."));
       const current = (detail.album.tracks ?? []).map((tr) => tr.song_id);
       if (current.includes(addToAlbumSong.id)) {
         setAddToAlbumSong(null);
@@ -372,10 +373,10 @@ export default function SongsPage() {
         body: JSON.stringify({ song_ids: [...current, addToAlbumSong.id] }),
       });
       const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Could not add song to album.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not add song to album."));
       setAddToAlbumSong(null);
     } catch (e) {
-      setAlbumActionError(e instanceof Error ? e.message : "Could not add song to album.");
+      setAlbumActionError(plainErrorText(e, "Could not add song to album."));
     } finally {
       setAddingToAlbum(null);
     }

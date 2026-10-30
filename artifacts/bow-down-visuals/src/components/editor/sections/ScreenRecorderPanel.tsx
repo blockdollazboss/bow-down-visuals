@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -520,7 +521,7 @@ export function ScreenRecorderPanel({
       toast({ title: tr("sentToastTitle"), description: tr("sentToastDesc") });
       onGoToTab("timeline");
     } catch (err) {
-      setError(err instanceof Error ? err.message : tr("errUploadGeneric"));
+      setError(plainErrorText(err, tr("errUploadGeneric")));
       setPhase("review");
     }
   }

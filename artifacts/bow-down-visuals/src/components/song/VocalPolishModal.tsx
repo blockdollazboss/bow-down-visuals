@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -137,7 +138,7 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
       }
       if (!res.ok || !data.jobId) {
         setPhase("form");
-        setError(data.message || data.error || t("vocalPolish.errorStartFailed"));
+        setError(apiErrorMessage(data, t("vocalPolish.errorStartFailed")));
         return;
       }
       setJobId(data.jobId);
@@ -156,7 +157,7 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
       if (!res.ok) {
         stopPolling();
         setPhase("form");
-        setError(data.error || t("vocalPolish.errorJobNotFound"));
+        setError(apiErrorMessage(data, t("vocalPolish.errorJobNotFound")));
         return;
       }
       setJobStatus(data.status ?? "processing");
@@ -172,7 +173,7 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
       } else if (data.status === "failed") {
         stopPolling();
         setPhase("form");
-        setError(data.error || t("vocalPolish.errorJobFailed", { cost: CREDIT_COST }));
+        setError(apiErrorMessage(data, t("vocalPolish.errorJobFailed", { cost: CREDIT_COST })));
       }
     } catch {
       /* keep polling on transient network errors */

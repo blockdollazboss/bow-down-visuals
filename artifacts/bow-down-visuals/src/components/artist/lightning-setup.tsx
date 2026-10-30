@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -193,7 +194,7 @@ export default function LightningSetup({
       });
       if (!res) { setGenerating(false); return; } /* credit confirmation dismissed */
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Design failed");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Design failed"));
       setBusy(true);
       const p = await createProfile(
         createPayload({

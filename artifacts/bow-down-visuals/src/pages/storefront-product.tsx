@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
@@ -184,13 +185,13 @@ function DropSection({ productId, title, creatorName, drop }: {
       const body = (await res.json().catch(() => ({}))) as {
         alreadyCaptured?: boolean; captureCount?: number; error?: string; message?: string;
       };
-      if (!res.ok) throw new Error(body.message || body.error || "Couldn't join the drop list.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Couldn't join the drop list."));
       setAlready(body.alreadyCaptured === true);
       if (typeof body.captureCount === "number") setCount(body.captureCount);
       setJoinState("done");
     } catch (err) {
       setJoinState("error");
-      setJoinMsg(err instanceof Error ? err.message : "Couldn't join the drop list.");
+      setJoinMsg(plainErrorText(err, "Couldn't join the drop list."));
     }
   }
 
@@ -340,7 +341,7 @@ function RestockAlert({ productId, title, creatorName, waitingCount }: {
         setCount(r.waitingCount);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't set that alert — try again.");
+      setError(plainErrorText(err, "Couldn't set that alert — try again."));
     } finally {
       setBusy(false);
     }
@@ -447,7 +448,7 @@ export default function StorefrontProduct() {
         const body = (await res.json().catch(() => ({}))) as ProductData & { error?: string; pixels?: CommercePixels };
         if (!alive) return;
         if (!res.ok) {
-          setError(body.error || "Couldn't load this product.");
+          setError(apiErrorMessage(body, "Couldn't load this product."));
           return;
         }
         /* Commerce pixels (wave-4 #41): the seller's own IDs from the
@@ -510,7 +511,7 @@ export default function StorefrontProduct() {
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(body.message || body.error || "Couldn't claim this product.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Couldn't claim this product."));
       setClaimed({
         duplicate: body.duplicate === true,
         delivery: body.delivery ?? null,
@@ -518,7 +519,7 @@ export default function StorefrontProduct() {
         listName: body.subscribed?.listName ?? "the creator's list",
       });
     } catch (err) {
-      setClaimError(err instanceof Error ? err.message : "Couldn't claim this product.");
+      setClaimError(plainErrorText(err, "Couldn't claim this product."));
     } finally {
       setClaiming(false);
     }
@@ -547,7 +548,7 @@ export default function StorefrontProduct() {
         const body = (await res.json().catch(() => ({}))) as { code?: string | null; codeNote?: string; error?: string; message?: string };
         if (!alive) return;
         if (!res.ok) {
-          setBuyError(body.message || body.error || "Your payment landed but the gift card needs a hand — contact support with your receipt.");
+          setBuyError(apiErrorMessage(body, "Your payment landed but the gift card needs a hand — contact support with your receipt."));
           return;
         }
         setGiftIssued({ code: body.code ?? null, note: body.codeNote ?? "" });
@@ -595,7 +596,7 @@ export default function StorefrontProduct() {
           }),
         });
         const body = (await res.json().catch(() => ({}))) as { url?: string; clientSecret?: string | null; error?: string; message?: string };
-        if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+        if (!res.ok) throw new Error(apiErrorMessage(body, "Checkout failed."));
         if (body.clientSecret) {
           setGiftEmbeddedSecret(body.clientSecret);
           setBuying(false);
@@ -631,7 +632,7 @@ export default function StorefrontProduct() {
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { url?: string | null; clientSecret?: string | null; paidWithGiftCard?: boolean; error?: string; message?: string };
-      if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+      if (!res.ok) throw new Error(apiErrorMessage(body, "Checkout failed."));
       /* The gift card covered the whole bill — no card checkout at all. */
       if (body.paidWithGiftCard) {
         setPaidWithGiftCard(true);
@@ -645,7 +646,7 @@ export default function StorefrontProduct() {
       if (!body.url) throw new Error("Checkout failed.");
       window.location.href = body.url;
     } catch (err) {
-      setBuyError(err instanceof Error ? err.message : "Checkout failed.");
+      setBuyError(plainErrorText(err, "Checkout failed."));
       setBuying(false);
     }
   }
@@ -673,7 +674,7 @@ export default function StorefrontProduct() {
       }),
     });
     const body = (await res.json().catch(() => ({}))) as { url?: string | null; clientSecret?: string | null; error?: string; message?: string };
-    if (!res.ok) throw new Error(body.message || body.error || "Checkout failed.");
+    if (!res.ok) throw new Error(apiErrorMessage(body, "Checkout failed."));
     if (body.clientSecret) {
       setEmbeddedSecret(body.clientSecret);
       return;

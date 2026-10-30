@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 
@@ -98,10 +99,10 @@ export default function ConnectPayoutCard({ getToken }: { getToken: () => Promis
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(data.message || data.error || "Couldn't start payout setup.");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Couldn't start payout setup."));
       window.location.href = data.url;
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't start payout setup.");
+      setErr(plainErrorText(e, "Couldn't start payout setup."));
       setBusy(null);
     }
   };
@@ -127,7 +128,7 @@ export default function ConnectPayoutCard({ getToken }: { getToken: () => Promis
       setNote(`Cash out sent: ${usd(data.payout?.amountCents ?? 0)}${data.note ? ` — ${data.note}` : ""}`);
       await load();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Payout failed.");
+      setErr(plainErrorText(e, "Payout failed."));
     } finally {
       setBusy(null);
     }

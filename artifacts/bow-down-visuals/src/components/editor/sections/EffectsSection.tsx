@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useRef, useState } from "react";
 import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw, Palette, Scissors, Loader2 } from "lucide-react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -111,14 +112,14 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
       if (!res) { setBgRemoving(false); return; } // user cancelled
       const data = await res.json();
       if (!res.ok) {
-        setBgRemovalError(data.message || data.error || "Background removal failed.");
+        setBgRemovalError(apiErrorMessage(data, "Background removal failed."));
       } else if (data.url && onReplaceClipVideo) {
         onReplaceClipVideo(bgRemovalScene, data.url);
       } else {
         setBgRemovalError("No output URL returned.");
       }
     } catch (e) {
-      setBgRemovalError(e instanceof Error ? e.message : "Background removal failed.");
+      setBgRemovalError(plainErrorText(e, "Background removal failed."));
     } finally {
       setBgRemoving(false);
     }

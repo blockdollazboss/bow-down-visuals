@@ -1,3 +1,4 @@
+import { apiErrorMessage, apiThrowMessage } from "../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -208,7 +209,7 @@ export function AssetHandoffs({ asset, handoffs, lyricsText, coverUrl, topic, pr
         error?: string;
         message?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? data.message ?? t("hubSpine.handoffs.failed"));
+      if (!res.ok) throw new Error(apiThrowMessage(data, t("hubSpine.handoffs.failed")));
 
       const saved: HandoffResult[] = [];
       const pushResult = (url: string | undefined, label: string, kind: HubAssetKind, detail?: string, text?: string) => {

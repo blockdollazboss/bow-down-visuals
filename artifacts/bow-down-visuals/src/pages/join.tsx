@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useEffect } from "react";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -59,10 +60,10 @@ export default function JoinList() {
         body: JSON.stringify({ handle, email: email.trim(), name: name.trim(), source: "landing" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? data.error ?? t("auth.signupFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("auth.signupFailed")));
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.signupFailed"));
+      setError(plainErrorText(err, t("auth.signupFailed")));
     } finally {
       setSubmitting(false);
     }

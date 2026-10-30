@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -119,7 +120,7 @@ export default function ArcadePage() {
           rank?: number | null;
           error?: string;
         };
-        if (!res.ok) throw new Error(data.error ?? "save failed");
+        if (!res.ok) throw new Error(apiErrorMessage(data, "save failed"));
         setOutcomes((prev) => ({
           ...prev,
           [result.game]: {

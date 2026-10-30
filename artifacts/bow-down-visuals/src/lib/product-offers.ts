@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Make-an-offer client (Wave 4 #43) ────────────────────────────────
    Thin fetchers over /api/product-offers plus the pure negotiation law
    the panels validate against before they ever call the server (the
@@ -150,7 +151,7 @@ async function authInit(getAccessToken: GetAccessToken, init: RequestInit = {}):
 async function offerFetch<T>(getAccessToken: GetAccessToken, path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, await authInit(getAccessToken, init));
   const data = (await res.json().catch(() => ({}))) as T & { message?: string; error?: string };
-  if (!res.ok) throw new Error(data.message || data.error || "Something went wrong with that offer.");
+  if (!res.ok) throw new Error(apiErrorMessage(data, "Something went wrong with that offer."));
   return data;
 }
 

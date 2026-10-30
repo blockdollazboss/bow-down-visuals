@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -202,7 +203,7 @@ export default function VoiceoverStudio() {
         return;
       }
       if (!res.ok || !data.audioUrl) {
-        throw new Error(data.message || data.error || t("voiceover.generateFailedError"));
+        throw new Error(apiErrorMessage(data, t("voiceover.generateFailedError")));
       }
       setResult(data);
       refreshProfile();
@@ -216,7 +217,7 @@ export default function VoiceoverStudio() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("voiceover.generateFailedError"));
+      setError(plainErrorText(err, t("voiceover.generateFailedError")));
     } finally {
       setGenerating(false);
     }

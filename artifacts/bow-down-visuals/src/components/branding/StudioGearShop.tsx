@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   Mic, Lightbulb, Zap, Package, Loader2, ShoppingCart, Upload,
@@ -175,10 +176,10 @@ export default function StudioGearShop() {
         body: formData,
       });
       const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error || "Upload failed");
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Upload failed"));
       patchSel(id, { artworkUrl: data.url, artworkName: file.name });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(plainErrorText(err, "Upload failed"));
     } finally {
       setUploading(null);
     }
@@ -262,7 +263,7 @@ export default function StudioGearShop() {
         error?: string;
         message?: string;
       };
-      if (!res.ok || !data.order?.id) throw new Error(data.message || data.error || "Order failed.");
+      if (!res.ok || !data.order?.id) throw new Error(apiErrorMessage(data, "Order failed."));
       const coRes = await authed("/api/studio-gear/checkout", {
         method: "POST",
         body: JSON.stringify({ orderId: data.order.id }),
@@ -271,12 +272,12 @@ export default function StudioGearShop() {
         message?: string;
         error?: string;
       };
-      if (!coRes.ok) throw new Error(coData.error || "Test checkout failed — your order is saved.");
-      setSuccess(coData.message || "Order placed (test mode — no real charge).");
+      if (!coRes.ok) throw new Error(apiErrorMessage(coData, "Test checkout failed — your order is saved."));
+      setSuccess(apiErrorMessage(coData, "Order placed (test mode — no real charge)."));
       setCart([]);
       await loadOrders();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Order failed.");
+      setError(plainErrorText(err, "Order failed."));
     } finally {
       setPlacing(false);
     }
@@ -298,11 +299,11 @@ export default function StudioGearShop() {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error || "Proof update failed.");
-      setSuccess(data.message || "Proof updated.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Proof update failed."));
+      setSuccess(apiErrorMessage(data, "Proof updated."));
       await loadOrders();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Proof update failed.");
+      setError(plainErrorText(err, "Proof update failed."));
     } finally {
       setProofBusy(null);
     }
