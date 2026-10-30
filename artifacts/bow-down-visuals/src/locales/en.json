@@ -2601,7 +2601,7 @@
   "collabs": {
     "accept": "Accept",
     "addPlatform": "+ Add platform",
-    "aiMatchBtn": "Match · 1cr",
+    "aiMatchBtn": "Match · {{cost}} credits",
     "allNiches": "All niches",
     "anonymousCreator": "A creator",
     "badge": "Collab Finder",
@@ -2647,7 +2647,7 @@
     "received": "Received",
     "saveProfile": "Save Profile",
     "saving": "Saving…",
-    "scoreBtn": "Score · 1cr",
+    "scoreBtn": "Score · {{cost}} credits",
     "scoring": "Scoring…",
     "sendProposalBtn": "Send them a proposal · Free",
     "sendRequest": "Send Request",

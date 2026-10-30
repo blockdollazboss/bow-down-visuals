@@ -1,6 +1,6 @@
 /* ─── Clip Maker shared helpers ─────────────────────────────────────────
-   Pure functions used by the /clip-maker page. Kept in lib/ so they are
-   unit-testable without rendering the page. */
+   Pure functions used by clip surfaces (e.g. /repurpose). Kept in lib/
+   so they are unit-testable without rendering a page. */
 
 export interface ClipHighlightLike {
   id: string;
@@ -23,10 +23,7 @@ export function buildTimestampExport(highlights: ClipHighlightLike[]): string {
     .join("\n");
 }
 
-/** Credit math for the cut step: 2 credits per rendered clip. */
-export const CUT_CREDITS_PER_CLIP = 2;
 /* Removed 2026-10-10: ANALYZE_CREDITS was dead (zero non-test imports). */
-
-export function cutCostFor(clipCount: number): number {
-  return Math.max(0, Math.floor(clipCount)) * CUT_CREDITS_PER_CLIP;
-}
+/* Removed (stack900): the cut-pricing helper and its per-clip constant
+   were dead the same way — zero non-test references, and there is no
+   /clip-maker page. Names recorded in lib/dead-price-constants.test.ts. */

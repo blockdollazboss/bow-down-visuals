@@ -255,6 +255,10 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/live-shopping/ai-description": { cost: 100, feature: "Product Description" },
   "/api/randomizer": { cost: 100, feature: "Content Randomizer" },
   "/api/sound-finder/match": { cost: 100, feature: "Sound Finder" },
+  // Mirrors COLLAB_MATCH_CREDITS in the server route
+  // (routes/generate/collabs.ts, env COLLAB_MATCH_CREDIT_COST,
+  // default 100) — the rail charges 100 Visual Bucs per report.
+  "/api/collabs/match": { cost: 100, feature: "Collab Match Report" },
   "/api/content-calendar": { cost: 150, feature: "Content Calendar" },
   "/api/release-checklist": { cost: 200, feature: "Release Checklist" },
 

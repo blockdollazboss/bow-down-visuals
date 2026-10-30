@@ -2433,7 +2433,7 @@
   "collabs": {
     "accept": "承認",
     "addPlatform": "＋ プラットフォームを追加",
-    "aiMatchBtn": "AIマッチ · 1cr",
+    "aiMatchBtn": "AIマッチ · {{cost}}クレジット",
     "allNiches": "全ジャンル",
     "anonymousCreator": "あるクリエイター",
     "badge": "コラボファインダー",
@@ -2479,7 +2479,7 @@
     "received": "受信",
     "saveProfile": "プロフィールを保存",
     "saving": "保存中…",
-    "scoreBtn": "スコア · 1cr",
+    "scoreBtn": "スコア · {{cost}}クレジット",
     "scoring": "スコアリング中…",
     "sendProposalBtn": "提案を送る · 無料",
     "sendRequest": "リクエストを送信",

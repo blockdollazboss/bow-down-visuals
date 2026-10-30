@@ -34,7 +34,6 @@ import {
 import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
-  DISTRIBUTION_PACKAGING_CREDITS,
   DISTRIBUTION_TIERS,
   tierCredits,
   tierLabel,
@@ -66,8 +65,6 @@ import {
    "Sandbox simulation". */
 
 const AI_CREDIT_COST = DISTRIBUTION_AI_CREDIT_COST;
-/** Kept for any surface that still references the legacy flat packaging fee. */
-const PACKAGING_CREDITS = DISTRIBUTION_PACKAGING_CREDITS;
 
 /* ── API shapes ──────────────────────────────────────────────────────────── */
 interface PlatformStatusEntry {

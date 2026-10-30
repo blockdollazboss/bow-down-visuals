@@ -2433,7 +2433,7 @@
   "collabs": {
     "accept": "수락",
     "addPlatform": "+ 플랫폼 추가",
-    "aiMatchBtn": "AI 매칭 · 1cr",
+    "aiMatchBtn": "AI 매칭 · {{cost}} 크레딧",
     "allNiches": "모든 니치",
     "anonymousCreator": "익명의 크리에이터",
     "badge": "콜라보 파인더",
@@ -2479,7 +2479,7 @@
     "received": "받은 요청",
     "saveProfile": "프로필 저장",
     "saving": "저장 중…",
-    "scoreBtn": "점수 매기기 · 1cr",
+    "scoreBtn": "점수 매기기 · {{cost}} 크레딧",
     "scoring": "점수 계산 중…",
     "sendProposalBtn": "제안 보내기 · 무료",
     "sendRequest": "요청 보내기",

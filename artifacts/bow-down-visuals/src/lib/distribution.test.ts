@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
-  DISTRIBUTION_PACKAGING_CREDITS,
   DISTRIBUTION_STATUSES,
   platformLabel,
   isPackaged,
@@ -41,10 +40,6 @@ describe("platformLabel", () => {
 describe("pricing", () => {
   it("prices AI generations at 100 credits", () => {
     expect(DISTRIBUTION_AI_CREDIT_COST).toBe(100);
-  });
-
-  it("prices release packaging at 10 credits", () => {
-    expect(DISTRIBUTION_PACKAGING_CREDITS).toBe(10);
   });
 });
 
