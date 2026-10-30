@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "14658f3796e1974995412c8a1343773bac1dfd6c",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -22,8 +22,8 @@
     "withDescriptions": 238,
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
-    "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1003,
+    "serverEndpoints": 1708,
+    "serverEndpointsVisible": 1005,
     "serverFilesClassified": 128
   },
   "packs": [
@@ -15975,6 +15975,8 @@
         "/api/world/locks/door/unlock",
         "/api/world/locks/person/lock",
         "/api/world/locks/person/unlock",
+        "/api/world/room-invites/candidates",
+        "/api/world/room-invites/mine",
         "/api/world/screen",
         "/api/world/screen-catalog",
         "/api/world/tutorial",
@@ -20559,12 +20561,15 @@
       },
       {
         "file": "artifacts/api-server/src/routes/world.ts",
-        "endpoints": 14,
-        "visible": 11,
+        "endpoints": 19,
+        "visible": 13,
         "unseen": [
           "/api/world/creator-rooms/:slug",
           "/api/world/creator-rooms/:slug/dressing",
-          "/api/world/my-music"
+          "/api/world/creator-rooms/:slug/invites",
+          "/api/world/my-music",
+          "/api/world/room-invites/:id/accept",
+          "/api/world/room-invites/:id/decline"
         ]
       }
     ]

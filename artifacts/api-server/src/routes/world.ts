@@ -19,7 +19,7 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import {
   db,
   artistVaultsTable,
@@ -32,6 +32,7 @@ import {
   royalCourtTable,
   shopsTable,
   worldEventsTable,
+  worldRoomInvitesTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "../lib/retention";
 import { dailyQuestDef } from "../lib/daily-quests";
@@ -64,7 +65,16 @@ import {
   type WorldScreenVideoRef,
   type WorldStageLiveRef,
 } from "../lib/world-room";
-import { WorldPalace, creatorRoomIdForSlug } from "../lib/world-palace";
+import { WorldPalace, creatorRoomIdForSlug, creatorRoomName } from "../lib/world-palace";
+import {
+  decideRoomInviteCreate,
+  decideRoomInviteRespond,
+  notifyRoomInviteAccepted,
+  notifyRoomInviteCreated,
+  roomInviteDto,
+  ROOM_INVITE_ACCEPTED,
+  ROOM_INVITE_PENDING,
+} from "../lib/world-room-invites";
 import { WorldLockStore } from "../lib/world-locks";
 import { sanitizeCharacterVoiceProfile } from "../lib/character-voice-profile";
 import {
@@ -1422,6 +1432,350 @@ router.put("/world/creator-rooms/:slug/dressing", requireAuth, async (req, res) 
   } catch (err) {
     logger.error({ err }, "[world] creator-room dressing write failed");
     res.status(500).json({ error: "Couldn't save your room's dressing. Try again." });
+  }
+});
+
+/* ── Creator Room invites (stack900 Lane B4) ───────────────────────
+ * Real invites, ruled by the owner (Oct 29, 2026): pick a person,
+ * they accept or decline. Until now a room spread only by an
+ * anonymous copied link/code and no invitee was ever recorded;
+ * these routes are the recorded thing (world_room_invites,
+ * migration 0300; the decisions and announcements live in
+ * lib/world-room-invites):
+ *
+ *   POST /api/world/creator-rooms/:slug/invites  { inviteeUserId }
+ *     The room's host invites a member (a user id picked from the
+ *     member list — never an email). The insert is the exactly-once
+ *     gate for the invitee's bell: one pending row per (room,
+ *     invitee) stands by the table's partial unique index, and the
+ *     bell fires only behind a landed insert.
+ *   GET  /api/world/room-invites/mine
+ *     The caller's own standing invites: what's waiting on them
+ *     (pending) and the rooms they're in (accepted).
+ *   GET  /api/world/room-invites/candidates?q=
+ *     The member list the picker chooses from: public creator
+ *     profiles, never the caller themselves.
+ *   POST /api/world/room-invites/:id/accept
+ *     Records the yes. The member then walks in through the
+ *     palace's EXISTING doorway (the room read + transfer this
+ *     feature's answer hands back) — acceptance builds no second
+ *     door, and the door's own locks keep ruling entry as before.
+ *     The inviter's bell fires only behind the conditional update
+ *     that flips a still-pending row, so a replay tells nothing.
+ *   POST /api/world/room-invites/:id/decline
+ *     Records the no — silently. No bell, no guilt mechanics.
+ */
+
+const ROOM_INVITE_LIST_LIMIT = 100;
+const ROOM_INVITE_CANDIDATE_LIMIT = 20;
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A Postgres unique violation (23505), however drizzle wrapped it. */
+function isUniqueViolation(err: unknown): boolean {
+  let cur: unknown = err;
+  for (let depth = 0; depth < 4 && cur && typeof cur === "object"; depth++) {
+    if ((cur as { code?: unknown }).code === "23505") return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+router.post("/world/creator-rooms/:slug/invites", requireAuth, async (req, res) => {
+  try {
+    const slug = String(req.params["slug"] ?? "");
+    const callerUserId = req.userId!;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const inviteeRaw = body["inviteeUserId"];
+    const inviteeUserId = typeof inviteeRaw === "string" ? inviteeRaw.trim() : "";
+    const [roomProfile] = await db
+      .select()
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.slug, slug))
+      .limit(1);
+    /* The decider (lib/world-room-invites) rules the refusals in
+     * order; the reads here just gather its facts — and only behind
+     * the room door: a room that isn't the caller's earns no
+     * lookups at all, exactly like the dressing write. */
+    let inviteeProfile: { userId: string; displayName: string } | null = null;
+    let existingPending = false;
+    let existingAccepted = false;
+    if (
+      roomProfile &&
+      roomProfile.userId === callerUserId &&
+      UUID_SHAPE.test(inviteeUserId) &&
+      inviteeUserId !== callerUserId
+    ) {
+      const [member] = await db
+        .select({
+          userId: creatorProfilesTable.userId,
+          displayName: creatorProfilesTable.displayName,
+        })
+        .from(creatorProfilesTable)
+        .where(eq(creatorProfilesTable.userId, inviteeUserId))
+        .limit(1);
+      inviteeProfile = member ?? null;
+      if (inviteeProfile) {
+        const standing = await db
+          .select({ status: worldRoomInvitesTable.status })
+          .from(worldRoomInvitesTable)
+          .where(
+            and(
+              eq(worldRoomInvitesTable.roomId, creatorRoomIdForSlug(roomProfile.slug)),
+              eq(worldRoomInvitesTable.inviteeUserId, inviteeUserId),
+              or(
+                eq(worldRoomInvitesTable.status, ROOM_INVITE_PENDING),
+                eq(worldRoomInvitesTable.status, ROOM_INVITE_ACCEPTED),
+              ),
+            ),
+          );
+        existingPending = standing.some((r) => r.status === ROOM_INVITE_PENDING);
+        existingAccepted = standing.some((r) => r.status === ROOM_INVITE_ACCEPTED);
+      }
+    }
+    const decision = decideRoomInviteCreate({
+      roomProfile: roomProfile ?? null,
+      callerUserId,
+      inviteeUserId: inviteeRaw,
+      inviteeProfile,
+      existingPending,
+      existingAccepted,
+    });
+    if (!decision.ok) {
+      res.status(decision.status).json({ error: decision.error });
+      return;
+    }
+    /* decision.ok only ever rules for the caller's own room and a
+     * real member — both facts are in hand. */
+    const host = roomProfile!;
+    const member = inviteeProfile!;
+    let row: typeof worldRoomInvitesTable.$inferSelect;
+    try {
+      const inserted = await db
+        .insert(worldRoomInvitesTable)
+        .values({
+          roomId: creatorRoomIdForSlug(host.slug),
+          roomSlug: host.slug,
+          inviterUserId: callerUserId,
+          inviteeUserId,
+          status: ROOM_INVITE_PENDING,
+        })
+        .returning();
+      row = inserted[0]!;
+    } catch (err) {
+      /* The one-pending index is the race-proof half of the
+       * duplicate rule: a create that lost the race reads exactly
+       * like the refusal the decider would have given. */
+      if (isUniqueViolation(err)) {
+        res.status(409).json({
+          error: `Your invite to ${member.displayName} is already out — it's still waiting on them.`,
+        });
+        return;
+      }
+      throw err;
+    }
+    await notifyRoomInviteCreated({
+      inviteeUserId,
+      inviterName: host.displayName,
+      roomName: creatorRoomName(host.displayName),
+    });
+    res.status(201).json(
+      await refreshSupabaseStorageUrlsDeep({
+        invite: roomInviteDto(row, {
+          displayName: host.displayName,
+          avatarUrl: host.avatarUrl ?? null,
+        }),
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, "[world] room invite create failed");
+    res.status(500).json({ error: "Couldn't send that invite. Try again." });
+  }
+});
+
+router.get("/world/room-invites/mine", requireAuth, async (req, res) => {
+  try {
+    const callerUserId = req.userId!;
+    const rows = await db
+      .select()
+      .from(worldRoomInvitesTable)
+      .where(
+        and(
+          eq(worldRoomInvitesTable.inviteeUserId, callerUserId),
+          or(
+            eq(worldRoomInvitesTable.status, ROOM_INVITE_PENDING),
+            eq(worldRoomInvitesTable.status, ROOM_INVITE_ACCEPTED),
+          ),
+        ),
+      )
+      .orderBy(desc(worldRoomInvitesTable.createdAt))
+      .limit(ROOM_INVITE_LIST_LIMIT);
+    /* The hosts' public facts, one read for every room named. */
+    const slugs = [...new Set(rows.map((r) => r.roomSlug))];
+    const hosts =
+      slugs.length > 0
+        ? await db
+            .select({
+              slug: creatorProfilesTable.slug,
+              displayName: creatorProfilesTable.displayName,
+              avatarUrl: creatorProfilesTable.avatarUrl,
+            })
+            .from(creatorProfilesTable)
+            .where(inArray(creatorProfilesTable.slug, slugs))
+        : [];
+    const hostBySlug = new Map(hosts.map((hp) => [hp.slug, hp]));
+    const dtos = rows.map((r) => {
+      const host = hostBySlug.get(r.roomSlug);
+      return roomInviteDto(
+        r,
+        host ? { displayName: host.displayName, avatarUrl: host.avatarUrl ?? null } : null,
+      );
+    });
+    res.json(
+      await refreshSupabaseStorageUrlsDeep({
+        pending: dtos.filter((d) => d.status === ROOM_INVITE_PENDING),
+        accepted: dtos.filter((d) => d.status === ROOM_INVITE_ACCEPTED),
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, "[world] room invites mine failed");
+    res.status(500).json({ error: "Couldn't load your invites. Try again." });
+  }
+});
+
+router.get("/world/room-invites/candidates", requireAuth, async (req, res) => {
+  try {
+    const callerUserId = req.userId!;
+    const q = String(req.query["q"] ?? "").trim().slice(0, 80);
+    const conds = [
+      eq(creatorProfilesTable.isPublic, true),
+      ne(creatorProfilesTable.userId, callerUserId),
+    ];
+    if (q) {
+      const needle = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+      conds.push(
+        or(
+          ilike(creatorProfilesTable.displayName, needle),
+          ilike(creatorProfilesTable.slug, needle),
+        )!,
+      );
+    }
+    const rows = await db
+      .select({
+        userId: creatorProfilesTable.userId,
+        slug: creatorProfilesTable.slug,
+        displayName: creatorProfilesTable.displayName,
+        avatarUrl: creatorProfilesTable.avatarUrl,
+      })
+      .from(creatorProfilesTable)
+      .where(and(...conds))
+      .orderBy(desc(creatorProfilesTable.followerCount))
+      .limit(ROOM_INVITE_CANDIDATE_LIMIT);
+    res.json(
+      await refreshSupabaseStorageUrlsDeep({
+        members: rows.map((r) => ({
+          userId: r.userId,
+          slug: r.slug,
+          displayName: r.displayName,
+          avatarUrl: r.avatarUrl ?? null,
+        })),
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, "[world] room invite candidates failed");
+    res.status(500).json({ error: "Couldn't load the member list. Try again." });
+  }
+});
+
+/** One answer to an invite (accept or decline): the guards are the
+ *  decider's, the exactly-once is the conditional update's — only
+ *  a row still pending flips, and only the flip's winner proceeds
+ *  (to the accept bell; decline proceeds to silence). */
+async function respondToRoomInvite(
+  req: import("express").Request,
+  res: import("express").Response,
+  answer: typeof ROOM_INVITE_ACCEPTED | "declined",
+): Promise<void> {
+  const callerUserId = req.userId!;
+  const id = String(req.params["id"] ?? "");
+  const [invite] = UUID_SHAPE.test(id)
+    ? await db
+        .select()
+        .from(worldRoomInvitesTable)
+        .where(eq(worldRoomInvitesTable.id, id))
+        .limit(1)
+    : [];
+  const decision = decideRoomInviteRespond({ invite: invite ?? null, callerUserId });
+  if (!decision.ok) {
+    res.status(decision.status).json({ error: decision.error });
+    return;
+  }
+  const updated = await db
+    .update(worldRoomInvitesTable)
+    .set({ status: answer, respondedAt: new Date() })
+    .where(
+      and(
+        eq(worldRoomInvitesTable.id, id),
+        eq(worldRoomInvitesTable.status, ROOM_INVITE_PENDING),
+      ),
+    )
+    .returning();
+  if (updated.length === 0) {
+    /* Lost the race to the same answer a moment ago — the words
+     * are the decider's already-answered refusal. */
+    res.status(409).json({ error: "You've already answered that invite — nothing left to decide." });
+    return;
+  }
+  const row = updated[0]!;
+  if (answer === "declined") {
+    /* Silent by design: no bell for a no. */
+    res.json({ ok: true });
+    return;
+  }
+  const [hostProfile] = await db
+    .select({
+      displayName: creatorProfilesTable.displayName,
+      avatarUrl: creatorProfilesTable.avatarUrl,
+    })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.slug, row.roomSlug))
+    .limit(1);
+  const [inviteeProfile] = await db
+    .select({ displayName: creatorProfilesTable.displayName })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, callerUserId))
+    .limit(1);
+  await notifyRoomInviteAccepted({
+    inviterUserId: row.inviterUserId,
+    inviteeName: inviteeProfile?.displayName ?? "A member",
+    roomName: hostProfile ? creatorRoomName(hostProfile.displayName) : "your room",
+  });
+  res.json(
+    await refreshSupabaseStorageUrlsDeep({
+      invite: roomInviteDto(
+        row,
+        hostProfile
+          ? { displayName: hostProfile.displayName, avatarUrl: hostProfile.avatarUrl ?? null }
+          : null,
+      ),
+    }),
+  );
+}
+
+router.post("/world/room-invites/:id/accept", requireAuth, async (req, res) => {
+  try {
+    await respondToRoomInvite(req, res, ROOM_INVITE_ACCEPTED);
+  } catch (err) {
+    logger.error({ err }, "[world] room invite accept failed");
+    res.status(500).json({ error: "Couldn't answer that invite. Try again." });
+  }
+});
+
+router.post("/world/room-invites/:id/decline", requireAuth, async (req, res) => {
+  try {
+    await respondToRoomInvite(req, res, "declined");
+  } catch (err) {
+    logger.error({ err }, "[world] room invite decline failed");
+    res.status(500).json({ error: "Couldn't answer that invite. Try again." });
   }
 });
 

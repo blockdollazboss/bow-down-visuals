@@ -416,6 +416,217 @@ export async function putCreatorRoomDressing(
   return dressing;
 }
 
+/* ─── Room invites (stack900 Lane B4) ───────────────────────────────
+ * Real invites (owner ruling Oct 29, 2026: pick a person, they
+ * accept or decline), riding the world-shaped routes the palace
+ * server owns (artifacts/api-server/src/routes/world.ts):
+ *   POST /api/world/creator-rooms/:slug/invites  the host invites
+ *   GET  /api/world/room-invites/mine            my standing invites
+ *   GET  /api/world/room-invites/candidates      the member list
+ *   POST /api/world/room-invites/:id/accept      record the yes
+ *   POST /api/world/room-invites/:id/decline     record the no
+ * An invite names a member by USER ID — the picker chooses from
+ * the server's member list, and no email is ever typed or sent.
+ * Accepting records the answer; walking in stays the doorway
+ * transfer every room entry already rides (the directory's
+ * onEnterCreatorRoom) — this seam builds no second door. */
+
+export type RoomInviteStatus = "pending" | "accepted" | "declined";
+
+export interface WorldRoomInvite {
+  id: string;
+  roomId: string;
+  slug: string;
+  roomName: string;
+  /** The host who sent the invite (the room's owner). */
+  hostName: string;
+  hostAvatarUrl: string | null;
+  status: RoomInviteStatus;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
+export interface RoomInviteCandidate {
+  userId: string;
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+function parseRoomInviteStatus(v: unknown): RoomInviteStatus {
+  return v === "accepted" || v === "declined" ? v : "pending";
+}
+
+/** One invite DTO at the boundary: an id and a room slug or it
+ *  isn't an invite; an unknown status reads as still-waiting,
+ *  never as an answer nobody gave. */
+export function parseWorldRoomInvite(raw: unknown): WorldRoomInvite | null {
+  if (!isRecord(raw)) return null;
+  const id = str(raw["id"]);
+  const slug = str(raw["slug"]);
+  if (!id || !slug) return null;
+  const hostName = str(raw["hostName"], "A creator");
+  return {
+    id,
+    roomId: str(raw["roomId"], creatorRoomId(slug)),
+    slug,
+    roomName: str(raw["roomName"], `${hostName}'s Room`),
+    hostName,
+    hostAvatarUrl: strOrNull(raw["hostAvatarUrl"]),
+    status: parseRoomInviteStatus(raw["status"]),
+    createdAt: str(raw["createdAt"]),
+    respondedAt: strOrNull(raw["respondedAt"]),
+  };
+}
+
+/** The mine payload → my standing invites, split by their state.
+ *  Malformed rows drop out; a malformed body is no invites. */
+export function parseRoomInvitesMine(payload: unknown): {
+  pending: WorldRoomInvite[];
+  accepted: WorldRoomInvite[];
+} {
+  if (!isRecord(payload)) return { pending: [], accepted: [] };
+  const parseList = (v: unknown): WorldRoomInvite[] =>
+    Array.isArray(v) ? v.map(parseWorldRoomInvite).filter((i) => i !== null) : [];
+  return { pending: parseList(payload["pending"]), accepted: parseList(payload["accepted"]) };
+}
+
+/** The candidates payload → the pickable members. A row without a
+ *  user id or a slug is not a person the picker may offer. */
+export function parseRoomInviteCandidates(payload: unknown): RoomInviteCandidate[] {
+  if (!isRecord(payload) || !Array.isArray(payload["members"])) return [];
+  return payload["members"]
+    .map((raw) => {
+      if (!isRecord(raw)) return null;
+      const userId = str(raw["userId"]);
+      const slug = str(raw["slug"]);
+      if (!userId || !slug) return null;
+      return {
+        userId,
+        slug,
+        displayName: str(raw["displayName"], "Creator"),
+        avatarUrl: strOrNull(raw["avatarUrl"]),
+      };
+    })
+    .filter((m) => m !== null);
+}
+
+export function createRoomInvitePath(slug: string): string {
+  return `${creatorRoomDetailPath(slug)}/invites`;
+}
+
+export function roomInvitesMinePath(): string {
+  return "/api/world/room-invites/mine";
+}
+
+export function roomInviteCandidatesPath(q = ""): string {
+  const needle = q.trim();
+  return needle
+    ? `/api/world/room-invites/candidates?q=${encodeURIComponent(needle)}`
+    : "/api/world/room-invites/candidates";
+}
+
+export function roomInviteAcceptPath(id: string): string {
+  return `/api/world/room-invites/${encodeURIComponent(id)}/accept`;
+}
+
+export function roomInviteDeclinePath(id: string): string {
+  return `/api/world/room-invites/${encodeURIComponent(id)}/decline`;
+}
+
+/** One invite call, house style (the dressing write's shape): the
+ *  session token rides as a Bearer header, and a refusal throws an
+ *  Error carrying the server's own plain-words reason — the desk
+ *  shows the server's words, never a local guess at them. */
+async function roomInviteCall(
+  path: string,
+  token: string | null,
+  fallbackError: string,
+  init?: { method?: string; body?: unknown },
+): Promise<Record<string, unknown>> {
+  const res = await fetch(path, {
+    method: init?.method ?? "GET",
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+  });
+  const payload = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!res.ok) {
+    const message =
+      payload && typeof payload["error"] === "string" && payload["error"]
+        ? (payload["error"] as string)
+        : fallbackError;
+    throw new Error(message);
+  }
+  return payload ?? {};
+}
+
+/** My standing invites (pending + accepted). Throws with the
+ *  server's plain-words reason on failure — the desk shows it and
+ *  offers the retry. */
+export async function fetchRoomInvitesMine(
+  token: string | null,
+): Promise<{ pending: WorldRoomInvite[]; accepted: WorldRoomInvite[] }> {
+  const payload = await roomInviteCall(
+    roomInvitesMinePath(),
+    token,
+    "Couldn't load your invites. Try again.",
+  );
+  return parseRoomInvitesMine(payload);
+}
+
+/** The member list the picker chooses from (the server's public
+ *  profiles, the caller already excluded there). */
+export async function fetchRoomInviteCandidates(
+  token: string | null,
+  q = "",
+): Promise<RoomInviteCandidate[]> {
+  const payload = await roomInviteCall(
+    roomInviteCandidatesPath(q),
+    token,
+    "Couldn't load the member list. Try again.",
+  );
+  return parseRoomInviteCandidates(payload);
+}
+
+/** Send an invite from my room to one picked member. Resolves with
+ *  the server's recorded invite; a refusal (a duplicate already
+ *  out, a non-member) throws the server's plain words. */
+export async function sendRoomInvite(
+  slug: string,
+  inviteeUserId: string,
+  token: string | null,
+): Promise<WorldRoomInvite> {
+  const payload = await roomInviteCall(
+    createRoomInvitePath(slug),
+    token,
+    "Couldn't send that invite. Try again.",
+    { method: "POST", body: { inviteeUserId } },
+  );
+  const invite = parseWorldRoomInvite(payload["invite"]);
+  if (!invite) throw new Error("Couldn't send that invite. Try again.");
+  return invite;
+}
+
+/** Answer an invite. Accept resolves with the recorded invite (its
+ *  slug is the door the caller walks through next, on the existing
+ *  entry path); decline resolves with nothing to show. */
+export async function answerRoomInvite(
+  id: string,
+  answer: "accept" | "decline",
+  token: string | null,
+): Promise<WorldRoomInvite | null> {
+  const payload = await roomInviteCall(
+    answer === "accept" ? roomInviteAcceptPath(id) : roomInviteDeclinePath(id),
+    token,
+    "Couldn't answer that invite. Try again.",
+    { method: "POST", body: {} },
+  );
+  return answer === "accept" ? parseWorldRoomInvite(payload["invite"]) : null;
+}
+
 /* ─── Deep entry ──────────────────────────────────────────────────── */
 
 /** /world?creator=<slug> — the deep-entry param. Parsed once on

@@ -7,6 +7,7 @@ import {
   Home,
   Loader2,
   Lock,
+  Mail,
   Music2,
   Paintbrush,
   Minus,
@@ -14,6 +15,7 @@ import {
   Plus,
   ShoppingBag,
   Trash2,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,15 +36,21 @@ import {
   type OfficeHoursSession,
 } from "@/lib/world/office-hours";
 import {
+  answerRoomInvite,
   creatorTrackPlayInput,
   creatorVideoPlayInput,
   fetchCreatorRoomDetail,
   fetchCreatorRoomDirectory,
+  fetchRoomInviteCandidates,
+  fetchRoomInvitesMine,
   frontRowCourtMember,
   putCreatorRoomDressing,
+  sendRoomInvite,
   type CreatorRoomDetail,
   type CreatorRoomDressing,
   type CreatorRoomSummary,
+  type RoomInviteCandidate,
+  type WorldRoomInvite,
 } from "@/lib/world/creator-rooms";
 import {
   creatorRoomEvolutionLine,
@@ -324,6 +332,343 @@ function useRoomDetail(slug: string | null): {
   return { detail, failed, retry: () => setTick((n) => n + 1) };
 }
 
+/* ─── Room invites (stack900 Lane B4) ───────────────────────────────
+   The recorded invitation, docked in the directory — the surface
+   where members already manage rooms. Three parts, each shown
+   only when it has something to say:
+   - "Invites for you": a host named YOU (never an anonymous
+     link) — Accept records the yes and the room joins "Rooms
+     you're in"; Decline records the no and the row simply leaves.
+   - "Rooms you're in": the invites you accepted, each with the
+     same Enter the directory's own rows ride — walking in stays
+     the palace's one doorway transfer, no second door.
+   - "Invite to your room" (hosts only): pick a person from the
+     member list (search by name) and the invite goes out under
+     your name; the server's plain words answer a refusal (a
+     duplicate already out reads exactly as it is).
+   Every control is a native button or input, so the panel's
+   controller navigation (usePanelPadNav) walks them like every
+   other control in the panel. Guests see none of it: an invite
+   names a member, and a guest is nobody yet. */
+
+function CreatorRoomInvitesBlock({
+  isLight,
+  mySlug,
+  onEnterCreatorRoom,
+}: {
+  isLight: boolean;
+  mySlug: string | null;
+  onEnterCreatorRoom: (slug: string) => void;
+}) {
+  const { user, getAccessToken } = useAuth();
+  const [mine, setMine] = useState<{ pending: WorldRoomInvite[]; accepted: WorldRoomInvite[] } | null>(null);
+  const [mineFailed, setMineFailed] = useState(false);
+  const [tick, setTick] = useState(0);
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+  const [answerDone, setAnswerDone] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [candidates, setCandidates] = useState<RoomInviteCandidate[] | null>(null);
+  const [candidatesFailed, setCandidatesFailed] = useState(false);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sentIds, setSentIds] = useState<ReadonlySet<string>>(new Set());
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  /* My standing invites — refetched after every answer, so the
+   * sections always show the server's record, never a local
+   * guess at it. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setMineFailed(false);
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const standing = await fetchRoomInvitesMine(token);
+        if (!cancelled) setMine(standing);
+      } catch {
+        if (!cancelled) setMineFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getAccessToken, tick]);
+
+  /* The member list for the picker — hosts only, debounced on the
+   * search so each keystroke doesn't fire its own read. */
+  useEffect(() => {
+    if (!user || !mySlug) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      (async () => {
+        try {
+          const token = await getAccessToken();
+          const members = await fetchRoomInviteCandidates(token, query);
+          if (!cancelled) {
+            setCandidates(members);
+            setCandidatesFailed(false);
+          }
+        } catch {
+          if (!cancelled) setCandidatesFailed(true);
+        }
+      })();
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [user, mySlug, query, getAccessToken]);
+
+  if (!user) return null;
+
+  const answer = async (invite: WorldRoomInvite, which: "accept" | "decline") => {
+    if (answeringId) return;
+    setAnsweringId(invite.id);
+    setAnswerError(null);
+    setAnswerDone(null);
+    try {
+      const token = await getAccessToken();
+      await answerRoomInvite(invite.id, which, token);
+      setAnswerDone(
+        which === "accept"
+          ? `You're in — ${invite.roomName} is under "Rooms you're in" whenever you're ready.`
+          : "Declined — the invite is closed.",
+      );
+      setTick((n) => n + 1);
+    } catch (err) {
+      setAnswerError(err instanceof Error ? err.message : "Couldn't answer that invite. Try again.");
+    } finally {
+      setAnsweringId(null);
+    }
+  };
+
+  const send = async (candidate: RoomInviteCandidate) => {
+    if (!mySlug || sendingId) return;
+    setSendingId(candidate.userId);
+    setSendError(null);
+    try {
+      const token = await getAccessToken();
+      await sendRoomInvite(mySlug, candidate.userId, token);
+      setSentIds((prev) => new Set(prev).add(candidate.userId));
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : "Couldn't send that invite. Try again.");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const cardClass = `rounded-2xl border px-3 py-3 ${
+    isLight ? "border-[#C9A84C]/50 bg-white/60" : "border-[#d4af37]/25 bg-white/5"
+  }`;
+  const headingClass = `inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide ${
+    isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
+  }`;
+  const subClass = `text-xs ${isLight ? "text-[#6B5B36]" : "text-white/55"}`;
+  const errorClass = `text-xs font-semibold ${isLight ? "text-[#9A3412]" : "text-red-300"}`;
+  const doneClass = `text-xs font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`;
+  const avatar = (url: string | null, name: string) =>
+    url ? (
+      <img src={url} alt={name} className="h-9 w-9 shrink-0 rounded-full border-2 border-[#d4af37]/60 object-cover" />
+    ) : (
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#d4af37]/60 bg-gradient-to-br from-[#f0d488] to-[#d4af37] text-sm font-black text-black">
+        {name.slice(0, 1).toUpperCase()}
+      </span>
+    );
+
+  const showMine = mineFailed || (mine !== null && (mine.pending.length > 0 || mine.accepted.length > 0));
+
+  return (
+    <>
+      {showMine && (
+        <div className={cardClass} data-testid="world-room-invites-for-you">
+          <p className={headingClass}>
+            <Mail className="h-4 w-4 text-[#d4af37]" /> Invites for you
+          </p>
+          {mineFailed ? (
+            <div className="flex flex-col items-start gap-2 pt-2">
+              <p className={subClass}>Your invites wouldn&rsquo;t load — the doors are fine, the list slipped.</p>
+              <button
+                type="button"
+                onClick={() => setTick((n) => n + 1)}
+                className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+              >
+                Try again
+              </button>
+            </div>
+          ) : (
+            <>
+              {mine!.pending.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {mine!.pending.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex flex-wrap items-center gap-2.5"
+                      data-testid="world-room-invite-pending"
+                    >
+                      {avatar(invite.hostAvatarUrl, invite.hostName)}
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                          {invite.hostName} invited you
+                        </span>
+                        <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                          {invite.roomName} — their place in the palace.
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        disabled={answeringId !== null}
+                        onClick={() => void answer(invite, "accept")}
+                        className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                        data-testid="world-room-invite-accept"
+                      >
+                        {answeringId === invite.id ? "Answering…" : "Accept"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={answeringId !== null}
+                        onClick={() => void answer(invite, "decline")}
+                        className={`rounded-full border px-4 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                          isLight
+                            ? "border-[#C9A84C]/60 text-[#7A5A12] hover:border-[#7A5A12]"
+                            : "border-[#d4af37]/30 text-white/70 hover:border-[#d4af37]/70"
+                        }`}
+                        data-testid="world-room-invite-decline"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {mine!.accepted.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className={subClass}>Rooms you&rsquo;re in:</p>
+                  {mine!.accepted.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex flex-wrap items-center gap-2.5"
+                      data-testid="world-room-invite-accepted"
+                    >
+                      {avatar(invite.hostAvatarUrl, invite.hostName)}
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                          {invite.roomName}
+                        </span>
+                        <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                          {invite.hostName} invited you in — the door is yours.
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onEnterCreatorRoom(invite.slug)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                        data-testid="world-room-invite-enter"
+                      >
+                        <DoorOpen className="h-3.5 w-3.5" /> Enter
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {answerError && (
+                <p className={`${errorClass} pt-2`} data-testid="world-room-invite-answer-error">
+                  {answerError}
+                </p>
+              )}
+              {answerDone && (
+                <p className={`${doneClass} pt-2`} data-testid="world-room-invite-answer-done">
+                  {answerDone}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {mySlug && (
+        <div className={cardClass} data-testid="world-room-invites-send">
+          <p className={headingClass}>
+            <UserPlus className="h-4 w-4 text-[#d4af37]" /> Invite to your room
+          </p>
+          <p className={`${subClass} pt-1`}>
+            Pick a person — the invite goes out under your name, and they choose.
+          </p>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search members by name…"
+            aria-label="Search members to invite"
+            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none transition ${
+              isLight
+                ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60 focus:border-[#7A5A12]"
+                : "border-[#d4af37]/25 bg-white/5 text-white placeholder:text-white/35 focus:border-[#d4af37]/70"
+            }`}
+            data-testid="world-room-invite-search"
+          />
+          <div className="space-y-2 pt-2">
+            {candidatesFailed ? (
+              <p className={subClass}>The member list wouldn&rsquo;t load — try the search again in a moment.</p>
+            ) : candidates === null ? (
+              <p className={`inline-flex items-center gap-2 ${subClass}`}>
+                <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the member list…
+              </p>
+            ) : candidates.length === 0 ? (
+              <p className={subClass}>
+                {query.trim()
+                  ? "Nobody on the member list matches that name."
+                  : "No other member has opened a room yet — the list fills as creators arrive."}
+              </p>
+            ) : (
+              candidates.map((candidate) => {
+                const sent = sentIds.has(candidate.userId);
+                return (
+                  <div
+                    key={candidate.userId}
+                    className="flex flex-wrap items-center gap-2.5"
+                    data-testid="world-room-invite-candidate"
+                  >
+                    {avatar(candidate.avatarUrl, candidate.displayName)}
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                        {candidate.displayName}
+                      </span>
+                      <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                        /artist/{candidate.slug}
+                      </span>
+                    </span>
+                    {sent ? (
+                      <span className={`inline-flex items-center gap-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                        <Check className="h-3.5 w-3.5" /> Invite sent
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={sendingId !== null}
+                        onClick={() => void send(candidate)}
+                        className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                        data-testid="world-room-invite-send-button"
+                      >
+                        {sendingId === candidate.userId ? "Sending…" : "Invite"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {sendError && (
+            <p className={`${errorClass} pt-2`} data-testid="world-room-invite-send-error">
+              {sendError}
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ─── The directory (the Courtyard arch's panel) ──────────────────── */
 
 export function CreatorRoomsDirectory({
@@ -453,6 +798,11 @@ export function CreatorRoomsDirectory({
   return (
     <div className="space-y-2">
       {mine && row(mine, true)}
+      <CreatorRoomInvitesBlock
+        isLight={isLight}
+        mySlug={mySlug}
+        onEnterCreatorRoom={onEnterCreatorRoom}
+      />
       {others.map((r) => row(r, false))}
       <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         Every room is its creator&rsquo;s place — their screen, their music rail, their Front Row,

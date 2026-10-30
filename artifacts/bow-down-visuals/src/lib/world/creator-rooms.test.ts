@@ -37,12 +37,20 @@ import {
   STATION_BY_ID,
 } from "./stations";
 import {
+  createRoomInvitePath,
   creatorTrackPlayInput,
   creatorVideoPlayInput,
   frontRowCourtMember,
   parseCreatorRoomDetail,
   parseCreatorRoomDirectory,
   parseCreatorRoomParam,
+  parseRoomInviteCandidates,
+  parseRoomInvitesMine,
+  parseWorldRoomInvite,
+  roomInviteAcceptPath,
+  roomInviteCandidatesPath,
+  roomInviteDeclinePath,
+  roomInvitesMinePath,
 } from "./creator-rooms";
 
 describe("the template floor plan", () => {
@@ -267,5 +275,77 @@ describe("the deep entry param", () => {
     expect(parseCreatorRoomParam("?creator=../etc/passwd")).toBeNull();
     expect(parseCreatorRoomParam("?creator=a%20b")).toBeNull();
     expect(parseCreatorRoomParam("")).toBeNull();
+  });
+});
+
+describe("room invites (Lane B4)", () => {
+  const INVITE_PAYLOAD = {
+    id: "inv-1",
+    roomId: "creator:nova-reyes",
+    slug: "nova-reyes",
+    roomName: "Nova Reyes's Room",
+    hostName: "Nova Reyes",
+    hostAvatarUrl: "https://cdn.example.com/nova.png",
+    status: "pending",
+    createdAt: "2026-10-29T12:00:00.000Z",
+    respondedAt: null,
+  };
+
+  it("parses an invite DTO whole", () => {
+    expect(parseWorldRoomInvite(INVITE_PAYLOAD)).toEqual({
+      id: "inv-1",
+      roomId: "creator:nova-reyes",
+      slug: "nova-reyes",
+      roomName: "Nova Reyes's Room",
+      hostName: "Nova Reyes",
+      hostAvatarUrl: "https://cdn.example.com/nova.png",
+      status: "pending",
+      createdAt: "2026-10-29T12:00:00.000Z",
+      respondedAt: null,
+    });
+  });
+
+  it("drops a row with no id or no room, and reads an unknown status as still-waiting", () => {
+    expect(parseWorldRoomInvite({ slug: "nova-reyes" })).toBeNull();
+    expect(parseWorldRoomInvite({ id: "inv-1" })).toBeNull();
+    expect(parseWorldRoomInvite(null)).toBeNull();
+    expect(parseWorldRoomInvite({ ...INVITE_PAYLOAD, status: "exploded" })?.status).toBe("pending");
+    expect(parseWorldRoomInvite({ ...INVITE_PAYLOAD, status: "accepted" })?.status).toBe("accepted");
+    expect(parseWorldRoomInvite({ ...INVITE_PAYLOAD, status: "declined" })?.status).toBe("declined");
+  });
+
+  it("splits the mine payload into pending and accepted, dropping malformed rows", () => {
+    const mine = parseRoomInvitesMine({
+      pending: [INVITE_PAYLOAD, { id: "broken" }],
+      accepted: [{ ...INVITE_PAYLOAD, id: "inv-2", status: "accepted", respondedAt: "2026-10-29T13:00:00.000Z" }],
+    });
+    expect(mine.pending.map((i) => i.id)).toEqual(["inv-1"]);
+    expect(mine.accepted.map((i) => i.id)).toEqual(["inv-2"]);
+    expect(parseRoomInvitesMine(null)).toEqual({ pending: [], accepted: [] });
+    expect(parseRoomInvitesMine({})).toEqual({ pending: [], accepted: [] });
+  });
+
+  it("parses the picker's members and drops rows that name nobody", () => {
+    const members = parseRoomInviteCandidates({
+      members: [
+        { userId: "u-1", slug: "kai-beats", displayName: "Kai Beats", avatarUrl: null },
+        { slug: "no-user-id", displayName: "Ghost" },
+        { userId: "u-2", displayName: "No Slug" },
+        "not-a-row",
+      ],
+    });
+    expect(members).toEqual([
+      { userId: "u-1", slug: "kai-beats", displayName: "Kai Beats", avatarUrl: null },
+    ]);
+    expect(parseRoomInviteCandidates(null)).toEqual([]);
+  });
+
+  it("builds the invite paths the server mounts", () => {
+    expect(createRoomInvitePath("nova-reyes")).toBe("/api/world/creator-rooms/nova-reyes/invites");
+    expect(roomInvitesMinePath()).toBe("/api/world/room-invites/mine");
+    expect(roomInviteCandidatesPath()).toBe("/api/world/room-invites/candidates");
+    expect(roomInviteCandidatesPath("  kai ")).toBe("/api/world/room-invites/candidates?q=kai");
+    expect(roomInviteAcceptPath("inv 1")).toBe("/api/world/room-invites/inv%201/accept");
+    expect(roomInviteDeclinePath("inv-1")).toBe("/api/world/room-invites/inv-1/decline");
   });
 });
