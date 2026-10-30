@@ -41,6 +41,7 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 import { emitNewMemberWebhook } from "../../lib/api-webhooks";
+import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
 
 const router = Router();
 
@@ -640,6 +641,89 @@ router.delete("/memberships/members/:id", publicApiLimiter, requireAuth, async (
   res.json({ deleted: true });
 });
 
+/* ── Creator bell for a landed join (stack900 lane A2) ─────────────────
+   Every path that creates a BRAND-NEW fan_members row announces the
+   join to the creator through the one event door (notifyUserEvent):
+   the bell always lands, and the device ping obeys the creator's
+   category preference. Category ruling (house pattern): a PAID join
+   is "money" (on by default — it pings); free and trial joins are
+   "social" (off by default — bell-only until the creator turns social
+   pings on, exactly the visible behaviour before this wiring).
+
+   Exactly-once is structural, riding the same gate as the lane-20
+   developer webhook beside each call: the notify line sits inside
+   the brand-new-row insert branch only, and every path refuses or
+   short-circuits a replay before it can reach that branch again —
+   checkout 409s an active member, verify answers duplicate:true on
+   the session id, join-trial 409s any existing row. An existing-row
+   refresh is a conversion/renewal, not a join, and never bells. */
+
+export type MembershipJoinKind = "paid" | "free" | "trial";
+
+export function buildMembershipJoinEvent(opts: {
+  creatorUserId: string;
+  fanName: string;
+  tierName: string;
+  joinKind: MembershipJoinKind;
+}): UserEventInput {
+  return {
+    userId: opts.creatorUserId,
+    category: opts.joinKind === "paid" ? "money" : "social",
+    kind: "membership_join",
+    title: `🦈 ${opts.fanName} joined your "${opts.tierName}" membership`,
+    body:
+      opts.joinKind === "paid"
+        ? "A new paying member just joined — say hello."
+        : opts.joinKind === "trial"
+          ? "A new member just started a free trial — say hello."
+          : "A new member just joined — say hello.",
+    link: "/memberships",
+  };
+}
+
+type MembershipJoinEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _membershipJoinEventNotifier: MembershipJoinEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setMembershipJoinEventNotifier(fn: MembershipJoinEventNotifier | null): void {
+  _membershipJoinEventNotifier = fn ?? notifyUserEvent;
+}
+
+/** The joiner's display name from their creator profile, if they have
+    one (the group-join precedent); never an email or a raw id. */
+async function fanDisplayName(fanUserId: string): Promise<string> {
+  const rows = await db
+    .select({ displayName: creatorProfilesTable.displayName })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.userId, fanUserId))
+    .limit(1);
+  const name = rows[0]?.displayName?.trim();
+  return name ? name : "Someone";
+}
+
+/** Best-effort: a bell failure never fails the join that landed. The
+    bell is addressed to the creator — never to the fan who joined. */
+export async function notifyMembershipJoined(opts: {
+  creatorUserId: string;
+  fanUserId: string;
+  tierName: string;
+  joinKind: MembershipJoinKind;
+}): Promise<void> {
+  if (opts.creatorUserId === opts.fanUserId) return;
+  try {
+    const fanName = await fanDisplayName(opts.fanUserId);
+    await _membershipJoinEventNotifier(
+      buildMembershipJoinEvent({
+        creatorUserId: opts.creatorUserId,
+        fanName,
+        tierName: opts.tierName,
+        joinKind: opts.joinKind,
+      }),
+    );
+  } catch (err) {
+    logger.error({ err, creatorUserId: opts.creatorUserId }, "[memberships] membership-join bell failed");
+  }
+}
+
 /* ── Payments: join / gift / trial / verify (TEST-mode checkout) ──────── */
 
 async function findTierById(tierId: string) {
@@ -828,6 +912,14 @@ router.post("/memberships/checkout", publicApiLimiter, requireAuth, async (req, 
         status: member.status,
         priceCents: member.price_cents,
         billingPeriod: member.billing_period,
+      });
+      // Creator bell (stack900 A2): brand-new row only, same gate as
+      // the webhook above — a free join is a social event.
+      await notifyMembershipJoined({
+        creatorUserId: tier.user_id,
+        fanUserId: recipientUserId,
+        tierName: tier.name,
+        joinKind: "free",
       });
     }
     res.status(201).json({ free: true, membership: toMemberJson(member, tier.name) });
@@ -1040,6 +1132,16 @@ router.post("/memberships/verify", publicApiLimiter, requireAuth, async (req, re
         priceCents: member.price_cents,
         billingPeriod: member.billing_period,
       });
+      // Creator bell (stack900 A2): brand-new row only, same gate as
+      // the webhook above — verify is where a PAID join lands, and a
+      // paid join is a money event. A replayed verify answered
+      // duplicate:true far above and never reaches this line.
+      await notifyMembershipJoined({
+        creatorUserId: tier.user_id,
+        fanUserId,
+        tierName: tier.name,
+        joinKind: "paid",
+      });
     }
     if (isGift) {
       await db
@@ -1112,6 +1214,14 @@ router.post("/memberships/join-trial", publicApiLimiter, requireAuth, async (req
     status: "trialing",
     priceCents: tier.price_cents,
     billingPeriod: "monthly",
+  });
+  // Creator bell (stack900 A2): a trial start is a new join — a
+  // social event (no money moved).
+  await notifyMembershipJoined({
+    creatorUserId: tier.user_id,
+    fanUserId: req.userId!,
+    tierName: tier.name,
+    joinKind: "trial",
   });
   res.status(201).json({
     membership: toMemberJson(member!, tier.name),
