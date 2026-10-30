@@ -4,6 +4,7 @@ import {
   dollarsToCents,
   cartKey,
   isValidHandle,
+  shopHandleError,
   addToCartLines,
   setCartLineQty,
   cartItemCount,
@@ -65,6 +66,28 @@ describe("isValidHandle", () => {
     expect(isValidHandle("admin")).toBe(false);
     expect(isValidHandle("checkout")).toBe(false);
     expect(isValidHandle("my-shop")).toBe(false);
+  });
+});
+
+/* shopHandleError must agree with isValidHandle on every input and
+   carry the server's own words (generate/shops.ts handleError) — the
+   create form shows it before submitting. */
+describe("shopHandleError (server handleError mirror)", () => {
+  it("is null exactly where isValidHandle is true", () => {
+    for (const h of ["shark-king", "shop123", "a-b", "x".repeat(30)]) {
+      expect(shopHandleError(h)).toBeNull();
+      expect(isValidHandle(h)).toBe(true);
+    }
+  });
+  it("names the shape rule at the boundaries: 2 chars, 31 chars, edge hyphens", () => {
+    for (const h of ["ab", "x".repeat(31), "-lead", "trail-", "has space", "under_score"]) {
+      expect(shopHandleError(h)).toContain("3–30 characters");
+      expect(isValidHandle(h)).toBe(false);
+    }
+  });
+  it("names the reserved rule for reserved words", () => {
+    expect(shopHandleError("admin")).toContain("reserved");
+    expect(shopHandleError("checkout")).toContain("reserved");
   });
 });
 

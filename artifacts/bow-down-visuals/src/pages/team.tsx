@@ -144,6 +144,12 @@ export default function TeamPage() {
 
   async function handleInvite() {
     if (!activeTeam || !inviteEmail.trim()) return;
+    /* The server's own email rule, applied before the trip — the form
+       used to accept any non-empty string and let the 400 say so. */
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
+      setMsg("✗ Enter a valid email address.");
+      return;
+    }
     setInviting(true);
     setMsg(null);
     try {

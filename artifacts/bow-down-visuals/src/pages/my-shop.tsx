@@ -14,7 +14,7 @@ import CommercePixelsSettings, {
   pixelsToForm,
   type CommercePixelsFormValue,
 } from "@/components/CommercePixelsSettings";
-import { centsToDisplay, dollarsToCents } from "@/lib/shops";
+import { centsToDisplay, dollarsToCents, shopHandleError } from "@/lib/shops";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import SellerOffersInbox from "@/components/offers/SellerOffersInbox";
 import { useTranslation } from "react-i18next";
@@ -247,6 +247,10 @@ export default function MyShop() {
 
   async function createShop() {
     if (creating || !newName.trim() || !newHandle.trim()) return;
+    /* The handle rule, stated by the form before the server has to:
+       3–30 chars, no leading/trailing hyphen, never a reserved word. */
+    const handleErr = shopHandleError(newHandle);
+    if (handleErr) { setError(handleErr); return; }
     setCreating(true);
     setError(null);
     try {
@@ -662,6 +666,10 @@ export default function MyShop() {
               <div>
                 <label htmlFor="myshop-create-handle" className="text-xs font-semibold text-white/50">{t("myShop.handleLabel")}</label>
                 <input id="myshop-create-handle" className={`${inputClass} mt-1 font-mono`} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} placeholder={t("myShop.handlePlaceholder")} maxLength={30} />
+                <p className="mt-1 text-[11px] text-white/35">3–30 characters: lowercase letters, numbers, and hyphens (no hyphen at the start or end).</p>
+                {newHandle.trim().length > 0 && shopHandleError(newHandle) && (
+                  <p className="mt-1 text-[11px] text-red-300">{shopHandleError(newHandle)}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="myshop-create-tagline" className="text-xs font-semibold text-white/50">{t("myShop.taglineLabel")}</label>
