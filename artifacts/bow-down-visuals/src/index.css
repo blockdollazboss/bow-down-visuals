@@ -1364,6 +1364,13 @@ html, body {
 .light .text-yellow-200\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
 .light .text-yellow-200\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.78); }
 
+/* DropDayKitPanel status banners: error copy runs text-red-200/85 and
+   success copy text-emerald-200/85 on faint same-hue tints. §5 deepened
+   both families at /90 and /80 but not /85, so the banners' text stayed
+   pale on ivory-adjacent tints. /85 interpolates each family's ladder. */
+.light .text-red-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(185 28 28 / 0.9); }
+.light .text-emerald-200\/85:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(4 120 87 / 0.9); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
