@@ -193,3 +193,37 @@ describe("Hub workflow cards (lib/hub-workflows.ts) — notes match their rails"
     expect(notesFor("Translate", "tab=translate")).toEqual(["500 Visual Bucs/min"]);
   });
 });
+
+describe("rendered locale strings — baked prices match their rails (all 10 catalogs)", () => {
+  const LOCALES = ["en", "es", "fr", "de", "it", "pt", "ja", "ko", "ar", "hi"];
+  const load = (loc: string) =>
+    JSON.parse(readFe(`locales/${loc}.json`)) as Record<string, never>;
+  const numerals = (s: string) => (s.match(/\d[\d,]*/g) ?? []).map((n) => Number(n.replace(/,/g, "")));
+
+  it("Audio Studio master tab range is the real 400–1,500 (was the pre-x100 '4 to 15')", () => {
+    expect(getCreditCost("/api/mastering")?.cost).toBe(400);
+    expect(getCreditCost("/api/mix-master/mix")?.cost).toBe(1500);
+    for (const loc of LOCALES) {
+      const v = (load(loc)["audioStudio"] as { desc: { master: string } }).desc.master;
+      expect(numerals(v), `${loc} master range`).toEqual([400, 1500]);
+    }
+  });
+
+  it("Make Video 'uses credits' note = the 200 video-plan rail (was 100)", () => {
+    expect(getCreditCost("/api/generate-video-plan")?.cost).toBe(200);
+    for (const loc of LOCALES) {
+      const v = (load(loc)["makeVideo"] as { usesCredits: string }).usesCredits;
+      // (ja's string also carries a "1" — "per 1 generation", a count.)
+      expect(numerals(v), `${loc} makeVideo note`).toContain(200);
+      expect(numerals(v), `${loc} makeVideo note`).not.toContain(100);
+    }
+  });
+
+  it("Song + Video note = the single 400 charge (was 200)", () => {
+    expect(deriveServerConstant("routes/generate/song-video.ts", "CREDIT_COST")).toBe(400);
+    for (const loc of LOCALES) {
+      const v = (load(loc)["songAndVideo"] as { usesCreditsNote: string }).usesCreditsNote;
+      expect(numerals(v), `${loc} songAndVideo note`).toEqual([400]);
+    }
+  });
+});
