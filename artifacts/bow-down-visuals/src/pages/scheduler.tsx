@@ -41,6 +41,7 @@ import {
   normalizeHashtags,
   planReschedule,
   disclosureChannelFor,
+  defaultComposerPlatforms,
   postProvenance,
   postReleaseId,
   postingAccountStates,
@@ -391,7 +392,15 @@ export default function Scheduler() {
     setCaptionPrefill(caption ?? null);
     setMediaPrefill(mediaUrl ?? null);
     setMediaTypePrefill(mediaType ?? null);
-    setPlatformPrefill(platforms ?? null);
+    /* EVERYTHING-SMART (stack900 K1): a FRESH composer with no explicit
+       platforms opens on the creator's own last-used set (still-connected
+       only), never the generic ["instagram"] — the page already holds
+       their post history + connected accounts, so use them. Explicit
+       handoffs (deep links, day-cell picks) pass their own platforms
+       and are untouched; editing keeps the post's own set. */
+    setPlatformPrefill(
+      platforms ?? (!post ? defaultComposerPlatforms(posts, accounts) : null),
+    );
     /* Editing an existing post keeps ITS attribution; a fresh composer
        takes the handoff's (release flow only — otherwise null). */
     setReleasePrefill(post ? (post.releaseId ?? null) : (releaseId ?? null));

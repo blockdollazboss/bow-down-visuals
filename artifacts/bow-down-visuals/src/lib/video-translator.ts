@@ -103,3 +103,21 @@ export interface TranslateJobState {
 export const JOB_POLL_MS = 4000;
 
 export const HONESTY_NOTE = "AI dubbing, not human translation — review before publishing.";
+
+/**
+ * Which voice a voice picker opens on (EVERYTHING-SMART audit,
+ * stack900 K1). The Voiceover desk already does this right — prefer
+ * the creator's own cloned vault voice ("the user cloned it for
+ * exactly this") — while the Translator opened on whatever voice the
+ * API listed first. One rule for every picker: the creator's own
+ * voice when it is in the list, else the first listed voice, else "".
+ */
+export function pickDefaultVoiceId(
+  voices: Array<{ voice_id: string }>,
+  preferredVoiceId: string | null | undefined,
+): string {
+  if (preferredVoiceId && voices.some((v) => v.voice_id === preferredVoiceId)) {
+    return preferredVoiceId;
+  }
+  return voices[0]?.voice_id ?? "";
+}

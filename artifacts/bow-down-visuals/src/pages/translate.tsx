@@ -11,12 +11,14 @@ import {
   TARGET_LANGUAGES,
   estimateTranslateCost,
   formatDuration,
+  pickDefaultVoiceId,
   TRANSLATOR_MAX_LANGUAGES,
   TRANSLATOR_MAX_BYTES,
   JOB_POLL_MS,
   HONESTY_NOTE,
   type TranslateJobState,
 } from "@/lib/video-translator";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
 
@@ -42,6 +44,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
   const { addAsset } = useHubProject();
 
@@ -79,7 +82,11 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
-        if (list.length > 0 && !voiceId) setVoiceId(list[0]!.voice_id);
+        /* EVERYTHING-SMART (stack900 K1): open on the creator's own
+           cloned vault voice when they have one — the same rule the
+           Voiceover desk follows — not whatever the API listed first.
+           Dubbing your own video should start from YOUR voice. */
+        if (!voiceId) setVoiceId(pickDefaultVoiceId(list, activeArtist?.voice_id));
       } catch {
         if (!cancelled) setVoices([]);
       } finally {

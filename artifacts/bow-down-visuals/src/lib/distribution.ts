@@ -120,3 +120,24 @@ export function splitsValid(splits: RoyaltySplit[]): boolean {
   if (splits.some((s) => !s.name.trim() || Number(s.share) <= 0)) return false;
   return Math.abs(splitsTotal(splits) - 100) < 0.01;
 }
+
+/**
+ * What the release wizard may prefill from the creator's artist vault
+ * (EVERYTHING-SMART audit, stack900 K1). The wizard already fetched
+ * the vault to prefill the artist name — but left the genre blank on
+ * the same form, even though the vault row it was holding carries the
+ * artist's genre. One pick, both fields: the FIRST vault's name and
+ * genre, trimmed; empty/missing values come back null so the caller
+ * only fills fields that are still blank.
+ */
+export function vaultPrefill(
+  vaults: Array<{ artist_name?: unknown; genre?: unknown }> | undefined | null,
+): { artistName: string | null; genre: string | null } {
+  const first = Array.isArray(vaults) ? vaults[0] : undefined;
+  const clean = (v: unknown): string | null =>
+    typeof v === "string" && v.trim() ? v.trim() : null;
+  return {
+    artistName: clean(first?.artist_name),
+    genre: clean(first?.genre),
+  };
+}

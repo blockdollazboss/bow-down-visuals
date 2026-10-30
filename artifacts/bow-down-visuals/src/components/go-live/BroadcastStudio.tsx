@@ -72,6 +72,7 @@ import {
   type TransportState,
 } from "@/lib/stream-kit/transport";
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
+import { lastStreamSetup, type MineStreamRow } from "@/lib/stream-kit/studio-setup";
 import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
 import { refreshStageVaultAvatars } from "@/lib/stream-kit/avatar-vault";
 import { fetchVaultCharacters } from "@/lib/world/characters";
@@ -345,6 +346,10 @@ export default function BroadcastStudio() {
   const [backdropSel, setBackdropSel] = useState<BackdropSelection>(DEFAULT_BACKDROP_SELECTION);
   const [customBackdrop, setCustomBackdrop] = useState<{ source: File | string; thumb: string; name: string } | null>(null);
   const backdropSelRef = useRef<BackdropSelection>(DEFAULT_BACKDROP_SELECTION);
+  /* EVERYTHING-SMART (stack900 K1): the last-show prefill applies once,
+     and never over anything the creator has already touched. */
+  const setupTouchedRef = useRef(false);
+  const setupPrefilledRef = useRef(false);
   const customBackdropRef = useRef<{ source: File | string; thumb: string; name: string } | null>(null);
   const chooseBackdrop = useCallback((sel: BackdropSelection) => {
     backdropSelRef.current = sel;
@@ -534,6 +539,36 @@ export default function BroadcastStudio() {
     OwnServerTransport.api.getAccessToken = getAccessToken;
     void loadStatus();
   }, [getAccessToken, loadStatus]);
+
+  /* ── EVERYTHING-SMART (stack900 K1): open on your LAST show's setup.
+        The studio used to start every session blank — title, ticket
+        door, class flag — though /api/live-streams/mine already holds
+        the creator's recent streams. Prefill once from the most recent
+        finished show, and only while the creator hasn't touched the
+        setup fields themselves. The leftover live stream is untouched:
+        rows still marked live are skipped (see studio-setup.ts). */
+  useEffect(() => {
+    if (!user || setupPrefilledRef.current) return;
+    setupPrefilledRef.current = true;
+    (async () => {
+      try {
+        const headers = await authed();
+        const res = await fetch("/api/live-streams/mine", { headers });
+        if (!res.ok) return;
+        const d = (await res.json()) as { streams?: MineStreamRow[] };
+        const setup = lastStreamSetup(d.streams);
+        if (!setup || setupTouchedRef.current) return;
+        setTitle(setup.title);
+        if (setup.ticketPriceVb != null) {
+          setTicketed(true);
+          setTicketPrice(String(setup.ticketPriceVb));
+        }
+        if (setup.isClass) setIsClass(true);
+      } catch {
+        /* prefill is best-effort — the form starts blank, as before */
+      }
+    })();
+  }, [user, authed]);
 
   /* ── Stage lifecycle: the compositing stage + preview renderer. The
         pool's camera providers read the changer lazily, so scene camera
@@ -1778,7 +1813,7 @@ export default function BroadcastStudio() {
             <span className="text-xs font-bold uppercase tracking-wider opacity-60">Stream title</span>
             <input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setupTouchedRef.current = true; setTitle(e.target.value); }}
               placeholder="Friday Night Live — making the new record"
               disabled={isLivePhase}
               className={`${inputCls} mt-1.5`}
@@ -1832,7 +1867,7 @@ export default function BroadcastStudio() {
                 role="switch"
                 aria-checked={ticketed}
                 disabled={isLivePhase}
-                onClick={() => setTicketed(!ticketed)}
+                onClick={() => { setupTouchedRef.current = true; setTicketed(!ticketed); }}
                 className={`relative h-6 w-10 rounded-full transition-colors ${ticketed ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
                 data-testid="switch-ticketed"
               >
@@ -1847,7 +1882,7 @@ export default function BroadcastStudio() {
                 <span className="text-xs font-bold uppercase tracking-wider opacity-60">Ticket price (Visual Bucs)</span>
                 <input
                   value={ticketPrice}
-                  onChange={(e) => setTicketPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={(e) => { setupTouchedRef.current = true; setTicketPrice(e.target.value.replace(/[^0-9]/g, "")); }}
                   placeholder="500"
                   inputMode="numeric"
                   disabled={isLivePhase}
@@ -1882,7 +1917,7 @@ export default function BroadcastStudio() {
                   role="switch"
                   aria-checked={isClass}
                   disabled={isLivePhase}
-                  onClick={() => setIsClass(!isClass)}
+                  onClick={() => { setupTouchedRef.current = true; setIsClass(!isClass); }}
                   className={`relative h-6 w-10 rounded-full transition-colors ${isClass ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
                   data-testid="switch-is-class"
                 >
