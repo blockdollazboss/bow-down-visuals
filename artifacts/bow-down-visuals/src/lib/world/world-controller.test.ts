@@ -97,8 +97,12 @@ describe("world controller survival — panels answer the pad", () => {
   it("the scene stands its pad verbs down for exactly the panels the hooks serve", () => {
     expect(scene).toContain("padPanelHold = false");
     expect(scene).toContain("if (pad && !this.padPanelHold)");
+    /* stack900: the virtual keyboard joined the holders — the
+       scene stands down while the walker types on the board
+       exactly as it does under a panel, so this pin grew the
+       vkbdOpen term with the derivation. */
     expect(page).toContain(
-      "scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen;",
+      "scene.padPanelHold = Boolean(panelTarget) || charPanelOpen || screenPanelOpen || hostPanelOpen || vkbdOpen;",
     );
   });
 
