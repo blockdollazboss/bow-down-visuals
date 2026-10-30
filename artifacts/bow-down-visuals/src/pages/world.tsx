@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   Loader2, ArrowLeft, Users, Mic, MicOff, PhoneOff, AlertTriangle,
   RotateCcw, Glasses, Send, Crown, Eye, Sparkles, Tv, Shield, Play, Pause, Gauge, Zap,
-  Maximize, Minimize, AudioWaveform, DoorOpen, DoorClosed, Lock,
+  Maximize, Minimize, Gamepad2, AudioWaveform, DoorOpen, DoorClosed, Lock,
   Accessibility, Hand, PartyPopper, Music2, RefreshCw, Armchair,
   Megaphone, Bell, BellOff, Volume2, VolumeX, X, Coins, Gem, LockOpen, Camera,
   Pointer, HandHelping, Flag, Drama, PersonStanding, Handshake, ArrowBigDownDash, ArrowBigUpDash,

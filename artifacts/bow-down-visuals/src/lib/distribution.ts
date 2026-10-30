@@ -140,6 +140,8 @@ export function vaultPrefill(
     artistName: clean(first?.artist_name),
     genre: clean(first?.genre),
   };
+}
+
 /* ── Release readiness — the client mirror of the server's submit gate ──
    The server is the truth: POST /distribution/releases/:id/submit runs
    buildChecklist (artifacts/api-server/src/routes/generate/distribution.ts)
