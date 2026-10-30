@@ -2906,8 +2906,8 @@ export default function WorldPage() {
     setSettingsPanelOpen((o) => !o);
   };
   useEffect(() => {
-    if (panelTarget || charPanelOpen || screenPanelOpen || hostPanelOpen) setSettingsPanelOpen(false);
-  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen]);
+    if (panelTarget || charPanelOpen || screenPanelOpen || hostPanelOpen || padMapOpen) setSettingsPanelOpen(false);
+  }, [panelTarget, charPanelOpen, screenPanelOpen, hostPanelOpen, padMapOpen]);
   /* The voice connection truth for the footer (item 100): rolled up
      from the mesh's per-pair states — never assumed from "in voice".
      Item 66: through the memoizing summarizer, so a render where no
@@ -4438,11 +4438,11 @@ export default function WorldPage() {
           element and opening it never drops the walker's
           fullscreen. Every control writes through the page's
           existing state and stores; the panel is a door, not a
-          second truth. The button-map row rides a prop seam:
-          lane B6's map panel is not in this tree yet, so the page
-          passes no buttonMap here and the row is omitted — the
-          join wires `buttonMap={{ onOpen: ... }}` beside B6's
-          own mount when it lands. */}
+          second truth. The button-map row rides the prop seam:
+          wired at the stack900 join to lane B6's map panel —
+          opening the map retires this panel (one panel at a
+          time), exactly as the footer's own map door retires
+          the strips. */}
       {settingsPanelOpen && status === "inside" && (
         <WorldSettingsPanel
           isLight={isLight}
@@ -4458,6 +4458,7 @@ export default function WorldPage() {
           isFs={isFs}
           fsSupported={fsSupported}
           onToggleFullscreen={toggleFs}
+          buttonMap={{ onOpen: () => { setSettingsPanelOpen(false); setPadMapOpen(true); } }}
           onClose={() => setSettingsPanelOpen(false)}
         />
       )}

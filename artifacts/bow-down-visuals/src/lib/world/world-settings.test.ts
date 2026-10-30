@@ -102,9 +102,11 @@ describe("world settings — one panel inside the fullscreen root", () => {
     expect(toggle).toContain("setScreenPanelOpen(false);");
     expect(toggle).toContain("setHostPanelOpen(false);");
     expect(toggle).toContain("setPanelTarget(null);");
-    /* And any of those opening retires the settings panel. */
+    /* And any of those opening retires the settings panel —
+       at the stack900 join the controller map joined the list,
+       so this pin carries its term too. */
     expect(page).toContain(
-      "if (panelTarget || charPanelOpen || screenPanelOpen || hostPanelOpen) setSettingsPanelOpen(false);",
+      "if (panelTarget || charPanelOpen || screenPanelOpen || hostPanelOpen || padMapOpen) setSettingsPanelOpen(false);",
     );
   });
 });
@@ -185,13 +187,17 @@ describe("world settings — the strip retires to a door; the corner seats never
     expect(page).toContain("py-3 pl-24 pr-24");
   });
 
-  it("the button-map row is a seam: rendered only when an opener is passed, and this tree passes none", () => {
+  it("the button-map row is a seam: rendered only when an opener is passed — and the joined tree passes B6's", () => {
     expect(panel).toContain("{buttonMap && (");
     expect(panel).toContain('data-testid="world-settings-button-map"');
     expect(panel).toContain("buttonMap?: { onOpen: () => void }");
-    /* The page mounts the panel without the prop — the row is
-       omitted, not disabled, until lane B6's map joins. */
+    /* On B7's own base the page passed no opener and the row
+       was omitted; at the stack900 join lane B6's map landed,
+       so the mount now wires the seam — opening the map
+       retires this panel first (one panel at a time). */
     const mount = segment(page, "<WorldSettingsPanel", "/>");
-    expect(mount).not.toContain("buttonMap");
+    expect(mount).toContain(
+      "buttonMap={{ onOpen: () => { setSettingsPanelOpen(false); setPadMapOpen(true); } }}",
+    );
   });
 });
