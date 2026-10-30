@@ -1397,6 +1397,22 @@ html, body {
    §19 single-use pale-gold family (#f0d878 precedent) at antique gold. */
 .light .text-\[\#f5e6b8\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
 
+/* The #C9A84C text steps: §5 deepened the plain hex and §19 deepened
+   the #e8c86a steps, but text-[#C9A84C]/NN and text-[#c9a84c]/NN are
+   distinct class names with no rungs — gold labels across albums,
+   my-projects, books, the clip generator, the video editor, broadcast,
+   group pages, timeline templates, premiere and the clip context menu
+   (whose surface remaps to frosted ivory) all printed pale gold at
+   partial alpha on ivory. Both casings take the #e8c86a ladder. */
+.light .text-\[\#C9A84C\]\/90:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.92); }
+.light .text-\[\#C9A84C\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#C9A84C\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-\[\#C9A84C\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
+.light .text-\[\#C9A84C\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
+.light .text-\[\#c9a84c\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
+.light .text-\[\#c9a84c\]\/60:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.8); }
+.light .text-\[\#c9a84c\]\/40:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.68); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
