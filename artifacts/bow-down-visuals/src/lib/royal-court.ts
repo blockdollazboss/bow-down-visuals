@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── The Front Row — client ─────────────────────────────────────────────
    A creator crowns up to 8 other creators into their Court, in rank
    order. API: routes/royal-court.ts (GET /creator-profiles/:slug/court,
@@ -35,9 +36,7 @@ async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(
-      (body as { message?: string; error?: string }).message ||
-        (body as { error?: string }).error ||
-        `Request failed (${res.status})`,
+      apiErrorMessage(body, `Request failed (${res.status})`),
     ) as Error & { status?: number; code?: string };
     err.status = res.status;
     err.code = (body as { error?: string }).error;

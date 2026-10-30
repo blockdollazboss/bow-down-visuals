@@ -1,3 +1,4 @@
+import { apiErrorMessage as sharedApiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -112,9 +113,12 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
   const activeSection = sections[Math.min(sectionIdx, sections.length - 1)];
   const hasAudio = !!source.audioUrl && !source.audioUrl.startsWith("blob:");
 
-  function apiErrorMessage(data: { error?: string; code?: string; message?: string }, fallback: string): string {
+  function reworkErrorMessage(data: { error?: string; code?: string; message?: string }, fallback: string): string {
     if (data.code === "out_of_credits" || data.error === "out_of_credits") return t("songRework.outOfCredits");
-    return data.message || data.error || fallback;
+    /* Everything else defers to the shared translator — the old chain
+       ended at the raw `data.error`, so any other server code (e.g.
+       credits_disabled without a message) rendered raw (stack900 L1). */
+    return sharedApiErrorMessage(data, fallback);
   }
 
   async function runRemix() {
@@ -142,7 +146,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
       const data = (await res.json().catch(() => ({}))) as {
         song?: ReworkSong; error?: string; code?: string; message?: string;
       };
-      if (!res.ok || !data.song) throw new Error(apiErrorMessage(data, t("songRework.failed")));
+      if (!res.ok || !data.song) throw new Error(reworkErrorMessage(data, t("songRework.failed")));
       setResult(data.song);
       setResultKind("remix");
       setEstimated(false);
@@ -152,7 +156,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
       refreshProfile();
       toast({ title: t("songRework.remixDone"), description: t("songRework.addedToLibrary") });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("songRework.failed"));
+      setError(plainErrorText(e, t("songRework.failed")));
     } finally {
       setWorking(null);
     }
@@ -190,7 +194,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
       const data = (await res.json().catch(() => ({}))) as {
         song?: ReworkSong; estimated?: boolean; error?: string; code?: string; message?: string;
       };
-      if (!res.ok || !data.song) throw new Error(apiErrorMessage(data, t("songRework.failed")));
+      if (!res.ok || !data.song) throw new Error(reworkErrorMessage(data, t("songRework.failed")));
       setResult(data.song);
       setResultKind("replace");
       setEstimated(data.estimated === true);
@@ -200,7 +204,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
       refreshProfile();
       toast({ title: t("songRework.replaceDone"), description: t("songRework.addedToLibrary") });
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("songRework.failed"));
+      setError(plainErrorText(e, t("songRework.failed")));
     } finally {
       setWorking(null);
     }

@@ -31,6 +31,7 @@
  */
 
 import { resolveMedia, type MediaKind } from "@/lib/streaming";
+import { plainErrorText } from "../api-error";
 import { VERTICALS, VERTICAL_META, type VerticalKey } from "@/lib/verticals";
 import { getCreditCost } from "@/lib/credit-costs";
 import { UGC_STYLES, type UgcStyleKey } from "@/lib/ugc-ads";
@@ -599,7 +600,13 @@ export function brandOutreachErrorMessage(payload: unknown, status: number): str
     const message = str(payload["message"]);
     if (message) return message;
     const error = str(payload["error"]);
-    if (error && error !== "out_of_credits" && error !== "generation_failed") return error;
+    /* A plain-sentence error renders; a raw code never does — the two
+       named codes keep their tailored words below, and any other code
+       falls through to the shared translator (error-truth, stack900
+       L1; previously every unlisted code rendered raw). */
+    if (error && error !== "out_of_credits" && error !== "generation_failed") {
+      return plainErrorText(error, "The draft didn't go through — try again.");
+    }
   }
   if (status === 402) return "You're out of Visual Bucs — top up to draft a pitch.";
   return "The draft didn't go through — try again.";

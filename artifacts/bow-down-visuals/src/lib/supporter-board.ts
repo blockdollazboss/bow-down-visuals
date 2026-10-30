@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Top-Supporter Recognition — client (Wave-4 #49 + N6 delta) ────────
    The board lives on the creator's public profile (no standalone
    page): GET /api/supporter-board/by-slug/:slug ranks the creator's
@@ -113,9 +114,7 @@ async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(
-      (body as { message?: string; error?: string }).message ||
-        (body as { error?: string }).error ||
-        `Request failed (${res.status})`,
+      apiErrorMessage(body, `Request failed (${res.status})`),
     ) as Error & { status?: number; code?: string };
     err.status = res.status;
     err.code = (body as { error?: string }).error;

@@ -1,3 +1,4 @@
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -120,14 +121,17 @@ export default function SponsorPost() {
       }
       if (!res.ok) {
         /* Prefer the server's plain-language message; a raw internal code
-           (e.g. "credits_disabled") is never shown to the user. */
-        const raw = data.message || data.error || "";
-        throw new Error(raw && raw !== "credits_disabled" ? raw : t("sponsorsPost.errorPostDeal"));
+           is never shown to the user. The old guard named only
+           "credits_disabled" — every other code still rendered raw. The
+           shared translator covers the whole vocabulary (stack900 L1);
+           the 402 and 403/CREDITS_DISABLED branches above keep their
+           tailored handling. */
+        throw new Error(apiErrorMessage(data, t("sponsorsPost.errorPostDeal")));
       }
       refreshProfile();
       navigate(data.deal?.id ? `/sponsors/${data.deal.id}` : "/sponsors");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("sponsorsPost.errorPostDeal"));
+      setError(plainErrorText(err, t("sponsorsPost.errorPostDeal")));
     } finally {
       setPosting(false);
     }

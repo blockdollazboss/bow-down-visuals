@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── Creator Courses — client ──────────────────────────────────────────
    Mirrors the API DTOs from routes/courses.ts. A course is a store
    product (kind='course'): it sells on the storefront rail, and the
@@ -165,7 +166,7 @@ export function usd(cents: number): string {
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string; code?: string };
-    const err = new Error(body.message || body.error || `Request failed (${res.status})`) as Error & { code?: string };
+    const err = new Error(apiErrorMessage(body, `Request failed (${res.status})`)) as Error & { code?: string };
     err.code = body.code;
     throw err;
   }
