@@ -850,7 +850,7 @@ export default function ArrangementStudio() {
         </label>
         <label className="flex items-center gap-2 text-[11px] font-bold text-white/45 ml-auto">
           Zoom
-          <div className="w-24"><Slider value={[pxPerSec]} min={10} max={110} step={2} onValueChange={([v]) => setPxPerSec(v ?? 36)} /></div>
+          <div className="w-24"><Slider aria-label="Zoom" value={[pxPerSec]} min={10} max={110} step={2} onValueChange={([v]) => setPxPerSec(v ?? 36)} /></div>
         </label>
         <span className="text-[10px] text-white/30 inline-flex items-center gap-1">
           <Save className="h-3 w-3" /> {savedAt ? `Saved ${savedAt}` : "Auto-saves as you work"}
@@ -952,12 +952,12 @@ export default function ArrangementStudio() {
                     )}
                     <div className="flex items-center gap-2">
                       <Volume2 className="h-3 w-3 text-white/35 shrink-0" />
-                      <div className="flex-1"><Slider value={[track.volume]} min={0} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, volume: v ?? 90 })} /></div>
+                      <div className="flex-1"><Slider aria-label="Track volume" value={[track.volume]} min={0} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, volume: v ?? 90 })} /></div>
                       <span className="text-[10px] font-mono text-white/40 w-7 text-right">{track.volume}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] font-black text-white/35 w-3">L</span>
-                      <div className="flex-1"><Slider value={[track.pan]} min={-100} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, pan: v ?? 0 })} /></div>
+                      <div className="flex-1"><Slider aria-label="Track pan" value={[track.pan]} min={-100} max={100} step={1} onValueChange={([v]) => updateTrack({ ...track, pan: v ?? 0 })} /></div>
                       <span className="text-[9px] font-black text-white/35">R</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
