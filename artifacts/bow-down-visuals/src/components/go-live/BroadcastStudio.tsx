@@ -1,3 +1,12 @@
+import {
+  createNowPlayingReporter,
+  parseDjLibrary,
+  resolveProgramTrack,
+  trackReport,
+  type LibraryTrackLite,
+  type NowPlayingReporter,
+  type ProgramMediaLite,
+} from "@/lib/go-live/now-playing-reporter";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -175,7 +184,7 @@ function VoiceMeter({ getAnalyser }: { getAnalyser: () => AnalyserNode | null })
 
 export default function BroadcastStudio() {
   const isLight = useIsLightTheme();
-  const { user, getAccessToken } = useAuth();
+  const { user, profile, getAccessToken } = useAuth();
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<Phase>("off");
@@ -493,6 +502,72 @@ export default function BroadcastStudio() {
       clearInterval(poll);
     };
   }, [phase, liveId, liveSince]);
+
+  /* Now Playing (stack900 D3): while live, tell the overlay feed
+     which library track is on the program. The observation is the
+     stage's own truth — a visible media source on the program
+     scene, its element playing, its URL matched against the
+     creator's own library (signed URLs match on origin + path; the
+     token rotates). Anything else — an unmatched URL, a paused or
+     hidden source — reports nothing: the overlay shows only what
+     the studio can swear to. The artist is the creator's own
+     channel name (their library is their catalog); with no
+     truthful name to send, nothing is reported at all. */
+  useEffect(() => {
+    if (phase !== "live" || !liveId) return;
+    let cancelled = false;
+    let reporter: NowPlayingReporter | null = null;
+    let timer: number | undefined;
+    void (async () => {
+      let catalog: LibraryTrackLite[] = [];
+      let artist = "";
+      try {
+        const headers = await authed();
+        const [libRes, profRes] = await Promise.all([
+          fetch("/api/dj/library", { headers }),
+          fetch("/api/creator-profiles/me", { headers }),
+        ]);
+        if (libRes.ok) catalog = parseDjLibrary(await libRes.json());
+        if (profRes.ok) {
+          const p = (await profRes.json()) as { display_name?: unknown };
+          if (typeof p.display_name === "string") artist = p.display_name;
+        }
+      } catch {
+        /* no catalog or no channel name → nothing truthful to report */
+      }
+      if (!artist) artist = profile?.display_name ?? "";
+      if (cancelled || !artist || catalog.length === 0) return;
+      reporter = createNowPlayingReporter(liveId, artist, authed);
+      const tick = () => {
+        const stage = stageRef.current;
+        if (!stage || !reporter) return;
+        const media: ProgramMediaLite[] = [];
+        for (const s of stage.programScene().sources) {
+          if (s.type !== "media" || !s.visible) continue;
+          const entry = stage.pool.mediaFor(s);
+          const el = entry?.el;
+          const playing =
+            !!entry &&
+            entry.kind === "video" &&
+            entry.state === "ready" &&
+            el instanceof HTMLVideoElement &&
+            !el.paused &&
+            !el.ended;
+          media.push({ mediaUrl: s.mediaUrl ?? null, visible: true, playing });
+        }
+        const track = resolveProgramTrack(media, catalog);
+        void reporter.observe(track ? trackReport(track, artist) : null);
+      };
+      tick();
+      timer = window.setInterval(tick, 2000);
+    })();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearInterval(timer);
+      void reporter?.dispose();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, liveId]);
 
 
   const describeError = (err: unknown): string => {
