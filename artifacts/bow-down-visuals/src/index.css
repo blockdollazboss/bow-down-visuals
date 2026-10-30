@@ -1383,6 +1383,13 @@ html, body {
 .light .text-\[\#d4af37\]\/70:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.86); }
 .light .text-\[\#d4af37\]\/50:not([data-dark-lock]):not([data-dark-lock] *) { color: rgb(138 107 31 / 0.74); }
 
+/* text-[#d4a017] — the deeper house gold used for real text on the
+   admin Pitch & Fix queue (kind chips, ratings, reward amounts), the
+   community-grants totals and pitch-fix itself — had no rung either
+   and printed ~2.6:1 straw on the remapped ivory dashboards. It takes
+   the same antique gold as its #d4af37 sibling. */
+.light .text-\[\#d4a017\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
