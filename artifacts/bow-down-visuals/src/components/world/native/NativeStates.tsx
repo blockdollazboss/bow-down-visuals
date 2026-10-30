@@ -73,7 +73,7 @@ export function NativeErrorState({
       <button
         type="button"
         onClick={onRetry}
-        className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+        className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
       >
         Try again
       </button>

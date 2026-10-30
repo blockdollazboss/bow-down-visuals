@@ -271,7 +271,7 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
             type="button"
             data-testid="world-treasury-streak-moment-dismiss"
             onClick={() => setStreakMoment(null)}
-            className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+            className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
           >
             Keep it burning
           </button>

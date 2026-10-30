@@ -174,7 +174,7 @@ function GameStepthrough({
           type="button"
           data-testid="world-games-return"
           onClick={onReturn}
-          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <X className="h-4 w-4" /> Return to the palace
         </button>
@@ -427,7 +427,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
                   type="button"
                   data-testid={`world-arcade-play-${cabinet.id}`}
                   onClick={() => setPlaying(cabinet.id)}
-                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
                 >
                   <Play className="h-4 w-4" /> Play
                 </button>
@@ -988,7 +988,7 @@ function MarbleTablePanel({
                       type="button"
                       data-testid={`world-party-join-${room.code}`}
                       onClick={() => setActiveCode(room.code)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
                       <Users className="h-3.5 w-3.5" /> Take a seat
                     </button>

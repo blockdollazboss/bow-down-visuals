@@ -1245,7 +1245,7 @@ function AudioFullBench(props: {
           <span className={`text-xs font-semibold ${muted}`}>
             {cost === 0 ? "Free — shown before anything runs." : `Costs ${cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
           </span>
-          <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50">
+          <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {busy ? "Working…" : `Run — ${def.label}`}
           </button>

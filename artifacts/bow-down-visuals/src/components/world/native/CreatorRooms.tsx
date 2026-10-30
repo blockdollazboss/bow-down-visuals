@@ -365,7 +365,7 @@ export function CreatorRoomsDirectory({
         <button
           type="button"
           onClick={() => setTick((n) => n + 1)}
-          className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+          className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           Try again
         </button>
@@ -852,7 +852,7 @@ export function CreatorRoomStation({
         <button
           type="button"
           onClick={retry}
-          className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+          className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           Try again
         </button>

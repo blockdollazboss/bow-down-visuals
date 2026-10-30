@@ -780,7 +780,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           type="button"
                           data-testid="world-my-music-play"
                           onClick={() => playMyMusic(row)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                         >
                           {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                           {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Play it here"}

@@ -175,7 +175,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
         <button
           type="button"
           onClick={() => { setLoadFailed(false); void load(); }}
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <RotateCcw className="h-4 w-4" /> Try again
         </button>
@@ -287,7 +287,7 @@ export function PayoutDesk({ isLight }: { isLight: boolean }) {
             <button
               type="button"
               onClick={() => { setErr(""); void load(); }}
-              className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105"
+              className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
             >
               <RotateCcw className="h-4 w-4" /> Try again
             </button>

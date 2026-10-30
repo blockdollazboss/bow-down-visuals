@@ -81,7 +81,7 @@ export function CreateDeskRunner({
           data-testid="world-native-create-run"
           onClick={onRun}
           disabled={!canRun}
-          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50"
+          className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {running ? (
             <Loader2 className="h-4 w-4 animate-spin" />

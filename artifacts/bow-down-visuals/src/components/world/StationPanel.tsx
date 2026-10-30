@@ -1641,7 +1641,7 @@ export default function StationPanel(props: StationPanelProps) {
             type="button"
             data-testid="world-station-return"
             onClick={onClose}
-            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
           >
             <X className="h-4 w-4" /> Return to the palace
           </button>
@@ -1685,7 +1685,7 @@ export default function StationPanel(props: StationPanelProps) {
             type="button"
             data-testid="world-studio-return"
             onClick={() => setBoardProjectId(null)}
-            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105"
+            className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
           >
             <X className="h-4 w-4" /> Back to My Studio
           </button>
