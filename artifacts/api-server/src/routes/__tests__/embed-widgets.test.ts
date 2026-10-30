@@ -541,3 +541,45 @@ describe("embed pages — theme + responsive pins", () => {
     expect(text).toContain("Newest drop");
   });
 });
+
+/* Stack1000 M2 — the classic pages (track / video / playlist) predate
+   the desk but ride the same embedShell: theme pre-paint, brandbar
+   footer, ≥44px doors, the framing carve-out. These pins keep them
+   there; the video page's artist door is the one true parity fix —
+   every sibling kind doors home to the artist, video only named them. */
+describe("classic embed pages — parity with the C1 shell", () => {
+  it("the track page rides the shared shell and doors to the artist", async () => {
+    const { status, text } = await getPage(`/embed/track/${TRACK_ID}?theme=light`);
+    expect(status).toBe(200);
+    expect(text).toContain('KIND="track"');
+    expect(text).toContain('get("theme")==="light"');
+    expect(text).toContain("Made with");
+    expect(text).toMatch(/\.door\{[^}]*min-height:44px/);
+    expect(text).toContain("<audio controls");
+    expect(text).toContain("/artist/");
+  });
+
+  it("the video page doors home to the artist profile, like the track page", async () => {
+    const { text } = await getPage(`/embed/video/${VIDEO_ID}`);
+    expect(text).toContain('KIND="video"');
+    expect(text).toContain("<video controls");
+    expect(text).toContain("/artist/");
+    expect(text).toContain(">Profile</a>");
+  });
+
+  it("the playlist page lists items as ≥44px rows dooring to /track/ and /watch/", async () => {
+    const { text } = await getPage(`/embed/playlist/${PLAYLIST_ID}`);
+    expect(text).toContain('KIND="playlist"');
+    expect(text).toContain("min-height:44px");
+    expect(text).toContain('"/track/"');
+    expect(text).toContain('"/watch/"');
+  });
+
+  it("classic pages sit inside the framing carve-out too (no X-Frame-Options)", async () => {
+    for (const path of [`/embed/track/${TRACK_ID}`, `/embed/video/${VIDEO_ID}`, `/embed/playlist/${PLAYLIST_ID}`]) {
+      const { status, headers } = await getPage(path);
+      expect(status).toBe(200);
+      expect(headers.get("x-frame-options")).toBeNull();
+    }
+  });
+});

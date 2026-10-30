@@ -743,7 +743,10 @@ var p=document.getElementById("player");
 p.style.flexDirection="column";
 p.innerHTML=
 '<video controls playsinline preload="metadata" '+(d.thumbnail_url?'poster="'+esc(d.thumbnail_url)+'" ':"")+'src="'+esc(d.video_url)+'"></video>'+
-'<div style="padding:8px 12px 4px"><div class="title" style="font-size:13px">'+esc(d.title)+'</div><div class="artist">by <b>'+esc(d.artist_name)+'</b></div></div>';`;
+'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px 4px">'+
+'<div style="min-width:0;flex:1"><div class="title" style="font-size:13px">'+esc(d.title)+'</div><div class="artist">by <b>'+esc(d.artist_name)+'</b></div></div>'+
+(d.artist_slug?'<a class="door ghost" href="/artist/'+esc(d.artist_slug)+'" target="_blank" rel="noopener" style="flex-shrink:0;font-size:12px">Profile</a>':"")+
+'</div>';`;
 
 const PLAYLIST_JS = `
 var p=document.getElementById("player");
