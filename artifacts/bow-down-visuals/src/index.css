@@ -951,7 +951,13 @@ html, body {
    where a thumb lands. Text fields wearing the target class
    also take a 16px font on coarse pointers: below it, iOS
    Safari zooms the page on focus, and a zoomed World under a
-   keyboard is a World you have left without leaving. */
+   keyboard is a World you have left without leaving.
+   Switches take the third shape (stack1000): a drawn toggle
+   track is already 44 wide but only 24 tall, and growing the
+   track itself strands its knob at the top — so the track
+   keeps its exact box and an invisible ::after halo, 10px
+   above and below, takes the thumb instead. The halo is pure
+   hit geometry: nothing is painted, nothing flows. */
 @media (pointer: coarse) {
   .bdv-touch-target {
     min-height: 44px;
@@ -963,6 +969,14 @@ html, body {
   input.bdv-touch-target,
   textarea.bdv-touch-target {
     font-size: 16px;
+  }
+  .bdv-touch-switch {
+    position: relative;
+  }
+  .bdv-touch-switch::after {
+    content: "";
+    position: absolute;
+    inset: -10px 0;
   }
 }
 
