@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "2ffa25e3dcde0622ce4357db7a252e25a9e17f12",
+  "baseCommit": "c8fb0878eac3a8556e503b46120ef41b5daea6d9",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -23,8 +23,8 @@
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
     "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1024,
-    "serverFilesClassified": 113
+    "serverEndpointsVisible": 1027,
+    "serverFilesClassified": 110
   },
   "packs": [
     {
@@ -6774,6 +6774,7 @@
       "component": "Create",
       "endpoints": [
         "/api/analyze-sections",
+        "/api/avatar-presenter",
         "/api/cover-art",
         "/api/cover-in-motion/animate",
         "/api/drafts",
@@ -6795,13 +6796,21 @@
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
         "/api/wallpapers/render",
-        "/api/wallpapers/screensaver-render"
+        "/api/wallpapers/screensaver-render",
+        "/api/wave9d/camera/prompt",
+        "/api/wave9d/director/plan"
       ],
       "prices": [
         {
           "feature": "Analyze Song Sections",
           "vb": 100,
           "endpoint": "/api/analyze-sections",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Avatar Presenter",
+          "vb": 1200,
+          "endpoint": "/api/avatar-presenter",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6862,6 +6871,18 @@
           "feature": "Screensaver Loop Render",
           "vb": 300,
           "endpoint": "/api/wallpapers/screensaver-render",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Camera Move Planner",
+          "vb": 100,
+          "endpoint": "/api/wave9d/camera/prompt",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Character Director",
+          "vb": 150,
+          "endpoint": "/api/wave9d/director/plan",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -17457,16 +17478,11 @@
       {
         "file": "artifacts/api-server/src/routes/generate/avatar-presenter.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/avatar-presenter",
           "/api/avatar-presenter/:jobId",
           "/api/avatar-presenter/status"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Avatar presenter rail (Hedra, 1,200 VB; ships dark until the wallet is funded) — job + status endpoints behind the presenter surface; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/generate/background-removal.ts",
@@ -20529,29 +20545,19 @@
       {
         "file": "artifacts/api-server/src/routes/wave9d-camera.ts",
         "endpoints": 3,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
           "/api/wave9d/camera/design",
-          "/api/wave9d/camera/presets",
-          "/api/wave9d/camera/prompt"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-9D camera rails (design / presets / prompt) — the camera planner's store (planner priced 100 VB in the registry); no page of its own."
-        }
+          "/api/wave9d/camera/presets"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/wave9d-director.ts",
         "endpoints": 2,
-        "visible": 0,
+        "visible": 1,
         "unseen": [
-          "/api/wave9d/director/plan",
           "/api/wave9d/director/plans"
-        ],
-        "classification": {
-          "surface": "creator-tools",
-          "reason": "Wave-9D character-director planning rails — a planning layer over the Scene Studio pipeline; no page of its own."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/webauthn.ts",

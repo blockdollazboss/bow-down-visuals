@@ -1274,6 +1274,24 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/singing-voice",
     attachToFeatureIds: ["desk-song"],
   },
+  /* Stack-900 KB triage (Lane K4): the Make a Video module's rails.
+     The Create video panel renders MakeVideoModule from the legacy
+     pages/make-video.tsx; its Avatar Presenter panel (the
+     owner-ruled 1,200 VB Hedra rail, dark until funded) and the
+     Scene Studio's Character Director + Camera Move Planner sit two
+     hops below pages/create.tsx — past the scan. */
+  {
+    endpoint: "/api/avatar-presenter",
+    attachToFeatureIds: ["desk-video"],
+  },
+  {
+    endpoint: "/api/wave9d/director/plan",
+    attachToFeatureIds: ["desk-video"],
+  },
+  {
+    endpoint: "/api/wave9d/camera/prompt",
+    attachToFeatureIds: ["desk-video"],
+  },
 ];
 
 /** Unpriced sub-step endpoints of a priced rail — the poll and prepare
@@ -1398,10 +1416,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/generate/auto-edit.ts": {
     surface: "creator-tools",
     reason: "AI auto-edit rail — called by the World Create Desk and template surfaces through shared helpers; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/generate/avatar-presenter.ts": {
-    surface: "creator-tools",
-    reason: "Avatar presenter rail (Hedra, 1,200 VB; ships dark until the wallet is funded) — job + status endpoints behind the presenter surface; no page of its own.",
   },
   "artifacts/api-server/src/routes/generate/beat-sync.ts": {
     surface: "creator-tools",
@@ -1646,14 +1660,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/wave8-merch-drop.ts": {
     surface: "creator-tools",
     reason: "Wave-8 merch-drop planner rails (plan / plans / save) — an AI planning tool behind the promote/store surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/wave9d-camera.ts": {
-    surface: "creator-tools",
-    reason: "Wave-9D camera rails (design / presets / prompt) — the camera planner's store (planner priced 100 VB in the registry); no page of its own.",
-  },
-  "artifacts/api-server/src/routes/wave9d-director.ts": {
-    surface: "creator-tools",
-    reason: "Wave-9D character-director planning rails — a planning layer over the Scene Studio pipeline; no page of its own.",
   },
   /* Live rails: the Go Live machinery — streams are run from the World
      and the /go-live surface through shared helpers past the scan's
