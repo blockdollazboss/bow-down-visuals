@@ -69,7 +69,7 @@ export default function PostPage() {
           <p className="mx-auto mt-2 max-w-sm text-sm text-neutral-500">
             It may have been deleted, or it's a circle-only post that isn't in your circle.
           </p>
-          <Link href="/home" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black hover:brightness-110">
+          <Link href="/home" className="mt-4 -mb-1 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-3 text-sm font-bold text-black hover:brightness-110">
             Back to your timeline
           </Link>
         </div>
@@ -83,7 +83,7 @@ export default function PostPage() {
           <button
             type="button"
             onClick={() => setRetryNonce((n) => n + 1)}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-2 text-sm font-bold text-black hover:brightness-110"
+            className="mt-4 -mb-1 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-5 py-3 text-sm font-bold text-black hover:brightness-110"
           >
             <RotateCcw className="h-4 w-4" /> Try again
           </button>

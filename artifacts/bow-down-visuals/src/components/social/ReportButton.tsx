@@ -109,7 +109,7 @@ export function ReportButton({
           onClick={() => setOpen(true)}
           aria-label={`Report this ${noun}`}
           data-testid="report-button"
-          className={className ?? "inline-flex items-center gap-1 text-[11px] font-semibold text-white/35 transition hover:text-[#e8c86a]"}
+          className={className ?? "inline-flex items-center gap-1 py-3.5 -my-3.5 text-[11px] font-semibold text-white/35 transition hover:text-[#e8c86a]"}
           style={style}
         >
           <Flag className="h-3 w-3" /> Report
