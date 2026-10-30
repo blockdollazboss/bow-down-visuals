@@ -561,7 +561,7 @@ export function MakeSongModule() {
                 <label className="block text-sm font-medium text-white/70 mb-2">
                   Describe your song
                 </label>
-                <textarea
+                <textarea aria-label="Describe your song"
                   value={simplePrompt}
                   onChange={(e) => setSimplePrompt(e.target.value)}
                   placeholder="An upbeat pop song about summer love, catchy chorus..."

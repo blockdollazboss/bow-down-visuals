@@ -373,7 +373,7 @@ function AcademyMain() {
  </p>
 
  <p className="mb-2 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.goalLabel")}</p>
- <input
+ <input aria-label={t("academy.goalPlaceholder")}
  value={goals}
  onChange={(e) => setGoals(e.target.value)}
  maxLength={500}
@@ -384,7 +384,7 @@ function AcademyMain() {
  <div className="mt-5 grid gap-5 sm:grid-cols-2">
  <div>
  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.nicheLabel")}</p>
- <input
+ <input aria-label={t("academy.nichePlaceholder")}
  value={niche}
  onChange={(e) => setNiche(e.target.value)}
  maxLength={120}
@@ -394,7 +394,7 @@ function AcademyMain() {
  </div>
  <div data-min-stars="3">
  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("academy.hoursLabel")}</p>
- <input
+ <input aria-label={t("academy.hoursPlaceholder")}
  value={hours}
  onChange={(e) => setHours(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
  inputMode="numeric"
@@ -822,7 +822,7 @@ function CourseDetail(props: CourseDetailProps) {
  </div>
 
  <div className="mt-4 flex gap-2">
- <input
+ <input aria-label={t("academy.askPlaceholder", { title: course.title.toLowerCase() })}
  value={coachInput}
  onChange={(e) => onCoachInput(e.target.value)}
  onKeyDown={(e) => { if (e.key === "Enter") onAskCoach(); }}

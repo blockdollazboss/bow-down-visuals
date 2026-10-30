@@ -919,7 +919,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <>
  <div className="mb-4 flex flex-wrap items-center gap-3">
  <label className="text-sm text-white/50">{t("email-list.list")}</label>
- <select
+ <select aria-label={t("email-list.list")}
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
  className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
@@ -1065,7 +1065,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <button type="button" aria-label={`delete ${tg.name}`} className="text-primary/60 hover:text-primary" onClick={() => deleteTag(tg.id)}>×</button>
  </span>
  ))}
- <input
+ <input aria-label={t("email-list.tag_name_placeholder")}
  className="w-44 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-primary/60"
  placeholder={t("email-list.tag_name_placeholder")}
  value={newTagName}
@@ -1103,7 +1103,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  )}
 
  <div className="mt-4 rounded-xl border border-white/10 bg-black/40 p-3">
- <input
+ <input aria-label={t("email-list.segment_name_placeholder")}
  className={inputClass}
  placeholder={t("email-list.segment_name_placeholder")}
  value={segName}
@@ -1191,16 +1191,16 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <div className={`${cardClass} mt-4`}>
  <h3 className="font-semibold">{t("email-list.create_a_list")}</h3>
  <div className="mt-3 grid gap-3 md:grid-cols-2">
- <input className={inputClass} placeholder={t("email-list.list_name_e_g_fin_fam")} value={newName} maxLength={120} onChange={(e) => setNewName(e.target.value)} />
+ <input aria-label={t("email-list.list_name_e_g_fin_fam")} className={inputClass} placeholder={t("email-list.list_name_e_g_fin_fam")} value={newName} maxLength={120} onChange={(e) => setNewName(e.target.value)} />
  <div>
  <div className="flex items-center">
  <span className="rounded-l-xl border border-r-0 border-white/10 bg-white/5 px-3 py-3 text-sm text-white/40">{t("email-list.join_2")}</span>
- <input className={inputClass + " rounded-l-none"} placeholder={t("email-list.your_handle")} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
+ <input aria-label={t("email-list.your_handle")} className={inputClass + " rounded-l-none"} placeholder={t("email-list.your_handle")} value={newHandle} onChange={(e) => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
  </div>
  <p className="mt-1 text-xs text-white/35">{t("email-list.lowercase_letters_numbers_hyphen")}</p>
  </div>
  </div>
- <textarea className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder={t("email-list.what_do_subscribers_get_optional")} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+ <textarea aria-label={t("email-list.what_do_subscribers_get_optional")} className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder={t("email-list.what_do_subscribers_get_optional")} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
  <p className="mt-1 text-xs text-white/35">This is the offer copy on your join page — up to 2,000 characters, line breaks kept.</p>
  <button className={tabBtn(true) + " mt-3"} onClick={createList} disabled={creating}>
  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -1282,8 +1282,8 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  The name and offer copy for this list. The description is what visitors read on the join page — line breaks are kept.
  </p>
  <p className="mt-2 text-xs text-white/35">Join page: bowdownvisuals.com/join/{activeList.handle} — the handle is the list's address and can't be changed.</p>
- <input className={inputClass + " mt-3"} placeholder="List name" value={editName} maxLength={120} onChange={(e) => setEditName(e.target.value)} />
- <textarea className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder="What do subscribers get?" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+ <input aria-label="List name" className={inputClass + " mt-3"} placeholder="List name" value={editName} maxLength={120} onChange={(e) => setEditName(e.target.value)} />
+ <textarea aria-label="What do subscribers get?" className={inputClass + " mt-3"} rows={4} maxLength={2000} placeholder="What do subscribers get?" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
  <p className="mt-1 text-xs text-white/35">Up to 2,000 characters. Leave empty to show no offer copy on the join page.</p>
  <button className={tabBtn(true) + " mt-4"} onClick={saveListDetails} disabled={savingDetails}>
  {savingDetails ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -1320,8 +1320,8 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  ] as const).map((s) => (
  <div key={s.n} className="mt-4 rounded-xl border border-white/10 bg-black/40 p-4">
  <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Step {s.n}{s.n === 1 ? " — on signup" : s.n === 2 ? " — +24 hours" : " — +72 hours after step 2"}</p>
- <input className={inputClass + " mt-2"} placeholder={`Step ${s.n} subject`} value={s.subject} maxLength={200} onChange={(e) => s.setSubject(e.target.value)} />
- <textarea className={inputClass + " mt-2"} rows={5} placeholder={`Step ${s.n} body — write it like you'd text a friend. Line breaks are kept.`} value={s.body} maxLength={20000} onChange={(e) => s.setBody(e.target.value)} />
+ <input aria-label={`Step ${s.n} subject`} className={inputClass + " mt-2"} placeholder={`Step ${s.n} subject`} value={s.subject} maxLength={200} onChange={(e) => s.setSubject(e.target.value)} />
+ <textarea aria-label={`Step ${s.n} body — write it like you'd text a friend. Line breaks are kept.`} className={inputClass + " mt-2"} rows={5} placeholder={`Step ${s.n} body — write it like you'd text a friend. Line breaks are kept.`} value={s.body} maxLength={20000} onChange={(e) => s.setBody(e.target.value)} />
  </div>
  ))}
 
@@ -1342,7 +1342,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <h3 className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-primary" />{t("email-list.ai_newsletter_writer")}</h3>
  <p className="mt-1 text-sm text-white/50">{t("email-list.topic_in_full_newsletter_draft_o")}<span className="text-primary font-semibold">{t("email-list.100_visual_bucs")}</span>{t("email-list.per_draft")}</p>
 
- <textarea className={inputClass + " mt-4"} rows={3} placeholder={t("email-list.what_s_the_newsletter_about_e_g")} value={nlTopic} onChange={(e) => setNlTopic(e.target.value)} />
+ <textarea aria-label={t("email-list.what_s_the_newsletter_about_e_g")} className={inputClass + " mt-4"} rows={3} placeholder={t("email-list.what_s_the_newsletter_about_e_g")} value={nlTopic} onChange={(e) => setNlTopic(e.target.value)} />
 
  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
  {TONES.map((t) => (
@@ -1357,7 +1357,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  ))}
  </div>
 
- <input className={inputClass + " mt-3"} placeholder={t("email-list.call_to_action_optional_e_g_pre")} value={nlCta} onChange={(e) => setNlCta(e.target.value)} />
+ <input aria-label={t("email-list.call_to_action_optional_e_g_pre")} className={inputClass + " mt-3"} placeholder={t("email-list.call_to_action_optional_e_g_pre")} value={nlCta} onChange={(e) => setNlCta(e.target.value)} />
 
  <button className={tabBtn(true) + " mt-4"} onClick={generateNewsletter} disabled={nlLoading}>
  {nlLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
@@ -1396,7 +1396,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <h3 className="flex items-center gap-2 font-semibold"><Send className="h-4 w-4 text-primary" />{t("email-list.send_a_campaign")}</h3>
  <div className="mt-3 flex flex-wrap items-center gap-3">
  <label className="text-sm text-white/50">{t("email-list.list")}</label>
- <select
+ <select aria-label={t("email-list.list")}
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
  className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
@@ -1406,7 +1406,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  ))}
  </select>
  <label className="text-sm text-white/50">{t("email-list.audience")}</label>
- <select
+ <select aria-label={t("email-list.audience")}
  value={campAudience}
  onChange={(e) => setCampAudience(e.target.value)}
  className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
@@ -1426,13 +1426,13 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  </button>
  )}
  </div>
- <input
+ <input aria-label={t("email-list.subject")}
  className={inputClass + " mt-3"}
  placeholder={t("email-list.subject")}
  value={campSubject}
  onChange={(e) => setCampSubject(e.target.value)}
  />
- <textarea
+ <textarea aria-label={t("email-list.body")}
  className={inputClass + " mt-3"}
  rows={6}
  placeholder={t("email-list.body")}
@@ -1516,13 +1516,13 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  ) : (
  <p className="mt-2 text-xs text-white/40">{t("email-list.automation_off_note")}{a.sent > 0 && <> · {a.sent} {t("email-list.automations_sent_word")}</>}</p>
  )}
- <input
+ <input aria-label={t("email-list.subject")}
  className={inputClass + " mt-3"}
  placeholder={t("email-list.subject")}
  value={draft.subject}
  onChange={(e) => setAutoDrafts((d) => ({ ...d, [a.id]: { ...draft, subject: e.target.value } }))}
  />
- <textarea
+ <textarea aria-label={t("email-list.body")}
  className={inputClass + " mt-2"}
  rows={5}
  placeholder={t("email-list.body")}
@@ -1531,7 +1531,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  />
  <div className="mt-2 flex flex-wrap items-center gap-3">
  <label className="text-xs text-white/50">{t("email-list.automations_delay_label")}</label>
- <input
+ <input aria-label={t("email-list.automations_delay_label")}
  type="number"
  min={0}
  max={720}
@@ -1608,7 +1608,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  )}
  <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
  <label className="text-xs text-white/50">{t("email-list.kw_keyword_label")}</label>
- <input
+ <input aria-label={t("email-list.kw_keyword_label")}
  className={inputClass + " mt-1"}
  placeholder={t("email-list.kw_keyword_placeholder")}
  value={kwKeyword}
@@ -1616,7 +1616,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  maxLength={40}
  />
  <label className="mt-3 block text-xs text-white/50">{t("email-list.kw_dm_label")}</label>
- <textarea
+ <textarea aria-label={t("email-list.kw_dm_label")}
  className={inputClass + " mt-1"}
  rows={3}
  placeholder={t("email-list.kw_dm_placeholder")}
@@ -1708,7 +1708,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <>
  <div className="mb-4 flex items-center gap-3">
  <label className="text-sm text-white/50">{t("email-list.list")}</label>
- <select
+ <select aria-label={t("email-list.list")}
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
  className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"

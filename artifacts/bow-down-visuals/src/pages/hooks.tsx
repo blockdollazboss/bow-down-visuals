@@ -1407,7 +1407,7 @@ export default function HookStudio() {
  <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.aboutLabel")} <span className="normal-case tracking-normal text-white/25">{t("hooks.optionalTag")}</span>
  </p>
- <input
+ <input aria-label={t("hooks.topicPlaceholder", { example: activeVideoType.key === "music-promo" ? "Golden Tide" : "..." })}
  value={topic}
  onChange={(e) => setTopic(e.target.value)}
  maxLength={300}
@@ -1547,7 +1547,7 @@ export default function HookStudio() {
  <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.postAboutLabel")}
  </p>
- <textarea
+ <textarea aria-label={t("hooks.capTopicPlaceholder")}
  value={capTopic}
  onChange={(e) => setCapTopic(e.target.value)}
  placeholder={t("hooks.capTopicPlaceholder")}
@@ -1578,7 +1578,7 @@ export default function HookStudio() {
  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.toneLabel")} <span className="normal-case font-normal text-white/30">{t("hooks.optionalTag")}</span>
  </p>
- <input
+ <input aria-label={t("hooks.tonePlaceholder")}
  value={capTone}
  onChange={(e) => setCapTone(e.target.value)}
  placeholder={t("hooks.tonePlaceholder")}
@@ -1684,7 +1684,7 @@ export default function HookStudio() {
  <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.ctaTopicLabel")}
  </p>
- <input
+ <input aria-label={t("hooks.ctaTopicPlaceholder")}
  value={ctaTopic}
  onChange={(e) => setCtaTopic(e.target.value)}
  maxLength={300}
@@ -1739,7 +1739,7 @@ export default function HookStudio() {
  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
  {t("hooks.toneLabel")} <span className="normal-case font-normal text-white/30">{t("hooks.optionalTag")}</span>
  </p>
- <input
+ <input aria-label={t("hooks.tonePlaceholder")}
  value={ctaTone}
  onChange={(e) => setCtaTone(e.target.value)}
  placeholder={t("hooks.tonePlaceholder")}

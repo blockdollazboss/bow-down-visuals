@@ -588,7 +588,7 @@ export default function Contests() {
                     <h3 className="font-bold mb-1">{t("contests.track_entries")}</h3>
                     <p className="text-xs text-white/45 mb-4">{t("contests.log_entries_as_they_come_in_veri")}</p>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <input
+                      <input aria-label={t("contests.handle_or_email")}
                         value={entryHandle}
                         onChange={(e) => setEntryHandle(e.target.value.slice(0, 80))}
                         placeholder={t("contests.handle_or_email")}

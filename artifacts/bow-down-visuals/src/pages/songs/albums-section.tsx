@@ -309,7 +309,7 @@ export default function AlbumsSection({
           <div className="space-y-4">
             <div>
               <label className="text-xs uppercase tracking-wider text-white/40 font-semibold block mb-2">Title</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Midnight Gold" className={inputClass} />
+              <input aria-label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Midnight Gold" className={inputClass} />
             </div>
             <div>
               <label className="text-xs uppercase tracking-wider text-white/40 font-semibold block mb-2">Type</label>
@@ -331,7 +331,7 @@ export default function AlbumsSection({
             </div>
             <div>
               <label className="text-xs uppercase tracking-wider text-white/40 font-semibold block mb-2">Release notes</label>
-              <textarea
+              <textarea aria-label="Release notes"
                 value={releaseNotes}
                 onChange={(e) => setReleaseNotes(e.target.value)}
                 placeholder="The story behind this release…"
@@ -342,7 +342,7 @@ export default function AlbumsSection({
             <div>
               <label className="text-xs uppercase tracking-wider text-white/40 font-semibold block mb-2">Cover art</label>
               <div className="flex gap-2 mb-2">
-                <input
+                <input aria-label="Cover art"
                   value={coverArtUrl}
                   onChange={(e) => setCoverArtUrl(e.target.value)}
                   placeholder="Paste an image URL…"
@@ -359,8 +359,8 @@ export default function AlbumsSection({
                   <Sparkles className="h-3.5 w-3.5 text-[#e8c86a]" /> or generate with AI (200 Visual Bucs)
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <input value={coverArtist} onChange={(e) => setCoverArtist(e.target.value)} placeholder="Artist name" className={`${inputClass} flex-1 min-w-[120px]`} />
-                  <input value={coverMood} onChange={(e) => setCoverMood(e.target.value)} placeholder="Mood (optional)" className={`${inputClass} flex-1 min-w-[120px]`} />
+                  <input aria-label="Artist name" value={coverArtist} onChange={(e) => setCoverArtist(e.target.value)} placeholder="Artist name" className={`${inputClass} flex-1 min-w-[120px]`} />
+                  <input aria-label="Mood (optional)" value={coverMood} onChange={(e) => setCoverMood(e.target.value)} placeholder="Mood (optional)" className={`${inputClass} flex-1 min-w-[120px]`} />
                   <Button size="sm" onClick={() => void handleGenerateCover()} disabled={generatingCover} className="rounded-xl bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110">
                     {generatingCover ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4 mr-1" />}
                     {generatingCover ? "Generating…" : "Generate"}

@@ -406,7 +406,7 @@ export default function CreatorDomainsPage() {
             <p className="mb-4 text-sm text-white/60">Type it, claim it, paste two records, hit Check now. That's the whole ritual.</p>
             {error && <p className="mb-3 text-sm text-red-300">{error}</p>}
             <div className="flex flex-col gap-2 sm:flex-row">
-              <input
+              <input aria-label="yourname.com"
                 value={hostname}
                 onChange={(e) => setHostname(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && hostname.trim()) claim(); }}

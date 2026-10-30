@@ -822,7 +822,7 @@ export default function WebsiteBuilder() {
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
               {t("websiteBuilder.siteNameLabel")}
             </label>
-            <input
+            <input aria-label={t("websiteBuilder.siteNameLabel")}
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="e.g. TRGDY TRBLZ"
@@ -834,7 +834,7 @@ export default function WebsiteBuilder() {
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
               {t("websiteBuilder.descriptionLabel")} <span className="text-white/40">({t("websiteBuilder.minCharsHint")})</span>
             </label>
-            <textarea
+            <textarea aria-label={t("websiteBuilder.descriptionLabel")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t("websiteBuilder.descriptionPlaceholder")}
@@ -848,7 +848,7 @@ export default function WebsiteBuilder() {
               <label className="mb-1.5 block text-sm font-semibold text-white/70">
                 {t("websiteBuilder.styleLabel")} <span className="text-white/40">({t("websiteBuilder.optional")})</span>
               </label>
-              <input
+              <input aria-label={t("websiteBuilder.styleLabel")}
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
                 placeholder={t("websiteBuilder.stylePlaceholder")}
@@ -860,7 +860,7 @@ export default function WebsiteBuilder() {
               <label className="mb-1.5 block text-sm font-semibold text-white/70">
                 {t("websiteBuilder.colorsLabel")} <span className="text-white/40">({t("websiteBuilder.optional")})</span>
               </label>
-              <input
+              <input aria-label={t("websiteBuilder.colorsLabel")}
                 value={colorScheme}
                 onChange={(e) => setColorScheme(e.target.value)}
                 placeholder={t("websiteBuilder.colorsPlaceholder")}
@@ -1061,7 +1061,7 @@ export default function WebsiteBuilder() {
                 {t("websiteBuilder.editsDesc", { cost: EDIT_COST })}
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <input
+                <input aria-label={t("websiteBuilder.editPlaceholder")}
                   value={editRequest}
                   onChange={(e) => setEditRequest(e.target.value)}
                   placeholder={t("websiteBuilder.editPlaceholder")}

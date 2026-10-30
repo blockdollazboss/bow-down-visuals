@@ -346,7 +346,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">2</span>
             {t("lyricVideo.step2Title")}
           </h2>
-          <textarea
+          <textarea aria-label={t("lyricVideo.lyricsPlaceholder")}
             value={lyrics}
             onChange={(e) => setLyrics(e.target.value)}
             rows={8}

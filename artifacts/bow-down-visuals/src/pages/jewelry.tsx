@@ -491,7 +491,7 @@ export default function JewelryStudio() {
                     />
                   </label>
                   {jOpts.nfc && (
-                    <input
+                    <input aria-label="NFC card link"
                       value={jOpts.nfcUrl}
                       onChange={(e) => setJOpts({ ...jOpts, nfcUrl: e.target.value })}
                       placeholder="https://your-business-card.com/you"
@@ -503,7 +503,7 @@ export default function JewelryStudio() {
                   <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
-                  <textarea
+                  <textarea aria-label={t("jewelry.jewelryNotesPh")}
                     value={jOpts.notes}
                     onChange={(e) => setJOpts({ ...jOpts, notes: e.target.value })}
                     placeholder={t("jewelry.jewelryNotesPh")}
@@ -537,7 +537,7 @@ export default function JewelryStudio() {
                   </div>
                   <div>
                     <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>{t("jewelry.garmentColor")}</h3>
-                    <input
+                    <input aria-label={t("jewelry.garmentColorPh")}
                       value={aOpts.color}
                       onChange={(e) => setAOpts({ ...aOpts, color: e.target.value })}
                       placeholder={t("jewelry.garmentColorPh")}
@@ -559,7 +559,7 @@ export default function JewelryStudio() {
                   <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.designNotes")} <span className="text-zinc-600">{t("jewelry.optional")}</span>
                   </h3>
-                  <textarea
+                  <textarea aria-label={t("jewelry.apparelNotesPh")}
                     value={aOpts.notes}
                     onChange={(e) => setAOpts({ ...aOpts, notes: e.target.value })}
                     placeholder={t("jewelry.apparelNotesPh")}
@@ -866,7 +866,7 @@ export default function JewelryStudio() {
             <div ref={consultEndRef} />
           </div>
           <div className="flex gap-2 border-t border-[#C9A84C]/20 p-3">
-            <input
+            <input aria-label={t("jewelry.consultPlaceholder")}
               value={consultInput}
               onChange={(e) => setConsultInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendConsult()}

@@ -593,7 +593,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Title</label>
-                <input
+                <input aria-label="Title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="The title as it will appear on YouTube"
@@ -604,7 +604,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Description</label>
-                <textarea
+                <textarea aria-label="Description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Paste the full description as it will be published"
@@ -616,7 +616,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Tags <span className="normal-case font-normal text-white/25">(comma separated)</span></label>
-                <input
+                <input aria-label="Tags (comma separated)"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="ai music, creator tips, behind the scenes"
@@ -626,7 +626,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Niche</label>
-                <input
+                <input aria-label="Niche"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                   placeholder="e.g. AI music production, gaming, fitness"

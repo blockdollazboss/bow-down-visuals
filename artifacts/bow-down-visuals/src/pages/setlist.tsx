@@ -254,7 +254,7 @@ export default function SetlistBuilder() {
             {t("setlist.pageDescription")}
           </p>
           <div className="no-print mt-4 max-w-md">
-            <input
+            <input aria-label={t("setlist.showTitlePlaceholder")}
               value={showTitle}
               onChange={(e) => setShowTitle(e.target.value)}
               placeholder={t("setlist.showTitlePlaceholder")}
@@ -322,14 +322,14 @@ export default function SetlistBuilder() {
             <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="text-sm font-bold uppercase tracking-widest text-white/70 mb-4">{t("setlist.addSongTitle")}</h2>
               <div className="space-y-3">
-                <input
+                <input aria-label={t("setlist.songTitlePlaceholder")}
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder={t("setlist.songTitlePlaceholder")}
                   className={inputClass}
                   maxLength={200}
                 />
-                <input
+                <input aria-label={t("setlist.artistPlaceholder")}
                   value={newArtist}
                   onChange={(e) => setNewArtist(e.target.value)}
                   placeholder={t("setlist.artistPlaceholder")}
@@ -337,7 +337,7 @@ export default function SetlistBuilder() {
                   maxLength={200}
                 />
                 <div className="grid grid-cols-2 gap-3">
-                  <input
+                  <input aria-label={t("setlist.lengthPlaceholder")}
                     value={newDuration}
                     onChange={(e) => setNewDuration(e.target.value)}
                     placeholder={t("setlist.lengthPlaceholder")}
@@ -375,7 +375,7 @@ export default function SetlistBuilder() {
               <p className="text-xs text-white/45 mb-4">
                 {t("setlist.aiFlowDirectorDesc", { cost: CREDIT_COST })}
               </p>
-              <textarea
+              <textarea aria-label={t("setlist.showContextPlaceholder")}
                 value={showNotes}
                 onChange={(e) => setShowNotes(e.target.value)}
                 placeholder={t("setlist.showContextPlaceholder")}
@@ -552,7 +552,7 @@ export default function SetlistBuilder() {
                     </div>
                     {notesOpen[s.id] && (
                       <div className="no-print mt-2">
-                        <textarea
+                        <textarea aria-label={t("setlist.stageNotesPlaceholder")}
                           value={s.stageNote}
                           onChange={(e) => updateSong(s.id, { stageNote: e.target.value })}
                           placeholder={t("setlist.stageNotesPlaceholder")}

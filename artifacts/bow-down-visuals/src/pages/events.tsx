@@ -112,7 +112,7 @@ export default function Events() {
               Streams sell attention. Drops sell product. 💰 Selling tickets? Link your store and get paid.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title"
+              <input aria-label="Event title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title"
                 maxLength={120} className={goldInput} />
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className={goldInput}>
                 <option value="stream">Stream</option>
@@ -122,11 +122,11 @@ export default function Events() {
               </select>
               <input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
                 className={goldInput} />
-              <input value={form.destination_url} onChange={(e) => setForm({ ...form, destination_url: e.target.value })}
+              <input aria-label="Stream / drop URL (where it happens)" value={form.destination_url} onChange={(e) => setForm({ ...form, destination_url: e.target.value })}
                 placeholder="Stream / drop URL (where it happens)" className={goldInput} />
-              <input value={form.ticket_url} onChange={(e) => setForm({ ...form, ticket_url: e.target.value })}
+              <input aria-label="Ticket URL (your store link)" value={form.ticket_url} onChange={(e) => setForm({ ...form, ticket_url: e.target.value })}
                 placeholder="Ticket URL (your store link)" className={`${goldInput} sm:col-span-2`} />
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              <textarea aria-label="Hype it up…" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Hype it up…" maxLength={5000} rows={3} className={`${goldInput} sm:col-span-2`} />
             </div>
             <p className="mt-2 text-xs text-white/40">

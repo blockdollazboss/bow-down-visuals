@@ -965,7 +965,7 @@ export default function MyShop() {
                         {pAffiliates && (
                           <div className="mt-3 flex items-center gap-2">
                             <label className="text-xs font-semibold text-white/50">Commission you pay</label>
-                            <input
+                            <input aria-label="Commission you pay"
                               className="w-24 rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none"
                               value={pAffiliatePct}
                               onChange={(e) => setPAffiliatePct(e.target.value)}

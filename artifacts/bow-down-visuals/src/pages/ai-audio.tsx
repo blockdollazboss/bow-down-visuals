@@ -1525,7 +1525,7 @@ function SamplesPanel() {
               <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
                 {t("samples.tempo")} — <span className="text-primary font-bold">{t("samples.bpm", { bpm })}</span>
               </label>
-              <input
+              <input aria-label={t("samples.tempo")}
                 type="range" min={60} max={180} value={bpm}
                 onChange={(e) => setBpm(Number(e.target.value))}
                 className="mt-3 w-full accent-amber-400"

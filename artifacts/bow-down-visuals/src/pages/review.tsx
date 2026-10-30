@@ -273,7 +273,7 @@ export default function ReviewPage() {
             <h1 className="mt-4 text-xl font-black text-center">{t("review.passwordRequired")}</h1>
             <p className="mt-2 text-sm text-white/50 text-center leading-relaxed">{t("review.passwordHint")}</p>
             <div className="relative mt-6">
-              <input
+              <input aria-label={t("review.enterPassword")}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -439,7 +439,7 @@ export default function ReviewPage() {
                 {/* Comment form */}
                 <div className="border-t border-white/[0.07] p-4 space-y-3 bg-black/40">
                   <div className="flex items-center gap-2">
-                    <input
+                    <input aria-label={t("review.yourName")}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={t("review.yourName")}
@@ -450,7 +450,7 @@ export default function ReviewPage() {
                       <Clock className="h-3 w-3" /> {formatReviewTime(currentTime)}
                     </span>
                   </div>
-                  <textarea
+                  <textarea aria-label={t("review.commentPlaceholder", { time: formatReviewTime(currentTime) })}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     placeholder={t("review.commentPlaceholder", { time: formatReviewTime(currentTime) })}

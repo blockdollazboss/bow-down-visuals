@@ -498,7 +498,7 @@ export default function LabelPitch() {
                   ))}
                 </select>
               ) : (
-                <input
+                <input aria-label={t("labelPitch.songTitlePlaceholder")}
                   value={songTitle}
                   onChange={(e) => setSongTitle(e.target.value)}
                   maxLength={200}
@@ -508,14 +508,14 @@ export default function LabelPitch() {
               )}
 
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <input
+                <input aria-label={t("labelPitch.artistNamePlaceholder")}
                   value={artistName}
                   onChange={(e) => setArtistName(e.target.value)}
                   maxLength={200}
                   placeholder={t("labelPitch.artistNamePlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("labelPitch.genrePlaceholder")}
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}
                   maxLength={100}
@@ -528,14 +528,14 @@ export default function LabelPitch() {
                     <option key={g} value={g}>{t(`labelPitch.genres.${g}`)}</option>
                   ))}
                 </datalist>
-                <input
+                <input aria-label={t("labelPitch.moodPlaceholder")}
                   value={mood}
                   onChange={(e) => setMood(e.target.value)}
                   maxLength={200}
                   placeholder={t("labelPitch.moodPlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("labelPitch.tempoPlaceholder")}
                   value={tempo}
                   onChange={(e) => setTempo(e.target.value)}
                   maxLength={50}
@@ -548,7 +548,7 @@ export default function LabelPitch() {
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("labelPitch.energyLabel", { energy })}
                 </label>
-                <input
+                <input aria-label={t("labelPitch.energyLabel", { energy })}
                   type="range"
                   min={0}
                   max={100}
@@ -558,7 +558,7 @@ export default function LabelPitch() {
                 />
               </div>
 
-              <textarea
+              <textarea aria-label={t("labelPitch.descriptionPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={1000}
@@ -576,7 +576,7 @@ export default function LabelPitch() {
 
               {showAdvanced && (
                 <div className="mt-4 space-y-4">
-                  <textarea
+                  <textarea aria-label={t("labelPitch.artistBioPlaceholder")}
                     value={artistBio}
                     onChange={(e) => setArtistBio(e.target.value)}
                     maxLength={2000}
@@ -584,14 +584,14 @@ export default function LabelPitch() {
                     placeholder={t("labelPitch.artistBioPlaceholder")}
                     className={`${inputClass} resize-y`}
                   />
-                  <input
+                  <input aria-label={t("labelPitch.socialStatsPlaceholder")}
                     value={socialStats}
                     onChange={(e) => setSocialStats(e.target.value)}
                     maxLength={500}
                     placeholder={t("labelPitch.socialStatsPlaceholder")}
                     className={inputClass}
                   />
-                  <textarea
+                  <textarea aria-label={t("labelPitch.lyricsPlaceholder")}
                     value={lyrics}
                     onChange={(e) => setLyrics(e.target.value)}
                     maxLength={5000}
@@ -606,7 +606,7 @@ export default function LabelPitch() {
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                   {t("labelPitch.targetLabel")}<span className="text-white/25 normal-case tracking-normal">{t("labelPitch.targetLabelHint")}</span>
                 </p>
-                <input
+                <input aria-label={t("labelPitch.labelNamePlaceholder")}
                   value={labelName}
                   onChange={(e) => setLabelName(e.target.value)}
                   maxLength={200}
@@ -882,14 +882,14 @@ export default function LabelPitch() {
             {showAddForm && (
               <div className={`mb-6 rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <input
+                  <input aria-label={t("labelPitch.songTitlePlaceholder")}
                     value={newSubmission.songTitle}
                     onChange={(e) => setNewSubmission({ ...newSubmission, songTitle: e.target.value })}
                     maxLength={200}
                     placeholder={t("labelPitch.songTitlePlaceholder")}
                     className={inputClass}
                   />
-                  <input
+                  <input aria-label={t("labelPitch.trackerLabelNamePlaceholder")}
                     value={newSubmission.labelName}
                     onChange={(e) => setNewSubmission({ ...newSubmission, labelName: e.target.value })}
                     maxLength={200}
@@ -902,14 +902,14 @@ export default function LabelPitch() {
                       <option key={l.id} value={l.name} />
                     ))}
                   </datalist>
-                  <input
+                  <input aria-label={t("labelPitch.artistNamePlaceholder")}
                     value={newSubmission.artistName}
                     onChange={(e) => setNewSubmission({ ...newSubmission, artistName: e.target.value })}
                     maxLength={200}
                     placeholder={t("labelPitch.artistNamePlaceholder")}
                     className={`${inputClass} sm:col-span-2`}
                   />
-                  <textarea
+                  <textarea aria-label={t("labelPitch.notesPlaceholder")}
                     value={newSubmission.notes}
                     onChange={(e) => setNewSubmission({ ...newSubmission, notes: e.target.value })}
                     maxLength={1000}
@@ -1619,7 +1619,7 @@ function PlaylistsPitchTab() {
                 ))}
               </select>
             ) : (
-              <input
+              <input aria-label={t("playlistPitch.songTitlePlaceholder")}
                 value={songTitle}
                 onChange={(e) => setSongTitle(e.target.value)}
                 maxLength={200}
@@ -1629,14 +1629,14 @@ function PlaylistsPitchTab() {
             )}
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <input
+              <input aria-label={t("playlistPitch.artistNamePlaceholder")}
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
                 maxLength={200}
                 placeholder={t("playlistPitch.artistNamePlaceholder")}
                 className={inputClass}
               />
-              <input
+              <input aria-label={t("playlistPitch.genrePlaceholder")}
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 maxLength={100}
@@ -1684,14 +1684,14 @@ function PlaylistsPitchTab() {
             {showAdvanced && (
               <div className="mt-4 space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <input
+                  <input aria-label={t("playlistPitch.moodPlaceholder")}
                     value={mood}
                     onChange={(e) => setMood(e.target.value)}
                     maxLength={200}
                     placeholder={t("playlistPitch.moodPlaceholder")}
                     className={inputClass}
                   />
-                  <input
+                  <input aria-label={t("playlistPitch.tempoPlaceholder")}
                     value={tempo}
                     onChange={(e) => setTempo(e.target.value)}
                     maxLength={50}
@@ -1699,7 +1699,7 @@ function PlaylistsPitchTab() {
                     className={inputClass}
                   />
                 </div>
-                <textarea
+                <textarea aria-label={t("playlistPitch.descriptionPlaceholder")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={1000}
@@ -1707,7 +1707,7 @@ function PlaylistsPitchTab() {
                   placeholder={t("playlistPitch.descriptionPlaceholder")}
                   className={`${inputClass} resize-y`}
                 />
-                <textarea
+                <textarea aria-label={t("playlistPitch.lyricsPlaceholder")}
                   value={lyrics}
                   onChange={(e) => setLyrics(e.target.value)}
                   maxLength={5000}
@@ -1716,14 +1716,14 @@ function PlaylistsPitchTab() {
                   className={`${inputClass} resize-y`}
                 />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <input
+                  <input aria-label={t("playlistPitch.curatorNamePlaceholder")}
                     value={curatorName}
                     onChange={(e) => setCuratorName(e.target.value)}
                     maxLength={200}
                     placeholder={t("playlistPitch.curatorNamePlaceholder")}
                     className={inputClass}
                   />
-                  <input
+                  <input aria-label={t("playlistPitch.playlistNamePlaceholder")}
                     value={playlistName}
                     onChange={(e) => setPlaylistName(e.target.value)}
                     maxLength={200}
@@ -1962,14 +1962,14 @@ function PlaylistsPitchTab() {
             {showDeadlineForm && (
               <div className="mt-4 rounded-2xl border border-white/10 p-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <input
+                  <input aria-label={t("playlistPitch.playlistNamePlaceholder")}
                     value={newDeadline.playlistName}
                     onChange={(e) => setNewDeadline({ ...newDeadline, playlistName: e.target.value })}
                     maxLength={200}
                     placeholder={t("playlistPitch.playlistNamePlaceholder")}
                     className={inputClass}
                   />
-                  <input
+                  <input aria-label={t("playlistPitch.curatorNamePlaceholder")}
                     value={newDeadline.curatorName}
                     onChange={(e) => setNewDeadline({ ...newDeadline, curatorName: e.target.value })}
                     maxLength={200}
@@ -2283,28 +2283,28 @@ function PlaylistsPitchTab() {
           {showAddForm && (
             <div className={`${isLight ? "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6" : "mt-4 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6"}`}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
+                <input aria-label={t("playlistPitch.songTitlePlaceholder")}
                   value={newPitch.songTitle}
                   onChange={(e) => setNewPitch({ ...newPitch, songTitle: e.target.value })}
                   maxLength={200}
                   placeholder={t("playlistPitch.songTitlePlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("playlistPitch.playlistNamePlaceholder")}
                   value={newPitch.playlistName}
                   onChange={(e) => setNewPitch({ ...newPitch, playlistName: e.target.value })}
                   maxLength={200}
                   placeholder={t("playlistPitch.playlistNamePlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("playlistPitch.artistNamePlaceholder")}
                   value={newPitch.artistName}
                   onChange={(e) => setNewPitch({ ...newPitch, artistName: e.target.value })}
                   maxLength={200}
                   placeholder={t("playlistPitch.artistNamePlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label={t("playlistPitch.curatorNamePlaceholder")}
                   value={newPitch.curatorName}
                   onChange={(e) => setNewPitch({ ...newPitch, curatorName: e.target.value })}
                   maxLength={200}
@@ -2312,7 +2312,7 @@ function PlaylistsPitchTab() {
                   className={inputClass}
                 />
               </div>
-              <textarea
+              <textarea aria-label={t("playlistPitch.notesPlaceholder")}
                 value={newPitch.notes}
                 onChange={(e) => setNewPitch({ ...newPitch, notes: e.target.value })}
                 maxLength={1000}

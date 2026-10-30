@@ -423,7 +423,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("brandDeals.nicheLabel")}
               </p>
-              <input
+              <input aria-label={niche}
                 value={customNiche}
                 onChange={(e) => setCustomNiche(e.target.value)}
                 maxLength={100}
@@ -468,7 +468,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
               <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="3">
                 {t("brandDeals.nameLabel")} <span className="text-white/25 normal-case tracking-normal">{t("brandDeals.nameLabelHint")}</span>
               </p>
-              <input
+              <input aria-label={t("brandDeals.namePlaceholder")}
                 value={creatorName}
                 data-min-stars="3"
                 onChange={(e) => setCreatorName(e.target.value)}
@@ -500,7 +500,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
                 </button>
               );
             })}
-            <input
+            <input aria-label={t("brandDeals.addPlatformPlaceholder")}
               value={customPlatform}
               onChange={(e) => setCustomPlatform(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomPlatform(); } }}
@@ -514,7 +514,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
           <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("brandDeals.contentStyleLabel")}
           </p>
-          <textarea
+          <textarea aria-label={t("brandDeals.contentStylePlaceholder")}
             value={contentStyle}
             onChange={(e) => setContentStyle(e.target.value)}
             maxLength={200}
@@ -1438,7 +1438,7 @@ function MarketplaceTab() {
 
       {/* filter */}
       <div className="mt-8 flex max-w-sm items-center gap-2" data-min-stars="2">
-        <input value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} maxLength={60}
+        <input aria-label={t("sponsors.filterPlaceholder")} value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} maxLength={60}
           placeholder={t("sponsors.filterPlaceholder")} className={inputClass} />
       </div>
 
@@ -1518,17 +1518,17 @@ function MarketplaceTab() {
         <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
           <div>
             <p className={marketplaceSectionLabel}>{t("sponsors.matchNicheLabel")}</p>
-            <input value={matchNiche} onChange={(e) => setMatchNiche(e.target.value)} maxLength={120}
+            <input aria-label={t("sponsors.matchNichePlaceholder")} value={matchNiche} onChange={(e) => setMatchNiche(e.target.value)} maxLength={120}
               placeholder={t("sponsors.matchNichePlaceholder")} className={inputClass} />
           </div>
           <div data-min-stars="3">
             <p className={marketplaceSectionLabel}>{t("sponsors.matchFollowersLabel")}</p>
-            <input value={matchFollowers} onChange={(e) => setMatchFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+            <input aria-label={t("sponsors.matchFollowersPlaceholder")} value={matchFollowers} onChange={(e) => setMatchFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
               inputMode="numeric" placeholder={t("sponsors.matchFollowersPlaceholder")} className={inputClass} />
           </div>
           <div data-min-stars="3">
             <p className={marketplaceSectionLabel}>{t("sponsors.matchPlatformsLabel")}</p>
-            <input value={matchPlatforms} onChange={(e) => setMatchPlatforms(e.target.value)} maxLength={200}
+            <input aria-label={t("sponsors.matchPlatformsPlaceholder")} value={matchPlatforms} onChange={(e) => setMatchPlatforms(e.target.value)} maxLength={200}
               placeholder={t("sponsors.matchPlatformsPlaceholder")} className={inputClass} />
           </div>
         </div>

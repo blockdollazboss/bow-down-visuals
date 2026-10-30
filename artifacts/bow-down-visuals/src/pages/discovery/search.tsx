@@ -184,7 +184,7 @@ export default function Search() {
         }}
       >
         <SearchIcon className="h-5 w-5 shrink-0 text-[#e8c86a]" />
-        <input
+        <input aria-label="Search creators, tracks, videos, playlists…"
           value={q}
           onChange={(e) => {
             setQ(e.target.value);

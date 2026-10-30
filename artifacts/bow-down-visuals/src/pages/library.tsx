@@ -192,7 +192,7 @@ export default function Library() {
         {/* ── Search ── */}
         <div className="relative max-w-xl mx-auto mb-6">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-          <input
+          <input aria-label={t("library.searchPlaceholder", { defaultValue: "Search templates, presets, fonts…" })}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("library.searchPlaceholder", { defaultValue: "Search templates, presets, fonts…" })}

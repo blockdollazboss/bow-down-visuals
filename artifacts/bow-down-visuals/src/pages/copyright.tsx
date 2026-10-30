@@ -529,7 +529,7 @@ export default function CopyrightAssistant() {
               <label className="flex cursor-pointer items-center gap-2.5 text-sm text-white/70">
                 <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 accent-[#d4af37]" />{t("copyright.already_published_released")}</label>
               {published && (
-                <input className={inputClass} value={publishedDate} onChange={(e) => setPublishedDate(e.target.value)} placeholder={t("copyright.release_date")} maxLength={20} />
+                <input aria-label={t("copyright.release_date")} className={inputClass} value={publishedDate} onChange={(e) => setPublishedDate(e.target.value)} placeholder={t("copyright.release_date")} maxLength={20} />
               )}
             </div>
             <div data-min-stars="3" className="sm:col-span-2">
@@ -688,7 +688,7 @@ export default function CopyrightAssistant() {
           </div>
 
           <div className="mt-4 flex gap-2">
-            <input
+            <input aria-label={user ? "Ask anything about copyright registration…" : "Sign in to ask questions"}
               className={inputClass}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}

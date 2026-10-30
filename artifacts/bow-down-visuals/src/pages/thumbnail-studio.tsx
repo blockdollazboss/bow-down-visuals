@@ -1388,14 +1388,14 @@ function ThumbnailAbTester() {
 
         {/* Context inputs */}
         <div className="grid md:grid-cols-2 gap-4 mb-6">
-          <input
+          <input aria-label={t("thumbnailTest.titlePlaceholder")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("thumbnailTest.titlePlaceholder")}
             maxLength={200}
             className={isLight ? "rounded-xl bg-[#F7F1E3] border border-black/10 px-4 py-3 text-sm text-black/80 placeholder:text-black/25 focus:border-primary/60 focus:outline-none" : "rounded-xl bg-[#0a0a0a] border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none"}
           />
-          <input
+          <input aria-label={t("thumbnailTest.nichePlaceholder")}
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
             placeholder={t("thumbnailTest.nichePlaceholder")}

@@ -690,7 +690,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                   {/* Search */}
                   <div className="relative mb-4">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
-                    <input
+                    <input aria-label={t("promo-clip.searchPlaceholder")}
                       type="text"
                       placeholder={t("promo-clip.searchPlaceholder")}
                       value={projectSearch}
@@ -870,7 +870,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                     <div className="space-y-2">
                       <FieldLabel>{t("promo-clip.advanced.hookOverride")}</FieldLabel>
                       <p className="text-xs text-white/25">{t("promo-clip.advanced.hookOverrideHint")}</p>
-                      <textarea
+                      <textarea aria-label={t("promo-clip.advanced.hookPlaceholder")}
                         value={hookOverride}
                         onChange={(e) => setHookOverride(e.target.value)}
                         placeholder={t("promo-clip.advanced.hookPlaceholder")}
@@ -880,7 +880,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
                     </div>
                     <div className="space-y-2">
                       <FieldLabel>{t("promo-clip.advanced.specialInstructions")}</FieldLabel>
-                      <textarea
+                      <textarea aria-label={t("promo-clip.advanced.instructionsPlaceholder")}
                         value={projSpecialInstructions}
                         onChange={(e) => setProjSpecialInstructions(e.target.value)}
                         placeholder={t("promo-clip.advanced.instructionsPlaceholder")}

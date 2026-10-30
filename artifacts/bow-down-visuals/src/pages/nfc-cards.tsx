@@ -367,15 +367,15 @@ export default function NfcCards() {
               {step === "details" && (
                 <div className="space-y-4 max-w-xl">
                   <p className={`${isLight ? "text-[#6B5B36] text-sm" : "text-zinc-400 text-sm"}`}>{t("nfcCards.detailsHint")}</p>
-                  <input className={inputCls} placeholder={t("nfcCards.displayNamePlaceholder")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-                  <input className={inputCls} placeholder={t("nfcCards.titlePlaceholder")} value={title} onChange={(e) => setTitle(e.target.value)} />
-                  <textarea className={inputCls} rows={3} placeholder={t("nfcCards.bioPlaceholder")} value={bio} onChange={(e) => setBio(e.target.value)} />
+                  <input aria-label={t("nfcCards.quantity")} className={inputCls} placeholder={t("nfcCards.displayNamePlaceholder")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+                  <input aria-label={t("nfcCards.titlePlaceholder")} className={inputCls} placeholder={t("nfcCards.titlePlaceholder")} value={title} onChange={(e) => setTitle(e.target.value)} />
+                  <textarea aria-label={t("nfcCards.bioPlaceholder")} className={inputCls} rows={3} placeholder={t("nfcCards.bioPlaceholder")} value={bio} onChange={(e) => setBio(e.target.value)} />
                   <div>
                     <label className={`${isLight ? "text-sm text-[#6B5B36] mb-2 block" : "text-sm text-zinc-400 mb-2 block"}`}>{t("nfcCards.linksLabel")}</label>
                     {links.map((l, i) => (
                       <div key={i} className="flex gap-2 mb-2">
-                        <input className={inputCls} placeholder={t("nfcCards.linkLabelPlaceholder")} value={l.label} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                        <input className={inputCls} placeholder="https://…" value={l.url} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, url: e.target.value } : x))} />
+                        <input aria-label={t("nfcCards.linksLabel")} className={inputCls} placeholder={t("nfcCards.linkLabelPlaceholder")} value={l.label} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                        <input aria-label="https://…" className={inputCls} placeholder="https://…" value={l.url} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, url: e.target.value } : x))} />
                         <button aria-label="Remove link" onClick={() => setLinks(links.filter((_, j) => j !== i))} className={`${isLight ? "px-3 text-[#8A7A56] hover:text-red-500" : "px-3 text-zinc-500 hover:text-red-400"}`}><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ))}
@@ -391,15 +391,15 @@ export default function NfcCards() {
               {step === "shipping" && (
                 <div className="space-y-4 max-w-xl">
                   <div className="grid grid-cols-2 gap-4">
-                    <input className={inputCls} placeholder={t("nfcCards.fullNamePlaceholder")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                    <input className={inputCls} placeholder={t("nfcCards.phonePlaceholder")} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <input aria-label={t("nfcCards.fullNamePlaceholder")} className={inputCls} placeholder={t("nfcCards.fullNamePlaceholder")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    <input aria-label={t("nfcCards.phonePlaceholder")} className={inputCls} placeholder={t("nfcCards.phonePlaceholder")} value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
-                  <input className={inputCls} placeholder={t("nfcCards.emailPlaceholder")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  <input className={inputCls} placeholder={t("nfcCards.streetPlaceholder")} value={street} onChange={(e) => setStreet(e.target.value)} />
+                  <input aria-label={t("nfcCards.emailPlaceholder")} className={inputCls} placeholder={t("nfcCards.emailPlaceholder")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input aria-label={t("nfcCards.streetPlaceholder")} className={inputCls} placeholder={t("nfcCards.streetPlaceholder")} value={street} onChange={(e) => setStreet(e.target.value)} />
                   <div className="grid grid-cols-3 gap-4">
-                    <input className={inputCls} placeholder={t("nfcCards.cityPlaceholder")} value={city} onChange={(e) => setCity(e.target.value)} />
-                    <input className={inputCls} placeholder={t("nfcCards.statePlaceholder")} value={state_} onChange={(e) => setState_(e.target.value)} />
-                    <input className={inputCls} placeholder={t("nfcCards.zipPlaceholder")} value={zip} onChange={(e) => setZip(e.target.value)} />
+                    <input aria-label={t("nfcCards.cityPlaceholder")} className={inputCls} placeholder={t("nfcCards.cityPlaceholder")} value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input aria-label={t("nfcCards.statePlaceholder")} className={inputCls} placeholder={t("nfcCards.statePlaceholder")} value={state_} onChange={(e) => setState_(e.target.value)} />
+                    <input aria-label={t("nfcCards.zipPlaceholder")} className={inputCls} placeholder={t("nfcCards.zipPlaceholder")} value={zip} onChange={(e) => setZip(e.target.value)} />
                   </div>
                   <p className={`${isLight ? "text-xs text-[#8A7A56] flex items-center gap-2" : "text-xs text-zinc-500 flex items-center gap-2"}`}>
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -597,17 +597,17 @@ export default function NfcCards() {
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 p-4" onClick={() => setEditing(null)}>
           <div className={`${isLight ? "w-full max-w-lg rounded-3xl border p-6 space-y-4 border-[#C9A84C]/30 bg-[#FCF7EA]" : "w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-4"}`} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold">{t("nfcCards.editDigitalCard")}</h3>
-            <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" value={editing.display_name}
+            <input aria-label={t("nfcCards.displayName")} className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" value={editing.display_name}
               onChange={(e) => setEditing({ ...editing, display_name: e.target.value })} placeholder={t("nfcCards.displayName")} />
-            <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" value={editing.title ?? ""}
+            <input aria-label={t("nfcCards.title")} className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" value={editing.title ?? ""}
               onChange={(e) => setEditing({ ...editing, title: e.target.value })} placeholder={t("nfcCards.title")} />
-            <textarea className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" rows={2} value={editing.bio ?? ""}
+            <textarea aria-label={t("nfcCards.bio")} className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3" rows={2} value={editing.bio ?? ""}
               onChange={(e) => setEditing({ ...editing, bio: e.target.value })} placeholder={t("nfcCards.bio")} />
             {editing.links.map((l, i) => (
               <div key={i} className="flex gap-2">
-                <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm" value={l.label}
+                <input aria-label={t("nfcCards.linkLabelPlaceholder")} className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm" value={l.label}
                   onChange={(e) => setEditing({ ...editing, links: editing.links.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} placeholder={t("nfcCards.linkLabelPlaceholder")} />
-                <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm" value={l.url}
+                <input aria-label="https://…" className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm" value={l.url}
                   onChange={(e) => setEditing({ ...editing, links: editing.links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) })} placeholder="https://…" />
                 <button aria-label="Remove link" onClick={() => setEditing({ ...editing, links: editing.links.filter((_, j) => j !== i) })}
                   className={`${isLight ? "text-[#8A7A56] hover:text-red-500 px-2" : "text-zinc-500 hover:text-red-400 px-2"}`}><Trash2 className="w-4 h-4" /></button>

@@ -421,7 +421,7 @@ export default function GroupDetail() {
           <div className="mt-6 space-y-4">
             {user && isMember && (
               <div className="rounded-xl border border-white/10 bg-[#0d0a02] p-4">
-                <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={2000}
+                <textarea aria-label="Say something to the crew…" value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} maxLength={2000}
                   placeholder="Say something to the crew…" className={goldInput} />
                 <div className="mt-2 flex justify-end">
                   <button type="button" onClick={post} disabled={busy || !draft.trim()} className={goldButton}>
@@ -545,7 +545,7 @@ export default function GroupDetail() {
                   </p>
                 ) : forumCaps.can_post ? (
                   <div className="mt-4 rounded-xl border border-white/10 bg-[#0d0a02] p-4">
-                    <textarea value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={3} maxLength={5000}
+                    <textarea aria-label="Write your reply…" value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} rows={3} maxLength={5000}
                       placeholder="Write your reply…" className={goldInput} />
                     <div className="mt-2 flex justify-end">
                       <button type="button" onClick={postReply} disabled={busy || !replyDraft.trim()} className={goldButton}>
@@ -573,9 +573,9 @@ export default function GroupDetail() {
                   </div>
                   {showChannelForm && forumCaps.can_manage_channels && (
                     <div className="rounded-xl border border-[#e8c86a]/25 bg-[#0d0a02] p-3">
-                      <input value={channelName} onChange={(e) => setChannelName(e.target.value)} maxLength={60}
+                      <input aria-label="Channel name" value={channelName} onChange={(e) => setChannelName(e.target.value)} maxLength={60}
                         placeholder="Channel name" className={goldInput} />
-                      <input value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} maxLength={500}
+                      <input aria-label="What's it for? (optional)" value={channelDesc} onChange={(e) => setChannelDesc(e.target.value)} maxLength={500}
                         placeholder="What's it for? (optional)" className={`${goldInput} mt-2`} />
                       <select value={channelGateTier} onChange={(e) => setChannelGateTier(e.target.value)}
                         className={`${goldInput} mt-2`} aria-label="Who can enter this channel">
@@ -687,11 +687,11 @@ export default function GroupDetail() {
                   )}
                   {showThreadForm && forumCaps.can_post && channelId && (
                     <div className="rounded-xl border border-[#e8c86a]/25 bg-[#0d0a02] p-4">
-                      <input value={threadTitle} onChange={(e) => setThreadTitle(e.target.value)} maxLength={120}
+                      <input aria-label="Thread title" value={threadTitle} onChange={(e) => setThreadTitle(e.target.value)} maxLength={120}
                         placeholder="Thread title" className={goldInput} />
-                      <textarea value={threadBody} onChange={(e) => setThreadBody(e.target.value)} rows={4} maxLength={5000}
+                      <textarea aria-label="Start the conversation…" value={threadBody} onChange={(e) => setThreadBody(e.target.value)} rows={4} maxLength={5000}
                         placeholder="Start the conversation…" className={`${goldInput} mt-2`} />
-                      <input value={threadTags} onChange={(e) => setThreadTags(e.target.value)}
+                      <input aria-label="Tags (optional, comma-separated — e.g. releases, feedback)" value={threadTags} onChange={(e) => setThreadTags(e.target.value)}
                         placeholder="Tags (optional, comma-separated — e.g. releases, feedback)" className={`${goldInput} mt-2`} />
                       <div className="mt-2 flex justify-end">
                         <button type="button" onClick={createThread} disabled={busy || !threadTitle.trim() || !threadBody.trim()} className={goldButton}>
@@ -798,7 +798,7 @@ export default function GroupDetail() {
                 </div>
                 {showBroadcast && (
                   <div className="mt-3">
-                    <textarea value={broadcast} onChange={(e) => setBroadcast(e.target.value)} rows={3} maxLength={2000}
+                    <textarea aria-label="One message to every member's DMs…" value={broadcast} onChange={(e) => setBroadcast(e.target.value)} rows={3} maxLength={2000}
                       placeholder="One message to every member's DMs…" className={goldInput} />
                     <div className="mt-2 flex justify-end">
                       <button type="button" onClick={sendBroadcast} disabled={busy || !broadcast.trim()} className={goldButton}>

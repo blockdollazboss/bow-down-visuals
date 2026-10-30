@@ -498,14 +498,14 @@ export default function PodcastStudio() {
                 <PodcastIcon className="h-4 w-4 text-primary" />
                 {t("podcast.episode.title")}
               </h2>
-              <input
+              <input aria-label={t("podcast.episode.titlePlaceholder")}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
                 placeholder={t("podcast.episode.titlePlaceholder")}
                 className={inputClass}
               />
-              <textarea
+              <textarea aria-label={t("podcast.episode.descriptionPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -551,7 +551,7 @@ export default function PodcastStudio() {
                       {t("podcast.script.creditsCost", { credits: estimate.credits * 100 })}
                     </span>
                   </div>
-                  <textarea
+                  <textarea aria-label={t("podcast.script.placeholder")}
                     value={script}
                     onChange={(e) => setScript(e.target.value)}
                     rows={10}
@@ -564,7 +564,7 @@ export default function PodcastStudio() {
 
               {mode === "topic" && (
                 <>
-                  <input
+                  <input aria-label={t("podcast.topic.placeholder")}
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     maxLength={300}
@@ -579,7 +579,7 @@ export default function PodcastStudio() {
 
               {mode === "video" && (
                 <>
-                  <input
+                  <input aria-label={t("podcast.video.placeholder")}
                     value={videoUrl}
                     onChange={(e) => setVideoUrl(e.target.value)}
                     placeholder={t("podcast.video.placeholder")}
@@ -623,7 +623,7 @@ export default function PodcastStudio() {
                         {t("podcast.script.creditsCost", { credits: dialogueEstimate.credits * 100 })}
                       </span>
                     </div>
-                    <textarea
+                    <textarea aria-label={t("podcast.dialogue.scriptPlaceholder")}
                       value={dialogueScript}
                       onChange={(e) => setDialogueScript(e.target.value)}
                       rows={10}

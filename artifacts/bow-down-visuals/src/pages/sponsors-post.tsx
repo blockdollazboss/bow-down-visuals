@@ -165,22 +165,22 @@ export default function SponsorPost() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.brandNameLabel")}</p>
-                <input value={brandName} onChange={(e) => setBrandName(e.target.value)} maxLength={120}
+                <input aria-label={t("sponsorsPost.brandNamePlaceholder")} value={brandName} onChange={(e) => setBrandName(e.target.value)} maxLength={120}
                   placeholder={t("sponsorsPost.brandNamePlaceholder")} className={inputClass} />
               </div>
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.nicheLabel")}</p>
-                <input value={niche} onChange={(e) => setNiche(e.target.value)} maxLength={120}
+                <input aria-label={t("sponsorsPost.nichePlaceholder")} value={niche} onChange={(e) => setNiche(e.target.value)} maxLength={120}
                   placeholder={t("sponsorsPost.nichePlaceholder")} className={inputClass} />
               </div>
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.budgetMinLabel")}</p>
-                <input value={budgetMin} onChange={(e) => setBudgetMin(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+                <input aria-label={t("sponsorsPost.budgetMinPlaceholder")} value={budgetMin} onChange={(e) => setBudgetMin(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
                   inputMode="numeric" placeholder={t("sponsorsPost.budgetMinPlaceholder")} className={inputClass} />
               </div>
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.budgetMaxLabel")}</p>
-                <input value={budgetMax} onChange={(e) => setBudgetMax(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+                <input aria-label={t("sponsorsPost.budgetMaxPlaceholder")} value={budgetMax} onChange={(e) => setBudgetMax(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
                   inputMode="numeric" placeholder={t("sponsorsPost.budgetMaxPlaceholder")} className={inputClass} />
               </div>
               <div>
@@ -190,12 +190,12 @@ export default function SponsorPost() {
               </div>
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.deliverablesLabel")}</p>
-                <input value={deliverables} onChange={(e) => setDeliverables(e.target.value)} maxLength={500}
+                <input aria-label={t("sponsorsPost.deliverablesPlaceholder")} value={deliverables} onChange={(e) => setDeliverables(e.target.value)} maxLength={500}
                   placeholder={t("sponsorsPost.deliverablesPlaceholder")} className={inputClass} />
               </div>
             </div>
             <p className={`${sectionLabel} mt-4`}>{t("sponsorsPost.descriptionLabel")}</p>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={4}
+            <textarea aria-label={t("sponsorsPost.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={4}
               placeholder={t("sponsorsPost.descriptionPlaceholder")} className={`${inputClass} resize-y`} />
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4">

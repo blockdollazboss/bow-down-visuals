@@ -550,20 +550,20 @@ export default function Shoutouts() {
                 <div className="space-y-4">
                   <div>
                     <label className={labelCls}>{t("shoutouts.yourNameLabel")}</label>
-                    <input value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder={t("shoutouts.yourNamePlaceholder")} className={inputCls} />
+                    <input aria-label={t("shoutouts.yourNameLabel")} value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder={t("shoutouts.yourNamePlaceholder")} className={inputCls} />
                   </div>
                   <div>
                     <label className={labelCls}>{t("shoutouts.emailLabel")}</label>
-                    <input value={fanEmail} onChange={(e) => setFanEmail(e.target.value)} placeholder={t("shoutouts.emailPlaceholder")} className={inputCls} />
+                    <input aria-label={t("shoutouts.emailLabel")} value={fanEmail} onChange={(e) => setFanEmail(e.target.value)} placeholder={t("shoutouts.emailPlaceholder")} className={inputCls} />
                   </div>
                   <div>
                     <label className={labelCls}>{t("shoutouts.occasionLabel")}</label>
-                    <select value={occasion} onChange={(e) => setOccasion(e.target.value)} className={`${inputCls} bg-black`}>
+                    <select aria-label={t("shoutouts.occasionLabel")} value={occasion} onChange={(e) => setOccasion(e.target.value)} className={`${inputCls} bg-black`}>
                       {OCCASIONS.map((o) => <option key={o}>{o}</option>)}
                       <option>Custom…</option>
                     </select>
                     {occasion === "Custom…" && (
-                      <input value={customOccasion} onChange={(e) => setCustomOccasion(e.target.value)} placeholder={t("shoutouts.customOccasionPlaceholder")} className={`${inputCls} mt-2`} />
+                      <input aria-label={t("shoutouts.customOccasionPlaceholder")} value={customOccasion} onChange={(e) => setCustomOccasion(e.target.value)} placeholder={t("shoutouts.customOccasionPlaceholder")} className={`${inputCls} mt-2`} />
                     )}
                   </div>
                   <div>
@@ -575,7 +575,7 @@ export default function Shoutouts() {
                         {t("shoutouts.aiPolishButton")}
                       </button>
                     </div>
-                    <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4}
+                    <textarea aria-label={t("shoutouts.messageLabel")} value={message} onChange={(e) => setMessage(e.target.value)} rows={4}
                       placeholder={t("shoutouts.messagePlaceholder")}
                       className={inputCls} />
                     {aiError && <p className="text-xs text-red-400 mt-1">{aiError}</p>}
@@ -626,21 +626,21 @@ export default function Shoutouts() {
                   <div className="space-y-4">
                     <div>
                       <label className={labelCls}>{t("shoutouts.displayNameLabel")}</label>
-                      <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("shoutouts.displayNamePlaceholder")} className={inputCls} />
+                      <input aria-label={t("shoutouts.displayNameLabel")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("shoutouts.displayNamePlaceholder")} className={inputCls} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={labelCls}>{t("shoutouts.priceLabel")}</label>
-                        <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" min="0" max="999.99" step="0.01" className={inputCls} />
+                        <input aria-label={t("shoutouts.priceLabel")} value={price} onChange={(e) => setPrice(e.target.value)} type="number" min="0" max="999.99" step="0.01" className={inputCls} />
                       </div>
                       <div>
                         <label className={labelCls}>{t("shoutouts.turnaroundLabel")}</label>
-                        <input value={turnaround} onChange={(e) => setTurnaround(e.target.value)} type="number" min="1" max="90" className={inputCls} />
+                        <input aria-label={t("shoutouts.turnaroundLabel")} value={turnaround} onChange={(e) => setTurnaround(e.target.value)} type="number" min="1" max="90" className={inputCls} />
                       </div>
                     </div>
                     <div>
                       <label className={labelCls}>{t("shoutouts.guidelinesLabel")}</label>
-                      <textarea value={guidelines} onChange={(e) => setGuidelines(e.target.value)} rows={3}
+                      <textarea aria-label={t("shoutouts.guidelinesLabel")} value={guidelines} onChange={(e) => setGuidelines(e.target.value)} rows={3}
                         placeholder={t("shoutouts.guidelinesPlaceholder")} className={inputCls} />
                     </div>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -728,7 +728,7 @@ export default function Shoutouts() {
                                     <input type="file" accept="video/*" className="hidden"
                                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDeliveryVideo(r.id, r.status, f); e.target.value = ""; }} />
                                   </label>
-                                  <input value={deliveryUrls[r.id] ?? ""} onChange={(e) => setDeliveryUrls({ ...deliveryUrls, [r.id]: e.target.value })}
+                                  <input aria-label={t("shoutouts.pasteUrlPlaceholder")} value={deliveryUrls[r.id] ?? ""} onChange={(e) => setDeliveryUrls({ ...deliveryUrls, [r.id]: e.target.value })}
                                     placeholder={t("shoutouts.pasteUrlPlaceholder")} className="flex-1 min-w-[180px] bg-black border border-white/10 rounded-lg px-3 py-1.5 text-xs placeholder:text-white/25" />
                                   <button onClick={() => updateRequest(r.id, "delivered")} disabled={!!acting}
                                     className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-bold hover:bg-emerald-500/25">{t("shoutouts.markDeliveredButton")}</button>

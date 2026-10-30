@@ -1295,7 +1295,7 @@ function CommunityPostsTab(props: {
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
           <label className={labelClass}>{t("scheduler.communityPosts.topic")}</label>
-          <textarea
+          <textarea aria-label={t("scheduler.communityPosts.topic")}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             rows={2}
@@ -1343,7 +1343,7 @@ function CommunityPostsTab(props: {
         </div>
         <div>
           <label className={labelClass}>{t("scheduler.communityPosts.cta")}</label>
-          <input
+          <input aria-label={t("scheduler.communityPosts.cta")}
             value={cta}
             onChange={(e) => setCta(e.target.value)}
             maxLength={160}
@@ -1353,7 +1353,7 @@ function CommunityPostsTab(props: {
         </div>
         <div>
           <label className={labelClass}>{t("scheduler.communityPosts.niche")}</label>
-          <input
+          <input aria-label={t("scheduler.communityPosts.niche")}
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
             maxLength={60}
@@ -1619,7 +1619,7 @@ function BestTimeOptimizer(props: {
               </button>
             ))}
           </div>
-          <input
+          <input aria-label={t("scheduler.bestTime.niche")}
             value={niche}
             onChange={(e) => {
               nicheTouched.current = true;
@@ -1656,7 +1656,7 @@ function BestTimeOptimizer(props: {
         <div className="mt-5 flex flex-wrap items-end gap-4">
           <div>
             <label className={labelClass}>{t("scheduler.bestTime.postsPerWeek")}</label>
-            <input
+            <input aria-label={t("scheduler.bestTime.postsPerWeek")}
               type="number"
               min={1}
               max={14}
@@ -2301,7 +2301,7 @@ function ComposerModal(props: {
               {t("scheduler.composer.aiCaption")}
             </button>
           </div>
-          <textarea
+          <textarea aria-label={t("scheduler.composer.caption")}
             value={caption}
             onChange={(e) => setCaption(e.target.value.slice(0, 5000))}
             rows={4}
@@ -2318,7 +2318,7 @@ function ComposerModal(props: {
 
         <div className="mt-4">
           <label className={labelClass}>{t("scheduler.composer.hashtags")}</label>
-          <input
+          <input aria-label={t("scheduler.composer.hashtags")}
             value={hashtags}
             onChange={(e) => setHashtags(e.target.value)}
             placeholder="#sharkking #newmusic"
@@ -2385,7 +2385,7 @@ function ComposerModal(props: {
                       <a href="/dashboard" className="font-bold underline">{t("scheduler.composer.noAccountLink")}</a>{t("scheduler.composer.noAccount2")}
                     </p>
                   ) : (
-                    <select
+                    <select aria-label={t("scheduler.composer.accountLabel", { platform: label })}
                       value={accountIds[p] ?? ""}
                       onChange={(e) => setAccountIds((cur) => ({ ...cur, [p]: e.target.value }))}
                       className={`${inputClass} appearance-none`}
@@ -2408,11 +2408,11 @@ function ComposerModal(props: {
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelClass}>{t("scheduler.composer.date")}</label>
-            <input type="date" value={date} min={todayLocal()} onChange={(e) => setDate(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
+            <input aria-label={t("scheduler.composer.date")} type="date" value={date} min={todayLocal()} onChange={(e) => setDate(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
           </div>
           <div>
             <label className={labelClass}>{t("scheduler.composer.time")}</label>
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
+            <input aria-label={t("scheduler.composer.time")} type="time" value={time} onChange={(e) => setTime(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
           </div>
         </div>
         <p className="mt-2 text-[12px] text-white/35">

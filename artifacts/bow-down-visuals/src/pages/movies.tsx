@@ -262,7 +262,7 @@ export default function Movies() {
               <label data-min-stars="3" className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 {t("movies.genreLabel")} <span className="text-white/25 normal-case">{t("movies.optional")}</span>
               </label>
-              <input
+              <input aria-label={t("movies.genreLabel")}
                 value={genre}
                 data-min-stars="3"
                 onChange={(e) => setGenre(e.target.value)}
@@ -273,7 +273,7 @@ export default function Movies() {
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 {t("movies.describeConcept")}
               </label>
-              <textarea
+              <textarea aria-label={t("movies.describeConcept")}
                 value={idea}
                 onChange={(e) => setIdea(e.target.value)}
                 placeholder={t("movies.ideaPlaceholder")}
@@ -419,7 +419,7 @@ export default function Movies() {
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 {t("movies.streamUrlLabel")} <span className="text-white/25 normal-case">{t("movies.optional")}</span>
               </label>
-              <input
+              <input aria-label={t("movies.streamUrlLabel")}
                 value={streamUrl}
                 onChange={(e) => setStreamUrl(e.target.value)}
                 placeholder={t("movies.streamUrlPlaceholder")}
@@ -429,7 +429,7 @@ export default function Movies() {
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 {t("movies.describeStream")}
               </label>
-              <textarea
+              <textarea aria-label={t("movies.describeStream")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t("movies.streamPlaceholder")}

@@ -454,13 +454,13 @@ export default function Beats() {
                 <option value="">{t("beats.allGenres")}</option>
                 {GENRES.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
-              <input value={mood} onChange={(e) => setMood(e.target.value)} placeholder={t("beats.moodPlaceholder")}
+              <input aria-label={t("beats.moodPlaceholder")} value={mood} onChange={(e) => setMood(e.target.value)} placeholder={t("beats.moodPlaceholder")}
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm w-36 placeholder:text-white/25" />
-              <input value={minBpm} onChange={(e) => setMinBpm(e.target.value)} placeholder={t("beats.minBpmPlaceholder")} type="number"
+              <input aria-label={t("beats.minBpmPlaceholder")} value={minBpm} onChange={(e) => setMinBpm(e.target.value)} placeholder={t("beats.minBpmPlaceholder")} type="number"
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm w-24 placeholder:text-white/25" />
-              <input value={maxBpm} onChange={(e) => setMaxBpm(e.target.value)} placeholder={t("beats.maxBpmPlaceholder")} type="number"
+              <input aria-label={t("beats.maxBpmPlaceholder")} value={maxBpm} onChange={(e) => setMaxBpm(e.target.value)} placeholder={t("beats.maxBpmPlaceholder")} type="number"
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm w-24 placeholder:text-white/25" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("beats.searchPlaceholder")}
+              <input aria-label={t("beats.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("beats.searchPlaceholder")}
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[140px] placeholder:text-white/25" />
               <button onClick={fetchBeats}
                 className="px-4 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]">
@@ -541,36 +541,36 @@ export default function Beats() {
             <p className="text-white/40 text-sm mb-6">{t("beats.sellSubtitle")}</p>
 
             <label className="block text-sm text-white/60 mb-1">{t("beats.titleLabel")}</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("beats.titlePlaceholder")}
+            <input aria-label={t("beats.titleLabel")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("beats.titlePlaceholder")}
               className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 placeholder:text-white/25" />
 
             <label className="block text-sm text-white/60 mb-1">{t("beats.audioUrlLabel")}</label>
-            <input value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://…"
+            <input aria-label={t("beats.audioUrlLabel")} value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://…"
               className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 placeholder:text-white/25" />
 
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div>
                 <label className="block text-sm text-white/60 mb-1">{t("beats.genreLabel")}</label>
-                <select value={sellGenre} onChange={(e) => setSellGenre(e.target.value)}
+                <select aria-label={t("beats.genreLabel")} value={sellGenre} onChange={(e) => setSellGenre(e.target.value)}
                   className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm">
                   {GENRES.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm text-white/60 mb-1">{t("beats.bpmLabel")}</label>
-                <input value={bpm} onChange={(e) => setBpm(e.target.value)} type="number" placeholder="140"
+                <input aria-label={t("beats.bpmLabel")} value={bpm} onChange={(e) => setBpm(e.target.value)} type="number" placeholder="140"
                   className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
               </div>
               <div>
                 <label className="block text-sm text-white/60 mb-1">{t("beats.keyLabel")}</label>
-                <input value={musicalKey} onChange={(e) => setMusicalKey(e.target.value)} placeholder={t("beats.keyPlaceholder")}
+                <input aria-label={t("beats.keyLabel")} value={musicalKey} onChange={(e) => setMusicalKey(e.target.value)} placeholder={t("beats.keyPlaceholder")}
                   className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
               </div>
             </div>
 
             <label className="block text-sm text-white/60 mb-1">{t("beats.moodTagsLabel")}</label>
             <div className="flex gap-2 mb-4">
-              <input value={moodTags} onChange={(e) => setMoodTags(e.target.value)} placeholder={t("beats.moodTagsPlaceholder")}
+              <input aria-label={t("beats.moodTagsLabel")} value={moodTags} onChange={(e) => setMoodTags(e.target.value)} placeholder={t("beats.moodTagsPlaceholder")}
                 className="flex-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
               <button onClick={runAiTags} title={t("beats.aiTagsTooltip")}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#C9A84C]/50 text-[#E3C566] text-sm font-semibold hover:bg-[#C9A84C]/10">
@@ -579,7 +579,7 @@ export default function Beats() {
             </div>
 
             <label className="block text-sm text-white/60 mb-1">{t("beats.descriptionLabel")}</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+            <textarea aria-label={t("beats.descriptionLabel")} value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
               placeholder={t("beats.descriptionPlaceholder")}
               className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 placeholder:text-white/25" />
 
@@ -587,17 +587,17 @@ export default function Beats() {
             <div className="grid grid-cols-3 gap-3 mb-6">
               <div>
                 <label className="block text-xs text-white/40 mb-1">{t("beats.tierBasicLabel")}</label>
-                <input value={basicPrice} onChange={(e) => setBasicPrice(e.target.value)} type="number" step="0.01" min="0"
+                <input aria-label={t("beats.tierBasicLabel")} value={basicPrice} onChange={(e) => setBasicPrice(e.target.value)} type="number" step="0.01" min="0"
                   className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-white/40 mb-1">{t("beats.tierPremiumLabel")}</label>
-                <input value={premiumPrice} onChange={(e) => setPremiumPrice(e.target.value)} type="number" step="0.01" min="0"
+                <input aria-label={t("beats.tierPremiumLabel")} value={premiumPrice} onChange={(e) => setPremiumPrice(e.target.value)} type="number" step="0.01" min="0"
                   className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
                 <label className="block text-xs text-white/40 mb-1">{t("beats.tierExclusiveLabel")}</label>
-                <input value={exclusivePrice} onChange={(e) => setExclusivePrice(e.target.value)} type="number" step="0.01" min="0"
+                <input aria-label={t("beats.tierExclusiveLabel")} value={exclusivePrice} onChange={(e) => setExclusivePrice(e.target.value)} type="number" step="0.01" min="0"
                   className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm" />
               </div>
             </div>

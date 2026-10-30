@@ -283,7 +283,7 @@ export function LogoMakerTool() {
             {/* Brand name */}
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("logoMaker.brandNameLabel")}</label>
-              <input
+              <input aria-label={t("logoMaker.brandNameLabel")}
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 placeholder={t("logoMaker.brandNamePlaceholder")}
@@ -295,7 +295,7 @@ export function LogoMakerTool() {
             {/* Tagline */}
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("logoMaker.taglineLabel")} <span className="text-white/25 normal-case font-normal">{t("logoMaker.optional")}</span></label>
-              <input
+              <input aria-label={t("logoMaker.taglineLabel")}
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
                 placeholder={t("logoMaker.taglinePlaceholder")}

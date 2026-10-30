@@ -290,7 +290,7 @@ export default function ShowFinder() {
               </p>
               <div className="relative">
                 <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" aria-hidden="true" />
-                <input
+                <input aria-label={t("shows.cityPlaceholder")}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   maxLength={120}
@@ -303,7 +303,7 @@ export default function ShowFinder() {
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("shows.genreLabel")}
               </p>
-              <input
+              <input aria-label={genre}
                 value={customGenre}
                 onChange={(e) => setCustomGenre(e.target.value)}
                 maxLength={80}
@@ -391,7 +391,7 @@ export default function ShowFinder() {
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("shows.artistNameLabel")} <span className="text-white/25 normal-case tracking-normal">{t("shows.forPitchesNote")}</span>
               </p>
-              <input
+              <input aria-label={t("shows.artistNamePlaceholder")}
                 value={creatorName}
                 onChange={(e) => setCreatorName(e.target.value)}
                 maxLength={100}
@@ -404,7 +404,7 @@ export default function ShowFinder() {
           <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("shows.quickBioLabel")} <span className="text-white/25 normal-case tracking-normal">{t("shows.quickBioNote")}</span>
           </p>
-          <textarea
+          <textarea aria-label={t("shows.bioPlaceholder")}
             value={artistBio}
             onChange={(e) => setArtistBio(e.target.value)}
             maxLength={600}

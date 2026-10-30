@@ -121,8 +121,8 @@ export default function BroadcastPage() {
           >
             <h2 className="font-black">Open your broadcast channel</h2>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Channel name" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
-              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is it about? (optional)" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+              <input aria-label="Channel name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Channel name" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+              <input aria-label="What is it about? (optional)" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is it about? (optional)" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
             </div>
             <button type="submit" disabled={!name.trim()} className="mt-3 rounded-full bg-[#e8c86a] px-5 py-2 text-sm font-bold text-black transition enabled:hover:scale-[1.02] disabled:opacity-50">Open channel</button>
             {note && <p className="mt-2 text-sm text-red-300">{note}</p>}
@@ -162,7 +162,7 @@ export default function BroadcastPage() {
                         void loadData();
                       }}
                     >
-                      <input value={drafts[c.id] ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))} placeholder="Broadcast something to your members…" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+                      <input aria-label="Broadcast something to your members…" value={drafts[c.id] ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))} placeholder="Broadcast something to your members…" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
                       <button type="submit" className="rounded-full bg-[#e8c86a] px-4 py-2 text-xs font-bold text-black">Post</button>
                     </form>
                   )}

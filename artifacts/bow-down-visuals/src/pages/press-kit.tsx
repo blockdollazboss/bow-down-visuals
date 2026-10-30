@@ -603,7 +603,7 @@ export default function PressKitBuilder() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.vaultLabel")}</label>
-                    <select value={vaultId} onChange={(e) => setVaultId(e.target.value)} className={`${inputCls} bg-black`}>
+                    <select aria-label={t("press-kit.form.vaultLabel")} value={vaultId} onChange={(e) => setVaultId(e.target.value)} className={`${inputCls} bg-black`}>
                       <option value="">{t("press-kit.form.noneOption")}</option>
                       {vaults.map((v) => <option key={v.id} value={v.id}>{v.artist_name}</option>)}
                     </select>

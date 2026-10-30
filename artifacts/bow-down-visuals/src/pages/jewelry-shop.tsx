@@ -278,7 +278,7 @@ export default function JewelryShop() {
                   </div>
                   <div>
                     <label className="text-sm text-zinc-400 mb-2 block">{t("jewelryShop.engraving")} <span className="text-zinc-600">{t("jewelryShop.engravingNote")}</span></label>
-                    <input className={inputCls} placeholder={t("jewelryShop.engravingPh")} value={engraving}
+                    <input aria-label={t("jewelryShop.engraving")} className={inputCls} placeholder={t("jewelryShop.engravingPh")} value={engraving}
                       maxLength={60} onChange={(e) => setEngraving(e.target.value)} />
                   </div>
                   <div>
@@ -288,7 +288,7 @@ export default function JewelryShop() {
                       </p>
                     )}
                     <label className="text-sm text-zinc-400 mb-2 block">{t("jewelryShop.designNotes")} <span className="text-zinc-600">{t("jewelryShop.designNotesNote")}</span></label>
-                    <textarea className={inputCls} rows={3}
+                    <textarea aria-label={t("jewelryShop.designNotes")} className={inputCls} rows={3}
                       placeholder={t("jewelryShop.designNotesPh")}
                       value={designNotes} onChange={(e) => setDesignNotes(e.target.value)} />
                   </div>
@@ -307,15 +307,15 @@ export default function JewelryShop() {
               {step === "shipping" && (
                 <div className="space-y-4 max-w-xl">
                   <div className="grid grid-cols-2 gap-4">
-                    <input className={inputCls} placeholder={t("jewelryShop.fullNamePh")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                    <input className={inputCls} placeholder={t("jewelryShop.phonePh")} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <input aria-label={t("jewelryShop.quantity")} className={inputCls} placeholder={t("jewelryShop.fullNamePh")} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    <input aria-label={t("jewelryShop.phonePh")} className={inputCls} placeholder={t("jewelryShop.phonePh")} value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
-                  <input className={inputCls} placeholder={t("jewelryShop.emailPh")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  <input className={inputCls} placeholder={t("jewelryShop.streetPh")} value={street} onChange={(e) => setStreet(e.target.value)} />
+                  <input aria-label={t("jewelryShop.emailPh")} className={inputCls} placeholder={t("jewelryShop.emailPh")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input aria-label={t("jewelryShop.streetPh")} className={inputCls} placeholder={t("jewelryShop.streetPh")} value={street} onChange={(e) => setStreet(e.target.value)} />
                   <div className="grid grid-cols-3 gap-4">
-                    <input className={inputCls} placeholder={t("jewelryShop.cityPh")} value={city} onChange={(e) => setCity(e.target.value)} />
-                    <input className={inputCls} placeholder={t("jewelryShop.statePh")} value={state_} onChange={(e) => setState_(e.target.value)} />
-                    <input className={inputCls} placeholder={t("jewelryShop.zipPh")} value={zip} onChange={(e) => setZip(e.target.value)} />
+                    <input aria-label={t("jewelryShop.cityPh")} className={inputCls} placeholder={t("jewelryShop.cityPh")} value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input aria-label={t("jewelryShop.statePh")} className={inputCls} placeholder={t("jewelryShop.statePh")} value={state_} onChange={(e) => setState_(e.target.value)} />
+                    <input aria-label={t("jewelryShop.zipPh")} className={inputCls} placeholder={t("jewelryShop.zipPh")} value={zip} onChange={(e) => setZip(e.target.value)} />
                   </div>
                   <p className="text-xs text-zinc-500 flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />

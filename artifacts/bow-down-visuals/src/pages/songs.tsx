@@ -430,7 +430,7 @@ export default function SongsPage() {
           {t("songs.uploadTitle")}
         </p>
         <div className="flex flex-wrap gap-2">
-          <input
+          <input aria-label={t("songs.titlePlaceholder")}
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}

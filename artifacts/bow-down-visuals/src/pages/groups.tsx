@@ -108,7 +108,7 @@ export default function Groups() {
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search groups…"
+            <input aria-label="Search groups…" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search groups…"
               className={`${goldInput} pl-9`} />
           </div>
           <div className="flex gap-2">
@@ -126,11 +126,11 @@ export default function Groups() {
             <h2 className="text-lg font-bold text-[#e8c86a]">Start your crew</h2>
             <p className="mt-1 text-sm text-white/60">You're the owner. Set the vibe, they'll come.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Group name"
+              <input aria-label="Group name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Group name"
                 maxLength={80} className={goldInput} />
-              <input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="slug (url-friendly)"
+              <input aria-label="slug (url-friendly)" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="slug (url-friendly)"
                 maxLength={40} className={goldInput} />
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              <textarea aria-label="What's this crew about?" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="What's this crew about?" maxLength={2000} rows={3} className={`${goldInput} sm:col-span-2`} />
               <label className="flex items-center gap-2 text-sm text-white/70 sm:col-span-2">
                 <input type="checkbox" checked={form.is_public} onChange={(e) => setForm({ ...form, is_public: e.target.checked })}

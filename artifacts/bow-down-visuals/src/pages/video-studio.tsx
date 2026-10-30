@@ -347,7 +347,7 @@ export default function VideoStudio() {
               <label className="block text-sm font-medium text-white/70 mb-2">
                 Describe your video
               </label>
-              <textarea
+              <textarea aria-label="Describe your video"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="A shark king on a golden throne, dramatic lighting, cinematic..."

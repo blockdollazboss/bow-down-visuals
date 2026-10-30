@@ -335,7 +335,7 @@ export default function BrandDealCalculator() {
               );
             })}
           </div>
-          <input
+          <input aria-label={t("brandCalculator.customNichePlaceholder")}
             value={customNiche}
             onChange={(e) => setCustomNiche(e.target.value)}
             maxLength={120}

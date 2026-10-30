@@ -423,7 +423,7 @@ export default function Messages() {
 
         {showNew && (
           <div className="mb-4 flex gap-2">
-            <input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="Creator slug (e.g. shark-king)"
+            <input aria-label="Creator slug (e.g. shark-king)" value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="Creator slug (e.g. shark-king)"
               className={goldInput} onKeyDown={(e) => e.key === "Enter" && startBySlug()} />
             <button type="button" onClick={startBySlug} className={goldButton}>Start</button>
           </div>
@@ -471,7 +471,7 @@ export default function Messages() {
             <PriorityDmSettingsCard api={api} onNotice={setNotice} />
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-              <input value={convQuery} onChange={(e) => setConvQuery(e.target.value)}
+              <input aria-label="Search conversations — a name, a word, a piece of work…" value={convQuery} onChange={(e) => setConvQuery(e.target.value)}
                 placeholder="Search conversations — a name, a word, a piece of work…"
                 data-testid="dm-conv-search"
                 className="w-full rounded-full border border-white/15 bg-[#0d0a02] py-2 pl-9 pr-8 text-sm text-white placeholder:text-white/35 focus:border-[#e8c86a]/60 focus:outline-none" />
@@ -540,7 +540,7 @@ export default function Messages() {
                 <div className="border-b border-white/10 px-4 py-2.5">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                    <input value={threadQuery} onChange={(e) => setThreadQuery(e.target.value)}
+                    <input aria-label="Search this thread…" value={threadQuery} onChange={(e) => setThreadQuery(e.target.value)}
                       placeholder="Search this thread…"
                       data-testid="dm-thread-search"
                       className="w-full rounded-full border border-white/15 bg-black/40 py-1.5 pl-9 pr-8 text-sm text-white placeholder:text-white/35 focus:border-[#e8c86a]/60 focus:outline-none" />
@@ -634,7 +634,7 @@ export default function Messages() {
                     )}
                     {showLink && (
                       <div className="flex gap-2">
-                        <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
+                        <input aria-label="Link to your file (https://…/beat.mp3)" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
                           placeholder="Link to your file (https://…/beat.mp3)"
                           data-testid="dm-attach-link-input"
                           className={goldInput} onKeyDown={(e) => e.key === "Enter" && attachByUrl()} />
@@ -665,7 +665,7 @@ export default function Messages() {
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
                         <Link2 className="h-4 w-4" />
                       </button>
-                      <input ref={draftRef} value={draft} onChange={(e) => updateDraft(e.target.value)} placeholder="Type a message…"
+                      <input aria-label="Type a message…" ref={draftRef} value={draft} onChange={(e) => updateDraft(e.target.value)} placeholder="Type a message…"
                         maxLength={2000} className={goldInput} onKeyDown={(e) => e.key === "Enter" && send()} />
                       <button type="button" aria-label="Send message" onClick={send} disabled={!dmCanSend(draft, pendingAtt !== null) || uploading} className={goldButton}>
                         <Send className="h-4 w-4" />

@@ -246,7 +246,7 @@ export default function CoverArt() {
             <>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.song_title")}</label>
-              <input
+              <input aria-label={t("cover-art.song_title")}
                 value={songTitle}
                 onChange={(e) => setSongTitle(e.target.value)}
                 placeholder={t("cover-art.midnight_crown")}
@@ -256,7 +256,7 @@ export default function CoverArt() {
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.artist_name")}</label>
-              <input
+              <input aria-label={t("cover-art.artist_name")}
                 value={artistName}
                 onChange={(e) => setArtistName(e.target.value)}
                 placeholder={t("cover-art.thy_cheat_code")}
@@ -273,7 +273,7 @@ export default function CoverArt() {
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.mood_genre")}<span className="normal-case text-white/25">{t("cover-art.optional")}</span>
               </label>
-              <input
+              <input aria-label={t("cover-art.mood_genre")}
                 value={mood}
                 onChange={(e) => setMood(e.target.value)}
                 placeholder={t("cover-art.dark_hip_hop_triumphant_late_nig")}

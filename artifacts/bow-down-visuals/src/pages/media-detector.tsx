@@ -328,7 +328,7 @@ export default function MediaDetector() {
         <div className="flex gap-2 mb-8">
           <div className="relative flex-1">
             <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-            <input
+            <input aria-label={t("mediaDetector.urlPlaceholder")}
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addUrl(); }}

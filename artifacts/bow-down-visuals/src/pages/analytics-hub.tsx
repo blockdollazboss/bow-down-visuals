@@ -241,7 +241,7 @@ function CoachNumberField({
       <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-white/40">
         {label}
       </label>
-      <input
+      <input aria-label={label}
         type="number"
         min={0}
         value={value || ""}
@@ -763,7 +763,7 @@ function ConnectedAccountsTab() {
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <input
+            <input aria-label={t("analytics.nichePlaceholder")}
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
               placeholder={t("analytics.nichePlaceholder")}
@@ -1649,7 +1649,7 @@ export default function AnalyticsHub() {
                             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                               {t(labelKey)}
                             </label>
-                            <input
+                            <input aria-label={t(labelKey)}
                               type="number"
                               min={0}
                               max={isPercent ? 100 : undefined}
@@ -1863,7 +1863,7 @@ export default function AnalyticsHub() {
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("analyticsHub.aiCoach.nicheLabel", { defaultValue: "Your niche" })}
               </label>
-              <input
+              <input aria-label={t("analyticsHub.aiCoach.nicheLabel", { defaultValue: "Your niche" })}
                 type="text"
                 value={coachNiche}
                 onChange={(e) => setCoachNiche(e.target.value)}
@@ -1885,7 +1885,7 @@ export default function AnalyticsHub() {
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-black text-primary">
                     {i + 1}
                   </span>
-                  <input
+                  <input aria-label={t("analyticsHub.aiCoach.postTitlePlaceholder", { defaultValue: "Post title or what it was about…" })}
                     type="text"
                     value={post.title}
                     onChange={(e) => updateCoachPost(i, { title: e.target.value })}
@@ -1932,7 +1932,7 @@ export default function AnalyticsHub() {
                     <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-white/40">
                       {t("analyticsHub.aiCoach.postedOn", { defaultValue: "Posted on" })}
                     </label>
-                    <input
+                    <input aria-label={t("analyticsHub.aiCoach.postedOn", { defaultValue: "Posted on" })}
                       type="date"
                       value={post.postedAt}
                       onChange={(e) => updateCoachPost(i, { postedAt: e.target.value })}
@@ -2147,7 +2147,7 @@ export default function AnalyticsHub() {
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("analyticsHub.competitor.nameLabel")}
               </label>
-              <input
+              <input aria-label={t("analyticsHub.competitor.nameLabel")}
                 type="text"
                 value={compName}
                 onChange={(e) => setCompName(e.target.value)}
@@ -2159,7 +2159,7 @@ export default function AnalyticsHub() {
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("analyticsHub.competitor.urlLabel")}
               </label>
-              <input
+              <input aria-label={t("analyticsHub.competitor.urlLabel")}
                 type="text"
                 value={compUrl}
                 onChange={(e) => setCompUrl(e.target.value)}
@@ -2171,7 +2171,7 @@ export default function AnalyticsHub() {
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("analyticsHub.competitor.nicheLabel")}
               </label>
-              <input
+              <input aria-label={t("analyticsHub.competitor.nicheLabel")}
                 type="text"
                 value={compNiche}
                 onChange={(e) => setCompNiche(e.target.value)}
@@ -2183,7 +2183,7 @@ export default function AnalyticsHub() {
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 {t("analyticsHub.competitor.notesLabel")}
               </label>
-              <input
+              <input aria-label={t("analyticsHub.competitor.notesLabel")}
                 type="text"
                 value={compNotes}
                 onChange={(e) => setCompNotes(e.target.value)}

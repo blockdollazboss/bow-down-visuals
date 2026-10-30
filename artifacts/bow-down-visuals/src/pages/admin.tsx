@@ -1319,7 +1319,7 @@ function ContentRemovalPanel({ authHeaders }: { authHeaders: () => Promise<Heade
       <p className="text-sm text-white/60 mb-4">{t("admin.removal.description")}</p>
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input
+        <input aria-label={t("admin.removal.inputPlaceholder")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
@@ -1520,7 +1520,7 @@ function UserManagement({ authHeaders, adminEmail }: { authHeaders: () => Promis
         {t("admin.users.description")}
       </p>
       <div className="flex flex-wrap gap-2">
-        <input
+        <input aria-label={t("admin.users.emailPlaceholder")}
           type="email"
           placeholder={t("admin.users.emailPlaceholder")}
           value={email}
@@ -1861,7 +1861,7 @@ export default function AdminPage() {
               {t("admin.giveFriendDescription")}
             </p>
             <div className="flex flex-wrap gap-2">
-              <input
+              <input aria-label={t("admin.friendEmailPlaceholder")}
                 type="email"
                 placeholder={t("admin.friendEmailPlaceholder")}
                 value={friendEmail}
@@ -1897,7 +1897,7 @@ export default function AdminPage() {
               {t("admin.planDescription")}
             </p>
             <div className="flex flex-wrap gap-2">
-              <input
+              <input aria-label={t("admin.planEmailPlaceholder")}
                 type="email"
                 placeholder={t("admin.planEmailPlaceholder")}
                 value={planEmail}

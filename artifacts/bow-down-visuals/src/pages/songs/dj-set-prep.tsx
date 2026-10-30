@@ -449,7 +449,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
             {t("djSets.yourCrates")}
           </h3>
           <div className="mb-3 flex gap-2">
-            <input
+            <input aria-label={t("djSets.newCratePlaceholder")}
               type="text"
               value={newCrateName}
               onChange={(e) => setNewCrateName(e.target.value)}

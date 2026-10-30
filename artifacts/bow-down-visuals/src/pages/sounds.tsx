@@ -305,7 +305,7 @@ export default function ViralSoundFinder() {
           <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" aria-hidden="true" />
-              <input
+              <input aria-label={t("sounds.searchPlaceholder")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("sounds.searchPlaceholder")}
@@ -462,7 +462,7 @@ export default function ViralSoundFinder() {
           <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("sounds.videoIdeaLabel")}
           </p>
-          <textarea
+          <textarea aria-label={t("sounds.videoIdeaPlaceholder")}
             value={videoIdea}
             onChange={(e) => setVideoIdea(e.target.value)}
             maxLength={600}

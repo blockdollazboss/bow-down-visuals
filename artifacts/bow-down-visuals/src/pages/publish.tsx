@@ -880,7 +880,7 @@ export default function Publish() {
                 <div className="mt-3 flex flex-col sm:flex-row gap-2">
                   <div className={`flex flex-1 items-center rounded-xl border px-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/80" : "border-white/10 bg-black/40"}`}>
                     <span className="text-xs text-white/35">bowdownvisuals.com/artist/</span>
-                    <input
+                    <input aria-label="your-name"
                       value={newSlug}
                       onChange={(e) => setNewSlug(slugify(e.target.value))}
                       placeholder="your-name"
@@ -1037,7 +1037,7 @@ export default function Publish() {
         <div className={`mt-6 space-y-4 rounded-2xl border p-4 sm:p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-white/40">Title</label>
-            <input
+            <input aria-label="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={vertical === "podcast" ? "Episode 12: …" : vertical === "film" ? "My short film" : "Untitled"}
@@ -1047,7 +1047,7 @@ export default function Publish() {
           </div>
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-white/40">Description</label>
-            <textarea
+            <textarea aria-label="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What's this about? Sell it."
@@ -1060,7 +1060,7 @@ export default function Publish() {
             {showGenre && (
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-white/40">Genre</label>
-                <select
+                <select aria-label="Genre"
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}
                   className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-bold outline-none focus:border-amber-400/60 [&>option]:bg-black"
@@ -1072,7 +1072,7 @@ export default function Publish() {
             )}
             <div className={showGenre ? "" : "sm:col-span-2"}>
               <label className="text-xs font-bold uppercase tracking-widest text-white/40">Tags <span className="text-white/25 normal-case">(comma separated)</span></label>
-              <input
+              <input aria-label="Tags (comma separated)"
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
                 placeholder="viral, behind-the-scenes, 2026"
@@ -1084,7 +1084,7 @@ export default function Publish() {
             {showIsrc && (
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-white/40">ISRC <span className="text-white/25 normal-case">(optional)</span></label>
-                <input
+                <input aria-label="ISRC (optional)"
                   value={isrc}
                   onChange={(e) => setIsrc(e.target.value)}
                   placeholder="US-XXX-26-00001"
@@ -1097,7 +1097,7 @@ export default function Publish() {
               <>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-white/40">Season <span className="text-white/25 normal-case">(optional)</span></label>
-                  <input
+                  <input aria-label="Season (optional)"
                     value={season}
                     onChange={(e) => setSeason(e.target.value.replace(/[^0-9]/g, ""))}
                     placeholder="1" inputMode="numeric" maxLength={4}
@@ -1106,7 +1106,7 @@ export default function Publish() {
                 </div>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-white/40">Episode <span className="text-white/25 normal-case">(optional)</span></label>
-                  <input
+                  <input aria-label="Episode (optional)"
                     value={episode}
                     onChange={(e) => setEpisode(e.target.value.replace(/[^0-9]/g, ""))}
                     placeholder="3" inputMode="numeric" maxLength={4}
@@ -1203,7 +1203,7 @@ export default function Publish() {
               {priceMode === "paid" && (
                 <div className={`mt-2 flex items-center rounded-xl border px-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/80 focus-within:border-[#C9A84C]" : "border-white/10 bg-black/40 focus-within:border-amber-400/60"}`}>
                   <DollarSign className="h-4 w-4 text-white/35" />
-                  <input
+                  <input aria-label="Downloads"
                     value={priceDollars}
                     onChange={(e) => setPriceDollars(e.target.value.replace(/[^0-9.]/g, ""))}
                     placeholder="1.99" inputMode="decimal"

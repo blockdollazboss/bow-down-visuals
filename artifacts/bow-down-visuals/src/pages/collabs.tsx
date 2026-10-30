@@ -529,11 +529,11 @@ export default function CollabFinder() {
               <div className="space-y-4">
                 <div>
                   <label className={labelClass}>{t("collabs.displayNameLabel")}</label>
-                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("collabs.displayNamePlaceholder")} className={inputClass} maxLength={60} />
+                  <input aria-label={t("collabs.displayNameLabel")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("collabs.displayNamePlaceholder")} className={inputClass} maxLength={60} />
                 </div>
                 <div>
                   <label className={labelClass}>{t("collabs.nicheLabel")}</label>
-                  <select value={niche} onChange={(e) => setNiche(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">
+                  <select aria-label={t("collabs.nicheLabel")} value={niche} onChange={(e) => setNiche(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">
                     {NICHES.map((n) => <option key={n} value={n}>{NicheLabel(n)}</option>)}
                   </select>
                 </div>
@@ -542,10 +542,10 @@ export default function CollabFinder() {
                   <div className="space-y-2">
                     {platformRows.map((row, i) => (
                       <div key={i} className="flex gap-2">
-                        <select value={row.platform} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, platform: e.target.value } : r))} className="rounded-xl border border-white/10 bg-black/60 px-3 py-2.5 text-sm text-white outline-none">
+                        <select aria-label={t("collabs.platformsLabel")} value={row.platform} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, platform: e.target.value } : r))} className="rounded-xl border border-white/10 bg-black/60 px-3 py-2.5 text-sm text-white outline-none">
                           {PLATFORMS.map((p) => <option key={p} value={p}>{PlatformLabel(p)}</option>)}
                         </select>
-                        <input value={row.followers} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, followers: e.target.value.replace(/[^0-9]/g, "") } : r))} placeholder={t("collabs.followersPlaceholder")} inputMode="numeric" className={inputClass} />
+                        <input aria-label={t("collabs.followersPlaceholder")} value={row.followers} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, followers: e.target.value.replace(/[^0-9]/g, "") } : r))} placeholder={t("collabs.followersPlaceholder")} inputMode="numeric" className={inputClass} />
                         {platformRows.length > 1 && (
                           <button aria-label="Remove platform" onClick={() => setPlatformRows(platformRows.filter((_, j) => j !== i))} className="rounded-xl border border-white/10 px-3 text-white/50 hover:text-red-400">✕</button>
                         )}
@@ -558,11 +558,11 @@ export default function CollabFinder() {
                 </div>
                 <div>
                   <label className={labelClass}>{t("collabs.collabInterestsLabel")}</label>
-                  <input value={collabInterests} onChange={(e) => setCollabInterests(e.target.value)} placeholder={t("collabs.collabInterestsPlaceholder")} className={inputClass} maxLength={500} />
+                  <input aria-label={t("collabs.collabInterestsLabel")} value={collabInterests} onChange={(e) => setCollabInterests(e.target.value)} placeholder={t("collabs.collabInterestsPlaceholder")} className={inputClass} maxLength={500} />
                 </div>
                 <div>
                   <label className={labelClass}>{t("collabs.bioLabel")}</label>
-                  <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder={t("collabs.bioPlaceholder")} rows={3} className={inputClass} maxLength={500} />
+                  <textarea aria-label={t("collabs.bioLabel")} value={bio} onChange={(e) => setBio(e.target.value)} placeholder={t("collabs.bioPlaceholder")} rows={3} className={inputClass} maxLength={500} />
                 </div>
                 <label className="flex items-center gap-3 text-sm text-white/70">
                   <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="h-4 w-4 accent-amber-400" />

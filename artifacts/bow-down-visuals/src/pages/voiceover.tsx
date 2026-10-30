@@ -301,7 +301,7 @@ export default function VoiceoverStudio() {
                   </span>
                 </div>
               </div>
-              <textarea
+              <textarea aria-label={t("voiceover.scriptPlaceholder")}
                 id="voiceover-script"
                 value={script}
                 onChange={(e) => setScript(e.target.value)}
@@ -396,7 +396,7 @@ export default function VoiceoverStudio() {
                   <span>{t("voiceover.speakingSpeed")}</span>
                   <span className="text-white/70">{speed.toFixed(2)}×</span>
                 </label>
-                <input
+                <input aria-label={t("voiceover.speakingSpeed")}
                   type="range"
                   min={0.7}
                   max={1.2}

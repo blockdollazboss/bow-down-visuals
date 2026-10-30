@@ -555,7 +555,7 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
         </span>
       ) : (
         <span className="inline-flex items-center gap-1.5">
-          <input
+          <input aria-label="%"
             value={pct}
             onChange={(e) => setPct(e.target.value)}
             placeholder="%"
@@ -1139,7 +1139,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             )}
             {form.kind === "gift_card" && (
               <div className="mt-3">
-                <input value={form.denominations} onChange={(e) => setForm({ ...form, denominations: e.target.value })} placeholder="Amounts fans can pick ($) — e.g. 25, 50, 100" className={inputCls} />
+                <input aria-label="Amounts fans can pick ($) — e.g. 25, 50, 100" value={form.denominations} onChange={(e) => setForm({ ...form, denominations: e.target.value })} placeholder="Amounts fans can pick ($) — e.g. 25, 50, 100" className={inputCls} />
                 <p className="mt-1 text-[10px] text-white/35">
                   You set the amounts ($5–$500, up to 8). The listing shows the smallest as the "from" price. Fans buy it for someone else — it lands in their email as stored value for your whole store. No platform fee is taken from a gift card; the standard fee applies when it's spent, on that sale.
                 </p>
@@ -1165,7 +1165,7 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
             {form.affiliatesEnabled && (
               <div className="mt-3 flex items-center gap-2">
                 <label className="text-xs font-semibold text-white/50">Commission you pay</label>
-                <input
+                <input aria-label="Commission you pay"
                   value={form.affiliatePct}
                   onChange={(e) => setForm({ ...form, affiliatePct: e.target.value })}
                   placeholder="10"
