@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "b7beb0dccab5a0b1a5f259f43118ac678ae8af7f",
+  "baseCommit": "c95a04e32b367e43c8f0937ab959256e08c4c561",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "counts": {
     "routesInApp": 241,
     "pageFiles": 185,
@@ -22,9 +22,9 @@
     "withDescriptions": 238,
     "withoutDescriptions": 10,
     "serverRouteFiles": 427,
-    "serverEndpoints": 1703,
-    "serverEndpointsVisible": 1003,
-    "serverFilesClassified": 128
+    "serverEndpoints": 1708,
+    "serverEndpointsVisible": 1004,
+    "serverFilesClassified": 127
   },
   "packs": [
     {
@@ -10290,6 +10290,7 @@
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
+        "/api/embed/mine",
         "/api/promo-cards",
         "/api/promo-cards/:param",
         "/api/promo-generator",
@@ -17081,20 +17082,20 @@
       },
       {
         "file": "artifacts/api-server/src/routes/embed.ts",
-        "endpoints": 6,
-        "visible": 0,
+        "endpoints": 11,
+        "visible": 1,
         "unseen": [
+          "/api/embed/latest/:slug",
+          "/api/embed/live/:slug",
           "/api/embed/playlist/:id",
+          "/api/embed/product/:id",
           "/api/embed/profile/:slug",
           "/api/embed/refcode/:slug",
+          "/api/embed/tips/:handle",
           "/api/embed/track/:id",
           "/api/embed/video/:id",
           "/api/oembed"
-        ],
-        "classification": {
-          "surface": "plumbing",
-          "reason": "Public embed + oEmbed rails (plus the twin page router's chrome-less embed pages): consumed by other sites, not a member surface."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/embedded-checkout.ts",
