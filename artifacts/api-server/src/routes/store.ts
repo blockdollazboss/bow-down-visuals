@@ -466,6 +466,39 @@ async function resolveSellableItem(
   return { notWired: true };
 }
 
+/* ── Webhook auto-refund probe (stack900) ──────────────────────────────
+   Verify (below) is the store's fulfillment path: it re-resolves the
+   purchased item and, when the item can no longer be delivered,
+   refunds the session's payment intent (idempotency key
+   refund:<sessionId>). But verify only runs when the buyer returns —
+   a buyer who never comes back strands their money. The Stripe
+   webhook (lib/stripe-webhook.ts) therefore asks this probe on
+   checkout.session.completed and fires the same refund itself, under
+   the same key, so the two triggers can never double-refund.
+
+   TRUE only when a refund is actually due:
+     - no digital_sales row exists for the session — verify has not
+       fulfilled it. A recorded sale means the buyer already received
+       their delivery; a delivered purchase is never refunded here,
+       even if the item has since been taken down; AND
+     - the item resolves exactly as verify's own refund branch finds
+       it: notForSale or notWired.
+   A deliverable item answers FALSE — fulfillment stays with verify,
+   untouched. Throws on DB failure: the caller must treat a throw as
+   "unknown" and never refund on a guess. */
+export async function isStoreSessionAutoRefundDue(
+  sessionId: string,
+  kind: string,
+  itemId: string
+): Promise<boolean> {
+  const sold = await db.execute(sql`
+    SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
+  `);
+  if (sold.rows.length > 0) return false;
+  const item = await resolveSellableItem(kind, itemId);
+  return "notForSale" in item || "notWired" in item;
+}
+
 /* ── Order bumps (feature #13 — digital store rail) ────────────────────
    The storefront rail's pattern (routes/storefront.ts) carried here:
    a seller attaches ONE add-on item (same seller, seller-set price or
