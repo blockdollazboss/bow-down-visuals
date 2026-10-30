@@ -1298,6 +1298,21 @@ html, body {
 .light .group:hover .group-hover\:text-amber-300:not([data-dark-lock]):not([data-dark-lock] *),
 .light .group:hover .group-hover\:text-amber-400:not([data-dark-lock]):not([data-dark-lock] *) { color: #6E5514; }
 
+/* ── 20. Stack900 light-truth audit: the rungs the tables still missed.
+   Each entry names its surface; dark rendering is untouched throughout
+   (every rule is .light-scoped and dark-lock-guarded). ── */
+
+/* SocialProofBand's stats band grades from-black → via-[#0d0a04] →
+   to-black. The from/to ends remap to ivory (§3/§18) but the via hex
+   had no rule, so in light the band's middle stayed near-black while
+   its stat numbers (text-white) remapped to espresso — dark-on-dark
+   across the middle of the band. The via now fades to ivory at the
+   via-black value, so the whole band reads as one ivory panel. */
+.light .via-\[\#0d0a04\]:not([data-dark-lock]):not([data-dark-lock] *) {
+  --tw-gradient-via: rgb(250 247 240 / 0.6) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to));
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
