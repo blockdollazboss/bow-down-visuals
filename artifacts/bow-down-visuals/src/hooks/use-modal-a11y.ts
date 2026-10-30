@@ -12,7 +12,14 @@ import { useEffect, useRef } from "react";
  *
  * Usage: attach the returned ref to the dialog element and give that
  * element role="dialog" aria-modal="true" tabIndex={-1}.
+ *
+ * Stacking (round 2): modals can stack (the credit-confirm dialog opens
+ * over a publish modal). Open instances register on a module stack and
+ * only the TOPMOST instance answers Escape/Tab, so one Escape closes
+ * one dialog — the one the user is looking at — not the whole stack.
  */
+const openStack: object[] = [];
+
 export function useModalA11y<T extends HTMLElement>(open: boolean, onClose: () => void) {
   const ref = useRef<T | null>(null);
   const onCloseRef = useRef(onClose);
@@ -22,6 +29,9 @@ export function useModalA11y<T extends HTMLElement>(open: boolean, onClose: () =
     if (!open) return;
     const container = ref.current;
     if (!container) return;
+    const instance = {};
+    openStack.push(instance);
+    const isTop = () => openStack[openStack.length - 1] === instance;
     const previouslyFocused = document.activeElement as HTMLElement | null;
 
     const focusables = () =>
@@ -35,6 +45,7 @@ export function useModalA11y<T extends HTMLElement>(open: boolean, onClose: () =
     initial.focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!isTop()) return;
       if (e.key === "Escape") {
         e.stopPropagation();
         onCloseRef.current();
@@ -60,6 +71,8 @@ export function useModalA11y<T extends HTMLElement>(open: boolean, onClose: () =
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => {
+      const idx = openStack.indexOf(instance);
+      if (idx >= 0) openStack.splice(idx, 1);
       document.removeEventListener("keydown", onKeyDown, true);
       if (previouslyFocused && typeof previouslyFocused.focus === "function") {
         previouslyFocused.focus();
