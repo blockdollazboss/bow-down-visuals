@@ -1270,10 +1270,12 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "plumbing",
     reason: "The floating Bow Down Playlist widget's R2 track rail — a site-wide widget rather than a page feature; the playlist itself is hand-uploads only (owner ruling).",
   },
-  "artifacts/api-server/src/routes/embed.ts": {
-    surface: "plumbing",
-    reason: "Public embed + oEmbed rails (plus the twin page router's chrome-less embed pages): consumed by other sites, not a member surface.",
-  },
+  /* routes/embed.ts carried a plumbing classification until Stack900
+     C1: the Widgets Desk in Promote made the family partly
+     feature-visible (the desk reads /api/embed/mine + the refcode
+     rail), so the classification went stale by the census's own rule
+     and was removed — the family now publishes with its remaining
+     public embed/oEmbed endpoints named as its unseen remainder. */
   "artifacts/api-server/src/routes/provenance.ts": {
     surface: "plumbing",
     reason: "Content provenance certificate/licence verification rails read off generation records; no page of its own.",

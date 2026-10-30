@@ -18,6 +18,7 @@ import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
 import { ResultsWallPanel } from "@/components/promote/ResultsWallPanel";
 import { ViralSpikeKitPanel } from "@/components/promote/ViralSpikeKitPanel";
 import { DropDayPanel } from "@/components/promote/DropDayPanel";
+import { WidgetsDeskPanel } from "@/components/promote/WidgetsDeskPanel";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
@@ -284,6 +285,15 @@ export default function Promote() {
           Visible in both tabs, like the panels above it. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
         <DropDayPanel />
+      </div>
+
+      {/* Widgets Desk (Stack900 C1) — the creator's embed widgets for
+          OTHER people's sites and devices: profile card, latest video,
+          tip jar, live badge, shop item, with live previews at phone /
+          tablet / desktop widths and one-tap iframe code. Docked in
+          Promote like every other panel — never a standalone page. */}
+      <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
+        <WidgetsDeskPanel />
       </div>
 
       <section className="mx-auto max-w-4xl px-5 md:px-8 pb-20">

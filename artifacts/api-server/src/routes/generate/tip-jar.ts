@@ -581,6 +581,47 @@ async function resolveTipPageOwnerId(value: string): Promise<string | undefined>
   return undefined;
 }
 
+/* ── Public read for off-site embeds (Stack900 C1) ────────────────────────
+   The embed widgets (routes/embed.ts) read the SAME store of record
+   through these helpers — never a second copy of tip-page truth.
+   Only what the public tip page itself shows is returned. */
+export interface PublicTipPageView {
+  handle: string;
+  displayName: string;
+  message: string;
+  suggestedAmounts: number[];
+  goalAmount: number | null;
+  goalLabel: string;
+}
+
+function publicTipPageView(settings: TipPageSettings): PublicTipPageView {
+  return {
+    handle: settings.handle,
+    displayName: settings.displayName,
+    message: settings.message,
+    suggestedAmounts: settings.suggestedAmounts,
+    goalAmount: settings.goalAmount,
+    goalLabel: settings.goalLabel,
+  };
+}
+
+/** Resolve a tip page by handle OR creator-profile slug (the same two
+ *  namespaces as GET /api/tips/page/:handle). Null = no tip page. */
+export async function getPublicTipPageByHandleOrSlug(
+  value: string,
+): Promise<PublicTipPageView | null> {
+  const ownerId = await resolveTipPageOwnerId(value.toLowerCase());
+  if (!ownerId) return null;
+  const settings = tipPages.get(ownerId);
+  return settings ? publicTipPageView(settings) : null;
+}
+
+/** The signed-in owner's own tip page, for the widgets desk inventory. */
+export function getPublicTipPageByUserId(userId: string): PublicTipPageView | null {
+  const settings = tipPages.get(userId);
+  return settings ? publicTipPageView(settings) : null;
+}
+
 /* GET /api/tips/page/:handle → public tip page data. No auth.
    :handle accepts a tip handle OR a creator-profile slug (see
    resolveTipPageOwnerId); the response always carries the page's
