@@ -123,7 +123,7 @@ export default function ConnectPayoutCard({ getToken }: { getToken: () => Promis
         /* A NOT_ONBOARDED refusal carries Stripe's own reasons — show
            the first instead of a bare "isn't verified yet". */
         const reason = data.actionNeeded?.[0];
-        throw new Error((data.message || data.error || "Payout failed.") + (reason ? ` ${reason}` : ""));
+        throw new Error(apiErrorMessage(data, "Payout failed.") + (reason ? ` ${reason}` : ""));
       }
       setNote(`Cash out sent: ${usd(data.payout?.amountCents ?? 0)}${data.note ? ` — ${data.note}` : ""}`);
       await load();

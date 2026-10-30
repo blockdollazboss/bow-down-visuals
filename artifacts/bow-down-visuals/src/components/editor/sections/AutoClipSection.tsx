@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useRef, useState } from "react";
 import { EditorSettings, getClipEdit } from "@/lib/editor-settings";
 import {
@@ -238,7 +238,7 @@ export function AutoClipSection({
               ? {
                   ...j,
                   status: "error",
-                  error: e instanceof Error ? e.message : "Failed",
+                  error: plainErrorText(e, "Failed"),
                   errorCode: (e as { code?: string }).code,
                 }
               : j
@@ -265,7 +265,7 @@ export function AutoClipSection({
             ? {
                 ...j,
                 status: "error",
-                error: e instanceof Error ? e.message : "Failed",
+                error: plainErrorText(e, "Failed"),
                 errorCode: (e as { code?: string }).code,
               }
             : j

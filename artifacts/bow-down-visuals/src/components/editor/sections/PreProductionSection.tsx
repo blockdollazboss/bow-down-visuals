@@ -141,7 +141,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
       updatePP({
         storyboard: pp.storyboard.map((s) =>
           s.id === shotId
-            ? { ...s, [statusKey]: "error", [errKey]: e instanceof Error ? e.message : "Failed" }
+            ? { ...s, [statusKey]: "error", [errKey]: plainErrorText(e, "Failed") }
             : s,
         ),
       });
@@ -187,7 +187,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
     } catch (e) {
       updatePP({
         assets: pp.assets.map((a) =>
-          a.id === id ? { ...a, status: "error", error: e instanceof Error ? e.message : "Failed" } : a,
+          a.id === id ? { ...a, status: "error", error: plainErrorText(e, "Failed") } : a,
         ),
       });
     } finally {

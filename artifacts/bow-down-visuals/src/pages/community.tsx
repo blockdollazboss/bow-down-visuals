@@ -499,7 +499,7 @@ export default function CommunityManager() {
       refreshProfile();
       return null;
     }
-    if (!res.ok) throw new Error((data.error as string) || "Request failed — try again.");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Request failed — try again."));
     refreshProfile();
     return data;
   }

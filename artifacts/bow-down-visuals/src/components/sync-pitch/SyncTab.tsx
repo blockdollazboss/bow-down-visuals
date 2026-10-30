@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
@@ -295,7 +295,7 @@ export default function SyncTab({
         return;
       }
       if (!res.ok || !(data as { oneSheet?: OneSheet }).oneSheet) {
-        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("syncPitch.kitFailed"));
+        throw new Error(apiErrorMessage(data, t("syncPitch.kitFailed")));
       }
       const oneSheet = (data as { oneSheet: OneSheet }).oneSheet;
       setSheet(oneSheet);

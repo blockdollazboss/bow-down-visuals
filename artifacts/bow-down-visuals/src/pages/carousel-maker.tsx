@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -163,7 +164,7 @@ export default function CarouselMaker() {
       if (!res) return; // user cancelled the VB confirm
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error ?? t("carouselMaker.exportFailed"));
+        throw new Error(apiErrorMessage(data, t("carouselMaker.exportFailed")));
       }
       /* The server returns the disclosure payload (text + tool) when the
          toggle is on; the stamp itself happens here, in the PNG bytes,

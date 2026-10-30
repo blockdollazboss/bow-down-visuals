@@ -184,7 +184,7 @@ function SchedulerComposeForm(props: ComposeFormProps) {
         setError(
           res.status === 402
             ? "Out of Visual Bucs — top up and the scheduler is ready again."
-            : (d.message ?? d.error ?? "The scheduler didn't take that — try again."),
+            : apiErrorMessage(d, "The scheduler didn't take that — try again."),
         );
         return;
       }
@@ -228,7 +228,7 @@ function SchedulerComposeForm(props: ComposeFormProps) {
         setBtError(
           res.status === 402
             ? "Out of Visual Bucs — top up and best-time is ready again."
-            : (d.message ?? "Best-time didn't answer — a failed ask is refunded. Try again."),
+            : apiErrorMessage(d, "Best-time didn't answer — a failed ask is refunded. Try again."),
         );
         return;
       }

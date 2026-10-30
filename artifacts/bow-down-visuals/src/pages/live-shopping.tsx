@@ -457,7 +457,7 @@ export default function LiveShopping() {
         setBuyMsg(
           res.ok && data.success
             ? "Payment confirmed — your purchase is complete."
-            : (data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+            : apiErrorMessage(data, "We couldn't confirm that payment. If you were charged, contact support."),
         );
         if (res.ok) await loadAll();
       } catch {

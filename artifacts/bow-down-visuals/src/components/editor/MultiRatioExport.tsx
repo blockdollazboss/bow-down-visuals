@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { Link } from "wouter";
@@ -278,7 +278,7 @@ export function MultiRatioExportCard({
       setRendering(false);
       toast({
         title: t("videoEditor.multiRatio.startFailedTitle"),
-        description: err instanceof Error ? err.message : t("videoEditor.multiRatio.startFailed"),
+        description: plainErrorText(err, t("videoEditor.multiRatio.startFailed")),
       });
     }
   }
@@ -700,7 +700,7 @@ export function ExtractAudioCard({ videoUrl }: { videoUrl: string | null }) {
     } catch (err) {
       toast({
         title: t("videoEditor.extractAudio.failedTitle"),
-        description: err instanceof Error ? err.message : t("videoEditor.extractAudio.failed"),
+        description: plainErrorText(err, t("videoEditor.extractAudio.failed")),
       });
     } finally {
       setExtracting(false);

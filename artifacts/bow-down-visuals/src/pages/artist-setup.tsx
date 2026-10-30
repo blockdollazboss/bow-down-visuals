@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
@@ -77,7 +77,7 @@ function ImageField({
       onChange(url);
       toast({ title: "Uploaded", description: "Looking sharp." });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Try again.") });
     } finally {
       setBusy(false);
     }
@@ -269,7 +269,7 @@ export default function ArtistSetup() {
       toast({ title: "Saved", description: justPublished ? "You're live. Go look at yourself." : "All changes saved." });
       if (justPublished) setReveal(true);
     } catch (err) {
-      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "Save failed", description: plainErrorText(err, "Try again.") });
     } finally {
       setSaving(false);
     }

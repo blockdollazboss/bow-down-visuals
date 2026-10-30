@@ -81,9 +81,9 @@ export default function ActionTrackerPanel() {
     try {
       const [numSettled, itemSettled] = await Promise.allSettled([loadNumbers(), loadItems()]);
       if (numSettled.status === "fulfilled") setNumbers(numSettled.value);
-      else setNumbersError(numSettled.reason instanceof Error ? numSettled.reason.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      else setNumbersError(plainErrorText(numSettled.reason, t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." })));
       if (itemSettled.status === "fulfilled") setItems(itemSettled.value);
-      else setItemsError(itemSettled.reason instanceof Error ? itemSettled.reason.message : t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." }));
+      else setItemsError(plainErrorText(itemSettled.reason, t("coachTracker.errorLoad", { defaultValue: "Couldn't load your tracker — try again." })));
     } finally {
       setLoading(false);
     }

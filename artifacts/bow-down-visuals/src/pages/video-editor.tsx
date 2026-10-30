@@ -1751,7 +1751,7 @@ export default function VideoEditor() {
 
       toast({ title: t("videoEditor.scenesRebuiltSaved", { count: parsed.length }), description: t("videoEditor.scenesReadyDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
+      const msg = plainErrorText(err, "Unknown error");
       setRebuildStatus("error");
       setRebuildError(t("videoEditor.parseScenesError", { msg }));
       toast({ title: t("videoEditor.parseScenesTitle"), description: msg, variant: "destructive" });
@@ -1783,7 +1783,7 @@ export default function VideoEditor() {
       setAutoSceneStatus("idle");
       toast({ title: t("videoEditor.scenesGeneratedFromSong", { count: newScenes.length }), description: t("videoEditor.scenesReadyDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("videoEditor.autoSceneErrorDefault");
+      const msg = plainErrorText(err, t("videoEditor.autoSceneErrorDefault"));
       setAutoSceneStatus("error");
       setAutoSceneError(msg);
     }
@@ -1848,7 +1848,7 @@ export default function VideoEditor() {
         description: t("videoEditor.clipsSyncedDesc"),
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
+      const msg = plainErrorText(err, "Unknown error");
       setSyncState("error");
       setSyncMsg(msg);
       toast({ title: t("videoEditor.syncFailedTitle"), description: msg, variant: "destructive" });

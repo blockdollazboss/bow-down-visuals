@@ -1,4 +1,4 @@
-import { plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -248,7 +248,7 @@ export default function StoreSuccess() {
         const sfBody = (await sfRes.json().catch(() => ({}))) as SfVerifyResult & { error?: string };
         if (!alive) return;
         if (!sfRes.ok || !sfBody.success) {
-          throw new Error(sfBody.error || body.error || "Verification failed.");
+          throw new Error(apiErrorMessage(sfBody, apiErrorMessage(body, "Verification failed.")));
         }
         /* Commerce pixels (wave-4 #41): Purchase fires ONLY here —
            payment verified by the server — on the seller's own IDs. */

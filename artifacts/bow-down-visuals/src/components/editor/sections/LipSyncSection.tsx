@@ -907,7 +907,7 @@ export function LipSyncSection({
         lipSyncTimingMismatch:  false,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = plainErrorText(err, "Lip sync didn't land — try again.");
       if (err instanceof StillProcessingError) {
         /* Keep status as processing — Sync.so may still be running */
         updateClipEdit(sceneId, { lipSyncError: msg });
@@ -1024,7 +1024,7 @@ export function LipSyncSection({
           replaceUrl:         result.url,
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = plainErrorText(err, "Lip sync didn't land — try again.");
         if (err instanceof StillProcessingError) {
           updateClipEdit(scene.id, { lipSyncError: msg });
           setProcessState(p => p ? { ...p, lastError: `Scene ${scene.sceneNumber}: still processing` } : null);
@@ -1153,7 +1153,7 @@ export function LipSyncSection({
         multipleKeysFound: false, providerEndpointConfigured: false,
         accountStatusAvailable: false, billingBlocked: null,
         httpStatus: null,
-        lastError: err instanceof Error ? err.message : "Network error",
+        lastError: plainErrorText(err, "Network error"),
         message: "Account check failed", checkedAt: new Date().toLocaleTimeString(),
       });
     } finally {
@@ -1546,7 +1546,7 @@ export function LipSyncSection({
       }
       throw new Error("Scene test timed out after 4 minutes.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = plainErrorText(err, "Lip sync didn't land — try again.");
       setSceneTestError(msg);
     } finally {
       setSceneTestRunning(false);

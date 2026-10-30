@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Crown, Loader2, Mic2, RefreshCw, Send, Trophy, Undo2, XCircle } from "lucide-react";
@@ -138,7 +139,7 @@ export default function OpenVerseDesk() {
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      throw new Error((data.message as string) || (data.error as string) || "That didn't go through — try again.");
+      throw new Error(apiErrorMessage(data, "That didn't go through — try again."));
     }
     return data;
   }

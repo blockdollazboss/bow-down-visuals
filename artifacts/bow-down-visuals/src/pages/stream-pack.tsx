@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -204,7 +205,7 @@ export function StreamPackTool() {
       }
       if (!res.ok || !data.url) {
         setStates((s) => ({ ...s, [assetKey]: "failed" }));
-        setFailedMsg((f) => ({ ...f, [assetKey]: data.message || data.error || t("streamPack.errorGenerationFailed") }));
+        setFailedMsg((f) => ({ ...f, [assetKey]: apiErrorMessage(data, t("streamPack.errorGenerationFailed")) }));
         return false;
       }
       const label = assets.find((a) => a.key === assetKey)?.label ?? assetKey;

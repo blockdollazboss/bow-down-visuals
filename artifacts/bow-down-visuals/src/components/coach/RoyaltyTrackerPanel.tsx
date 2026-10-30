@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import {
@@ -147,7 +147,7 @@ export default function RoyaltyTrackerPanel() {
       setCsv("");
       loadAll();
     } catch (err) {
-      setImportMsg({ ok: false, text: err instanceof Error ? err.message : t("royalties.error.importFailed") });
+      setImportMsg({ ok: false, text: plainErrorText(err, t("royalties.error.importFailed")) });
     } finally {
       setImporting(false);
     }
@@ -173,7 +173,7 @@ export default function RoyaltyTrackerPanel() {
         setInsightsOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error((data.error as string) || t("royalties.error.insightsFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("royalties.error.insightsFailed")));
       setInsights((data.insights as Insight[]) ?? []);
       refreshProfile().catch(() => {});
     } catch (err) {
@@ -200,7 +200,7 @@ export default function RoyaltyTrackerPanel() {
         received_amount: pReceived.trim() || undefined,
         status: pStatus,
       });
-      if (!res.ok) throw new Error((data.error as string) || t("royalties.error.payoutSaveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("royalties.error.payoutSaveFailed")));
       setShowPayoutForm(false);
       setPDistributor(""); setPStart(""); setPEnd(""); setPExpected(""); setPReceived(""); setPStatus("expected");
       loadAll();

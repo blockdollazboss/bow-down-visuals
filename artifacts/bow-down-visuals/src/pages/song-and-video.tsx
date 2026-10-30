@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -557,7 +557,7 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
       }
       setLocation(`/video-editor?project=${saveBody.id}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      const msg = plainErrorText(err, "Something went wrong. Please try again.");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -843,7 +843,7 @@ export function SongAndVideoModule() {
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("songAndVideo.errorGenerationFailed");
+      const msg = plainErrorText(err, t("songAndVideo.errorGenerationFailed"));
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -1032,7 +1032,7 @@ export function SongAndVideoModule() {
       setDraftState("recovered");
       setTimeout(() => setDraftState("idle"), 2500);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("songAndVideo.errorDraftNotFoundBackup");
+      const msg = plainErrorText(err, t("songAndVideo.errorDraftNotFoundBackup"));
       setDraftError(msg);
       setDraftState("failed");
     }
@@ -1108,7 +1108,7 @@ export function SongAndVideoModule() {
       }
       toast({ title: t("songAndVideo.toastProjectSavedTitle"), description: t("songAndVideo.toastProjectSavedDesc") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("songAndVideo.errorSaveFailed");
+      const msg = plainErrorText(err, t("songAndVideo.errorSaveFailed"));
       setSaveError(msg);
       setAutoSaveStatus("failed");
       toast({ title: t("songAndVideo.toastSaveFailedTitle"), description: msg, variant: "destructive" });

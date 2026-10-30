@@ -1075,7 +1075,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ is_default: true }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.setDefaultFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.setDefaultFailed")));
       await fetchOutfits();
     } catch (err) {
       setError(plainErrorText(err, t("artistVault.setDefaultFailed")));
@@ -1092,7 +1092,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ label: editLabel.trim() }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.renameFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.renameFailed")));
       setEditingId(null);
       await fetchOutfits();
     } catch (err) {
@@ -1108,7 +1108,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
         method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.removeOutfitFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.removeOutfitFailed")));
       await fetchOutfits();
     } catch (err) {
       setError(plainErrorText(err, t("artistVault.removeOutfitFailed")));
@@ -1443,7 +1443,7 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityUpdateFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.identityUpdateFailed")));
       await fetchPhotos();
     } catch (err) {
       setError(plainErrorText(err, t("artistVault.identityUpdateFailed")));
@@ -1458,7 +1458,7 @@ function IdentitySetSection({ vaultId, mainPhotoUrl }: {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? t("artistVault.identityRemoveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => ({})), t("artistVault.identityRemoveFailed")));
       await fetchPhotos();
     } catch (err) {
       setError(plainErrorText(err, t("artistVault.identityRemoveFailed")));

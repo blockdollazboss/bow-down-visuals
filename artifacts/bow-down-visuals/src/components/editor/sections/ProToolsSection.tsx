@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useMemo, useRef, useState } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
@@ -188,7 +188,7 @@ export function ProToolsSection({
     } catch (err) {
       toast({
         title: "Auto-grade failed",
-        description: err instanceof Error ? err.message : "Try again.",
+        description: plainErrorText(err, "Try again."),
         variant: "destructive",
       });
     } finally {
@@ -291,7 +291,7 @@ export function ProToolsSection({
     } catch (err) {
       toast({
         title: "Slow motion failed",
-        description: err instanceof Error ? err.message : "Try again.",
+        description: plainErrorText(err, "Try again."),
         variant: "destructive",
       });
     } finally {

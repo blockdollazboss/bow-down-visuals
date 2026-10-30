@@ -137,7 +137,7 @@ export default function TeamPage() {
       const loaded = await load();
       setMsg(loaded ? t("team.teamCreated") : t("team.teamCreatedReloadFailed"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorCreate")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorCreate"))}`);
     } finally {
       setCreating(false);
     }
@@ -156,7 +156,7 @@ export default function TeamPage() {
       await load();
       setMsg(t("team.inviteSent"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorInvite")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorInvite"))}`);
     } finally {
       setInviting(false);
     }
@@ -169,7 +169,7 @@ export default function TeamPage() {
       await load();
       setMsg(t("team.welcomeToTeam"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorAccept")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorAccept"))}`);
     }
   }
 
@@ -178,7 +178,7 @@ export default function TeamPage() {
       await api(`/api/teams/${teamId}/decline`, { method: "POST" });
       await load();
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorDecline")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorDecline"))}`);
     }
   }
 
@@ -191,7 +191,7 @@ export default function TeamPage() {
       });
       await load();
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorRoleChange")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorRoleChange"))}`);
     }
   }
 
@@ -202,7 +202,7 @@ export default function TeamPage() {
       await load();
       setMsg(t("team.memberRemoved"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorRemove")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorRemove"))}`);
     }
   }
 
@@ -213,7 +213,7 @@ export default function TeamPage() {
       await load();
       setMsg(t("team.leftTeam"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorLeave")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorLeave"))}`);
     }
   }
 
@@ -241,7 +241,7 @@ export default function TeamPage() {
       await load();
       setMsg(data?.duplicate ? t("team.alreadyFunded") : t("team.fundedPool", { amount }));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorFund")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorFund"))}`);
     } finally {
       setFunding(false);
     }
@@ -259,7 +259,7 @@ export default function TeamPage() {
       setActiveTeam((prev) => (prev ? { ...prev, allowPersonalFallback: data.team.allowPersonalFallback } : prev));
       setMsg(next ? t("team.fallbackEnabled") : t("team.fallbackDisabled"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorFallback")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorFallback"))}`);
     }
   }
 
@@ -270,7 +270,7 @@ export default function TeamPage() {
       await load();
       setMsg(t("team.teamDeleted"));
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : t("team.errorDelete")}`);
+      setMsg(`✗ ${plainErrorText(e, t("team.errorDelete"))}`);
     }
   }
 

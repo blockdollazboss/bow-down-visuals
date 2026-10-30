@@ -367,7 +367,7 @@ export default function SplitCalculator() {
     } catch (err) {
       setCardError((prev) => ({
         ...prev,
-        [sheet.id]: err instanceof Error ? err.message : t("wave8.splits.errorPdf"),
+        [sheet.id]: plainErrorText(err, t("wave8.splits.errorPdf")),
       }));
     } finally {
       setGeneratingId(null);

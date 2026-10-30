@@ -566,7 +566,7 @@ function ImageUpscaleTool() {
         setStatus("failed");
         setError(
           (data.message || data.error)
-            ? t("upscale.upscaleFailedServer", { msg: data.message || data.error, cost: IMAGE_CREDIT_COST })
+            ? t("upscale.upscaleFailedServer", { msg: apiErrorMessage(data, "server error"), cost: IMAGE_CREDIT_COST })
             : t("upscale.upscaleFailedRefunded", { cost: IMAGE_CREDIT_COST }),
         );
         return;

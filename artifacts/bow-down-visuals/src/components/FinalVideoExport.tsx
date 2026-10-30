@@ -694,7 +694,7 @@ export function FinalVideoExport({
           signal: AbortSignal.timeout(15_000),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((data as { error?: string }).error ?? t("videoExport.errEstimateHttp", { status: res.status }));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("videoExport.errEstimateHttp", { status: res.status })));
         setEstimate(data as typeof estimate);
       } catch (err) {
         setEstimate(null);
@@ -1058,7 +1058,7 @@ export function FinalVideoExport({
         });
         return;
       }
-      const msg = err instanceof Error ? err.message : t("videoExport.exportFailedLower");
+      const msg = plainErrorText(err, t("videoExport.exportFailedLower"));
       if (msg === "out_of_credits") {
         setStatus("idle");
         setProgressStep("");

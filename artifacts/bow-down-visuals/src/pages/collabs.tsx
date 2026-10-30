@@ -1,4 +1,4 @@
-import { plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useRef, useState } from "react";
@@ -272,7 +272,7 @@ export default function CollabFinder() {
           isPublic,
         },
       });
-      if (!res.ok) throw new Error((data.error as string) || t("collabs.errorSaveFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("collabs.errorSaveFailed")));
       setHasProfile(true);
       setProfileMsg(t("collabs.profileLive"));
       loadBrowse();
@@ -301,7 +301,7 @@ export default function CollabFinder() {
         setMatchOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error((data.error as string) || t("collabs.errorMatchFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("collabs.errorMatchFailed")));
       setReport(data.report as MatchReport);
       document.getElementById("match-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
@@ -332,7 +332,7 @@ export default function CollabFinder() {
         method: "POST",
         body: { toUserId: proposalTo.userId, message: proposalText.trim().slice(0, 1000) },
       });
-      if (!res.ok) throw new Error((data.error as string) || t("collabs.errorSendFailed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("collabs.errorSendFailed")));
       setProposalMsg(t("collabs.proposalSent"));
       setProposalTo(null);
       setProposalText("");

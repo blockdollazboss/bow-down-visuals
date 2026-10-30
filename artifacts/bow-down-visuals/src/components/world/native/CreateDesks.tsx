@@ -246,7 +246,7 @@ function useSongPublishRail(args: {
       setAudioState("done");
       refreshProfile();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Audio generation failed.";
+      const msg = plainErrorText(err, "Audio generation failed.");
       setAudioError(
         msg === "out_of_credits" ? "You're out of Visual Bucs — top up, then make the audio." : msg,
       );

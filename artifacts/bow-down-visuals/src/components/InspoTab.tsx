@@ -182,7 +182,7 @@ export default function InspoTab({
         mood: dna.mood.join(", "),
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed.";
+      const msg = plainErrorText(err, "Generation failed.");
       if (msg === "out_of_credits") onOutOfCredits();
       else setError(msg);
     } finally {
@@ -205,7 +205,7 @@ export default function InspoTab({
       setPresetName("");
       toast({ title: "Vibe saved", description: `"${data.preset?.name}" is now in My Vibes.` });
     } catch (err) {
-      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+      toast({ title: "Save failed", description: plainErrorText(err, "Try again."), variant: "destructive" });
     } finally {
       setSavingPreset(false);
     }

@@ -500,7 +500,7 @@ export default function Memberships() {
     try {
       const token = await getAccessToken();
       const { res, data } = await api(`/memberships/mine/${m.id}/update-payment`, token, { method: "POST" });
-      if (!res.ok) throw new Error(String(data.error ?? "update failed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "update failed"));
       if (data.url) {
         window.location.href = String(data.url);
         return;
@@ -534,7 +534,7 @@ export default function Memberships() {
             setFanMsg(
               res.ok && data.success
                 ? "Payment confirmed — your membership is active."
-                : String(data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
+                : apiErrorMessage(data, "We couldn't confirm that payment. If you were charged, contact support."),
             );
           }
         } catch {
@@ -556,7 +556,7 @@ export default function Memberships() {
     try {
       const token = await getAccessToken();
       const { res, data } = await api(`/memberships/mine/${m.id}/cancel`, token, { method: "POST" });
-      if (!res.ok) throw new Error(String(data.error ?? "cancel failed"));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "cancel failed"));
       setFanMsg(`Membership canceled — you're out of ${m.tierName ?? "the fan club"}.`);
       await loadMine();
     } catch {
@@ -707,7 +707,7 @@ export default function Memberships() {
         body: JSON.stringify({ tierId: memberTier, fanLabel: fanLabel.trim() }),
       });
       if (res.status === 409) {
-        setError(String(data.error ?? t("memberships.errorDuplicateMember")));
+        setError(apiErrorMessage(data, t("memberships.errorDuplicateMember")));
         return;
       }
       if (!res.ok) throw new Error();

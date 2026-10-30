@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Crown, Loader2 } from "lucide-react";
@@ -142,7 +142,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : t("worldPlansDesk.confirmPending"));
+        setError(apiErrorMessage(data, t("worldPlansDesk.confirmPending")));
         return;
       }
       const tierName = embedded.tier;

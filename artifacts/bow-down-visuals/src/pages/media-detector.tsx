@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -252,7 +253,7 @@ export default function MediaDetector() {
       }
       return { ...item, status: "done", detection: data.detection as Detection, disclaimer: data.disclaimer };
     } catch (e) {
-      return { ...item, status: "error", error: e instanceof Error ? e.message : t("mediaDetector.errorDetectionFailedShort") };
+      return { ...item, status: "error", error: plainErrorText(e, t("mediaDetector.errorDetectionFailedShort")) };
     }
   }
 

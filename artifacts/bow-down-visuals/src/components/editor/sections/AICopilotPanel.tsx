@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Sparkles, Loader2, CheckCircle2, AlertTriangle, Lightbulb, Wrench,
@@ -246,7 +246,7 @@ export function AICopilotPanel(props: Props) {
     } catch (e) {
       toast({
         title: "Couldn't apply",
-        description: e instanceof Error ? e.message : "Unknown error.",
+        description: plainErrorText(e, "Unknown error."),
         variant: "destructive",
       });
     } finally {
@@ -321,7 +321,7 @@ export function AICopilotPanel(props: Props) {
     } catch (e) {
       toast({
         title: "Analysis failed",
-        description: e instanceof Error ? e.message : "Unknown error.",
+        description: plainErrorText(e, "Unknown error."),
         variant: "destructive",
       });
     } finally {

@@ -154,7 +154,7 @@ export function PhotoEnhance() {
       }
       setResult({ url: data.url, operations: data.operations ?? ops });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : t("photoEnhance.errorFailed", { defaultValue: "Enhancement failed. Try again." });
+      const msg = plainErrorText(e, t("photoEnhance.errorFailed", { defaultValue: "Enhancement failed. Try again." }));
       setError(msg === "out_of_credits" ? t("photoEnhance.errorCredits", { defaultValue: "Not enough Visual Bucs. Please buy more Visual Bucs to continue." }) : msg);
     } finally {
       setEnhancing(false);

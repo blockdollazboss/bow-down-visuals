@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -974,7 +974,7 @@ export default function BroadcastStudio() {
       else setAnnouncedEnd(true);
       toast({ title: "Posted to Discord", description: kind === "live" ? "Your server knows you're live." : "The wrap-up is posted." });
     } catch (e) {
-      toast({ title: "Couldn't announce", description: e instanceof Error ? e.message : "Try again.", variant: "destructive" });
+      toast({ title: "Couldn't announce", description: plainErrorText(e, "Try again."), variant: "destructive" });
     } finally {
       setAnnouncing(false);
     }

@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -146,7 +146,7 @@ function GoLiveMain() {
       setGame("");
       await load();
     } catch (e) {
-      toast({ title: t("goLive.couldntAnnounceTitle"), description: e instanceof Error ? e.message : t("goLive.tryAgain"), variant: "destructive" });
+      toast({ title: t("goLive.couldntAnnounceTitle"), description: plainErrorText(e, t("goLive.tryAgain")), variant: "destructive" });
     } finally {
       setAnnouncing(false);
     }
@@ -163,7 +163,7 @@ function GoLiveMain() {
       setVodUrl("");
       await load();
     } catch (e) {
-      toast({ title: t("goLive.couldntSignoffTitle"), description: e instanceof Error ? e.message : t("goLive.tryAgain"), variant: "destructive" });
+      toast({ title: t("goLive.couldntSignoffTitle"), description: plainErrorText(e, t("goLive.tryAgain")), variant: "destructive" });
     } finally {
       setEnding(false);
     }
@@ -192,7 +192,7 @@ function GoLiveMain() {
       setSchedTitle(""); setSchedGame(""); setSchedWhen("");
       await load();
     } catch (e) {
-      toast({ title: t("goLive.couldntScheduleTitle"), description: e instanceof Error ? e.message : t("goLive.tryAgain"), variant: "destructive" });
+      toast({ title: t("goLive.couldntScheduleTitle"), description: plainErrorText(e, t("goLive.tryAgain")), variant: "destructive" });
     } finally {
       setScheduling(false);
     }

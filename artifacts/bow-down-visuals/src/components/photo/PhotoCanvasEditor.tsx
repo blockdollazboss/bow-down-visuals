@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,7 +218,7 @@ export function PhotoCanvasEditor() {
     } catch (e) {
       toast({
         title: "Background removal could not run",
-        description: e instanceof Error ? e.message : "Pro matting could not run on this device.",
+        description: plainErrorText(e, "Pro matting could not run on this device."),
         variant: "destructive",
       });
     } finally {

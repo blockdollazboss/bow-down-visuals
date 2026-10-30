@@ -677,7 +677,7 @@ export default function ArrangementStudio() {
         toast({ title: "Tracks added", description: `${added.length} track${added.length > 1 ? "s" : ""} on the timeline.` });
       }
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -695,7 +695,7 @@ export default function ArrangementStudio() {
       };
       updateTrack({ ...track, clips: [...track.clips, clip] });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -712,7 +712,7 @@ export default function ArrangementStudio() {
       ];
       updateTrack({ ...track, takes });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }

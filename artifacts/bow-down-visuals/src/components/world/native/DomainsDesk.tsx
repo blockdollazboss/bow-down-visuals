@@ -82,7 +82,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
     } catch (e) {
       setVerifyResults((r) => ({
         ...r,
-        [domain.id]: { ok: false, message: e instanceof Error ? e.message : "The check didn't run — try again." },
+        [domain.id]: { ok: false, message: plainErrorText(e, "The check didn't run — try again.") },
       }));
     } finally { setVerifyingId(null); }
   };

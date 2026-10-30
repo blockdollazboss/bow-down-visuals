@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Loader2, Shield, ShieldPlus, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,7 +78,7 @@ export default function ChannelModerators({ className = "" }: { className?: stri
         setSlug("");
         setNote("Moderator appointed — they can help run chat on every stream you host.");
       } else {
-        setNote((json?.error as string) ?? "That moderator couldn't be appointed.");
+        setNote(apiErrorMessage(json, "That moderator couldn't be appointed."));
       }
     } catch {
       setNote("That moderator couldn't be appointed. Try again.");
@@ -91,7 +92,7 @@ export default function ChannelModerators({ className = "" }: { className?: stri
     try {
       const { status, json } = await call(`/api/live/moderators/${userId}`, { method: "DELETE" });
       if (status === 200) setModerators((json.moderators ?? []) as ModeratorDto[]);
-      else setNote((json?.error as string) ?? "That moderator couldn't be removed.");
+      else setNote(apiErrorMessage(json, "That moderator couldn't be removed."));
     } catch {
       setNote("That moderator couldn't be removed. Try again.");
     }

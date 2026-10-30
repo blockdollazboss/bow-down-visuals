@@ -165,7 +165,7 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           : `Mix & master plan built for ${presetName}.`,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not generate plan.";
+      const msg = plainErrorText(err, "Could not generate plan.");
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();

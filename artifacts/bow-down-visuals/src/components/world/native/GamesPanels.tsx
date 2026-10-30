@@ -278,7 +278,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
           ...prev,
           [result.game]: outcomeForFailedScore(
             result.score,
-            err instanceof Error ? err.message : "Could not save your score",
+            plainErrorText(err, "Could not save your score"),
           ),
         }));
       }

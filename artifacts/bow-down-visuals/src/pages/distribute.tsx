@@ -466,7 +466,7 @@ function NewReleaseWizard(props: {
       }
     } catch (err) {
       setArtStatus(null);
-      onError(err instanceof Error ? err.message : "Cover art generation failed.");
+      onError(plainErrorText(err, "Cover art generation failed."));
     } finally {
       setArtWorking(false);
     }
@@ -539,7 +539,7 @@ function NewReleaseWizard(props: {
       setDone({ release: subData.release, notice: subData.notice ?? null });
       onDone(subData.release, subData.notice ?? null, true);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't create the release.");
+      onError(plainErrorText(err, "Couldn't create the release."));
     } finally {
       setCreating(false);
     }
@@ -1026,7 +1026,7 @@ function ReleaseMetadataManager(props: {
       onUpdate(data.release);
       onNotice(data.notice ?? "Internal catalog ID minted — not a store-recognized UPC.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't generate the barcode.");
+      onError(plainErrorText(err, "Couldn't generate the barcode."));
     } finally {
       setBarcodeWorking(false);
     }
@@ -1081,7 +1081,7 @@ function ReleaseMetadataManager(props: {
       onNotice("Release metadata saved — free.");
       return true;
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't save the metadata.");
+      onError(plainErrorText(err, "Couldn't save the metadata."));
       return false;
     } finally {
       setSaving(false);
@@ -1509,7 +1509,7 @@ function PresaveManager(props: {
       setLanguageRows(destinationRows(data.settings?.languageDestinations));
       setRoutingReady(data.settings?.routingReady !== false);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't load pre-save stats.");
+      onError(plainErrorText(err, "Couldn't load pre-save stats."));
     } finally {
       setStatsLoading(false);
     }
@@ -1548,7 +1548,7 @@ function PresaveManager(props: {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as PresaveStats & { error?: string; message?: string };
-      if (!res.ok) throw new Error((data as { message?: string; error?: string }).message || (data as { error?: string }).error || "Couldn't save pre-save settings.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save pre-save settings."));
       setStats((prev) => (prev ? { ...prev, settings: data.settings } : prev));
       setTerritoryRows(destinationRows(data.settings?.territoryDestinations));
       setLanguageRows(destinationRows(data.settings?.languageDestinations));
@@ -1556,7 +1556,7 @@ function PresaveManager(props: {
       setEditing(false);
       onNotice("Pre-save page updated — free.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't save pre-save settings.");
+      onError(plainErrorText(err, "Couldn't save pre-save settings."));
     } finally {
       setSaving(false);
     }
@@ -2007,7 +2007,7 @@ function ReleaseDetail(props: {
       setMetaResult(data);
       refreshProfile();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Metadata generation failed.");
+      onError(plainErrorText(err, "Metadata generation failed."));
     } finally {
       setMetaLoading(false);
     }
@@ -2038,7 +2038,7 @@ function ReleaseDetail(props: {
       setStrategyResult(data);
       refreshProfile();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Strategy generation failed.");
+      onError(plainErrorText(err, "Strategy generation failed."));
     } finally {
       setStrategyLoading(false);
     }
@@ -2104,7 +2104,7 @@ function ReleaseDetail(props: {
           : "Royalty splits saved — free.",
       );
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't save the splits.");
+      onError(plainErrorText(err, "Couldn't save the splits."));
     } finally {
       setSplitsSaving(false);
     }
@@ -2131,7 +2131,7 @@ function ReleaseDetail(props: {
       setSplits((prev) => prev.map((x) => (x.id === split.id ? { ...x, inviteStatus: "invited" } : x)));
       onNotice("Invite sent to the collaborator.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't record the invite.");
+      onError(plainErrorText(err, "Couldn't record the invite."));
     } finally {
       setInvitingId(null);
     }
@@ -2150,7 +2150,7 @@ function ReleaseDetail(props: {
       onUpdate({ ...release, splitShareSlug: data.slug });
       onNotice("Split agreement link created — free.");
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't create the share link.");
+      onError(plainErrorText(err, "Couldn't create the share link."));
     } finally {
       setShareWorking(false);
     }
@@ -2179,7 +2179,7 @@ function ReleaseDetail(props: {
       /* The pre-save page flows into the hub project — announce it from the scheduler. */
       try { addAsset({ kind: "other", url: data.url, label: `Pre-save — ${release.title || "release"}`, detail: "Distribution" }); } catch { /* non-fatal */ }
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't create the pre-save link.");
+      onError(plainErrorText(err, "Couldn't create the pre-save link."));
     } finally {
       setPresaveWorking(false);
     }
@@ -2224,7 +2224,7 @@ function ReleaseDetail(props: {
       onNotice(data.notice ?? "Release submitted — delivery queued.");
       refreshProfile();
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't submit the release.");
+      onError(plainErrorText(err, "Couldn't submit the release."));
     } finally {
       setSubmitting(false);
     }
@@ -2243,7 +2243,7 @@ function ReleaseDetail(props: {
         throw new Error("Couldn't delete the release.");
       }
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Couldn't delete the release.");
+      onError(plainErrorText(err, "Couldn't delete the release."));
     } finally {
       setDeleting(false);
     }

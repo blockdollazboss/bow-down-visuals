@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -139,7 +139,7 @@ export default function ArcadePage() {
           [result.game]: {
             score: result.score,
             saved: false,
-            error: err instanceof Error ? err.message : "Could not save your score",
+            error: plainErrorText(err, "Could not save your score"),
           },
         }));
       }

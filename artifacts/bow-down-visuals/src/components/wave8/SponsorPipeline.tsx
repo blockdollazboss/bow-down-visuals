@@ -190,7 +190,7 @@ export default function SponsorPipeline() {
     } catch (err) {
       setCardMsg((prev) => ({
         ...prev,
-        [deal.id]: { ok: false, text: err instanceof Error ? err.message : t("wave8.sponsors.errorUpdate") },
+        [deal.id]: { ok: false, text: plainErrorText(err, t("wave8.sponsors.errorUpdate")) },
       }));
     } finally {
       setMovingId(null);
@@ -229,7 +229,7 @@ export default function SponsorPipeline() {
     } catch (err) {
       setCardMsg((prev) => ({
         ...prev,
-        [deal.id]: { ok: false, text: err instanceof Error ? err.message : t("wave8.sponsors.errorDraft") },
+        [deal.id]: { ok: false, text: plainErrorText(err, t("wave8.sponsors.errorDraft")) },
       }));
     } finally {
       setDraftingId(null);
@@ -272,7 +272,7 @@ export default function SponsorPipeline() {
     } catch (err) {
       setCardMsg((prev) => ({
         ...prev,
-        [deal.id]: { ok: false, text: err instanceof Error ? err.message : t("wave8.sponsors.errorPaid") },
+        [deal.id]: { ok: false, text: plainErrorText(err, t("wave8.sponsors.errorPaid")) },
       }));
     } finally {
       setPayingId(null);
@@ -302,7 +302,7 @@ export default function SponsorPipeline() {
     } catch (err) {
       setCardMsg((prev) => ({
         ...prev,
-        [deal.id]: { ok: false, text: err instanceof Error ? err.message : t("wave8.sponsors.errorUpdate") },
+        [deal.id]: { ok: false, text: plainErrorText(err, t("wave8.sponsors.errorUpdate")) },
       }));
     } finally {
       setEditSaving(false);

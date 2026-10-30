@@ -165,7 +165,7 @@ export function ManualDAW({
         toast({ title: "Export Complete", description: `${btn.label} is ready to download.` });
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Export failed. Please try again.";
+      const message = plainErrorText(e, "Export failed. Please try again.");
       setExportError(message);
       if (isDirectRequest) {
         onDirectExportStatusChange?.({

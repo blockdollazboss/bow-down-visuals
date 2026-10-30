@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText, Loader2, Sparkles, CheckCircle2, AlertTriangle,
@@ -195,7 +195,7 @@ export function TranscriptCutCard({
         return;
       }
       if (!res.ok || !data.jobId) {
-        throw new Error(typeof data.error === "string" ? data.error : "Could not start the transcription.");
+        throw new Error(apiErrorMessage(data, "Could not start the transcription."));
       }
       setAnalyzeJobId(data.jobId as string);
       setAnalyzeStage("queued");
@@ -214,7 +214,7 @@ export function TranscriptCutCard({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setPhase("idle");
-          setError(typeof data.error === "string" ? data.error : "Transcription failed — the charge was refunded.");
+          setError(apiErrorMessage(data, "Transcription failed — the charge was refunded."));
           return;
         }
         setAnalyzeStage(typeof data.status === "string" ? data.status : "processing");
@@ -238,7 +238,7 @@ export function TranscriptCutCard({
           }
         } else if (data.status === "failed") {
           setPhase("idle");
-          setError(typeof data.error === "string" ? data.error : "Transcription failed — the charge was refunded.");
+          setError(apiErrorMessage(data, "Transcription failed — the charge was refunded."));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -263,7 +263,7 @@ export function TranscriptCutCard({
       if (!res) return;
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.jobId) {
-        throw new Error(typeof data.error === "string" ? data.error : "Could not start the render.");
+        throw new Error(apiErrorMessage(data, "Could not start the render."));
       }
       setRenderJobId(data.jobId as string);
       setRenderStage("queued");
@@ -282,7 +282,7 @@ export function TranscriptCutCard({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setPhase("review");
-          setError(typeof data.error === "string" ? data.error : "Render failed.");
+          setError(apiErrorMessage(data, "Render failed."));
           return;
         }
         setRenderStage(typeof data.status === "string" ? data.status : "processing");
@@ -304,7 +304,7 @@ export function TranscriptCutCard({
           });
         } else if (data.status === "failed") {
           setPhase("review");
-          setError(typeof data.error === "string" ? data.error : "Render failed.");
+          setError(apiErrorMessage(data, "Render failed."));
         }
       } catch {
         /* keep polling on transient network errors */

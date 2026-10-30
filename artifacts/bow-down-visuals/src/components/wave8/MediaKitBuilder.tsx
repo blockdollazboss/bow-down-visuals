@@ -214,7 +214,7 @@ export default function MediaKitBuilder() {
       if (!res) return; // user cancelled the credit confirmation
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (res.status === 503) { setError(data.message || data.error); return; }
+      if (res.status === 503) { setError(apiErrorMessage(data, "That isn't set up yet — try again later.")); return; }
       if (!res.ok) { setError(apiErrorMessage(data, t("wave8.mediaKit.errors.buildFailed"))); return; }
       setKit(data.kit as MediaKit);
     } catch {

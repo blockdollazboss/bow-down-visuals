@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2, FileSignature, Handshake, Loader2, PenLine, Undo2, XCircle,
@@ -227,7 +228,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
         },
       });
       if (!res.ok) {
-        setCreateMsg(String((data as { message?: string }).message ?? "Couldn't write that deal — check the split and try again."));
+        setCreateMsg(apiErrorMessage(data, "Couldn't write that deal — check the split and try again."));
         return;
       }
       setCreateMsg("Deal written and signed by you. Your partner got the invite — nothing counts until they sign the same words.");
@@ -258,7 +259,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
       }
       const { res, data } = await authed(plainDealActionPath(deal.id, action), { method: "POST", body });
       if (!res.ok) {
-        setActionMsg(String((data as { message?: string }).message ?? "That didn't go through — refresh and try again."));
+        setActionMsg(apiErrorMessage(data, "That didn't go through — refresh and try again."));
         return;
       }
       if (action === "sign") {
@@ -308,7 +309,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
         },
       });
       if (!res.ok) {
-        setActionMsg(String((data as { message?: string }).message ?? "Couldn't change that deal."));
+        setActionMsg(apiErrorMessage(data, "Couldn't change that deal."));
         return;
       }
       setAmendingId(null);

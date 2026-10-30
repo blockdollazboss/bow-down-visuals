@@ -231,7 +231,7 @@ export default function TemplatesTabPanel({
     } catch (err) {
       toast({
         title: t("videoTemplates.uploadFailed"),
-        description: err instanceof Error ? err.message : t("videoTemplates.tryAgain"),
+        description: plainErrorText(err, t("videoTemplates.tryAgain")),
       });
     } finally {
       setUploadingSlot(null);
@@ -749,7 +749,7 @@ export default function TemplatesTabPanel({
                       setMusicBedUrl(url);
                       setMusicBedName(f.name);
                     } catch (err) {
-                      toast({ title: t("videoTemplates.uploadFailed"), description: err instanceof Error ? err.message : "" });
+                      toast({ title: t("videoTemplates.uploadFailed"), description: plainErrorText(err, "") });
                     }
                     e.target.value = "";
                   }}

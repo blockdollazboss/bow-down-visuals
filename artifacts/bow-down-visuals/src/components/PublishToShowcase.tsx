@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function PublishToShowcase({ mediaType, mediaUrl, thumbnailUrl, defaultTi
     } catch (err) {
       toast({
         title: t("showcasePublish.toastFailed"),
-        description: err instanceof Error ? err.message : t("showcasePublish.toastFailedFallback"),
+        description: plainErrorText(err, t("showcasePublish.toastFailedFallback")),
         variant: "destructive",
       });
     } finally {

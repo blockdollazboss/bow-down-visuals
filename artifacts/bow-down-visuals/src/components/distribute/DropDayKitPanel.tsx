@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Package, Loader2, Check, AlertTriangle, Clapperboard, LayoutTemplate, Timer, MailCheck, ExternalLink } from "lucide-react";
@@ -87,7 +88,7 @@ export function DropDayKitPanel(props: { releaseId: string; authFetch: AuthFetch
         body: JSON.stringify({ releaseId }),
       });
       const d = (await res.json().catch(() => null)) as KitView | { error?: string } | null;
-      if (!res.ok) throw new Error((d as { error?: string } | null)?.error ?? "Assembly failed");
+      if (!res.ok) throw new Error(apiErrorMessage(d, "Assembly failed"));
       setView(d as KitView);
       setNotice("Kit assembled as a draft — review it below, then activate.");
     } catch (e) {
@@ -108,7 +109,7 @@ export function DropDayKitPanel(props: { releaseId: string; authFetch: AuthFetch
         body: JSON.stringify({ status: "active" }),
       });
       const d = (await res.json().catch(() => null)) as KitView | { error?: string } | null;
-      if (!res.ok) throw new Error((d as { error?: string } | null)?.error ?? "Activation failed");
+      if (!res.ok) throw new Error(apiErrorMessage(d, "Activation failed"));
       setView(d as KitView);
       setNotice("Kit is live. On release day, every fan on the presave list gets the heads-up — exactly once.");
     } catch (e) {

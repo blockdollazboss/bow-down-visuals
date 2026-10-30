@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useRef, useState } from "react";
@@ -429,7 +429,7 @@ export default function Shoutouts() {
       setDeliveryUrls((d) => ({ ...d, [id]: "" }));
       fetchCreatorData();
     } catch (err) {
-      setUploadError((e) => ({ ...e, [id]: err instanceof Error ? err.message : t("shoutouts.errorUploadFailed") }));
+      setUploadError((e) => ({ ...e, [id]: plainErrorText(err, t("shoutouts.errorUploadFailed")) }));
     } finally {
       setUploading((u) => ({ ...u, [id]: false }));
     }

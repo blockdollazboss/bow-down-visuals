@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -123,7 +123,7 @@ export function FillerRemoverCard({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setPhase("idle");
-          setError(typeof data.error === "string" ? data.error : t("fillerRemover.errorAnalyze"));
+          setError(apiErrorMessage(data, t("fillerRemover.errorAnalyze")));
           return;
         }
         setAnalyzeStage(typeof data.status === "string" ? data.status : "processing");
@@ -138,7 +138,7 @@ export function FillerRemoverCard({
           setPhase("review");
         } else if (data.status === "failed") {
           setPhase("idle");
-          setError(typeof data.error === "string" ? data.error : t("fillerRemover.errorAnalyze"));
+          setError(apiErrorMessage(data, t("fillerRemover.errorAnalyze")));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -158,7 +158,7 @@ export function FillerRemoverCard({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setPhase("review");
-          setError(typeof data.error === "string" ? data.error : t("fillerRemover.errorRender"));
+          setError(apiErrorMessage(data, t("fillerRemover.errorRender")));
           return;
         }
         setRenderStage(typeof data.status === "string" ? data.status : "processing");
@@ -185,7 +185,7 @@ export function FillerRemoverCard({
           });
         } else if (data.status === "failed") {
           setPhase("review");
-          setError(typeof data.error === "string" ? data.error : t("fillerRemover.errorRender"));
+          setError(apiErrorMessage(data, t("fillerRemover.errorRender")));
         }
       } catch {
         /* keep polling on transient network errors */
@@ -240,7 +240,7 @@ export function FillerRemoverCard({
         return;
       }
       if (!res.ok || !data.jobId) {
-        throw new Error(typeof data.error === "string" ? data.error : t("fillerRemover.errorAnalyze"));
+        throw new Error(apiErrorMessage(data, t("fillerRemover.errorAnalyze")));
       }
       setAnalyzeJobId(data.jobId as string);
       setAnalyzeStage("queued");
@@ -268,7 +268,7 @@ export function FillerRemoverCard({
       if (!res) return;
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.jobId) {
-        throw new Error(typeof data.error === "string" ? data.error : t("fillerRemover.errorRender"));
+        throw new Error(apiErrorMessage(data, t("fillerRemover.errorRender")));
       }
       setRenderJobId(data.jobId as string);
       setRenderStage("queued");

@@ -299,7 +299,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       addAsset({ kind: "video", url: data.url, label: `${result.title} — lyric video`, detail: "Lyric Video", meta: { sourceAsset: result.id } });
       toast({ title: t("mashup.lyricVideoDone") });
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : "Lyric video failed.", variant: "destructive" });
+      toast({ title: plainErrorText(e, "Lyric video failed."), variant: "destructive" });
     } finally {
       setHandoffRunning(null);
     }
@@ -327,7 +327,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       addAsset({ kind: "image", url: data.url, label: `${result.title} — cover art`, detail: "Cover Art", meta: { sourceAsset: result.id } });
       toast({ title: t("mashup.coverArtDone") });
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : "Cover art failed.", variant: "destructive" });
+      toast({ title: plainErrorText(e, "Cover art failed."), variant: "destructive" });
     } finally {
       setHandoffRunning(null);
     }
@@ -397,7 +397,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       setAlbumAdded(albumTitle);
       toast({ title: `${t("mashup.albumAdded")}: ${albumTitle}` });
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : "Could not add to album.", variant: "destructive" });
+      toast({ title: plainErrorText(e, "Could not add to album."), variant: "destructive" });
     } finally {
       setHandoffRunning(null);
     }

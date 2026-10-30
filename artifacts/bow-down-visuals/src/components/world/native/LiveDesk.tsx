@@ -287,7 +287,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       setPhase("camera");
       const msg = err instanceof TransportError && (err.code === "NOT_CONFIGURED" || err.code === "STREAM_NOT_CONFIGURED")
         ? "Live streaming isn't switched on yet on this site. Your camera works — broadcasting turns on the moment the owner enables it."
-        : err instanceof Error ? err.message : "Couldn't go live. Try again in a moment.";
+        : plainErrorText(err, "Couldn't go live. Try again in a moment.");
       setNote(msg);
     }
   }

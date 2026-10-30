@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -487,7 +488,7 @@ export function ScreenRecorderPanel({
       const upData = (await upRes.json().catch(() => ({}))) as {
         url?: string; error?: string; message?: string;
       };
-      if (!upRes.ok) throw new Error(upData.message ?? upData.error ?? tr("errUpload", { status: upRes.status }));
+      if (!upRes.ok) throw new Error(apiErrorMessage(upData, tr("errUpload", { status: upRes.status })));
       if (!upData.url) throw new Error(tr("errUploadNoUrl"));
 
       const nowIso = new Date().toISOString();

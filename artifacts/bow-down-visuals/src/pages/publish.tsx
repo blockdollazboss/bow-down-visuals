@@ -600,7 +600,7 @@ export default function Publish() {
               setEnteredState("failed");
               toast({
                 title: "Published, but the challenge entry missed",
-                description: e instanceof Error ? e.message : "Enter it manually from the challenge page.",
+                description: plainErrorText(e, "Enter it manually from the challenge page."),
               });
             } finally {
               setEntering(false);
@@ -772,7 +772,7 @@ export default function Publish() {
       });
     } catch (e) {
       setEnteredState("failed");
-      toast({ title: "Entry didn't land", description: e instanceof Error ? e.message : "Try again." });
+      toast({ title: "Entry didn't land", description: plainErrorText(e, "Try again.") });
     } finally {
       setEntering(false);
     }

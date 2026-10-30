@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, type JSX } from "react";
 import { Loader2, Link2Off, AlertTriangle, BadgeCheck, RotateCcw } from "lucide-react";
@@ -183,7 +183,7 @@ export function ConnectedAccounts() {
     } catch (err) {
       toast({
         title: `Couldn't start ${cfg.name} connect`,
-        description: err instanceof Error ? err.message : "Try again.",
+        description: plainErrorText(err, "Try again."),
         variant: "destructive",
       });
       setConnecting(null);

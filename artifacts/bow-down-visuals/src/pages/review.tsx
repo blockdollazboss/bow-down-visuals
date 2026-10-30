@@ -96,7 +96,7 @@ export default function ReviewPage() {
       const res = await fetch(`/api/review-links/${encodeURIComponent(token)}`);
       const data = (await res.json().catch(() => ({}))) as ReviewPayload & { error?: string };
       if (!res.ok) {
-        setState({ kind: "error", message: data.error || t("review.loadFailed") });
+        setState({ kind: "error", message: apiErrorMessage(data, t("review.loadFailed")) });
         return;
       }
       if (data.locked) {

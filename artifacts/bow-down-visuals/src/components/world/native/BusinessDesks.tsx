@@ -1450,7 +1450,7 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
         setPkError(
           res.status === 409
             ? "That press address is already taken — pick another handle."
-            : (d.message ?? d.error ?? "That save didn't land — try again."),
+            : apiErrorMessage(d, "That save didn't land — try again."),
         );
         return;
       }
@@ -1883,7 +1883,7 @@ function BioPageEditor({ isLight, onChanged }: { isLight: boolean; onChanged?: (
             ? "Out of Visual Bucs — top up and publishing is ready again."
             : res.status === 409
               ? "This page is already published."
-              : (d.message ?? d.error ?? "Publishing didn't land — a failed publish is refunded. Try again."),
+              : apiErrorMessage(d, "Publishing didn't land — a failed publish is refunded. Try again."),
         );
         return;
       }

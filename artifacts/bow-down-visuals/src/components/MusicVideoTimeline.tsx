@@ -328,7 +328,7 @@ import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-err
           startPolling(data.taskId);
         } catch (e) {
           const msg =
-            e instanceof Error ? e.message : "Failed to start scene clip generation";
+            plainErrorText(e, "Failed to start scene clip generation");
 
           setIsPolling(false);
 

@@ -272,7 +272,7 @@ export function UgcAdsPanel() {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      toast({ title: "Generation failed", description: err instanceof Error ? err.message : "Any charge was refunded.", variant: "destructive" });
+      toast({ title: "Generation failed", description: plainErrorText(err, "Any charge was refunded."), variant: "destructive" });
       void loadAds();
     } finally {
       setBusyAdId(null);

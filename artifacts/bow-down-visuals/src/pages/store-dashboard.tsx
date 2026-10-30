@@ -249,7 +249,7 @@ function ConnectPayoutCard() {
     });
     if (res.status === 404) { setNoProfile(true); return; }
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) throw new Error((data.error as string) || "Couldn't load payout status.");
+    if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load payout status."));
     setStatus(data as unknown as ConnectStatus);
     /* Payout history rides the same load: the card shows what was
        actually paid out, not just what's pending. A history failure
@@ -317,7 +317,7 @@ function ConnectPayoutCard() {
            show the first one instead of a bare "isn't verified yet". */
         const reason = data.actionNeeded?.[0];
         throw new Error(
-          (data.message || data.error || "Payout failed.") + (reason ? ` ${reason}` : ""),
+          apiErrorMessage(data, "Payout failed.") + (reason ? ` ${reason}` : ""),
         );
       }
       setNote(

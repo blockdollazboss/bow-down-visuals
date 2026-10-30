@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { KeyRound, Loader2, Copy, Check, Trash2, AlertTriangle, BookOpen, Webhook, Pause, Play, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -356,7 +356,7 @@ function WebhooksSettings({
       setUrl("");
       await loadHooks();
     } catch (err) {
-      toast({ title: "Couldn't create the webhook", description: err instanceof Error ? err.message : "Please try again.", variant: "destructive" });
+      toast({ title: "Couldn't create the webhook", description: plainErrorText(err, "Please try again."), variant: "destructive" });
     } finally {
       setCreatingHook(false);
     }

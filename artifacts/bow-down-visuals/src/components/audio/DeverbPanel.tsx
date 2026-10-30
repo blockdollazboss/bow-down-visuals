@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -301,7 +301,7 @@ export function DeverbPanel() {
         const isPricingPending = data.error === "pricing_pending";
         setOutOfCredits(!isPricingPending);
         setStatus(isPricingPending ? "failed" : "idle");
-        setError(isPricingPending ? data.message || t("deverb.errorPricingPending") : null);
+        setError(isPricingPending ? plainErrorText(data.message, t("deverb.errorPricingPending")) : null);
         return;
       }
       if (!res.ok || !data.jobId) {

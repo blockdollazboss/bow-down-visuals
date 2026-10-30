@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../lib/api-error";
 import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +16,7 @@ async function api(token: string | null, method: string, path: string, body?: un
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as any)?.message || (json as any)?.error || "Something went wrong.");
+  if (!res.ok) throw new Error(apiErrorMessage(json, "Something went wrong."));
   return json as any;
 }
 

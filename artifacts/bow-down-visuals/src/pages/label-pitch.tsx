@@ -1,4 +1,4 @@
-import { plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -288,7 +288,7 @@ export default function LabelPitch() {
         return;
       }
       if (!res.ok || !(data as { kit?: DemoKit }).kit) {
-        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("labelPitch.errKitFailed"));
+        throw new Error(apiErrorMessage(data, t("labelPitch.errKitFailed")));
       }
       setKit((data as { kit: DemoKit }).kit);
       refreshProfile();
@@ -1447,7 +1447,7 @@ function PlaylistsPitchTab() {
         return;
       }
       if (!res.ok || !(data as { kit?: PlaylistPitchKit }).kit) {
-        throw new Error(data.message || (typeof data.error === "string" ? data.error : "") || t("playlistPitch.kitFailed"));
+        throw new Error(apiErrorMessage(data, t("playlistPitch.kitFailed")));
       }
       setKit((data as { kit: PlaylistPitchKit }).kit);
       refreshProfile();

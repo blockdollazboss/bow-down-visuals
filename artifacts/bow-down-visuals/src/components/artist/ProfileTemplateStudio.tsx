@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   LayoutTemplate, Sparkles, ArrowUp, ArrowDown, Eye, EyeOff, X, Plus,
@@ -68,7 +69,7 @@ export default function ProfileTemplateStudio() {
         setDraftDirty(false);
       } catch (err) {
         if (!cancelled) {
-          setLoadError((err as Error).message || "Couldn't load your profile templates. Check your connection and try again.");
+          setLoadError(plainErrorText(err, "Couldn't load your profile templates. Check your connection and try again."));
         }
       }
     })();
@@ -87,7 +88,7 @@ export default function ProfileTemplateStudio() {
       setDraftDirty(false);
       if (ok) setNotice(ok);
     } catch (err) {
-      setActionError((err as Error).message || "That didn't go through. Try again.");
+      setActionError(plainErrorText(err, "That didn't go through. Try again."));
     } finally {
       setBusy(null);
     }

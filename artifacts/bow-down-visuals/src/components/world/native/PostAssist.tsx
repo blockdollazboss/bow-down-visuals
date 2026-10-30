@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "../../../lib/api-error";
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,7 +75,7 @@ export function PostAssistBlock({
         setNote(
           res.status === 402
             ? "Out of Visual Bucs — top up and Write It For Me is ready again."
-            : (d.message ?? "The pen ran dry — a failed assist is refunded. Try again."),
+            : apiErrorMessage(d, "The pen ran dry — a failed assist is refunded. Try again."),
         );
         return;
       }

@@ -1,4 +1,4 @@
-import { apiErrorMessage, apiThrowMessage } from "../lib/api-error";
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -198,7 +198,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
       startPolling(data.taskId);
     } catch (e) {
       setGenerating(false);
-      const msg = e instanceof Error ? e.message : "Failed to start generation";
+      const msg = plainErrorText(e, "Failed to start generation");
       setError(msg === "out_of_credits" ? "Not enough Visual Bucs. Please buy more Visual Bucs to continue." : msg);
     }
   }

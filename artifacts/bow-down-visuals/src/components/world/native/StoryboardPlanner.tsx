@@ -350,7 +350,7 @@ export function StoryboardPlanner(props: {
       }, 5000);
     } catch (err) {
       setFrameStates((s) => ({ ...s, [panel.id]: "failed" }));
-      setFrameErrors((e) => ({ ...e, [panel.id]: err instanceof Error ? err.message : "Frame generation failed." }));
+      setFrameErrors((e) => ({ ...e, [panel.id]: plainErrorText(err, "Frame generation failed.") }));
     }
   };
 

@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
@@ -455,7 +456,7 @@ export function ClipGeneratorSection({
       setUploadStatus("done");
       setTimeout(() => setUploadStatus("idle"), 3000);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = plainErrorText(err, "Upload failed.");
       setUploadError(msg);
       setUploadStatus("error");
     }

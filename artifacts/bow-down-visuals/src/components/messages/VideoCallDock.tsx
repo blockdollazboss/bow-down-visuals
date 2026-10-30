@@ -293,7 +293,7 @@ export function VideoCallDock(props: {
       setPhase({ kind: "live", call: cur.call, answeredAt: Date.now() });
       await maybeAccept();
     } catch (e) {
-      settleToIdle(e instanceof Error ? e.message : "Couldn't answer — try again.");
+      settleToIdle(plainErrorText(e, "Couldn't answer — try again."));
     }
   }, [api, maybeAccept, settleToIdle]);
 

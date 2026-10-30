@@ -1513,7 +1513,7 @@ function BestTimeOptimizer(props: {
           onOutOfCredits();
           return;
         }
-        throw new Error(typeof data.message === "string" ? data.message : t("scheduler.bestTime.failed"));
+        throw new Error(apiErrorMessage(data, t("scheduler.bestTime.failed")));
       }
       setResult(data as unknown as BestTimeResult);
       refreshProfile();

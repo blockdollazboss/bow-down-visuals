@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 /**
  * TimelineDock — persistent full-width bottom timeline for the Studio editor.
  *
@@ -580,7 +580,7 @@ export function TimelineDock({
     } catch (err) {
       toast({
         title: t("videoEditor.freezeFailedTitle"),
-        description: err instanceof Error ? err.message : t("videoEditor.tryAgain"),
+        description: plainErrorText(err, t("videoEditor.tryAgain")),
         variant: "destructive",
       });
     } finally {
@@ -845,7 +845,7 @@ export function TimelineDock({
     } catch (err) {
       toast({
         title: "Replace failed",
-        description: err instanceof Error ? err.message : "Try again",
+        description: plainErrorText(err, "Try again"),
         variant: "destructive",
       });
     }

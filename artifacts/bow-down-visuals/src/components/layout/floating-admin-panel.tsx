@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useState, useEffect } from "react";
 import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -113,7 +113,7 @@ function AdminTools({
       setTierMsg(`✓ ${tierEmail.trim()} → ${String(data.rank)} (tier ${String(data.tier)})`);
       setTierEmail("");
     } catch (e) {
-      setTierMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setTierMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setTierBusy(false);
     }
@@ -129,7 +129,7 @@ function AdminTools({
       setCreditMsg(`✓ Granted ${String(data.granted)}. Balance: ${String(data.credits)}.`);
       await refreshProfile();
     } catch (e) {
-      setCreditMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setCreditMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setCreditBusy(false);
     }
@@ -148,7 +148,7 @@ function AdminTools({
       setFriendMsg(`✓ ${Number(data.granted).toLocaleString("en-US")} Visual Bucs → ${friendEmail.trim()}.`);
       setFriendEmail("");
     } catch (e) {
-      setFriendMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setFriendMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setFriendBusy(false);
     }
@@ -293,7 +293,7 @@ function CopyArtists({
       if (!data.ok) throw new Error(data.rootError ? `${data.rootError} | ${data.error}` : data.error || "Import failed");
       setMsg(`✓ Copied ${data.imported} artist(s)${data.skipped ? `, skipped ${data.skipped} (already exist)` : ""}.`);
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setBusy(false);
     }
@@ -313,7 +313,7 @@ function CopyArtists({
       if (!data.ok) throw new Error(apiErrorMessage(data, "Failed"));
       setMsg(`✓ Removed ${data.deleted} duplicate(s).`);
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setBusy(false);
     }
@@ -410,7 +410,7 @@ function BowRaceControls({
       setLiveTarget(data.race?.target ?? null);
       setLoaded(true);
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to load."}`);
+      setMsg(`✗ ${plainErrorText(e, "Failed to load.")}`);
     } finally {
       setBusy(false);
     }
@@ -438,7 +438,7 @@ function BowRaceControls({
       if (!res.ok) throw new Error(apiErrorMessage(data, "Failed."));
       setMsg("✓ Race settings saved.");
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setBusy(false);
     }
@@ -609,7 +609,7 @@ function JackpotCreator({
       setSequence([]);
       setEndsAt("");
     } catch (e) {
-      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+      setMsg(`✗ ${plainErrorText(e, "Failed.")}`);
     } finally {
       setBusy(false);
     }

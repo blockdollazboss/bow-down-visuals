@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,7 +20,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
     const t = await getAccessToken();
     const res = await fetch(path, { method, headers: { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
     const j = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((j as any)?.error ?? "Something went wrong.");
+    if (!res.ok) throw new Error(apiErrorMessage(j, "Something went wrong."));
     return j as any;
   }, [getAccessToken]);
 

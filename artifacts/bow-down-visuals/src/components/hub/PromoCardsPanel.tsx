@@ -1,4 +1,4 @@
-import { apiErrorMessage, apiThrowMessage } from "../../lib/api-error";
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -259,7 +259,7 @@ export function PromoCardsPanel() {
          the history list back so the new cards stand in it too. */
       void loadHistory();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("hubSpine.promoCards.failed");
+      const msg = plainErrorText(err, t("hubSpine.promoCards.failed"));
       setError(msg === "out_of_credits" ? t("hubSpine.handoffs.outOfCredits") : msg);
     } finally {
       setLoading(false);

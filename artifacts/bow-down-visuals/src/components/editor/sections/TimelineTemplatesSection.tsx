@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layers, Loader2, Scissors, Type, User, AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
@@ -149,7 +149,7 @@ export function TimelineTemplatesSection({
         return;
       }
       if (!res.ok || !Array.isArray(data.ops)) {
-        throw new Error(typeof data.error === "string" ? data.error : t(`${ns}.errorGeneric`));
+        throw new Error(apiErrorMessage(data, t(`${ns}.errorGeneric`)));
       }
       setRecipeId(id);
       setOps(data.ops as EditOp[]);

@@ -1188,7 +1188,7 @@ function DiscountCodesCard({
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!res.ok) {
-        setErr(body.error === "CODE_TAKEN" ? t("myShop.discountTaken") : body.message || t("myShop.discountCreateFailed"));
+        setErr(body.error === "CODE_TAKEN" ? t("myShop.discountTaken") : apiErrorMessage(body, t("myShop.discountCreateFailed")));
         return;
       }
       setNewCode("");

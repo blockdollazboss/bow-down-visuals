@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -130,7 +130,7 @@ export function TeamSeats() {
       } catch (err) {
         toast({
           title: t("settings.teamInviteFailedTitle"),
-          description: err instanceof Error ? err.message : t("settings.teamInviteFailedDesc"),
+          description: plainErrorText(err, t("settings.teamInviteFailedDesc")),
           variant: "destructive",
         });
       }
@@ -161,7 +161,7 @@ export function TeamSeats() {
     } catch (err) {
       toast({
         title: t("settings.teamInviteFailedTitle"),
-        description: err instanceof Error ? err.message : t("settings.teamInviteFailedDesc"),
+        description: plainErrorText(err, t("settings.teamInviteFailedDesc")),
         variant: "destructive",
       });
     } finally {
@@ -182,7 +182,7 @@ export function TeamSeats() {
     } catch (err) {
       toast({
         title: t("settings.teamRoleFailedTitle"),
-        description: err instanceof Error ? err.message : "",
+        description: plainErrorText(err, ""),
         variant: "destructive",
       });
     } finally {
@@ -203,7 +203,7 @@ export function TeamSeats() {
     } catch (err) {
       toast({
         title: t("settings.teamRevokeFailedTitle"),
-        description: err instanceof Error ? err.message : "",
+        description: plainErrorText(err, ""),
         variant: "destructive",
       });
     } finally {

@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useState, useEffect, useRef } from "react";
 import {
   Mic, FileText, Clapperboard, CheckCircle2, Loader2, AlertCircle,
@@ -176,7 +176,7 @@ export function SongWorkflow({
         setTxState("error");
         return;
       }
-      const msg = err instanceof Error ? err.message : "Could not transcribe song";
+      const msg = plainErrorText(err, "Could not transcribe song");
       setTxError(msg);
       setTxState("error");
     } finally {

@@ -164,9 +164,9 @@ export default function ContentIdMonitor() {
     try {
       const [oSettled, dSettled] = await Promise.allSettled([loadOptins(), loadDetections()]);
       if (oSettled.status === "fulfilled") setOptins(oSettled.value);
-      else setOptinsError(oSettled.reason instanceof Error ? oSettled.reason.message : "Couldn't load your opt-ins.");
+      else setOptinsError(plainErrorText(oSettled.reason, "Couldn't load your opt-ins."));
       if (dSettled.status === "fulfilled") setDetections(dSettled.value);
-      else setDetectionsError(dSettled.reason instanceof Error ? dSettled.reason.message : "Couldn't load your detections.");
+      else setDetectionsError(plainErrorText(dSettled.reason, "Couldn't load your detections."));
     } finally {
       setLoading(false);
     }

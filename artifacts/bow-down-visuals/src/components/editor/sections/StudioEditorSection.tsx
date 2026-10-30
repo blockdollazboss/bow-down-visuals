@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 /**
  * StudioEditorSection — Bow Down Studio Editor
  *
@@ -252,7 +253,7 @@ function ClipRepairPanel({
           "Clip regeneration isn't available in this panel — regenerate this scene from the Clips tab.";
       }
     } catch (e) {
-      res.lastError = e instanceof Error ? e.message : "Unknown error";
+      res.lastError = plainErrorText(e, "Unknown error");
     }
 
     setResult(res);

@@ -1,3 +1,4 @@
+import { plainErrorText } from "./api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Share2, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -136,7 +137,7 @@ export function Loading({ label = "Loading" }: { label?: string }) {
  * page is a dead end for a visitor. Action errors (join, post, create) do
  * NOT use this: they keep their server copy, which is user-facing validation. */
 export function friendlyLoadError(e: unknown, what: string): string {
-  const raw = e instanceof Error ? e.message : "";
+  const raw = plainErrorText(e, "");
   if (/unauthori|not authenticated|invalid jwt|jwt expired|session/i.test(raw)) {
     return `Your session needs a refresh — please sign in again to see ${what}.`;
   }

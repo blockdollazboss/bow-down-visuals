@@ -125,7 +125,7 @@ export default function PresaveLanding() {
         });
         const authJson = (await authRes.json().catch(() => ({}))) as { authUrl?: string; message?: string };
         if (authRes.ok && authJson.authUrl) { window.location.href = authJson.authUrl; return; }
-        throw new Error(authJson.message || json.message || "Account pre-save isn't available right now.");
+        throw new Error(apiErrorMessage(authJson, apiErrorMessage(json, "Account pre-save isn't available right now.")));
       }
       if (!res.ok || !json.saved) throw new Error(apiErrorMessage(json, "The save wasn't confirmed — nothing was recorded."));
       setAccountSaveState("saved");

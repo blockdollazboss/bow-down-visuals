@@ -629,7 +629,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setPersonaName("");
       toast({ title: "Persona saved", description: `"${persona.name}" is ready in the persona picker.` });
     } catch (err) {
-      toast({ title: "Could not save persona", description: err instanceof Error ? err.message : "Try again in a moment.", variant: "destructive" });
+      toast({ title: "Could not save persona", description: plainErrorText(err, "Try again in a moment."), variant: "destructive" });
     } finally {
       setSavingPersona(false);
     }
@@ -645,7 +645,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
       setActivePersonaId(null);
       toast({ title: "Persona deleted", description: `"${p.name}" was removed.` });
     } catch (err) {
-      toast({ title: "Could not delete persona", description: err instanceof Error ? err.message : "Templates can't be deleted.", variant: "destructive" });
+      toast({ title: "Could not delete persona", description: plainErrorText(err, "Templates can't be deleted."), variant: "destructive" });
     }
   }
 
@@ -812,7 +812,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
     } catch (err) {
       toast({
         title: "Could not enhance style",
-        description: err instanceof Error ? err.message : "Style Enhance failed. Please try again.",
+        description: plainErrorText(err, "Style Enhance failed. Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -984,7 +984,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         description: data.influenceNote || "The completed song is your working song now — extend it, split it, caption it.",
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not finish your song.";
+      const msg = plainErrorText(err, "Could not finish your song.");
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();
@@ -1023,7 +1023,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
           : "The new section was crossfaded onto your track.",
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not extend audio.";
+      const msg = plainErrorText(err, "Could not extend audio.");
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();

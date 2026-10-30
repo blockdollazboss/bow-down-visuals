@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ArrowUp, ArrowDown, Eye, EyeOff, X, Plus, Check,
@@ -64,7 +65,7 @@ export default function ProfileLayoutEditor() {
       } catch (err) {
         if (!cancelled) {
           setLoadError(
-            (err as Error).message || "Couldn't load your page layout. Check your connection and try again.",
+            plainErrorText(err, "Couldn't load your page layout. Check your connection and try again."),
           );
         }
       }
@@ -82,7 +83,7 @@ export default function ProfileLayoutEditor() {
         if (!cancelled) setTheme(dto);
       } catch (err) {
         if (!cancelled) {
-          setThemeError((err as Error).message || "Couldn't load your theme settings.");
+          setThemeError(plainErrorText(err, "Couldn't load your theme settings."));
         }
       }
     })();
@@ -109,7 +110,7 @@ export default function ProfileLayoutEditor() {
       setDirty(false);
       setSavedSummary(layoutSummary(dto.layout));
     } catch (err) {
-      setSaveError((err as Error).message || "Couldn't save your layout. Try again.");
+      setSaveError(plainErrorText(err, "Couldn't save your layout. Try again."));
     } finally {
       setSaving(false);
     }
@@ -129,7 +130,7 @@ export default function ProfileLayoutEditor() {
       setTheme(dto);
       setThemeSaved(true);
     } catch (err) {
-      setThemeError((err as Error).message || "Couldn't save your look. Try again.");
+      setThemeError(plainErrorText(err, "Couldn't save your look. Try again."));
     } finally {
       setThemeSaving(false);
     }

@@ -73,7 +73,7 @@ export default function CourseBuilderPanel() {
       setCourses(await fetchCreatedCourses(getAccessToken));
     } catch (e) {
       if ((e as { code?: string }).code === "COURSES_NOT_LIVE") setNotLive(true);
-      else if ((e as { code?: string }).code === "NO_PROFILE" || /profile/i.test(e instanceof Error ? e.message : "")) setCourses([]);
+      else if ((e as { code?: string }).code === "NO_PROFILE" || /profile/i.test(plainErrorText(e, ""))) setCourses([]);
       else setErr(plainErrorText(e, "Couldn't load your courses."));
     }
   }, [getAccessToken]);

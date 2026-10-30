@@ -1,4 +1,4 @@
-import { apiErrorMessage, apiThrowMessage } from "../../lib/api-error";
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../../lib/api-error";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Palette, Loader2, Check, AlertCircle, Copy, Download } from "lucide-react";
@@ -75,7 +75,7 @@ export function SocialKitPanel() {
       });
       toast({ title: t("hubSpine.socialKit.doneTitle"), description: t("hubSpine.socialKit.doneDesc", { count: list.length }) });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("hubSpine.socialKit.failed");
+      const msg = plainErrorText(err, t("hubSpine.socialKit.failed"));
       setError(msg === "out_of_credits" ? t("hubSpine.handoffs.outOfCredits") : msg);
     } finally {
       setLoading(false);

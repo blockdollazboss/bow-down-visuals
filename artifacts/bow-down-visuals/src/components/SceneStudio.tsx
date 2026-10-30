@@ -1,4 +1,4 @@
-import { apiErrorMessage, apiThrowMessage } from "../lib/api-error";
+import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-error";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Camera, Clock, MapPin, Zap, Film, Loader2,
@@ -817,7 +817,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       setTaskId(data.taskId);
       startPolling(data.taskId, finalPrompt, resolvedSource);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to start scene clip generation";
+      const msg = plainErrorText(e, "Failed to start scene clip generation");
       setIsGenerating(false);
       if (msg === "out_of_credits") {
         setOutOfCredits(true);
@@ -1434,7 +1434,7 @@ function EndFramePicker({ scene, onPick }: {
     } catch (e) {
       toast({
         title: "Upload failed",
-        description: e instanceof Error ? e.message : "Please try again.",
+        description: plainErrorText(e, "Please try again."),
         variant: "destructive",
       });
     } finally {

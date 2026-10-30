@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "./api-error";
 /* ─── UGC Product Ads seam (owner order Oct 19, 2026) ──────────────────
    Pure shaping + the thin API client for the Promote-docked UGC ads
    panel, kept out of the component so the honesty rules are
@@ -318,7 +319,7 @@ export async function generateUgcScript(
 ): Promise<UgcScript> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-ads/script", input);
   const script = status === 200 ? normalizeScript((data as any)?.script) : null;
-  if (!script) throw new Error((data as any)?.error || "The script didn't come through — try again.");
+  if (!script) throw new Error(apiErrorMessage(data, "The script didn't come through — try again."));
   return script;
 }
 
@@ -329,7 +330,7 @@ export async function generateUgcPersona(
 ): Promise<{ personaUrl: string; creditsUsed: number }> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-ads/persona", { description, idempotencyKey });
   if (status !== 200 || typeof (data as any)?.personaUrl !== "string") {
-    throw new Error((data as any)?.error || (data as any)?.message || "The persona didn't come through — try again.");
+    throw new Error(apiErrorMessage(data, "The persona didn't come through — try again."));
   }
   return { personaUrl: (data as any).personaUrl, creditsUsed: num((data as any).creditsUsed) };
 }
@@ -351,7 +352,7 @@ export interface CreateUgcAdInput {
 export async function createUgcAd(token: string | null, input: CreateUgcAdInput): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-ads", input);
   const ad = status === 201 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error((data as any)?.error || "Could not start that ad — try again.");
+  if (!ad) throw new Error(apiErrorMessage(data, "Could not start that ad — try again."));
   return ad;
 }
 
@@ -362,14 +363,14 @@ export async function generateUgcAdVideo(
   const { status, data } = await api<any>(token, "POST", `/api/ugc-ads/${adId}/generate`, {});
   const ad = normalizeUgcAd((data as any)?.ad);
   if (status !== 200 || !ad) {
-    throw new Error((data as any)?.error || (data as any)?.message || "Generation failed — any charge was refunded.");
+    throw new Error(apiErrorMessage(data, "Generation failed — any charge was refunded."));
   }
   return { ad, creditsUsed: num((data as any).creditsUsed), alreadyGenerated: (data as any).alreadyGenerated === true };
 }
 
 export async function deleteUgcAd(token: string | null, adId: string): Promise<void> {
   const { status, data } = await api<any>(token, "DELETE", `/api/ugc-ads/${adId}`);
-  if (status !== 200) throw new Error((data as any)?.error || "Could not delete that ad.");
+  if (status !== 200) throw new Error(apiErrorMessage(data, "Could not delete that ad."));
 }
 
 /** Pin a finished ad to the shop product it advertises (0178). The
@@ -378,14 +379,14 @@ export async function deleteUgcAd(token: string | null, adId: string): Promise<v
 export async function pinUgcAd(token: string | null, adId: string): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-ads/${adId}/pin`, {});
   const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error((data as any)?.error || "Could not pin that ad — try again.");
+  if (!ad) throw new Error(apiErrorMessage(data, "Could not pin that ad — try again."));
   return ad;
 }
 
 export async function unpinUgcAd(token: string | null, adId: string): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "DELETE", `/api/ugc-ads/${adId}/pin`);
   const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error((data as any)?.error || "Could not unpin that ad — try again.");
+  if (!ad) throw new Error(apiErrorMessage(data, "Could not unpin that ad — try again."));
   return ad;
 }
 
@@ -404,7 +405,7 @@ export async function postUgcBrief(
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-briefs", input);
   const brief = status === 201 ? normalizeUgcBrief((data as any)?.brief) : null;
-  if (!brief) throw new Error((data as any)?.error || "Could not post that brief — try again.");
+  if (!brief) throw new Error(apiErrorMessage(data, "Could not post that brief — try again."));
   return brief;
 }
 
@@ -416,7 +417,7 @@ export async function briefAction(
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/${action}`, body ?? {});
   const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
-  if (!brief) throw new Error((data as any)?.error || "That didn't land — refresh the board and try again.");
+  if (!brief) throw new Error(apiErrorMessage(data, "That didn't land — refresh the board and try again."));
   return brief;
 }
 

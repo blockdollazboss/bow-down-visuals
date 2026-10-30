@@ -79,7 +79,7 @@ export function PodcastTranscriptEditor() {
       setMediaUrl(up.url);
       toast({ title: "Episode imported", description: "Ready to transcribe." });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
     }

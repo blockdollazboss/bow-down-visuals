@@ -241,7 +241,7 @@ export function LipSyncStudio({
         const st = (await res.json()) as RunAllStatus;
         if (cancelled) return;
         setStatus(st);
-        setError(st.state === "failed" ? st.error ?? "The run failed." : null);
+        setError(st.state === "failed" ? plainErrorText(st.error, "The run failed.") : null);
         if (st.state === "done" || st.state === "failed") {
           if (timer) clearInterval(timer);
           try {

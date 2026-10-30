@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useState } from "react";
 import {
@@ -125,7 +126,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         description: `Generated with ${data.source === "ai" ? "Thy Cheat Code AI" : "smart defaults"}.${autoApplied ? " Transitions auto-applied to the timeline." : " Review the plan then click Apply."}`,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = plainErrorText(e, "Edit failed.");
       setError(msg);
       toast({ title: "Edit failed", description: msg, variant: "destructive" });
     } finally {

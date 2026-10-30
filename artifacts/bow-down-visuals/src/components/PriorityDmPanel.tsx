@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Zap, Save } from "lucide-react";
 import { goldButton, ghostButton } from "@/lib/community-ui";
@@ -64,7 +65,7 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
         ? "Priority DMs on — fans see the 100 VB price and your reply window before they pay."
         : "Priority DMs off — your normal inbox is untouched.");
     } catch (e) {
-      onNotice(e instanceof Error ? e.message : "Couldn't save your priority DM settings.");
+      onNotice(plainErrorText(e, "Couldn't save your priority DM settings."));
     } finally { setSaving(false); }
   }
 
@@ -208,7 +209,7 @@ export function PriorityDmComposer({ api, creatorUserId, body, onSent, onNotice 
       onSent();
     } catch (e) {
       const data = (e as Error & { data?: { message?: string } }).data;
-      onNotice(data?.message ?? (e instanceof Error ? e.message : "Couldn't send your priority DM."));
+      onNotice(data?.message ?? (plainErrorText(e, "Couldn't send your priority DM.")));
     } finally { setSending(false); }
   }
 

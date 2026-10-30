@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Coins, HandCoins, Loader2, Megaphone, Trophy, Vote } from "lucide-react";
@@ -133,7 +133,7 @@ export default function CommunityGrantsPage() {
       setPTitle(""); setPDesc("");
       await load();
     } catch (err) {
-      setNote({ ok: false, text: err instanceof Error && err.message !== "submit failed" ? err.message : t("communityGrants.submitError") });
+      setNote({ ok: false, text: err instanceof Error && err.message !== "submit failed" ? plainErrorText(err, t("communityGrants.submitError")) : t("communityGrants.submitError") });
     } finally { setPBusy(false); }
   }
 

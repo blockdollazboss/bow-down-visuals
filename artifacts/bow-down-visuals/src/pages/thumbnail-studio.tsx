@@ -258,7 +258,7 @@ function SingleShotCoverArt() {
         document.getElementById("ss-thumb-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("thumbnail.generationFailed");
+      const msg = plainErrorText(err, t("thumbnail.generationFailed"));
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {

@@ -1,3 +1,4 @@
+import { plainErrorText } from "../api-error";
 /**
  * transport.ts — publishing behind a thin transport interface.
  *
@@ -371,7 +372,7 @@ export class WhipTransport implements StreamTransport {
       this._setState("failed");
       throw err instanceof TransportError
         ? err
-        : new TransportError("NETWORK", err instanceof Error ? err.message : "Could not start the broadcast.");
+        : new TransportError("NETWORK", plainErrorText(err, "Could not start the broadcast."));
     }
   }
 
@@ -674,7 +675,7 @@ export class OwnServerTransport implements StreamTransport {
       this._setState("failed");
       throw err instanceof TransportError
         ? err
-        : new TransportError("NETWORK", err instanceof Error ? err.message : "Could not start the broadcast.");
+        : new TransportError("NETWORK", plainErrorText(err, "Could not start the broadcast."));
     }
   }
 

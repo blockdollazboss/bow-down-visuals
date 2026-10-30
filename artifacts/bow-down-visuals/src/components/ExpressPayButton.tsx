@@ -1,3 +1,4 @@
+import { plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe, PaymentRequest } from "@stripe/stripe-js";
@@ -159,7 +160,7 @@ function ExpressPayInner({
               onSuccess(vData);
             } catch (e) {
               ev.complete("fail");
-              fail(e instanceof Error ? e.message : "Payment failed");
+              fail(plainErrorText(e, "Payment failed"));
             }
           });
 

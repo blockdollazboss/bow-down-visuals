@@ -176,7 +176,7 @@ export default function Tips() {
     });
     setSaving(false);
     if (!res.ok) {
-      setError(data.details?.[0]?.message ?? data.error ?? t("tips.saveError"));
+      setError(data.details?.[0]?.message ?? apiErrorMessage(data, t("tips.saveError")));
       return;
     }
     await load();

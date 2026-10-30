@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Loader2, CheckCircle2, Trash2, Eye, EyeOff, Bell, BellOff, AlertTriangle, RotateCcw } from "lucide-react";
@@ -91,7 +91,7 @@ export function DiscordWebhookSettings() {
       setUrl("");
       await load();
     } catch (e) {
-      toast({ title: "Couldn't save", description: e instanceof Error ? e.message : "Try again.", variant: "destructive" });
+      toast({ title: "Couldn't save", description: plainErrorText(e, "Try again."), variant: "destructive" });
     } finally {
       setSaving(false);
     }

@@ -180,7 +180,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
         description: t("myClips.attachedDesc", { index: json.scene?.index ?? "", section: json.scene?.section ? ` (${json.scene.section})` : "" }),
       });
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      const errMsg = plainErrorText(err, "Unknown error");
       setAttachError(errMsg);
       toast({ title: t("myClips.errorAttachFailed"), description: errMsg, variant: "destructive" });
     } finally {
@@ -858,7 +858,7 @@ function ClipCard({
       toast({
         title: t("myClips.extractAudioFailed"),
         description:
-          err instanceof Error ? err.message : t("myClips.extractAudioRefunded"),
+          plainErrorText(err, t("myClips.extractAudioRefunded")),
       });
     } finally {
       setExtracting(false);

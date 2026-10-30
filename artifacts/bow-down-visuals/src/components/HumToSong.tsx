@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -275,7 +275,7 @@ export function HumToSong() {
       });
       setPhase("ready");
     } catch (err) {
-      fail(err instanceof Error ? err.message : "Could not analyze that audio.");
+      fail(plainErrorText(err, "Could not analyze that audio."));
     }
   }
 
@@ -346,7 +346,7 @@ export function HumToSong() {
         document.getElementById("hum-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      fail(err instanceof Error ? err.message : "Song generation failed.");
+      fail(plainErrorText(err, "Song generation failed."));
     }
   }
 
@@ -390,7 +390,7 @@ export function HumToSong() {
     } catch (err) {
       toast({
         title: "Extension failed",
-        description: err instanceof Error ? err.message : "Could not extend the song.",
+        description: plainErrorText(err, "Could not extend the song."),
         variant: "destructive",
       });
     } finally {

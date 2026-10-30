@@ -375,7 +375,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Checkout didn't start — nothing was charged.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start — nothing was charged."));
       if (checkoutCompletedInWorld(data)) {
         const order = marketOrderFromPayload(data);
         if (order?.paid) setPaidOrder(order);

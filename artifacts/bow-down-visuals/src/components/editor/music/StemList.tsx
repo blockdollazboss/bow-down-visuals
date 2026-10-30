@@ -1,3 +1,4 @@
+import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import {
   Upload, Loader2, Trash2, Volume2, VolumeX, Headphones, Lock, LockOpen, Music4, Repeat2,
@@ -69,7 +70,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
       setStems([...stems, ...added]);
       toast({ title: "Stems uploaded", description: `${added.length} stem${added.length > 1 ? "s" : ""} added.` });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Could not upload.", variant: "destructive" });
+      toast({ title: "Upload failed", description: plainErrorText(err, "Could not upload."), variant: "destructive" });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -115,7 +116,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
       if (oldPath && oldPath !== upload.storagePath) await removeStemFile(oldPath);
       toast({ title: "Stem replaced", description: `${target.name} now uses ${file.name}.` });
     } catch (err) {
-      toast({ title: "Replace failed", description: err instanceof Error ? err.message : "Could not replace.", variant: "destructive" });
+      toast({ title: "Replace failed", description: plainErrorText(err, "Could not replace."), variant: "destructive" });
     } finally {
       setUploading(false);
       setReplacingId(null);

@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -24,7 +24,7 @@ async function api(token: string | null, method: string, path: string, body?: un
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as any)?.error ?? "Something went wrong.");
+  if (!res.ok) throw new Error(apiErrorMessage(json, "Something went wrong."));
   return json as any;
 }
 
@@ -295,7 +295,7 @@ export function CatalogExportPanel() {
         headers: { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) },
         body: JSON.stringify({ kind: bKind, fields: bFields[bKind] ?? [], format: bFormat }),
       });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error((j as any)?.error ?? "Could not build that export."); }
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(apiErrorMessage(j, "Could not build that export.")); }
       const truncated = res.headers.get("X-Export-Truncated") === "true";
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

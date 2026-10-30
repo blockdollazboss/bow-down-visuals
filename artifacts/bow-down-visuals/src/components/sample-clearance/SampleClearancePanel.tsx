@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { AlertTriangle, CheckCircle2, Flag, Loader2, ShieldAlert, Trash2 } from "lucide-react";
@@ -156,7 +156,7 @@ export function SampleClearancePanel({
       setNote({ ok: true, text: "Declared. This rides your track's credits as your statement." });
       await load();
     } catch (err) {
-      setNote({ ok: false, text: err instanceof Error ? err.message : "Couldn't save that declaration." });
+      setNote({ ok: false, text: plainErrorText(err, "Couldn't save that declaration.") });
     } finally {
       setBusy(false);
     }

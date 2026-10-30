@@ -247,7 +247,7 @@ export default function SplitScreenPanel({
     } catch (err) {
       toast({
         title: t("splitScreen.uploadFailed"),
-        description: err instanceof Error ? err.message : t("splitScreen.tryAgain"),
+        description: plainErrorText(err, t("splitScreen.tryAgain")),
       });
     } finally {
       setUploadingCell(null);

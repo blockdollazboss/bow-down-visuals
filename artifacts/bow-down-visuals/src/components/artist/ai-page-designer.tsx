@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -126,7 +126,7 @@ export default function AiPageDesigner({
       setDesign({ themeConfig: data.themeConfig, sections: data.sections, rationale: data.rationale });
       setStep(3);
     } catch (err) {
-      toast({ title: "The designer stumbled", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "The designer stumbled", description: plainErrorText(err, "Try again.") });
     } finally {
       setGenerating(false);
     }
@@ -174,7 +174,7 @@ export default function AiPageDesigner({
       if (!res.ok) throw new Error(apiErrorMessage(data, "Bio failed"));
       setBioDraft(data.bio);
     } catch (err) {
-      toast({ title: "The writer stumbled", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "The writer stumbled", description: plainErrorText(err, "Try again.") });
     } finally {
       setBioLoading(false);
     }
@@ -198,7 +198,7 @@ export default function AiPageDesigner({
       onApply({ banner_url: data.url });
       toast({ title: "Banner landed", description: "Fresh art, straight onto your hero." });
     } catch (err) {
-      toast({ title: "The banner artist stumbled", description: err instanceof Error ? err.message : "Try again." });
+      toast({ title: "The banner artist stumbled", description: plainErrorText(err, "Try again.") });
     } finally {
       setBannerLoading(false);
     }
