@@ -2034,17 +2034,26 @@ router.post("/media/:kind/:id/like", requireAuth, async (req, res) => {
       res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
       return;
     }
-    await db.insert(likesTable)
+    /* Notification-truth (stack900 L4): the counter bump and the bell
+       belong to the like that LANDS. The insert is ON CONFLICT DO
+       NOTHING, so a replayed POST (double-tap, client retry) records
+       no new like — it must neither inflate like_count nor ring the
+       owner's bell again for love that never newly arrived. (The
+       DELETE twin already gates its decrement on the deleted row.) */
+    const landed = await db.insert(likesTable)
       .values({ userId: req.userId!, kind, targetId: media.id })
-      .onConflictDoNothing({ target: [likesTable.userId, likesTable.kind, likesTable.targetId] });
-    await bumpCounter(kind, media.id, "like");
-    const profile = await getProfileById(media.profileId);
-    if (profile && profile.userId !== req.userId) {
-      await notify(profile.userId, {
-        kind: "like",
-        title: `Your upload "${media.title}" just got some love 🦈`,
-        link: `/artist/${profile.slug}`,
-      });
+      .onConflictDoNothing({ target: [likesTable.userId, likesTable.kind, likesTable.targetId] })
+      .returning();
+    if (landed.length > 0) {
+      await bumpCounter(kind, media.id, "like");
+      const profile = await getProfileById(media.profileId);
+      if (profile && profile.userId !== req.userId) {
+        await notify(profile.userId, {
+          kind: "like",
+          title: `Your upload "${media.title}" just got some love 🦈`,
+          link: `/artist/${profile.slug}`,
+        });
+      }
     }
     const fresh = await getMedia(kind, media.id);
     res.json({ liked: true, like_count: fresh?.likeCount ?? media.likeCount + 1 });
@@ -2087,17 +2096,23 @@ router.post("/tracks/:id/repost", requireAuth, async (req, res) => {
       res.status(404).json({ error: "That audio doesn't exist here. Dead link, chief." });
       return;
     }
-    await db.insert(repostsTable)
+    /* Notification-truth (stack900 L4): same landed-row gate as the
+       like above — a replayed repost POST records nothing new, so it
+       neither bumps repost_count nor re-bells the owner. */
+    const landed = await db.insert(repostsTable)
       .values({ userId: req.userId!, trackId: track.id })
-      .onConflictDoNothing({ target: [repostsTable.userId, repostsTable.trackId] });
-    await bumpCounter("track", track.id, "repost");
-    const profile = await getProfileById(track.profileId);
-    if (profile && profile.userId !== req.userId) {
-      await notify(profile.userId, {
-        kind: "repost",
-        title: `"${track.title}" just got reposted — your reach is compounding 🦈`,
-        link: `/artist/${profile.slug}`,
-      });
+      .onConflictDoNothing({ target: [repostsTable.userId, repostsTable.trackId] })
+      .returning();
+    if (landed.length > 0) {
+      await bumpCounter("track", track.id, "repost");
+      const profile = await getProfileById(track.profileId);
+      if (profile && profile.userId !== req.userId) {
+        await notify(profile.userId, {
+          kind: "repost",
+          title: `"${track.title}" just got reposted — your reach is compounding 🦈`,
+          link: `/artist/${profile.slug}`,
+        });
+      }
     }
     const [fresh] = await db.select().from(profileTracksTable)
       .where(eq(profileTracksTable.id, track.id)).limit(1);

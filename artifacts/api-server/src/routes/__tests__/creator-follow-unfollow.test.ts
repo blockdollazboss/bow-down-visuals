@@ -39,6 +39,10 @@ const h = vi.hoisted(() => ({
     deletedFollows: [] as Array<Record<string, unknown>>,
     notifications: [] as Array<Record<string, unknown>>,
     profileUpdates: [] as Array<Record<string, unknown>>,
+    mediaById: new Map<string, Record<string, unknown>>(),
+    likes: new Set<string>(),
+    reposts: new Set<string>(),
+    counterBumps: [] as string[],
   },
 }));
 
@@ -88,9 +92,22 @@ vi.mock("../../lib/mirrorMedia", () => ({
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const state = h.state;
-  const { creatorProfilesTable, followsTable, notificationsTable } = actual;
+  const {
+    creatorProfilesTable,
+    followsTable,
+    notificationsTable,
+    likesTable,
+    repostsTable,
+    profileTracksTable,
+    profileVideosTable,
+  } = actual;
 
   function rowsFor(table: unknown, cond: unknown): unknown[] {
+    if (table === profileTracksTable || table === profileVideosTable) {
+      const { params } = render(cond);
+      const row = state.mediaById.get(String(params[0] ?? ""));
+      return row ? [row] : [];
+    }
     if (table === followsTable) {
       // The follow handler's prior-follow probe:
       // and(eq(followerUserId, user), eq(profileId, profile.id)).
@@ -162,11 +179,28 @@ vi.mock("@workspace/db", async (importOriginal) => {
         if (table === notificationsTable) {
           state.notifications.push(v);
         }
+        // Landed-row inserts (like / repost): ON CONFLICT DO NOTHING
+        // means a replay lands NO row, and returning() must say so.
+        let landedRows: Array<Record<string, unknown>> = [{ ...v }];
+        if (table === likesTable) {
+          const key = `${String(v["userId"])}:${String(v["kind"])}:${String(v["targetId"])}`;
+          if (state.likes.has(key)) landedRows = [];
+          else state.likes.add(key);
+        }
+        if (table === repostsTable) {
+          const key = `${String(v["userId"])}:${String(v["trackId"])}`;
+          if (state.reposts.has(key)) landedRows = [];
+          else state.reposts.add(key);
+        }
+        const conflictResult: any = {
+          returning: async () => landedRows,
+          then: (res: any, rej: any) => Promise.resolve(landedRows).then(res, rej),
+        };
         // notify() inserts into notificationsTable and simply awaits the
         // values() result; the follows insert chains onConflictDoNothing.
         return thenable({
-          onConflictDoNothing: (_cfg: unknown) => thenable(),
-          returning: async () => [{ ...v }],
+          onConflictDoNothing: (_cfg: unknown) => conflictResult,
+          returning: async () => landedRows,
         });
       },
     }),
@@ -198,7 +232,19 @@ vi.mock("@workspace/db", async (importOriginal) => {
         },
       }),
     }),
-    execute: async () => [],
+    execute: async (q: unknown) => {
+      // bumpCounter rides db.execute with identifier-rendered SQL;
+      // record the counter writes so tests can count them.
+      try {
+        const text = dialect.sqlToQuery(q as never).sql;
+        if (text.includes("like_count") || text.includes("repost_count")) {
+          state.counterBumps.push(text);
+        }
+      } catch {
+        /* non-query execute — nothing to record */
+      }
+      return [];
+    },
   };
   void notificationsTable;
 
@@ -236,6 +282,10 @@ beforeEach(() => {
   s.deletedFollows = [];
   s.notifications = [];
   s.profileUpdates = [];
+  s.mediaById = new Map();
+  s.likes = new Set();
+  s.reposts = new Set();
+  s.counterBumps = [];
 
   s.profilesById.set(PROFILE_ID, {
     id: PROFILE_ID,
@@ -360,6 +410,48 @@ describe("POST /api/creator-profiles/:id/follow", () => {
     expect(notes[0]!["userId"]).toBe(PROFILE_OWNER);
     expect(String(notes[0]!["title"])).toContain("Faithful Follower");
     expect(notes[0]!["link"]).toBe("/artist/the-follower");
+  });
+});
+
+describe("notification-truth: media like / track repost replays", () => {
+  const TRACK_ID = "33333333-3333-4333-8333-333333333333";
+
+  beforeEach(() => {
+    h.state.mediaById.set(TRACK_ID, {
+      id: TRACK_ID,
+      profileId: PROFILE_ID,
+      title: "Midnight Reel",
+      likeCount: 3,
+      repostCount: 2,
+    });
+  });
+
+  it("a replayed like neither re-bells the owner nor re-bumps the counter", async () => {
+    const first = await post(`/media/track/${TRACK_ID}/like`);
+    expect(first.status).toBe(200);
+    expect(first.json.liked).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "like")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("like_count"))).toHaveLength(1);
+
+    const replay = await post(`/media/track/${TRACK_ID}/like`);
+    expect(replay.status).toBe(200);
+    expect(replay.json.liked).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "like")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("like_count"))).toHaveLength(1);
+  });
+
+  it("a replayed repost neither re-bells the owner nor re-bumps the counter", async () => {
+    const first = await post(`/tracks/${TRACK_ID}/repost`);
+    expect(first.status).toBe(200);
+    expect(first.json.reposted).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "repost")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("repost_count"))).toHaveLength(1);
+
+    const replay = await post(`/tracks/${TRACK_ID}/repost`);
+    expect(replay.status).toBe(200);
+    expect(replay.json.reposted).toBe(true);
+    expect(h.state.notifications.filter((n) => n["kind"] === "repost")).toHaveLength(1);
+    expect(h.state.counterBumps.filter((t) => t.includes("repost_count"))).toHaveLength(1);
   });
 });
 
