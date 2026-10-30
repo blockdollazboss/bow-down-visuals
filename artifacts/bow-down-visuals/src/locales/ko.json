@@ -3096,7 +3096,7 @@
     "explicit_content_required_declar": "선정적 콘텐츠 — 필수 신고",
     "i_confirm_this_declaration_is_ac": "이 발매의 모든 트랙에 대해 이 신고 내용이 정확함을 확인합니다.",
     "tracks": "트랙 *",
-    "ep_2_5_tracks_album_6_tracks": "(EP: 2~5 트랙 · 앨범: 6+ 트랙)",
+    "ep_2_5_tracks_album_6_tracks": "(EP: 2~6 트랙 · 앨범: 7~30 트랙)",
     "add_track": "트랙 추가",
     "back": "뒤로",
     "paste_an_image_url": "이미지 URL 붙여넣기",
@@ -3163,25 +3163,14 @@
       },
       "ep": {
         "label": "EP",
-        "blurb": "2~5 트랙 — 짧은 프로젝트"
+        "blurb": "2~6 트랙 — 짧은 프로젝트"
       },
       "album": {
         "label": "앨범",
-        "blurb": "6개 이상 트랙 — 정규 프로젝트"
+        "blurb": "7–30개 트랙 — 정규 프로젝트"
       }
     },
-    "trackTitle": "트랙 {{n}} 제목",
-    "validation": {
-      "0": "제목과 아티스트 이름 입력됨",
-      "1": "선정적 콘텐츠 신고 확인됨 (필수)",
-      "2": "플랫폼 1개 이상 선택됨",
-      "3": "오디오 소스 설정됨 (노래 보관함 또는 직접 입력 URL)",
-      "4": "모든 트랙에 제목이 있음",
-      "5": "발매일 설정됨"
-    },
-    "warning": {
-      "0": "커버 아트가 아직 없습니다 — 완성도를 위해 추가하세요"
-    }
+    "trackTitle": "트랙 {{n}} 제목"
   },
   "download": {
     "get_bow_down_visuals_everywhere": "어디서든 Bow Down Visuals를 만나보세요",

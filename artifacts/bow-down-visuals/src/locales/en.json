@@ -3321,7 +3321,7 @@
     "explicit_content_required_declar": "Explicit content — required declaration",
     "i_confirm_this_declaration_is_ac": "I confirm this declaration is accurate for every track on this release.",
     "tracks": "Tracks *",
-    "ep_2_5_tracks_album_6_tracks": "(EP: 2–5 tracks · Album: 6+ tracks)",
+    "ep_2_5_tracks_album_6_tracks": "(EP: 2–6 tracks · Album: 7–30 tracks)",
     "add_track": "Add track",
     "back": "Back",
     "paste_an_image_url": "Paste an image URL",
@@ -3388,25 +3388,14 @@
       },
       "ep": {
         "label": "EP",
-        "blurb": "2–5 tracks — a short project"
+        "blurb": "2–6 tracks — a short project"
       },
       "album": {
         "label": "Album",
-        "blurb": "6+ tracks — a full project"
+        "blurb": "7–30 tracks — a full project"
       }
     },
-    "trackTitle": "Track {{n}} title",
-    "validation": {
-      "0": "Title and artist name set",
-      "1": "Explicit-content declaration confirmed (required)",
-      "2": "At least one platform selected",
-      "3": "Audio source set (song library or manual URL)",
-      "4": "Every track has a title",
-      "5": "Release date set"
-    },
-    "warning": {
-      "0": "No cover art yet — add one for a complete package"
-    }
+    "trackTitle": "Track {{n}} title"
   },
   "download": {
     "get_bow_down_visuals_everywhere": "Get Bow Down Visuals everywhere",

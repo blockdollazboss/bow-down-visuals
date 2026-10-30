@@ -3075,7 +3075,7 @@
     "delivery_job_queued_statuses_wil": "Auslieferungsauftrag in der Warteschlange — Status erscheinen hier, sobald der Aggregator den Release übernimmt.",
     "describe_the_song_ai_writes_stre": "Beschreiben Sie den Song — die KI schreibt streaming-fertige Titeloptionen, eine Release-Beschreibung und Genre-Tags.",
     "distribution": "Vertrieb",
-    "ep_2_5_tracks_album_6_tracks": "(EP: 2–5 Tracks · Album: 6+ Tracks)",
+    "ep_2_5_tracks_album_6_tracks": "(EP: 2–6 Tracks · Album: 7–30 Tracks)",
     "explicit": "Explizit",
     "explicit_content_required_declar": "Explizite Inhalte — Pflichtangabe",
     "finish_the_checklist_items_above": "Erledigen Sie die Checklistenpunkte oben, um die Einreichung freizuschalten.",
@@ -3149,11 +3149,11 @@
     "thy_cheat_code_s_distribution_hu": "Der Vertriebs-Hub von Thy Cheat Code",
     "tier": {
       "album": {
-        "blurb": "6+ Tracks — ein volles Projekt",
+        "blurb": "7–30 Tracks — ein volles Projekt",
         "label": "Album"
       },
       "ep": {
-        "blurb": "2–5 Tracks — ein kurzes Projekt",
+        "blurb": "2–6 Tracks — ein kurzes Projekt",
         "label": "EP"
       },
       "single": {
@@ -3169,18 +3169,7 @@
     "tracks_2": "Tracks",
     "type": "Typ:",
     "us_xxx_26_00001": "US-XXX-26-00001",
-    "validation": {
-      "0": "Titel und Künstlername gesetzt",
-      "1": "Angabe zu expliziten Inhalten bestätigt (erforderlich)",
-      "2": "Mindestens eine Plattform ausgewählt",
-      "3": "Audioquelle gesetzt (Song-Bibliothek oder manuelle URL)",
-      "4": "Jeder Track hat einen Titel",
-      "5": "Release-Datum gesetzt"
-    },
     "visual_bucs": "Visual Bucs",
-    "warning": {
-      "0": "Noch kein Cover-Art — fügen Sie eins für ein komplettes Paket hinzu"
-    },
     "where_should_this_release_land_e": "Wo soll dieser Release landen? Jede Plattform ist im Tierpreis enthalten."
   },
   "download": {

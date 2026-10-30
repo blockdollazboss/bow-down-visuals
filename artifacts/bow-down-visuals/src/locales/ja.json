@@ -3096,7 +3096,7 @@
     "explicit_content_required_declar": "過激な表現 — 必須の申告",
     "i_confirm_this_declaration_is_ac": "このリリースの全トラックについて、この申告が正確であることを確認します。",
     "tracks": "トラック *",
-    "ep_2_5_tracks_album_6_tracks": "（EP：2–5曲 · アルバム：6曲以上）",
+    "ep_2_5_tracks_album_6_tracks": "（EP：2–6曲 · アルバム：7–30曲）",
     "add_track": "トラックを追加",
     "back": "戻る",
     "paste_an_image_url": "画像URLを貼り付け",
@@ -3163,25 +3163,14 @@
       },
       "ep": {
         "label": "EP",
-        "blurb": "2–5トラック — 短いプロジェクト"
+        "blurb": "2–6トラック — 短いプロジェクト"
       },
       "album": {
         "label": "アルバム",
-        "blurb": "6トラック以上 — フルプロジェクト"
+        "blurb": "7–30トラック — フルプロジェクト"
       }
     },
-    "trackTitle": "トラック{{n}}のタイトル",
-    "validation": {
-      "0": "タイトルとアーティスト名を設定",
-      "1": "過激な表現の申告を確認（必須）",
-      "2": "少なくとも1つのプラットフォームを選択",
-      "3": "音源を設定（楽曲ライブラリまたは手動URL）",
-      "4": "すべてのトラックにタイトルあり",
-      "5": "リリース日を設定"
-    },
-    "warning": {
-      "0": "まだカバーアートがありません — 完全なパッケージのために追加しましょう"
-    }
+    "trackTitle": "トラック{{n}}のタイトル"
   },
   "download": {
     "get_bow_down_visuals_everywhere": "Bow Down Visuals をどこでも",
