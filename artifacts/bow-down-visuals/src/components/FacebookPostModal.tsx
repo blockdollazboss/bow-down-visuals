@@ -200,7 +200,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={publishing ? undefined : onClose} />
-      <div className={`relative w-full max-w-lg rounded-2xl border p-6 space-y-5 shadow-[0_0_60px_rgba(218,165,32,0.15)] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+      <div className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border p-6 space-y-5 shadow-[0_0_60px_rgba(218,165,32,0.15)] ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">Post to Facebook</h3>
