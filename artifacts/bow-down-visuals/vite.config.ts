@@ -72,6 +72,18 @@ export default defineConfig({
           ) {
             return "vendor-radix";
           }
+          // Speed-truth (Stack1000 N3): clsx is the cn() leaf imported by
+          // nearly every component AND by recharts' own modules. Rolldown's
+          // grouping parks an unpinned shared leaf inside the manual chunk
+          // of its heaviest importer — clsx landed inside vendor-recharts,
+          // so every first load statically dragged the whole chart library
+          // (373,439 B, modulepreloaded in index.html) for a 697 B helper,
+          // though recharts is used only by the lazy analytics-hub route.
+          // Pin clsx to its own tiny vendor chunk so vendor-recharts stays
+          // behind the one route that uses it.
+          if (/[\\/]node_modules[\\/]clsx[\\/]/.test(id)) {
+            return "vendor-clsx";
+          }
           // Stack-28 #51: recharts is used ONLY by the analytics-hub route — keep it in
           // its own vendor chunk so the hub's panel code stays lean and
           // the chart library's size is visible on its own line.
