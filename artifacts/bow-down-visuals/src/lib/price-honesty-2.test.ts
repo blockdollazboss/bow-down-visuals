@@ -99,3 +99,97 @@ describe("features catalog (data/features.ts) — card prices match their rails"
     expect(featureCost("video-editor")).toBe("Free–400 Visual Bucs/export");
   });
 });
+
+/** Parse hub-workflows steps: label + href + creditNote per step. */
+function hubSteps(): { label: string; href: string; note: string }[] {
+  const lines = readFe("lib/hub-workflows.ts").split("\n");
+  const out: { label: string; href: string; note: string }[] = [];
+  let label = "";
+  let href = "";
+  for (const ln of lines) {
+    const lm = ln.match(/label: "([^"]+)"/);
+    if (lm) label = lm[1]!;
+    const hm = ln.match(/href: "([^"]+)"/);
+    if (hm) href = hm[1]!;
+    const nm = ln.match(/creditNote: "([^"]+)"/);
+    if (nm) out.push({ label, href, note: nm[1]! });
+  }
+  return out;
+}
+
+describe("Hub workflow cards (lib/hub-workflows.ts) — notes match their rails", () => {
+  const steps = hubSteps();
+  const notesFor = (label: string, hrefPart: string) =>
+    steps.filter((s) => s.label === label && s.href.includes(hrefPart)).map((s) => s.note);
+
+  it("Samples = from 500 (sample-pack tiers start at 500; was 100)", () => {
+    expect(getCreditCost("/api/sample-pack/generate")?.cost).toBe(500);
+    expect(notesFor("Samples", "sub=samples")).toEqual(["from 500 Visual Bucs"]);
+  });
+
+  it("Master (quick mode) = 400, the Express master rail (was 200)", () => {
+    expect(getCreditCost("/api/mastering")?.cost).toBe(400);
+    expect(notesFor("Master", "mode=quick")).toEqual(["400 Visual Bucs"]);
+  });
+
+  it("Intros = 750 (5s × 150/s; was 200)", () => {
+    expect(getCreditCost("/api/generate-intro-outro")?.cost).toBe(750);
+    expect(notesFor("Intros", "tab=intros")).toEqual(["750 Visual Bucs"]);
+  });
+
+  it("Stream Pack = 100 (was 200)", () => {
+    expect(getCreditCost("/api/stream-pack/generate")?.cost).toBe(100);
+    expect(notesFor("Stream Pack", "tab=stream")).toEqual(["100 Visual Bucs"]);
+  });
+
+  it("A/B Test = 200, the thumbnail-test rail (was 100)", () => {
+    expect(getCreditCost("/api/thumbnail-test")?.cost).toBe(200);
+    expect(notesFor("A/B Test", "tab=abtest")).toEqual(["200 Visual Bucs"]);
+  });
+
+  it("every cover-art panel step spans the real 100–200 model range (was 200–300)", () => {
+    const cover = steps.filter((s) => s.href.includes("panel=coverart"));
+    expect(cover.length).toBeGreaterThan(0);
+    for (const s of cover) expect(s.note).not.toContain("200–300");
+    const ranged = cover.filter((s) => s.note.includes("–"));
+    expect(ranged.map((s) => s.note)).toEqual([
+      "100–200 Visual Bucs", "100–200 Visual Bucs", "100–200 Visual Bucs", "100–200 Visual Bucs",
+    ]);
+  });
+
+  it("scheduler plan steps = 150, the calendar auto-fill rail (was 100)", () => {
+    expect(getCreditCost("/api/wave8/calendar/autofill")?.cost).toBe(150);
+    const plan = steps.filter((s) => s.href.includes("/scheduler?tab=plan"));
+    expect(plan.length).toBe(5);
+    for (const s of plan) expect(s.note).toBe("150 Visual Bucs");
+  });
+
+  it("Distribute = from 1,000, the cheapest release tier (was 'from 100')", () => {
+    expect(deriveServerConstant("routes/generate/distribution.ts", "DISTRIBUTION_RELEASE_CREDITS")).toBe(1000);
+    const src = readApi("routes/generate/distribution.ts");
+    const block = src.slice(src.indexOf("RELEASE_TIER_CREDITS"), src.indexOf("} as const"));
+    // single falls back to the 1,000 base; ep/album default to 2,000/3,000.
+    expect(block).toContain("DISTRIBUTION_RELEASE_CREDITS");
+    expect(block).toContain("|| 2000");
+    expect(block).toContain("|| 3000");
+    expect(notesFor("Distribute", "/distribute")).toEqual(["from 1,000 Visual Bucs"]);
+  });
+
+  it("LLC steps = 100, the guide's AI rail (was 'free')", () => {
+    expect(deriveClientConstant("pages/llc-guide.tsx", "CREDIT_COST")).toBe(100);
+    expect(notesFor("LLC", "/llc-guide")).toEqual(["100 Visual Bucs"]);
+    expect(notesFor("LLC Setup", "/llc-guide")).toEqual(["100 Visual Bucs"]);
+  });
+
+  it("voiceover steps carry the per-minute unit (rail is 200/min, not flat 200)", () => {
+    expect(getCreditCost("/api/voiceover/generate")?.cost).toBe(200);
+    const vo = steps.filter((s) => s.href.includes("tab=voiceover"));
+    expect(vo.length).toBe(6);
+    for (const s of vo) expect(s.note).toBe("200 Visual Bucs/min");
+  });
+
+  it("Translate carries the per-minute unit (rail is 500/min/language)", () => {
+    expect(getCreditCost("/api/video-translator/translate")?.cost).toBe(500);
+    expect(notesFor("Translate", "tab=translate")).toEqual(["500 Visual Bucs/min"]);
+  });
+});
