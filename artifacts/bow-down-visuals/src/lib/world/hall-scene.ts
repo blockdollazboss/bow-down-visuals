@@ -131,6 +131,7 @@ import {
   guardVariantForKey,
   houseGuardVariantForId,
   DEFAULT_FIGURE_HEIGHT,
+  GUARD_CHARACTER_PATHS,
   type DefaultArtState,
   type GuardVariant,
 } from "./figure";
@@ -149,7 +150,11 @@ import {
   buildWorldFixtures,
   type WorldFixtures,
 } from "./guard-fixtures-scene";
-import type { FixtureBodyId } from "./guard-fixtures";
+import {
+  attemptLoadPlan,
+  fixtureStandinArtPlan,
+  type FixtureBodyId,
+} from "./guard-fixtures";
 import {
   PALACE_LAYOUT,
   PALACE_DOORS,
@@ -1852,6 +1857,17 @@ export class KingsHallScene {
     male: { status: "pending", image: null, mouth: null },
     female: { status: "pending", image: null, mouth: null },
   };
+  /** Guard variants whose mouth location has been set in motion.
+   *  Location is LAZY (stack1000/world-load-truth): the landmarker
+   *  chain — bundle + wasm + face model, ≈17.8 MB — used to load
+   *  at every World entry to landmark these two stills the moment
+   *  their art landed, though a mouth is only ever READ while a
+   *  figure wearing the variant is speaking (the portrait draw),
+   *  and the pipeline's own measurement finds no face on the
+   *  house guards' art at all (figure-loop.ts). The first speech
+   *  a variant's figure makes asks for its mouth instead;
+   *  ensureGuardMouth owns the asking, once per variant. */
+  private guardMouthRequested = new Set<GuardVariant>();
   private disposed = false;
   private resizeObs: ResizeObserver | null = null;
   /* Living loops: feed ids (budget keys) + the one-time
@@ -8761,14 +8777,6 @@ export class KingsHallScene {
     this.swapFigure(rig, buildCapsuleBody(rig.tint), null, null);
   }
 
-  /** Load both guards' art once for the whole scene (the approved
-   *  slots at public/world/default-character.png and
-   *  default-character-female.png) and landmark each mouth: the
-   *  faces are frontal, so their lips work like any portrait's. As
-   *  each guard's art lands, every presence dealt or picking that
-   *  guard trades up from the capsule. A missing or unreadable slot
-   *  leaves the capsule standing for that guard — the fallback,
-   *  never a broken figure. */
   /** Every rig that might wear a guard figure: the room's peers
    *  plus my own. */
   private guardRigs(): AvatarRig[] {
@@ -8787,38 +8795,85 @@ export class KingsHallScene {
     }
   }
 
+  /** Load both guards' art once for the whole scene (the approved
+   *  slots at public/world/default-character.png and
+   *  default-character-female.png). As each guard's art lands,
+   *  every presence dealt or picking that guard trades up from the
+   *  capsule. A slot that fails on every source leaves the capsule
+   *  standing for that guard — the fallback, never a broken figure.
+   *
+   *  The art walks the SAME source plan the fixture stand-ins walk
+   *  (guard-fixtures.fixtureStandinArtPlan: CDN ↔ origin,
+   *  alternating, bounded, with the bodies' backoff). Until
+   *  stack1000/world-load-truth this was a single CDN shot through
+   *  mediaUrl: in any session where the CDN leg failed, every
+   *  presence in the room stood as a bare capsule all session —
+   *  the exact failure the Oct 28 stand-in fix cured for the
+   *  posts, never applied to the presences wearing the same art.
+   *
+   *  The mouth is NOT located here. It is a refinement (lips),
+   *  located lazily by ensureGuardMouth the first time a figure
+   *  wearing the variant speaks: the landmarker chain it pulls
+   *  (bundle + wasm + face model, ≈17.8 MB) used to ride every
+   *  World entry for two stills a mouth is never read on until
+   *  somebody talks. The figure stands the moment its ART lands
+   *  either way — that decoupling is the Oct 25 law
+   *  (figure-mouth-decouple.test.ts) and this keeps it: stand
+   *  first, lips whenever they honestly arrive. */
   private loadGuardArt(): void {
     (Object.keys(this.guardArt) as GuardVariant[]).forEach((variant) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        if (this.disposed) return;
-        /* The figure stands the moment its ART lands. The mouth is
-         * a refinement (lips), located by a heavy ML pipeline whose
-         * bundle/wasm/model fetches can stall for a very long time
-         * on a real connection — gating the swap on it left every
-         * presence standing as the fallback capsule for whole
-         * sessions (owner's live report, 2026-10-25: a gold capsule
-         * in a settled session, long after the art itself had
-         * loaded). The mouth attaches IN PLACE when it resolves:
-         * the portrait draw reads portrait.mouth live every frame,
-         * so the lips simply start working — no rebuild, no wait. */
-        this.guardArt[variant] = { status: "ready", image: img, mouth: null };
-        this.standWaitingGuards(variant);
-        void locatePortraitMouth(img).then((mouth) => {
-          if (this.disposed || !mouth) return;
-          this.guardArt[variant].mouth = mouth;
-          for (const rig of this.guardRigs()) {
-            if (rig.guardVariant === variant && rig.portrait) {
-              rig.portrait.mouth = mouth;
-            }
-          }
+      const attempt = (url: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error(`guard art failed to load: ${url}`));
+          img.src = url;
         });
-      };
-      img.onerror = () => {
-        this.guardArt[variant] = { status: "failed", image: null, mouth: null };
-      };
-      img.src = guardCharacterUrl(import.meta.env.BASE_URL, variant);
+      void attemptLoadPlan(
+        fixtureStandinArtPlan(
+          guardCharacterUrl(import.meta.env.BASE_URL, variant),
+          GUARD_CHARACTER_PATHS[variant],
+        ),
+        attempt,
+        (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      ).then(
+        (img) => {
+          if (this.disposed) return;
+          this.guardArt[variant] = { status: "ready", image: img, mouth: null };
+          this.standWaitingGuards(variant);
+        },
+        () => {
+          if (this.disposed) return;
+          this.guardArt[variant] = { status: "failed", image: null, mouth: null };
+        },
+      );
+    });
+  }
+
+  /** Ask for a guard variant's mouth — once per variant per scene,
+   *  and only when a figure wearing it has actually spoken (the
+   *  portrait draw reads portrait.mouth live every frame, but only
+   *  a speaking figure's lips move, so an unspoken variant's mouth
+   *  is never read at all). The located mouth attaches IN PLACE —
+   *  to the shared art record and to every rig currently wearing
+   *  the variant — exactly as the old eager call attached it; the
+   *  only change is WHEN the asking happens. A null result (no
+   *  face on the art — the measured truth for the house guards)
+   *  is final for the scene: the variant is never re-asked. */
+  private ensureGuardMouth(variant: GuardVariant): void {
+    if (this.guardMouthRequested.has(variant)) return;
+    const art = this.guardArt[variant];
+    if (art.status !== "ready" || !art.image) return;
+    this.guardMouthRequested.add(variant);
+    void locatePortraitMouth(art.image).then((mouth) => {
+      if (this.disposed || !mouth) return;
+      this.guardArt[variant].mouth = mouth;
+      for (const rig of this.guardRigs()) {
+        if (rig.guardVariant === variant && rig.portrait) {
+          rig.portrait.mouth = mouth;
+        }
+      }
     });
   }
 
@@ -8851,6 +8906,10 @@ export class KingsHallScene {
     const rig = this.avatars.get(peerId);
     if (!rig || !rig.portrait) return;
     rig.speechTarget = mouthOpennessForLevel(level);
+    /* First speech from a guard figure asks for that variant's
+     * mouth (ensureGuardMouth — the landmarker chain loads then,
+     * not at World entry). */
+    if (level > 0 && rig.guardVariant) this.ensureGuardMouth(rig.guardVariant);
   }
 
   setPeerTarget(peerId: string, x: number, z: number, rotY: number, y?: number): void {
