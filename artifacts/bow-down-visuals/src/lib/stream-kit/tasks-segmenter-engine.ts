@@ -171,16 +171,27 @@ function loadVisionModule(
   modulePromise = (async () => {
     const urls = visionBundleUrls();
     let lastErr: unknown = null;
+    let lastUrl: string | null = null;
     for (let i = 0; i < urls.length; i++) {
       try {
         const mod = await importModule(urls[i]!);
         if (mod && mod.FilesetResolver && mod.ImageSegmenter) return { mod, baseIndex: i };
         lastErr = new Error("The MediaPipe Tasks bundle loaded without its expected exports.");
+        lastUrl = urls[i]!;
       } catch (err) {
         lastErr = err;
+        lastUrl = urls[i]!;
       }
     }
-    throw new TasksSegmenterError("LOAD_FAILED", "The MediaPipe Tasks engine could not be loaded.", lastErr);
+    /* Name the leg that failed last — a bare "could not be
+       loaded" left the Oct 30, 2026 green-screen failure
+       undiagnosable from the error alone (the RVM worker learned
+       the same lesson; see rvm-worker.js noteInitFailure). */
+    throw new TasksSegmenterError(
+      "LOAD_FAILED",
+      `The MediaPipe Tasks engine could not be loaded (last attempt: ${lastUrl ?? "no bundle URL"}).`,
+      lastErr,
+    );
   })();
   // A failed load must not poison later attempts.
   modulePromise.catch(() => {
