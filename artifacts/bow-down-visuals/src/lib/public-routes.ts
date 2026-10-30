@@ -285,6 +285,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/content-calendar", disposition: "redirect", redirectTo: "/scheduler?tab=calendar", targetDisposition: "locked" },
   { path: "/sponsors", disposition: "redirect", redirectTo: "/brand-deals?tab=marketplace", targetDisposition: "locked" },
   { path: "/shows", disposition: "redirect", redirectTo: "/go-live?tab=shows", targetDisposition: "locked" },
+  { path: "/presave", disposition: "redirect", redirectTo: "/distribute", targetDisposition: "locked" },
   { path: "/presave/:slug", disposition: "public" },
   { path: "/unlock/:slug", disposition: "public" },
   { path: "/splits/:slug", disposition: "public" },
