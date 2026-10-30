@@ -446,7 +446,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           </p>
           <Music2 className="h-4 w-4 text-white/30" />
         </div>
-        <select
+        <select aria-label={side === "A" ? t("mashup.songA") : t("mashup.songB")}
           value={selected?.id ?? ""}
           onChange={(e) => setId(e.target.value)}
           disabled={loadingSongs || isUploading}
@@ -763,7 +763,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
           {albumsLoaded && !albumAdded && (
             <div className="rounded-xl border border-white/10 bg-black/50 p-4 space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
-                <select
+                <select aria-label="Album"
                   value={albumPick}
                   onChange={(e) => setAlbumPick(e.target.value)}
                   className="h-10 flex-1 rounded-xl bg-white/[0.04] border border-white/10 text-white px-3 text-sm focus:outline-none focus:border-primary/60 cursor-pointer"

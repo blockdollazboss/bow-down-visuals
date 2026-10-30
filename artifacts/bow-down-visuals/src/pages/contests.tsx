@@ -595,7 +595,7 @@ export default function Contests() {
                         maxLength={80}
                         className="flex-1 rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-2.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
                       />
-                      <select
+                      <select aria-label="Entry method"
                         value={entryMethod}
                         onChange={(e) => setEntryMethod(e.target.value)}
                         className="rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-2.5 text-white outline-none focus:border-primary/60"

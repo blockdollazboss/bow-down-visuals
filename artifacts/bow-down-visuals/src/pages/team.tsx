@@ -412,7 +412,7 @@ export default function TeamPage() {
                   type="email"
                   className="flex-1 min-w-[200px] bg-white/[0.05] border-white/10 text-white"
                 />
-                <select
+                <select aria-label="Invite role"
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
                   className="rounded-lg bg-white/[0.05] border border-white/10 text-white px-3 py-2 text-sm"
@@ -446,7 +446,7 @@ export default function TeamPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {activeTeam.myRole === "owner" && m.role !== "owner" && m.status === "active" && (
-                      <select
+                      <select aria-label="Member role"
                         value={m.role}
                         onChange={(e) => void handleRoleChange(m.id, e.target.value)}
                         className="rounded-lg bg-white/[0.05] border border-white/10 text-white px-2 py-1 text-xs"

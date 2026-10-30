@@ -300,7 +300,7 @@ export default function NicheAnalyzerPanel() {
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Target platform
           </p>
-          <select
+          <select aria-label="Target platform"
             value={platform}
             onChange={(e) => setPlatform(e.target.value as Platform)}
             className={`${inputClass} appearance-none`}
@@ -314,7 +314,7 @@ export default function NicheAnalyzerPanel() {
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Experience level
           </p>
-          <select
+          <select aria-label="Experience level"
             value={experience}
             onChange={(e) => setExperience(e.target.value as ExperienceLevel)}
             className={`${inputClass} appearance-none`}

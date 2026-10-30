@@ -1696,7 +1696,7 @@ function BestTimeOptimizer(props: {
           <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4">
             <p className="text-[11px] font-bold uppercase tracking-widest text-primary">{t("scheduler.bestTime.shareLinkLabel")}</p>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <input readOnly value={shareLink} onFocus={(e) => e.target.select()} className={`${inputClass} font-mono text-[12px]`} />
+              <input aria-label="Share link" readOnly value={shareLink} onFocus={(e) => e.target.select()} className={`${inputClass} font-mono text-[12px]`} />
               <Button size="sm" onClick={copyShareLink} className="shrink-0 bg-primary font-bold text-black hover:bg-primary/90">
                 <Link2 className="mr-2 h-4 w-4" /> {copied ? t("scheduler.bestTime.copied") : t("scheduler.bestTime.copyLink")}
               </Button>

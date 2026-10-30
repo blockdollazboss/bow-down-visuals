@@ -208,7 +208,7 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
   const isLight = useIsLightTheme();
   return (
     <div className="relative">
-      <select
+      <select aria-label={placeholder}
         name={name}
         value={value}
         onChange={(e) => onChange(e.target.value)}

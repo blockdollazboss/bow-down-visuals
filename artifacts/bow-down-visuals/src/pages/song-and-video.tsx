@@ -187,7 +187,7 @@ function Sel({ name, placeholder, options, value, onChange }: {
   const isLight = useIsLightTheme();
   return (
     <div className="relative">
-      <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
+      <select aria-label={placeholder} name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selCls} style={{ colorScheme: isLight ? "light" : "dark" }}>
         <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o) => <option key={o.value} value={o.value} style={{ background: isLight ? "#FAF6ED" : "#111" }}>{t(o.labelKey)}</option>)}

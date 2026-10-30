@@ -290,7 +290,7 @@ function ConsistencyModal({
         </div>
 
         {/* Prompt textarea */}
-        <textarea
+        <textarea aria-label="Generated prompt"
           readOnly
           value={prompt}
           rows={12}
@@ -370,7 +370,7 @@ function StyledSelect({
   const isLight = useIsLightTheme();
   return (
     <div className="relative">
-      <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
+      <select aria-label={placeholder} name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={selectClass} style={{ colorScheme: "dark" }}>
         <option value="" disabled style={{ background: isLight ? "#FAF6ED" : "#111" }}>{placeholder}</option>
         {options.map((o) => (
@@ -2742,7 +2742,7 @@ export default function ArtistVault() {
                           <Label className="text-xs text-white/50">{label}</Label>
                           <span className="text-xs text-white/40">{format(current[key])}</span>
                         </div>
-                        <input
+                        <input aria-label={label}
                           type="range"
                           min={min}
                           max={max}

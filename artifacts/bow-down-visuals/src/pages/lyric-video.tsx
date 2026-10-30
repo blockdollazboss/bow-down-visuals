@@ -322,7 +322,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
               ) : songs.length === 0 ? (
                 <p className="text-xs text-white/40">{t("lyricVideo.noSongs")}</p>
               ) : (
-                <select
+                <select aria-label="Song"
                   value={selectedSongId}
                   onChange={(e) => {
                     setSelectedSongId(e.target.value);

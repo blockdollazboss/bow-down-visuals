@@ -465,7 +465,7 @@ function StreamVodClips() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">
               {t("clipMaker.maxClips")} · <span className="text-primary">{maxClips}</span>
             </div>
-            <input
+            <input aria-label={t("clipMaker.maxClips")}
               type="range"
               min={1}
               max={8}

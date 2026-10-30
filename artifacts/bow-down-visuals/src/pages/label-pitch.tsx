@@ -485,7 +485,7 @@ export default function LabelPitch() {
                   </p>
                 </div>
               ) : songSource === "library" ? (
-                <select
+                <select aria-label="Library song"
                   value={librarySongId}
                   onChange={(e) => setLibrarySongId(e.target.value)}
                   className={`${inputClass} mt-4`}
@@ -1606,7 +1606,7 @@ function PlaylistsPitchTab() {
             </div>
 
             {songSource === "library" ? (
-              <select
+              <select aria-label="Library song"
                 value={librarySongId}
                 onChange={(e) => setLibrarySongId(e.target.value)}
                 className={`${inputClass} mt-4`}
@@ -1983,7 +1983,7 @@ function PlaylistsPitchTab() {
                     className={inputClass}
                     aria-label={t("playlistPitch.deadlinesTitle")}
                   />
-                  <select
+                  <select aria-label="Deadline release"
                     value={newDeadline.releaseId}
                     onChange={(e) => setNewDeadline({ ...newDeadline, releaseId: e.target.value })}
                     className={inputClass}
@@ -2092,7 +2092,7 @@ function PlaylistsPitchTab() {
               <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNoReleases")}</p>
             ) : (
               <>
-                <select
+                <select aria-label="Packet release"
                   value={packetReleaseId}
                   onChange={(e) => {
                     setPacketReleaseId(e.target.value);

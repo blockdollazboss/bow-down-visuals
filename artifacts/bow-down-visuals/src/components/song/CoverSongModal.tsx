@@ -430,6 +430,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
                         Tempo shift <span className="text-primary font-bold">{tempoShift > 0 ? `+${tempoShift}` : tempoShift}%</span>
                       </label>
                       <input
+                        aria-label="Tempo shift"
                         type="range"
                         min={-20}
                         max={20}

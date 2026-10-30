@@ -561,7 +561,7 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
                       {s.characters.join(", ")}
                     </span>
                   </div>
-                  <textarea
+                  <textarea aria-label="Generated prompt"
                     value={s.generatedPrompt}
                     onChange={(e) => {
                       const next = [...result.shots];

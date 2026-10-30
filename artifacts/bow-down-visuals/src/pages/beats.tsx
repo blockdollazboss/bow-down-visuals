@@ -449,7 +449,7 @@ export default function Beats() {
             {/* Filters */}
             <div className={`flex flex-wrap items-center gap-2 mb-6 p-4 rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <SlidersHorizontal className="w-4 h-4 text-white/40" />
-              <select value={genre} onChange={(e) => setGenre(e.target.value)}
+              <select aria-label="Genre" value={genre} onChange={(e) => setGenre(e.target.value)}
                 className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/80">
                 <option value="">{t("beats.allGenres")}</option>
                 {GENRES.map((g) => <option key={g} value={g}>{g}</option>)}

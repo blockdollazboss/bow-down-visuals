@@ -249,12 +249,12 @@ export function SampleClearancePanel({
               className={inputClass}
               maxLength={500}
             />
-            <select value={useKind} onChange={(e) => setUseKind(e.target.value)} className={inputClass}>
+            <select aria-label="How the sample is used" value={useKind} onChange={(e) => setUseKind(e.target.value)} className={inputClass}>
               {USE_KIND_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <select value={clearanceStatus} onChange={(e) => setClearanceStatus(e.target.value)} className={inputClass}>
+            <select aria-label="Clearance status" value={clearanceStatus} onChange={(e) => setClearanceStatus(e.target.value)} className={inputClass}>
               {CLEARANCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}

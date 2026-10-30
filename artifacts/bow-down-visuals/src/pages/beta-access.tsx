@@ -281,7 +281,7 @@ export default function BetaAccess() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.creatorTypeLabel")}</Label>
-                    <select
+                    <select aria-label={t("betaAccess.selectCreatorType")}
                       value={form.artistType}
                       onChange={(e) => update("artistType", e.target.value)}
                       className={selectClass}
@@ -294,7 +294,7 @@ export default function BetaAccess() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-white/60 uppercase tracking-wider">{t("betaAccess.wantToMakeLabel")}</Label>
-                    <select
+                    <select aria-label={t("betaAccess.selectWantToMake")}
                       value={form.wantToMake}
                       onChange={(e) => update("wantToMake", e.target.value)}
                       className={selectClass}

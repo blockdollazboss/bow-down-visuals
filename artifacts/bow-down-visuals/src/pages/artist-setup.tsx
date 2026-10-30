@@ -762,7 +762,7 @@ function SectionsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: P
           >
             <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-white/30" />
             <div className="min-w-0 flex-1">
-              <input
+              <input aria-label="Section title"
                 value={s.title}
                 onChange={(e) => rename(s.id, e.target.value)}
                 maxLength={80}
@@ -790,7 +790,7 @@ function SectionsTab({ profile, patch }: { profile: CreatorProfile; patch: (p: P
         ))}
       </div>
       <div className="flex gap-2">
-        <select
+        <select aria-label="New section type"
           value={newType}
           onChange={(e) => setNewType(e.target.value as SectionType)}
           className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none [&>option]:bg-black"

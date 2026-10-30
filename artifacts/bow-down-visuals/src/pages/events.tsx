@@ -114,13 +114,13 @@ export default function Events() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <input aria-label="Event title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title"
                 maxLength={120} className={goldInput} />
-              <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className={goldInput}>
+              <select aria-label="Event type" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className={goldInput}>
                 <option value="stream">Stream</option>
                 <option value="drop">Drop</option>
                 <option value="premiere">Premiere</option>
                 <option value="other">Other</option>
               </select>
-              <input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
+              <input aria-label="Event start" type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
                 className={goldInput} />
               <input aria-label="Stream / drop URL (where it happens)" value={form.destination_url} onChange={(e) => setForm({ ...form, destination_url: e.target.value })}
                 placeholder="Stream / drop URL (where it happens)" className={goldInput} />

@@ -549,7 +549,7 @@ export default function JewelryStudio() {
                   <h3 className={`${isLight ? "mb-2 text-sm font-semibold uppercase tracking-widest text-[#6B5B36]" : "mb-2 text-sm font-semibold uppercase tracking-widest text-zinc-400"}`}>
                     {t("jewelry.unitsLabel")} <span className="text-zinc-600">{t("jewelry.unitsNote")}</span>
                   </h3>
-                  <input
+                  <input aria-label={t("jewelry.unitsLabel")}
                     type="number" min={1} max={1000} value={qty}
                     onChange={(e) => setQty(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
                     className="w-32 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm"

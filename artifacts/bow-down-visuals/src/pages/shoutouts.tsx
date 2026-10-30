@@ -684,7 +684,7 @@ export default function Shoutouts() {
                   <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.incomingRequests")}</h2>
-                      <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); }}
+                      <select aria-label="Filter by status" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); }}
                         className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white/80">
                         <option value="">{t("shoutouts.allStatuses")}</option>
                         {Object.entries(STATUS_LABEL_KEYS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}

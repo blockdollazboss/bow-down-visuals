@@ -1830,7 +1830,7 @@ export default function AdminPage() {
               {t("admin.currentBalance", { balance: profile?.credits?.toLocaleString("en-US") ?? "—" })}
             </p>
             <div className="flex gap-2">
-              <input
+              <input aria-label="Visual Bucs amount"
                 type="number"
                 min={1}
                 max={100000}
@@ -1869,7 +1869,7 @@ export default function AdminPage() {
                 disabled={friendGranting}
                 className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
               />
-              <input
+              <input aria-label="Visual Bucs amount"
                 type="number"
                 min={1}
                 max={100000}
@@ -1905,7 +1905,7 @@ export default function AdminPage() {
                 disabled={planSaving}
                 className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
               />
-              <select
+              <select aria-label="Plan tier"
                 value={planTier}
                 onChange={(e) => setPlanTier(e.target.value)}
                 disabled={planSaving}

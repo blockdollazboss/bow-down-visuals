@@ -195,7 +195,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
             <Label className="text-white/70 text-sm mb-2 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5" /> {t("beatMaker.keyLabel")}
             </Label>
-            <select
+            <select aria-label={t("beatMaker.keyLabel")}
               value={musicalKey}
               onChange={(e) => setMusicalKey(e.target.value)}
               className={`${beatInputClass} w-full px-3 appearance-none cursor-pointer [&>option]:bg-zinc-900`}
@@ -205,7 +205,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           </div>
           <div>
             <Label className="text-white/70 text-sm mb-2 block">{t("beatMaker.lengthLabel")}</Label>
-            <select
+            <select aria-label={t("beatMaker.lengthLabel")}
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
               className={`${beatInputClass} w-full px-3 appearance-none cursor-pointer [&>option]:bg-zinc-900`}
@@ -1006,7 +1006,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
             </p>
             <div className="flex items-center gap-1.5">
               <span className={`text-xs ${T.label}`}>{t("beatMaker.bassPitch", { defaultValue: "Pitch" })}</span>
-              <select
+              <select aria-label={t("beatMaker.bassPitch", { defaultValue: "Pitch" })}
                 value={bassPaint}
                 onChange={(e) => setBassPaint(Number(e.target.value))}
                 className={`h-8 rounded-lg border text-xs font-bold px-2 ${isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5] text-[#2A2118]" : "border-white/15 bg-black text-white"}`}

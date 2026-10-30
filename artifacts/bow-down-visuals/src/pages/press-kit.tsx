@@ -502,7 +502,7 @@ export default function PressKitBuilder() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37]">{t("press-kit.sections.bio")}</h3>
                     <div className="flex items-center gap-2">
-                      <select value={tone} onChange={(e) => setTone(e.target.value)}
+                      <select aria-label="Bio tone" value={tone} onChange={(e) => setTone(e.target.value)}
                               className="rounded-lg border border-white/10 bg-black px-2 py-1 text-xs text-white/70">
                         <option value="professional">{t("press-kit.tone.professional")}</option>
                         <option value="bold">{t("press-kit.tone.bold")}</option>

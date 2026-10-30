@@ -322,7 +322,7 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
                   </p>
                   <span className="text-xs text-white/60 font-mono">{strength}%</span>
                 </div>
-                <input
+                <input aria-label={t("singingVoice.strengthLabel", { defaultValue: "Voice strength" })}
                   type="range"
                   min={0}
                   max={100}

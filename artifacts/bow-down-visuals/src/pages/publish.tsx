@@ -1298,7 +1298,7 @@ export default function Publish() {
                       Enter a challenge — winners get paid in Visual Bucs
                     </p>
                     <div className="flex flex-1 gap-2">
-                      <select
+                      <select aria-label="Challenge"
                         value={enterSlug}
                         onChange={(e) => { setEnterSlug(e.target.value); setEnteredState("idle"); }}
                         className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/60 px-2 py-2 text-xs text-white"

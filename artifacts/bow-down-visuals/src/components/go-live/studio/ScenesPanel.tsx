@@ -58,7 +58,7 @@ export default function ScenesPanel({
             >
               <span className={`w-4 text-center text-[11px] font-bold ${label}`}>{i + 1}</span>
               {editingId === scene.id ? (
-                <input
+                <input aria-label="Scene name"
                   autoFocus
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}

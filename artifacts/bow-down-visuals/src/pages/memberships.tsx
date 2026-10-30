@@ -1377,7 +1377,7 @@ export default function Memberships() {
                 </p>
                 {membersError && sectionLoadError}
                 <div className="flex flex-col md:flex-row gap-3">
-                  <select
+                  <select aria-label="Member tier filter"
                     className={INPUT + " md:w-56"}
                     value={memberTier}
                     onChange={(e) => setMemberTier(e.target.value)}
@@ -1424,7 +1424,7 @@ export default function Memberships() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <select
+                          <select aria-label="Member status"
                             className="rounded-lg border border-white/10 bg-black/60 px-2 py-1.5 text-xs text-white"
                             value={m.status}
                             onChange={(e) => setMemberStatus(m.id, e.target.value as Member["status"])}

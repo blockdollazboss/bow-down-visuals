@@ -560,7 +560,7 @@ export function PromoCardsPanel() {
                 {copied ? t("hubSpine.promoCards.copied") : t("hubSpine.promoCards.copy")}
               </button>
             </div>
-            <textarea
+            <textarea aria-label="Caption"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               rows={4}

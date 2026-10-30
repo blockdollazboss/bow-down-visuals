@@ -164,7 +164,7 @@ export default function VideoTemplates() {
               {cat}
             </button>
           ))}
-          <select
+          <select aria-label="Sort templates"
             value={sort}
             onChange={(e) => setSort(e.target.value as typeof sort)}
             data-testid="vt-sort"

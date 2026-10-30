@@ -661,7 +661,7 @@ export default function MoneyTrackerPanel() {
                         <div className="mt-1">
                           {linkingId === e.id ? (
                             <span className="inline-flex items-center gap-1.5">
-                              <select
+                              <select aria-label="Link to a release or offer"
                                 value={linkValue}
                                 onChange={(sel) => linkEntry(e.id, sel.target.value || null)}
                                 className="rounded-lg border border-primary/40 bg-black px-2 py-1 text-[11px] text-white outline-none"

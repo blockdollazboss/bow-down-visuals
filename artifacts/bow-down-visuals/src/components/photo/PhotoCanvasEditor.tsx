@@ -640,7 +640,7 @@ function TextControls({ layer, onPatch }: { layer: TextLayer; onPatch: (p: Parti
       <Input value={layer.text} onChange={(e) => onPatch({ text: e.target.value })} />
       <div className="flex items-center gap-2">
         <Label className="w-14 text-xs text-white/50">Font</Label>
-        <select value={layer.fontId} onChange={(e) => onPatch({ fontId: e.target.value as TextLayer["fontId"] })} className="h-9 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-white">
+        <select aria-label="Font" value={layer.fontId} onChange={(e) => onPatch({ fontId: e.target.value as TextLayer["fontId"] })} className="h-9 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-white">
           {SAFE_FONTS.map((f) => <option key={f.id} value={f.id}>{f.id}</option>)}
         </select>
       </div>

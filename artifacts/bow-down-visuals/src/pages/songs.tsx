@@ -520,7 +520,7 @@ export default function SongsPage() {
               <div className="mt-2 flex items-center gap-2">
                 {remixTarget === s.id ? (
                   <>
-                    <select
+                    <select aria-label="Remix source vault"
                       value={remixVault}
                       onChange={(e) => setRemixVault(e.target.value)}
                       disabled={remixing}

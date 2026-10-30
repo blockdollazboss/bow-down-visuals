@@ -185,7 +185,7 @@ export default function SponsorPost() {
               </div>
               <div>
                 <p className={sectionLabel}>{t("sponsorsPost.deadlineLabel")}</p>
-                <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)}
+                <input aria-label={t("sponsorsPost.deadlineLabel")} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)}
                   className={`${inputClass} [color-scheme:dark]`} />
               </div>
               <div>

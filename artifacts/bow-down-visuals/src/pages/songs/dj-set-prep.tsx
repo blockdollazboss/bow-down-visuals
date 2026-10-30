@@ -506,7 +506,7 @@ export default function DjSetPrep({ authHeaders }: { authHeaders: AuthHeaders })
             <div className={panelCls}>
               <div className="mb-3 flex items-center justify-between gap-2">
                 {renaming ? (
-                  <input
+                  <input aria-label="Crate name"
                     type="text"
                     value={renameValue}
                     autoFocus

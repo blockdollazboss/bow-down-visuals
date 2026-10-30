@@ -1585,7 +1585,7 @@ function PresaveManager(props: {
           Share this link — fans get a countdown, email pre-save, and share-to-unlock bonus. On release day it flips to “stream now” automatically.
         </p>
             <div className="mt-3 flex gap-2">
-              <input value={presaveUrl} readOnly className={`${inputClass} font-mono text-xs`} />
+              <input aria-label="Pre-save share link" value={presaveUrl} readOnly className={`${inputClass} font-mono text-xs`} />
               <button onClick={copyPresave} className={`${ghostBtn} shrink-0`}>
                 {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                 {copied ? "Copied" : "Copy"}
@@ -2541,7 +2541,7 @@ function ReleaseDetail(props: {
                 Share this with your collaborators{refCode ? " — it carries your referral link" : ""}. They see the agreed shares, nothing else.
               </p>
               <div className="mt-3 flex gap-2">
-                <input value={shareUrl} readOnly className={`${inputClass} font-mono text-xs`} />
+                <input aria-label="Collaborator invite link" value={shareUrl} readOnly className={`${inputClass} font-mono text-xs`} />
                 <button onClick={copyShareLink} className={`${ghostBtn} shrink-0`}>
                   {shareCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                   {shareCopied ? "Copied" : "Copy"}
@@ -3072,7 +3072,7 @@ function ReleasePlanTab() {
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
             {t("release.releaseDate")}
           </p>
-          <input
+          <input aria-label={t("release.releaseDate")}
             type="date"
             value={releaseDate}
             min={new Date().toISOString().slice(0, 10)}

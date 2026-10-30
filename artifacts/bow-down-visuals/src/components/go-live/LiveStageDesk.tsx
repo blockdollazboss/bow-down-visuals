@@ -280,7 +280,7 @@ export default function LiveStageDesk() {
       <div className="mt-8 border-t border-white/10 pt-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Stream desk</p>
-          <select value={streamId} onChange={(e) => setStreamId(e.target.value)} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white" data-testid="select-stage-stream">
+          <select aria-label="Stream" value={streamId} onChange={(e) => setStreamId(e.target.value)} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white" data-testid="select-stage-stream">
             {streams.length === 0 && <option value="">No streams yet</option>}
             {streams.map((s) => (
               <option key={s.id} value={s.id}>{s.title} · {s.status}{s.is_class ? " · class" : ""}</option>

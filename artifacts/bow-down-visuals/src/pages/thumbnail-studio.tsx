@@ -167,7 +167,7 @@ function SSStyledSelect({ name, placeholder, options, value, onChange }: {
   const isLight = useIsLightTheme();
   return (
     <div className="relative">
-      <select name={name} value={value} onChange={(e) => onChange(e.target.value)}
+      <select aria-label={placeholder} name={name} value={value} onChange={(e) => onChange(e.target.value)}
         className={ssSelectClass(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }}>
         <option value="" disabled>{placeholder}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}

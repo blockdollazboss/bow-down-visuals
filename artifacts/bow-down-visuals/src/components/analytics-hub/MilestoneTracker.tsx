@@ -372,7 +372,7 @@ export default function MilestoneTracker() {
                 className={inputClass}
                 maxLength={200}
               />
-              <select value={platform} onChange={(e) => setPlatform(e.target.value)} className={inputClass}>
+              <select aria-label="Platform" value={platform} onChange={(e) => setPlatform(e.target.value)} className={inputClass}>
                 {PLATFORMS.map((p) => (
                   <option key={p} value={p} className="bg-black">{p}</option>
                 ))}

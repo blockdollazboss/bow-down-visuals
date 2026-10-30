@@ -1925,7 +1925,7 @@ function StemsPanel() {
                   {activeDefs().map((s) => (
                     <div key={s.key} className="flex items-center gap-3">
                       <span className="w-24 shrink-0 text-xs font-semibold text-white/60">{s.label}</span>
-                      <input
+                      <input aria-label={s.label}
                         type="range"
                         min={0}
                         max={2}
@@ -2943,7 +2943,7 @@ function MixPanel() {
                 {vocalDb > 0 ? `+${vocalDb.toFixed(1)}` : vocalDb.toFixed(1)} dB
               </span>
             </div>
-            <input
+            <input aria-label="Vocal level"
               type="range"
               min={-6}
               max={4}

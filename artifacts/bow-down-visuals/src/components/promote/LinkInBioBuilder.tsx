@@ -481,7 +481,7 @@ export function LinkInBioBuilder() {
             </button>
           {vaults.length > 0 && (
             <div className="flex items-center gap-2">
-              <select
+              <select aria-label="Brand vault"
                 value={vaultId}
                 onChange={(e) => {
                   setVaultId(e.target.value);

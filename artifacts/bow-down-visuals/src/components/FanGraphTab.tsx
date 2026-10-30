@@ -165,7 +165,7 @@ export default function FanGraphTab() {
             className="w-72 rounded-xl border border-white/10 bg-black/60 py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-white/25 outline-none focus:border-primary/60"
           />
         </div>
-        <select
+        <select aria-label="Sort by"
           value={sort}
           onChange={(e) => {
             setSort(e.target.value as typeof sort);

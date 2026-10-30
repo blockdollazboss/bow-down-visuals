@@ -744,7 +744,7 @@ export function UgcAdsPanel() {
           <p className="text-sm font-bold">Post a brief (for brands &amp; businesses)</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input aria-label="Product name *" value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} placeholder="Product name *" maxLength={120} className={inputClass} />
-            <select value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })} className={`${inputClass} cursor-pointer appearance-none`}>
+            <select aria-label="Ad style" value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })} className={`${inputClass} cursor-pointer appearance-none`}>
               {UGC_STYLES.map((s) => (
                 <option key={s.key} value={s.key} className="bg-black">{s.label}</option>
               ))}
@@ -846,7 +846,7 @@ export function UgcAdsPanel() {
 
                   {actions.includes("deliver") && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <select
+                      <select aria-label="Finished ad to deliver"
                         value={deliverPick[brief.id] ?? ""}
                         onChange={(e) => setDeliverPick({ ...deliverPick, [brief.id]: e.target.value })}
                         className="min-w-44 flex-1 cursor-pointer appearance-none rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"

@@ -1154,7 +1154,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  </div>
  <div>
  <p className="text-xs font-semibold uppercase tracking-widest text-white/40">{t("email-list.engagement_label")}</p>
- <select
+ <select aria-label={t("email-list.engagement_label")}
  value={segEngagement}
  onChange={(e) => setSegEngagement(e.target.value)}
  className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
@@ -1268,7 +1268,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <div className={`${cardClass} mt-6`}>
  <div className="flex flex-wrap items-center justify-between gap-3">
  <h3 className="flex items-center gap-2 font-semibold"><PenLine className="h-4 w-4 text-primary" />List details — {activeList.name}</h3>
- <select
+ <select aria-label="Choose a list"
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
  className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
@@ -1298,7 +1298,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  <div className={`${cardClass} mt-6`}>
  <div className="flex flex-wrap items-center justify-between gap-3">
  <h3 className="flex items-center gap-2 font-semibold"><Mail className="h-4 w-4 text-primary" />Welcome emails — {activeList.name}</h3>
- <select
+ <select aria-label="Choose a list"
  value={activeListId}
  onChange={(e) => setActiveListId(e.target.value)}
  className="rounded-xl border border-white/10 bg-black/60 px-4 py-2 text-sm text-white outline-none focus:border-primary/60"
@@ -1647,7 +1647,7 @@ const [engagementNonce, setEngagementNonce] = useState(0);
  {t("email-list.kw_capture_label")}
  </label>
  {kwCapture && (
- <select
+ <select aria-label="Keyword signup list"
  value={kwListId || activeListId}
  onChange={(e) => setKwListId(e.target.value)}
  className="mt-2 w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"

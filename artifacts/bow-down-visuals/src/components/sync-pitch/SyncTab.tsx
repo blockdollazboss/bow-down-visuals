@@ -537,7 +537,7 @@ export default function SyncTab({
             </div>
 
             {songSource === "library" ? (
-              <select
+              <select aria-label="Library song"
                 value={librarySongId}
                 onChange={(e) => setLibrarySongId(e.target.value)}
                 className={`${inputClass} mt-4`}
@@ -814,7 +814,7 @@ export default function SyncTab({
                   placeholder={t("syncPitch.briefTitlePlaceholder")}
                   className={inputClass}
                 />
-                <select
+                <select aria-label="Project type"
                   value={newBrief.projectType}
                   onChange={(e) => setNewBrief({ ...newBrief, projectType: e.target.value })}
                   className={inputClass}
@@ -837,7 +837,7 @@ export default function SyncTab({
                   placeholder={t("syncPitch.budgetPlaceholder")}
                   className={inputClass}
                 />
-                <input
+                <input aria-label="Deadline"
                   type="date"
                   value={newBrief.deadline}
                   onChange={(e) => setNewBrief({ ...newBrief, deadline: e.target.value })}

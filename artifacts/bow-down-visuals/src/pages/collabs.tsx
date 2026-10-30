@@ -458,7 +458,7 @@ export default function CollabFinder() {
         {user && tab === "browse" && (
           <section>
             <div className="mb-5 flex flex-wrap items-center gap-3">
-              <select value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} className="rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white outline-none focus:border-amber-400/60">
+              <select aria-label="Filter by niche" value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} className="rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white outline-none focus:border-amber-400/60">
                 <option value="">{t("collabs.allNiches")}</option>
                 {NICHES.map((n) => (
                   <option key={n} value={n}>{NicheLabel(n)}</option>
@@ -586,7 +586,7 @@ export default function CollabFinder() {
                 {t("collabs.matchDescription")} <span className="font-bold text-amber-300">{t("collabs.matchCostNote")}</span>
               </p>
               <div className="mb-4 flex gap-2">
-                <select value={matchTarget} onChange={(e) => setMatchTarget(e.target.value)} className="flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">
+                <select aria-label={t("collabs.chooseCreator")} value={matchTarget} onChange={(e) => setMatchTarget(e.target.value)} className="flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">
                   <option value="">{t("collabs.chooseCreator")}</option>
                   {profiles.filter((p) => !p.isOwn).map((p) => (
                     <option key={p.userId} value={p.userId}>{p.displayName} · {p.nicheLabel}</option>
@@ -770,7 +770,7 @@ export default function CollabFinder() {
                   </button>
                 ))}
               </div>
-              <textarea value={proposalText} onChange={(e) => setProposalText(e.target.value)} rows={6} maxLength={1000} className={inputClass} />
+              <textarea aria-label="Collab proposal" value={proposalText} onChange={(e) => setProposalText(e.target.value)} rows={6} maxLength={1000} className={inputClass} />
               <div className="mt-4 flex items-center justify-between">
                 <button onClick={copyProposal} className={ghostBtn}>
                   {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}

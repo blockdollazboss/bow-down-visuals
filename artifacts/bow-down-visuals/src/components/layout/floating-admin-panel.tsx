@@ -177,7 +177,7 @@ function AdminTools({
           className={`${inputCls} mb-1`}
         />
         <div className="flex gap-1">
-          <select
+          <select aria-label="Plan tier"
             value={tierValue}
             onChange={(e) => setTierValue(e.target.value)}
             className={`flex-1 min-w-0 rounded-lg px-2 py-1.5 text-xs outline-none ${isLight ? "bg-white border border-[#C9A84C]/40 text-[#2A1E07]" : "bg-black/40 border border-white/10 text-white"}`}
@@ -200,7 +200,7 @@ function AdminTools({
       <div>
         <p className={labelCls}>Grant Visual Bucs (self)</p>
         <div className="flex gap-1">
-          <input
+          <input aria-label="Visual Bucs amount"
             type="number"
             min="1"
             value={creditAmount}
@@ -225,7 +225,7 @@ function AdminTools({
           className={`${inputCls} mb-1`}
         />
         <div className="flex gap-1">
-          <input
+          <input aria-label="Friend Visual Bucs amount"
             type="number"
             min="1"
             value={friendAmount}
@@ -655,7 +655,7 @@ function JackpotCreator({
           </button>
         )}
       </div>
-      <input
+      <input aria-label="Ends at"
         type="datetime-local"
         value={endsAt}
         onChange={(e) => setEndsAt(e.target.value)}

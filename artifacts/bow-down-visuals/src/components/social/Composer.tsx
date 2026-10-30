@@ -450,7 +450,7 @@ export function Composer({
             ) : (
               <>
                 <span className="shrink-0">Who can read it:</span>
-                <select
+                <select aria-label="Who can read it"
                   value={minTierId ?? ""}
                   onChange={(e) => setMinTierId(e.target.value || null)}
                   className="rounded-lg border border-[#2a2a2a] bg-[#0d0d0d] px-2 py-1.5 text-xs text-white focus:border-[#d4af37] focus:outline-none"

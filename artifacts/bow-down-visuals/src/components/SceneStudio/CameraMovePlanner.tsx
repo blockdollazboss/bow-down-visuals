@@ -392,7 +392,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
               <p className="text-xs text-white/40">{t(`${ns}.noScenes`)}</p>
             ) : (
               <div className="relative">
-                <select
+                <select aria-label="Scene"
                   value={Math.min(sceneIndex, scenes.length - 1)}
                   onChange={(e) => { setSceneIndex(Number(e.target.value)); setPreview(null); setUsed(false); setProposal(null); }}
                   className="h-10 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 pr-8 text-sm focus:outline-none focus:border-primary/50 appearance-none cursor-pointer"

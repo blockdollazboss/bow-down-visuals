@@ -286,7 +286,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
               <p className="text-[11px] font-black uppercase tracking-widest text-white/50">{t("wave9.remix.compareHeading")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {(["A", "B"] as const).map((slot) => (
-                  <select
+                  <select aria-label={`Compare version ${slot}`}
                     key={slot}
                     value={slot === "A" ? compareA : compareB}
                     onChange={(e) => (slot === "A" ? setCompareA(e.target.value) : setCompareB(e.target.value))}
@@ -336,7 +336,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
-              <select
+              <select aria-label="Parent version"
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
                 className="w-full rounded-lg bg-black/60 border border-white/10 px-3 py-2 text-xs text-white outline-none focus:border-primary/50"

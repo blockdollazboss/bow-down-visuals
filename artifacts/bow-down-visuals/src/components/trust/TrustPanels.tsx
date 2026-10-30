@@ -397,7 +397,7 @@ export function EarningsDocuments() {
         earnings — it is not a filed tax form. If a payment processor paid you, that processor issues its own tax forms.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <select className={input + " w-32"} value={year} onChange={(e) => { setYear(Number(e.target.value)); setStmt(null); }}>
+        <select aria-label="Tax year" className={input + " w-32"} value={year} onChange={(e) => { setYear(Number(e.target.value)); setStmt(null); }}>
           {[thisYear, thisYear - 1, thisYear - 2].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         <button type="button" className={btn} onClick={load}>View statement</button>
