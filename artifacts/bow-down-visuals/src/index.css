@@ -1421,6 +1421,13 @@ html, body {
    §19). The hover step takes the §6 border-white/50 champagne value. */
 .light .hover\:border-white\/35:hover:not([data-dark-lock]):not([data-dark-lock] *) { border-color: rgb(201 168 76 / 0.38); }
 
+/* LipSyncSection's auto-check spinner: border-white/20 ring (remapped,
+   §6) + border-t-white/60 arc. The side-specific class is a different
+   class name from border-white/60, so the arc never remapped — in
+   light the spinner showed a static champagne ring with an invisible
+   white arc and read as frozen. The arc takes a readable gold top. */
+.light .border-t-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { border-top-color: rgb(201 168 76 / 0.65); }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —
