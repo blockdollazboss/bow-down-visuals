@@ -216,6 +216,34 @@ export function clipPlayLength(clip: ArrangementClip): number {
   return Math.max(0, clip.durationSec - Math.max(0, clip.trimStart) - Math.max(0, clip.trimEnd));
 }
 
+export type ClipDragMode = "move" | "trimStart" | "trimEnd";
+
+/** One clip-drag step → the next clip. `dx` is in seconds: a pointer
+ *  delta for drags, a fixed step for the keyboard path — both produce
+ *  identical clips. Math verbatim from ArrangementStudio's pointer move
+ *  handler (stack1000 M5): move rounds to the 0.01s grid and floors at 0;
+ *  trimStart also shifts startTime by the trim delta so the audible
+ *  content stays put; trims keep a 0.1s minimum play length. */
+export function dragClipBy(clip: ArrangementClip, mode: ClipDragMode, dx: number): ArrangementClip {
+  const orig = clip;
+  const playLen = clipPlayLength(orig);
+  if (mode === "move") {
+    return { ...orig, startTime: Math.max(0, Math.round((orig.startTime + dx) * 100) / 100) };
+  }
+  if (mode === "trimStart") {
+    const maxTrim = Math.max(0, orig.trimStart + playLen - 0.1);
+    const trimStart = Math.min(maxTrim, Math.max(0, orig.trimStart + dx));
+    return {
+      ...orig,
+      trimStart: Math.round(trimStart * 100) / 100,
+      startTime: Math.max(0, Math.round((orig.startTime + (trimStart - orig.trimStart)) * 100) / 100),
+    };
+  }
+  const maxTrim = Math.max(0, orig.trimEnd + playLen - 0.1);
+  const trimEnd = Math.min(maxTrim, Math.max(0, orig.trimEnd - dx));
+  return { ...orig, trimEnd: Math.round(trimEnd * 100) / 100 };
+}
+
 export interface TrackTake {
   id: string;
   name: string;
