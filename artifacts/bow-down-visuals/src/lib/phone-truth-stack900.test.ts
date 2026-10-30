@@ -61,4 +61,15 @@ describe("phone-truth: tap targets hold their size (K2)", () => {
   it("homepage tool-card action carries a 44px hit area", () => {
     expect(home).toContain("mt-6 flex items-center gap-2 py-3 -my-3 text-sm font-semibold");
   });
+
+  it.each([
+    ["FacebookPostModal", facebookModal],
+    ["InstagramPostModal", instagramModal],
+  ])("%s close button carries a 44px hit area", (_name, src) => {
+    expect(src).toContain('className="p-3 -m-3 text-white/40 hover:text-white transition-colors" aria-label="Close"');
+  });
+
+  it("SpotlightModal close button carries a 44px hit area", () => {
+    expect(spotlightModal).toContain("rounded-full p-3 -m-2");
+  });
 });
