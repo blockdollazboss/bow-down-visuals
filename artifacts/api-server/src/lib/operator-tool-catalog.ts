@@ -169,6 +169,14 @@ export const OPERATOR_TOOL_DEFS: readonly OperatorToolDef[] = [
     priceVb: creditCostForLength(300_000),
   },
   {
+    id: "generate.song.max",
+    tier: 3,
+    name: "Make a Song — up to 10 minutes",
+    blurb:
+      "the member asks you to make a song over 5 minutes and up to 10 minutes long. Include {\"prompt\":\"what the song is about, in the member's words\",\"lengthSeconds\":the length they asked for, in seconds} in the marker. If they gave no subject or no length, ask instead of marking",
+    priceVb: creditCostForLength(600_000),
+  },
+  {
     id: "generate.video",
     tier: 3,
     name: "Make a Video (Gen 4.5)",

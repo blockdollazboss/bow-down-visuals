@@ -96,6 +96,26 @@ vi.mock("@workspace/db", async (importOriginal) => {
 /* Rail provider-edge cores (same stubbing approach as the executor
    suite) — the chat/executor/validator layers under test are real. */
 vi.mock("../generate/music-audio", () => ({
+  MAX_LENGTH_MS: 600_000,
+  SONG_PRICE_TIERS: [
+    { maxLengthMs: 60_000, cost: 400 },
+    { maxLengthMs: 180_000, cost: 800 },
+    { maxLengthMs: 300_000, cost: 1_200 },
+    { maxLengthMs: 600_000, cost: 2_400 },
+  ],
+  SongTooLongError: class SongTooLongError extends Error {
+    readonly lengthMs: number;
+    readonly maxLengthMs: number;
+    constructor(lengthMs: number) {
+      super(
+        `That song is ${Math.round(lengthMs / 1000)} seconds long — songs can be up to 10 minutes (600 seconds). ` +
+          `Pick a length of 10 minutes or less and try again. Nothing was charged.`,
+      );
+      this.name = "SongTooLongError";
+      this.lengthMs = lengthMs;
+      this.maxLengthMs = 600_000;
+    }
+  },
   creditCostForLength: (lengthMs: number) => (lengthMs <= 60_000 ? 400 : lengthMs <= 180_000 ? 800 : 1200),
   clampLengthMs: (raw: unknown) => {
     const n = Number(raw);

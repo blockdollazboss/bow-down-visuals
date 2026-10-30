@@ -23,6 +23,7 @@
 import { and, eq } from "drizzle-orm";
 import { bioPagesTable, db, ugcAdsTable } from "@workspace/db";
 import { getCreditBalance } from "./credits";
+import { isAdminUserId } from "./admin";
 import { logger } from "./logger";
 import { railFailure, type RailCoreDeps, type RailCoreResult } from "./rail-core";
 import type {
@@ -34,7 +35,10 @@ import type {
 import {
   clampLengthMs,
   creditCostForLength,
+  MAX_LENGTH_MS,
   runGenerateMusicAudio,
+  SongTooLongError,
+  SONG_PRICE_TIERS,
 } from "../routes/generate/music-audio";
 import {
   runPollRunwayClip,
@@ -95,7 +99,7 @@ async function railDeps(ctx: OperatorToolContext): Promise<RailCoreDeps> {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/* ── Songs (duration-tiered: three tools, one per tier) ─────────────── */
+/* ── Songs (duration-tiered: four tools, one per tier) ─────────────── */
 
 function songValidator(tierPriceVb: number): Validator {
   return async ({ args }) => {
@@ -162,6 +166,135 @@ function songHandler(tierPriceVb: number): Handler {
     const lyrics = str(ctx.args["lyrics"]);
     if (lyrics) body["lyrics"] = lyrics;
     if (ctx.args["instrumental"] === true) body["instrumental"] = true;
+
+    const result = await runGenerateMusicAudio(await railDeps(ctx), body);
+    if (result.status !== 200) {
+      throw railFailure(result, "Song generation failed.");
+    }
+    return {
+      summary: `Made a song (${Math.round(ms / 1000)} seconds)`,
+      target: typeof result.body?.songId === "string" ? result.body.songId : null,
+      priceCharged: cost,
+      replyText:
+        "Done — your song is made and saved in your song library, ready to play, share, or build on. 🦈",
+    };
+  };
+}
+
+/* ── The top tier (over 5 minutes, up to 10) + over-length parity ─────
+   The direct rail sells the 2,400 top tier to everyone up to 10
+   minutes and, since Lane B5, lets an ADMIN past it: never refused,
+   never silently clamped — the provider is asked for the full length
+   at the top tier's price. This tool carries the same rule into the
+   operator (Lane D1, closing B5's named residual): length is resolved
+   against the ONE fail-closed admin predicate (lib/admin.ts) before
+   the rail is touched, so a member past 10 minutes is refused in the
+   rail's own plain words before anything is quoted or charged, and
+   the owner's confirmed length is the length that runs — the rail's
+   own admin leg (music-audio.ts) does the rest, identically to the
+   page, so the charge cannot drift from the direct path's. */
+
+const TOP_SONG_TIER = SONG_PRICE_TIERS[SONG_PRICE_TIERS.length - 1]!;
+
+/** The optional song fields, carried through verbatim (the same
+    passthrough the other song tools apply field by field). */
+function songExtras(source: Record<string, unknown>): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  const songTitle = str(source["songTitle"]);
+  if (songTitle) extras["songTitle"] = songTitle;
+  const lyrics = str(source["lyrics"]);
+  if (lyrics) extras["lyrics"] = lyrics;
+  if (source["instrumental"] === true) extras["instrumental"] = true;
+  return extras;
+}
+
+function songMaxValidator(): Validator {
+  return async ({ userId, args }) => {
+    const prompt = str(args["prompt"]);
+    if (!prompt) {
+      return {
+        ok: false,
+        askText:
+          "What's the song about? Give me the subject or the story in your words and I'll set it up — I won't invent one for you. 🦈",
+      };
+    }
+    const lengthSeconds = num(args["lengthSeconds"]);
+    if (lengthSeconds === undefined || lengthSeconds <= 0) {
+      return {
+        ok: false,
+        askText:
+          `How long should the song be? Up to 1 minute is ${creditCostForLength(60_000)} Visual Bucs, ` +
+          `up to 3 minutes is ${creditCostForLength(180_000)}, up to 5 minutes is ${creditCostForLength(300_000)}, ` +
+          `and up to 10 minutes is ${creditCostForLength(600_000)}. 🦈`,
+      };
+    }
+    const rawMs = Math.round(lengthSeconds * 1000);
+    if (rawMs > MAX_LENGTH_MS) {
+      /* Over the top tier: the direct rail refuses a member plainly
+         before any charge (item 21) and never refuses an admin (Lane
+         B5) — the operator matches, in the rail's own words. An
+         admin's normalized length stays the length he asked for:
+         nothing here clamps it. */
+      if (!(await isAdminUserId(userId))) {
+        return { ok: false, askText: `${new SongTooLongError(rawMs).message} 🦈` };
+      }
+      return {
+        ok: true,
+        args: { prompt, lengthSeconds: rawMs / 1000, ...songExtras(args) },
+      };
+    }
+    const ms = clampLengthMs(lengthSeconds);
+    const cost = creditCostForLength(ms);
+    if (cost !== TOP_SONG_TIER.cost) {
+      return {
+        ok: false,
+        askText:
+          `A ${Math.round(ms / 1000)}-second song runs ${cost} Visual Bucs — that's a different length tier. ` +
+          `Ask me for that length and I'll put the right price in front of you before anything runs. 🦈`,
+      };
+    }
+    return {
+      ok: true,
+      args: { prompt, lengthSeconds: ms / 1000, ...songExtras(args) },
+    };
+  };
+}
+
+function songMaxHandler(): Handler {
+  return async (ctx) => {
+    const prompt = str(ctx.args["prompt"]) ?? "";
+    const rawMs = Math.round((num(ctx.args["lengthSeconds"]) ?? 0) * 1000);
+    let ms: number;
+    let cost: number;
+    if (rawMs > MAX_LENGTH_MS) {
+      /* Defensive mirror of the validator (a confirmed proposal was
+         already admin-checked there): a member can never carry a
+         confirmed over-length song into the rail, and an admin's
+         length runs unclamped at the top tier — priced by the same
+         expression the rail itself uses, so the operator's charge is
+         the direct path's charge for the same request. */
+      if (!(await isAdminUserId(ctx.userId))) {
+        throw new SongTooLongError(rawMs);
+      }
+      ms = rawMs;
+      cost = TOP_SONG_TIER.cost;
+    } else {
+      ms = clampLengthMs(rawMs / 1000);
+      cost = creditCostForLength(ms);
+      /* Defensive: the confirmed tier is the charged tier. If the
+         args no longer map to this tool's price, refuse BEFORE the
+         rail — never charge a price the member didn't confirm. */
+      if (cost !== TOP_SONG_TIER.cost) {
+        throw new Error(
+          `Song length (${Math.round(ms / 1000)}s) prices at ${cost} Visual Bucs, not the confirmed ${TOP_SONG_TIER.cost} — refused before the rail.`,
+        );
+      }
+    }
+    const body: Record<string, unknown> = {
+      prompt,
+      lengthSeconds: ms / 1000,
+      ...songExtras(ctx.args),
+    };
 
     const result = await runGenerateMusicAudio(await railDeps(ctx), body);
     if (result.status !== 200) {
@@ -784,6 +917,7 @@ export const TIER3_HANDLERS: Record<string, Handler> = {
   "generate.song.short": songHandler(creditCostForLength(60_000)),
   "generate.song.standard": songHandler(creditCostForLength(180_000)),
   "generate.song.long": songHandler(creditCostForLength(300_000)),
+  "generate.song.max": songMaxHandler(),
   "generate.video": videoHandler,
   "bio.publish": bioHandler,
   "bio.generate": bioGenerateHandler,
@@ -799,6 +933,7 @@ export const TIER3_VALIDATORS: Record<string, Validator> = {
   "generate.song.short": songValidator(creditCostForLength(60_000)),
   "generate.song.standard": songValidator(creditCostForLength(180_000)),
   "generate.song.long": songValidator(creditCostForLength(300_000)),
+  "generate.song.max": songMaxValidator(),
   "generate.video": videoValidator,
   "bio.publish": bioValidator,
   "bio.generate": bioGenerateValidator,

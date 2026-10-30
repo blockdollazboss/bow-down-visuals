@@ -76,6 +76,26 @@ vi.mock("../ai-clients", () => ({
    operator-tier3.test.ts so the registry loads; the BIO core is
    deliberately NOT mocked: it is the rail under test. */
 vi.mock("../../routes/generate/music-audio", () => ({
+  MAX_LENGTH_MS: 600_000,
+  SONG_PRICE_TIERS: [
+    { maxLengthMs: 60_000, cost: 400 },
+    { maxLengthMs: 180_000, cost: 800 },
+    { maxLengthMs: 300_000, cost: 1_200 },
+    { maxLengthMs: 600_000, cost: 2_400 },
+  ],
+  SongTooLongError: class SongTooLongError extends Error {
+    readonly lengthMs: number;
+    readonly maxLengthMs: number;
+    constructor(lengthMs: number) {
+      super(
+        `That song is ${Math.round(lengthMs / 1000)} seconds long — songs can be up to 10 minutes (600 seconds). ` +
+          `Pick a length of 10 minutes or less and try again. Nothing was charged.`,
+      );
+      this.name = "SongTooLongError";
+      this.lengthMs = lengthMs;
+      this.maxLengthMs = 600_000;
+    }
+  },
   creditCostForLength: (lengthMs: number) => {
     if (lengthMs <= 60_000) return 400;
     if (lengthMs <= 180_000) return 800;
