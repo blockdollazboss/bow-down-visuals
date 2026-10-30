@@ -12,21 +12,22 @@
  * Lighting/mood is baked into `background` because composePhotoShootBrief()
  * only takes (poseId, outfit, background) — that's the format it expects.
  *
- * i18n: `nameKey` / `blurbKey` are the en.json keys the parent merges in.
- * `name` / `blurb` are English fallbacks until those keys exist.
+ * i18n: `nameKey` / `blurbKey` point at the catalog keys under
+ * photoShoot.scenePacks.packs.* (all 10 locales carry them). `name` /
+ * `blurb` are the English fallbacks the parent passes as defaultValue.
  */
 
 import { composePhotoShootBrief } from "../generate-artist-image";
 
 export interface ScenePack {
   id: string;
-  /** en.json key for the pack name, e.g. "photoShoot.packs.neonStage.name" */
+  /** Catalog key for the pack name, e.g. "photoShoot.scenePacks.packs.neonStage.name" */
   nameKey: string;
-  /** en.json key for the one-line blurb, e.g. "photoShoot.packs.neonStage.blurb" */
+  /** Catalog key for the one-line blurb, e.g. "photoShoot.scenePacks.packs.neonStage.blurb" */
   blurbKey: string;
-  /** English fallback until the en.json keys are merged. */
+  /** English fallback (the parent renders t(nameKey, { defaultValue: name })). */
   name: string;
-  /** English fallback until the en.json keys are merged. */
+  /** English fallback (the parent renders t(blurbKey, { defaultValue: blurb })). */
   blurb: string;
   /** One of SHOOT_POSES ids: "portrait" | "fullbody" | "throne" | "action" */
   poseId: string;
@@ -41,8 +42,8 @@ export interface ScenePack {
 export const SCENE_PACKS: ScenePack[] = [
   {
     id: "neon-stage",
-    nameKey: "photoShoot.packs.neonStage.name",
-    blurbKey: "photoShoot.packs.neonStage.blurb",
+    nameKey: "photoShoot.scenePacks.packs.neonStage.name",
+    blurbKey: "photoShoot.scenePacks.packs.neonStage.blurb",
     name: "Neon Stage",
     blurb: "Electric live-energy shot — cover-art caliber, made for the single cover.",
     poseId: "action",
@@ -55,8 +56,8 @@ export const SCENE_PACKS: ScenePack[] = [
   },
   {
     id: "rooftop-golden",
-    nameKey: "photoShoot.packs.rooftopGolden.name",
-    blurbKey: "photoShoot.packs.rooftopGolden.blurb",
+    nameKey: "photoShoot.scenePacks.packs.rooftopGolden.name",
+    blurbKey: "photoShoot.scenePacks.packs.rooftopGolden.blurb",
     name: "Rooftop Golden Hour",
     blurb: "Warm, editorial press-kit shot — soft golden light, city skyline behind you.",
     poseId: "fullbody",
@@ -69,8 +70,8 @@ export const SCENE_PACKS: ScenePack[] = [
   },
   {
     id: "studio-noir",
-    nameKey: "photoShoot.packs.studioNoir.name",
-    blurbKey: "photoShoot.packs.studioNoir.blurb",
+    nameKey: "photoShoot.scenePacks.packs.studioNoir.name",
+    blurbKey: "photoShoot.scenePacks.packs.studioNoir.blurb",
     name: "Studio Noir",
     blurb: "Moody black-studio portrait — the one for your profile pic and stream branding.",
     poseId: "portrait",
@@ -83,8 +84,8 @@ export const SCENE_PACKS: ScenePack[] = [
   },
   {
     id: "street-luxury",
-    nameKey: "photoShoot.packs.streetLuxury.name",
-    blurbKey: "photoShoot.packs.streetLuxury.blurb",
+    nameKey: "photoShoot.scenePacks.packs.streetLuxury.name",
+    blurbKey: "photoShoot.scenePacks.packs.streetLuxury.blurb",
     name: "Street Luxury",
     blurb: "Night-city flex for socials — wet asphalt, neon glow, luxury car in the frame.",
     poseId: "fullbody",
@@ -97,8 +98,8 @@ export const SCENE_PACKS: ScenePack[] = [
   },
   {
     id: "palace-throne",
-    nameKey: "photoShoot.packs.palaceThrone.name",
-    blurbKey: "photoShoot.packs.palaceThrone.blurb",
+    nameKey: "photoShoot.scenePacks.packs.palaceThrone.name",
+    blurbKey: "photoShoot.scenePacks.packs.palaceThrone.blurb",
     name: "Palace Throne",
     blurb: "Full Bow Down royalty — throne, gold hall, god-rays. The hero-branding shot.",
     poseId: "throne",
