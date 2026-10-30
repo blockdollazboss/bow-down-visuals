@@ -78,6 +78,28 @@ export function rvmModelUrls(): string[] {
 }
 
 /**
+ * Content stamp of the shipped worker script (the first 12 hex
+ * of its MD5), carried on the worker URL as a query. WHY THIS
+ * EXISTS: the server serves every /engines/* file as
+ * `Cache-Control: immutable` for a year (lib/cache-policy.ts) —
+ * a policy written for the heavy, version-pinned binaries (WASM,
+ * models), but the worker is mutable GLUE whose content changed
+ * under this same filename on Oct 29, 2026 (the fp16 feed fix).
+ * A browser that fetched the pre-fix worker while the immutable
+ * rule was live holds it for a year: driven by today's client it
+ * creates the fp16 session happily, then every frame rejects on
+ * the model's float16 type contract and the changer parks the
+ * engine — the owner's Oct 30, 2026 live retest ("Background
+ * effects couldn't load") on a build whose code and assets all
+ * verified good. An immutable cache entry is never revalidated,
+ * so the ONLY escape is a new URL: the stamp changes the URL
+ * whenever the worker changes. rvm-engine.test.ts recomputes the
+ * hash from the shipped file — edit the worker without bumping
+ * this stamp and the suite fails.
+ */
+export const RVM_WORKER_VERSION = "1c8b1b9131e9";
+
+/**
  * The worker script's URL. Workers cannot be constructed
  * cross-origin, so this is the shipped same-origin copy — it
  * travels with the app build, and the heavy assets it loads
@@ -85,7 +107,7 @@ export function rvmModelUrls(): string[] {
  * inside the worker.
  */
 export function rvmWorkerUrl(): string {
-  return `${RVM_ORIGIN_BASE}/rvm-worker.js`;
+  return `${RVM_ORIGIN_BASE}/rvm-worker.js?v=${RVM_WORKER_VERSION}`;
 }
 
 /**
@@ -480,8 +502,19 @@ export class RvmEngine implements MattingEngine {
       if (this._initWaiter) {
         const waiter = this._initWaiter;
         this._initWaiter = null;
+        /* The worker composes the honest sentence — it names the
+           leg that failed (a missing browser feature, the runtime
+           script, the model session) because it is the only side
+           that knows. Pass it through; the constant is only the
+           fallback for a worker too old to send one. */
+        const reported = (msg as { message?: unknown }).message;
         waiter.reject(
-          new RvmEngineError("CDN_LOAD_FAILED", "The Pro background engine could not be loaded."),
+          new RvmEngineError(
+            "CDN_LOAD_FAILED",
+            typeof reported === "string" && reported.trim()
+              ? reported
+              : "The Pro background engine could not be loaded.",
+          ),
         );
       }
       return;

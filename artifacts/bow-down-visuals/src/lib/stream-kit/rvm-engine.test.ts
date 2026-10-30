@@ -17,6 +17,7 @@
  * DOM + Worker are faked by hand (the kit suite runs in node).
  */
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   RvmEngine,
@@ -26,6 +27,7 @@ import {
   ortBases,
   rvmModelUrls,
   rvmWorkerUrl,
+  RVM_WORKER_VERSION,
   RVM_ORIGIN_BASE,
   type RvmWorkerLike,
 } from "./rvm-engine";
@@ -160,8 +162,24 @@ describe("RvmEngine worker client", () => {
   });
 
   it("the worker script is the shipped same-origin copy (workers cannot be constructed cross-origin)", () => {
-    expect(rvmWorkerUrl()).toBe(`${RVM_ORIGIN_BASE}/rvm-worker.js`);
+    /* The URL carries the worker's content stamp: /engines/* is
+       served immutable for a year, and the worker's content
+       changed under this filename before (Oct 29, 2026) — a
+       browser holding the old copy under that policy would run
+       it against today's client indefinitely. The stamp makes
+       the URL change whenever the worker does. */
+    expect(rvmWorkerUrl()).toBe(`${RVM_ORIGIN_BASE}/rvm-worker.js?v=${RVM_WORKER_VERSION}`);
     expect(RVM_ORIGIN_BASE.startsWith("http")).toBe(false);
+  });
+
+  it("the worker version stamp IS the shipped worker's content hash", () => {
+    /* Recomputed from the file itself: edit rvm-worker.js
+       without bumping RVM_WORKER_VERSION and this fails — the
+       stamp is the only escape from a year-immutable cache
+       entry, so it must never drift from the content. */
+    const bytes = readFileSync(new URL("../../../public/engines/rvm/rvm-worker.js", import.meta.url));
+    const digest = createHash("md5").update(bytes).digest("hex").slice(0, 12);
+    expect(RVM_WORKER_VERSION).toBe(digest);
   });
 
   it("init rejects CDN_LOAD_FAILED when the worker reports init-error", async () => {
@@ -169,6 +187,12 @@ describe("RvmEngine worker client", () => {
     const engine = makeEngine();
     await expect(engine.init()).rejects.toMatchObject({ code: "CDN_LOAD_FAILED" });
     expect(engine.provider).toBeNull();
+  });
+
+  it("init surfaces the worker's own failure sentence (which leg failed), not a constant", async () => {
+    FakeWorker.behavior = "init-error"; // the fake reports message "nope"
+    const engine = makeEngine();
+    await expect(engine.init()).rejects.toMatchObject({ code: "CDN_LOAD_FAILED", message: "nope" });
   });
 
   it("init rejects CDN_LOAD_FAILED when no worker can spawn (no Worker in this browser)", async () => {
@@ -338,6 +362,18 @@ describe("vendored worker script (source contract)", () => {
     expect(src).toContain("return attemptBase(base, modelUrls, msg.threads)");
     expect(src).toContain('type: "init-error"');
     expect(src).not.toContain("webgpuAdapterAvailable");
+  });
+
+  it("init failures NAME the leg that failed (script load, session create, missing Float16Array)", () => {
+    /* Oct 30, 2026: the owner's live retest failed with the
+       generic "couldn't load" and nothing — not the panel, not
+       the error — could say which leg died. The worker now
+       records each attempt's failure and carries the last one
+       home on init-error; the Float16Array refusal names the
+       missing feature outright. */
+    expect(src).toContain("noteInitFailure(");
+    expect(src).toContain("Last failure: ");
+    expect(src).toContain("missing Float16Array");
   });
 
   it("every session create races a deadline — a hung create cannot eat the init budget (Stack-100 #3 Lane C)", () => {
