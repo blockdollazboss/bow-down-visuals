@@ -124,7 +124,7 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
                 aria-checked={mentionEveryone}
                 aria-label="Ping @everyone"
                 onClick={() => setMentionEveryone((v) => !v)}
-                className={`w-10 h-6 rounded-full transition-colors relative ${mentionEveryone ? "bg-amber-400" : "bg-white/10"}`}
+                className={`w-10 h-6 rounded-full transition-colors relative bdv-touch-switch ${mentionEveryone ? "bg-amber-400" : "bg-white/10"}`}
                 data-testid="toggle-announce-everyone"
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${mentionEveryone ? "left-[18px]" : "left-0.5"}`} />

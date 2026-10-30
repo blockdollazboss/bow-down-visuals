@@ -86,7 +86,7 @@ function Toggle({ on, onClick, label, disabled }: { on: boolean; onClick: () => 
         aria-label={label}
         disabled={disabled}
         onClick={onClick}
-        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${on ? "bg-amber-400" : "bg-white/15"} ${disabled ? "opacity-50" : ""}`}
+        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors bdv-touch-switch ${on ? "bg-amber-400" : "bg-white/15"} ${disabled ? "opacity-50" : ""}`}
       >
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
       </button>
