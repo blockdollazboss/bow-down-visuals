@@ -378,7 +378,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                       </p>
                     ) : (
                       <button type="button" data-testid={`world-plan-buy-${plan.tier}`} onClick={() => void checkout(plan)} disabled={busyTier !== null}
-                        className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50">
+                        className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                         {busyTier === plan.tier ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
                         {busyTier === plan.tier ? t("worldPlansDesk.starting") : isSwitch ? t("worldPlansDesk.switchTo", { name: plan.name, price: planPriceLabel(plan) }) : t("worldPlansDesk.goPlan", { name: plan.name, price: planPriceLabel(plan) })}
                       </button>

@@ -2099,7 +2099,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           <button
             type="button"
             onClick={() => { setPaySecret(null); setPaySecretOrderId(null); }}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}
           >
             Close — the order stays saved at this stand
           </button>

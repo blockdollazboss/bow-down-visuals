@@ -745,7 +745,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                                   type="button"
                                   onClick={() => void announce()}
                                   disabled={busy === "announce"}
-                                  className={announceArmed ? "inline-flex items-center gap-1.5 rounded-full bg-red-500 px-3.5 py-1.5 text-xs font-bold text-white transition disabled:opacity-50" : goldBtn}
+                                  className={announceArmed ? "inline-flex items-center gap-1.5 rounded-full bg-red-500 px-3.5 py-1.5 text-xs font-bold text-white transition disabled:opacity-50 bdv-touch-target" : goldBtn}
                                   data-testid="world-giveaway-announce"
                                 >
                                   {busy === "announce" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}

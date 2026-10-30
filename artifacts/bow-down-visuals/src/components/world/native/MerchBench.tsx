@@ -182,7 +182,7 @@ export function MerchBench({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           : "border-white/10 bg-white/5 text-white/60 hover:border-[#d4af37]/50"
     }`;
   const tabBtn = (active: boolean) =>
-    `rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+    `rounded-full border px-3.5 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "border-[#d4af37] bg-[#d4af37] text-black"
         : isLight

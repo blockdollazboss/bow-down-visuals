@@ -781,7 +781,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                         className={
                           following
                             ? actionBtn
-                            : "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                            : "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                         }
                       >
                         {following ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}

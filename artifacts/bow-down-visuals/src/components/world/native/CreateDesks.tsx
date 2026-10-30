@@ -507,7 +507,7 @@ export function SongDesk(props: CreateDeskProps) {
             options={[{ value: "", label: "No preset" }, ...vaults.map((v) => ({ value: v.id, label: v.artistName }))]}
           />
         ) : null}
-        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
           {intakeBusy ? "Transcribing…" : `Upload a song + transcribe · ${transcribeCost().toLocaleString("en-US")} Visual Bucs`}
           <input type="file" accept="audio/*" className="hidden" data-testid="world-song-intake-upload" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intakeFile(f); }} />
         </label>

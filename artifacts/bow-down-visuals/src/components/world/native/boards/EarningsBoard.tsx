@@ -415,7 +415,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   data-testid="world-earnings-statement-pdf"
                   onClick={() => void downloadStatement()}
                   disabled={pdfBusy}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   <Download className="h-3.5 w-3.5" />
                   {pdfBusy ? "Preparing…" : "Download statement (PDF)"}

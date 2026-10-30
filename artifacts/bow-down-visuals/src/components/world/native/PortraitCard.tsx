@@ -188,7 +188,7 @@ export function PortraitCard({
         type="button"
         data-testid="world-portrait-back"
         onClick={onBack}
-        className={`mb-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+        className={`mb-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
           isLight
             ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
             : "border-white/15 text-white/75 hover:text-white"
@@ -244,7 +244,7 @@ export function PortraitCard({
                 data-testid="world-portrait-follow"
                 onClick={() => void toggleFollow()}
                 disabled={followBusy}
-                className={`inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-bold transition disabled:opacity-50 bdv-touch-target ${
                   following
                     ? isLight
                       ? "border border-[#7A5A12]/30 text-[#6B5B36]"

@@ -58,7 +58,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
   const labelCls = `block text-xs font-bold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`;
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const chipBtn = (active: boolean) =>
-    `rounded-full px-3 py-1.5 text-xs font-bold transition ${
+    `rounded-full px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
       active
         ? "bg-[#d4af37] text-black"
         : isLight

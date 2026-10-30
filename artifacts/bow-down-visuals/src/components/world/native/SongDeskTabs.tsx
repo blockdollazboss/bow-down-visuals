@@ -367,7 +367,7 @@ export function SongHumBench({ isLight }: { isLight: boolean }) {
 
   return (
     <div data-testid="world-song-hum-bench" className="space-y-3">
-      <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+      <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
         {file ? `Hum file: ${file.name}` : "Upload or record your hum"}
         <input type="file" accept="audio/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setHumRef(null); setAnalysis(null); } }} />
       </label>
