@@ -16,6 +16,16 @@
  * start working with no rebuild. These pins lock that ordering in
  * the scene source: the ready/stand step must precede the locator
  * call on each path, and the in-place attach must exist.
+ *
+ * stack1000/world-load-truth: the guard path's locator call moved
+ * OUT of the art loader entirely. The landmarker chain (≈17.8 MB)
+ * rode every World entry for two stills a mouth is never read on
+ * until a figure wearing the variant speaks (and which the
+ * pipeline's own measurement finds faceless). ensureGuardMouth
+ * now asks lazily, once per variant, from the first speech — the
+ * decoupling law is unchanged and strengthened: stand on art,
+ * lips whenever they honestly arrive, and don't buy the arrival
+ * machinery until somebody talks.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -25,37 +35,56 @@ const scene = read("./hall-scene.ts");
 
 describe("guard art: the figure stands on image load, not on the mouth locator", () => {
   const start = scene.indexOf("private loadGuardArt");
-  const end = scene.indexOf("img.src = guardCharacterUrl", start);
+  const end = scene.indexOf("private ensureGuardMouth", start);
   const loader = scene.slice(start, end);
 
-  it("the loader exists and resolves its image URL", () => {
+  it("the loader exists and walks the standin source plan", () => {
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
+    expect(loader).toContain("attemptLoadPlan");
+    expect(loader).toContain("fixtureStandinArtPlan");
   });
 
-  it("art is marked ready BEFORE the locator is invoked", () => {
-    const readyAt = loader.indexOf('status: "ready", image: img, mouth: null');
-    const locatorAt = loader.indexOf("locatePortraitMouth(img)");
-    expect(readyAt).toBeGreaterThan(-1);
-    expect(locatorAt).toBeGreaterThan(-1);
-    expect(readyAt).toBeLessThan(locatorAt);
+  it("art is marked ready and waiting rigs stand inside the loader", () => {
+    expect(loader).toContain('status: "ready", image: img, mouth: null');
+    expect(loader).toContain("this.standWaitingGuards(variant)");
   });
 
-  it("waiting rigs are stood up before the locator is invoked", () => {
-    const standAt = loader.indexOf("this.standWaitingGuards(variant)");
-    const locatorAt = loader.indexOf("locatePortraitMouth(img)");
-    expect(standAt).toBeGreaterThan(-1);
-    expect(standAt).toBeLessThan(locatorAt);
-  });
-
-  it("the resolved mouth attaches in place to the shared art record", () => {
-    expect(loader).toContain("this.guardArt[variant].mouth = mouth");
+  it("the loader never invokes the locator — location is lazy now", () => {
+    expect(loader).not.toContain("locatePortraitMouth");
   });
 });
 
-describe("the late mouth attaches in place (no rebuild)", () => {
+describe("guard mouths: located lazily, attached in place", () => {
+  const start = scene.indexOf("private ensureGuardMouth");
+  const end = scene.indexOf("private swapFigure", start);
+  const asker = scene.slice(start, end);
+
+  it("the asker exists and invokes the locator", () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(asker).toContain("locatePortraitMouth(art.image)");
+  });
+
+  it("the asker is once-per-variant (the requested set gates it)", () => {
+    expect(asker).toContain("this.guardMouthRequested.has(variant)");
+    expect(asker).toContain("this.guardMouthRequested.add(variant)");
+  });
+
+  it("the resolved mouth attaches in place to the shared art record", () => {
+    expect(asker).toContain("this.guardArt[variant].mouth = mouth");
+  });
+
   it("guard figures wearing the variant receive the mouth on their portrait state", () => {
-    expect(scene).toContain("rig.portrait.mouth = mouth");
+    expect(asker).toContain("rig.portrait.mouth = mouth");
+  });
+
+  it("first speech is the trigger (setSpeechLevel asks)", () => {
+    const speech = scene.slice(
+      scene.indexOf("setSpeechLevel(peerId"),
+      scene.indexOf("setPeerTarget(peerId"),
+    );
+    expect(speech).toContain("this.ensureGuardMouth(rig.guardVariant)");
   });
 
   it("the portrait draw reads the mouth live (why in-place attach works)", () => {
