@@ -237,7 +237,7 @@ const SECTIONS: NavSection[] = [
       { href: "/", labelKey: "nav.home", icon: Home, searchTerms: "home start landing" },
       { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, searchTerms: "dashboard home overview quests" },
       { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen, searchTerms: "projects my projects work" },
-      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck, searchTerms: "vault files safe storage" },
+      { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck, tour: "nav-artist-vault", searchTerms: "vault files safe storage" },
       { href: "/library", labelKey: "nav.library", icon: Library, searchTerms: "library saved media uploads" },
       { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW", searchTerms: "chrome extension browser" },
       { href: "/app", labelKey: "nav.getTheApp", icon: Smartphone, searchTerms: "app mobile android download phone" },
@@ -246,7 +246,7 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: "nav.create",
     links: [
-      { href: "/create", labelKey: "nav.create", icon: Layers, searchTerms: "create make build studio hub" },
+      { href: "/create", labelKey: "nav.create", icon: Layers, tour: "nav-create", searchTerms: "create make build studio hub" },
       /* The two headline creation verbs get their own front doors
          (findability fix, 2026-10-18) — they used to sit 2–3 layers
          deep inside the hub and the Audio Studio tab strip. */
@@ -256,7 +256,7 @@ const SECTIONS: NavSection[] = [
          (2026-10-18): creators pick beats for their songs here; the
          page used to render outside the sidebar shell entirely. */
       { href: "/beats", labelKey: "nav.beatsMarketplace", icon: Disc3, searchTerms: "beats marketplace buy beats instrumental" },
-      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard, searchTerms: "video editor visual vibes edit clips" },
+      { href: "/video-editor", labelKey: "nav.videoEditor", icon: Clapperboard, tour: "nav-video-editor", searchTerms: "video editor visual vibes edit clips" },
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform, searchTerms: "audio studio music sound voice podcast mastering" },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb, searchTerms: "hook hooks studio ideas titles scripts" },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles, searchTerms: "thumbnail thumbnails studio click image" },

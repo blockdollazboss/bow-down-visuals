@@ -80,9 +80,9 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "make-video",
-    title: "Video for My Song",
-    body: "The flagship. Turn your song or lyrics into cinematic video scenes and AI-generated clips, ready for the editor.",
-    target: '[data-tour="nav-make-video"]',
+    title: "Make a Music Video",
+    body: "The flagship lives in Create: pick Video or Song + Video, describe the vibe, and turn your song or lyrics into cinematic scenes and AI-generated clips, ready for the editor.",
+    target: '[data-tour="nav-create"]',
   },
   {
     id: "video-editor",
@@ -92,9 +92,9 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "artist-vault",
-    title: "Creator Vault",
-    body: "Your creative identity. Save your artist's look, style, and brand rules once — every AI tool uses them automatically.",
-    target: '[data-tour="card-artist-vault"]',
+    title: "Creative Vault",
+    body: "Your creative identity, in the sidebar under Creative Vault. Save your artist's look, style, and brand rules once — every AI tool uses them automatically.",
+    target: '[data-tour="nav-artist-vault"]',
   },
   {
     id: "explore",
@@ -104,7 +104,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "done",
     title: "You're ready — go create",
-    body: "Pick a tool and make something great. You can replay this tour anytime from Settings.",
+    body: "Pick a tool and make something great. You can replay this tour anytime from the Need Help? button at the bottom of the sidebar.",
     cta: { label: "Let's go" },
   },
 ];
