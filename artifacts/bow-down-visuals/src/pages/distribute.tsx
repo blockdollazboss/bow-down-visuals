@@ -43,6 +43,8 @@ import {
   isTerminalPlatformStatus,
   splitsTotal,
   splitsValid,
+  releaseChecklist,
+  releaseChecklistPasses,
   roleLabel,
   vaultPrefill,
   SPLIT_ROLES,
@@ -81,6 +83,16 @@ interface ChecklistItem {
   ok: boolean;
   hint?: string;
 }
+
+/* The server's rejection reason, not just its headline: the rails answer
+   a failed validation with a generic error ("Invalid release.") plus a
+   details list carrying the actual rule ("Audio URL must be a valid
+   URL."). Showing only the headline leaves the creator guessing which
+   field to fix. This page speaks through the one translator
+   (lib/api-error's apiErrorMessage), whose precedence — message, then
+   the first detail, then the error's own words — carries exactly that
+   rule since the stack900 join composed L2's helper into it; the
+   page-local copy L2 carried here was retired there. */
 interface ReleaseTrack {
   title: string;
   isrc?: string;
@@ -476,19 +488,26 @@ function NewReleaseWizard(props: {
     }
   }
 
-  /* review-step validation */
-  const validation = [
-    { ok: title.trim().length > 0 && artistName.trim().length > 0, label: "Title and artist name set" },
-    { ok: explicit !== null && explicitConfirmed, label: "Explicit-content declaration confirmed (required)" },
-    { ok: platforms.length > 0, label: "At least one platform selected" },
-    { ok: audioUrl.trim().length > 0, label: "Audio source set (song library or manual URL)" },
-    { ok: tracks.length > 0 && tracks.every((tr) => tr.title.trim().length > 0), label: "Every track has a title" },
-    { ok: releaseDate.trim().length > 0, label: "Release date set" },
-  ];
-  const warnings = [
-    { show: !artworkUrl.trim(), label: "No cover art yet — add one for a complete package" },
-  ].filter((w) => w.show);
-  const canSubmit = validation.every((v) => v.ok);
+  /* Review-step validation — the SAME checklist the server's submit
+     gate runs (lib/distribution's releaseChecklist mirrors
+     buildChecklist). The wizard's old private list called a release
+     ready with no cover art, no genre, a date tomorrow, a 2-track
+     "album", or a 1-character title — and the server refused at the
+     pay step, after the whole walk. One list, server's rules. */
+  const checklist = releaseChecklist({
+    title,
+    artistName,
+    releaseType,
+    audioUrl,
+    artworkUrl,
+    releaseDate,
+    platforms,
+    explicitDeclared: explicit !== null && explicitConfirmed,
+    genre,
+    tracks,
+    isrc,
+  });
+  const canSubmit = releaseChecklistPasses(checklist);
 
   async function createAndSubmit() {
     if (creating || !canSubmit) return;
@@ -502,6 +521,12 @@ function NewReleaseWizard(props: {
         releaseType,
         tracks: tracks.map((tr) => ({ title: tr.title.trim(), ...(tr.isrc?.trim() ? { isrc: tr.isrc.trim() } : {}) })),
         explicit: explicit === true,
+        /* The declaration the review step confirmed must REACH the
+           server: its checklist refuses to package a release whose
+           explicit_declared flag is false, and this body used to omit
+           the field entirely — every wizard submission failed the
+           gate it had just shown green. */
+        explicitDeclared: explicit !== null && explicitConfirmed,
         releaseDate: releaseDate.trim(),
         platforms,
       };
@@ -517,7 +542,7 @@ function NewReleaseWizard(props: {
         body: JSON.stringify(body),
       });
       const draftData = (await draftRes.json().catch(() => ({}))) as {
-        release?: Release; error?: string; message?: string;
+        release?: Release; error?: string; message?: string; details?: { message?: string }[];
       };
       if (!draftRes.ok || !draftData.release) {
         throw new Error(apiErrorMessage(draftData, "Couldn't create the release draft."));
@@ -528,6 +553,7 @@ function NewReleaseWizard(props: {
       const subRes = await authFetch(`/api/distribution/releases/${release.id}/submit`, { method: "POST" });
       const subData = (await subRes.json().catch(() => ({}))) as {
         release?: Release; notice?: string; error?: string; message?: string; creditsRemaining?: number;
+        checklist?: ChecklistItem[];
       };
       if (subRes.status === 402) {
         /* draft still exists — the user can pay from the Releases tab later */
@@ -537,7 +563,16 @@ function NewReleaseWizard(props: {
         return;
       }
       if (!subRes.ok || !subData.release) {
-        throw new Error(apiErrorMessage(subData, "Couldn't submit the release."));
+        /* A checklist refusal names the first unmet item — the generic
+           headline alone sent creators hunting through a saved draft.
+           The headline itself comes through the translator (stack900
+           join: L1's shape survives, L2's naming rides on top). */
+        const firstUnmet = subData.checklist?.find((c) => !c.ok);
+        throw new Error(
+          firstUnmet
+            ? `${apiErrorMessage(subData, "The release isn't ready yet.")} First up: ${firstUnmet.label} — ${firstUnmet.hint ?? ""}`.trim()
+            : apiErrorMessage(subData, "Couldn't submit the release."),
+        );
       }
       refreshProfile();
       setDone({ release: subData.release, notice: subData.notice ?? null });
@@ -778,11 +813,13 @@ function NewReleaseWizard(props: {
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setTracks((prev) => [...prev, { title: "" }])}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
-            >
-              <Plus className="h-3.5 w-3.5" />{t("distribute.add_track")}</button>
+            {tracks.length < 30 && (
+              <button
+                onClick={() => setTracks((prev) => [...prev, { title: "" }])}
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:brightness-110"
+              >
+                <Plus className="h-3.5 w-3.5" />{t("distribute.add_track")}</button>
+            )}
           </div>
 
           <div className="mt-6 flex justify-between">
@@ -911,15 +948,13 @@ function NewReleaseWizard(props: {
           <div className={`mt-6 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
             <p className={labelClass}>{t("distribute.release_checklist")}</p>
             <ul className="space-y-1.5">
-              {validation.map((v, vi) => (
-                <li key={v.label} className={`flex items-start gap-2 text-sm ${v.ok ? "text-white/75" : "text-red-300"}`}>
-                  {v.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
-                  {t(`distribute.validation.${vi}`, { defaultValue: v.label })}
-                </li>
-              ))}
-              {warnings.map((w, wi) => (
-                <li key={w.label} className="flex items-start gap-2 text-sm text-amber-300/90">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {t(`distribute.warning.${wi}`, { defaultValue: w.label })}
+              {checklist.map((c) => (
+                <li key={c.key} className={`flex items-start gap-2 text-sm ${c.ok ? "text-white/75" : "text-red-300"}`}>
+                  {c.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+                  <span>
+                    {c.label}
+                    {!c.ok && c.hint && <span className="block text-xs text-white/45">{c.hint}</span>}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -2098,7 +2133,7 @@ function ReleaseDetail(props: {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        splits?: RoyaltySplit[]; agreementVersion?: number; error?: string; message?: string;
+        splits?: RoyaltySplit[]; agreementVersion?: number; error?: string; message?: string; details?: { message?: string }[];
       };
       if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the splits."));
       onUpdate({ ...release, royaltySplits: data.splits ?? splits });

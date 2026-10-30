@@ -275,6 +275,7 @@ export function GroupProfileSettings({ teamId, myRole }: Props) {
               <label className={labelCls} htmlFor="gp-slug">Public handle — bowdownvisuals.com/group/…</label>
               <input id="gp-slug" className={inputCls} value={slug} maxLength={64}
                 onChange={(e) => setSlug(e.target.value)} placeholder="crown-duo" />
+              <p className="mt-1 text-xs opacity-50">3–64 characters: lowercase letters, numbers and dashes, starting and ending with a letter or number.</p>
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls} htmlFor="gp-bio">Bio</label>

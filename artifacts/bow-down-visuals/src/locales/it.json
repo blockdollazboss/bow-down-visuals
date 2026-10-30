@@ -3103,7 +3103,7 @@
     "explicit_content_required_declar": "Contenuto esplicito — dichiarazione obbligatoria",
     "i_confirm_this_declaration_is_ac": "Confermo che questa dichiarazione è accurata per ogni traccia di questo rilascio.",
     "tracks": "Tracce *",
-    "ep_2_5_tracks_album_6_tracks": "(EP: 2–5 tracce · Album: 6+ tracce)",
+    "ep_2_5_tracks_album_6_tracks": "(EP: 2–6 tracce · Album: 7–30 tracce)",
     "add_track": "Aggiungi traccia",
     "back": "Indietro",
     "paste_an_image_url": "Incolla un URL immagine",
@@ -3170,25 +3170,14 @@
       },
       "ep": {
         "label": "EP",
-        "blurb": "2–5 tracce — un progetto breve"
+        "blurb": "2–6 tracce — un progetto breve"
       },
       "album": {
         "label": "Album",
-        "blurb": "6+ tracce — un progetto completo"
+        "blurb": "7–30 tracce — un progetto completo"
       }
     },
-    "trackTitle": "Titolo traccia {{n}}",
-    "validation": {
-      "0": "Titolo e nome artista impostati",
-      "1": "Dichiarazione contenuto esplicito confermata (obbligatoria)",
-      "2": "Almeno una piattaforma selezionata",
-      "3": "Sorgente audio impostata (libreria o URL manuale)",
-      "4": "Ogni traccia ha un titolo",
-      "5": "Data di rilascio impostata"
-    },
-    "warning": {
-      "0": "Nessuna cover ancora — aggiungine una per un pacchetto completo"
-    }
+    "trackTitle": "Titolo traccia {{n}}"
   },
   "download": {
     "ai_chat_on_any_page": "Chat AI su qualsiasi pagina",

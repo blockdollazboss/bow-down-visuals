@@ -13,10 +13,11 @@
  * Two entry points:
  *  - `apiErrorMessage(body, fallback)` — for a parsed response body at
  *    the throw/set point. Prefers the server's own plain `message`
- *    (it names the specific action, cost, and refund truth), then a
- *    plain-sentence `error`, then the code map below. A code-shaped
- *    string is NEVER returned: an unmapped code yields the caller's
- *    own plain fallback for that action.
+ *    (it names the specific action, cost, and refund truth), then the
+ *    first plain validation detail, then a plain-sentence `error`,
+ *    then the code map below. A code-shaped string is NEVER returned:
+ *    an unmapped code yields the caller's own plain fallback for that
+ *    action.
  *  - `plainErrorText(value, fallback)` — for a caught error / loose
  *    string at the render point. Same never-code guarantee, so the
  *    `msg === "out_of_credits"` signal idiom keeps working upstream:
@@ -263,18 +264,41 @@ function codeField(value: unknown): string | null {
   return isErrorCodeShape(s) ? s : null;
 }
 
+/** The first plain-sentence validation detail in a `details` list
+ * (strings, or zod-style issue objects carrying `message`), or null.
+ * Details pass through plainField like every other field, so a
+ * code-shaped detail is never rendered raw either. */
+function firstDetailSentence(details: unknown): string | null {
+  if (!Array.isArray(details)) return null;
+  for (const entry of details) {
+    if (typeof entry === "string") {
+      const s = plainField(entry);
+      if (s) return s;
+    } else if (entry && typeof entry === "object") {
+      const s = plainField((entry as Record<string, unknown>).message);
+      if (s) return s;
+    }
+  }
+  return null;
+}
+
 /**
  * The words a customer should see for a parsed API error body.
  * Preference order: the server's plain `message` (it carries the
- * action-specific truth — cost, refund, next step) → a plain-sentence
- * `error` → the code map for a code in `error`/`code` → `fallback`.
- * The return value is never a raw code.
+ * action-specific truth — cost, refund, next step) → the first
+ * plain validation `details` entry (stack900 L2, composed at the
+ * join: a generic headline plus a details list must surface the
+ * rule the person can actually fix, not the headline) → a
+ * plain-sentence `error` → the code map for a code in
+ * `error`/`code` → `fallback`. The return value is never a raw code.
  */
 export function apiErrorMessage(body: unknown, fallback: string): string {
   if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
     const message = plainField(record.message);
     if (message) return message;
+    const detail = firstDetailSentence(record.details);
+    if (detail) return detail;
     const sentence = plainField(record.error);
     if (sentence) return sentence;
     for (const field of [record.error, record.code, record.message]) {

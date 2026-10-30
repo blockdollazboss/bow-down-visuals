@@ -3209,7 +3209,7 @@
     "explicit_content_required_declar": "Contenu explicite — déclaration requise",
     "i_confirm_this_declaration_is_ac": "Je confirme que cette déclaration est exacte pour chaque piste de cette sortie.",
     "tracks": "Pistes *",
-    "ep_2_5_tracks_album_6_tracks": "(EP : 2 à 5 titres · Album : 6+ titres)",
+    "ep_2_5_tracks_album_6_tracks": "(EP : 2 à 6 titres · Album : 7 à 30 titres)",
     "add_track": "Ajouter une piste",
     "back": "Retour",
     "paste_an_image_url": "Colle l'URL d'une image",
@@ -3276,25 +3276,14 @@
       },
       "ep": {
         "label": "EP",
-        "blurb": "2 à 5 titres - un court projet"
+        "blurb": "2 à 6 titres - un court projet"
       },
       "album": {
         "label": "Album",
-        "blurb": "6+ titres — un projet complet"
+        "blurb": "7–30 titres — un projet complet"
       }
     },
-    "trackTitle": "Titre du morceau {{n}}",
-    "validation": {
-      "0": "Titre et nom d’artiste définis",
-      "1": "Déclaration de contenu explicite confirmée (obligatoire)",
-      "2": "Au moins une plateforme sélectionnée",
-      "3": "Source audio définie (bibliothèque de chansons ou URL manuelle)",
-      "4": "Chaque morceau a un titre",
-      "5": "Date de sortie fixée"
-    },
-    "warning": {
-      "0": "Pas encore de pochette – ajoutes-en une pour un package complet"
-    }
+    "trackTitle": "Titre du morceau {{n}}"
   },
   "download": {
     "get_bow_down_visuals_everywhere": "Bow Down Visuals partout",

@@ -14,6 +14,21 @@ import { apiErrorMessage } from "./api-error";
 
 import { formatDuration, type StreamTrack, type StreamVideo } from "@/lib/streaming";
 
+/* ── Profile slug — the client mirror of the server's rule ──────────────
+   POST /api/creator-profiles validates the slug against SLUG_RE in
+   routes/creator-platform.ts (3–40 chars). The editor's field used to
+   allow 60 chars and state no rule at all, so a 2-char or 45-char slug
+   submitted, failed with a generic "didn't pass the vibe check", and
+   the actual rule never reached the creator. Mirror it here so the
+   form states the rule and refuses exactly what the server refuses. */
+export const PROFILE_SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+export const PROFILE_SLUG_RULE =
+  "Slug must be 3-40 chars: lowercase letters, numbers, hyphens; no leading/trailing hyphen.";
+
+export function profileSlugError(slug: string): string | null {
+  return PROFILE_SLUG_RE.test(slug.trim().toLowerCase()) ? null : PROFILE_SLUG_RULE;
+}
+
 export type VerticalId =
   | "music"
   | "video"
@@ -514,6 +529,13 @@ export function emptyProfile(overrides: Partial<CreatorProfile> = {}): CreatorPr
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    /* The rails answer a failed validation with a generic headline
+       ("That profile data didn't pass the vibe check.") plus a details
+       list carrying the actual rule (the slug pattern, the bio cap).
+       The translator surfaces the first detail over the headline —
+       the headline alone tells the creator nothing about what to fix
+       (stack900 L2's rule, carried inside apiErrorMessage since the
+       join composed the two lanes there). */
     const err = new Error(apiErrorMessage(body, `Request failed (${res.status})`)) as Error & { status?: number };
     // Preserve the HTTP status so callers can tell a genuine 404 (page
     // really doesn't exist) from a 500/network failure (page may exist,

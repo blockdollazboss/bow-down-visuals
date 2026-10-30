@@ -310,6 +310,12 @@ export async function apiJson<T>(
   const res = await apiFetch(getAccessToken, path, init, options);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    /* A failure must carry its reason: most rails answer with
+       { error } or a zod details list, not { message } — reading only
+       `message` reduced every refusal to a bare "Request failed (400)"
+       and left the person guessing which field to fix. The translator
+       carries that precedence (message → first detail → error words →
+       code map) since the join composed L1 and L2 there. */
     throw new Error(apiErrorMessage(body, `Request failed (${res.status})`));
   }
   return (await res.json()) as T;

@@ -44,6 +44,20 @@ export function isValidHandle(raw: string): boolean {
   return HANDLE_RE.test(handle) && !RESERVED.has(handle);
 }
 
+/** The server's refusal, word for word (generate/shops.ts handleError):
+ *  the create form used to submit 2-char, trailing-hyphen, and reserved
+ *  handles blind and let the server be the first to state the rule. */
+export function shopHandleError(raw: string): string | null {
+  const handle = raw.trim().toLowerCase();
+  if (!HANDLE_RE.test(handle)) {
+    return "Handle must be 3–30 characters: lowercase letters, numbers, and hyphens only (no leading/trailing hyphen).";
+  }
+  if (RESERVED.has(handle)) {
+    return "That handle is reserved — pick another one.";
+  }
+  return null;
+}
+
 export function addToCartLines(cart: CartLine[], productId: string): CartLine[] {
   const line = cart.find((l) => l.productId === productId);
   if (line) return cart.map((l) => (l.productId === productId ? { ...l, qty: l.qty + 1 } : l));
