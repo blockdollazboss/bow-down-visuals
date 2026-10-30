@@ -44,6 +44,8 @@ function ChannelRow({
             onChange();
           }}
           title={state?.muted ? "Unmute" : "Mute"}
+          aria-label={state?.muted ? `Unmute ${name}` : `Mute ${name}`}
+          aria-pressed={!!state?.muted}
           className="rounded p-1 text-zinc-400 transition hover:text-[#C9A84C] disabled:opacity-30"
         >
           {state?.muted ? <VolumeX className="h-4 w-4 text-red-400" /> : <Volume2 className="h-4 w-4" />}
@@ -123,6 +125,8 @@ export default function MixerPanel({
                 onChange();
               }}
               title={master?.muted ? "Unmute master" : "Mute everything"}
+              aria-label={master?.muted ? "Unmute master" : "Mute everything"}
+              aria-pressed={!!master?.muted}
               className="rounded p-1 text-zinc-400 transition hover:text-[#C9A84C] disabled:opacity-30"
             >
               {master?.muted ? <VolumeX className="h-4 w-4 text-red-400" /> : <Volume2 className="h-4 w-4" />}

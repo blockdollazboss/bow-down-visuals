@@ -147,7 +147,7 @@ export function NotificationsBell() {
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
+      <button aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
         className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/50 text-white/70 backdrop-blur transition-colors hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"

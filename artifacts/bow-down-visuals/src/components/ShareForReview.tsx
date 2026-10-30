@@ -84,7 +84,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
 
   return (
     <div>
-      <button
+      <button aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-primary border border-primary/25 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors"
       >
@@ -137,6 +137,7 @@ export function ShareForReviewButton({ videoUrl, title, sourceType = "other", so
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
                       aria-label={showPassword ? t("review.hidePassword") : t("review.showPassword")}
+                      aria-pressed={showPassword}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>

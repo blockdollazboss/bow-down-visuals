@@ -126,7 +126,7 @@ export function MediaActions({
       )}
 
       <div className="relative" ref={shareRef}>
-        <button
+        <button aria-expanded={shareOpen}
           onClick={() => setShareOpen((v) => !v)}
           className={`${btn} rounded-full border border-white/15 text-white/70 hover:border-[#e8c86a]/60 hover:text-[#e8c86a] font-semibold flex items-center gap-2 transition-colors`}
         >

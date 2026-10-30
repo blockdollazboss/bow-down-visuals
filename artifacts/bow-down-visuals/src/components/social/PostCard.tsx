@@ -433,7 +433,7 @@ export function PostCard({
                 <span className="text-xs text-neutral-500">+{totalReactions - (counts["like"] ?? 0)}</span>
               )}
 
-              <button onClick={() => { setShowReply((v) => !v); }} aria-label="Reply" className="flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-400 hover:text-[#d4af37]">
+              <button aria-expanded={showReply} onClick={() => { setShowReply((v) => !v); }} aria-label="Reply" className="flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-400 hover:text-[#d4af37]">
                 <MessageCircle className="h-[18px] w-[18px]" />
                 {post.reply_count > 0 && <span className="text-xs">{post.reply_count}</span>}
               </button>
@@ -443,7 +443,7 @@ export function PostCard({
                 {(post.repost_count + (reposted ? 1 : 0)) > 0 && <span className="text-xs">{post.repost_count + (reposted ? 1 : 0)}</span>}
               </button>
 
-              <button onClick={() => setShowQuote((v) => !v)} aria-label="Quote" className="rounded-full p-2 text-sm text-neutral-400 hover:text-[#d4af37]">
+              <button aria-expanded={showQuote} onClick={() => setShowQuote((v) => !v)} aria-label="Quote" className="rounded-full p-2 text-sm text-neutral-400 hover:text-[#d4af37]">
                 <Quote className="h-[18px] w-[18px]" />
               </button>
             </div>

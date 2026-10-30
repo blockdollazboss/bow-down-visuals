@@ -270,6 +270,7 @@ export function CaptionStyler({ initialTranscript = "" }: { initialTranscript?: 
                 onClick={() => setPlaying((p) => !p)}
                 className="h-8 w-8 rounded-full bg-primary text-black flex items-center justify-center hover:opacity-90"
                 aria-label={playing ? t("wave8.captionStyler.previewPause") : t("wave8.captionStyler.previewPlay")}
+                aria-pressed={playing}
               >
                 {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </button>

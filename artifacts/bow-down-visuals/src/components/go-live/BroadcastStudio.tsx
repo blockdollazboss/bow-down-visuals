@@ -2112,6 +2112,7 @@ export default function BroadcastStudio() {
               key={lvl}
               type="button"
               className={pillBtn(nc === lvl)}
+              aria-pressed={nc === lvl}
               onClick={async () => {
                 setNc(lvl);
                 if (!changerRef.current) {
@@ -2137,6 +2138,7 @@ export default function BroadcastStudio() {
               key={e.id}
               type="button"
               className={pillBtn(fx === e.id)}
+              aria-pressed={fx === e.id}
               onClick={async () => {
                 setFx(e.id);
                 if (!changerRef.current) {

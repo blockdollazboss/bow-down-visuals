@@ -155,7 +155,7 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
             })}
           </p>
         </div>
-        <button type="button" onClick={() => setCollapsed((c) => !c)}
+        <button aria-expanded={!collapsed} type="button" onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? t("fomoFeed.expand", { defaultValue: "Expand" }) : t("fomoFeed.collapse", { defaultValue: "Collapse" })}
           className="p-1.5 rounded-lg text-white/50 hover:text-primary hover:bg-white/[0.05] transition-colors">
           <ChevronDown className={`h-4 w-4 transition-transform ${collapsed ? "" : "rotate-180"}`} />

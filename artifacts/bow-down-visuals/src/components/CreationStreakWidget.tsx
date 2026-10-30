@@ -132,7 +132,7 @@ export default function CreationStreakWidget({
             {t("retention.streak_longest")}: <span className="font-bold text-white/80">{data.longestStreak}</span>
           </p>
         </div>
-        <button type="button" onClick={() => setCollapsed((c) => !c)}
+        <button aria-expanded={!collapsed} type="button" onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? t("retention.expand") : t("retention.collapse")}
           className="p-1.5 rounded-lg text-white/50 hover:text-primary hover:bg-white/[0.05] transition-colors">
           <ChevronDown className={`h-4 w-4 transition-transform ${collapsed ? "" : "rotate-180"}`} />

@@ -74,7 +74,7 @@ export function StoriesRail() {
     <div>
       <div className="flex gap-4 overflow-x-auto pb-2 pt-1" style={{ scrollbarWidth: "thin" }}>
         {/* Your story */}
-        <button
+        <button aria-expanded={composerOpen}
           onClick={() => setComposerOpen((v) => !v)}
           className="flex w-[72px] shrink-0 flex-col items-center gap-1.5"
           aria-label="Post a story"

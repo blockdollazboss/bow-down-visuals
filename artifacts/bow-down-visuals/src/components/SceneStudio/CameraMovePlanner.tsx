@@ -362,7 +362,7 @@ export function CameraMovePlanner({ scenes, onScenesChange }: CameraMovePlannerP
       data-testid="camera-move-planner"
     >
       {/* Header */}
-      <button
+      <button aria-expanded={expanded}
         onClick={() => setExpanded((e) => !e)}
         className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-white/[0.02] transition-colors"
       >

@@ -376,7 +376,7 @@ export default function MoneyTrackerPanel() {
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <button
+        <button aria-expanded={showForm}
           onClick={() => { setShowForm((v) => !v); setFormError(null); }}
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-5 py-2.5 text-sm font-black text-black shadow-[0_4px_20px_rgba(212,175,55,0.35)] transition hover:scale-[1.03] active:scale-95"
         >

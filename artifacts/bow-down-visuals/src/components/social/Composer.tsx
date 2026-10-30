@@ -495,7 +495,7 @@ export function Composer({
           {/* the King's tray — stickers + GIFs, on posts AND replies */}
           <EmojiTray onPickToken={insertBodyToken} onPickGif={pickGif} />
         {!replyTo && <>
-          <button data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-expanded={showUrlBox} data-min-stars="2" onClick={() => { setUrlMode("media"); setShowUrlBox((v) => !v); }} title="Attach image/video link" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <ImagePlus className="h-5 w-5" />
           </button>
           <button data-min-stars="2" onClick={() => { setUrlMode("track"); setShowUrlBox(true); }} title="Attach your sound (links to its page)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
@@ -507,7 +507,7 @@ export function Composer({
           <button data-min-stars="2" onClick={() => setThreadExtras([...threadExtras, ""])} title="Add another (thread)" className="rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Plus className="h-5 w-5" />
           </button>
-          <button data-min-stars="2" onClick={() => { setPollOpen((v) => !v); if (pollOpen) setPollOptions([]); }} title="Add poll" className={`rounded-full p-2 hover:bg-[#d4af37]/10 ${pollOpen ? "bg-[#d4af37]/15 text-[#f5e08c]" : "text-[#d4af37]"}`}>
+          <button aria-expanded={pollOpen} data-min-stars="2" onClick={() => { setPollOpen((v) => !v); if (pollOpen) setPollOptions([]); }} title="Add poll" className={`rounded-full p-2 hover:bg-[#d4af37]/10 ${pollOpen ? "bg-[#d4af37]/15 text-[#f5e08c]" : "text-[#d4af37]"}`}>
             <BarChart3 className="h-5 w-5" />
           </button>
           {/* money buttons — always visible, never gated */}
@@ -515,7 +515,7 @@ export function Composer({
             <ShoppingBag className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">link your drop</span>
           </button>
-          <button data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (100 Visual Bucs)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-expanded={showAssist} data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (100 Visual Bucs)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Sparkles className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">write it for me</span>
           </button>

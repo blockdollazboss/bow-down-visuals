@@ -715,7 +715,7 @@ export function LinkInBioBuilder() {
 
       {/* preview */}
       <div className={sectionClass}>
-        <button onClick={() => setShowPreview((s) => !s)}
+        <button aria-expanded={showPreview} onClick={() => setShowPreview((s) => !s)}
           className="flex w-full items-center justify-between text-base font-bold">
           <span className="inline-flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> {t("linkInBio.preview")}</span>
           <ChevronDown className={`h-4 w-4 text-white/50 transition ${showPreview ? "rotate-180" : ""}`} />

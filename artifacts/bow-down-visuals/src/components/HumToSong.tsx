@@ -609,7 +609,7 @@ export function HumToSong() {
               </div>
               <div className="space-y-2">
                 <FieldLabel>Arrangement</FieldLabel>
-                <button
+                <button aria-pressed={instrumental}
                   type="button"
                   onClick={() => setInstrumental((v) => !v)}
                   disabled={busy}

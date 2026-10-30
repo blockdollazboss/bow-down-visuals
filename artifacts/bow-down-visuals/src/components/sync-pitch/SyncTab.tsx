@@ -623,7 +623,7 @@ export default function SyncTab({
             </div>
             <p className="mt-2 text-xs text-white/40">{t("syncPitch.stemsHint")}</p>
 
-            <button
+            <button aria-expanded={showAdvanced}
               onClick={() => setShowAdvanced((v) => !v)}
               className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
             >
@@ -795,7 +795,7 @@ export default function SyncTab({
         <div className="relative mt-6">
           <div className="flex items-center justify-between">
             <p className="max-w-xl text-sm text-white/55">{t("syncPitch.briefsIntro")}</p>
-            <button
+            <button aria-expanded={showBriefForm}
               onClick={() => setShowBriefForm((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
             >
@@ -985,7 +985,7 @@ export default function SyncTab({
                 <span className="font-black text-emerald-300">{placedCount}</span> {t("syncPitch.placedCount")}
               </span>
             </div>
-            <button
+            <button aria-expanded={showAddForm}
               onClick={() => setShowAddForm((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
             >

@@ -190,7 +190,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
 
   return (
     <div className="mt-2 rounded-xl border border-white/10 bg-black/40 overflow-hidden" data-testid="remix-chain">
-      <button
+      <button aria-expanded={open}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors"

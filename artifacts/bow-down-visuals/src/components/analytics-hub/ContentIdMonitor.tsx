@@ -626,7 +626,7 @@ export default function ContentIdMonitor() {
                 <YouTubeGlyph />
                 Detected uses
               </h2>
-              <button onClick={() => { setShowDetForm((v) => !v); setDetError(null); }} className={ghostBtn}>
+              <button aria-expanded={showDetForm} onClick={() => { setShowDetForm((v) => !v); setDetError(null); }} className={ghostBtn}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Log a use
               </button>
@@ -737,7 +737,7 @@ export default function ContentIdMonitor() {
                 Content ID revenue
               </h2>
               <div className="flex items-center gap-2">
-                <button onClick={() => { setShowRevForm((v) => !v); setRevError(null); }} className={ghostBtn}>
+                <button aria-expanded={showRevForm} onClick={() => { setShowRevForm((v) => !v); setRevError(null); }} className={ghostBtn}>
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Log income
                 </button>

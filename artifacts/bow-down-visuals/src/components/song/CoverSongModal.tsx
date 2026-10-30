@@ -522,7 +522,7 @@ export function CoverSongModal({ open, onClose, source, initialLyrics = "", init
                   {artBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Palette className="h-4 w-4" />}
                   {artUrl ? "Cover art ready" : "Design cover art"}
                 </button>
-                <button
+                <button aria-expanded={compareOpen}
                   type="button"
                   onClick={() => setCompareOpen((v) => !v)}
                   className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${

@@ -445,7 +445,7 @@ export function BgStudio() {
           </div>
         )}
 
-        <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="mt-3 flex items-center gap-1 text-xs text-white/40 hover:text-white/70">
+        <button aria-expanded={showAdvanced} type="button" onClick={() => setShowAdvanced((v) => !v)} className="mt-3 flex items-center gap-1 text-xs text-white/40 hover:text-white/70">
           <ChevronDown className={`h-3.5 w-3.5 transition ${showAdvanced ? "rotate-180" : ""}`} />
           {t("bgStudio.advanced", { defaultValue: "Manual: removal strength" })}
         </button>

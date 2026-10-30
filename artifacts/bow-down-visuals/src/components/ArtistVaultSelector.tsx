@@ -303,7 +303,7 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
       ) : (
         <div className="flex gap-3">
           <div className="relative flex-1 min-w-0" ref={dropdownRef}>
-            <button
+            <button aria-expanded={dropdownOpen}
               type="button"
               onClick={() => setDropdownOpen((o) => !o)}
               className="h-11 w-full rounded-xl bg-gradient-to-b from-white/[0.07] to-white/[0.03] border border-white/[0.12] text-white px-4 text-sm focus:outline-none focus:border-primary/60 focus:shadow-[0_0_16px_rgba(212,175,55,0.2)] appearance-none cursor-pointer flex items-center gap-2.5 text-left transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"

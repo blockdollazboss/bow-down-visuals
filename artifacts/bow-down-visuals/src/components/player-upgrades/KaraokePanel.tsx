@@ -168,7 +168,7 @@ export function KaraokePanel({ songId, audioUrl, title, isLight }: {
 
   return (
     <div className="mt-2">
-      <button
+      <button aria-expanded={open}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${isLight ? "text-[#7A5A12] hover:text-[#2A1E07]" : "text-[#e8c86a]/80 hover:text-[#e8c86a]"}`}

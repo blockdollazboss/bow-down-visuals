@@ -412,7 +412,7 @@ export function ProducerTagMaker() {
 
       {/* ── Saved library ── */}
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-        <button
+        <button aria-expanded={showLibrary}
           type="button"
           onClick={() => setShowLibrary((v) => !v)}
           className="w-full flex items-center justify-between mb-4"

@@ -559,7 +559,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
               </p>
             </Link>
 
-            <button
+            <button aria-expanded={introOpen}
               onClick={() => setIntroOpen((v) => !v)}
               className="rounded-xl border border-white/10 bg-black/40 p-4 text-left transition hover:border-primary/50"
             >
@@ -570,7 +570,7 @@ export default function GuestQuestions({ guestName: prefillGuest }: { guestName?
               </p>
             </button>
 
-            <button
+            <button aria-expanded={postOpen}
               onClick={() => setPostOpen((v) => !v)}
               className="rounded-xl border border-white/10 bg-black/40 p-4 text-left transition hover:border-primary/50"
             >

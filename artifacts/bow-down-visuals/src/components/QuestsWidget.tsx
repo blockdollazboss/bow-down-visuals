@@ -253,7 +253,7 @@ export default function QuestsWidget({
           <h2 className="text-sm font-black tracking-wide text-white uppercase">{t("retention.quests_title")}</h2>
           <p className="text-xs text-white/50">{t("retention.quests_reset")} · <span className="font-bold text-amber-300/90">{t("retention.quests_up_for_grabs", { total: totalReward })}</span></p>
         </div>
-        <button type="button" onClick={() => setCollapsed((c) => !c)}
+        <button aria-expanded={!collapsed} type="button" onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? t("retention.expand") : t("retention.collapse")}
           className="p-1.5 rounded-lg text-white/50 hover:text-primary hover:bg-white/[0.05] transition-colors">
           <ChevronDown className={`h-4 w-4 transition-transform ${collapsed ? "" : "rotate-180"}`} />

@@ -390,7 +390,7 @@ export default function MilestoneTracker() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 {saving ? t("milestones.logging") : t("milestones.logButton")}
               </button>
-              <button
+              <button aria-expanded={showImport}
                 onClick={() => setShowImport((v) => !v)}
                 className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
               >

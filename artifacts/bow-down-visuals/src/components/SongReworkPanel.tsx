@@ -345,7 +345,7 @@ export function SongReworkPanel({ source, compact = false }: SongReworkPanelProp
                   className={fieldClass}
                 />
               </div>
-              <button
+              <button aria-expanded={showTiming}
                 type="button"
                 onClick={() => setShowTiming((v) => !v)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45 hover:text-white transition-colors"

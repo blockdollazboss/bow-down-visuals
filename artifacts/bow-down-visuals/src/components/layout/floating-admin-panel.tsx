@@ -28,6 +28,8 @@ export function FloatingAdminPanel() {
           onClick={() => setOpen((v) => !v)}
           className={`h-11 w-11 rounded-full border border-primary/40 ${isLight ? "bg-[#FBF6E9]" : "bg-[#171208]/90"} text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors`}
           title="Admin quick actions"
+          aria-label="Admin quick actions"
+          aria-expanded={open}
           data-testid="floating-admin-toggle"
         >
           <ShieldCheck className="h-5 w-5" />
@@ -512,7 +514,7 @@ function BowRaceControls({
           className={inputCls}
           placeholder="Reward Visual Bucs"
         />
-        <button
+        <button aria-pressed={enabled}
           type="button"
           onClick={() => setEnabled((v) => !v)}
           className={`rounded-lg px-3 py-1.5 text-xs font-black shrink-0 ${

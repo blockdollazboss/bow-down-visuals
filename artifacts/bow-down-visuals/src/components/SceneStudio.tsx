@@ -1165,7 +1165,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
       {/* Final Prompt preview */}
       <div>
-        <button
+        <button aria-expanded={showFinalPrompt}
           onClick={() => setShowFinalPrompt((s) => !s)}
           className="flex items-center gap-1.5 text-[10px] font-bold text-white/30 hover:text-white/60 transition-colors mb-1.5"
         >
@@ -1468,7 +1468,7 @@ function EndFramePicker({ scene, onPick }: {
             </button>
           </div>
         ) : (
-          <button
+          <button aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
             data-testid="end-frame-open"
@@ -1616,7 +1616,7 @@ function LocationPicker({ scene, onPick }: {
             </button>
           </div>
         ) : (
-          <button
+          <button aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
           >
@@ -1822,7 +1822,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
             </button>
           )}
           {/* Collapse toggle */}
-          <button
+          <button aria-expanded={!collapsed}
             onClick={() => setCollapsed((c) => !c)}
             className="text-white/30 hover:text-white/60 transition-colors"
             aria-label={collapsed ? "Expand" : "Collapse"}
@@ -1856,7 +1856,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                 : <><Sparkles className="h-3.5 w-3.5" /> Improve Prompt for Artist</>}
             </Button>
 
-            <button
+            <button aria-expanded={showPrompt}
               onClick={() => setShowPrompt((s) => !s)}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
               data-testid={`btn-toggle-prompt-${index}`}

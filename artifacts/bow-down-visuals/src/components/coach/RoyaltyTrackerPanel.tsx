@@ -441,7 +441,7 @@ export default function RoyaltyTrackerPanel() {
             <div className={`mb-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-bold"><Wallet className="h-5 w-5 text-amber-300" /> {t("royalties.payouts.title")} <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">{t("royalties.free")}</span></h2>
-                <button
+                <button aria-expanded={showPayoutForm}
                   onClick={() => setShowPayoutForm((v) => !v)}
                   className="rounded-xl border border-amber-400/40 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10"
                 >
