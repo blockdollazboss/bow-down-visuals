@@ -702,7 +702,7 @@ export default function Beats() {
           <div className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-[#C9A84C]/40 bg-[#171208]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <h3 className="font-bold text-lg">{t("beats.licenseModalTitle", { title: licenseBeat.title })}</h3>
-              <button onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
+              <button aria-label="Close" onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto pr-1">
               {LICENSE_TIERS.map((tier) => {

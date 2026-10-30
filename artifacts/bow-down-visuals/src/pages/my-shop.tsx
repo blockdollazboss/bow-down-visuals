@@ -748,7 +748,7 @@ export default function MyShop() {
                       >
                         <Share2 className="w-4 h-4" /> {t("myShop.shareShop", { defaultValue: "Share" })}
                       </button>
-                      <button className={ghostBtn} onClick={deleteShop}>
+                      <button aria-label="Delete shop" className={ghostBtn} onClick={deleteShop}>
                         <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
                     </div>
@@ -841,7 +841,7 @@ export default function MyShop() {
                     <div className={`mt-4 rounded-xl border p-5 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/40" : "border-amber-400/25 bg-black/40"}`}>
                       <div className="flex items-center justify-between">
                         <h3 className="font-bold text-sm">{editingProduct ? t("myShop.editProduct") : t("myShop.newProduct")}</h3>
-                        <button className="text-white/40 hover:text-white" onClick={() => setShowProductForm(false)}><X className="w-4 h-4" /></button>
+                        <button aria-label="Close" className="text-white/40 hover:text-white" onClick={() => setShowProductForm(false)}><X className="w-4 h-4" /></button>
                       </div>
                       <div className="mt-3 grid gap-4 md:grid-cols-2">
                         <div>

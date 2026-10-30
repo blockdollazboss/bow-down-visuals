@@ -930,6 +930,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <p className="text-[11px] text-red-400/70 mt-0.5 break-words">{error}</p>
         </div>
         <button
+          aria-label="Dismiss"
           onClick={() => { setError(null); }}
           className="text-white/30 hover:text-white/60 transition-colors shrink-0"
         >

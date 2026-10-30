@@ -355,9 +355,9 @@ export default function NfcCards() {
                   <div className="mt-6 flex items-center gap-4">
                     <label className={`${isLight ? "text-sm text-[#6B5B36]" : "text-sm text-zinc-400"}`}>{t("nfcCards.quantity")}</label>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className={`${isLight ? "w-9 h-9 rounded-lg bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35 text-xl" : "w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl"}`}>−</button>
+                      <button aria-label="Decrease quantity" onClick={() => setQuantity(Math.max(1, quantity - 1))} className={`${isLight ? "w-9 h-9 rounded-lg bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35 text-xl" : "w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl"}`}>−</button>
                       <span className="w-8 text-center font-bold">{quantity}</span>
-                      <button onClick={() => setQuantity(Math.min(100, quantity + 1))} className={`${isLight ? "w-9 h-9 rounded-lg bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35 text-xl" : "w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl"}`}>+</button>
+                      <button aria-label="Increase quantity" onClick={() => setQuantity(Math.min(100, quantity + 1))} className={`${isLight ? "w-9 h-9 rounded-lg bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35 text-xl" : "w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl"}`}>+</button>
                     </div>
                     <span className="ml-auto text-lg">{t("nfcCards.total")}: <span className={`${isLight ? "text-[#7A5A12] font-bold" : "text-amber-300 font-bold"}`}>{formatMoney(total)}</span></span>
                   </div>
@@ -376,7 +376,7 @@ export default function NfcCards() {
                       <div key={i} className="flex gap-2 mb-2">
                         <input className={inputCls} placeholder={t("nfcCards.linkLabelPlaceholder")} value={l.label} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
                         <input className={inputCls} placeholder="https://…" value={l.url} onChange={(e) => setLinks(links.map((x, j) => j === i ? { ...x, url: e.target.value } : x))} />
-                        <button onClick={() => setLinks(links.filter((_, j) => j !== i))} className={`${isLight ? "px-3 text-[#8A7A56] hover:text-red-500" : "px-3 text-zinc-500 hover:text-red-400"}`}><Trash2 className="w-4 h-4" /></button>
+                        <button aria-label="Remove link" onClick={() => setLinks(links.filter((_, j) => j !== i))} className={`${isLight ? "px-3 text-[#8A7A56] hover:text-red-500" : "px-3 text-zinc-500 hover:text-red-400"}`}><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ))}
                     {links.length < 12 && (
@@ -609,7 +609,7 @@ export default function NfcCards() {
                   onChange={(e) => setEditing({ ...editing, links: editing.links.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} placeholder={t("nfcCards.linkLabelPlaceholder")} />
                 <input className="w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm" value={l.url}
                   onChange={(e) => setEditing({ ...editing, links: editing.links.map((x, j) => j === i ? { ...x, url: e.target.value } : x) })} placeholder="https://…" />
-                <button onClick={() => setEditing({ ...editing, links: editing.links.filter((_, j) => j !== i) })}
+                <button aria-label="Remove link" onClick={() => setEditing({ ...editing, links: editing.links.filter((_, j) => j !== i) })}
                   className={`${isLight ? "text-[#8A7A56] hover:text-red-500 px-2" : "text-zinc-500 hover:text-red-400 px-2"}`}><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}

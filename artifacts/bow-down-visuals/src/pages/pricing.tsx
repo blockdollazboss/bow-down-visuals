@@ -308,6 +308,7 @@ export default function Pricing() {
                 {t("pricing.cancelledBanner.text")}
               </span>
               <button
+                aria-label="Dismiss"
                 onClick={() => setShowCancelled(false)}
                 className="text-white/30 hover:text-white/60 transition-colors text-lg leading-none ml-2"
               >

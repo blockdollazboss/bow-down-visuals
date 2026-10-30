@@ -590,7 +590,7 @@ export default function SetlistBuilder() {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">{t("setlist.yourSongsTitle")}</h2>
-              <button onClick={() => setLibraryOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/10">
+              <button aria-label="Close" onClick={() => setLibraryOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/10">
                 <X className="h-5 w-5" />
               </button>
             </div>

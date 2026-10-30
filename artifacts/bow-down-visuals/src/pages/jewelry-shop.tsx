@@ -295,9 +295,9 @@ export default function JewelryShop() {
                   <div className="flex items-center gap-4">
                     <label className="text-sm text-zinc-400">{t("jewelryShop.quantity")}</label>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">−</button>
+                      <button aria-label="Decrease quantity" onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">−</button>
                       <span className="w-8 text-center font-bold">{quantity}</span>
-                      <button onClick={() => setQuantity(Math.min(20, quantity + 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">+</button>
+                      <button aria-label="Increase quantity" onClick={() => setQuantity(Math.min(20, quantity + 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">+</button>
                     </div>
                     <span className="ml-auto text-lg">{t("jewelryShop.total")} <span className="text-amber-300 font-bold">{formatMoney(total)}</span></span>
                   </div>

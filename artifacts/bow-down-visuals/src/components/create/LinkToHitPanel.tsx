@@ -214,7 +214,7 @@ export default function LinkToHitPanel() {
                 onKeyDown={(e) => e.key === "Enter" && addComment()}
                 placeholder={t("linkToHit.commentsPh", { defaultValue: "Paste a comment, hit Enter…" })}
                 className={inputClass} maxLength={500} />
-              <button type="button" onClick={addComment} disabled={!commentInput.trim() || comments.length >= 20}
+              <button type="button" aria-label="Add comment" onClick={addComment} disabled={!commentInput.trim() || comments.length >= 20}
                 className="shrink-0 rounded-xl bg-white/10 px-4 text-white hover:bg-white/15 disabled:opacity-40">
                 <Plus className="h-4 w-4" />
               </button>

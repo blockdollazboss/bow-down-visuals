@@ -653,13 +653,13 @@ export default function Messages() {
                           e.target.value = "";
                           if (f) void uploadFile(f);
                         }} />
-                      <button aria-label="Attach a beat, cover, or clip (images up to 10 MB, audio/video up to 80 MB)" type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                      <button aria-label="Attach a file" type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
                         title="Attach a beat, cover, or clip (images up to 10 MB, audio/video up to 80 MB)"
                         data-testid="dm-attach-button"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
                         <Paperclip className="h-4 w-4" />
                       </button>
-                      <button aria-label="Attach by link — a file of yours hosted elsewhere; it's mirrored into your storage when it sends" aria-expanded={showLink} type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
+                      <button aria-label="Attach by link" aria-expanded={showLink} type="button" onClick={() => setShowLink((s) => !s)} disabled={uploading}
                         title="Attach by link — a file of yours hosted elsewhere; it's mirrored into your storage when it sends"
                         data-testid="dm-attach-link-toggle"
                         className="shrink-0 rounded-full border border-white/20 p-2 text-white/70 transition hover:border-[#e8c86a]/60 hover:text-[#e8c86a] disabled:opacity-40">
@@ -667,7 +667,7 @@ export default function Messages() {
                       </button>
                       <input ref={draftRef} value={draft} onChange={(e) => updateDraft(e.target.value)} placeholder="Type a message…"
                         maxLength={2000} className={goldInput} onKeyDown={(e) => e.key === "Enter" && send()} />
-                      <button type="button" onClick={send} disabled={!dmCanSend(draft, pendingAtt !== null) || uploading} className={goldButton}>
+                      <button type="button" aria-label="Send message" onClick={send} disabled={!dmCanSend(draft, pendingAtt !== null) || uploading} className={goldButton}>
                         <Send className="h-4 w-4" />
                       </button>
                     </div>

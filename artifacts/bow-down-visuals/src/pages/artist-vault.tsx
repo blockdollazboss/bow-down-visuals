@@ -243,7 +243,7 @@ function ConsistencyModal({
               <p className="text-xs text-white/40">{vault.artist_name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
+          <button aria-label="Close" onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1988,7 +1988,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
               color: vault.team_id ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
               fontSize: 11, fontWeight: 600, cursor: "pointer",
             }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? t("artistVault.sharedLabel") : t("artistVault.shareLabel")}</button>
-            <button onClick={onDelete} style={{
+            <button aria-label="Delete" onClick={onDelete} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "6px 10px", borderRadius: 8,
               border: isLight ? "1px solid rgba(201,168,76,0.2)" : "1px solid rgba(255,255,255,0.06)",
@@ -2458,7 +2458,7 @@ export default function ArtistVault() {
             <p className="text-sm font-bold text-white">
               {t("artistVault.profileSaved", { action: isEditing ? t("artistVault.savedActionUpdated") : t("artistVault.savedActionSaved") })}
             </p>
-            <button onClick={() => setSaveSuccess(false)} className="ml-auto text-white/30 hover:text-white transition-colors">
+            <button aria-label="Dismiss" onClick={() => setSaveSuccess(false)} className="ml-auto text-white/30 hover:text-white transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>

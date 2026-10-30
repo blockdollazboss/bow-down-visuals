@@ -326,7 +326,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
             <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-2.5 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-black uppercase tracking-widest text-white/60">{t("wave9.remix.newHeading")}</p>
-                <button type="button" onClick={() => setFormOpen(false)} className="text-white/40 hover:text-white">
+                <button type="button" aria-label="Close" onClick={() => setFormOpen(false)} className="text-white/40 hover:text-white">
                   <X className="h-4 w-4" />
                 </button>
               </div>

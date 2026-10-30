@@ -349,6 +349,7 @@ export function ClipSequencePlayer({
               disabled={idx === 0}
               className="text-white/60 hover:text-white disabled:opacity-20 transition-colors"
               data-testid="preview-prev"
+              aria-label="Previous clip"
             >
               <SkipBack className="h-4 w-4" />
             </button>
@@ -377,6 +378,7 @@ export function ClipSequencePlayer({
               disabled={idx === clips.length - 1}
               className="text-white/60 hover:text-white disabled:opacity-20 transition-colors"
               data-testid="preview-next"
+              aria-label="Next clip"
             >
               <SkipForward className="h-4 w-4" />
             </button>

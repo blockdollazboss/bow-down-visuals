@@ -248,7 +248,7 @@ function FxChainEditor({ track, onChange }: { track: ArrangementTrack; onChange:
                   <Field label="Q" hint={band.q.toFixed(1)}>
                     <Slider value={[band.q]} min={0.3} max={12} step={0.1} onValueChange={([v]) => patchBand(step.id, bi, { q: v ?? 1 })} />
                   </Field>
-                  <button type="button" onClick={() => patchStep(step.id, { bands: (step.bands ?? []).filter((_, i) => i !== bi) })} className="text-red-300/70 hover:text-red-200 text-xs font-bold px-1">✕</button>
+                  <button type="button" aria-label="Remove band" onClick={() => patchStep(step.id, { bands: (step.bands ?? []).filter((_, i) => i !== bi) })} className="text-red-300/70 hover:text-red-200 text-xs font-bold px-1">✕</button>
                 </div>
               ))}
               {(step.bands ?? []).length < 5 && (

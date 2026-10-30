@@ -847,7 +847,7 @@ export default function JewelryStudio() {
               <div className={`${isLight ? "text-sm font-bold text-[#7A5A12]" : "text-sm font-bold text-[#E3C566]"}`}> {t("jewelry.consultName")}</div>
               <div className={`${isLight ? "text-xs text-[#8A7A56]" : "text-xs text-zinc-500"}`}>{t("jewelry.consultCost", { cost: catalog?.consultCreditCost ?? 1 })}</div>
             </div>
-            <button onClick={() => setConsultOpen(false)} className={`${isLight ? "text-[#6B5B36] hover:text-[#2A1E07]" : "text-zinc-400 hover:text-white"}`}>
+            <button aria-label="Close" onClick={() => setConsultOpen(false)} className={`${isLight ? "text-[#6B5B36] hover:text-[#2A1E07]" : "text-zinc-400 hover:text-white"}`}>
               <X className="h-5 w-5" />
             </button>
           </div>

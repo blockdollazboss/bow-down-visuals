@@ -547,7 +547,7 @@ export default function CollabFinder() {
                         </select>
                         <input value={row.followers} onChange={(e) => setPlatformRows(platformRows.map((r, j) => j === i ? { ...r, followers: e.target.value.replace(/[^0-9]/g, "") } : r))} placeholder={t("collabs.followersPlaceholder")} inputMode="numeric" className={inputClass} />
                         {platformRows.length > 1 && (
-                          <button onClick={() => setPlatformRows(platformRows.filter((_, j) => j !== i))} className="rounded-xl border border-white/10 px-3 text-white/50 hover:text-red-400">✕</button>
+                          <button aria-label="Remove platform" onClick={() => setPlatformRows(platformRows.filter((_, j) => j !== i))} className="rounded-xl border border-white/10 px-3 text-white/50 hover:text-red-400">✕</button>
                         )}
                       </div>
                     ))}

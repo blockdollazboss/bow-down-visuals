@@ -233,7 +233,7 @@ function NewBookModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       <div className="bg-[#111] border border-[#C9A84C]/30 rounded-2xl p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-[#C9A84C]" style={{ fontFamily: "Georgia, serif" }}>New Book</h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
+          <button aria-label="Close" onClick={onClose} className="text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-4">
           <div>
@@ -423,7 +423,7 @@ function BookEditor({
       {/* Header */}
       <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="text-white/50 hover:text-white"><ChevronLeft className="h-6 w-6" /></button>
+          <button aria-label="Back" onClick={onBack} className="text-white/50 hover:text-white"><ChevronLeft className="h-6 w-6" /></button>
           <div>
             <h1 className="text-xl font-bold text-[#C9A84C]" style={{ fontFamily: "Georgia, serif" }}>{book.title}</h1>
             <p className="text-white/40 text-xs">{chapters.length} chapters · {totalWords.toLocaleString()} words {saving && "· saving…"}</p>
@@ -497,6 +497,7 @@ function BookEditor({
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="truncate flex-1">{i + 1}. {c.title}</span>
                 <button
+                  aria-label="Delete chapter"
                   onClick={(e) => { e.stopPropagation(); deleteChapter(c.id); }}
                   className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400"
                 >
@@ -702,7 +703,7 @@ function PrintBookModal({ book, onClose }: { book: Book; onClose: () => void }) 
             <Printer className="inline h-5 w-5 mr-2 -mt-1" />
             Print "{book.title}"
           </h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
+          <button aria-label="Close" onClick={onClose} className="text-white/50 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
 
         {step === "form" && (

@@ -366,6 +366,7 @@ export default function VideoStudio() {
                   <div className="relative inline-block">
                     <img src={referenceImage} alt="Reference" className="h-32 rounded-xl border border-white/10" />
                     <button
+                      aria-label="Remove reference image"
                       onClick={() => { setReferenceImage(null); setReferenceFile(null); }}
                       className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 flex items-center justify-center"
                     >

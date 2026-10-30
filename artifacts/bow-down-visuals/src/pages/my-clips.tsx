@@ -211,6 +211,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
             </div>
           </div>
           <button
+            aria-label="Close"
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
           >
@@ -568,6 +569,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
             </div>
           </div>
           <button
+            aria-label="Close"
             onClick={onClose}
             className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
           >
@@ -1014,6 +1016,7 @@ function ClipCard({
               </>
             ) : (
               <button
+                aria-label="Delete clip"
                 onClick={() => setConfirmDelete(true)}
                 className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/25 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-colors"
               >
