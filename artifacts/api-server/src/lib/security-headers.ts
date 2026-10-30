@@ -75,7 +75,17 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
              textures at all — the owner's Oct 28 session: six
              "textures did not land" beacons, gold capsules at every
              post, while local benches (no CSP) stayed green. */
-          "connect-src 'self' blob: https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev",
+          /* github.com + *.githubusercontent.com + storage.googleapis.com
+             are the engine chains' LAST-RESORT legs, named in the kit's
+             own URL builders: the RVM model falls back to the project's
+             GitHub release (which redirects to a githubusercontent
+             host — CSP is checked per redirect hop) and the MediaPipe
+             Tasks model to Google's canonical model bucket. Without
+             them those legs were dead by policy — present in the code,
+             refused by the header — so a bucket+origin failure had no
+             third chance (found in the Oct 30, 2026 green-screen
+             load-path audit). */
+          "connect-src 'self' blob: https://*.supabase.co https://api.stripe.com wss://*.supabase.co https://cdn.jsdelivr.net https://*.cloudflarestream.com https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev https://github.com https://*.githubusercontent.com https://storage.googleapis.com",
           "worker-src 'self' blob:",
           /* 'self' joins Stripe so OUR pages can frame OUR OWN embed
              widgets — the Widgets Desk in Promote previews a creator's
