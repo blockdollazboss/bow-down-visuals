@@ -4,7 +4,6 @@ import {
   db,
   liveStreamTicketsTable,
   creditUsageTable,
-  notificationsTable,
   type LiveStream,
   type LiveStreamTicket,
 } from "@workspace/db";
@@ -22,6 +21,40 @@ import { recordCreditUsageStrict } from "./payment-record";
 import { feeSplit } from "./platform-fees";
 import { isChannelModerator } from "./live-moderators";
 import { logger } from "./logger";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
+
+/* ── Ticket-sale push (notification-truth audit, stack900 L4) ──────────
+   A landed ticket purchase credits the creator net VB — a sale, in
+   the same money family as the shop and storefront finales, which
+   both ride the event door. This one still inserted its bell
+   directly, so it could never ping a creator whose money channel is
+   on. The bell now rides the door: same bell row, same copy, plus
+   the category-gated ping. Exactly-once is unchanged — the call
+   site still sits inside the creator_credited_at transition. */
+export function buildLiveTicketSaleEvent(opts: {
+  creatorUserId: string;
+  buyerDisplayName?: string | null;
+  netVb: number;
+  priceVb: number;
+  streamId: string;
+  streamTitle?: string | null;
+}): UserEventInput {
+  return {
+    userId: opts.creatorUserId,
+    category: "money",
+    kind: "live_ticket",
+    title: `${opts.buyerDisplayName?.trim() || "Someone"} bought a ticket to your stream`,
+    body: `${opts.netVb.toLocaleString("en-US")} Visual Bucs from a ${opts.priceVb.toLocaleString("en-US")} VB ticket${opts.streamTitle ? ` to "${opts.streamTitle}"` : ""}.`,
+    link: `/live/${opts.streamId}`,
+  };
+}
+
+type LiveTicketEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _liveTicketEventNotifier: LiveTicketEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setLiveTicketEventNotifier(fn: LiveTicketEventNotifier | null): void {
+  _liveTicketEventNotifier = fn ?? notifyUserEvent;
+}
 
 /* ── Ticketed live — pay-per-view doors on Go Live (Wave 4 #31) ─────────
    A creator sets a ticket price (Visual Bucs) + optional seat capacity
@@ -495,13 +528,16 @@ export async function buyStreamTicket(input: {
     // (this block runs only while creator_credited_at was unset).
     // Best-effort, like every house notification.
     try {
-      await db.insert(notificationsTable).values({
-        userId: stream.user_id,
-        kind: "live_ticket",
-        title: `${input.buyerDisplayName?.trim() || "Someone"} bought a ticket to your stream`,
-        body: `${split.net.toLocaleString("en-US")} Visual Bucs from a ${priceVb.toLocaleString("en-US")} VB ticket${stream.title ? ` to "${stream.title}"` : ""}.`,
-        link: `/live/${stream.id}`,
-      });
+      await _liveTicketEventNotifier(
+        buildLiveTicketSaleEvent({
+          creatorUserId: stream.user_id,
+          buyerDisplayName: input.buyerDisplayName,
+          netVb: split.net,
+          priceVb,
+          streamId: stream.id,
+          streamTitle: stream.title,
+        }),
+      );
     } catch (notifyErr) {
       logger.warn({ notifyErr, ticketId: ticket.id }, "live ticket: bell notification failed (sale itself landed)");
     }

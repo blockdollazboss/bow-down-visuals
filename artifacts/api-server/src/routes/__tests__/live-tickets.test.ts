@@ -435,7 +435,12 @@ import liveStreamsRouter, { __resetViewerTracker } from "../live-streams";
 import liveTicketsRouter from "../live-tickets";
 import liveChatRouter, { registerLiveChatWs } from "../live-chat";
 import liveTipsRouter from "../live-tips";
-import { refundStreamTicket, canEnterStream } from "../../lib/live-tickets";
+import {
+  refundStreamTicket,
+  canEnterStream,
+  __setLiveTicketEventNotifier,
+  buildLiveTicketSaleEvent,
+} from "../../lib/live-tickets";
 import { LiveWsGateway } from "../../lib/live-ws";
 
 const realFetch = globalThis.fetch;
@@ -618,6 +623,48 @@ describe("the buy rail", () => {
     expect(bal(FAN)).toBe(800);
     expect(bal(CREATOR)).toBe(190);
     expect(h.state.tickets).toHaveLength(1);
+  });
+
+  it("notification-truth: the sale tell rides the money channel, exactly once per landed purchase", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    __setLiveTicketEventNotifier(async (input: unknown) => {
+      seen.push(input as Record<string, unknown>);
+    });
+    try {
+      const first = await call("POST", `/api/live-streams/${T1}/ticket`, { user: FAN, body: {} });
+      expect(first.status).toBe(201);
+      const again = await call("POST", `/api/live-streams/${T1}/ticket`, { user: FAN, body: {} });
+      expect(again.status).toBe(200);
+      expect(again.json.already_had).toBe(true);
+    } finally {
+      __setLiveTicketEventNotifier(null);
+    }
+    // One purchase = one event on the money channel; the repeat buy
+    // (which returns the held ticket) fires nothing. Copy names the
+    // net the creator actually received, not just the sticker price.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      userId: CREATOR,
+      category: "money",
+      kind: "live_ticket",
+      link: `/live/${T1}`,
+    });
+    expect(String(seen[0]!["title"])).toContain("bought a ticket to your stream");
+    expect(String(seen[0]!["body"])).toContain("190 Visual Bucs from a 200 VB ticket");
+    expect(
+      buildLiveTicketSaleEvent({
+        creatorUserId: CREATOR,
+        buyerDisplayName: "Fan One",
+        netVb: 190,
+        priceVb: 200,
+        streamId: T1,
+        streamTitle: "Friday Set",
+      }),
+    ).toMatchObject({
+      category: "money",
+      title: "Fan One bought a ticket to your stream",
+      body: "190 Visual Bucs from a 200 VB ticket to \"Friday Set\".",
+    });
   });
 
   it("refuses an underfunded buyer with nothing recorded", async () => {
