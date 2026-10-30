@@ -1286,7 +1286,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               aria-checked={draftMode}
               onClick={() => setDraftMode(!draftMode)}
               data-testid="draft-mode-toggle"
-              className="flex items-center gap-2 text-[11px] font-bold text-white/60 hover:text-white transition"
+              className="flex items-center gap-2 text-[11px] font-bold text-white/60 hover:text-white transition bdv-touch-target"
             >
               <span className={`relative h-5 w-9 rounded-full transition ${draftMode ? "bg-primary" : "bg-white/15"}`}>
                 <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${draftMode ? "left-[18px]" : "left-0.5"}`} />
