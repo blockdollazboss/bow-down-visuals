@@ -787,7 +787,19 @@ async function startRtmpIngestStream(input: {
       })
       .returning();
     const row = inserted[0]!;
-    const begun = beginSession(row.id);
+    /* Same atomicity rule as the browser create: a begin that
+       throws must not strand a live row with no session behind it. */
+    let begun: ReturnType<typeof beginSession>;
+    try {
+      begun = beginSession(row.id);
+    } catch (err) {
+      await endStreamRow(row, 0).catch(() => undefined);
+      logger.error(
+        { err, streamId: row.id },
+        "live-streams: RTMP engine session failed to start — stream ended before it began",
+      );
+      return { ok: false, message: "The stage couldn't start this stream." };
+    }
     if (!begun.ok) {
       // Lost the capacity race between the check and the insert.
       await endStreamRow(row, 0).catch(() => undefined);
@@ -1035,7 +1047,26 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           })
           .returning();
         const row = inserted[0]!;
-        const begun = beginSession(row.id);
+        /* The row is live from this insert; the engine session is
+           what makes it real. A begin that THROWS (e.g. the session
+           directory can't be created) must not strand a live row
+           with nothing behind it — end the row and answer honestly,
+           exactly like the capacity race below. */
+        let begun: ReturnType<typeof beginSession>;
+        try {
+          begun = beginSession(row.id);
+        } catch (err) {
+          await endStreamRow(row, 0).catch(() => undefined);
+          logger.error(
+            { err, streamId: row.id },
+            "live-streams create: engine session failed to start — stream ended before it began",
+          );
+          res.status(503).json({
+            error: "The stage couldn't start your stream — nothing went live. Give it a moment and try again.",
+            code: "SESSION_START_FAILED",
+          });
+          return;
+        }
         if (!begun.ok) {
           // Lost the capacity race between the check and the insert.
           await endStreamRow(row, 0).catch(() => undefined);

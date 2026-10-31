@@ -42,6 +42,10 @@ const h = vi.hoisted(() => ({
     own: {
       activeCount: 0,
       beginOk: true,
+      beginThrows: false,
+      rtmpHost: null as null | {
+        startStream: (input: { userId: string; profileId: string; title: string | null }) => Promise<{ ok: boolean; message?: string; streamId?: string }>;
+      },
       beginCalls: [] as string[],
       sessions: new Set<string>(),
       seqs: new Map<string, Set<number>>(),
@@ -125,6 +129,7 @@ vi.mock("../../lib/own-server-live", async (importOriginal) => {
     activeSessionCount: () => own.activeCount,
     beginSession: (id: string) => {
       own.beginCalls.push(id);
+      if (own.beginThrows) throw new Error("ENOSPC: session dir create failed");
       if (!own.beginOk) return { ok: false, code: "CAPACITY" };
       own.sessions.add(id);
       own.activeCount += 1;
@@ -153,6 +158,18 @@ vi.mock("../../lib/own-server-live", async (importOriginal) => {
       if (!actual.isLiveFileName(name)) return null;
       const p = path.join(h.state.hlsDir, id, name);
       return fs.existsSync(p) ? p : null;
+    },
+  };
+});
+
+/* The RTMP host registration is captured so tests can drive an
+   encoder publish directly; everything else stays real. */
+vi.mock("../../lib/rtmp-ingest", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    initRtmpIngest: (host: any) => {
+      h.state.own.rtmpHost = host;
     },
   };
 });
@@ -317,6 +334,7 @@ beforeEach(() => {
   s.seq = 0;
   s.own.activeCount = 0;
   s.own.beginOk = true;
+  s.own.beginThrows = false;
   s.own.beginCalls = [];
   s.own.sessions = new Set();
   s.own.seqs = new Map();
@@ -440,6 +458,41 @@ describe("status + create on the own transport", () => {
     expect(json.code).toBe("LIVE_CAPACITY");
     expect(h.state.streams.size).toBe(0);
     expect(h.state.own.beginCalls).toEqual([]);
+  });
+
+  /* W4: a session begin that THROWS (disk failure in the engine)
+     used to strand the inserted row at "live" behind a 500 — the
+     rail showed a stream nothing could publish to. The create must
+     end its own row and answer with the honest 503 instead. */
+  it("create ends its own row when the engine session begin throws", async () => {
+    h.state.own.beginThrows = true;
+    const { status, json } = await goLive();
+    expect(status).toBe(503);
+    expect(json.code).toBe("SESSION_START_FAILED");
+    expect(json.stream).toBeUndefined();
+    expect(h.state.own.beginCalls).toHaveLength(1);
+    const rows = [...h.state.streams.values()];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!["status"]).toBe("ended");
+    expect(rows[0]!["ended_at"]).toBeTruthy();
+    /* And the creator is free to try again — no phantom ALREADY_LIVE. */
+    h.state.own.beginThrows = false;
+    const retry = await goLive();
+    expect(retry.status).toBe(201);
+  });
+
+  /* W4: the RTMP publish path shares the rule — a throwing begin
+     refuses the publish AND leaves no live row behind. */
+  it("rtmp start ends its own row when the engine session begin throws", async () => {
+    const host = h.state.own.rtmpHost;
+    expect(host).not.toBeNull();
+    h.state.own.beginThrows = true;
+    const res = await host!.startStream({ userId: AUTH_USER, profileId: PROFILE_ID, title: null });
+    expect(res.ok).toBe(false);
+    const rows = [...h.state.streams.values()];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!["status"]).toBe("ended");
+    expect(rows[0]!["ingest_source"]).toBe("rtmp");
   });
 });
 
