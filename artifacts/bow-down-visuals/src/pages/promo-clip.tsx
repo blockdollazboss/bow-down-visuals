@@ -271,6 +271,7 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
   /* ── From-project state ── */
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectSearch, setProjectSearch] = useState("");
   const [promoType, setPromoType] = useState("");
@@ -372,10 +373,14 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch("/api/projects", { headers });
-      if (res.ok) {
-        const data = (await res.json()) as { projects: Project[] };
-        setProjects(data.projects ?? []);
-      }
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { projects: Project[] };
+      setProjects(data.projects ?? []);
+      setProjectsError(false);
+    } catch {
+      /* A failed load is NOT an empty project list — the error state below
+         renders instead of "create your first project." */
+      setProjectsError(true);
     } finally {
       setProjectsLoading(false);
     }
@@ -675,6 +680,15 @@ export default function PromoClip({ embedded }: { embedded?: boolean } = {}) {
               ) : projectsLoading ? (
                 <div className="flex items-center gap-2 text-white/35 py-6">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("promo-clip.loadingProjects")}
+                </div>
+              ) : projectsError ? (
+                <div className="text-center py-10">
+                  <FolderOpen className="h-8 w-8 text-white/15 mx-auto mb-3" />
+                  <p className="text-white/50 text-sm mb-1">{t("promo-clip.projectsLoadError", { defaultValue: "We couldn't load your projects" })}</p>
+                  <p className="text-white/35 text-sm mb-4">{t("promo-clip.projectsLoadErrorBody", { defaultValue: "Your projects are safe — this just couldn't reach them. Check your connection and try again." })}</p>
+                  <Button size="sm" variant="outline" className="border-white/10 text-white/60" onClick={() => void loadProjects()} data-testid="btn-retry-projects">
+                    {t("promo-clip.retryLoad", { defaultValue: "Try again" })}
+                  </Button>
                 </div>
               ) : projects.length === 0 ? (
                 <div className="text-center py-10">

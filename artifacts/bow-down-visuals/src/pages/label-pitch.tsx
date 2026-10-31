@@ -200,6 +200,7 @@ export default function LabelPitch() {
   /* ── tracker state ── */
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [trackerLoading, setTrackerLoading] = useState(false);
+  const [trackerError, setTrackerError] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSubmission, setNewSubmission] = useState({
     songTitle: "", artistName: "", labelName: "", notes: "",
@@ -237,8 +238,14 @@ export default function LabelPitch() {
     setTrackerLoading(true);
     try {
       const { res, data } = await authedFetch(getAccessToken, "/api/label-pitch/tracker");
-      if (res.ok) setSubmissions((data as { pitches: Submission[] }).pitches ?? []);
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setSubmissions((data as { pitches: Submission[] }).pitches ?? []);
+      setTrackerError(false);
+    } catch {
+      /* A failed load is NOT an empty tracker — the error state below
+         renders instead of "No submissions logged yet." */
+      setTrackerError(true);
+    }
     finally { setTrackerLoading(false); }
   }
 
@@ -940,6 +947,22 @@ export default function LabelPitch() {
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-white/30" aria-hidden="true" />
               </div>
+            ) : trackerError ? (
+              <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <ClipboardList className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
+                <p className="font-semibold text-white/60">{t("labelPitch.trackerLoadError", { defaultValue: "We couldn't load your pitch tracker" })}</p>
+                <p className="mt-1 text-sm text-white/35">
+                  {t("labelPitch.trackerLoadErrorBody", { defaultValue: "Your logged pitches are safe — this page just couldn't reach them. Check your connection and try again." })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadTracker()}
+                  className="mt-4 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-tracker"
+                >
+                  {t("labelPitch.retryLoad", { defaultValue: "Try again" })}
+                </button>
+              </div>
             ) : submissions.length === 0 ? (
               <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ClipboardList className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
@@ -1256,6 +1279,7 @@ function PlaylistsPitchTab() {
   /* ── tracker state ── */
   const [pitches, setPitches] = useState<PlaylistPitch[]>([]);
   const [trackerLoading, setTrackerLoading] = useState(false);
+  const [trackerError, setTrackerError] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPitch, setNewPitch] = useState({
     songTitle: "", artistName: "", curatorName: "", playlistName: "", notes: "",
@@ -1307,8 +1331,14 @@ function PlaylistsPitchTab() {
     setTrackerLoading(true);
     try {
       const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/tracker");
-      if (res.ok) setPitches((data as { pitches: PlaylistPitch[] }).pitches ?? []);
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setPitches((data as { pitches: PlaylistPitch[] }).pitches ?? []);
+      setTrackerError(false);
+    } catch {
+      /* A failed load is NOT an empty tracker — the error state below
+         renders instead of "No pitches logged yet." */
+      setTrackerError(true);
+    }
     finally { setTrackerLoading(false); }
   }
 
@@ -2397,7 +2427,26 @@ function PlaylistsPitchTab() {
                 </div>
               );
             })}
-            {!trackerLoading && pitches.length === 0 && (
+            {!trackerLoading && trackerError && (
+              <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
+                <ClipboardList className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
+                <p className="mt-3 text-sm font-semibold text-white/60">
+                  {t("playlistPitch.trackerLoadError", { defaultValue: "We couldn't load your pitch tracker" })}
+                </p>
+                <p className="mt-1 text-sm text-white/40">
+                  {t("playlistPitch.trackerLoadErrorBody", { defaultValue: "Your logged pitches are safe — this page just couldn't reach them. Check your connection and try again." })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadTracker()}
+                  className="mt-4 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-playlist-tracker"
+                >
+                  {t("playlistPitch.retryLoad", { defaultValue: "Try again" })}
+                </button>
+              </div>
+            )}
+            {!trackerLoading && !trackerError && pitches.length === 0 && (
               <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
                 <ClipboardList className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
                 <p className="mt-3 text-sm text-white/50">
