@@ -154,7 +154,7 @@ export async function sendCampaignDelivery(
     if (link) wrapped.set(url, `${prep.base}/api/email-track/c/${link.token}`);
   }
 
-  const html = renderTrackedCampaignHtml({ body: campaign.body, deliveryToken: delivery.token, wrappedLinks: wrapped, baseUrl: prep.base });
+  const html = renderTrackedCampaignHtml({ body: campaign.body, deliveryToken: delivery.token, wrappedLinks: wrapped, baseUrl: prep.base, title: campaign.subject });
   const result = await sendEmail({
     to: sub.email,
     subject: campaign.subject,
