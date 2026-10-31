@@ -71,7 +71,8 @@ export default function LightningSetup({
   const [lane, setLane] = useState<VerticalId>("music");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
-  const [slugState, setSlugState] = useState<"idle" | "checking" | "ok" | "taken">("idle");
+  const [slugState, setSlugState] = useState<"idle" | "checking" | "ok" | "taken" | "invalid">("idle");
+  const [slugError, setSlugError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [vibe, setVibe] = useState("");
   const [busy, setBusy] = useState(false);
@@ -120,7 +121,14 @@ export default function LightningSetup({
       try {
         const res = await fetch(`/api/creator-profiles/check-slug?slug=${encodeURIComponent(slug)}`);
         const data = await res.json();
-        if (data.valid === false) { setSlugState("taken"); return; }
+        /* valid:false means the slug itself can't be used (too short,
+           bad edges) — the server sends the real reason; show it instead
+           of calling every unusable slug "Taken". */
+        if (data.valid === false) {
+          setSlugState("invalid");
+          setSlugError(typeof data.error === "string" ? data.error : "That link can't be used.");
+          return;
+        }
         setSlugState(data.available ? "ok" : "taken");
       } catch {
         setSlugState("idle");
@@ -371,6 +379,9 @@ export default function LightningSetup({
                 <button onClick={suggestSlug} className="mt-1 text-xs text-amber-300 underline">
                   Taken — try {slugify(name)}-{Math.floor(10 + Math.random() * 89)}?
                 </button>
+              )}
+              {slugState === "invalid" && slug && (
+                <p className="mt-1 text-xs text-amber-300">{slugError}</p>
               )}
             </div>
           </div>

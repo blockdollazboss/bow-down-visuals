@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check, Circle, Gift, Disc3, ShoppingBag, Megaphone, Share2, Copy, PartyPopper,
 } from "lucide-react";
 import type { CreatorProfile } from "@/lib/artist-profiles";
 import { profileUrl } from "@/lib/artist-profiles";
+import { useAuth } from "@/contexts/AuthContext";
+import { withRefCode } from "@/lib/referral-link";
 
 /* ─── Get Paid finale ─────────────────────────────────────────────────────
    Standing: every flow guides the creator toward monetization and ends in a
@@ -35,6 +37,30 @@ export function GetPaidChecklist({
     () => typeof window !== "undefined" && localStorage.getItem(`ap-shared-${profile.slug}`) === "1"
   );
   const [copied, setCopied] = useState(false);
+  const { getAccessToken } = useAuth();
+  const [refCode, setRefCode] = useState<string | null>(null);
+
+  /* The creator's own referral code, for the share/copy actions below. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const res = await fetch("/api/referrals/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const d = (await res.json()) as { code?: string };
+        if (!cancelled && typeof d.code === "string") setRefCode(d.code);
+      } catch {
+        /* offline — shares fall back to the plain page URL */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [getAccessToken]);
+
+  const shareUrl = () => withRefCode(profileUrl(profile), refCode);
 
   const markShared = () => {
     setShared(true);
@@ -43,14 +69,14 @@ export function GetPaidChecklist({
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(profileUrl(profile));
+      await navigator.clipboard.writeText(shareUrl());
       setCopied(true); markShared();
       setTimeout(() => setCopied(false), 2000);
     } catch { /* noop */ }
   };
 
   const shareNative = async () => {
-    const url = profileUrl(profile);
+    const url = shareUrl();
     try {
       if (navigator.share) { await navigator.share({ title: `${profile.display_name} — Bow Down Visuals`, url }); markShared(); }
       else await copyLink();

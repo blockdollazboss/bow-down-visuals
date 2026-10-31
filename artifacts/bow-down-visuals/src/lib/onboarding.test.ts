@@ -46,6 +46,58 @@ describe("TOUR_STEPS", () => {
   });
 });
 
+/* ── first-run truth: every promise the tour makes must be real ──────
+   Lane N6 (stack1000): 3 of the 4 spotlight targets existed nowhere in
+   the app (no sidebar link carried the tour ids), the closing step sent
+   people to Settings for a replay that actually lives in the sidebar
+   Help panel, and two steps named features by names the nav doesn't
+   use ("Creator Vault", "Video for My Song"). These pins hold the fix:
+   every targeted step's data-tour id must be carried by a real element,
+   and step titles must match the names the nav actually shows. */
+
+import { readFileSync } from "node:fs";
+
+const sidebarSrc = readFileSync(
+  new URL("../components/layout/app-sidebar.tsx", import.meta.url),
+  "utf8",
+);
+const helpPanelSrc = readFileSync(
+  new URL("../components/HelpPanel.tsx", import.meta.url),
+  "utf8",
+);
+const en = JSON.parse(
+  readFileSync(new URL("../locales/en.json", import.meta.url), "utf8"),
+) as { nav: Record<string, string> };
+
+describe("TOUR_STEPS — first-run truth", () => {
+  it("every spotlight target is carried by a real sidebar element", () => {
+    for (const s of TOUR_STEPS) {
+      if (!s.target) continue;
+      const id = /\[data-tour="([\w-]+)"\]/.exec(s.target)?.[1];
+      expect(id, `step ${s.id} target parses`).toBeTruthy();
+      const wired =
+        sidebarSrc.includes(`tour: "${id}"`) ||
+        sidebarSrc.includes(`data-tour="${id}"`);
+      expect(wired, `step ${s.id} → data-tour="${id}" exists in the sidebar`).toBe(true);
+    }
+  });
+
+  it("names features by the names the nav uses", () => {
+    const byId = Object.fromEntries(TOUR_STEPS.map((s) => [s.id, s]));
+    expect(byId["artist-vault"]!.title).toBe(en.nav.creatorVault);
+    expect(byId["video-editor"]!.title).toBe(en.nav.videoEditor);
+    expect(byId["make-video"]!.title).toBe("Make a Music Video");
+  });
+
+  it("sends replay to the Help panel, where the replay button lives", () => {
+    const done = TOUR_STEPS.find((s) => s.id === "done")!;
+    expect(done.body).toContain("Need Help?");
+    expect(done.body).not.toContain("from Settings");
+    expect(helpPanelSrc).toContain("requestOnboardingTour()");
+    expect(sidebarSrc).toContain("open-help-panel");
+  });
+});
+
 /* ── persistence (mocked localStorage — node env has no window) ─────── */
 
 function installFakeStorage() {
