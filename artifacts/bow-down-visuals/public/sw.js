@@ -1,17 +1,24 @@
 /* Bow Down Visuals service worker.
  * Cache-first ONLY for hashed build assets (/assets/* — a new deploy means
  * new URLs, so cache-first can never serve stale code) and for the vendored
- * engine files (/engines/* — version-pinned WASM/models under stable names,
- * served immutable by the API; cache-first stops repeat visits from
- * re-downloading tens of MB). Everything else same-origin (public files
- * with stable names: the extension zip, posters, opengraph, llms.txt,
- * sitemap) is network-first with a cache fallback — those files are
- * rebuilt under the SAME name, and cache-first would pin returning
- * visitors to the old copy indefinitely.
+ * engine BINARIES (/engines/* WASM/models under stable names, served
+ * immutable by the API; cache-first stops repeat visits from re-downloading
+ * tens of MB). Engine SCRIPT GLUE (.js/.mjs under /engines/*) is
+ * network-first, mirroring the API's cache policy (lib/cache-policy.ts):
+ * glue is mutable code whose content changes under a stable name, and
+ * cache-first here would pin the old copy in this cache even though the
+ * server deliberately revalidates glue — the green-screen disease (a
+ * year-pinned rvm-worker.js) in a second host. Everything else
+ * same-origin (public files with stable names: the extension zip,
+ * posters, opengraph, llms.txt, sitemap) is network-first with a cache
+ * fallback — those files are rebuilt under the SAME name, and cache-first
+ * would pin returning visitors to the old copy indefinitely.
  * Network-first for API + navigations.
- * Bump CACHE_VERSION to force clients onto fresh assets after a deploy.
+ * Bump CACHE_VERSION to force clients onto fresh assets after a deploy —
+ * v6 exists to purge the v5 caches, which hold engine glue pinned by the
+ * old blanket cache-first rule.
  */
-const CACHE_VERSION = "bdv-v5";
+const CACHE_VERSION = "bdv-v6";
 const STATIC_CACHE = `bdv-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 
@@ -97,6 +104,16 @@ function isApiRequest(url) {
   return url.pathname.startsWith("/api/");
 }
 
+/* Engine script glue (.js/.mjs under /engines/*) — mutable code under
+ * stable names, network-first like the server's own cache policy.
+ * Everything else under /engines/* (wasm/onnx/tflite/task/bin/data)
+ * is a version-pinned heavy binary and stays cache-first. */
+function isEngineGlue(url) {
+  if (!url.pathname.startsWith("/engines/")) return false;
+  const lower = url.pathname.toLowerCase();
+  return lower.endsWith(".js") || lower.endsWith(".mjs");
+}
+
 function isNavigation(request) {
   return request.mode === "navigate";
 }
@@ -123,8 +140,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(SHELL_CACHE).then((c) => c.put("/index.html", copy));
+          // Only a good page may become the offline shell — an error
+          // response (a 401 gate form, a 500) cached here would be
+          // served later as if it were the app.
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(SHELL_CACHE).then((c) => c.put("/index.html", copy));
+          }
           return res;
         })
         .catch(() =>
@@ -140,10 +162,36 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Engine script glue: network-first (see isEngineGlue) — a cached
+  // copy is only the offline fallback, never the first answer.
+  if (isEngineGlue(url)) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          if (res.ok && res.type === "basic") {
+            const copy = res.clone();
+            caches.open(STATIC_CACHE).then((c) => c.put(request, copy));
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.match(request).then((cached) => {
+            if (cached) return cached;
+            return new Response("Offline — Bow Down Visuals needs a connection to load.", {
+              status: 503,
+              headers: { "Content-Type": "text/plain" },
+            });
+          })
+        )
+    );
+    return;
+  }
+
   // Hashed build assets (/assets/*): the filename carries a content hash,
   // so a cached copy can never be stale — cache-first, populate on miss.
-  // Vendored engines (/engines/*) get the same treatment: version-pinned
-  // files under stable names, served with immutable cache headers.
+  // Vendored engine binaries (/engines/*) get the same treatment:
+  // version-pinned files under stable names, served with immutable
+  // cache headers.
   if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/engines/")) {
     event.respondWith(
       caches.match(request).then((cached) => {
