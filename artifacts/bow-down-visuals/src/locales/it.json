@@ -1296,6 +1296,9 @@
     "whatToMakeNext": "Cosa dovrei creare dopo? · {{credits}} Visual Bucs"
   },
   "artistVault": {
+    "loadVaultsError": "Impossibile caricare i tuoi profili",
+    "loadVaultsErrorBody": "I tuoi profili sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "pageTitle": "Vault del Creator",
     "pageDescription": "La tua identità creativa — profili artista, foto, voce e asset del brand in un'unica vault.",
     "closeDialog": "Chiudi la finestra di dialogo",
@@ -1981,6 +1984,7 @@
     "findBrands": "Trova brand a cui proporti"
   },
   "brandDeals": {
+    "noMatchesHunt": "La tua caccia è tornata vuota questa volta — nessun brand ha corrisposto. È una risposta vera, non un fallimento: prova una nicchia più ampia o un pubblico più vasto.",
     "addPlatformPlaceholder": "+ aggiungi piattaforma",
     "audienceLabel": "Dimensione del pubblico",
     "audiences": {
@@ -2097,6 +2101,9 @@
     "title": "Kit di Branding"
   },
   "brandingShop": {
+    "ordersLoadError": "Impossibile caricare i tuoi ordini",
+    "ordersLoadErrorBody": "I tuoi ordini sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "addToCart": "Aggiungi al carrello",
     "brandIdentityLabel": "Identità del brand",
     "brandNameLabel": "Nome del brand",
@@ -2274,6 +2281,9 @@
     "titleAi": "AI"
   },
   "chooseArtist": {
+    "loadErrorTitle": "Impossibile caricare i tuoi artisti",
+    "loadErrorDescription": "I tuoi profili sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "createProfile": "Crea profilo artista",
     "emptyDescription": "Configura un profilo artista per mantenere coerenti musica e visual. Ci vogliono circa 2 minuti — oppure salta per ora e aggiungilo dopo.",
     "emptyTitle": "Nessun profilo artista ancora",
@@ -3061,6 +3071,8 @@
     "your_user_id": "Il tuo ID utente"
   },
   "distribute": {
+    "songs_load_error": "Impossibile caricare la tua libreria di brani — i tuoi brani sono al sicuro, non è stato possibile raggiungerli.",
+    "retry_load": "Riprova",
     "pick_your_music": "Scegli la tua musica",
     "release_metadata": "Metadati del rilascio",
     "midnight_frequencies": "Midnight Frequencies",
@@ -4169,6 +4181,9 @@
     "designCarried": "Il design del tuo studio è stato importato — controllalo qui sotto."
   },
   "labelPitch": {
+    "trackerLoadError": "Impossibile caricare il tuo tracker dei pitch",
+    "trackerLoadErrorBody": "I tuoi pitch registrati sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "advancedSuffix": " bio, statistiche e testo (pacchetto migliore)",
     "allGenres": "tutti i generi",
     "analysisEnergy": "Energia",
@@ -5857,6 +5872,9 @@
     "titleStart": "Da testo a"
   },
   "shop": {
+    "loadErrorTitle": "Impossibile caricare questo negozio",
+    "loadErrorDesc": "Il negozio potrebbe esserci ancora — questa pagina non è riuscita a raggiungerlo. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "addToCart": "Aggiungi al carrello",
     "browseAllShops": "Sfoglia tutti i negozi",
     "cartEmpty": "Il tuo carrello è vuoto.",
@@ -5970,6 +5988,7 @@
     "paidDesc": "Il tuo shoutout è pagato e accettato. Il creatore lo registrerà e te lo invierà entro i suoi tempi di consegna."
   },
   "shows": {
+    "noMatches": "La tua caccia è tornata vuota questa volta — nessun palco ha corrisposto. È una risposta vera, non un fallimento: prova un'area più ampia o un altro intervallo di date.",
     "artistNameLabel": "Il tuo nome d'artista",
     "artistNamePlaceholder": "es. TRGDY TRBLZ",
     "bioPlaceholder": "es. Artista hip-hop ad alta energia, 2 anni di live, ha aperto per…",
@@ -6240,6 +6259,9 @@
     "simpleTabLabel": "Turbo"
   },
   "songs": {
+    "coversLoadError": "Impossibile caricare le cover di questo brano — le tue cover sono al sicuro, non è stato possibile raggiungerle.",
+    "mashupsLoadError": "Impossibile caricare i mashup di questo brano — non è stato possibile raggiungerli.",
+    "retryLoad": "Riprova",
     "cancelButton": "Annulla",
     "chooseFileButton": "Scegli il file audio",
     "emptyLibrary": "Ancora nessuna canzone. Carica la prima qui sopra.",
@@ -6673,6 +6695,8 @@
     "sendToScheduler": "Invia al programmatore"
   },
   "tour": {
+    "datesLoadError": "Impossibile caricare le date del tuo tour — le tue date sono al sicuro, questa pagina non è riuscita a raggiungerle.",
+    "retryLoad": "Riprova",
     "addDateFree": "Aggiungi data del tour · Gratis",
     "addDateTitle": "Aggiungi una data del tour",
     "budgetContingency": "Imprevisti",
@@ -8434,6 +8458,9 @@
     }
   },
   "playlistPitch": {
+    "trackerLoadError": "Impossibile caricare il tuo tracker dei pitch",
+    "trackerLoadErrorBody": "I tuoi pitch registrati sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "copied": "Copiato",
     "copyLabel": "Copia {{label}}",
     "copyAria": "Copia {{label}}",
@@ -9226,6 +9253,8 @@
     "promoteRelease": "Promuovi questa uscita →"
   },
   "press-kit": {
+    "kitsLoadError": "Impossibile caricare le tue cartelle stampa — le tue cartelle sono al sicuro, non è stato possibile raggiungerle.",
+    "retryLoad": "Riprova",
     "backToDashboard": "Torna alla dashboard",
     "confirmDelete": "Eliminare questo press kit? L'azione non può essere annullata.",
     "confirmFeatureGenerate": "Generatore di press kit",
@@ -12762,6 +12791,9 @@
     "yourMedia": "I tuoi media"
   },
   "promo-clip": {
+    "projectsLoadError": "Impossibile caricare i tuoi progetti",
+    "projectsLoadErrorBody": "I tuoi progetti sono al sicuro — non è stato possibile raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova",
     "advanced": {
       "hookOverride": "Sostituzione hook / testo migliore",
       "hookOverrideHint": "Incolla un hook o una strofa specifica su cui centrare la promo. Se vuoto, lo prendiamo automaticamente dai testi del tuo progetto.",
@@ -13098,6 +13130,8 @@
     "loaderSub": "Thy Cheat Code sta preparando il tuo mondo"
   },
   "retentionDelight": {
+    "board_load_error": "Impossibile caricare la classifica — non è stato possibile raggiungerla.",
+    "retry_load": "Riprova",
     "board_creations": "creazioni",
     "board_empty": "Ancora nessuna creazione questa settimana — sii il primo in classifica.",
     "board_note": "Solo status — nessun pagamento in VB. Diritti di vanto per sempre.",

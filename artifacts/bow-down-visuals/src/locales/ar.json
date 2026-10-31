@@ -1296,6 +1296,9 @@
     "hookLabel": "الخطاف: «{{hook}}»"
   },
   "artistVault": {
+    "loadVaultsError": "تعذّر تحميل ملفاتك الشخصية",
+    "loadVaultsErrorBody": "ملفاتك الشخصية آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "activeArtist": "الفنان النشط",
     "activeBadge": "نشط",
     "addButton": "إضافة",
@@ -1984,6 +1987,7 @@
     "findBrands": "العثور على علامات للعرض عليها"
   },
   "brandDeals": {
+    "noMatchesHunt": "جاءت نتيجتك فارغة هذه المرة — لم تتطابق أي علامة. هذه إجابة حقيقية وليست فشلاً: جرّب مجالاً أوسع أو نطاق جمهور أكبر.",
     "addPlatformPlaceholder": "+ إضافة منصة",
     "audienceLabel": "حجم الجمهور",
     "audiences": {
@@ -2100,6 +2104,9 @@
     "title": "عدة العلامة التجارية"
   },
   "brandingShop": {
+    "ordersLoadError": "تعذّر تحميل طلباتك",
+    "ordersLoadErrorBody": "طلباتك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "addToCart": "أضف إلى السلة",
     "brandIdentityLabel": "الهوية التجارية",
     "brandNameLabel": "اسم العلامة",
@@ -2277,6 +2284,9 @@
     "titleAi": "بالذكاء الاصطناعي"
   },
   "chooseArtist": {
+    "loadErrorTitle": "تعذّر تحميل فنانيك",
+    "loadErrorDescription": "ملفاتك الشخصية آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "createProfile": "إنشاء ملف فنان",
     "emptyDescription": "أنشئ ملف فنان للحفاظ على اتساق موسيقاك ومرئياتك. يستغرق حوالي دقيقتين — أو تخطَّه الآن وأضفه لاحقاً.",
     "emptyTitle": "لا توجد ملفات فنانين بعد",
@@ -3082,6 +3092,8 @@
     "missing": "مفقود"
   },
   "distribute": {
+    "songs_load_error": "تعذّر تحميل مكتبة أغانيك — أغانيك آمنة، فقط تعذّر الوصول إليها.",
+    "retry_load": "حاول مجدداً",
     "100_visual_bucs": "100 Visual Bucs",
     "2_week_promo_plan": "خطة ترويج لأسبوعين",
     "add_collaborator": "أضف متعاوناً",
@@ -4196,6 +4208,9 @@
     "designCarried": "نُقل تصميم الاستوديو الخاص بك — راجعه أدناه."
   },
   "labelPitch": {
+    "trackerLoadError": "تعذّر تحميل متعقّب عروضك",
+    "trackerLoadErrorBody": "عروضك المسجّلة آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "advancedSuffix": " والسيرة الذاتية والإحصاءات والكلمات (حزمة أفضل)",
     "allGenres": "جميع الأنواع",
     "analysisEnergy": "الطاقة",
@@ -5893,6 +5908,9 @@
     "titleStart": "تحويل النص إلى"
   },
   "shop": {
+    "loadErrorTitle": "تعذّر تحميل هذا المتجر",
+    "loadErrorDesc": "قد يكون المتجر ما زال موجوداً — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "addToCart": "أضف إلى السلة",
     "browseAllShops": "تصفّح كل المتاجر",
     "cartEmpty": "سلتك فارغة.",
@@ -6006,6 +6024,7 @@
     "paidDesc": "صيحتك مدفوعة ومقبولة. سيسجلها المبدع ويرسلها إليك ضمن وقت التسليم الخاص به."
   },
   "shows": {
+    "noMatches": "جاءت نتيجتك فارغة هذه المرة — لم تتطابق أي مسارح. هذه إجابة حقيقية وليست فشلاً: جرّب منطقة أوسع أو نطاق تواريخ مختلفاً.",
     "artistNameLabel": "اسمك الفني",
     "artistNamePlaceholder": "مثال: TRGDY TRBLZ",
     "bioPlaceholder": "مثال: فنان هيب هوب عالي الطاقة، سنتان من الأداء، افتتح لـ…",
@@ -6276,6 +6295,9 @@
     "simpleTabLabel": "Turbo"
   },
   "songs": {
+    "coversLoadError": "تعذّر تحميل أغاني التغطية لهذه الأغنية — أغانيك آمنة، فقط تعذّر الوصول إليها.",
+    "mashupsLoadError": "تعذّر تحميل المزجات لهذه الأغنية — فقط تعذّر الوصول إليها.",
+    "retryLoad": "حاول مجدداً",
     "cancelButton": "إلغاء",
     "chooseFileButton": "اختر ملف الصوت",
     "emptyLibrary": "لا أغاني بعد. ارفع أول أغنية أعلاه.",
@@ -6712,6 +6734,8 @@
     "sendToScheduler": "إرسال إلى المجدول"
   },
   "tour": {
+    "datesLoadError": "تعذّر تحميل مواعيد جولتك — مواعيدك آمنة، هذه الصفحة فقط لم تتمكّن من الوصول إليها.",
+    "retryLoad": "حاول مجدداً",
     "addDateFree": "إضافة موعد جولة · مجاني",
     "addDateTitle": "إضافة موعد جولة",
     "budgetContingency": "طوارئ",
@@ -8569,6 +8593,9 @@
     "filesSkipped_many": "تم تخطي {{count}} ملفًا — نوع غير مدعوم أو أكبر من 25 MB."
   },
   "playlistPitch": {
+    "trackerLoadError": "تعذّر تحميل متعقّب عروضك",
+    "trackerLoadErrorBody": "عروضك المسجّلة آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "copied": "تم النسخ",
     "copyLabel": "نسخ {{label}}",
     "copyAria": "نسخ {{label}}",
@@ -9523,6 +9550,8 @@
     "promoteRelease": "روّج لهذا الإصدار ←"
   },
   "press-kit": {
+    "kitsLoadError": "تعذّر تحميل ملفاتك الصحفية — ملفاتك آمنة، فقط تعذّر الوصول إليها.",
+    "retryLoad": "حاول مجدداً",
     "backToDashboard": "العودة إلى لوحة التحكم",
     "confirmDelete": "حذف هذا الملف الصحفي؟ لا يمكن التراجع عن هذا.",
     "confirmFeatureGenerate": "منشئ الملف الصحفي",
@@ -9858,6 +9887,9 @@
     "title": "سياسة الخصوصية"
   },
   "promo-clip": {
+    "projectsLoadError": "تعذّر تحميل مشاريعك",
+    "projectsLoadErrorBody": "مشاريعك آمنة — فقط تعذّر الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً",
     "pageTitle": "Promo Clip Maker",
     "pageDescription": "حوّل أي أغنية إلى مقاطع ترويجية توقف التمرير لـ TikTok و Reels و Shorts.",
     "backToDashboard": "عودة إلى لوحة التحكم",
@@ -13473,6 +13505,8 @@
     "platform_youtube": "YouTube"
   },
   "retentionDelight": {
+    "board_load_error": "تعذّر تحميل اللوحة — فقط تعذّر الوصول إليها.",
+    "retry_load": "حاول مجدداً",
     "sharkDrop_title": "القرش أسقط شيئاً",
     "sharkDrop_subtitle": "أسقط القرش {{amount}} VB في خزنتك!",
     "sharkDrop_body": "هدية مفاجئة من Thy Cheat Code. اطلبها قبل أن تسبح بعيداً.",

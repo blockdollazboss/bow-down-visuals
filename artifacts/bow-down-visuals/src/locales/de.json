@@ -1296,6 +1296,9 @@
     "whatToMakeNext": "Was soll ich als Nächstes machen? · {{credits}} Visual Bucs"
   },
   "artistVault": {
+    "loadVaultsError": "Deine Profile konnten nicht geladen werden",
+    "loadVaultsErrorBody": "Deine Profile sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "activeArtist": "Aktiver Artist",
     "activeBadge": "AKTIV",
     "addButton": "Hinzufügen",
@@ -1980,6 +1983,7 @@
     "findBrands": "Marken zum Pitchen finden"
   },
   "brandDeals": {
+    "noMatchesHunt": "Deine Suche kam diesmal leer zurück — keine Marke hat gepasst. Das ist eine echte Antwort, kein Fehler: Versuche eine breitere Nische oder einen größeren Publikumsbereich.",
     "addPlatformPlaceholder": "+ Plattform hinzufügen",
     "audienceLabel": "Zielgruppengröße",
     "audiences": {
@@ -2096,6 +2100,9 @@
     "title": "Branding Kit"
   },
   "brandingShop": {
+    "ordersLoadError": "Deine Bestellungen konnten nicht geladen werden",
+    "ordersLoadErrorBody": "Deine Bestellungen sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "addToCart": "In den Warenkorb",
     "brandIdentityLabel": "Brand-Identität",
     "brandNameLabel": "Markenname",
@@ -2273,6 +2280,9 @@
     "titleAi": "KI"
   },
   "chooseArtist": {
+    "loadErrorTitle": "Deine Künstler konnten nicht geladen werden",
+    "loadErrorDescription": "Deine Profile sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "createProfile": "Artist-Profil erstellen",
     "emptyDescription": "Richte ein Artist-Profil ein, damit deine Musik und Visuals konsistent bleiben. Dauert etwa 2 Minuten — oder überspringe es vorerst und füge später eins hinzu.",
     "emptyTitle": "Noch keine Artist-Profile",
@@ -3054,6 +3064,8 @@
     "your_user_id": "Ihre Nutzer-ID"
   },
   "distribute": {
+    "songs_load_error": "Deine Song-Bibliothek konnte nicht geladen werden — deine Songs sind sicher, sie konnten nur nicht erreicht werden.",
+    "retry_load": "Erneut versuchen",
     "100_visual_bucs": "100 Visual Bucs",
     "2_week_promo_plan": "2-Wochen-Promo-Plan",
     "add_collaborator": "Mitwirkenden hinzufügen",
@@ -4160,6 +4172,9 @@
     "designCarried": "Dein Studio-Design wurde übernommen — prüfe es unten."
   },
   "labelPitch": {
+    "trackerLoadError": "Dein Pitch-Tracker konnte nicht geladen werden",
+    "trackerLoadErrorBody": "Deine erfassten Pitches sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "advancedSuffix": " Bio, Statistiken & Songtexte (besseres Paket)",
     "allGenres": "alle Genres",
     "analysisEnergy": "Energie",
@@ -5845,6 +5860,9 @@
     "titleStart": "Text-zu-"
   },
   "shop": {
+    "loadErrorTitle": "Dieser Shop konnte nicht geladen werden",
+    "loadErrorDesc": "Der Shop ist vielleicht noch da — diese Seite konnte ihn nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "addToCart": "In den Warenkorb",
     "browseAllShops": "Alle Shops stöbern",
     "cartEmpty": "Ihr Warenkorb ist leer.",
@@ -5958,6 +5976,7 @@
     "paidDesc": "Dein Shoutout ist bezahlt und akzeptiert. Der Creator wird es aufnehmen und dir innerhalb seiner Bearbeitungszeit zusenden."
   },
   "shows": {
+    "noMatches": "Deine Suche kam diesmal leer zurück — keine Bühne hat gepasst. Das ist eine echte Antwort, kein Fehler: Versuche ein größeres Gebiet oder einen anderen Zeitraum.",
     "artistNameLabel": "Dein Künstlername",
     "artistNamePlaceholder": "z. B. TRGDY TRBLZ",
     "bioPlaceholder": "z. B. Energiegeladener Hip-Hop-Artist, 2 Jahre Bühnenerfahrung, Voract für…",
@@ -6228,6 +6247,9 @@
     "simpleTabLabel": "Turbo"
   },
   "songs": {
+    "coversLoadError": "Cover zu diesem Song konnten nicht geladen werden — deine Cover sind sicher, sie konnten nur nicht erreicht werden.",
+    "mashupsLoadError": "Mashups zu diesem Song konnten nicht geladen werden — sie konnten nur nicht erreicht werden.",
+    "retryLoad": "Erneut versuchen",
     "cancelButton": "Abbrechen",
     "chooseFileButton": "Audiodatei wählen",
     "emptyLibrary": "Noch keine Songs. Lade oben deinen ersten hoch.",
@@ -6660,6 +6682,8 @@
     "sendToScheduler": "An Scheduler senden"
   },
   "tour": {
+    "datesLoadError": "Deine Tourdaten konnten nicht geladen werden — deine Daten sind sicher, diese Seite konnte sie nur nicht erreichen.",
+    "retryLoad": "Erneut versuchen",
     "addDateFree": "Tourdatum hinzufügen · Kostenlos",
     "addDateTitle": "Tourdatum hinzufügen",
     "budgetContingency": "Puffer",
@@ -8513,6 +8537,9 @@
     "filesSkipped_other": "{{count}} Dateien wurden übersprungen — nicht unterstützter Typ oder über 25 MB."
   },
   "playlistPitch": {
+    "trackerLoadError": "Dein Pitch-Tracker konnte nicht geladen werden",
+    "trackerLoadErrorBody": "Deine erfassten Pitches sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "copied": "Kopiert",
     "copyLabel": "{{label}} kopieren",
     "copyAria": "{{label}} kopieren",
@@ -9459,6 +9486,8 @@
     "promoteRelease": "Diesen Release bewerben →"
   },
   "press-kit": {
+    "kitsLoadError": "Deine Pressekits konnten nicht geladen werden — deine Kits sind sicher, sie konnten nur nicht erreicht werden.",
+    "retryLoad": "Erneut versuchen",
     "backToDashboard": "Zurück zum Dashboard",
     "confirmDelete": "Dieses Pressekit löschen? Das kann nicht rückgängig gemacht werden.",
     "confirmFeatureGenerate": "Pressekit-Generator",
@@ -9774,6 +9803,9 @@
     "title": "Datenschutzrichtlinie"
   },
   "promo-clip": {
+    "projectsLoadError": "Deine Projekte konnten nicht geladen werden",
+    "projectsLoadErrorBody": "Deine Projekte sind sicher — sie konnten nur nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen",
     "pageTitle": "Promo Clip Maker",
     "pageDescription": "Verwandle jeden Song in scroll-stoppende Promo-Clips für TikTok, Reels und Shorts.",
     "backToDashboard": "Zurück zum Dashboard",
@@ -13442,6 +13474,8 @@
     "youreIn": "Du bist in der Reihe."
   },
   "retentionDelight": {
+    "board_load_error": "Die Bestenliste konnte nicht geladen werden — sie konnte nur nicht erreicht werden.",
+    "retry_load": "Erneut versuchen",
     "board_creations": "Kreationen",
     "board_empty": "Diese Woche noch keine Kreationen — sei der Erste auf dem Board.",
     "board_note": "Nur Status — keine VB-Auszahlungen. Prahlrechte für immer.",

@@ -1296,6 +1296,9 @@
     "hookLabel": "Gancho: \"{{hook}}\""
   },
   "artistVault": {
+    "loadVaultsError": "Não foi possível carregar seus perfis",
+    "loadVaultsErrorBody": "Seus perfis estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "pageTitle": "Cofre do Criador",
     "pageDescription": "Sua identidade criativa — perfis de artista, fotos, voz e ativos de marca em um só cofre.",
     "closeDialog": "Fechar diálogo",
@@ -1981,6 +1984,7 @@
     "findBrands": "Encontre marcas para apresentar"
   },
   "brandDeals": {
+    "noMatchesHunt": "Sua busca voltou vazia desta vez — nenhuma marca correspondeu. Isso é uma resposta real, não uma falha: tente um nicho mais amplo ou uma faixa de público maior.",
     "addPlatformPlaceholder": "+ adicionar plataforma",
     "audienceLabel": "Tamanho da audiência",
     "audiences": {
@@ -2097,6 +2101,9 @@
     "title": "Kit de Marca"
   },
   "brandingShop": {
+    "ordersLoadError": "Não foi possível carregar seus pedidos",
+    "ordersLoadErrorBody": "Seus pedidos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "addToCart": "Adicionar ao Carrinho",
     "brandIdentityLabel": "Identidade da Marca",
     "brandNameLabel": "Nome da Marca",
@@ -2274,6 +2281,9 @@
     "titleAi": "IA"
   },
   "chooseArtist": {
+    "loadErrorTitle": "Não foi possível carregar seus artistas",
+    "loadErrorDescription": "Seus perfis estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "createProfile": "Criar Perfil de Artista",
     "emptyDescription": "Configure um perfil de artista para manter sua música e seus visuais consistentes. Leva uns 2 minutos — ou pule por enquanto e adicione depois.",
     "emptyTitle": "Sem perfis de artista ainda",
@@ -3061,6 +3071,8 @@
     "missing": "ausente"
   },
   "distribute": {
+    "songs_load_error": "Não foi possível carregar sua biblioteca de músicas — suas músicas estão seguras, apenas não foi possível acessá-las.",
+    "retry_load": "Tentar novamente",
     "pick_your_music": "Escolha sua música",
     "release_metadata": "Metadados do lançamento",
     "midnight_frequencies": "Midnight Frequencies",
@@ -4169,6 +4181,9 @@
     "designCarried": "O design do seu estúdio foi trazido — revise-o abaixo."
   },
   "labelPitch": {
+    "trackerLoadError": "Não foi possível carregar seu rastreador de pitches",
+    "trackerLoadErrorBody": "Seus pitches registrados estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "advancedSuffix": " bio, stats e letra (pacote melhor)",
     "allGenres": "todos os gêneros",
     "analysisEnergy": "Energia",
@@ -5857,6 +5872,9 @@
     "titleStart": "Texto para "
   },
   "shop": {
+    "loadErrorTitle": "Não foi possível carregar esta loja",
+    "loadErrorDesc": "A loja pode ainda estar lá — esta página apenas não conseguiu acessá-la. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "addToCart": "Adicionar ao Carrinho",
     "browseAllShops": "Explorar Todas as Lojas",
     "cartEmpty": "Seu carrinho está vazio.",
@@ -5970,6 +5988,7 @@
     "paidDesc": "Seu shoutout foi pago e aceito. O criador vai gravar e enviar dentro do prazo de entrega dele."
   },
   "shows": {
+    "noMatches": "Sua busca voltou vazia desta vez — nenhum palco correspondeu. Isso é uma resposta real, não uma falha: tente uma área mais ampla ou outro período de datas.",
     "artistNameLabel": "Seu nome artístico",
     "artistNamePlaceholder": "ex. TRGDY TRBLZ",
     "bioPlaceholder": "ex. Artista de hip-hop de alta energia, 2 anos de palco, já abriu shows de…",
@@ -6240,6 +6259,9 @@
     "simpleTabLabel": "Turbo"
   },
   "songs": {
+    "coversLoadError": "Não foi possível carregar os covers desta música — seus covers estão seguros, apenas não foi possível acessá-los.",
+    "mashupsLoadError": "Não foi possível carregar os mashups desta música — apenas não foi possível acessá-los.",
+    "retryLoad": "Tentar novamente",
     "cancelButton": "Cancelar",
     "chooseFileButton": "Escolher arquivo de áudio",
     "emptyLibrary": "Sem músicas ainda. Envie a primeira acima.",
@@ -6673,6 +6695,8 @@
     "sendToScheduler": "Enviar ao agendador"
   },
   "tour": {
+    "datesLoadError": "Não foi possível carregar as datas da sua turnê — suas datas estão seguras, esta página apenas não conseguiu acessá-las.",
+    "retryLoad": "Tentar novamente",
     "addDateFree": "Adicionar data da turnê · Grátis",
     "addDateTitle": "Adicionar data da turnê",
     "budgetContingency": "Contingência",
@@ -8434,6 +8458,9 @@
     }
   },
   "playlistPitch": {
+    "trackerLoadError": "Não foi possível carregar seu rastreador de pitches",
+    "trackerLoadErrorBody": "Seus pitches registrados estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "copied": "Copiado",
     "copyLabel": "Copiar {{label}}",
     "copyAria": "Copiar {{label}}",
@@ -9226,6 +9253,8 @@
     "promoteRelease": "Promover este lançamento →"
   },
   "press-kit": {
+    "kitsLoadError": "Não foi possível carregar seus kits de imprensa — seus kits estão seguros, apenas não foi possível acessá-los.",
+    "retryLoad": "Tentar novamente",
     "backToDashboard": "Voltar ao painel",
     "confirmDelete": "Excluir este kit de imprensa? Isso não pode ser desfeito.",
     "confirmFeatureGenerate": "Gerador de kit de imprensa",
@@ -12597,6 +12626,9 @@
     "viewRoyalties": "Royalties"
   },
   "promo-clip": {
+    "projectsLoadError": "Não foi possível carregar seus projetos",
+    "projectsLoadErrorBody": "Seus projetos estão seguros — apenas não foi possível acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente",
     "advanced": {
       "hookOverride": "Substituição de Gancho / Melhor Letra",
       "hookOverrideHint": "Cole um gancho ou verso específico para centrar a promoção nele. Se ficar em branco, puxamos da letra do seu projeto automaticamente.",
@@ -12834,6 +12866,8 @@
     "platform_x": "X"
   },
   "retentionDelight": {
+    "board_load_error": "Não foi possível carregar o quadro — apenas não foi possível acessá-lo.",
+    "retry_load": "Tentar novamente",
     "board_creations": "criações",
     "board_empty": "Nenhuma criação nesta semana ainda — seja o primeiro no quadro.",
     "board_note": "Só status — sem pagamentos em VB. Direitos de se gabar para sempre.",

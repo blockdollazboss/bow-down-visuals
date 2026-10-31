@@ -1296,6 +1296,9 @@
     "hookLabel": "훅: \"{{hook}}\""
   },
   "artistVault": {
+    "loadVaultsError": "프로필을 불러오지 못했습니다",
+    "loadVaultsErrorBody": "프로필은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "pageTitle": "크리에이터 보관함",
     "pageDescription": "하나의 보관함에 담긴 당신의 크리에이티브 정체성 — 아티스트 프로필, 사진, 음성, 브랜드 에셋을 한곳에서 관리하세요.",
     "closeDialog": "대화상자 닫기",
@@ -1980,6 +1983,7 @@
     "findBrands": "피칭할 브랜드 찾기"
   },
   "brandDeals": {
+    "noMatchesHunt": "이번 헌트는 빈손으로 돌아왔습니다 — 일치하는 브랜드가 없었습니다. 실패가 아니라 실제 답변입니다. 더 넓은 니치나 더 큰 오디언스 범위를 시도해 보세요.",
     "addPlatformPlaceholder": "+ 플랫폼 추가",
     "audienceLabel": "오디언스 규모",
     "audiences": {
@@ -2096,6 +2100,9 @@
     "title": "브랜딩 키트"
   },
   "brandingShop": {
+    "ordersLoadError": "주문을 불러오지 못했습니다",
+    "ordersLoadErrorBody": "주문은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "addToCart": "장바구니에 담기",
     "brandIdentityLabel": "브랜드 아이덴티티",
     "brandNameLabel": "브랜드 이름",
@@ -2273,6 +2280,9 @@
     "titleAi": "AI"
   },
   "chooseArtist": {
+    "loadErrorTitle": "아티스트를 불러오지 못했습니다",
+    "loadErrorDescription": "프로필은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "createProfile": "아티스트 프로필 만들기",
     "emptyDescription": "아티스트 프로필을 설정해 음악과 비주얼을 일관되게 유지하세요. 약 2분 소요 — 지금은 건너뛰고 나중에 추가할 수도 있습니다.",
     "emptyTitle": "아직 아티스트 프로필이 없습니다",
@@ -3054,6 +3064,8 @@
     "missing": "누락됨"
   },
   "distribute": {
+    "songs_load_error": "곡 라이브러리를 불러오지 못했습니다 — 곡은 안전하며, 접근하지 못했을 뿐입니다.",
+    "retry_load": "다시 시도",
     "pick_your_music": "음악 선택하기",
     "release_metadata": "발매 메타데이터",
     "midnight_frequencies": "Midnight Frequencies",
@@ -4160,6 +4172,9 @@
     "designCarried": "스튜디오 디자인이 이어졌습니다 — 아래에서 검토하세요."
   },
   "labelPitch": {
+    "trackerLoadError": "피치 트래커를 불러오지 못했습니다",
+    "trackerLoadErrorBody": "기록한 피치는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "advancedSuffix": " 바이오, 통계 & 가사 (더 완성도 높은 패키지)",
     "allGenres": "모든 장르",
     "analysisEnergy": "에너지",
@@ -5845,6 +5860,9 @@
     "titleStart": "텍스트-투-"
   },
   "shop": {
+    "loadErrorTitle": "이 상점을 불러오지 못했습니다",
+    "loadErrorDesc": "상점은 여전히 있을 수 있습니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "addToCart": "장바구니에 담기",
     "browseAllShops": "모든 숍 둘러보기",
     "cartEmpty": "장바구니가 비어 있습니다.",
@@ -5958,6 +5976,7 @@
     "paidDesc": "샤우트아웃이 결제되고 수락되었습니다. 크리에이터가 녹음하여 배송 기간 내에 보내드립니다."
   },
   "shows": {
+    "noMatches": "이번 헌트는 빈손으로 돌아왔습니다 — 일치하는 무대가 없었습니다. 실패가 아니라 실제 답변입니다. 더 넓은 지역이나 다른 날짜 범위를 시도해 보세요.",
     "artistNameLabel": "아티스트 이름",
     "artistNamePlaceholder": "예) TRGDY TRBLZ",
     "bioPlaceholder": "예) 에너지 넘치는 힙합 아티스트, 공연 경력 2년, 오프닝 경험…",
@@ -6228,6 +6247,9 @@
     "simpleTabLabel": "Turbo"
   },
   "songs": {
+    "coversLoadError": "이 곡의 커버를 불러오지 못했습니다 — 커버는 안전하며, 접근하지 못했을 뿐입니다.",
+    "mashupsLoadError": "이 곡의 매시업을 불러오지 못했습니다 — 접근하지 못했을 뿐입니다.",
+    "retryLoad": "다시 시도",
     "cancelButton": "취소",
     "chooseFileButton": "오디오 파일 선택",
     "emptyLibrary": "곡이 아직 없습니다. 위에서 첫 곡을 업로드하세요.",
@@ -6660,6 +6682,8 @@
     "sendToScheduler": "스케줄러로 보내기"
   },
   "tour": {
+    "datesLoadError": "투어 날짜를 불러오지 못했습니다 — 날짜는 안전하며, 이 페이지가 접근하지 못했을 뿐입니다.",
+    "retryLoad": "다시 시도",
     "addDateFree": "투어 일정 추가 · 무료",
     "addDateTitle": "투어 일정 추가",
     "budgetContingency": "예비비",
@@ -8421,6 +8445,9 @@
     }
   },
   "playlistPitch": {
+    "trackerLoadError": "피치 트래커를 불러오지 못했습니다",
+    "trackerLoadErrorBody": "기록한 피치는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "copied": "복사됨",
     "copyLabel": "{{label}} 복사",
     "copyAria": "{{label}} 복사",
@@ -9211,6 +9238,8 @@
     "promoteRelease": "이 릴리스 홍보하기 →"
   },
   "press-kit": {
+    "kitsLoadError": "프레스 키트를 불러오지 못했습니다 — 키트는 안전하며, 접근하지 못했을 뿐입니다.",
+    "retryLoad": "다시 시도",
     "backToDashboard": "대시보드로 돌아가기",
     "confirmDelete": "이 프레스 키트를 삭제할까요? 되돌릴 수 없습니다.",
     "confirmFeatureGenerate": "프레스 키트 생성기",
@@ -12634,6 +12663,8 @@
     "platform_x": "X"
   },
   "retentionDelight": {
+    "board_load_error": "보드를 불러오지 못했습니다 — 접근하지 못했을 뿐입니다.",
+    "retry_load": "다시 시도",
     "sharkDrop_title": "상어가 무언가를 떨어뜨렸습니다",
     "sharkDrop_subtitle": "상어가 볼트에 {{amount}} VB를 떨어뜨렸습니다!",
     "sharkDrop_body": "Thy Cheat Code의 깜짝 선물입니다. 헤엄쳐 가기 전에 받으세요.",
@@ -12795,6 +12826,9 @@
     "emptyVaultCta": "볼트 채우기"
   },
   "promo-clip": {
+    "projectsLoadError": "프로젝트를 불러오지 못했습니다",
+    "projectsLoadErrorBody": "프로젝트는 안전합니다 — 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도",
     "pageTitle": "클립 메이커",
     "pageDescription": "어떤 노래든 TikTok, Reels, Shorts용 스크롤을 멈추는 프로모 클립으로 만드세요.",
     "backToDashboard": "대시보드로 돌아가기",
