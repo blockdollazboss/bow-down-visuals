@@ -66,6 +66,9 @@ vi.mock("../../lib/ai-clients", () => ({
 
 vi.mock("../../lib/rate-limit", () => ({
   publicApiLimiter: (_req: any, _res: any, next: any) => next(),
+  /* stack1000 join seam (P2×closed mock): /wave9d/camera/design gained
+     the real freeAiLimiter at its route registration — pass-through. */
+  freeAiLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 import router from "../wave9d-camera";

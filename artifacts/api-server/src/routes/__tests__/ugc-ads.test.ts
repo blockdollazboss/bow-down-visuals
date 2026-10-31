@@ -72,6 +72,9 @@ vi.mock("../../middlewares/require-auth", () => ({
 vi.mock("../../lib/rate-limit", () => ({
   publicApiLimiter: (_req: any, _res: any, next: any) => next(),
   generationLimiter: (_req: any, _res: any, next: any) => next(),
+  /* stack1000 join seam (P2×closed mock): /ugc-ads/script gained the
+     real freeAiLimiter at its route registration — pass-through stub. */
+  freeAiLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 vi.mock("../../lib/credits", () => {

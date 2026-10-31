@@ -300,6 +300,10 @@ vi.mock("../../lib/mirrorMedia", async (importOriginal) => {
 
 vi.mock("../../lib/rate-limit", () => ({
   publicApiLimiter: (_req: any, _res: any, next: any) => next(),
+  /* stack1000 join seam (P2×closed mock): series-assist gained the real
+     freeAiLimiter at its route registration — the fake carries the same
+     pass-through stub shape as its other limiters. */
+  freeAiLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 /* Storage refresh simulator (the distribution.test.ts contract). */
