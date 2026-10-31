@@ -379,6 +379,7 @@ const W6_ALLOW = new Set([
   "promote.hero.titleAccent",
   "admin.friendEmailPlaceholder",
   "admin.planEmailPlaceholder",
+  "admin.reversals.age",
   "admin.users.credits",
   "admin.users.emailPlaceholder",
   "analyticsHub.hookStudio",
