@@ -84,8 +84,11 @@ const TRANSITIONS: Record<PerformanceBookingAction, {
   /* The promoter releases the escrow. Terminal: paid. */
   release: { from: ["completed"], to: "paid" },
   /* Either side can walk away before the money is released. A funded
-   * booking's cancel marks its escrow refunded (the refund itself
-   * rides the payment-reversals rail, like sponsor escrow). */
+   * booking's cancel fires the real Stripe refund from the cancel
+   * route (idempotent, refund:<sessionId>) and only then marks its
+   * escrow refunded (money-hardening round 2 — before that, the mark
+   * was written with no refund behind it); the resulting
+   * charge.refunded event reconciles through the reversal rail. */
   cancel: { from: ["proposed", "accepted", "funded"], to: "cancelled" },
 };
 

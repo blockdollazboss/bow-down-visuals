@@ -7,6 +7,8 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { createGuardedStripeClient } from "../lib/stripe-client";
+import { escrowHeldCents } from "../lib/escrow-held";
+import { refundCheckoutSessionPayment } from "../lib/stripe-checkout";
 import {
   performanceFeeSplit,
   canTakeAction,
@@ -75,6 +77,7 @@ interface BookingRow {
   status: string;
   escrow_status: string;
   stripe_session_id: string | null;
+  stripe_payment_intent_id: string | null;
   platform_fee_cents: number | null;
   artist_payout_cents: number | null;
   paid_at: string | null;
@@ -86,7 +89,7 @@ const BOOKING_COLS = `
   id, profile_id, artist_user_id, artist_name, promoter_user_id, promoter_name,
   event_title, event_date, venue_name, venue_address, venue_city,
   fee_cents, terms, plain_words, notes, status, escrow_status,
-  stripe_session_id, platform_fee_cents, artist_payout_cents, paid_at,
+  stripe_session_id, stripe_payment_intent_id, platform_fee_cents, artist_payout_cents, paid_at,
   created_at, updated_at
 `;
 
@@ -570,24 +573,58 @@ router.post("/performance-bookings/:id/release", requireAuth, publicApiLimiter, 
       res.status(409).json({ error: "There is no funded escrow to release." });
       return;
     }
-    const gross = Number(row.fee_cents);
+    /* ── Release only what is still held (money-hardening round 2) ──
+       Same invariant as sponsor escrow: a partial refund leaves the
+       booking 'funded' by design, so the agreed fee is not what the
+       platform still holds. Split the HELD amount (Stripe's live
+       charge state ∪ the reversal ledger; a lost dispute ⇒ 0), so
+       released + refunded = charged. A Stripe read failure fails
+       closed — no release on a guess. */
+    let held: Awaited<ReturnType<typeof escrowHeldCents>>;
+    try {
+      held = await escrowHeldCents({
+        stripe: isStripeConfigured() ? createGuardedStripeClient() : null,
+        paymentIntentId: row.stripe_payment_intent_id,
+        grossCents: Number(row.fee_cents),
+      });
+    } catch (err) {
+      logger.error({ err, bookingId: row.id }, "[performance-bookings] escrow release: held-amount verification failed — release refused");
+      res.status(503).json({ error: "Couldn't verify the escrow balance just now — no money moved. Try again in a moment." });
+      return;
+    }
+    if (held.heldCents <= 0) {
+      res.status(409).json({ error: "The escrow payment was refunded in full — there is nothing left to release." });
+      return;
+    }
+    const gross = held.heldCents;
     const { feeCents, netCents } = performanceFeeSplit(gross);
     /* The status guard inside guardAction (release only runs from
-       'completed') is the race guard: a second release sees 'paid'
-       and is refused before any money column moves again — the fee
-       is split exactly once, like sponsor escrow. */
-    await db.execute(sql`
+       'completed') reads state; THIS conditional UPDATE is the race
+       guard that makes the flip itself atomic — and its row count is
+       now checked: the old code answered success even when the flip
+       matched nothing (a racing reversal had already un-funded the
+       escrow), reporting a split that never landed. */
+    const flipped = await db.execute(sql`
       UPDATE performance_bookings
       SET status = 'paid', escrow_status = 'released',
           platform_fee_cents = ${feeCents}, artist_payout_cents = ${netCents},
           paid_at = NOW(), updated_at = NOW()
       WHERE id = ${row.id} AND status = 'completed' AND escrow_status = 'funded'
+      RETURNING id
     `);
-    logger.info({ bookingId: row.id, gross, feeCents, netCents }, "[performance-bookings] escrow released — platform fee collected");
+    if (flipped.rows.length === 0) {
+      res.status(409).json({ error: "This booking's escrow just changed — refresh and try again." });
+      return;
+    }
+    logger.info(
+      { bookingId: row.id, agreedFeeCents: Number(row.fee_cents), gross, refundedCents: held.refundedCents, feeCents, netCents },
+      "[performance-bookings] escrow released — platform fee collected",
+    );
     const fresh = await findBooking(row.id);
     res.json({
       booking: toBookingDto(fresh!, req.userId!),
       grossCents: gross,
+      ...(held.refundedCents > 0 ? { refundedCents: held.refundedCents } : {}),
       platformFeeCents: feeCents,
       artistPayoutCents: netCents,
     });
@@ -604,6 +641,41 @@ router.post("/performance-bookings/:id/cancel", requireAuth, publicApiLimiter, a
     const row = await guardAction(req, res, uuidParam(req.params["id"]), "cancel");
     if (!row) return;
     const escrow = escrowStatusAfterCancel(row.escrow_status);
+    /* ── A funded cancel must actually refund (money-hardening r2) ──
+       Before this, cancelling a funded booking only WROTE
+       escrow_status='refunded' and told the promoter a refund was
+       coming "through the refund rail" — but nothing ever created
+       the Stripe refund (the reversal rail acts on refund EVENTS;
+       it originates none), so the promoter's money stayed captured
+       while the booking claimed it was returned. Now the refund
+       fires FIRST, through the house helper (idempotency key
+       refund:<sessionId>, so a retry or the buyer's own verify can
+       never double-refund), and the state only claims 'refunded'
+       once the refund has landed. A refund that doesn't land fails
+       the cancel outright — nothing is mis-stated, and the promoter
+       can retry. Sandbox bookings never moved money, so there is
+       nothing to fire. 'funding' bookings hold no captured charge
+       yet (funding never completed), so they keep the mark-only
+       path; a payment that completes after such a cancel is refused
+       by markPerformanceEscrowFunded's status guard and reconciles
+       through the reversal ledger. */
+    if (escrow === "refunded" && row.escrow_status === "funded" && isStripeConfigured()
+        && row.stripe_session_id && !row.stripe_session_id.startsWith("sandbox_")) {
+      let refunded = false;
+      try {
+        const stripe = createGuardedStripeClient();
+        const session = await stripe.checkout.sessions.retrieve(row.stripe_session_id);
+        refunded = await refundCheckoutSessionPayment(session);
+      } catch (err) {
+        logger.error({ err, bookingId: row.id }, "[performance-bookings] cancel: escrow refund attempt threw — cancel refused");
+        refunded = false;
+      }
+      if (!refunded) {
+        res.status(500).json({ error: "The booking is still on, because its escrow refund couldn't be completed. Try again in a moment." });
+        return;
+      }
+      logger.info({ bookingId: row.id, sessionId: row.stripe_session_id }, "[performance-bookings] cancel: escrow refund landed");
+    }
     await db.execute(sql`
       UPDATE performance_bookings
       SET status = 'cancelled', escrow_status = ${escrow}, updated_at = NOW()
@@ -613,7 +685,9 @@ router.post("/performance-bookings/:id/cancel", requireAuth, publicApiLimiter, a
     res.json({
       booking: toBookingDto(fresh!, req.userId!),
       note: escrow === "refunded"
-        ? "Cancelled. The escrowed fee is marked for a full refund to the promoter through the refund rail."
+        ? row.escrow_status === "funded"
+          ? "Cancelled. The escrowed fee has been refunded in full to the promoter."
+          : "Cancelled. The funding never completed, so no captured money is owed back."
         : "Cancelled. No money had moved, so nothing is owed back.",
     });
   } catch (err) {

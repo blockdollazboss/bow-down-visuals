@@ -69,7 +69,22 @@ vi.mock("../../lib/stripe-client", async (importOriginal) => {
             h.createCalls.push({ params, options });
             return session;
           }),
+          /* Money-hardening round 2: a funded cancel now retrieves
+             the session to fire its escrow refund, and releases read
+             charge refund state — the fake answers both honestly:
+             the stored session, and no charges (nothing refunded). */
+          retrieve: vi.fn(async (id: string) => {
+            const s = h.sessions.get(id);
+            if (!s) throw new Error("No such checkout session");
+            return s;
+          }),
         },
+      },
+      charges: {
+        list: vi.fn(async () => ({ data: [] })),
+      },
+      refunds: {
+        create: vi.fn(async () => ({ id: "re_test_fake", status: "succeeded" })),
       },
     })),
   };
