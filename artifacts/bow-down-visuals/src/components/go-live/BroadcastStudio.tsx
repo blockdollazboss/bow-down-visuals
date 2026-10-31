@@ -80,6 +80,7 @@ import { fetchVaultCharacters } from "@/lib/world/characters";
 import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
 import { guestFeeds } from "@/lib/go-live/guest-feeds";
 import { registerStudioStage, clearStudioStage, registerStudioMixer, clearStudioMixer } from "@/lib/go-live/studio-bridge";
+import { applySourceDrag } from "@/lib/stream-kit/scenes";
 import type { SceneSource } from "@/lib/stream-kit/scenes";
 import ScenesPanel from "./studio/ScenesPanel";
 import SourcesPanel from "./studio/SourcesPanel";
@@ -1395,15 +1396,9 @@ export default function BroadcastStudio() {
       const dx = (ev.clientX - r.left) / r.width - drag.startNx;
       const dy = (ev.clientY - r.top) / r.height - drag.startNy;
       if (drag.mode === "move") {
-        stage.updateSource(scene.id, drag.id, {
-          x: Math.min(Math.max(drag.orig.x + dx, -drag.orig.w + 0.05), 0.95),
-          y: Math.min(Math.max(drag.orig.y + dy, -drag.orig.h + 0.05), 0.95),
-        });
+        stage.updateSource(scene.id, drag.id, applySourceDrag(drag.orig, "move", dx, dy));
       } else {
-        stage.updateSource(scene.id, drag.id, {
-          w: Math.min(Math.max(drag.orig.w + dx, 0.05), 1 - drag.orig.x),
-          h: Math.min(Math.max(drag.orig.h + dy, 0.05), 1 - drag.orig.y),
-        });
+        stage.updateSource(scene.id, drag.id, applySourceDrag(drag.orig, "resize", dx, dy));
       }
     };
     const up = () => {
@@ -1413,6 +1408,41 @@ export default function BroadcastStudio() {
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+  };
+
+  /* ── Keyboard path for the selected source's frame (stack1000 M5):
+        arrow keys nudge the frame, Shift+arrows resize it — the
+        broadcast-tool convention — through the same updateSource and
+        applySourceDrag math the pointer drag feeds. Locked sources
+        select but never move, exactly as with the drag. Selection
+        itself is already keyboard-reachable via the Sources panel rows. */
+  const [sourceAnnounce, setSourceAnnounce] = useState("");
+  const handleSourceKeyDown = (e: React.KeyboardEvent, source: SceneSource) => {
+    if (source.locked) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const orig = { x: source.x, y: source.y, w: source.w, h: source.h };
+    const step = 0.01;
+    let patch: ReturnType<typeof applySourceDrag> | null = null;
+    if (e.shiftKey) {
+      if (e.key === "ArrowRight") patch = applySourceDrag(orig, "resize", step, 0);
+      else if (e.key === "ArrowLeft") patch = applySourceDrag(orig, "resize", -step, 0);
+      else if (e.key === "ArrowDown") patch = applySourceDrag(orig, "resize", 0, step);
+      else if (e.key === "ArrowUp") patch = applySourceDrag(orig, "resize", 0, -step);
+    } else {
+      if (e.key === "ArrowRight") patch = applySourceDrag(orig, "move", step, 0);
+      else if (e.key === "ArrowLeft") patch = applySourceDrag(orig, "move", -step, 0);
+      else if (e.key === "ArrowDown") patch = applySourceDrag(orig, "move", 0, step);
+      else if (e.key === "ArrowUp") patch = applySourceDrag(orig, "move", 0, -step);
+    }
+    if (!patch) return;
+    e.preventDefault();
+    e.stopPropagation();
+    stage.updateSource(stage.previewScene().id, source.id, patch);
+    const next = { ...orig, ...patch };
+    setSourceAnnounce(
+      `${source.name}: position ${Math.round(next.x * 100)}%, ${Math.round(next.y * 100)}%; size ${Math.round(next.w * 100)}% by ${Math.round(next.h * 100)}%`,
+    );
   };
 
   /* ── Preview right-click: same frontmost-visible hit test as the
@@ -1625,13 +1655,20 @@ export default function BroadcastStudio() {
               <canvas ref={previewCanvasRef} width={640} height={360} className="block h-full w-full" data-testid="broadcast-preview" />
               {selectedSource && (
                 <div
-                  className="pointer-events-none absolute border border-dashed border-[#C9A84C]"
+                  className="pointer-events-auto absolute border border-dashed border-[#C9A84C]"
                   style={{
                     left: `${selectedSource.x * 100}%`,
                     top: `${selectedSource.y * 100}%`,
                     width: `${selectedSource.w * 100}%`,
                     height: `${selectedSource.h * 100}%`,
                   }}
+                  tabIndex={0}
+                  role="group"
+                  aria-roledescription="Source frame"
+                  aria-label={`${selectedSource.name} frame, at ${Math.round(selectedSource.x * 100)}%, ${Math.round(selectedSource.y * 100)}%, size ${Math.round(selectedSource.w * 100)}% by ${Math.round(selectedSource.h * 100)}%. Arrow keys move it, Shift plus arrow keys resize it.`}
+                  onPointerDown={(e) => beginDrag(e, "move")}
+                  onKeyDown={(e) => handleSourceKeyDown(e, selectedSource)}
+                  data-testid="broadcast-source-frame"
                 >
                   <div
                     className="pointer-events-auto absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-sm border border-black/50 bg-[#C9A84C]"
@@ -1664,8 +1701,10 @@ export default function BroadcastStudio() {
             </div>
             <p className={`mt-2 text-[11px] leading-snug ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
               Drag a source on Preview to move it; drag its gold corner to resize. Program only changes when you
-              Cut or Transition.
+              Cut or Transition. Keyboard: select a source, focus its gold frame, then arrow keys move it and
+              Shift+arrow keys resize it.
             </p>
+            <div aria-live="polite" className="sr-only">{sourceAnnounce}</div>
             {previewMenu && stage && previewScene && (() => {
               const source = previewScene.sources.find((s) => s.id === previewMenu.sourceId);
               if (!source) return null;

@@ -122,6 +122,31 @@ export interface Scene {
   sources: SceneSource[];
 }
 
+/** One preview-drag step → the source patch. `dx`/`dy` are normalized
+ *  (0..1) canvas deltas: pointer deltas for drags, fixed steps for the
+ *  BroadcastStudio keyboard path — both produce identical patches. Math
+ *  verbatim from BroadcastStudio's drag move closure (stack1000 M5):
+ *  move keeps a 5% sliver of the source on stage (x/y floor at
+ *  -size + 0.05, cap 0.95); resize keeps a 5% minimum size and never
+ *  grows past the stage edge from the source's own origin. */
+export function applySourceDrag(
+  orig: { x: number; y: number; w: number; h: number },
+  mode: "move" | "resize",
+  dx: number,
+  dy: number,
+): { x: number; y: number } | { w: number; h: number } {
+  if (mode === "move") {
+    return {
+      x: Math.min(Math.max(orig.x + dx, -orig.w + 0.05), 0.95),
+      y: Math.min(Math.max(orig.y + dy, -orig.h + 0.05), 0.95),
+    };
+  }
+  return {
+    w: Math.min(Math.max(orig.w + dx, 0.05), 1 - orig.x),
+    h: Math.min(Math.max(orig.h + dy, 0.05), 1 - orig.y),
+  };
+}
+
 let uidCounter = 0;
 export function uid(prefix: string): string {
   uidCounter += 1;

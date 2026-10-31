@@ -46,6 +46,7 @@ import {
   TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT,
 } from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
+import { cropDragNext, fadeDragValue, loopDragNext, rangeDragNext, trimDragValue } from "@/lib/dock-drag";
 import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
 import { buildSongAudioContextItems } from "@/lib/audio-context-menu";
 import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
@@ -221,6 +222,92 @@ export function TimelineDock({
   }, [totalDur, onSeek, snapEnabled, beatGrid]);
 
   /* ── Trim drag ── */
+  /* ── Keyboard editing for the drag handles (stack1000 M5) ──────────────
+   * Every handle is a slider: arrows move it, Shift moves ×10, Home/End
+   * jump to the ends. The key handlers feed the SAME lib/dock-drag math
+   * the pointer move handler above uses — ArrowRight always increases the
+   * handle's own value, converted here into the pointer delta / absolute
+   * time that family expects, so a keyboard step lands exactly where the
+   * matching drag lands (same clamps, same beat snapping, same rounding). */
+  function handleEdgeKey(
+    e: React.KeyboardEvent,
+    cur: number,
+    apply: (t: number) => void,
+  ) {
+    const step = e.shiftKey ? 1 : 0.1;
+    let t: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") t = cur + step;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") t = cur - step;
+    else if (e.key === "Home") t = 0;
+    else if (e.key === "End") t = totalDur;
+    if (t === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    apply(snap(Math.max(0, Math.min(totalDur, t))));
+  }
+
+  function handleTrimKey(e: React.KeyboardEvent, side: "start" | "end", sceneId: string, clipDur: number, clipStart: number) {
+    if (timelineLocked) return;
+    const ce = clipEdits[sceneId] ?? defaultClipEdit();
+    const cur = side === "start" ? (ce.trimStart ?? 0) : (ce.trimEnd ?? 0);
+    const span = clipDur * 0.45 + 1; // beyond maxTrim — Home/End ride the same clamps as an extreme drag
+    const step = e.shiftKey ? 1 : 0.1;
+    let delta: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") delta = side === "start" ? step : -step;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") delta = side === "start" ? -step : step;
+    else if (e.key === "Home") delta = side === "start" ? -span : span;
+    else if (e.key === "End") delta = side === "start" ? span : -span;
+    if (delta === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newVal = trimDragValue(side, cur, delta, clipDur, clipStart, snap);
+    setSettings({ ...settings, clips: { ...clipEdits, [sceneId]: { ...ce, [side === "start" ? "trimStart" : "trimEnd"]: newVal } } });
+  }
+
+  function handleFadeKey(e: React.KeyboardEvent, side: "in" | "out") {
+    const cur = side === "in" ? va.fadeIn : va.fadeOut;
+    const span = Math.min(15, totalDur / 2) + 1;
+    const step = e.shiftKey ? 1 : 0.1;
+    let delta: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") delta = side === "in" ? step : -step;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") delta = side === "in" ? -step : step;
+    else if (e.key === "Home") delta = side === "in" ? -span : span;
+    else if (e.key === "End") delta = side === "in" ? span : -span;
+    if (delta === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newVal = fadeDragValue(side, cur, delta, totalDur, snap);
+    setSettings({
+      ...settings,
+      musicStudio: { ...settings.musicStudio, videoAudio: { ...va, [side === "in" ? "fadeIn" : "fadeOut"]: newVal } },
+    });
+  }
+
+  function handleCropKey(e: React.KeyboardEvent, side: "start" | "end") {
+    const cur = side === "start" ? songCrop.startSec : cropEndResolved;
+    handleEdgeKey(e, cur, (t) => {
+      const base = songCrop.enabled ? songCrop : { enabled: true, startSec: 0, endSec: audioDuration ?? totalDur };
+      setSettings({ ...settings, musicStudio: { ...settings.musicStudio, songCrop: cropDragNext(base, side, t) } });
+    });
+  }
+
+  function handleRangeKey(e: React.KeyboardEvent, side: "start" | "end") {
+    const curRange = settings.export.exportRange;
+    if (!curRange) return;
+    const cur = side === "start" ? curRange.customStartSec : curRange.customEndSec;
+    handleEdgeKey(e, cur, (t) => {
+      const base = settings.export.exportRange ?? { mode: "custom" as ExportRangeMode, customStartSec: 0, customEndSec: totalDur };
+      setSettings({ ...settings, export: { ...settings.export, exportRange: rangeDragNext(base, side, t) } });
+    });
+  }
+
+  function handleLoopKey(e: React.KeyboardEvent, side: "start" | "end") {
+    const cur = side === "start" ? loop.startSec : loop.endSec;
+    handleEdgeKey(e, cur, (t) => {
+      setSettings({ ...settings, timelineLoop: { ...loop, ...loopDragNext(loop, side, t) } });
+    });
+  }
+
   const startTrimDrag = useCallback((e: React.PointerEvent, side: "start" | "end", sceneId: string, clipDur: number, clipStart: number) => {
     if (timelineLocked) return;
     e.stopPropagation();
@@ -289,14 +376,7 @@ export function TimelineDock({
     if (trimDragRef.current) {
       const drag = trimDragRef.current;
       const deltaTime = (e.clientX - drag.startX) / pxPerSec;
-      const maxTrim = drag.clipDur * 0.45;
-      const rawVal = drag.side === "start" ? drag.startVal + deltaTime : drag.startVal - deltaTime;
-      const clampedVal = Math.max(0, Math.min(maxTrim, rawVal));
-      // Snap the handle's absolute timeline position to the beat grid, then convert back to a trim duration.
-      const absTime = drag.side === "start" ? drag.clipStart + clampedVal : drag.clipStart + drag.clipDur - clampedVal;
-      const snappedAbs = snap(absTime);
-      const snappedVal = drag.side === "start" ? snappedAbs - drag.clipStart : drag.clipStart + drag.clipDur - snappedAbs;
-      const newVal = Math.round(Math.max(0, Math.min(maxTrim, snappedVal)) * 10) / 10;
+      const newVal = trimDragValue(drag.side, drag.startVal, deltaTime, drag.clipDur, drag.clipStart, snap);
       const ce = clipEdits[drag.sceneId] ?? defaultClipEdit();
       setSettings({ ...settings, clips: { ...clipEdits, [drag.sceneId]: { ...ce, [drag.side === "start" ? "trimStart" : "trimEnd"]: newVal } } });
       return;
@@ -304,14 +384,7 @@ export function TimelineDock({
     if (fadeDragRef.current) {
       const drag = fadeDragRef.current;
       const deltaTime = (e.clientX - drag.startX) / pxPerSec;
-      const maxFade = Math.min(15, totalDur / 2);
-      const rawVal = drag.side === "in" ? drag.startVal + deltaTime : drag.startVal - deltaTime;
-      const clampedVal = Math.max(0, Math.min(maxFade, rawVal));
-      // Fade-in handle sits at absolute time = fadeIn; fade-out handle sits at absolute time = totalDur - fadeOut.
-      const absTime = drag.side === "in" ? clampedVal : totalDur - clampedVal;
-      const snappedAbs = snap(absTime);
-      const snappedVal = drag.side === "in" ? snappedAbs : totalDur - snappedAbs;
-      const newVal = Math.round(Math.max(0, Math.min(maxFade, snappedVal)) * 10) / 10;
+      const newVal = fadeDragValue(drag.side, drag.startVal, deltaTime, totalDur, snap);
       setSettings({
         ...settings,
         musicStudio: { ...settings.musicStudio, videoAudio: { ...va, [drag.side === "in" ? "fadeIn" : "fadeOut"]: newVal } },
@@ -322,9 +395,7 @@ export function TimelineDock({
       const rect = el.getBoundingClientRect();
       const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
       const cur = settings.export.exportRange ?? { mode: "custom" as ExportRangeMode, customStartSec: 0, customEndSec: totalDur };
-      const next = rangeDragRef.current.side === "start"
-        ? { mode: "custom" as ExportRangeMode, customStartSec: Math.min(t, cur.customEndSec - 0.3), customEndSec: cur.customEndSec }
-        : { mode: "custom" as ExportRangeMode, customStartSec: cur.customStartSec, customEndSec: Math.max(t, cur.customStartSec + 0.3) };
+      const next = rangeDragNext(cur, rangeDragRef.current.side, t);
       setSettings({ ...settings, export: { ...settings.export, exportRange: next } });
       return;
     }
@@ -332,9 +403,7 @@ export function TimelineDock({
     if (loopDragRef.current) {
       const rect = el.getBoundingClientRect();
       const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
-      const next = loopDragRef.current.side === "start"
-        ? { ...loop, startSec: Math.min(t, loop.endSec - 0.3) }
-        : { ...loop, endSec: Math.max(t, loop.startSec + 0.3) };
+      const next = { ...loop, ...loopDragNext(loop, loopDragRef.current.side, t) };
       setSettings({ ...settings, timelineLoop: next });
       return;
     }
@@ -374,9 +443,7 @@ export function TimelineDock({
       const rect = el.getBoundingClientRect();
       const t = snap(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
       const cur = songCrop.enabled ? songCrop : { enabled: true, startSec: 0, endSec: audioDuration ?? totalDur };
-      const next = cropDragRef.current.side === "start"
-        ? { enabled: true, startSec: Math.min(t, cur.endSec - 0.5), endSec: cur.endSec }
-        : { enabled: true, startSec: cur.startSec, endSec: Math.max(t, cur.startSec + 0.5) };
+      const next = cropDragNext(cur, cropDragRef.current.side, t);
       setSettings({ ...settings, musicStudio: { ...settings.musicStudio, songCrop: next } });
       return;
     }
@@ -1401,9 +1468,17 @@ export function TimelineDock({
                 <>
                   <div className="absolute inset-y-0 bg-primary/10 pointer-events-none" style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }} />
                   <div onPointerDown={(e) => startRangeDrag(e, "start")}
+                    role="slider" tabIndex={0} aria-label="Export range start"
+                    aria-valuemin={0} aria-valuemax={Math.round(totalDur * 10) / 10}
+                    aria-valuenow={Math.round(exportRange.customStartSec * 10) / 10} aria-valuetext={fmt(exportRange.customStartSec)}
+                    onKeyDown={(e) => handleRangeKey(e, "start")} data-testid="dock-range-start"
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-green-400/70 cursor-ew-resize z-20 hover:bg-green-300"
                     style={{ left: `${startPct}%` }} title="Export range start" />
                   <div onPointerDown={(e) => startRangeDrag(e, "end")}
+                    role="slider" tabIndex={0} aria-label="Export range end"
+                    aria-valuemin={0} aria-valuemax={Math.round(totalDur * 10) / 10}
+                    aria-valuenow={Math.round(exportRange.customEndSec * 10) / 10} aria-valuetext={fmt(exportRange.customEndSec)}
+                    onKeyDown={(e) => handleRangeKey(e, "end")} data-testid="dock-range-end"
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-red-400/70 cursor-ew-resize z-20 hover:bg-red-300"
                     style={{ left: `${endPct}%` }} title="Export range end" />
                 </>
@@ -1420,12 +1495,20 @@ export function TimelineDock({
                     style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }} />
                   <div onPointerDown={(e) => startLoopDrag(e, "start")}
                     onDoubleClick={(e) => { e.stopPropagation(); clearLoopRegion(); }}
+                    role="slider" tabIndex={0} aria-label="Loop start"
+                    aria-valuemin={0} aria-valuemax={Math.round(totalDur * 10) / 10}
+                    aria-valuenow={Math.round(loop.startSec * 10) / 10} aria-valuetext={fmt(loop.startSec)}
+                    onKeyDown={(e) => handleLoopKey(e, "start")} data-testid="dock-loop-start"
                     className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
                     style={{ left: `${startPct}%` }} title={`Loop start: ${fmt(loop.startSec)} — drag to adjust, double-click to clear`}>
                     <div className="w-1 h-full bg-violet-400/80 group-hover:bg-violet-300 rounded-full" />
                   </div>
                   <div onPointerDown={(e) => startLoopDrag(e, "end")}
                     onDoubleClick={(e) => { e.stopPropagation(); clearLoopRegion(); }}
+                    role="slider" tabIndex={0} aria-label="Loop end"
+                    aria-valuemin={0} aria-valuemax={Math.round(totalDur * 10) / 10}
+                    aria-valuenow={Math.round(loop.endSec * 10) / 10} aria-valuetext={fmt(loop.endSec)}
+                    onKeyDown={(e) => handleLoopKey(e, "end")} data-testid="dock-loop-end"
                     className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
                     style={{ left: `${endPct}%` }} title={`Loop end: ${fmt(loop.endSec)} — drag to adjust, double-click to clear`}>
                     <div className="w-1 h-full bg-violet-400/80 group-hover:bg-violet-300 rounded-full" />
@@ -1440,6 +1523,10 @@ export function TimelineDock({
             )}
             {totalDur > 0 && (
               <div onPointerDown={(e) => startFadeDrag(e, "in")}
+                role="slider" tabIndex={0} aria-label="Fade in"
+                aria-valuemin={0} aria-valuemax={Math.round(Math.min(15, totalDur / 2) * 10) / 10}
+                aria-valuenow={va.fadeIn} aria-valuetext={`${va.fadeIn.toFixed(1)} seconds`}
+                onKeyDown={(e) => handleFadeKey(e, "in")} data-testid="dock-fade-in"
                 className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
                 style={{ left: `${(va.fadeIn / totalDur) * 100}%` }} title={`Fade in: ${va.fadeIn.toFixed(1)}s — drag to adjust`}>
                 <div className="w-0.5 h-full bg-amber-400/70 group-hover:bg-amber-300" />
@@ -1452,6 +1539,10 @@ export function TimelineDock({
             )}
             {totalDur > 0 && (
               <div onPointerDown={(e) => startFadeDrag(e, "out")}
+                role="slider" tabIndex={0} aria-label="Fade out"
+                aria-valuemin={0} aria-valuemax={Math.round(Math.min(15, totalDur / 2) * 10) / 10}
+                aria-valuenow={va.fadeOut} aria-valuetext={`${va.fadeOut.toFixed(1)} seconds`}
+                onKeyDown={(e) => handleFadeKey(e, "out")} data-testid="dock-fade-out"
                 className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize z-20 flex items-center justify-center group"
                 style={{ left: `${((totalDur - va.fadeOut) / totalDur) * 100}%` }} title={`Fade out: ${va.fadeOut.toFixed(1)}s — drag to adjust`}>
                 <div className="w-0.5 h-full bg-amber-400/70 group-hover:bg-amber-300" />
@@ -1467,9 +1558,17 @@ export function TimelineDock({
                   {startPct > 0 && <div className="absolute inset-y-0 left-0 bg-black/80 pointer-events-none z-10" style={{ width: `${startPct}%` }} />}
                   {endPct < 100 && <div className="absolute inset-y-0 right-0 bg-black/80 pointer-events-none z-10" style={{ width: `${100 - endPct}%` }} />}
                   <div onPointerDown={(e) => startCropDrag(e, "start")}
+                    role="slider" tabIndex={0} aria-label="Song crop start"
+                    aria-valuemin={0} aria-valuemax={Math.round(totalDur * 10) / 10}
+                    aria-valuenow={Math.round(songCrop.startSec * 10) / 10} aria-valuetext={fmt(songCrop.startSec)}
+                    onKeyDown={(e) => handleCropKey(e, "start")} data-testid="dock-crop-start"
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-cyan-400/80 cursor-ew-resize z-20 hover:bg-cyan-300"
                     style={{ left: `${startPct}%` }} title={`Crop start: ${fmt(songCrop.startSec)}`} />
                   <div onPointerDown={(e) => startCropDrag(e, "end")}
+                    role="slider" tabIndex={0} aria-label="Song crop end"
+                    aria-valuemin={0} aria-valuemax={Math.round(totalDur * 10) / 10}
+                    aria-valuenow={Math.round(cropEndResolved * 10) / 10} aria-valuetext={fmt(cropEndResolved)}
+                    onKeyDown={(e) => handleCropKey(e, "end")} data-testid="dock-crop-end"
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-cyan-400/80 cursor-ew-resize z-20 hover:bg-cyan-300"
                     style={{ left: `${endPct}%` }} title={`Crop end: ${fmt(cropEndResolved)}`} />
                 </>
@@ -1551,12 +1650,20 @@ export function TimelineDock({
                           <>
                             <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                               title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
+                              role="slider" tabIndex={0} aria-label={`Trim clip ${i + 1} start`}
+                              aria-valuemin={0} aria-valuemax={Math.round(clipDur * 0.45 * 10) / 10}
+                              aria-valuenow={clipEdits[scene.id]?.trimStart ?? 0} aria-valuetext={`${(clipEdits[scene.id]?.trimStart ?? 0).toFixed(1)} seconds trimmed from the start`}
+                              onKeyDown={(e) => handleTrimKey(e, "start", scene.id, clipDur, clipStart)}
                               onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
                               <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                             </div>
                             <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-r transition-colors"
                               title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
+                              role="slider" tabIndex={0} aria-label={`Trim clip ${i + 1} end`}
+                              aria-valuemin={0} aria-valuemax={Math.round(clipDur * 0.45 * 10) / 10}
+                              aria-valuenow={clipEdits[scene.id]?.trimEnd ?? 0} aria-valuetext={`${(clipEdits[scene.id]?.trimEnd ?? 0).toFixed(1)} seconds trimmed from the end`}
+                              onKeyDown={(e) => handleTrimKey(e, "end", scene.id, clipDur, clipStart)}
                               onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
                               <div className="w-1 h-3/4 bg-white/80 rounded-full" />
@@ -1630,12 +1737,20 @@ export function TimelineDock({
                                 <>
                                   <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-l transition-colors"
                                     title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
+                                    role="slider" tabIndex={0} aria-label={`Trim clip ${i + 1} start`}
+                                    aria-valuemin={0} aria-valuemax={Math.round(clipDur * 0.45 * 10) / 10}
+                                    aria-valuenow={clipEdits[scene.id]?.trimStart ?? 0} aria-valuetext={`${(clipEdits[scene.id]?.trimStart ?? 0).toFixed(1)} seconds trimmed from the start`}
+                                    onKeyDown={(e) => handleTrimKey(e, "start", scene.id, clipDur, clipStart)}
                                     onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
                                     <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                                   </div>
                                   <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/10 rounded-r transition-colors"
                                     title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
+                                    role="slider" tabIndex={0} aria-label={`Trim clip ${i + 1} end`}
+                                    aria-valuemin={0} aria-valuemax={Math.round(clipDur * 0.45 * 10) / 10}
+                                    aria-valuenow={clipEdits[scene.id]?.trimEnd ?? 0} aria-valuetext={`${(clipEdits[scene.id]?.trimEnd ?? 0).toFixed(1)} seconds trimmed from the end`}
+                                    onKeyDown={(e) => handleTrimKey(e, "end", scene.id, clipDur, clipStart)}
                                     onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
                                     <div className="w-1 h-3/4 bg-white/80 rounded-full" />

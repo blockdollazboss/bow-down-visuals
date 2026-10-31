@@ -45,6 +45,8 @@ import {
   automationValueAt,
   cleanAutomation,
   clipPlayLength,
+  dragClipBy,
+  type ClipDragMode,
   emptyArrangement,
   expandArrangementToExportStems,
   fetchServerArrangement,
@@ -349,7 +351,7 @@ function AutomationLaneEditor({
             {LANE_META[k].label}
           </button>
         ))}
-        <span className="text-[11px] text-white/35 ml-1">Click to add a point · drag to move · right-click a point to remove it. The line is exactly what the export renders.</span>
+        <span className="text-[11px] text-white/35 ml-1">Click to add a point · drag to move · right-click a point to remove it. Keyboard: focus a point, arrow keys move it, Delete removes it. The line is exactly what the export renders.</span>
         {points.length > 0 && (
           <button type="button" onClick={() => setLane([])} className="ml-auto text-[11px] font-bold text-red-300/80 hover:text-red-200">Clear lane</button>
         )}
@@ -396,6 +398,31 @@ function AutomationLaneEditor({
               onContextMenu={(e) => {
                 e.preventDefault();
                 setLane(removePointNear(track.automation[kind], p.time, 0.001));
+              }}
+              onKeyDown={(e) => {
+                /* Keyboard path (stack1000 M5): arrows move the point on
+                 * the lane's own grids (0.05s time / 0.1 value steps,
+                 * Shift = ×10), Delete removes it — through the same
+                 * upsertPoint / removePointNear calls the drag uses. */
+                const tStep = e.shiftKey ? 0.5 : 0.05;
+                const vStep = e.shiftKey ? 10 : 1;
+                if (e.key === "Delete" || e.key === "Backspace") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setLane(removePointNear(track.automation[kind], p.time, 0.001));
+                  return;
+                }
+                let time = p.time;
+                let value = p.value;
+                if (e.key === "ArrowLeft") time = p.time - tStep;
+                else if (e.key === "ArrowRight") time = p.time + tStep;
+                else if (e.key === "ArrowUp") value = Math.min(meta.max, Math.round((p.value + vStep) * 10) / 10);
+                else if (e.key === "ArrowDown") value = Math.max(meta.min, Math.round((p.value - vStep) * 10) / 10);
+                else return;
+                e.preventDefault();
+                e.stopPropagation();
+                const others = points.filter((_, j) => j !== i);
+                setLane(upsertPoint(others, time, value));
               }}
               data-testid={`automation-point-${kind}-${i}`}
             />
@@ -527,6 +554,7 @@ function CompEditor({
               className={`absolute top-1 bottom-1 rounded-md ${takeColor(takeIdx)} ${selectedRegionId === r.id ? "ring-2 ring-white/80" : ""}`}
               style={{ left: r.startTime * pxPerSec, width: Math.max(4, len * pxPerSec) }}
               onPointerDown={(e) => { e.stopPropagation(); setSelectedRegionId(r.id); }}
+              onClick={() => setSelectedRegionId(r.id)}
               title={`${takes[takeIdx]?.name ?? "Take"} · ${r.startTime.toFixed(1)}s – ${(r.startTime + len).toFixed(1)}s`}
               data-testid={`comp-region-${r.id}`}
             />
@@ -790,20 +818,7 @@ export default function ArrangementStudio() {
     const drag = clipDrag.current;
     if (!drag) return;
     const dx = (e.clientX - drag.startX) / pxPerSec;
-    const orig = drag.orig;
-    const playLen = clipPlayLength(orig);
-    let next: ArrangementClip = orig;
-    if (drag.mode === "move") {
-      next = { ...orig, startTime: Math.max(0, Math.round((orig.startTime + dx) * 100) / 100) };
-    } else if (drag.mode === "trimStart") {
-      const maxTrim = Math.max(0, orig.trimStart + playLen - 0.1);
-      const trimStart = Math.min(maxTrim, Math.max(0, orig.trimStart + dx));
-      next = { ...orig, trimStart: Math.round(trimStart * 100) / 100, startTime: Math.max(0, Math.round((orig.startTime + (trimStart - orig.trimStart)) * 100) / 100) };
-    } else {
-      const maxTrim = Math.max(0, orig.trimEnd + playLen - 0.1);
-      const trimEnd = Math.min(maxTrim, Math.max(0, orig.trimEnd - dx));
-      next = { ...orig, trimEnd: Math.round(trimEnd * 100) / 100 };
-    }
+    const next = dragClipBy(drag.orig, drag.mode, dx);
     setArrangement((a) => ({
       ...a,
       tracks: a.tracks.map((t) =>
@@ -815,11 +830,40 @@ export default function ArrangementStudio() {
     clipDrag.current = null;
   }
 
+  /* Keyboard path for a focused clip (stack1000 M5) — arrows move,
+   * [ ] trim the head, { } trim the tail, all through dragClipBy, the
+   * same step function the pointer move handler feeds. Shift = ×10. */
+  const [announce, setAnnounce] = useState("");
+  function handleClipKeyDown(e: React.KeyboardEvent, track: ArrangementTrack, clip: ArrangementClip) {
+    const step = e.shiftKey ? 1 : 0.1;
+    let mode: ClipDragMode | null = null;
+    let dx = 0;
+    if (e.key === "ArrowLeft") { mode = "move"; dx = -step; }
+    else if (e.key === "ArrowRight") { mode = "move"; dx = step; }
+    else if (e.key === "[") { mode = "trimStart"; dx = step; }
+    else if (e.key === "]") { mode = "trimStart"; dx = -step; }
+    else if (e.key === "{") { mode = "trimEnd"; dx = step; }
+    else if (e.key === "}") { mode = "trimEnd"; dx = -step; }
+    if (!mode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const next = dragClipBy(clip, mode, dx);
+    setArrangement((a) => ({
+      ...a,
+      tracks: a.tracks.map((t) =>
+        t.id === track.id ? { ...t, clips: t.clips.map((c) => (c.id === clip.id ? next : c)) } : t,
+      ),
+    }));
+    setSelectedTrackId(track.id);
+    setAnnounce(`${clip.name}: starts at ${next.startTime.toFixed(2)} seconds, plays ${clipPlayLength(next).toFixed(2)} seconds`);
+  }
+
   const panelTrack = openPanel ? arrangement.tracks.find((t) => t.id === openPanel.trackId) ?? null : null;
   const ms = arrangement.master;
 
   return (
     <div className="space-y-5" data-testid="arrangement-studio">
+      <div aria-live="polite" className="sr-only">{announce}</div>
       {/* Transport + title */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5">
@@ -1003,6 +1047,13 @@ export default function ArrangementStudio() {
                               onPointerDown={isCompSeg ? undefined : (e) => onClipPointerDown(e, track, track.clips.find((c) => c.id === seg.id) ?? seg)}
                               onPointerMove={isCompSeg ? undefined : onClipPointerMove}
                               onPointerUp={isCompSeg ? undefined : onClipPointerUp}
+                              {...(isCompSeg ? {} : {
+                                tabIndex: 0,
+                                role: "button",
+                                "aria-label": `${seg.name} clip, starts at ${seg.startTime.toFixed(1)} seconds, ${len.toFixed(1)} seconds long. Arrow keys move it, bracket keys trim it.`,
+                                onFocus: () => setSelectedTrackId(track.id),
+                                onKeyDown: (e: React.KeyboardEvent) => handleClipKeyDown(e, track, track.clips.find((c) => c.id === seg.id) ?? seg),
+                              })}
                               title={isCompSeg ? `${seg.name} — edit regions in Takes` : `${seg.name} — drag to move, edges to trim`}
                               data-testid={`clip-${seg.id}`}
                             >
