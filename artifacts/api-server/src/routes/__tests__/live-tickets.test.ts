@@ -747,6 +747,42 @@ describe("the watch door (DTO)", () => {
     expect(holder.json.stream.vod_url).toBe("https://vod.example/show.mp4");
   });
 
+  /* W4: registerStreamVod writes the replay URL onto the site
+     destination as well as the stream row — the door must scrub
+     that copy too. Seeded exactly the way the registration writes
+     it; before the fix a guest's DTO carried the paid URL in
+     destinations while stream.vod_url read null. */
+  it("the destination copy of the replay URL stays behind the door too", async () => {
+    await call("POST", `/api/live-streams/${T1}/ticket`, { user: HOLDER, body: {} });
+    const row = h.state.streams.get(T1);
+    row.status = "ended";
+    row.vod_url = "https://vod.example/show.mp4";
+    row.vod_clip_id = "clip-1";
+    row.destinations = [
+      {
+        platform: "site",
+        label: "Your profile",
+        status: "ended",
+        save_recording: true,
+        vod_url: "https://vod.example/show.mp4",
+        vod_state: "saved",
+      },
+    ];
+    const guest = await call("GET", `/api/live-streams/${T1}`);
+    const guestSite = (guest.json.stream.destinations as Array<Record<string, unknown>>).find(
+      (d) => d["platform"] === "site",
+    );
+    expect(guest.json.stream.vod_url).toBeNull();
+    expect(guestSite?.["vod_url"]).toBeNull();
+    // That a replay EXISTS stays a public door fact.
+    expect(guestSite?.["vod_state"]).toBe("saved");
+    const holder = await call("GET", `/api/live-streams/${T1}`, { bearer: "tok-holder" });
+    const holderSite = (holder.json.stream.destinations as Array<Record<string, unknown>>).find(
+      (d) => d["platform"] === "site",
+    );
+    expect(holderSite?.["vod_url"]).toBe("https://vod.example/show.mp4");
+  });
+
   it("the public rail shows the door but never playback", async () => {
     const res = await call("GET", `/api/live-streams/live`);
     expect(res.status).toBe(200);

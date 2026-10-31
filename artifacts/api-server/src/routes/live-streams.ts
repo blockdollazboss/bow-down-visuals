@@ -382,6 +382,11 @@ export interface LiveStreamDto {
    *  (external encoder). Everything else about the stream — chat,
    *  playback, fan-out — is identical either way. */
   source: string;
+  /** Which stage carries the stream: 'own-server' | 'cloudflare-stream'.
+   *  Public surfaces need it for honest replay copy — an own-server
+   *  replay is saved by the server after the end, a provider replay
+   *  arrives from the broadcaster's own recording (or doesn't). */
+  provider: string;
   started_at: string | null;
   ended_at: string | null;
   viewer_count: number;
@@ -467,11 +472,21 @@ export function toStreamDto(
           hls_url: `/api/live-streams/${row.id}/hls/playlist.m3u8${ticketed && acc.playbackToken ? `?t=${acc.playbackToken}` : ""}`,
         }
       : playbackUrlsFromWhip(row.whip_url);
+  /* The door covers EVERY copy of the replay URL: the site
+     destination carries the same URL the stream row does (written
+     by registerStreamVod), so a non-entitled DTO must scrub it
+     there too — before W4 the destination copy leaked the paid
+     replay to anyone who fetched the DTO. vod_state stays: that a
+     replay EXISTS is a door fact, like the price. */
+  const destinations = normalizeDestinations(row.destinations).map((d) =>
+    ticketed && !acc.entitled ? { ...d, vod_url: null } : d,
+  );
   return {
     id: row.id,
     title: row.title,
     status: row.status,
     source: row.ingest_source ?? "camera",
+    provider: row.provider,
     started_at: iso(row.started_at),
     ended_at: iso(row.ended_at),
     viewer_count: isLive ? Math.max(liveViewerCount ?? 0, 0) : 0,
@@ -480,7 +495,7 @@ export function toStreamDto(
     // ticketed stream's recording stays behind the same door (the
     // Paid Series precedent: purchased content stays gated).
     vod_url: ticketed && !acc.entitled ? null : (row.vod_url ?? null),
-    destinations: normalizeDestinations(row.destinations),
+    destinations,
     creator: toCreatorDto(profile),
     playback: isLive && (urls.whep_url || urls.hls_url) ? urls : null,
     ticket: acc.door,

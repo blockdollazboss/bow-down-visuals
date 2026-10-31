@@ -13,6 +13,7 @@ import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import StreamSummaryCard from "@/components/live/StreamSummaryCard";
 import ReachWatchPanel from "@/components/reach/ReachWatchPanel";
 import { WhepPlayer } from "@/lib/stream-kit/transport";
+import { replayStateFor } from "@/lib/live-replay";
 import PartyTableSection from "@/components/artist/PartyTableSection";
 import { SongRequestPanel } from "@/components/live/SongRequests";
 import { publicOnStageGuests } from "@/lib/go-live/guest-api";
@@ -30,11 +31,15 @@ interface LiveStreamDto {
   id: string;
   title: string;
   status: string;
+  /** 'own-server' | 'cloudflare-stream' — drives the honest replay
+   *  copy once the stream ends (see lib/live-replay). */
+  provider: string;
   started_at: string | null;
   ended_at: string | null;
   viewer_count: number;
   peak_viewers: number;
   vod_url: string | null;
+  destinations: Array<{ platform: string; vod_state: string | null }>;
   creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
   playback: { whep_url: string | null; hls_url: string | null } | null;
   /** Ticketed live (Wave 4 #31): the door facts (null on a free
@@ -233,6 +238,11 @@ export default function LiveWatch() {
   }, [fetchStream, retryNonce]);
 
   const isLive = stream?.status === "live";
+  /* The replay truth for an ended stream (W4): available / still
+     saving on the server / may still arrive from the studio / known
+     not saved. The player area renders from this — never a flat
+     "no recording" the moment a stream ends. */
+  const replay = stream && !isLive ? replayStateFor(stream) : null;
   /* The ticket door for THIS viewer (server-decided): a ticketed
      stream whose DTO carried no entry for us. */
   const door = stream?.ticket ?? null;
@@ -387,6 +397,24 @@ export default function LiveWatch() {
     };
   }, [isLive, stream?.id, fetchStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* While the replay outcome is still open, keep re-reading the
+     stream so the replay appears on this page when it lands. The
+     polling stops itself: once the state resolves (available or
+     known not saved) this effect's guard no longer matches. */
+  useEffect(() => {
+    if (!stream || isLive) return;
+    if (replay?.kind !== "saving" && replay?.kind !== "pending") return;
+    const pollTimer = setInterval(async () => {
+      try {
+        const s = await fetchStream();
+        if (s) setStream(s);
+      } catch {
+        /* the next poll retries */
+      }
+    }, 15_000);
+    return () => clearInterval(pollTimer);
+  }, [isLive, replay?.kind, stream?.id, fetchStream]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const followStates = useFollowStates(stream?.creator ? [stream.creator.id] : []);
 
   if (load === "loading") {
@@ -485,8 +513,8 @@ export default function LiveWatch() {
                   viewer turns them on and picks their own language. */}
               <LiveCaptionsBar streamId={stream.id} />
             </>
-          ) : stream.vod_url ? (
-            <video src={stream.vod_url} controls playsInline className="h-full w-full object-contain" data-testid="vod-player" />
+          ) : replay?.kind === "available" ? (
+            <video src={replay.url} controls playsInline className="h-full w-full object-contain" data-testid="vod-player" />
           ) : doorLocked ? (
             <TicketDoor
               priceVb={door.price_vb}
@@ -502,7 +530,17 @@ export default function LiveWatch() {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
               <Radio className="h-8 w-8 text-[#C9A84C]/60" />
               <p className="text-sm font-bold text-white/80">This stream has ended.</p>
-              <p className="max-w-sm text-xs text-white/40">No recording was saved for this one. Catch the next show live.</p>
+              {replay?.kind === "saving" ? (
+                <p className="max-w-sm text-xs text-white/40" data-testid="replay-saving">
+                  The replay is still saving — it'll play right here as soon as it's ready.
+                </p>
+              ) : replay?.kind === "pending" ? (
+                <p className="max-w-sm text-xs text-white/40" data-testid="replay-pending">
+                  No replay yet — if the creator saved the recording from their studio, it'll appear here.
+                </p>
+              ) : (
+                <p className="max-w-sm text-xs text-white/40">No recording was saved for this one. Catch the next show live.</p>
+              )}
             </div>
           )}
         </div>
