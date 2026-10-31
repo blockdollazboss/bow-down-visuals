@@ -508,7 +508,7 @@ vi.mock("../../../middlewares/require-auth", () => ({
   },
 }));
 
-vi.mock("../../../lib/email", () => ({
+vi.mock("../../../lib/email", async (importOriginal) => ({ ...((await importOriginal()) as Record<string, unknown>),
   isEmailConfigured: () => mail.configured,
   baseUrlForEmail: () => "https://test.example",
   escapeHtml: (s: string) =>

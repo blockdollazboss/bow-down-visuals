@@ -28,7 +28,7 @@ const mail = vi.hoisted(() => ({
   sends: [] as Array<Record<string, any>>,
 }));
 
-vi.mock("../email", () => ({
+vi.mock("../email", async (importOriginal) => ({ ...((await importOriginal()) as Record<string, unknown>),
   isEmailConfigured: () => mail.configured,
   sendEmail: async (input: Record<string, any>) => {
     mail.sends.push(input);
