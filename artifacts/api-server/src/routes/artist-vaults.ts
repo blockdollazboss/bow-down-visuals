@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { attachJobMapTtl } from "../lib/job-map-sweeper";
 import { requireAuth } from "../middlewares/require-auth";
+import { generationLimiter } from "../lib/rate-limit";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable, CHARACTER_LINK_ROLES } from "@workspace/db";
@@ -455,7 +456,7 @@ const refVideoTasks = attachJobMapTtl(new Map<
 >());
 
 /** Submit a reference-video generation for a character. */
-router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
+router.post("/artist-vaults/:id/reference-video", requireAuth, generationLimiter, async (req, res) => {
   const id = String(req.params["id"]);
 
   const vault = await getAccessibleVault(req.userId!, id);
@@ -797,7 +798,7 @@ router.post("/artist-vaults/:id/share", requireAuth, async (req, res) => {
 });
 
 /** Start a seamless-loop job for the vault's current reference video. Credits pre-checked; charged on poll. */
-router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, res) => {
+router.post("/artist-vaults/:id/reference-video/loop", requireAuth, generationLimiter, async (req, res) => {
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0]! : rawId;
   try {
