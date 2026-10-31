@@ -52,7 +52,7 @@ import {
 import { createTestDb } from "./test-db";
 
 const DDL = `
-CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text, display_name text);
+CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text, display_name text, follower_count integer NOT NULL DEFAULT 0);
 CREATE TABLE creator_subscriptions (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
   tier text NOT NULL DEFAULT 'free', status text NOT NULL DEFAULT 'active',
@@ -62,7 +62,7 @@ CREATE TABLE creator_subscriptions (
 CREATE TABLE store_products (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE);
 CREATE TABLE posts (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE);
 CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE playlists (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE);
+CREATE TABLE playlists (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE, follower_count integer NOT NULL DEFAULT 0);
 CREATE TABLE playlist_follows (user_id uuid NOT NULL, playlist_id uuid NOT NULL REFERENCES playlists(id) ON DELETE CASCADE, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE gift_cards (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
@@ -344,6 +344,33 @@ describe("eraseAccountData", () => {
     expect(shop[0].status).toBe("paused");
     // The other member is untouched.
     expect(q(`SELECT * FROM creator_profiles WHERE id = '${OTHER_PROFILE}';`)).toHaveLength(1);
+  });
+
+  it("takes the member's follows with their counts: followed profiles and playlists lose exactly the landed rows (stack1100 X5)", async () => {
+    seedContent();
+    // Counter truth going in, derived from the rows themselves:
+    // OTHER_PROFILE is followed by USER (seedContent) and by OTHER
+    // (added here) = 2 rows; other's playlist is followed by USER and
+    // OTHER (seedContent) = 2 rows. Counts start in agreement.
+    mem.public.none(`
+      INSERT INTO follows (follower_user_id, profile_id) VALUES ('${OTHER}', '${OTHER_PROFILE}');
+      UPDATE creator_profiles SET follower_count = 2 WHERE id = '${OTHER_PROFILE}';
+      UPDATE playlists SET follower_count = 2 WHERE profile_id = '${OTHER_PROFILE}';
+      UPDATE playlists SET follower_count = 1 WHERE profile_id = '${PROFILE}';
+    `);
+    await eraseAccountData(USER);
+    // USER's profile-follow row left, so OTHER_PROFILE's count drops to
+    // the one row that stands (OTHER's). A ghost follower would leave 2.
+    const prof = q(`SELECT follower_count FROM creator_profiles WHERE id = '${OTHER_PROFILE}';`);
+    expect(prof).toHaveLength(1);
+    expect(prof[0].follower_count).toBe(1);
+    expect(q(`SELECT * FROM follows WHERE profile_id = '${OTHER_PROFILE}';`)).toHaveLength(1);
+    // Same law on the playlist side: only OTHER's follow of their own
+    // playlist stands, and its count agrees with the row.
+    const pl = q(`SELECT follower_count FROM playlists WHERE profile_id = '${OTHER_PROFILE}';`);
+    expect(pl).toHaveLength(1);
+    expect(pl[0].follower_count).toBe(1);
+    expect(q(`SELECT * FROM playlist_follows;`)).toHaveLength(1);
   });
 
   it("keeps every transaction record: settled deals, terminal memberships, gift cards the member bought", async () => {
