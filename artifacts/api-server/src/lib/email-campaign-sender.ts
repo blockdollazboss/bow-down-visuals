@@ -79,6 +79,7 @@ import {
   escapeHtml,
   baseUrlForEmail,
   type SendEmailResult,
+  EMAIL_COLORS,
 } from "./email";
 import { logger } from "./logger";
 
@@ -201,8 +202,8 @@ export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl
     )
     .join("");
   const footer =
-    `<p style="margin:20px 0 0;font-size:12px;color:#8a7c5c;">` +
-    `Don't want these emails? <a href="${unsubscribeUrl}" style="color:#a67c1a;">Unsubscribe</a>` +
+    `<p style="margin:20px 0 0;font-size:12px;color:${EMAIL_COLORS.muted};">` +
+    `Don't want these emails? <a href="${unsubscribeUrl}" style="color:${EMAIL_COLORS.goldDeep};">Unsubscribe</a>` +
     `</p>`;
   return emailShell(subject, paragraphs + footer);
 }

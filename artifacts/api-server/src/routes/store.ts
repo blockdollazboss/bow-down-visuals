@@ -101,7 +101,7 @@ import {
   setLicenseSettings,
   type LicenseKeyRow,
 } from "../lib/license-keys";
-import { sendEmail, emailShell, emailButton, emailDetailBox, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
+import { sendEmail, emailShell, emailButton, emailDetailBox, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
 import {
   GiftCardsUnavailable,
   findCardByCode,
@@ -1818,8 +1818,8 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
         const bundleReceiptHtml = bundleDef
           ? `<div style="margin:0 0 12px;">
 ${bundleDef.components.map((c) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span>${escapeHtml(c.title)}</span><span>${emailMoney(c.listPriceCents)}</span></div>`).join("")}
-<div style="display:flex;justify-content:space-between;color:#8a7c5c;font-size:12px;border-top:1px solid #d9c68d;margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
-${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:#a67c1a;font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
+<div style="display:flex;justify-content:space-between;color:${EMAIL_COLORS.muted};font-size:12px;border-top:1px solid ${EMAIL_COLORS.boxBorder};margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
+${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:${EMAIL_COLORS.goldDeep};font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
 </div>`
           : "";
         /* License keys (Wave 4 #35): the receipt carries the buyer's
@@ -1833,20 +1833,20 @@ ${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:s
           licenseRows.push({ title: k.item_title, view: buyerLicenseView(k) });
         }
         const licenseReceiptHtml = licenseRows.length
-          ? `<div style="background:#f3ecdb;border:1px solid #d9c68d;border-radius:8px;padding:16px;margin:0 0 16px;">
-<div style="color:#a67c1a;font-weight:700;font-size:14px;margin-bottom:8px;">Your license key${licenseRows.length > 1 ? "s" : ""}</div>
-${licenseRows.map(({ title, view }) => `<div style="margin:0 0 10px;"><div style="color:#4a4230;font-size:13px;">${escapeHtml(title)}</div><div style="font-family:monospace;color:#221c0e;font-size:15px;letter-spacing:1px;">${escapeHtml(view.key ?? "")}</div><div style="color:#8a7c5c;font-size:12px;">${view.maxDownloads === null ? "Unlimited downloads" : `${view.maxDownloads} download${view.maxDownloads === 1 ? "" : "s"} included`} · always available under your purchases</div></div>`).join("")}
-<div style="color:#8a7c5c;font-size:12px;">This key is proof this copy is yours. Downloads are counted per purchase — refreshing a link never resets them.</div>
+          ? `<div style="background:${EMAIL_COLORS.box};border:1px solid ${EMAIL_COLORS.boxBorder};border-radius:8px;padding:16px;margin:0 0 16px;">
+<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:14px;margin-bottom:8px;">Your license key${licenseRows.length > 1 ? "s" : ""}</div>
+${licenseRows.map(({ title, view }) => `<div style="margin:0 0 10px;"><div style="color:${EMAIL_COLORS.body};font-size:13px;">${escapeHtml(title)}</div><div style="font-family:monospace;color:${EMAIL_COLORS.ink};font-size:15px;letter-spacing:1px;">${escapeHtml(view.key ?? "")}</div><div style="color:${EMAIL_COLORS.muted};font-size:12px;">${view.maxDownloads === null ? "Unlimited downloads" : `${view.maxDownloads} download${view.maxDownloads === 1 ? "" : "s"} included`} · always available under your purchases</div></div>`).join("")}
+<div style="color:${EMAIL_COLORS.muted};font-size:12px;">This key is proof this copy is yours. Downloads are counted per purchase — refreshing a link never resets them.</div>
 </div>`
           : "";
         const receiptHtml = emailShell(
           "Purchase confirmed",
           `<p style="margin:0 0 12px;">You're in. Your purchase is ready:</p>
-${emailDetailBox(`<div style="color:#a67c1a;font-weight:700;font-size:17px;">${escapeHtml(itemTitle)}</div>
+${emailDetailBox(`<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:17px;">${escapeHtml(itemTitle)}</div>
 ${artistName ? `<div style="font-size:13px;">by ${escapeHtml(artistName)}</div>` : ""}
 ${splits.bump ? `<div style="font-size:13px;margin-top:4px;">Includes add-on: ${escapeHtml(bumpTitle)} — ${emailMoney(splits.bump.grossCents)}</div>` : ""}
 <div style="font-size:14px;margin-top:8px;">Paid: <strong>${emailMoney(amountCents)}</strong></div>
-<div style="color:#8a7c5c;font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>`)}
+<div style="color:${EMAIL_COLORS.muted};font-size:12px;">Receipt ID: ${escapeHtml(saleId)}</div>`)}
 ${bundleReceiptHtml}
 ${licenseReceiptHtml}
 <p style="margin:0 0 16px;font-size:14px;">${kind === "series"
