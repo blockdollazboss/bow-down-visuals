@@ -13,7 +13,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto } from "./challenge-engine";
+import { effectiveStatus, optionalViewerId, slugify, requireOwnProfile, toChallengeDto, totalViewsByChallenge } from "./challenge-engine";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { ALT_TEXT_MAX_CHARS, sanitizeAltText } from "../lib/alt-text";
@@ -911,6 +911,9 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
       endsAt: challengesTable.endsAt, judgingEndsAt: challengesTable.judgingEndsAt,
       prizePoolCredits: challengesTable.prizePoolCredits,
     }).from(challengesTable).where(eq(challengesTable.hashtag, tag)).limit(12);
+    /* total_views derived from the entries' rows, never the dead
+       column (stack1100 X5 — see challenge-engine.totalViewsByChallenge). */
+    const challengeTotals = await totalViewsByChallenge(challengeRows.map((r) => r.id));
 
     const vids = (videos.rows as Record<string, unknown>[]);
     res.json(await refreshSupabaseStorageUrlsDeep({
@@ -935,7 +938,7 @@ router.get("/hashtag/:tag", feedLimiter, async (req, res) => {
         creator: { slug: r["creator_slug"], display_name: r["creator_name"], avatar_url: r["creator_avatar"] },
         created_at: r["created_at"],
       })),
-      challenges: challengeRows.map(toChallengeDto),
+      challenges: challengeRows.map((r) => toChallengeDto({ ...r, totalViews: challengeTotals.has(r.id) ? challengeTotals.get(r.id)! : r.totalViews })),
     }));
   } catch (err) {
     req.log.error({ err }, "hashtag error");

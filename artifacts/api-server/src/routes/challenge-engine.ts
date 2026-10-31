@@ -12,7 +12,7 @@ import {
   profileVideosTable,
   notificationsTable,
 } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
@@ -1339,6 +1339,39 @@ router.post("/challenges", requireAuth, writeLimiter, async (req, res) => {
   }
 });
 
+/** total_views is DERIVED at read (stack1100 X5): the
+ *  challenges.total_views column has no writer anywhere in the
+ *  codebase — it sat at 0 forever while the challenge page rendered
+ *  "{total_views} views" as fact. The row truth is the standing
+ *  entries' own view counts, summed here from profile_videos.
+ *  (entry_count stays the stored counter: its doors recompute it
+ *  from challenge_entries on every landed change, deletes included.)
+ *  The returned map has an entry exactly for challenges WITH standing
+ *  entries; a challenge absent from the map has none, so its total
+ *  is 0 — callers fall back to the stored value, which is 0 for such
+ *  a challenge in every real row. Summed in JS from two plain selects
+ *  so the read harnesses' fake dbs (which speak only plain selects)
+ *  keep working. */
+export async function totalViewsByChallenge(ids: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (ids.length === 0) return map;
+  const entries = await db
+    .select({ challengeId: challengeEntriesTable.challengeId, videoId: challengeEntriesTable.videoId })
+    .from(challengeEntriesTable)
+    .where(inArray(challengeEntriesTable.challengeId, ids));
+  if (entries.length === 0) return map;
+  const videoIds = [...new Set(entries.map((e) => e.videoId))];
+  const videos = await db
+    .select({ id: profileVideosTable.id, viewCount: profileVideosTable.viewCount })
+    .from(profileVideosTable)
+    .where(inArray(profileVideosTable.id, videoIds));
+  const viewsByVideo = new Map(videos.map((v) => [v.id, Number(v.viewCount ?? 0)]));
+  for (const e of entries) {
+    map.set(e.challengeId, (map.get(e.challengeId) ?? 0) + (viewsByVideo.get(e.videoId) ?? 0));
+  }
+  return map;
+}
+
 /** Wire DTO for challenge cards (trending + hashtag hub). The clients
     (ShortsMenu, challenge "More challenges", hashtag cards) read snake_case
     end to end — entry_count, prize_text, prize_pool_credits, cover_url —
@@ -1404,8 +1437,9 @@ router.get("/challenges/trending", feedLimiter, async (req, res) => {
     }).from(challengesTable)
       .orderBy(desc(challengesTable.entryCount), desc(challengesTable.totalViews))
       .limit(limit);
+    const totals = await totalViewsByChallenge(rows.map((r) => r.id));
     res.json(await refreshSupabaseStorageUrlsDeep({
-      challenges: rows.map(toChallengeDto),
+      challenges: rows.map((r) => toChallengeDto({ ...r, totalViews: totals.has(r.id) ? totals.get(r.id)! : r.totalViews })),
     }));
   } catch (err) {
     req.log.error({ err }, "challenges trending error");
@@ -1448,11 +1482,12 @@ router.get("/challenges/:slug", feedLimiter, async (req, res) => {
       .select({ n: sql<number>`count(*)::int` })
       .from(challengeWinnersTable)
       .where(eq(challengeWinnersTable.challengeId, ch.id));
+    const totals = await totalViewsByChallenge([ch.id]);
     res.json(await refreshSupabaseStorageUrlsDeep({
       challenge: {
         id: ch.id, slug: ch.slug, title: ch.title, description: ch.description,
         hashtag: ch.hashtag, cover_url: ch.coverUrl, prize_text: ch.prizeText,
-        entry_count: ch.entryCount, total_views: ch.totalViews, created_at: ch.createdAt,
+        entry_count: ch.entryCount, total_views: totals.has(ch.id) ? totals.get(ch.id)! : ch.totalViews, created_at: ch.createdAt,
         status: effectiveStatus(ch),
         starts_at: ch.startsAt, ends_at: ch.endsAt, judging_ends_at: ch.judgingEndsAt,
         prize_pool_credits: ch.prizePoolCredits,
