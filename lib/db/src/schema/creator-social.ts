@@ -2,7 +2,7 @@ import { pgTable, uuid, text, boolean, timestamp, primaryKey, check, jsonb } fro
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { creatorProfilesTable } from "./creator-platform";
+import { creatorProfilesTable, playlistsTable } from "./creator-platform";
 
 /**
  * Creator Streaming Platform — social layer (migration 0087).
@@ -18,6 +18,23 @@ export const followsTable = pgTable("follows", {
 }, (t) => [primaryKey({ columns: [t.followerUserId, t.profileId] })]);
 
 export type Follow = typeof followsTable.$inferSelect;
+
+/**
+ * Playlist follows (migration 0303, stack1000 M3) — the playlist twin
+ * of `follows` above. Until 0303 the playlist follow endpoints kept NO
+ * row: POST /playlists/:id/follow ran a bare follower_count + 1 on
+ * every call (replays inflated it) and DELETE …/unfollow decremented
+ * for anyone, follower or not. This table is the follow itself — one
+ * row per (user, playlist) — and the counter + the owner's bell now
+ * move only when a row lands or leaves, the profile-follow pattern.
+ */
+export const playlistFollowsTable = pgTable("playlist_follows", {
+  userId:     uuid("user_id").notNull(),
+  playlistId: uuid("playlist_id").notNull().references(() => playlistsTable.id, { onDelete: "cascade" }),
+  createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.userId, t.playlistId] })]);
+
+export type PlaylistFollow = typeof playlistFollowsTable.$inferSelect;
 
 /* ── Creator comment controls (Stack-100 #3, #27) ──────────────────────────
    PENDING MIGRATION: the status / pinned / pinned_at / held_reason columns

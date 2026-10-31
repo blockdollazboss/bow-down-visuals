@@ -396,7 +396,11 @@ export async function togglePlaylistFollow(
   headers: Record<string, string>,
 ): Promise<{ following: boolean; count: number | null }> {
   const r = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/${following ? "unfollow" : "follow"}`, {
-    method: "POST",
+    /* The pair is POST …/follow + DELETE …/unfollow (the server has
+       no POST unfollow route — sending POST there 404'd, so an
+       unfollow from this toggle never landed and the count could
+       only ever climb). */
+    method: following ? "DELETE" : "POST",
     headers: { ...headers, "Content-Type": "application/json" },
   });
   const d = await r.json().catch(() => ({}));

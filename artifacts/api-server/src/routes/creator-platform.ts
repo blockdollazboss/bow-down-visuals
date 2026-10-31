@@ -8,6 +8,7 @@ import {
   profileVideosTable,
   playlistsTable,
   followsTable,
+  playlistFollowsTable,
   profileCommentsTable,
   mediaCommentsTable,
   creatorCommentSettingsTable,
@@ -414,6 +415,55 @@ export async function notifyFollowed(opts: {
     await _followEventNotifier(buildFollowEvent(opts));
   } catch (err) {
     console.error("[creator-platform] follow push failed", err);
+  }
+}
+
+/* ── Playlist-follow push (social-counter truth, stack1000 M3) ───────
+   The playlist twin of the follow bell above: a NEW playlist follow
+   rides the same door (category "social"), naming the follower and
+   the playlist, linking the playlist's own page. Exactly-once is
+   structural — the handler fires this only when a playlist_follows
+   row just landed (migration 0303), so a replayed POST can neither
+   re-bell nor re-count. A creator following their OWN playlist is
+   recorded but never belled (house self-event exclusion). */
+export function buildPlaylistFollowEvent(opts: {
+  ownerUserId: string;
+  followerName: string | null;
+  playlistTitle: string;
+  playlistId: string;
+}): UserEventInput {
+  return {
+    userId: opts.ownerUserId,
+    category: "social",
+    kind: "playlist_follow",
+    title: opts.followerName
+      ? `${opts.followerName} followed your playlist 🦈`
+      : "Your playlist got a new follower 🦈",
+    body: opts.followerName
+      ? `${opts.followerName} just followed "${opts.playlistTitle}" — your mixes are travelling.`
+      : `Someone just followed "${opts.playlistTitle}" — your mixes are travelling.`,
+    link: `/playlist/${opts.playlistId}`,
+  };
+}
+
+type PlaylistFollowEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _playlistFollowEventNotifier: PlaylistFollowEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setPlaylistFollowEventNotifier(fn: PlaylistFollowEventNotifier | null): void {
+  _playlistFollowEventNotifier = fn ?? notifyUserEvent;
+}
+
+/** Best-effort: a ping failure never fails the follow that landed. */
+export async function notifyPlaylistFollowed(opts: {
+  ownerUserId: string;
+  followerName: string | null;
+  playlistTitle: string;
+  playlistId: string;
+}): Promise<void> {
+  try {
+    await _playlistFollowEventNotifier(buildPlaylistFollowEvent(opts));
+  } catch (err) {
+    console.error("[creator-platform] playlist follow push failed", err);
   }
 }
 
@@ -2682,11 +2732,42 @@ router.post("/playlists/:id/follow", requireAuth, async (req, res) => {
     const [pl] = await db.select().from(playlistsTable)
       .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
     if (!pl || !pl.isPublic) { res.status(404).json({ error: "Playlist not found." }); return; }
-    await db.execute(sql`
-      UPDATE playlists SET follower_count = follower_count + 1 WHERE id = ${pl.id}
-    `);
+    /* Social-counter truth (stack1000 M3; stack900 L4 residual R4):
+       the follow IS a playlist_follows row (migration 0303). The
+       insert is ON CONFLICT DO NOTHING and its outcome is read back —
+       a replayed POST (double-tap, client retry) lands NO row, so it
+       must neither inflate follower_count nor ring the owner's bell
+       for a follow that did not newly happen. Before 0303 this
+       handler ran a bare +1 on every POST and kept no row at all. */
+    const landed = await db.insert(playlistFollowsTable)
+      .values({ userId: req.userId!, playlistId: pl.id })
+      .onConflictDoNothing({ target: [playlistFollowsTable.userId, playlistFollowsTable.playlistId] })
+      .returning({ playlistId: playlistFollowsTable.playlistId });
+    if (landed.length > 0) {
+      await db.update(playlistsTable)
+        .set({ followerCount: sql`${playlistsTable.followerCount} + 1` })
+        .where(eq(playlistsTable.id, pl.id));
+      // The owner's bell belongs to the landed follow — and never to
+      // a creator following their own playlist.
+      const [owner] = await db.select({ userId: creatorProfilesTable.userId })
+        .from(creatorProfilesTable)
+        .where(eq(creatorProfilesTable.id, pl.ownerProfileId)).limit(1);
+      if (owner && owner.userId !== req.userId) {
+        const [followerProfile] = await db
+          .select({ displayName: creatorProfilesTable.displayName })
+          .from(creatorProfilesTable)
+          .where(eq(creatorProfilesTable.userId, req.userId!))
+          .limit(1);
+        await notifyPlaylistFollowed({
+          ownerUserId: owner.userId,
+          followerName: followerProfile?.displayName ?? null,
+          playlistTitle: pl.title,
+          playlistId: pl.id,
+        });
+      }
+    }
     const [fresh] = await db.select().from(playlistsTable).where(eq(playlistsTable.id, pl.id)).limit(1);
-    res.json({ following: true, follower_count: fresh?.followerCount ?? 0 });
+    res.json({ following: true, follower_count: fresh?.followerCount ?? pl.followerCount });
   } catch (err) {
     req.log.error({ err }, "playlist follow error");
     res.status(500).json({ error: "The follow didn't stick. Try again." });
@@ -3085,11 +3166,25 @@ router.delete("/playlists/:id/unfollow", requireAuth, async (req, res) => {
     const [pl] = await db.select().from(playlistsTable)
       .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);
     if (!pl) { res.status(404).json({ error: "Playlist not found." }); return; }
-    await db.execute(sql`
-      UPDATE playlists SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = ${pl.id}
-    `);
+    /* Social-counter truth (stack1000 M3): the decrement belongs to a
+       follow row that actually left. The delete's outcome is read
+       back — a DELETE from someone who never followed (or a replayed
+       unfollow) removes nothing and moves nothing. Before 0303 this
+       handler decremented on every call, so a non-follower could
+       drain a count that was never theirs. */
+    const deleted = await db.delete(playlistFollowsTable)
+      .where(and(
+        eq(playlistFollowsTable.userId, req.userId!),
+        eq(playlistFollowsTable.playlistId, pl.id),
+      ))
+      .returning({ playlistId: playlistFollowsTable.playlistId });
+    if (deleted.length > 0) {
+      await db.update(playlistsTable)
+        .set({ followerCount: sql`GREATEST(${playlistsTable.followerCount} - 1, 0)` })
+        .where(eq(playlistsTable.id, pl.id));
+    }
     const [fresh] = await db.select().from(playlistsTable).where(eq(playlistsTable.id, pl.id)).limit(1);
-    res.json({ following: false, follower_count: fresh?.followerCount ?? 0 });
+    res.json({ following: false, follower_count: fresh?.followerCount ?? pl.followerCount });
   } catch (err) {
     req.log.error({ err }, "playlist unfollow error");
     res.status(500).json({ error: "The unfollow didn't stick. Try again." });
