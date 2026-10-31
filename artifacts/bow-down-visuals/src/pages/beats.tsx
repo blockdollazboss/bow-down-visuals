@@ -74,6 +74,24 @@ interface Beat {
   license_templates?: BeatLicenseTemplate[];
 }
 
+/* A buyer's own license, as GET /api/beats/licenses/mine returns it
+   (the license DTO is camelCase, unlike the dashboard's raw rows).
+   downloadUrl / stemsUrl are present ONLY on completed licenses —
+   stemsUrl only when the sold terms carry a stems format and the
+   producer has stems on file (stack1100 X4). */
+interface BuyerLicense {
+  id: string;
+  beatTitle: string | null;
+  tier: string;
+  templateId?: string | null;
+  terms?: BeatLicenseTerms | null;
+  priceCents: number;
+  status: string;
+  createdAt: string;
+  downloadUrl: string | null;
+  stemsUrl: string | null;
+}
+
 interface License {
   id: string;
   beat_id: string;
@@ -150,6 +168,8 @@ export default function Beats() {
   /* Sell form */
   const [title, setTitle] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [stemsUrl, setStemsUrl] = useState("");
   const [sellGenre, setSellGenre] = useState("hip-hop");
   const [bpm, setBpm] = useState("");
   const [musicalKey, setMusicalKey] = useState("");
@@ -174,6 +194,31 @@ export default function Beats() {
      dashboard has loaded, a later failed reload (e.g. the BeatRow
      refresh after applying AI tags) must NOT blank what's on screen. */
   const dashLoadedRef = useRef(false);
+
+  /* Buyer licenses (stack1100 X4): the checkout-return banner has
+     always told buyers "Find it in your dashboard", but this tab only
+     ever loaded the PRODUCER payload — on the 2D site a buyer's
+     licenses and downloads lived nowhere (the only library was the
+     World BeatsDesk). This fetch settles independently of the
+     dashboard payload, with the same discipline: a failed load shows
+     its own failure card with its own Retry, never a fake
+     "no licenses yet", and a failed reload never blanks loaded rows. */
+  const [buyerLicenses, setBuyerLicenses] = useState<BuyerLicense[]>([]);
+  const [buyerLicensesFailed, setBuyerLicensesFailed] = useState(false);
+  const buyerLicensesLoadedRef = useRef(false);
+
+  const fetchBuyerLicenses = async () => {
+    try {
+      const res = await fetch("/api/beats/licenses/mine");
+      if (!res.ok) throw new Error("load failed");
+      const data = await res.json() as { licenses?: BuyerLicense[] };
+      setBuyerLicenses(data.licenses ?? []);
+      buyerLicensesLoadedRef.current = true;
+      setBuyerLicensesFailed(false);
+    } catch {
+      if (!buyerLicensesLoadedRef.current) setBuyerLicensesFailed(true);
+    }
+  };
 
   const fetchBeats = async () => {
     setSectionStates((prev) => markSectionLoading(prev, "browse"));
@@ -202,6 +247,11 @@ export default function Beats() {
   /* Returning from checkout: verify the payment server-side — the
      license is only real once this confirms it. */
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
+  /* The verify response IS the first delivery (stack1100 X4): it
+     carries the master downloadUrl (and stemsUrl for stems licenses).
+     The banner used to drop both on the floor and send the buyer to
+     a dashboard that had no library — the links render right here. */
+  const [verifyDelivery, setVerifyDelivery] = useState<{ url: string; stemsUrl: string | null } | null>(null);
   useEffect(() => {
     const sid = new URLSearchParams(window.location.search).get("session_id");
     if (!sid) return;
@@ -213,12 +263,15 @@ export default function Beats() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId: sid }),
         });
-        const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string; downloadUrl?: string; stemsUrl?: string | null };
         setVerifyMsg(
           res.ok && data.success
             ? "Payment confirmed — your license is active. Find it in your dashboard."
             : (data.error ?? "We couldn't confirm that payment. If you were charged, contact support."),
         );
+        if (res.ok && data.success && data.downloadUrl) {
+          setVerifyDelivery({ url: data.downloadUrl, stemsUrl: data.stemsUrl ?? null });
+        }
       } catch {
         setVerifyMsg("We couldn't confirm that payment. If you were charged, contact support.");
       }
@@ -251,7 +304,10 @@ export default function Beats() {
   };
 
   useEffect(() => {
-    if (tab === "dashboard" && user) fetchDashboard();
+    if (tab === "dashboard" && user) {
+      fetchDashboard();
+      fetchBuyerLicenses();
+    }
   }, [tab, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function togglePlay(beat: Beat) {
@@ -283,6 +339,8 @@ export default function Beats() {
         body: JSON.stringify({
           title: title.trim(),
           audioUrl: audioUrl.trim(),
+          previewUrl: previewUrl.trim() || undefined,
+          stemsUrl: stemsUrl.trim() || undefined,
           genre: sellGenre,
           bpm: bpm ? Number(bpm) : undefined,
           musicalKey: musicalKey.trim() || undefined,
@@ -300,7 +358,7 @@ export default function Beats() {
       } else {
         setListMsg(t("beats.listingLive", { title: data.beat?.title ?? "" }));
         setListOk(true);
-        setTitle(""); setAudioUrl(""); setBpm(""); setMusicalKey("");
+        setTitle(""); setAudioUrl(""); setPreviewUrl(""); setStemsUrl(""); setBpm(""); setMusicalKey("");
         setMoodTags(""); setDescription("");
         fetchBeats();
       }
@@ -434,7 +492,15 @@ export default function Beats() {
           <div className="mb-6 flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-200">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             {verifyMsg}
-            <button onClick={() => setVerifyMsg(null)} aria-label="Dismiss" className="ml-auto"><X className="h-4 w-4" /></button>
+            {verifyDelivery && (
+              <span className="flex items-center gap-3">
+                <a href={verifyDelivery.url} download className="underline font-semibold">{t("beats.downloadButton")}</a>
+                {verifyDelivery.stemsUrl && (
+                  <a href={verifyDelivery.stemsUrl} download className="underline font-semibold">{t("beats.downloadStemsButton")}</a>
+                )}
+              </span>
+            )}
+            <button onClick={() => { setVerifyMsg(null); setVerifyDelivery(null); }} aria-label="Dismiss" className="ml-auto"><X className="h-4 w-4" /></button>
           </div>
         )}
 
@@ -554,6 +620,21 @@ export default function Beats() {
             <input aria-label={t("beats.audioUrlLabel")} value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://…"
               className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 placeholder:text-white/25" />
 
+            {/* The preview + stems slots exist on the API since the
+                marketplace's first day / migration 0304 — but this form
+                never sent them, so every form-listed beat's public
+                "preview" was the full master and no stems license could
+                ever deliver stems (stack1100 X4). Both optional. */}
+            <label className="block text-sm text-white/60 mb-1">{t("beats.previewUrlLabel")}</label>
+            <input aria-label={t("beats.previewUrlLabel")} value={previewUrl} onChange={(e) => setPreviewUrl(e.target.value)} placeholder="https://…"
+              className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
+            <p className="text-xs text-white/35 mt-1 mb-4">{t("beats.previewUrlHint")}</p>
+
+            <label className="block text-sm text-white/60 mb-1">{t("beats.stemsUrlLabel")}</label>
+            <input aria-label={t("beats.stemsUrlLabel")} value={stemsUrl} onChange={(e) => setStemsUrl(e.target.value)} placeholder="https://…"
+              className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
+            <p className="text-xs text-white/35 mt-1 mb-4">{t("beats.stemsUrlHint")}</p>
+
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div>
                 <label className="block text-sm text-white/60 mb-1">{t("beats.genreLabel")}</label>
@@ -643,6 +724,64 @@ export default function Beats() {
               </div>
             ) : (
               <>
+                {/* Your licenses — the buyer's library (stack1100 X4).
+                    Purchases first: this tab is where the checkout
+                    banner sends buyers, whatever else they also sell.
+                    The section settles independently of the producer
+                    payload below — its own failure card, its own
+                    Retry, never a fake empty state. */}
+                <h3 className="font-bold mb-3">{t("beats.yourLicensesTitle")}</h3>
+                {buyerLicensesFailed ? (
+                  <div data-testid="beats-licenses-failure" className={`rounded-2xl border p-6 text-center mb-8 ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
+                    <AlertTriangle className="mx-auto h-8 w-8 text-primary" />
+                    <p className={`mt-2 text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{t("beats.licensesLoadFailed")}</p>
+                    <button
+                      type="button"
+                      onClick={() => fetchBuyerLicenses()}
+                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-black hover:brightness-110"
+                    >
+                      <RotateCcw className="h-4 w-4" /> {t("beats.retry")}
+                    </button>
+                  </div>
+                ) : buyerLicenses.length === 0 ? (
+                  <p className="text-white/40 text-sm mb-8">{t("beats.noLicensesYet")}</p>
+                ) : (
+                  <div className="space-y-2 mb-8">
+                    {buyerLicenses.map((l) => (
+                      <div key={l.id} className={`rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-white/70">{l.beatTitle ?? t("beats.licenseRow", { tier: l.tier })}</span>
+                          <span className="text-white/40">{centsToDollars(l.priceCents)}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${l.status === "completed" ? "bg-green-500/15 text-green-300" : "bg-[#C9A84C]/15 text-[#E3C566]"}`}>
+                            {l.status === "completed" ? t("beats.saleStatusPaid") : l.status === "pending_payment" ? t("beats.saleStatusPending") : l.status === "refunded" ? t("beats.saleStatusRefunded") : t("beats.saleStatusUnknown")}
+                          </span>
+                        </div>
+                        {/* The terms exactly as sold — the purchase-time
+                            snapshot off the license DTO, so what the
+                            buyer may do is readable where the download
+                            lives. */}
+                        {l.terms && (
+                          <p className="text-xs text-white/40 mt-1">{describeTermsInline(l.terms)}</p>
+                        )}
+                        {(l.downloadUrl || l.stemsUrl) && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {l.downloadUrl && (
+                              <a href={l.downloadUrl} download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-xs font-bold hover:bg-[#DDBB62]">
+                                {t("beats.downloadButton")}
+                              </a>
+                            )}
+                            {l.stemsUrl && (
+                              <a href={l.stemsUrl} download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#C9A84C]/50 text-[#E3C566] text-xs font-bold hover:bg-[#C9A84C]/10">
+                                {t("beats.downloadStemsButton")}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {stats && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     {[
@@ -712,7 +851,13 @@ export default function Beats() {
             </div>
             <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto pr-1">
               {LICENSE_TIERS.map((tier) => {
-                const soldOut = tier.key === "exclusive" && licenseBeat.exclusive_sold;
+                /* An exclusive sale closes the whole shelf, not just
+                   the Exclusive row (stack1100 X4): the exclusive
+                   buyer's plain words promise the beat stops selling,
+                   and the server now 409s every offer on a sold beat —
+                   the modal says so up front instead of at the pay
+                   button. */
+                const soldOut = licenseBeat.exclusive_sold;
                 const selected = licenseTemplateId === null && licenseTier === tier.key;
                 return (
                   <button
@@ -738,7 +883,7 @@ export default function Beats() {
                 </p>
               )}
               {(licenseBeat.license_templates ?? []).map((tpl) => {
-                const soldOut = tpl.isExclusive && licenseBeat.exclusive_sold;
+                const soldOut = licenseBeat.exclusive_sold;
                 const selected = licenseTemplateId === tpl.id;
                 return (
                   <button
@@ -826,7 +971,7 @@ export default function Beats() {
                 </Link>
               </>
             ) : (
-            <button onClick={reserveLicense} disabled={licensing}
+            <button onClick={reserveLicense} disabled={licensing || licenseBeat.exclusive_sold}
               className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
               {t("beats.agreeAndPayButton", {
