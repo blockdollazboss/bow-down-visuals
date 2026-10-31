@@ -884,7 +884,7 @@
     "giveSelfTitle": "Give myself Visual Bucs",
     "currentBalance": "Current balance: {{balance}} Visual Bucs",
     "grantButton": "Grant Visual Bucs",
-    "grantLogNote": "Grants are logged as \"Admin Visual Buc Grant\" in the Visual Buc ledger.",
+    "grantLogNote": "Grants are logged as \"Admin Credit Grant\" in the Visual Buc ledger.",
     "errorAmountRange": "Enter an amount between 1 and 100000.",
     "grantedMessage": "Granted {{amount}} Visual Bucs. New balance: {{balance}}.",
     "errorGrantFailed": "Grant failed.",

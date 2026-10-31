@@ -902,7 +902,7 @@
     "giveSelfTitle": "Darme Visual Bucs",
     "currentBalance": "Saldo actual: {{balance}} Visual Bucs",
     "grantButton": "Otorgar Visual Bucs",
-    "grantLogNote": "Las otorgaciones se registran como “Otorgación de Visual Bucs de Admin” en el libro de Visual Bucs.",
+    "grantLogNote": "Las otorgaciones se registran como “Admin Credit Grant” en el libro de Visual Bucs.",
     "errorAmountRange": "Ingresa un monto entre 1 y 100000.",
     "grantedMessage": "Otorgados {{amount}} Visual Bucs. Nuevo saldo: {{balance}}.",
     "errorGrantFailed": "La otorgación falló.",

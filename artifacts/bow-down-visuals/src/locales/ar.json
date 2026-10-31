@@ -902,7 +902,7 @@
     "giveSelfTitle": "منح نفسي Visual Bucs",
     "currentBalance": "الرصيد الحالي: {{balance}} Visual Bucs",
     "grantButton": "منح Visual Bucs",
-    "grantLogNote": "تُسجَّل المنح باسم «Admin Visual Buc Grant» في سجل Visual Bucs.",
+    "grantLogNote": "تُسجَّل المنح باسم «Admin Credit Grant» في سجل Visual Bucs.",
     "errorAmountRange": "أدخل مبلغًا بين 1 و100000.",
     "grantedMessage": "تم منح {{amount}} Visual Bucs. الرصيد الجديد: {{balance}}.",
     "errorGrantFailed": "فشل المنح.",

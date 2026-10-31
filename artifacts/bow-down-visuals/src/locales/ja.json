@@ -902,7 +902,7 @@
     "giveSelfTitle": "自分にVisual Bucsを付与",
     "currentBalance": "現在の残高: {{balance}} Visual Bucs",
     "grantButton": "Visual Bucsを付与",
-    "grantLogNote": "付与はVisual Bucs台帳に「Admin Visual Buc Grant」として記録されます。",
+    "grantLogNote": "付与はVisual Bucs台帳に「Admin Credit Grant」として記録されます。",
     "errorAmountRange": "1〜100000の金額を入力してください。",
     "grantedMessage": "{{amount}} Visual Bucsを付与しました。新しい残高: {{balance}}。",
     "errorGrantFailed": "付与に失敗しました。",

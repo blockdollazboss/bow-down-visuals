@@ -874,7 +874,7 @@
     "giveFriendTitle": "Einem Freund Visual Bucs geben",
     "giveSelfTitle": "Mir selbst Visual Bucs geben",
     "grantButton": "Visual Bucs gewähren",
-    "grantLogNote": "Gewährungen werden als „Admin Visual Buc Grant“ im Visual-Buc-Ledger protokolliert.",
+    "grantLogNote": "Gewährungen werden als „Admin Credit Grant“ im Visual-Buc-Ledger protokolliert.",
     "grantedMessage": "{{amount}} Visual Bucs gewährt. Neuer Kontostand: {{balance}}.",
     "jackpot": {
       "aPlayer": "ein Spieler",

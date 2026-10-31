@@ -874,7 +874,7 @@
     "giveFriendTitle": "किसी मित्र को Visual Bucs दें",
     "giveSelfTitle": "खुद को Visual Bucs दें",
     "grantButton": "Visual Bucs प्रदान करें",
-    "grantLogNote": "प्रदान की गई राशि \"Admin Visual Buc Grant\" के रूप में Visual Buc लेजर में दर्ज होती है।",
+    "grantLogNote": "प्रदान की गई राशि \"Admin Credit Grant\" के रूप में Visual Buc लेजर में दर्ज होती है।",
     "grantedMessage": "{{amount}} Visual Bucs प्रदान किए गए। नया शेष: {{balance}}।",
     "jackpot": {
       "aPlayer": "एक खिलाड़ी",

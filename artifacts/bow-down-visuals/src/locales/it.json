@@ -874,7 +874,7 @@
     "giveFriendTitle": "Regala Visual Bucs a un amico",
     "giveSelfTitle": "Assegnami Visual Bucs",
     "grantButton": "Assegna Visual Bucs",
-    "grantLogNote": "Le assegnazioni vengono registrate come \"Admin Visual Buc Grant\" nel registro dei Visual Bucs.",
+    "grantLogNote": "Le assegnazioni vengono registrate come \"Admin Credit Grant\" nel registro dei Visual Bucs.",
     "grantedMessage": "Assegnati {{amount}} Visual Bucs. Nuovo saldo: {{balance}}.",
     "jackpot": {
       "aPlayer": "un giocatore",

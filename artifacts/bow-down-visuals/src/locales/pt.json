@@ -902,7 +902,7 @@
     "giveSelfTitle": "Me dar Visual Bucs",
     "currentBalance": "Saldo atual: {{balance}} Visual Bucs",
     "grantButton": "Conceder Visual Bucs",
-    "grantLogNote": "As concessões são registradas como \"Admin Visual Buc Grant\" no livro-razão de Visual Bucs.",
+    "grantLogNote": "As concessões são registradas como \"Admin Credit Grant\" no livro-razão de Visual Bucs.",
     "errorAmountRange": "Digite um valor entre 1 e 100000.",
     "grantedMessage": "Concedidos {{amount}} Visual Bucs. Novo saldo: {{balance}}.",
     "errorGrantFailed": "Falha na concessão.",

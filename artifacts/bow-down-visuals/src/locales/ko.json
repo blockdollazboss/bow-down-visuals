@@ -902,7 +902,7 @@
     "giveSelfTitle": "나에게 Visual Bucs 지급",
     "currentBalance": "현재 잔액: {{balance}} Visual Bucs",
     "grantButton": "Visual Bucs 지급",
-    "grantLogNote": "지급 내역은 Visual Buc 원장에 \"Admin Visual Buc Grant\"로 기록됩니다.",
+    "grantLogNote": "지급 내역은 Visual Buc 원장에 \"Admin Credit Grant\"로 기록됩니다.",
     "errorAmountRange": "1~100000 사이의 금액을 입력하세요.",
     "grantedMessage": "{{amount}} Visual Bucs를 지급했습니다. 새 잔액: {{balance}}.",
     "errorGrantFailed": "지급에 실패했습니다.",

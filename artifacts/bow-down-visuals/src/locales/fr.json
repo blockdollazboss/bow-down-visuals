@@ -902,7 +902,7 @@
     "giveSelfTitle": "M'attribuer des Visual Bucs",
     "currentBalance": "Solde actuel : {{balance}} Visual Bucs",
     "grantButton": "Attribuer des Visual Bucs",
-    "grantLogNote": "Les attributions sont enregistrées comme « Admin Visual Buc Grant » dans le registre des Visual Bucs.",
+    "grantLogNote": "Les attributions sont enregistrées comme « Admin Credit Grant » dans le registre des Visual Bucs.",
     "errorAmountRange": "Saisissez un montant entre 1 et 100000.",
     "grantedMessage": "{{amount}} Visual Bucs attribués. Nouveau solde : {{balance}}.",
     "errorGrantFailed": "L'attribution a échoué.",
