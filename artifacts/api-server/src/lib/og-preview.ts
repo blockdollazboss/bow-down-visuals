@@ -43,6 +43,10 @@ import {
   shopProductsTable,
   photoPresetsTable,
   socialUnlockGatesTable,
+  postsTable,
+  eventsTable,
+  generatedClipsTable,
+  type Attachment,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { logger } from "./logger";
@@ -110,6 +114,11 @@ export type ShareKind =
   | "track"
   | "video"
   | "playlist"
+  | "post"
+  | "event"
+  | "shorts"
+  | "charts"
+  | "storefronts"
   | "artist"
   | "showcase"
   | "challenge"
@@ -153,6 +162,19 @@ const ROUTE_PATTERNS: Array<{ kind: ShareKind; re: RegExp }> = [
   { kind: "track", re: new RegExp(`^/track/(${ID_RE})$`) },
   { kind: "video", re: new RegExp(`^/watch/(${ID_RE})$`) },
   { kind: "playlist", re: new RegExp(`^/playlist/(${ID_RE})$`) },
+  /* Stack1000 P4 (share truth): posts and events are public, shareable
+     surfaces (GET /api/posts/:id and /api/events/:id are public) that had
+     no bot card at all — scrapers fell through to the generic homepage
+     card. */
+  { kind: "post", re: new RegExp(`^/post/(${ID_RE})$`) },
+  { kind: "event", re: new RegExp(`^/events/(${ID_RE})$`) },
+  /* Shorts share links are /shorts?start=<videoId> (the feed page's own
+     share URL) — the route is the feed path; the middleware lifts the
+     start id out of the query into the match param. Charts and
+     Storefronts are param-less public surfaces, templates-style. */
+  { kind: "shorts", re: /^\/shorts\/?$/ },
+  { kind: "charts", re: /^\/charts\/?$/ },
+  { kind: "storefronts", re: /^\/storefronts\/?$/ },
   { kind: "artist", re: new RegExp(`^/artist/(${SLUG_RE})$`) },
   { kind: "showcase", re: new RegExp(`^/showcase/(${SLUG_RE})$`) },
   { kind: "challenge", re: new RegExp(`^/challenge/(${SLUG_RE})$`) },
@@ -236,6 +258,21 @@ function fallbackImage(origin: string): string {
   return `${origin}${FALLBACK_IMAGE}`;
 }
 
+/** First usable image from a chain of raw stored values, absolutized,
+    with the branded fallback card last — the image ladder the resolvers
+    climb: the content's own art first, the creator's art next, the brand
+    card only when neither exists. */
+export function firstCardImage(
+  origin: string,
+  ...raws: Array<string | null | undefined>
+): string {
+  for (const raw of raws) {
+    const abs = absoluteMediaUrl(raw, origin);
+    if (abs) return abs;
+  }
+  return fallbackImage(origin);
+}
+
 /** Branded fallback card for a shareable URL whose entity is missing,
     private, or has no artwork. Typed per route so it never reads as the
     generic homepage card. */
@@ -244,6 +281,11 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     track: `/track/${match.param}`,
     video: `/watch/${match.param}`,
     playlist: `/playlist/${match.param}`,
+    post: `/post/${match.param}`,
+    event: `/events/${match.param}`,
+    shorts: "/shorts",
+    charts: "/charts",
+    storefronts: "/storefronts",
     artist: `/artist/${match.param}`,
     showcase: `/showcase/${match.param}`,
     challenge: `/challenge/${match.param}`,
@@ -280,6 +322,11 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     track: { title: "Listen on Bow Down Visuals", description: "Stream creator audio on Bow Down Visuals — the content creator's cheat code." },
     video: { title: "Watch on Bow Down Visuals", description: "Watch creator videos on Bow Down Visuals — the content creator's cheat code." },
     playlist: { title: "Playlist on Bow Down Visuals", description: "A creator playlist on Bow Down Visuals — the content creator's cheat code." },
+    post: { title: "Post on Bow Down Visuals", description: "A creator post on Bow Down Visuals." },
+    event: { title: "Event on Bow Down Visuals", description: "An event on Bow Down Visuals — streams, drops, and premieres." },
+    shorts: { title: "Shorts on Bow Down Visuals", description: "Watch creator shorts on Bow Down Visuals." },
+    charts: { title: "Charts on Bow Down Visuals", description: "The hottest tracks, videos, and creators on Bow Down Visuals right now." },
+    storefronts: { title: "Creator Storefronts — Bow Down Visuals", description: "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront." },
     artist: { title: "Creator on Bow Down Visuals", description: "A creator profile on Bow Down Visuals — the content creator's cheat code." },
     showcase: { title: "Showcase on Bow Down Visuals", description: "Community showcase on Bow Down Visuals — the content creator's cheat code." },
     challenge: { title: "Challenge on Bow Down Visuals", description: "A creator challenge on Bow Down Visuals — join in and take the crown." },
@@ -466,6 +513,251 @@ async function resolvePlaylist(id: string, origin: string): Promise<ShareCard | 
       ...(pl.description ? { description: truncate(pl.description, 200) } : {}),
     },
   };
+}
+
+/* ── Stack1000 P4 (share truth): posts ─────────────────────────────────────
+   /post/:id is a public, shareable surface (GET /api/posts/:id is public)
+   that had no bot card: a pasted post link unfurled as the generic
+   homepage card. The card below speaks in the post's own words — its text
+   is the title/description, its first attachment image is the card image. */
+
+/** First shareable image on a post, from its own attachments: a photo, a
+    video's cover frame, a track's artwork, a watch link's thumbnail, or a
+    product shot — the attachment kinds the schema defines
+    (creator-stories-posts.ts). Returns the raw stored value. */
+export function postAttachmentImage(
+  media: Attachment[] | null | undefined,
+): { url: string; alt?: string } | null {
+  if (!Array.isArray(media)) return null;
+  for (const att of media) {
+    if (!att) continue;
+    const pick = (url: string, alt?: string) => ({ url, ...(alt ? { alt } : {}) });
+    if (att.kind === "image" && att.url) return pick(att.url, att.alt);
+    if (att.kind === "video" && att.thumb) return pick(att.thumb, att.alt);
+    if (att.kind === "track" && att.artwork) return pick(att.artwork, att.alt);
+    if (att.kind === "watch" && att.thumb) return pick(att.thumb, att.alt);
+    if (att.kind === "product" && att.image) return pick(att.image, att.alt);
+  }
+  return null;
+}
+
+export interface PostCardSource {
+  id: string;
+  body: string;
+  mediaUrls: Attachment[] | null | undefined;
+  contentWarnings: readonly string[] | null | undefined;
+  createdAt: Date | string;
+}
+
+export interface CardAuthor {
+  displayName: string;
+  slug: string;
+  avatarUrl: string | null;
+}
+
+/** Pure card builder for a public post; the audience/visibility gates live
+    in resolvePost. */
+export function buildPostCard(post: PostCardSource, author: CardAuthor, origin: string): ShareCard {
+  const text = (post.body ?? "").replace(/\s+/g, " ").trim();
+  /* Content-warned posts keep their media covered on-site until a viewer
+     taps to reveal it — the card must not splash that media into every
+     chat app, so a warned post's card falls back to the author's avatar. */
+  const warned = Array.isArray(post.contentWarnings) && post.contentWarnings.length > 0;
+  const att = warned ? null : postAttachmentImage(post.mediaUrls);
+  const attImage = att ? absoluteMediaUrl(att.url, origin) : null;
+  const image = attImage ?? absoluteMediaUrl(author.avatarUrl, origin) ?? fallbackImage(origin);
+  return {
+    title: text
+      ? `${truncate(text, 80)} — ${author.displayName}`
+      : `${author.displayName} — post on Bow Down Visuals`,
+    description: truncate(text || `A post by ${author.displayName} on Bow Down Visuals.`, 200),
+    image,
+    imageAlt: att?.alt ?? `${author.displayName} — post`,
+    url: `${origin}/post/${post.id}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "SocialMediaPosting",
+      headline: text ? truncate(text, 110) : `${author.displayName} on Bow Down Visuals`,
+      ...(text ? { articleBody: truncate(text, 200) } : {}),
+      author: {
+        "@type": "Person",
+        name: author.displayName,
+        url: `${origin}/artist/${author.slug}`,
+      },
+      datePublished:
+        post.createdAt instanceof Date ? post.createdAt.toISOString() : String(post.createdAt),
+      image,
+      url: `${origin}/post/${post.id}`,
+    },
+  };
+}
+
+async function resolvePost(id: string, origin: string): Promise<ShareCard | null> {
+  const [post] = await db.select().from(postsTable).where(eq(postsTable.id, id)).limit(1);
+  if (!post) return null;
+  /* Only the post's own public surface gets a card: scoped audiences
+     (followers / close friends / members), moderation-removed posts, and
+     not-yet-published scheduled posts resolve to no card — nothing leaks.
+     Reposts and thread replies are pointers/context, not the shareable
+     surface itself. */
+  if (post.audience !== "public") return null;
+  if (post.kind !== "post" && post.kind !== "quote") return null;
+  if (post.removedAt) return null;
+  if (post.scheduledFor && post.scheduledFor.getTime() > Date.now()) return null;
+  const author = await publicProfileById(post.profileId);
+  if (!author) return null;
+  return buildPostCard(post, author, origin);
+}
+
+/* ── Stack1000 P4 (share truth): events ────────────────────────────────────
+   /events/:id is public (GET /api/events/:id answers signed-out) and is a
+   natural paste-into-chat surface — it had no bot card either. */
+
+export interface EventCardSource {
+  id: string;
+  title: string;
+  description: string;
+  startsAt: Date | string;
+  coverUrl: string | null;
+  rsvpCount: number;
+}
+
+/** Pure card builder for a public event; the host-visibility gate lives in
+    resolveEvent. */
+export function buildEventCard(event: EventCardSource, host: CardAuthor, origin: string): ShareCard {
+  const startIso =
+    event.startsAt instanceof Date ? event.startsAt.toISOString() : String(event.startsAt);
+  const bits = [`Hosted by ${host.displayName}`, startIso.slice(0, 10)];
+  if (event.rsvpCount) bits.push(`${formatCount(event.rsvpCount)} going`);
+  const desc = (event.description ?? "").replace(/\s+/g, " ").trim();
+  const image =
+    absoluteMediaUrl(event.coverUrl, origin) ??
+    absoluteMediaUrl(host.avatarUrl, origin) ??
+    fallbackImage(origin);
+  return {
+    title: `${event.title} — hosted by ${host.displayName}`,
+    description: truncate(
+      desc
+        ? `${desc} — ${bits.join(" · ")} on Bow Down Visuals.`
+        : `${bits.join(" · ")} on Bow Down Visuals.`,
+      200,
+    ),
+    image,
+    imageAlt: `${event.title} — event cover`,
+    url: `${origin}/events/${event.id}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      name: event.title,
+      startDate: startIso,
+      url: `${origin}/events/${event.id}`,
+      image,
+      ...(desc ? { description: truncate(desc, 200) } : {}),
+      organizer: {
+        "@type": "Person",
+        name: host.displayName,
+        url: `${origin}/artist/${host.slug}`,
+      },
+    },
+  };
+}
+
+async function resolveEvent(id: string, origin: string): Promise<ShareCard | null> {
+  const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, id)).limit(1);
+  if (!event) return null;
+  /* Same gate as every other profile-backed resolver: a non-public host
+     profile means no card — the event's title/cover never leak. */
+  const host = await publicProfileById(event.profileId);
+  if (!host) return null;
+  return buildEventCard(event, host, origin);
+}
+
+/* ── Stack1000 P4 (share truth): shorts ────────────────────────────────────
+   The Shorts feed shares as /shorts?start=<videoId>&ref=CODE — the single
+   most-pasted creator link shape on the site — and bots got the generic
+   homepage card for it: the route was not in the table at all, and the
+   item id rides the query string where matchShareableRoute never looks.
+   The middleware lifts ?start= into the match param for this kind. */
+
+export interface ShortCardSource {
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string | null;
+  videoUrl: string;
+  viewCount: number;
+  durationSec: number;
+  createdAt: Date | string;
+}
+
+/** Pure card builder for one short; gates live in resolveShorts. Mirrors
+    resolveVideo's composition, with the canonical URL kept in the Shorts
+    surface the link was actually shared from. */
+export function buildShortCard(video: ShortCardSource, author: CardAuthor, origin: string): ShareCard {
+  const image =
+    absoluteMediaUrl(video.thumbnailUrl, origin) ??
+    absoluteMediaUrl(author.avatarUrl, origin) ??
+    fallbackImage(origin);
+  const videoUrl = absoluteMediaUrl(video.videoUrl, origin);
+  const bits = [`"${video.title}" by ${author.displayName}`];
+  if (video.viewCount) bits.push(`${formatCount(video.viewCount)} views`);
+  const url = `${origin}/shorts?start=${video.id}`;
+  return {
+    title: `${video.title} — ${author.displayName}`,
+    description: truncate(
+      video.description
+        ? `${video.description} — Watch ${bits.join(" · ")} in Shorts on Bow Down Visuals.`
+        : `Watch ${bits.join(" · ")} in Shorts on Bow Down Visuals.`,
+      200,
+    ),
+    image,
+    imageAlt: `${video.title} by ${author.displayName} — short`,
+    url,
+    ogType: "video.other",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    ...(videoUrl && /^https?:/i.test(videoUrl) ? { videoUrl, videoType: "video/mp4" } : {}),
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      name: video.title,
+      description: truncate(
+        video.description || `Watch "${video.title}" by ${author.displayName} in Shorts on Bow Down Visuals.`,
+        200,
+      ),
+      thumbnailUrl: image,
+      uploadDate:
+        video.createdAt instanceof Date ? video.createdAt.toISOString() : String(video.createdAt),
+      ...(video.durationSec ? { duration: `PT${video.durationSec}S` } : {}),
+      ...(videoUrl ? { contentUrl: videoUrl } : {}),
+      interactionStatistic: {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/WatchAction",
+        userInteractionCount: video.viewCount ?? 0,
+      },
+    },
+  };
+}
+
+async function resolveShorts(match: ShareMatch, origin: string): Promise<ShareCard | null> {
+  const id = match.param;
+  if (id && new RegExp(`^${ID_RE}$`).test(id)) {
+    const [v] = await db.select().from(profileVideosTable).where(eq(profileVideosTable.id, id)).limit(1);
+    if (v && v.isPublished) {
+      const p = await publicProfileById(v.profileId);
+      if (p) return buildShortCard(v, p, origin);
+    }
+  }
+  /* No start id, or one that doesn't resolve: the /shorts feed itself is
+     the page the link opens, so its own card is the honest answer (the
+     feed card, 200 — not a 404 generic). */
+  return staticCard({ kind: "shorts", param: "" }, origin);
 }
 
 async function resolveArtist(slug: string, origin: string): Promise<ShareCard | null> {
@@ -773,7 +1065,19 @@ async function resolvePremiere(id: string, origin: string): Promise<ShareCard | 
   if (!row || row.status === "cancelled") return null;
   const p = await publicProfileById(row.profile_id);
   if (!p) return null;
-  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  /* The premiere's own art is its clip's thumbnail — the card used to
+     skip it and show the creator's avatar for a video surface
+     (Stack1000 P4). Avatar remains the next rung, brand card last. */
+  let clipThumb: string | null = null;
+  if (row.clip_id) {
+    const [clip] = await db
+      .select({ thumb: generatedClipsTable.thumbnail_url })
+      .from(generatedClipsTable)
+      .where(eq(generatedClipsTable.id, row.clip_id))
+      .limit(1);
+    clipThumb = clip?.thumb ?? null;
+  }
+  const image = firstCardImage(origin, clipThumb, p.avatarUrl);
   const when =
     row.status === "live"
       ? "live now"
@@ -799,7 +1103,19 @@ async function resolveLive(id: string, origin: string): Promise<ShareCard | null
   if (!row) return null;
   const p = await publicProfileById(row.profile_id);
   if (!p) return null;
-  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  /* An ended stream has its own art — the registered VOD clip's
+     thumbnail; a live one has none yet, so the creator's avatar is the
+     honest rung (Stack1000 P4). */
+  let vodThumb: string | null = null;
+  if (row.vod_clip_id) {
+    const [clip] = await db
+      .select({ thumb: generatedClipsTable.thumbnail_url })
+      .from(generatedClipsTable)
+      .where(eq(generatedClipsTable.id, row.vod_clip_id))
+      .limit(1);
+    vodThumb = clip?.thumb ?? null;
+  }
+  const image = firstCardImage(origin, vodThumb, p.avatarUrl);
   const live = row.status === "live";
   return {
     title: `${row.title} — ${live ? "live" : "stream"} by ${p.displayName}`,
@@ -1064,6 +1380,20 @@ function staticCard(match: ShareMatch, origin: string): ShareCard | null {
       title: `Join @${match.param} — Bow Down Visuals`,
       description: `Join @${match.param}'s list on Bow Down Visuals — drops, presaves, and exclusives.`,
     },
+    /* Stack1000 P4: copy is each page's own words (its usePageTitle /
+       hero copy), not a new invention. */
+    shorts: {
+      title: "Shorts — Bow Down Visuals",
+      description: "Watch creator shorts on Bow Down Visuals.",
+    },
+    charts: {
+      title: "Charts — Bow Down Visuals",
+      description: "The hottest tracks, videos, and creators on Bow Down Visuals right now.",
+    },
+    storefronts: {
+      title: "Creator Storefronts — Bow Down Visuals",
+      description: "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront.",
+    },
   };
   const o = overrides[match.kind];
   if (!o) return null;
@@ -1081,6 +1411,9 @@ export async function resolveShareCard(
     case "track": return resolveTrack(match.param, origin);
     case "video": return resolveVideo(match.param, origin);
     case "playlist": return resolvePlaylist(match.param, origin);
+    case "post": return resolvePost(match.param, origin);
+    case "event": return resolveEvent(match.param, origin);
+    case "shorts": return resolveShorts(match, origin);
     case "artist": return resolveArtist(match.param, origin);
     case "showcase": return resolveShowcase(match.param, origin);
     case "challenge": return resolveChallenge(match.param, origin);
@@ -1216,17 +1549,24 @@ export function ogPreviewMiddleware() {
         next();
         return;
       }
+      /* Shorts share links are /shorts?start=<videoId> — the item id rides
+         the query string, so lift it into the match param for that kind
+         (Stack1000 P4). Every other kind resolves from the path alone. */
+      const effectiveMatch: ShareMatch =
+        match.kind === "shorts" && typeof req.query["start"] === "string"
+          ? { ...match, param: req.query["start"] as string }
+          : match;
       const origin = siteOrigin();
       let card: ShareCard | null = null;
       try {
-        card = await resolveShareCard(match, origin);
+        card = await resolveShareCard(effectiveMatch, origin);
       } catch (err) {
         // Resolver failure degrades to the branded fallback card — a bot
         // must never get a 500 or the generic homepage card.
-        logger.warn({ err, kind: match.kind, param: match.param }, "og-preview resolve failed; serving fallback card");
+        logger.warn({ err, kind: effectiveMatch.kind, param: effectiveMatch.param }, "og-preview resolve failed; serving fallback card");
       }
       const found = card !== null;
-      const finalCard = card ?? genericCard(match, origin);
+      const finalCard = card ?? genericCard(effectiveMatch, origin);
       res.status(found ? 200 : 404);
       res.set("Content-Type", "text/html; charset=utf-8");
       res.set("Cache-Control", "public, max-age=600");

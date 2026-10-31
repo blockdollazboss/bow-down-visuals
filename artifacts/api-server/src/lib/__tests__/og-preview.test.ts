@@ -10,7 +10,16 @@ import {
   absoluteMediaUrl,
   genericCard,
   buildOgHtml,
+  buildPostCard,
+  postAttachmentImage,
+  buildEventCard,
+  buildShortCard,
+  resolveShareCard,
+  firstCardImage,
   type ShareCard,
+  type PostCardSource,
+  type EventCardSource,
+  type ShortCardSource,
 } from "../og-preview";
 
 const ORIGIN = "https://bowdownvisuals.com";
@@ -53,6 +62,11 @@ describe("matchShareableRoute", () => {
     ["/track/abc123", { kind: "track", param: "abc123" }],
     ["/watch/xyz-789", { kind: "video", param: "xyz-789" }],
     ["/playlist/pl_01abcd", { kind: "playlist", param: "pl_01abcd" }],
+    ["/post/550e8400-e29b-41d4-a716-446655440003", { kind: "post", param: "550e8400-e29b-41d4-a716-446655440003" }],
+    ["/events/550e8400-e29b-41d4-a716-446655440004", { kind: "event", param: "550e8400-e29b-41d4-a716-446655440004" }],
+    ["/shorts", { kind: "shorts", param: "" }],
+    ["/charts", { kind: "charts", param: "" }],
+    ["/storefronts", { kind: "storefronts", param: "" }],
     ["/artist/shark-king", { kind: "artist", param: "shark-king" }],
     ["/showcase/neon-nights", { kind: "showcase", param: "neon-nights" }],
     ["/challenge/summer-banger", { kind: "challenge", param: "summer-banger" }],
@@ -133,6 +147,13 @@ describe("absoluteMediaUrl", () => {
 });
 
 describe("genericCard", () => {
+  it("post fallback names the post surface and its real URL", () => {
+    const card = genericCard({ kind: "post", param: "p12345" }, ORIGIN);
+    expect(card.title).toBe("Post on Bow Down Visuals");
+    expect(card.url).toBe(`${ORIGIN}/post/p12345`);
+    expect(card.image).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
   it("uses the branded fallback image, never the homepage card", () => {
     const card = genericCard({ kind: "track", param: "abc123" }, ORIGIN);
     expect(card.image).toBe(`${ORIGIN}/og-fallback.png`);
@@ -163,6 +184,234 @@ describe("genericCard", () => {
     expect(genericCard({ kind: "premiere", param: "p12345" }, ORIGIN).url).toBe(
       `${ORIGIN}/premiere/p12345`,
     );
+  });
+});
+
+describe("buildPostCard (Stack1000 P4 share truth)", () => {
+  const author = {
+    displayName: "Thy Cheat Code",
+    slug: "thy-cheat-code",
+    avatarUrl: "https://cdn.example.com/avatar.png",
+  };
+  const basePost: PostCardSource = {
+    id: "550e8400-e29b-41d4-a716-446655440003",
+    body: "New drop Friday — the crown stays heavy.",
+    mediaUrls: [],
+    contentWarnings: [],
+    createdAt: new Date("2026-10-30T12:00:00.000Z"),
+  };
+
+  it("names the actual post: its own words lead the title, author follows", () => {
+    const card = buildPostCard(basePost, author, ORIGIN);
+    expect(card.title).toBe("New drop Friday — the crown stays heavy. — Thy Cheat Code");
+    expect(card.description).toContain("New drop Friday");
+    expect(card.url).toBe(`${ORIGIN}/post/${basePost.id}`);
+    expect(card.jsonLd?.["@type"]).toBe("SocialMediaPosting");
+  });
+
+  it("uses the post's own first attachment image, not the brand fallback", () => {
+    const card = buildPostCard(
+      {
+        ...basePost,
+        mediaUrls: [
+          { kind: "video", url: "https://cdn.example.com/v.mp4", thumb: "https://cdn.example.com/frame.jpg" },
+          { kind: "image", url: "https://cdn.example.com/photo.jpg" },
+        ],
+      },
+      author,
+      ORIGIN,
+    );
+    // First image-bearing attachment wins (the video's cover frame here).
+    expect(card.image).toBe("https://cdn.example.com/frame.jpg");
+  });
+
+  it("uses a track attachment's artwork and its creator-written alt", () => {
+    const card = buildPostCard(
+      {
+        ...basePost,
+        mediaUrls: [
+          { kind: "track", id: "t1", artwork: "https://cdn.example.com/art.jpg", alt: "Gold crown cover art" },
+        ],
+      },
+      author,
+      ORIGIN,
+    );
+    expect(card.image).toBe("https://cdn.example.com/art.jpg");
+    expect(card.imageAlt).toBe("Gold crown cover art");
+  });
+
+  it("content-warned posts never splash their media into the card", () => {
+    const card = buildPostCard(
+      {
+        ...basePost,
+        mediaUrls: [{ kind: "image", url: "https://cdn.example.com/covered.jpg" }],
+        contentWarnings: ["graphic imagery"],
+      },
+      author,
+      ORIGIN,
+    );
+    expect(card.image).toBe("https://cdn.example.com/avatar.png");
+    expect(card.image).not.toContain("covered.jpg");
+  });
+
+  it("media-less posts fall back to the author avatar, then the brand card", () => {
+    expect(buildPostCard(basePost, author, ORIGIN).image).toBe(
+      "https://cdn.example.com/avatar.png",
+    );
+    expect(buildPostCard(basePost, { ...author, avatarUrl: null }, ORIGIN).image).toBe(
+      `${ORIGIN}/og-fallback.png`,
+    );
+  });
+
+  it("empty-body posts still name the author, never a generic site line alone", () => {
+    const card = buildPostCard({ ...basePost, body: "   " }, author, ORIGIN);
+    expect(card.title).toBe("Thy Cheat Code — post on Bow Down Visuals");
+    expect(card.description).toBe("A post by Thy Cheat Code on Bow Down Visuals.");
+  });
+
+  it("postAttachmentImage skips kinds with no image and resolves relative keys", () => {
+    expect(postAttachmentImage([{ kind: "event", id: "e1" }])).toBeNull();
+    expect(postAttachmentImage(null)).toBeNull();
+    const card = buildPostCard(
+      { ...basePost, mediaUrls: [{ kind: "image", url: "/uploads/p.jpg" }] },
+      author,
+      ORIGIN,
+    );
+    expect(card.image).toBe(`${ORIGIN}/uploads/p.jpg`);
+  });
+});
+
+describe("buildEventCard (Stack1000 P4 share truth)", () => {
+  const host = {
+    displayName: "Thy Cheat Code",
+    slug: "thy-cheat-code",
+    avatarUrl: "https://cdn.example.com/avatar.png",
+  };
+  const baseEvent: EventCardSource = {
+    id: "550e8400-e29b-41d4-a716-446655440004",
+    title: "Crown Listening Party",
+    description: "First play of the new tape, live in the World.",
+    startsAt: new Date("2026-11-14T20:00:00.000Z"),
+    coverUrl: "https://cdn.example.com/event-cover.jpg",
+    rsvpCount: 42,
+  };
+
+  it("names the actual event, its host, and its own cover image", () => {
+    const card = buildEventCard(baseEvent, host, ORIGIN);
+    expect(card.title).toBe("Crown Listening Party — hosted by Thy Cheat Code");
+    expect(card.description).toContain("First play of the new tape");
+    expect(card.description).toContain("2026-11-14");
+    expect(card.description).toContain("42 going");
+    expect(card.image).toBe("https://cdn.example.com/event-cover.jpg");
+    expect(card.url).toBe(`${ORIGIN}/events/${baseEvent.id}`);
+    expect(card.jsonLd?.["@type"]).toBe("Event");
+    expect(card.jsonLd?.["startDate"]).toBe("2026-11-14T20:00:00.000Z");
+  });
+
+  it("cover-less events fall back to the host avatar, then the brand card", () => {
+    expect(buildEventCard({ ...baseEvent, coverUrl: null }, host, ORIGIN).image).toBe(
+      "https://cdn.example.com/avatar.png",
+    );
+    expect(
+      buildEventCard({ ...baseEvent, coverUrl: null }, { ...host, avatarUrl: null }, ORIGIN).image,
+    ).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("description-less events still carry host + date, never a bare site line", () => {
+    const card = buildEventCard({ ...baseEvent, description: "", rsvpCount: 0 }, host, ORIGIN);
+    expect(card.description).toBe("Hosted by Thy Cheat Code · 2026-11-14 on Bow Down Visuals.");
+  });
+
+  it("generic fallback for a missing event names the events surface", () => {
+    const card = genericCard({ kind: "event", param: "e12345" }, ORIGIN);
+    expect(card.title).toBe("Event on Bow Down Visuals");
+    expect(card.url).toBe(`${ORIGIN}/events/e12345`);
+  });
+});
+
+describe("buildShortCard + static surfaces (Stack1000 P4 share truth)", () => {
+  const author = {
+    displayName: "Thy Cheat Code",
+    slug: "thy-cheat-code",
+    avatarUrl: "https://cdn.example.com/avatar.png",
+  };
+  const short: ShortCardSource = {
+    id: "550e8400-e29b-41d4-a716-446655440005",
+    title: "15-second hook that stopped the scroll",
+    description: "",
+    thumbnailUrl: "https://cdn.example.com/short-thumb.jpg",
+    videoUrl: "https://cdn.example.com/short.mp4",
+    viewCount: 1200,
+    durationSec: 15,
+    createdAt: new Date("2026-10-29T09:00:00.000Z"),
+  };
+
+  it("names the actual short and creator, with the short's own thumbnail", () => {
+    const card = buildShortCard(short, author, ORIGIN);
+    expect(card.title).toBe("15-second hook that stopped the scroll — Thy Cheat Code");
+    expect(card.image).toBe("https://cdn.example.com/short-thumb.jpg");
+    expect(card.description).toContain("1.2K views");
+    expect(card.videoUrl).toBe("https://cdn.example.com/short.mp4");
+  });
+
+  it("keeps the canonical URL inside the Shorts surface the link was shared from", () => {
+    const card = buildShortCard(short, author, ORIGIN);
+    expect(card.url).toBe(`${ORIGIN}/shorts?start=${short.id}`);
+    expect(card.jsonLd?.["@type"]).toBe("VideoObject");
+    expect(card.jsonLd?.["thumbnailUrl"]).toBe("https://cdn.example.com/short-thumb.jpg");
+  });
+
+  it("thumbnail-less shorts fall back to the author avatar, then the brand card", () => {
+    expect(buildShortCard({ ...short, thumbnailUrl: null }, author, ORIGIN).image).toBe(
+      "https://cdn.example.com/avatar.png",
+    );
+    expect(
+      buildShortCard({ ...short, thumbnailUrl: null }, { ...author, avatarUrl: null }, ORIGIN).image,
+    ).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("the /shorts feed itself resolves to its own card, in the page's own words", async () => {
+    const card = await resolveShareCard({ kind: "shorts", param: "" }, ORIGIN);
+    expect(card?.title).toBe("Shorts — Bow Down Visuals");
+    expect(card?.description).toBe("Watch creator shorts on Bow Down Visuals.");
+    expect(card?.url).toBe(`${ORIGIN}/shorts`);
+  });
+
+  it("/charts resolves to the Charts card in the page's own words", async () => {
+    const card = await resolveShareCard({ kind: "charts", param: "" }, ORIGIN);
+    expect(card?.title).toBe("Charts — Bow Down Visuals");
+    expect(card?.description).toBe(
+      "The hottest tracks, videos, and creators on Bow Down Visuals right now.",
+    );
+    expect(card?.url).toBe(`${ORIGIN}/charts`);
+    expect(card?.image).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("/storefronts resolves to the Creator Storefronts card in the page's own words", async () => {
+    const card = await resolveShareCard({ kind: "storefronts", param: "" }, ORIGIN);
+    expect(card?.title).toBe("Creator Storefronts — Bow Down Visuals");
+    expect(card?.description).toContain("Every creator gets their own shop on Bow Down Visuals");
+    expect(card?.url).toBe(`${ORIGIN}/storefronts`);
+  });
+});
+
+describe("firstCardImage (Stack1000 P4: premiere/live content art)", () => {
+  it("prefers the content's own art over the creator's avatar", () => {
+    expect(
+      firstCardImage(ORIGIN, "https://cdn.example.com/clip-thumb.jpg", "https://cdn.example.com/avatar.png"),
+    ).toBe("https://cdn.example.com/clip-thumb.jpg");
+  });
+
+  it("falls to the avatar when the content has no art, then the brand card", () => {
+    expect(firstCardImage(ORIGIN, null, "https://cdn.example.com/avatar.png")).toBe(
+      "https://cdn.example.com/avatar.png",
+    );
+    expect(firstCardImage(ORIGIN, null, undefined)).toBe(`${ORIGIN}/og-fallback.png`);
+    expect(firstCardImage(ORIGIN, "  ", "")).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("absolutizes site-relative content art", () => {
+    expect(firstCardImage(ORIGIN, "/uploads/thumb.jpg", null)).toBe(`${ORIGIN}/uploads/thumb.jpg`);
   });
 });
 
