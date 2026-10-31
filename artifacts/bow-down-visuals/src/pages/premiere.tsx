@@ -106,7 +106,7 @@ export default function PremierePage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-black p-6 text-center text-white">
         <Clapperboard className="h-10 w-10 text-[#C9A84C]/60" />
         <p className="font-bold">That premiere doesn't exist.</p>
-        <Link href="/home" className="text-sm text-[#e8c86a] underline">Back to the feed</Link>
+        <Link href="/home" className="py-3 -my-3 text-sm text-[#e8c86a] underline">Back to the feed</Link>
       </div>
     );
   }

@@ -90,7 +90,7 @@ function constWears(s: string, marker: string, cls: string): boolean {
   return s.slice(i, i + 500).includes(cls);
 }
 
-describe("the coarse-pointer rules on this base — one copy, media-gated, size only", () => {
+describe("the coarse-pointer rules on this base — one copy, media-gated, hit-area geometry only", () => {
   it("defines both utilities at 44px inside the pointer:coarse block", () => {
     const mediaIdx = css.indexOf("@media (pointer: coarse)");
     expect(mediaIdx).toBeGreaterThan(-1);
@@ -111,7 +111,15 @@ describe("the coarse-pointer rules on this base — one copy, media-gated, size 
     expect(css.indexOf(".bdv-touch-box {")).toBeGreaterThan(mediaIdx);
   });
 
-  it("the coarse block carries size declarations only — no colour, no layout", () => {
+  it("the coarse block carries no paint and no flow declarations", () => {
+    /* The contract, restated honestly at stack1000: the block
+     * sizes hit areas — min-width/min-height, the input font
+     * rule, and the switch halo's geometry (position/inset/
+     * content on .bdv-touch-switch::after, pinned exactly in
+     * touch-patterns-2-stack1000.test.ts). Paint (colour,
+     * background, border) and flow (margin, padding, display)
+     * stay banned: a fine pointer's World is pixel-identical
+     * and nothing reflows on touch either. */
     const mediaIdx = css.indexOf("@media (pointer: coarse)");
     /* Bound the window to the media block itself (its closing
      * brace at line start), not whatever section follows it. */

@@ -222,8 +222,14 @@ export default function ShareMenu({
     void track("other");
   }, [sharePayload, track]);
 
+  /* The pill row is drawn at caption density (28px) but a thumb
+     needs 44: py-3.5 -my-2 grows the hit area to 44px while the
+     row's layout keeps the 28px footprint — the phone-truth
+     hit-area pattern (K2), applied to the pattern family K2
+     inventoried for this pass. Same for the gold native-share
+     pill above and the compact trigger below. */
   const btn =
-    "inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition-colors";
+    "inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-3.5 -my-2 text-xs font-bold text-white hover:bg-white/20 transition-colors";
 
   /* Compact presentation for tight card rows: one icon button. Tap fires
      the native share sheet when the device has one (the old discovery
@@ -246,7 +252,7 @@ export default function ShareMenu({
             setMenuOpen((o) => !o);
           }}
           title={t("share.native", { defaultValue: "Share" })}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 p-1.5 text-white/60 transition-colors hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"
+          className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 p-3.5 -m-2 text-white/60 transition-colors hover:border-[#e8c86a]/50 hover:text-[#e8c86a]"
         >
           {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Share2 className="h-4 w-4" />}
         </button>
@@ -305,7 +311,7 @@ export default function ShareMenu({
       <div className="flex flex-wrap items-center gap-2">
         {"share" in navigator && (
           <button type="button" onClick={() => void doNative()} title={t("share.native", { defaultValue: "Share" })}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-black text-black hover:brightness-110 transition-all">
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-3.5 -my-2 text-xs font-black text-black hover:brightness-110 transition-all">
             <Share2 className="h-3.5 w-3.5" />
             {shared
               ? t("share.shared", { defaultValue: "Shared" })

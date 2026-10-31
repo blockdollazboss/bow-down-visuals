@@ -399,7 +399,10 @@ export function PostCard({
             </div>
           )}
 
-          {/* action row — a removed or locked post takes no engagement */}
+          {/* action row — a removed or locked post takes no engagement.
+              Every action wears the K2 hit-area pattern: padding grows
+              the target to 44px, the negative margin hands the space
+              back, so the row's density and layout are unchanged. */}
           {!removed && !locked && (
           <div className="mt-3 flex items-center justify-between border-t border-[#1f1f1f] pt-2.5">
             <div className="flex items-center gap-1 sm:gap-2">
@@ -408,7 +411,7 @@ export function PostCard({
                 <button
                   onClick={() => react("like")}
                   aria-label="Like"
-                  className="flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-400 transition hover:text-[#d4af37]"
+                  className="flex items-center gap-1 rounded-full px-2 py-[10px] -my-1 text-sm text-neutral-400 transition hover:text-[#d4af37]"
                 >
                   <ReactionSticker
                     reaction="like"
@@ -423,7 +426,7 @@ export function PostCard({
                       onClick={() => react(key)}
                       title={REACTION_ART[key].label}
                       aria-label={REACTION_ART[key].label}
-                      className={`rounded-full p-1 transition hover:scale-110 ${emoji === key ? "bg-[#d4af37]/20" : ""}`}
+                      className={`rounded-full p-2 -m-1 transition hover:scale-110 ${emoji === key ? "bg-[#d4af37]/20" : ""}`}
                     >
                       <ReactionSticker reaction={key} className="h-7 w-7 object-contain" />
                     </button>
@@ -434,29 +437,29 @@ export function PostCard({
                 <span className="text-xs text-neutral-500">+{totalReactions - (counts["like"] ?? 0)}</span>
               )}
 
-              <button aria-expanded={showReply} onClick={() => { setShowReply((v) => !v); }} aria-label="Reply" className="flex items-center gap-1 rounded-full px-2 py-1.5 text-sm text-neutral-400 hover:text-[#d4af37]">
+              <button aria-expanded={showReply} onClick={() => { setShowReply((v) => !v); }} aria-label="Reply" className="flex items-center gap-1 rounded-full px-2 py-3 -my-1.5 text-sm text-neutral-400 hover:text-[#d4af37]">
                 <MessageCircle className="h-[18px] w-[18px]" />
                 {post.reply_count > 0 && <span className="text-xs">{post.reply_count}</span>}
               </button>
 
-              <button onClick={repost} aria-label="Repost" className={`flex items-center gap-1 rounded-full px-2 py-1.5 text-sm ${reposted ? "text-[#d4af37]" : "text-neutral-400 hover:text-[#d4af37]"}`}>
+              <button onClick={repost} aria-label="Repost" className={`flex items-center gap-1 rounded-full px-2 py-3 -my-1.5 text-sm ${reposted ? "text-[#d4af37]" : "text-neutral-400 hover:text-[#d4af37]"}`}>
                 <Repeat2 className="h-[18px] w-[18px]" />
                 {(post.repost_count + (reposted ? 1 : 0)) > 0 && <span className="text-xs">{post.repost_count + (reposted ? 1 : 0)}</span>}
               </button>
 
-              <button aria-expanded={showQuote} onClick={() => setShowQuote((v) => !v)} aria-label="Quote" className="rounded-full p-2 text-sm text-neutral-400 hover:text-[#d4af37]">
+              <button aria-expanded={showQuote} onClick={() => setShowQuote((v) => !v)} aria-label="Quote" className="rounded-full p-[13px] -m-[5px] text-sm text-neutral-400 hover:text-[#d4af37]">
                 <Quote className="h-[18px] w-[18px]" />
               </button>
             </div>
 
             <div className="flex items-center gap-1">
-              <button onClick={loadAnalytics} aria-label="Post analytics" title="How's this post doing?" className="rounded-full p-2 text-neutral-400 hover:text-[#d4af37]">
+              <button onClick={loadAnalytics} aria-label="Post analytics" title="How's this post doing?" className="rounded-full p-[13px] -m-[5px] text-neutral-400 hover:text-[#d4af37]">
                 <BarChart3 className="h-[18px] w-[18px]" />
               </button>
-              <button onClick={toggleSave} aria-label="Save" className={`rounded-full p-2 ${saved ? "text-[#d4af37]" : "text-neutral-400 hover:text-[#d4af37]"}`}>
+              <button onClick={toggleSave} aria-label="Save" className={`rounded-full p-[13px] -m-[5px] ${saved ? "text-[#d4af37]" : "text-neutral-400 hover:text-[#d4af37]"}`}>
                 <Bookmark className={`h-[18px] w-[18px] ${saved ? "fill-[#d4af37]" : ""}`} />
               </button>
-              <button onClick={share} aria-label="Share" className="rounded-full p-2 text-neutral-400 hover:text-[#d4af37]">
+              <button onClick={share} aria-label="Share" className="rounded-full p-[13px] -m-[5px] text-neutral-400 hover:text-[#d4af37]">
                 <Share2 className="h-[18px] w-[18px]" />
               </button>
               {user && (
@@ -465,7 +468,7 @@ export function PostCard({
                   targetId={post.id}
                 />
               )}
-              <button onClick={del} aria-label="Delete post" className="rounded-full p-2 text-neutral-500 hover:text-red-400">
+              <button onClick={del} aria-label="Delete post" className="rounded-full p-[13px] -m-[5px] text-neutral-500 hover:text-red-400">
                 <Trash2 className="h-[16px] w-[16px]" />
               </button>
             </div>
@@ -506,7 +509,7 @@ export function PostCard({
           )}
 
           {!removed && !locked && post.reply_count > 0 && depth === 0 && (
-            <button onClick={loadReplies} className="mt-2 text-xs font-semibold text-[#d4af37] hover:underline">
+            <button onClick={loadReplies} className="py-3.5 -mt-1.5 -mb-3.5 text-xs font-semibold text-[#d4af37] hover:underline">
               {showReplies ? "Hide replies" : `View ${post.reply_count} ${post.reply_count === 1 ? "reply" : "replies"}`}
             </button>
           )}
@@ -522,7 +525,7 @@ export function PostCard({
               own delete — the moderation state itself is the admin's. */}
           {removed && (
             <div className="mt-3 flex justify-end border-t border-[#1f1f1f] pt-2.5">
-              <button onClick={del} aria-label="Delete post" className="rounded-full p-2 text-neutral-500 hover:text-red-400">
+              <button onClick={del} aria-label="Delete post" className="rounded-full p-[13px] -m-[5px] text-neutral-500 hover:text-red-400">
                 <Trash2 className="h-[16px] w-[16px]" />
               </button>
             </div>

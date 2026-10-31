@@ -124,7 +124,7 @@ function PrefSwitches({
               disabled={savingKey === def.key}
               onClick={() => onToggle(def.key, !on)}
               data-testid={`${testidPrefix}-${def.key}`}
-              className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+              className={`bdv-touch-switch relative h-6 w-11 shrink-0 rounded-full transition ${
                 on ? "bg-[#d4af37]" : isLight ? "bg-[#C9A84C]/30" : "bg-white/15"
               }`}
             >
