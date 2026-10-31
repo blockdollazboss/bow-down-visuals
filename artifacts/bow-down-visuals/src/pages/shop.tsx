@@ -92,6 +92,8 @@ export default function ShopStorefront() {
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   usePageTitle(shop?.name ?? "Shop", "A creator storefront on Bow Down Visuals.");
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,17 +150,18 @@ export default function ShopStorefront() {
     async function load() {
       setLoading(true);
       setNotFound(false);
+      setLoadFailed(false);
       try {
         const res = await fetch(`/api/storefronts/slug/${encodeURIComponent(handle)}`);
         if (res.status === 404) {
+          /* Genuinely no storefront at this handle — the not-found page
+             below is the truth for this one. */
           if (!cancelled) setNotFound(true);
           return;
         }
+        if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as { shop?: PublicShop; products?: PublicProduct[]; platformFeePct?: number; pixels?: CommercePixels };
-        if (!data.shop) {
-          if (!cancelled) setNotFound(true);
-          return;
-        }
+        if (!data.shop) throw new Error("no shop in payload");
         if (!cancelled) {
           setShop(data.shop);
           setProducts(data.products ?? []);
@@ -169,14 +172,16 @@ export default function ShopStorefront() {
           fireCommercePageView(data.pixels);
         }
       } catch {
-        if (!cancelled) setNotFound(true);
+        /* A server/network failure is NOT a missing shop — the error
+           state below renders instead of "Shop not found." */
+        if (!cancelled) setLoadFailed(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     if (handle) load();
     return () => { cancelled = true; };
-  }, [handle]);
+  }, [handle, retryNonce]);
 
   useEffect(() => {
     try {
@@ -434,6 +439,20 @@ export default function ShopStorefront() {
 
       {loading ? (
         <div className="py-32 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>
+      ) : loadFailed ? (
+        <main className="max-w-2xl mx-auto px-5 py-32 text-center">
+          <Store className="w-12 h-12 mx-auto text-white/25" />
+          <h1 className="mt-6 text-3xl font-black">{t("shop.loadErrorTitle", { defaultValue: "We couldn't load this shop" })}</h1>
+          <p className="mt-3 text-white/50 text-sm">{t("shop.loadErrorDesc", { defaultValue: "The shop may still be there — this page just couldn't reach it. Check your connection and try again." })}</p>
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 px-5 py-3 text-sm font-bold text-black"
+            data-testid="btn-retry-shop"
+          >
+            {t("shop.retryLoad", { defaultValue: "Try again" })}
+          </button>
+        </main>
       ) : notFound || !shop ? (
         <main className="max-w-2xl mx-auto px-5 py-32 text-center">
           <Store className="w-12 h-12 mx-auto text-white/25" />
