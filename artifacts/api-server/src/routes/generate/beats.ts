@@ -364,15 +364,25 @@ router.get("/beats/mine/dashboard", requireAuth, async (req, res) => {
       .where(eq(beatLicensesTable.producer_id, req.userId!))
       .orderBy(desc(beatLicensesTable.created_at));
 
-    const grossCents = sales.reduce((s: number, l: { price_cents: number }) => s + l.price_cents, 0);
-    const commissionCents = sales.reduce((s: number, l: { commission_cents: number }) => s + l.commission_cents, 0);
+    /* The headline numbers read COMPLETED sales only — the same
+       contract the earnings rail (lib/seller-earnings sellerBeats)
+       and the reversal engine keep ("producer numbers read
+       status='completed' only"). Until stack1100 X4 these stats
+       summed EVERY row: an abandoned checkout (pending_payment) and
+       a refunded sale both inflated the producer's Gross / Your cut
+       and the Licenses count. The sales LIST below keeps every row —
+       pending and refunded sales are the producer's record, and the
+       page names each row's state; only the totals were lying. */
+    const completedSales = sales.filter((l: { status: string }) => l.status === "completed");
+    const grossCents = completedSales.reduce((s: number, l: { price_cents: number }) => s + l.price_cents, 0);
+    const commissionCents = completedSales.reduce((s: number, l: { commission_cents: number }) => s + l.commission_cents, 0);
 
     res.json({
       beats: await Promise.all(myBeats.map(presentBeat)),
       sales,
       stats: {
         beatCount: myBeats.length,
-        saleCount: sales.length,
+        saleCount: completedSales.length,
         grossCents,
         commissionCents,
         netCents: grossCents - commissionCents,

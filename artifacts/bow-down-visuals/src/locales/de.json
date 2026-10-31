@@ -1759,6 +1759,7 @@
     "saleStatusPending": "Zahlung ausstehend",
     "saleStatusPaid": "Bezahlt",
     "saleStatusUnknown": "Zahlungsstatus nicht verfügbar",
+    "saleStatusRefunded": "Erstattet",
     "paymentNote": "Du schließt den Vorgang an der sicheren Kasse ab (Testmodus). Deine Lizenz wird aktiviert, sobald deine Zahlung bestätigt ist — keine Abbuchung, bis du den Checkout abgeschlossen hast.",
     "playPreview": "Vorschau abspielen",
     "reserveLicenseButton": "{{tier}}-Lizenz kaufen",

@@ -1853,6 +1853,7 @@
     "saleStatusPending": "Paiement en attente",
     "saleStatusPaid": "Payé",
     "saleStatusUnknown": "Statut de paiement indisponible",
+    "saleStatusRefunded": "Remboursé",
     "licenseModalTitle": "Licence — « {{title}} »",
     "soldOut": "Vendu",
     "paymentNote": "Le traitement des paiements arrive bientôt — réserver une licence enregistre ton intention. Aucun débit aujourd'hui.",

@@ -1781,6 +1781,7 @@
     "saleStatusPending": "في انتظار الدفع",
     "saleStatusPaid": "مدفوع",
     "saleStatusUnknown": "حالة الدفع غير متوفرة",
+    "saleStatusRefunded": "تم الاسترداد",
     "licenseModalTitle": "ترخيص «{{title}}»",
     "soldOut": "مُباع",
     "paymentNote": "ستُكمل عند الدفع الآمن (وضع الاختبار). يُفعَّل ترخيصك لحظة تأكيد دفعتك — لا يُخصم شيء حتى تُكمل الدفع.",

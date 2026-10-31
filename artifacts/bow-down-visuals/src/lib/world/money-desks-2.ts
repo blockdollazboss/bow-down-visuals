@@ -355,6 +355,12 @@ export function parseMyLicenses(payload: unknown): BeatSale[] {
 export function beatSaleStatusLabel(status: string): string {
   if (status === "pending_payment") return "Pending payment";
   if (status === "completed") return "Paid";
+  /* 'refunded' is a KNOWN terminal state (the reversal engine flips
+     a completed license to it and revokes the download) — naming it
+     "Status unavailable" told the buyer/seller a settled fact was
+     unknown (stack1100 X4). Only genuinely unrecognized tokens fall
+     through to the honest unknown. */
+  if (status === "refunded") return "Refunded";
   return "Status unavailable";
 }
 
