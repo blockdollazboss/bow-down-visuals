@@ -1847,7 +1847,16 @@ router.delete("/creator-profiles/:id/unfollow", requireAuth, async (req, res) =>
         .set({ followerCount: sql`GREATEST(${creatorProfilesTable.followerCount} - 1, 0)`, updatedAt: new Date() })
         .where(eq(creatorProfilesTable.id, profile.id));
     }
-    res.json({ followed: false, follower_count: Math.max((profile.followerCount ?? 1) - 1, 0) });
+    /* Counter truth (stack1100 X5): the RESPONSE count rides the
+       landed delete, exactly like the stored count — a replayed or
+       never-followed unfollow used to report one less than the truth
+       (it decremented unconditionally), so the client painted a
+       follower vanishing who was never there. The follow door's
+       response already gates on its landed insert the same way. */
+    res.json({
+      followed: false,
+      follower_count: Math.max((profile.followerCount ?? 0) - (deleted.length > 0 ? 1 : 0), 0),
+    });
   } catch (err) {
     req.log.error({ err }, "unfollow error");
     res.status(500).json({ error: "The unfollow didn't stick. Try again." });
@@ -2215,6 +2224,21 @@ router.post("/media/:kind/:id/play", playLimiter, async (req, res) => {
     const media = await getMedia(kind, String(req.params["id"]));
     if (!media) {
       res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
+      return;
+    }
+    /* Counter truth (stack1100 X5): an unpublished upload has no
+       public play to count — the owner's own preview is not an
+       audience play. This door used to count it (counter + play
+       event + total_plays) while the discovery /play door refused
+       to count unpublished media at all, so the same play landed or
+       not depending on which door it came through. Now both doors
+       agree: no row, no bump — and the response still answers with
+       the standing count so the player's UI is none the wiser. */
+    if (!media.isPublished) {
+      res.json({
+        ok: true,
+        plays: kind === "track" ? (media as TrackRow).playCount : (media as VideoRow).viewCount,
+      });
       return;
     }
     await bumpCounter(kind, media.id, "play");

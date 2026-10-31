@@ -38,7 +38,7 @@ import {
   EMPTY_AFFINITY_COUNTS,
   type DiscoveryAffinityCounts,
 } from "../lib/for-you-discovery";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /* ─── Creator Streaming Platform — Discovery + Social (Worker 6) ──────────
    Vertical-aware discovery for ALL creators — music, video, gaming,
@@ -96,13 +96,25 @@ const clampLimit = (v: unknown, def = 20, max = 50): number => {
   return Math.max(1, Math.min(max, Math.floor(n)));
 };
 
-/* Plays can legitimately burst (a listening session); 120/min/IP. */
+/* Plays: ONE counted play per IP per media item per 60s window —
+   the same bound the media play door (routes/creator-platform)
+   states, keyed on the body's kind+mediaId since this door takes
+   them in the body. Counter truth (stack1100 X5): this door used to
+   allow 120 counted plays a minute from one address on one track —
+   120× the house bound — and play counts feed the charts. Radio and
+   autoplay sequences are unaffected: each next track is a new key. */
 const playLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 120,
+  limit: 1,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { error: "Too many plays logged. Slow down a touch." },
+  keyGenerator: (req) => {
+    const body = (req as { body?: { kind?: unknown; mediaId?: unknown } }).body;
+    const kind = typeof body?.kind === "string" ? body.kind : "?";
+    const mediaId = typeof body?.mediaId === "string" ? body.mediaId : "?";
+    return `${req.ip ? ipKeyGenerator(req.ip) : "unknown"}|${kind}|${mediaId}`;
+  },
+  message: { error: "Already counted that play — the cheat code remembers. 🦈" },
 });
 
 const asyncHandler =
@@ -887,30 +899,36 @@ router.post("/play", playLimiter, asyncHandler(async (req, res) => {
     return;
   }
   const { kind, mediaId } = parsed.data;
+  /* Counter truth (stack1100 X5): the play_events row and the counters
+     move together or not at all. This door used to insert the event
+     row UNCONDITIONALLY — events piled up for media that doesn't
+     exist and for unpublished uploads whose counters (correctly)
+     never moved — while the media play door 404s the same request.
+     Resolve the media first; a play that can't count doesn't land,
+     and one that lands moves all three records at once. */
+  const mediaRows = kind === "track"
+    ? (await db.execute(sql`SELECT profile_id, is_published FROM profile_tracks WHERE id = ${mediaId}::uuid`)).rows
+    : (await db.execute(sql`SELECT profile_id, is_published FROM profile_videos WHERE id = ${mediaId}::uuid`)).rows;
+  const media = mediaRows[0] as { profile_id: string; is_published: boolean } | undefined;
+  if (!media || !media.is_published) {
+    res.status(404).json({ error: "That upload isn't playable here." });
+    return;
+  }
   await db.insert(playEventsTable).values({
     kind,
     mediaId,
     userId: (req as Request & { userId?: string }).userId ?? null,
   });
   if (kind === "track") {
-    const updated = await db.execute(sql`
+    await db.execute(sql`
       UPDATE profile_tracks SET play_count = play_count + 1
-      WHERE id = ${mediaId}::uuid AND is_published
-      RETURNING profile_id`);
-    const row = (updated.rows[0] as { profile_id: string } | undefined);
-    if (row) {
-      await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
-    }
+      WHERE id = ${mediaId}::uuid AND is_published`);
   } else {
-    const updated = await db.execute(sql`
+    await db.execute(sql`
       UPDATE profile_videos SET view_count = view_count + 1
-      WHERE id = ${mediaId}::uuid AND is_published
-      RETURNING profile_id`);
-    const row = (updated.rows[0] as { profile_id: string } | undefined);
-    if (row) {
-      await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
-    }
+      WHERE id = ${mediaId}::uuid AND is_published`);
   }
+  await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${media.profile_id}::uuid`);
   res.json({ ok: true });
 }));
 
