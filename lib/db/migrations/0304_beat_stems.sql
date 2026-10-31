@@ -1,0 +1,28 @@
+-- 0304: Beat stems get a home (stack1100 Lane X4 — beats licensing truth).
+--
+-- The license formats have promised stems since the terms model landed
+-- (migration 0188): the fixed Exclusive tier's format is
+-- "ownership_stems" ("Full ownership + stems") and a producer template
+-- may choose "wav_mp3_stems" ("WAV + MP3 + stems"). The plain words a
+-- buyer taps "Agree & pay" on say it outright: "plus the separate
+-- track stems". But the beats table carried exactly one audio file —
+-- there was no stems field at listing, at purchase, or at delivery,
+-- so a stems license delivered the same single master as a Basic MP3
+-- lease and the stems simply never existed.
+--
+-- This adds the delivery slot, mirroring audio_url/audio_path and
+-- preview_url: the producer supplies a stems file (typically a ZIP)
+-- at listing or later by PATCH; it is mirrored into permanent storage
+-- like the other media. Delivery rides the license: verify and
+-- GET /beats/licenses/mine return stemsUrl ONLY for a completed
+-- license whose purchase-time terms_snapshot carries a stems format.
+-- Public browse reads mask stems_url/stems_path exactly like the
+-- master (presentBeatPublic) — stems are part of what a license
+-- sells, never part of the public payload.
+--
+-- A beat with no stems on file still sells its Exclusive tier (the
+-- tier always promises stems): whether such a sale should be blocked
+-- or disclosed is an owner decision, recorded in the lane report —
+-- this migration builds the slot that makes delivery possible.
+ALTER TABLE beats ADD COLUMN IF NOT EXISTS stems_url text;
+ALTER TABLE beats ADD COLUMN IF NOT EXISTS stems_path text;

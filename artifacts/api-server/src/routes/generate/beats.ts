@@ -35,13 +35,18 @@ import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 
 /* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
    re-hosted into permanent storage at listing time; reads serve fresh
-   signed URLs minted from the stored ref (audio_path when present). */
-async function presentBeat<T extends { audio_url: string; audio_path: string | null; preview_url: string | null }>(row: T): Promise<T> {
+   signed URLs minted from the stored ref (audio_path when present).
+   Stems (migration 0304) ride the same pattern: stems_path when
+   present is the stored ref, stems_url the served URL. */
+async function presentBeat<T extends { audio_url: string; audio_path: string | null; preview_url: string | null; stems_url?: string | null; stems_path?: string | null }>(row: T): Promise<T> {
   const audioSource = row.audio_path ?? row.audio_url;
+  const stemsSource = row.stems_path ?? row.stems_url ?? null;
   return {
     ...row,
     audio_url: audioSource ? await refreshSupabaseStorageUrl(audioSource) : row.audio_url,
     preview_url: row.preview_url ? await refreshSupabaseStorageUrl(row.preview_url) : row.preview_url,
+    stems_url: stemsSource ? await refreshSupabaseStorageUrl(stemsSource) : null,
+    stems_path: row.stems_path ?? null,
   };
 }
 
@@ -57,12 +62,18 @@ async function presentBeat<T extends { audio_url: string; audio_path: string | n
  * path is dropped. A beat with NO distinct preview keeps the schema's
  * documented fallback (the full file is its preview — the producer
  * never made a separate one). Owner and buyer reads keep presentBeat:
- * a paid license's download IS the master.
+ * a paid license's download IS the master. The stems file
+ * (migration 0304) is masked the same way in both branches — it is
+ * delivered only through a completed stems license.
  */
-export async function presentBeatPublic<T extends { audio_url: string; audio_path: string | null; preview_url: string | null }>(row: T): Promise<T> {
+export async function presentBeatPublic<T extends { audio_url: string; audio_path: string | null; preview_url: string | null; stems_url?: string | null; stems_path?: string | null }>(row: T): Promise<T> {
   const presented = await presentBeat(row);
-  if (!presented.preview_url) return presented;
-  return { ...presented, audio_url: presented.preview_url, audio_path: null };
+  /* Stems are part of what a stems license SELLS (migration 0304) —
+     they are masked on public reads in both branches, exactly like
+     the master: a completed stems license is the only door. */
+  const masked = { ...presented, stems_url: null, stems_path: null };
+  if (!presented.preview_url) return masked;
+  return { ...masked, audio_url: presented.preview_url, audio_path: null };
 }
 
 const router = Router();
@@ -325,12 +336,17 @@ router.post("/beats", requireAuth, generationLimiter, async (req, res) => {
     const storedPreviewUrl = m.previewUrl
       ? ((await mirrorExternalMediaUrl(m.previewUrl, { kind: "audio", ownerKey: req.userId! })) ?? m.previewUrl)
       : null;
+    const storedStemsUrl = m.stemsUrl
+      ? ((await mirrorExternalMediaUrl(m.stemsUrl, { kind: "audio", ownerKey: req.userId! })) ?? m.stemsUrl)
+      : null;
     const rows = await db.insert(beatsTable).values({
       user_id: req.userId!,
       title: m.title,
       audio_url: storedAudioUrl,
       audio_path: isStorageRef(storedAudioUrl) ? storedAudioUrl : (m.audioPath ?? null),
       preview_url: storedPreviewUrl,
+      stems_url: storedStemsUrl,
+      stems_path: storedStemsUrl && isStorageRef(storedStemsUrl) ? storedStemsUrl : null,
       genre: m.genre,
       bpm: m.bpm ?? null,
       musical_key: m.musicalKey ?? null,
@@ -643,8 +659,19 @@ router.patch("/beats/:id", requireAuth, async (req, res) => {
     return;
   }
   const p = patch.data;
+  /* Stems can be added after listing (migration 0304) — the natural
+     remediation when a stems-bearing license sells and the producer
+     had not uploaded them yet. Mirrored into permanent storage
+     exactly like the listing path. */
+  let stemsPatch: { stems_url: string; stems_path: string | null } | null = null;
+  if (p.stemsUrl !== undefined) {
+    const storedStems =
+      (await mirrorExternalMediaUrl(p.stemsUrl, { kind: "audio", ownerKey: req.userId! })) ?? p.stemsUrl;
+    stemsPatch = { stems_url: storedStems, stems_path: isStorageRef(storedStems) ? storedStems : null };
+  }
   try {
     const updated = await db.update(beatsTable).set({
+      ...(stemsPatch ?? {}),
       ...(p.title !== undefined ? { title: p.title } : {}),
       ...(p.genre !== undefined ? { genre: p.genre } : {}),
       ...(p.bpm !== undefined ? { bpm: p.bpm } : {}),
@@ -720,6 +747,21 @@ export function toLicenseJson(l: BeatLicenseRow) {
   };
 }
 
+/* ── Stems delivery (migration 0304, stack1100 X4) ───────────────────
+   A completed license delivers the beat's stems ONLY when the terms
+   it was sold under carry a stems format — the purchase-time snapshot
+   decides, so a later template edit can neither grant nor revoke
+   stems on a sold license. A beat with no stems on file delivers
+   null: the slot exists; filling it is the producer's move (PATCH). */
+export function licenseStemsUrl(
+  terms: BeatLicenseTerms | null | undefined,
+  presented: { stems_url?: string | null },
+): string | null {
+  if (!terms) return null;
+  if (terms.format !== "wav_mp3_stems" && terms.format !== "ownership_stems") return null;
+  return presented.stems_url ?? null;
+}
+
 const licenseVerifySchema = z.object({
   sessionId: z.string().min(1).max(200),
 });
@@ -790,6 +832,7 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
         duplicate: true,
         license: toLicenseJson(license),
         downloadUrl: presented.audio_url,
+        stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
       });
       return;
     }
@@ -867,6 +910,7 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
       duplicate: false,
       license: toLicenseJson(updated ?? { ...license, status: "completed" }),
       downloadUrl: presented.audio_url,
+      stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to verify license";
@@ -1044,7 +1088,9 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
 
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats/licenses/mine — buyer's license library (auth).
-   Entitlement (downloadUrl) is present ONLY on completed licenses.
+   Entitlement (downloadUrl, and stemsUrl when the sold terms carry
+   stems) is present ONLY on completed licenses. Every row names its
+   beat (beatTitle) so the library reads as purchases, not ids.
 ───────────────────────────────────────────────────────────────────────────── */
 router.get("/beats/licenses/mine", requireAuth, async (req, res) => {
   try {
@@ -1055,12 +1101,16 @@ router.get("/beats/licenses/mine", requireAuth, async (req, res) => {
       .orderBy(desc(beatLicensesTable.created_at));
     const out = [];
     for (const l of licenses) {
+      const beatRows = await db.select().from(beatsTable).where(eq(beatsTable.id, l.beat_id)).limit(1);
+      const beat = beatRows[0];
       let downloadUrl: string | null = null;
-      if (l.status === "completed") {
-        const beatRows = await db.select().from(beatsTable).where(eq(beatsTable.id, l.beat_id)).limit(1);
-        if (beatRows[0]) downloadUrl = (await presentBeat(beatRows[0])).audio_url;
+      let stemsUrl: string | null = null;
+      if (l.status === "completed" && beat) {
+        const presented = await presentBeat(beat);
+        downloadUrl = presented.audio_url;
+        stemsUrl = licenseStemsUrl(l.terms_snapshot, presented);
       }
-      out.push({ ...toLicenseJson(l), downloadUrl });
+      out.push({ ...toLicenseJson(l), beatTitle: beat?.title ?? null, downloadUrl, stemsUrl });
     }
     res.json({ licenses: out });
   } catch (err: unknown) {

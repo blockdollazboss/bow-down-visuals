@@ -179,6 +179,9 @@ export const beatMetadataSchema = z.object({
   audioUrl: z.string().url().max(2000),
   audioPath: z.string().max(500).optional(),
   previewUrl: z.string().url().max(2000).optional(),
+  /* The stems file (migration 0304): delivered only on completed
+     licenses whose sold terms carry a stems format. */
+  stemsUrl: z.string().url().max(2000).optional(),
   genre: z.string().trim().min(1).max(40).default("hip-hop"),
   bpm: z.number().int().min(40).max(220).optional(),
   musicalKey: z.string().trim().max(12).optional(),
