@@ -2014,6 +2014,7 @@ export default function ArtistVault() {
   const { getAccessToken, user } = useAuth();
   const [vaults, setVaults] = useState<ArtistVaultRecord[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);
+  const [vaultsError, setVaultsError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [openVault, setOpenVault] = useState<ArtistVaultRecord | null>(null);
@@ -2059,13 +2060,16 @@ export default function ArtistVault() {
       const res = await fetch("/api/artist-vaults", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (res.ok) {
-        const data = (await res.json()) as { vaults: ArtistVaultRecord[] };
-        setVaults(data.vaults);
-        return data.vaults;
-      }
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { vaults: ArtistVaultRecord[] };
+      setVaults(data.vaults);
+      setVaultsError(false);
+      return data.vaults;
     } catch {
-      /* silent */
+      /* A failed load is NOT an empty vault — the error card below renders
+         instead of "Your vault is empty." The [] return only feeds
+         refresh callers, which keep their current data on a miss. */
+      setVaultsError(true);
     } finally {
       setLoadingVaults(false);
     }
@@ -2478,9 +2482,11 @@ export default function ArtistVault() {
               <p className="text-sm text-white/40 mt-1">
                 {loadingVaults
                   ? t("artistVault.loading")
-                  : vaults.length === 0
-                    ? t("artistVault.noProfilesYet")
-                    : t("artistVault.profileCount", { count: vaults.length })}
+                  : vaultsError && vaults.length === 0
+                    ? t("artistVault.loadVaultsError", { defaultValue: "Couldn't load your profiles" })
+                    : vaults.length === 0
+                      ? t("artistVault.noProfilesYet")
+                      : t("artistVault.profileCount", { count: vaults.length })}
               </p>
             </div>
             {vaults.length > 0 && (
@@ -2496,6 +2502,22 @@ export default function ArtistVault() {
           {loadingVaults ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+            </div>
+          ) : vaultsError && vaults.length === 0 ? (
+            <div className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.04] to-transparent p-10 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center mx-auto mb-4">
+                <Archive className="h-7 w-7 text-primary" />
+              </div>
+              <p className="text-white font-bold mb-1">{t("artistVault.loadVaultsError", { defaultValue: "Couldn't load your profiles" })}</p>
+              <p className="text-white/40 text-sm mb-5 max-w-sm mx-auto">{t("artistVault.loadVaultsErrorBody", { defaultValue: "Your profiles are safe — this page just couldn't reach them. Check your connection and try again." })}</p>
+              <button
+                type="button"
+                onClick={() => { setLoadingVaults(true); void fetchVaults(); }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black text-sm font-bold hover:brightness-110 transition"
+                data-testid="btn-retry-vaults"
+              >
+                {t("artistVault.retryLoad", { defaultValue: "Try again" })}
+              </button>
             </div>
           ) : vaults.length === 0 ? (
             <div className="rounded-2xl border border-primary/15 bg-gradient-to-b from-primary/[0.04] to-transparent p-10 text-center">
