@@ -3,12 +3,17 @@
    counter columns (play_count / view_count / total_plays), written by
    the two public play doors (POST /media/:kind/:id/play and
    POST /discovery/play). Both doors are unauthenticated by design —
-   listening is public — and until now EVERY post counted: one script
-   at the doors' own 120/min/IP limiter could mint 7,200 plays an hour
-   from a single address and put any track at #1 on Today / This week,
-   permanently inflate the all-time counters, and trip the Trend
-   Radar's ≥25-plays-in-24h qualification in seconds. The live
-   presence cap (stack1100 W4) settled the shape for streams: the
+   listening is public — and the counting was wide open: the
+   discovery door counted EVERY post (one script at its own
+   120/min/IP load limiter could mint 7,200 plays an hour from a
+   single address), the media door's per-IP gap still allowed
+   1,440 counted plays a day per address with no daily bound, the
+   owner's plays of their own upload counted toward their own
+   chart position, and unpublished uploads accrued counters. Any
+   of it puts a track at #1 on Today / This week, permanently
+   inflates the all-time counters, and trips the Trend Radar's
+   ≥25-plays-in-24h qualification in seconds. The live presence
+   cap (stack1100 W4) settled the shape for streams: the
    action stays free and unlimited; what one source may COUNT is
    bounded. This module is that bound for plays, shared by both doors
    so the twins can never drift apart:
