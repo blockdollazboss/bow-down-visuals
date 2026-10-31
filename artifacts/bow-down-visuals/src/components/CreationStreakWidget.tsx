@@ -99,7 +99,7 @@ export default function CreationStreakWidget({
   const toggle = (
     <button type="button" onClick={() => void toggleEnabled()} role="switch" aria-checked={data.enabled}
       aria-label={t("retention.toggle_streaks")}
-      className="flex items-center gap-2 text-[11px] font-bold text-white/50 hover:text-white/80 transition-colors">
+      className="flex items-center gap-2 text-[11px] font-bold text-white/50 hover:text-white/80 transition-colors bdv-touch-target">
       <span>{t("retention.toggle_streaks")}</span>
       <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${data.enabled ? "bg-primary" : "bg-white/[0.12]"}`}>
         <span className={`inline-block h-3.5 w-3.5 rounded-full bg-black transition-transform ${data.enabled ? "translate-x-[18px]" : "translate-x-[3px]"}`} />

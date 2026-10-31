@@ -145,8 +145,8 @@ export function DropsWire() {
             onClick={toggleForYou}
             className={
               forYou
-                ? "relative h-6 w-11 shrink-0 rounded-full bg-[#e8c86a] transition-colors"
-                : "relative h-6 w-11 shrink-0 rounded-full bg-white/15 transition-colors"
+                ? "relative h-6 w-11 shrink-0 rounded-full bg-[#e8c86a] transition-colors bdv-touch-switch"
+                : "relative h-6 w-11 shrink-0 rounded-full bg-white/15 transition-colors bdv-touch-switch"
             }
           >
             <span

@@ -1810,7 +1810,7 @@ export default function BroadcastStudio() {
                 setMirror(next);
                 changerRef.current?.setMirror(next);
               }}
-              className={`relative h-6 w-10 rounded-full transition-colors ${mirror ? "bg-amber-400" : "bg-white/15"}`}
+              className={`relative h-6 w-10 rounded-full transition-colors bdv-touch-switch ${mirror ? "bg-amber-400" : "bg-white/15"}`}
             >
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${mirror ? "left-[18px]" : "left-0.5"}`} />
             </button>
@@ -1910,7 +1910,7 @@ export default function BroadcastStudio() {
                 aria-label="Sell tickets"
                 disabled={isLivePhase}
                 onClick={() => { setupTouchedRef.current = true; setTicketed(!ticketed); }}
-                className={`relative h-6 w-10 rounded-full transition-colors ${ticketed ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
+                className={`relative h-6 w-10 rounded-full transition-colors bdv-touch-switch ${ticketed ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
                 data-testid="switch-ticketed"
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${ticketed ? "left-[18px]" : "left-0.5"}`} />
@@ -1961,7 +1961,7 @@ export default function BroadcastStudio() {
                   aria-label="Run as a class"
                   disabled={isLivePhase}
                   onClick={() => { setupTouchedRef.current = true; setIsClass(!isClass); }}
-                  className={`relative h-6 w-10 rounded-full transition-colors ${isClass ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
+                  className={`relative h-6 w-10 rounded-full transition-colors bdv-touch-switch ${isClass ? "bg-amber-400" : "bg-white/15"} ${isLivePhase ? "opacity-50" : ""}`}
                   data-testid="switch-is-class"
                 >
                   <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${isClass ? "left-[18px]" : "left-0.5"}`} />

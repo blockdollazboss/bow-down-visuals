@@ -1647,7 +1647,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
               role="switch"
               aria-checked={instrumental}
               onClick={() => setInstrumental(!instrumental)}
-              className={`relative h-6 w-11 rounded-full transition ${instrumental ? "bg-primary" : "bg-white/15"}`}
+              className={`relative h-6 w-11 rounded-full transition bdv-touch-switch ${instrumental ? "bg-primary" : "bg-white/15"}`}
             >
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${instrumental ? "left-[22px]" : "left-0.5"}`} />
             </button>
