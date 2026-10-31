@@ -94,6 +94,8 @@ export function SampleClearancePanel({
   const [open, setOpen] = useState(false);
   const [declarations, setDeclarations] = useState<DeclarationWire[]>([]);
   const [offers, setOffers] = useState<AlternativeOffer[]>([]);
+  const [declLoadFailed, setDeclLoadFailed] = useState(false);
+  const [offersLoadFailed, setOffersLoadFailed] = useState(false);
   const [offersBasis, setOffersBasis] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -121,17 +123,26 @@ export function SampleClearancePanel({
         authFetch(`/api/sample-clearance/songs/${songId}/declarations`),
         authFetch(`/api/sample-clearance/songs/${songId}/alternatives`),
       ]);
+      /* Per-leg truth: a failed leg renders its error state, never its
+         empty copy ("No samples declared" / "the marketplace is empty"). */
       if (dRes.ok) {
         const data = (await dRes.json()) as { declarations?: DeclarationWire[] };
         setDeclarations(data.declarations ?? []);
+        setDeclLoadFailed(false);
+      } else {
+        setDeclLoadFailed(true);
       }
       if (aRes.ok) {
         const data = (await aRes.json()) as { offers?: AlternativeOffer[]; basedOn?: string };
         setOffers(data.offers ?? []);
         setOffersBasis(data.basedOn ?? "");
+        setOffersLoadFailed(false);
+      } else {
+        setOffersLoadFailed(true);
       }
     } catch {
-      /* honest silence on the panel body; the toggle still opens */
+      setDeclLoadFailed(true);
+      setOffersLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -209,6 +220,18 @@ export function SampleClearancePanel({
 
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin opacity-50" />
+          ) : declLoadFailed ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs text-red-300/90">Couldn&apos;t load this track&apos;s declarations — your declarations are safe, this just couldn&apos;t reach them.</p>
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="text-xs font-semibold text-primary hover:underline"
+                data-testid="btn-retry-declarations"
+              >
+                Try again
+              </button>
+            </div>
           ) : declarations.length === 0 ? (
             <p className="text-xs opacity-60">No samples declared on this track yet. If the track is all original, there's nothing to declare.</p>
           ) : (
@@ -274,7 +297,19 @@ export function SampleClearancePanel({
             <div className="space-y-2 border-t border-white/10 pt-3">
               <p className="text-xs font-bold uppercase tracking-wider opacity-70">Cleared-loop alternatives</p>
               {offersBasis && <p className="text-[11px] opacity-60">{offersBasis}</p>}
-              {offers.length === 0 ? (
+              {offersLoadFailed ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs text-red-300/90">Couldn&apos;t load cleared-loop alternatives just now.</p>
+                  <button
+                    type="button"
+                    onClick={() => void load()}
+                    className="text-xs font-semibold text-primary hover:underline"
+                    data-testid="btn-retry-offers"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : offers.length === 0 ? (
                 <p className="text-xs opacity-60">No licensable beats in the catalog to offer right now — the Beats Marketplace is empty for this right now.</p>
               ) : (
                 offers.map((o) => (

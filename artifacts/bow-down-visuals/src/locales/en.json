@@ -3318,6 +3318,8 @@
     "from_your_song_library": "From your song library",
     "free_selecting_one_prefills_titl": "(free — selecting one prefills title + audio)",
     "no_songs_in_your_library_yet_gen": "No songs in your library yet. Generate one on the Make Song page, or use a manual audio URL below.",
+    "songs_load_error": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retry_load": "Try again",
     "or_paste_a_manual_audio_url": "Or paste a manual audio URL",
     "continue": "Continue",
     "release_title": "Release title *",

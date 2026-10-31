@@ -331,6 +331,8 @@ function NewReleaseWizard(props: {
   /* step 1: music */
   const [songs, setSongs] = useState<SongRow[]>([]);
   const [songsLoading, setSongsLoading] = useState(true);
+  const [songsError, setSongsError] = useState(false);
+  const [songsRetryNonce, setSongsRetryNonce] = useState(0);
   const [songId, setSongId] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState("");
 
@@ -410,18 +412,26 @@ function NewReleaseWizard(props: {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setSongsLoading(true);
       try {
         const res = await authFetch("/api/songs");
+        if (!res.ok) throw new Error();
         const data = (await res.json().catch(() => ({}))) as { songs?: SongRow[] };
-        if (!cancelled && res.ok && Array.isArray(data.songs)) setSongs(data.songs);
+        if (!Array.isArray(data.songs)) throw new Error();
+        if (!cancelled) {
+          setSongs(data.songs);
+          setSongsError(false);
+        }
       } catch {
-        /* empty library still renders */
+        /* A failed load is NOT an empty library — the error row below
+           renders instead of "No songs in your library yet." */
+        if (!cancelled) setSongsError(true);
       } finally {
         if (!cancelled) setSongsLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [authFetch]);
+  }, [authFetch, songsRetryNonce]);
 
   const tierPrice = pricing?.tiers.find((tr) => tr.type === releaseType)?.credits ?? tierCredits(releaseType);
 
@@ -652,6 +662,18 @@ function NewReleaseWizard(props: {
           <p className={labelClass}>{t("distribute.from_your_song_library")}<span className="font-normal normal-case text-white/30">{t("distribute.free_selecting_one_prefills_titl")}</span></p>
           {songsLoading ? (
             <p className="py-6 text-center text-sm text-white/40"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></p>
+          ) : songsError ? (
+            <div className={`rounded-2xl border p-4 text-sm flex flex-wrap items-center gap-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/50"}`}>
+              <span className="flex-1">{t("distribute.songs_load_error", { defaultValue: "We couldn't load your song library — your songs are safe, this just couldn't reach them." })}</span>
+              <button
+                type="button"
+                onClick={() => setSongsRetryNonce((n) => n + 1)}
+                className="font-semibold text-primary hover:underline shrink-0"
+                data-testid="btn-retry-songs"
+              >
+                {t("distribute.retry_load", { defaultValue: "Try again" })}
+              </button>
+            </div>
           ) : songs.length === 0 ? (
             <p className={`rounded-2xl border p-4 text-sm ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/40"}`}>{t("distribute.no_songs_in_your_library_yet_gen")}</p>
           ) : (
