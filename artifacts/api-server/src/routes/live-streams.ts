@@ -144,31 +144,66 @@ const VIEWER_TTL_MS = 45_000;
 /* ── Viewer presence (in-memory; the API runs as a single instance) ──────
    The watch page heartbeats every ~15s with a random session id. Counts
    are real presence, pruned lazily on read; the peak is persisted to the
-   row when it grows. Exported for tests. */
-const viewersByStream = new Map<string, Map<string, number>>();
+   row when it grows. Exported for tests.
+
+   Count integrity (W4): a session id is client-chosen and the
+   heartbeat is unauthenticated, so without a bound one script could
+   mint "viewers" forever — and the inflated figure would persist as
+   the stream's peak and feed its summary. Presence therefore counts
+   at most MAX_COUNTED_SESSIONS_PER_IP distinct sessions per source
+   IP per stream: far above any real household's tabs, far below a
+   minting script's output. Sessions recorded without an IP (internal
+   callers, tests) always count. */
+export const MAX_COUNTED_SESSIONS_PER_IP = 8;
+
+interface ViewerPresence {
+  seenAt: number;
+  ip: string | null;
+}
+
+const viewersByStream = new Map<string, Map<string, ViewerPresence>>();
 
 /* Throttle for persisted viewer samples (summary averages). */
 const VIEWER_SAMPLE_MS = 20_000;
 const lastViewerSampleAt = new Map<string, number>();
 
-export function touchViewer(streamId: string, sessionId: string, now: number = Date.now()): number {
+export function touchViewer(
+  streamId: string,
+  sessionId: string,
+  now: number = Date.now(),
+  ip: string | null = null,
+): number {
   let sessions = viewersByStream.get(streamId);
   if (!sessions) {
     sessions = new Map();
     viewersByStream.set(streamId, sessions);
   }
-  sessions.set(sessionId, now);
+  sessions.set(sessionId, { seenAt: now, ip });
   return countViewers(streamId, now);
 }
 
 export function countViewers(streamId: string, now: number = Date.now()): number {
   const sessions = viewersByStream.get(streamId);
   if (!sessions) return 0;
-  for (const [sessionId, seenAt] of sessions) {
-    if (now - seenAt > VIEWER_TTL_MS) sessions.delete(sessionId);
+  for (const [sessionId, presence] of sessions) {
+    if (now - presence.seenAt > VIEWER_TTL_MS) sessions.delete(sessionId);
   }
-  if (sessions.size === 0) viewersByStream.delete(streamId);
-  return sessions.size;
+  if (sessions.size === 0) {
+    viewersByStream.delete(streamId);
+    return 0;
+  }
+  const perIp = new Map<string, number>();
+  let count = 0;
+  for (const presence of sessions.values()) {
+    if (!presence.ip) {
+      count += 1;
+      continue;
+    }
+    const n = (perIp.get(presence.ip) ?? 0) + 1;
+    perIp.set(presence.ip, n);
+    if (n <= MAX_COUNTED_SESSIONS_PER_IP) count += 1;
+  }
+  return count;
 }
 
 export function clearViewers(streamId: string): void {
@@ -1753,7 +1788,10 @@ router.post("/live-streams/:id/heartbeat", publicApiLimiter, async (req: Request
         return;
       }
     }
-    const count = touchViewer(row.id, parsed.data.session_id);
+    /* The caller's IP rides along so the count can bound how many
+       distinct sessions one address may mint (see the presence map);
+       app.ts sets trust proxy, so req.ip is the real client. */
+    const count = touchViewer(row.id, parsed.data.session_id, Date.now(), req.ip ?? null);
     /* Stage Manager (#166): viewer milestones sting off the fresh
        count — fire-and-forget, a heartbeat never waits on it. */
     stageManagerViewerFollowUp(row, count);
