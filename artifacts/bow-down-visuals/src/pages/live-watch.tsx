@@ -1,4 +1,5 @@
 import { apiErrorMessage } from "../lib/api-error";
+import { loginPathWithNext } from "@/lib/auth-next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { Loader2, AlertTriangle, RotateCcw, Radio, Users, Volume2, VideoOff, Ticket } from "lucide-react";
@@ -98,6 +99,7 @@ function TicketDoor({
   seatsLeft,
   ended,
   signedIn,
+  signInHref,
   buying,
   error,
   onBuy,
@@ -106,6 +108,9 @@ function TicketDoor({
   seatsLeft: number | null;
   ended: boolean;
   signedIn: boolean;
+  /** The sign-in door, carrying the way back to THIS show
+   *  (loginPathWithNext — public-surface truth, stack1000 R1). */
+  signInHref: string;
   buying: boolean;
   error: string | null;
   onBuy: () => void;
@@ -143,7 +148,7 @@ function TicketDoor({
           </button>
         ) : (
           <Link
-            href="/login"
+            href={signInHref}
             className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-black transition hover:scale-105"
             data-testid="btn-signin-for-ticket"
           >
@@ -432,6 +437,7 @@ export default function LiveWatch() {
               seatsLeft={door.seats_left}
               ended={false}
               signedIn={!!user}
+              signInHref={loginPathWithNext(`/live/${id}`)}
               buying={buying}
               error={buyError}
               onBuy={() => void buyTicket()}
@@ -487,6 +493,7 @@ export default function LiveWatch() {
               seatsLeft={door.seats_left}
               ended
               signedIn={!!user}
+              signInHref={loginPathWithNext(`/live/${id}`)}
               buying={buying}
               error={buyError}
               onBuy={() => void buyTicket()}

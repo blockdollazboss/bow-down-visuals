@@ -1,6 +1,7 @@
 import { apiErrorMessage } from "../../lib/api-error";
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { loginPathWithNext } from "@/lib/auth-next";
 import { Plus, Check, Rocket } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -23,6 +24,7 @@ export function FollowButton({
   className?: string;
 }) {
   const { user, getAccessToken } = useAuth();
+  const [location] = useLocation();
   const [following, setFollowing] = useState<boolean | null>(initialFollowing ?? null);
   const [busy, setBusy] = useState(false);
 
@@ -31,8 +33,12 @@ export function FollowButton({
   }, [initialFollowing]);
 
   if (!user) {
+    /* The guest pill is the sign-in ask — and it carries the way back
+       to this page, so the new member lands in front of the Follow
+       button they tapped (public-surface truth, stack1000 R1; the
+       login screen hands the same ?next= to its sign-up link). */
     return (
-      <Link href="/signup">
+      <Link href={loginPathWithNext(location)}>
         <span
           className={`inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#c9a84c]/40 px-3 py-1 text-xs font-bold text-[#e8c86a] hover:bg-[#e8c86a]/10 ${className ?? ""}`}
         >

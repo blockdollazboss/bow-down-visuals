@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute, useLocation } from "wouter";
+import { loginPathWithNext } from "@/lib/auth-next";
 import {
   Trophy, Loader2, ArrowLeft, Plus, BadgeDollarSign, Users, Eye,
   ThumbsUp, Crown, Timer, Flame, ChevronRight,
@@ -75,6 +76,9 @@ export default function ChallengePage() {
   const [, params] = useRoute("/challenge/:slug");
   const slug = params?.slug ?? "";
   const [, navigate] = useLocation();
+  /* The guest door carries the way back to this challenge —
+     public-surface truth, stack1000 R1. */
+  const signInDoor = loginPathWithNext(`/challenge/${slug}`);
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState<ChallengeData | null>(null);
@@ -135,7 +139,7 @@ export default function ChallengePage() {
   }, [data, sort]);
 
   const vote = async (videoId: string) => {
-    if (!user) { navigate("/login"); return; }
+    if (!user) { navigate(signInDoor); return; }
     if (votingId) return;
     setVotingId(videoId);
     try {
@@ -190,7 +194,7 @@ export default function ChallengePage() {
 
   const joinHref = user
     ? `/publish?type=video&category=video&challenge=${encodeURIComponent(challenge.slug)}&description=${encodeURIComponent(`#${challenge.hashtag} — ${challenge.title}\n`)}`
-    : "/login";
+    : signInDoor;
   const canVote = challenge.status === "live" || challenge.status === "judging";
 
   return (

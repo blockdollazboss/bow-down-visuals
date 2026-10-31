@@ -10,6 +10,7 @@ import {
   X, Wand2, RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { loginPathWithNext } from "@/lib/auth-next";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
 import LoopExchangePanel from "@/components/loop-exchange/LoopExchangePanel";
@@ -336,6 +337,10 @@ export default function Beats() {
 
   async function reserveLicense() {
     if (!licenseBeat) return;
+    /* Guests never reach the submit: the modal renders them the
+       sign-in door instead of the pay button (below). This guard is
+       the backstop — a license is an account's purchase. */
+    if (!user) return;
     setLicensing(true);
     setLicenseMsg(null);
     try {
@@ -800,6 +805,27 @@ export default function Beats() {
             {licenseMsg && (
               <p className="text-sm mb-3 flex items-center gap-2 text-green-300"><CheckCircle2 className="w-4 h-4" />{licenseMsg}</p>
             )}
+            {!user ? (
+              /* Guest door (public-surface truth, stack1000 R1): the
+                 browse is public, a license is an account's purchase.
+                 The guest is told so HERE, before any futile submit —
+                 the old flow fired the POST, got a 401, and rendered
+                 "Please sign in to do that." in this modal's SUCCESS
+                 styling with no door at all. The door carries the way
+                 back to /beats. */
+              <>
+                <p className="text-sm mb-3 text-white/60">
+                  {t("beats.signInToLicense", { defaultValue: "Licensing a beat needs an account — sign in and you'll come right back to this beat." })}
+                </p>
+                <Link
+                  href={loginPathWithNext("/beats")}
+                  className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] inline-flex items-center justify-center gap-2"
+                >
+                  <BadgeDollarSign className="w-4 h-4" />
+                  {t("beats.signInToLicenseButton", { defaultValue: "Sign in to license this beat" })}
+                </Link>
+              </>
+            ) : (
             <button onClick={reserveLicense} disabled={licensing}
               className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
@@ -812,6 +838,7 @@ export default function Beats() {
                 ),
               })}
             </button>
+            )}
             <p className="text-[11px] text-white/35 text-center mt-2">{BEAT_PLAIN_TERMS_COPY.agreeHint}</p>
             {licenseBeat && (
               <Link
