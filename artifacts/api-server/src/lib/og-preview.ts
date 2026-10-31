@@ -45,6 +45,7 @@ import {
   socialUnlockGatesTable,
   postsTable,
   eventsTable,
+  generatedClipsTable,
   type Attachment,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -255,6 +256,21 @@ const SITE_NAME = "Bow Down Visuals";
 
 function fallbackImage(origin: string): string {
   return `${origin}${FALLBACK_IMAGE}`;
+}
+
+/** First usable image from a chain of raw stored values, absolutized,
+    with the branded fallback card last — the image ladder the resolvers
+    climb: the content's own art first, the creator's art next, the brand
+    card only when neither exists. */
+export function firstCardImage(
+  origin: string,
+  ...raws: Array<string | null | undefined>
+): string {
+  for (const raw of raws) {
+    const abs = absoluteMediaUrl(raw, origin);
+    if (abs) return abs;
+  }
+  return fallbackImage(origin);
 }
 
 /** Branded fallback card for a shareable URL whose entity is missing,
@@ -1049,7 +1065,19 @@ async function resolvePremiere(id: string, origin: string): Promise<ShareCard | 
   if (!row || row.status === "cancelled") return null;
   const p = await publicProfileById(row.profile_id);
   if (!p) return null;
-  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  /* The premiere's own art is its clip's thumbnail — the card used to
+     skip it and show the creator's avatar for a video surface
+     (Stack1000 P4). Avatar remains the next rung, brand card last. */
+  let clipThumb: string | null = null;
+  if (row.clip_id) {
+    const [clip] = await db
+      .select({ thumb: generatedClipsTable.thumbnail_url })
+      .from(generatedClipsTable)
+      .where(eq(generatedClipsTable.id, row.clip_id))
+      .limit(1);
+    clipThumb = clip?.thumb ?? null;
+  }
+  const image = firstCardImage(origin, clipThumb, p.avatarUrl);
   const when =
     row.status === "live"
       ? "live now"
@@ -1075,7 +1103,19 @@ async function resolveLive(id: string, origin: string): Promise<ShareCard | null
   if (!row) return null;
   const p = await publicProfileById(row.profile_id);
   if (!p) return null;
-  const image = absoluteMediaUrl(p.avatarUrl, origin) ?? fallbackImage(origin);
+  /* An ended stream has its own art — the registered VOD clip's
+     thumbnail; a live one has none yet, so the creator's avatar is the
+     honest rung (Stack1000 P4). */
+  let vodThumb: string | null = null;
+  if (row.vod_clip_id) {
+    const [clip] = await db
+      .select({ thumb: generatedClipsTable.thumbnail_url })
+      .from(generatedClipsTable)
+      .where(eq(generatedClipsTable.id, row.vod_clip_id))
+      .limit(1);
+    vodThumb = clip?.thumb ?? null;
+  }
+  const image = firstCardImage(origin, vodThumb, p.avatarUrl);
   const live = row.status === "live";
   return {
     title: `${row.title} — ${live ? "live" : "stream"} by ${p.displayName}`,

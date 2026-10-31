@@ -15,6 +15,7 @@ import {
   buildEventCard,
   buildShortCard,
   resolveShareCard,
+  firstCardImage,
   type ShareCard,
   type PostCardSource,
   type EventCardSource,
@@ -391,6 +392,26 @@ describe("buildShortCard + static surfaces (Stack1000 P4 share truth)", () => {
     expect(card?.title).toBe("Creator Storefronts — Bow Down Visuals");
     expect(card?.description).toContain("Every creator gets their own shop on Bow Down Visuals");
     expect(card?.url).toBe(`${ORIGIN}/storefronts`);
+  });
+});
+
+describe("firstCardImage (Stack1000 P4: premiere/live content art)", () => {
+  it("prefers the content's own art over the creator's avatar", () => {
+    expect(
+      firstCardImage(ORIGIN, "https://cdn.example.com/clip-thumb.jpg", "https://cdn.example.com/avatar.png"),
+    ).toBe("https://cdn.example.com/clip-thumb.jpg");
+  });
+
+  it("falls to the avatar when the content has no art, then the brand card", () => {
+    expect(firstCardImage(ORIGIN, null, "https://cdn.example.com/avatar.png")).toBe(
+      "https://cdn.example.com/avatar.png",
+    );
+    expect(firstCardImage(ORIGIN, null, undefined)).toBe(`${ORIGIN}/og-fallback.png`);
+    expect(firstCardImage(ORIGIN, "  ", "")).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("absolutizes site-relative content art", () => {
+    expect(firstCardImage(ORIGIN, "/uploads/thumb.jpg", null)).toBe(`${ORIGIN}/uploads/thumb.jpg`);
   });
 });
 
