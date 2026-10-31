@@ -22,8 +22,11 @@ const CACHE_VERSION = "bdv-v6";
 const STATIC_CACHE = `bdv-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 
-// App shell cached at install so the PWA opens offline.
-const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
+// App shell cached at install so the PWA opens offline. offline.html
+// rides along: when the shell itself never made it into the cache, an
+// offline open still lands on a designed page that says what's wrong —
+// never a bare text error or a half-booted shell.
+const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -205,9 +208,12 @@ self.addEventListener("fetch", (event) => {
         .catch(() =>
           caches.match("/index.html").then((cached) => {
             if (cached) return cached;
-            return new Response("Offline — Bow Down Visuals needs a connection to load.", {
-              status: 503,
-              headers: { "Content-Type": "text/plain" },
+            return caches.match("/offline.html").then((offlinePage) => {
+              if (offlinePage) return offlinePage;
+              return new Response("Offline — Bow Down Visuals needs a connection to load.", {
+                status: 503,
+                headers: { "Content-Type": "text/plain" },
+              });
             });
           })
         )

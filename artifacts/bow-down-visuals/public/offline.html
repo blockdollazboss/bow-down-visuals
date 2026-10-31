@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline — Bow Down Visuals</title>
+    <!-- Self-contained on purpose: this page is served by the service
+         worker when the app shell itself isn't cached yet, so it must
+         not depend on any other file loading. The one image is the
+         app icon, which the worker precaches with the shell. -->
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #0d0a04;
+        color: #f5efe0;
+        font-family: Georgia, "Times New Roman", serif;
+        text-align: center;
+      }
+      main { max-width: 26rem; }
+      img { width: 72px; height: 72px; border-radius: 18px; }
+      h1 { font-size: 1.5rem; margin: 20px 0 8px; letter-spacing: 0.01em; }
+      p { margin: 0 0 24px; line-height: 1.55; color: rgba(245, 239, 224, 0.72); font-size: 0.98rem; }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 28px;
+        background: #d4af37;
+        color: #14100a;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:hover { filter: brightness(1.08); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icon-192.png" alt="Bow Down Visuals" width="72" height="72" />
+      <h1>You're offline</h1>
+      <p>
+        Bow Down Visuals needs a connection to load — your account, your
+        creations, and your Bucs all live online and are right where you
+        left them. Reconnect and pick up where you left off.
+      </p>
+      <button type="button" onclick="window.location.reload()">Try again</button>
+    </main>
+  </body>
+</html>
