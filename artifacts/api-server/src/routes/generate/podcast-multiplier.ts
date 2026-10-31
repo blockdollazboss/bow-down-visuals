@@ -45,7 +45,7 @@ import {
   refundCredits,
   OutOfCreditsError,
 } from "../../lib/credits";
-import { publicApiLimiter } from "../../lib/rate-limit";
+import { publicApiLimiter, freeAiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import {
@@ -340,6 +340,7 @@ router.post(
   "/podcast/multiply",
   requireAuth,
   publicApiLimiter,
+  freeAiLimiter,
   async (req, res) => {
     const parsed = multiplySchema.safeParse(req.body ?? {});
     if (!parsed.success) {

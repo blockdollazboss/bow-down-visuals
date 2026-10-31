@@ -10,7 +10,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../middlewares/require-auth";
-import { publicApiLimiter, generationLimiter } from "../lib/rate-limit";
+import { publicApiLimiter, generationLimiter, freeAiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { db, ugcAdsTable, ugcBriefsTable, shopProductsTable, generatedClipsTable } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
@@ -360,7 +360,7 @@ const scriptGenSchema = z.object({
   keyPoints: z.string().trim().max(400).optional().default(""),
 });
 
-router.post("/ugc-ads/script", requireAuth, publicApiLimiter, async (req, res) => {
+router.post("/ugc-ads/script", requireAuth, publicApiLimiter, freeAiLimiter, async (req, res) => {
   const parsed = scriptGenSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

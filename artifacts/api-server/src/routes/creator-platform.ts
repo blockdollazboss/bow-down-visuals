@@ -26,6 +26,7 @@ import {
 import { liveChatHub } from "./live-chat";
 import { eq, and, desc, sql, count, inArray, gt } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeAiLimiter } from "../lib/rate-limit";
 import { resolveOptionalSession } from "../lib/optional-auth";
 import type { RequestHandler } from "express";
 
@@ -3040,7 +3041,7 @@ export function parseSeriesAssistResponse(
     (auth, owner only, series only). READ-ONLY by design: no charge, no
     write, no publish, no price — the draft comes back for the creator to
     approve, edit, or throw away. */
-router.post("/playlists/:id/series-assist", requireAuth, async (req, res) => {
+router.post("/playlists/:id/series-assist", requireAuth, freeAiLimiter, async (req, res) => {
   try {
     const [pl] = await db.select().from(playlistsTable)
       .where(eq(playlistsTable.id, String(req.params["id"]))).limit(1);

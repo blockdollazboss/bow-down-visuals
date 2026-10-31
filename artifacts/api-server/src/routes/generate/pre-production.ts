@@ -6,7 +6,7 @@ import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { LOOK_RAIL_KEYS, normalizeLookPicks } from "../../lib/scene-look";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { db, preproductionPacksTable, artistVaultsTable, locationsTable } from "@workspace/db";
@@ -183,6 +183,31 @@ router.post("/pre-production/bible", requireAuth, async (req, res) => {
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; every failure exit
+     below refunds it in full. This handler used to generate first and
+     charge last — the pre-check above reads the auth-time balance
+     snapshot, so concurrent requests all passed it against one
+     balance, each burned real provider money, and all but the first
+     charge failed. Same price, same action name. */
+  let after: number;
+  try {
+    after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible" });
+  } catch (chargeErr) {
+    if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
+    if (chargeErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: chargeErr instanceof Error ? chargeErr.message : "Bible generation failed." });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible — Refund" }).catch(() => {});
+  };
 
   const prompt =
 `Think like an Oscar-winning director and cinematographer building the locked creative bible for a feature-caliber music video: every location, wardrobe choice, and prop must feel intentional, cinematic, and unforgettable.
@@ -217,19 +242,10 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const bible = JSON.parse(raw);
-    let after: number;
-    try {
-      after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible" });
-    } catch (chargeErr) {
-      if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
-      if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw chargeErr;
-    }
+    // (The charge already landed at reserve-at-start, above.)
     res.json({ bible, creditsAfter: after });
   } catch (err) {
+    await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Bible generation failed." });
   }
 });
@@ -242,6 +258,33 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
+
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; every failure exit
+     below refunds it in full. This handler used to generate first and
+     charge last — the pre-check above reads the auth-time balance
+     snapshot, so concurrent requests all passed it against one
+     balance, each burned real provider money, and all but the first
+     charge failed. Same price, same action name. */
+  let after: number;
+  try {
+    after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard" });
+  } catch (chargeErr) {
+    if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
+    if (chargeErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: chargeErr instanceof Error ? chargeErr.message : "Storyboard generation failed." });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard — Refund" }).catch(() => {});
+  };
+
 
   const count = Math.min(Math.max(shotCount ?? 10, 4), 20);
   const prompt =
@@ -267,19 +310,10 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
     const shots = Array.isArray(parsed) ? parsed : parsed.shots ?? [];
-    let after: number;
-    try {
-      after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard" });
-    } catch (chargeErr) {
-      if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
-      if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw chargeErr;
-    }
+    // (The charge already landed at reserve-at-start, above.)
     res.json({ shots, creditsAfter: after });
   } catch (err) {
+    await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Storyboard generation failed." });
   }
 });
@@ -300,6 +334,32 @@ router.post("/pre-production/image", requireAuth, async (req, res) => {
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < IMAGE_CREDIT_COST) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
+
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; every failure exit
+     below refunds it in full. This handler used to generate first and
+     charge last — the pre-check above reads the auth-time balance
+     snapshot, so concurrent requests all passed it against one
+     balance, each burned real provider money, and all but the first
+     charge failed. Same price, same action name. */
+  let after: number;
+  try {
+    after = await chargeCredits(req.userId!, IMAGE_CREDIT_COST, { action: kind === "asset" ? "Production Asset" : kind === "endframe" ? "Storyboard End Frame" : "Storyboard Start Frame" });
+  } catch (chargeErr) {
+    if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
+    if (chargeErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: chargeErr instanceof Error ? chargeErr.message : "Image generation failed." });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, IMAGE_CREDIT_COST, { action: "Pre-production Image — Refund" }).catch(() => {});
+  };
 
   const subject = kind === "asset"
     ? `Isolated production asset photo for a music video — Category: ${category || "Prop"}. Asset: ${prompt || ""}. Clean studio-style product shot on a neutral background, premium catalog photography.`
@@ -341,28 +401,17 @@ Style: ultra-detailed cinematic still, professional music video production quali
       b64 = imageResp.data?.[0]?.b64_json;
     }
 
-    if (!b64) { res.status(500).json({ error: "Image generation returned no image data." }); return; }
+    if (!b64) { await refundCharge(); res.status(500).json({ error: "Image generation returned no image data." }); return; }
 
     const buffer = Buffer.from(b64, "base64");
     const objectName = `pre-production/${kind}s/${randomUUID()}.png`;
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    let after: number;
-    try {
-      after = await chargeCredits(req.userId!, IMAGE_CREDIT_COST, {
-        action: kind === "asset" ? "Production Asset" : kind === "endframe" ? "Storyboard End Frame" : "Storyboard Start Frame",
-      });
-    } catch (chargeErr) {
-      if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
-      if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw chargeErr;
-    }
+    // (The charge already landed at reserve-at-start, above.)
     res.json({ imageUrl: url, creditsAfter: after });
   } catch (err) {
+    await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Image generation failed." });
   }
 });
@@ -422,6 +471,32 @@ router.post("/pre-production/pack", requireAuth, async (req, res) => {
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PACK_TEXT_CREDIT_COST) { outOfCredits(res, PACK_TEXT_CREDIT_COST); return; }
+
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; every failure exit
+     below refunds it in full. This handler used to generate first and
+     charge last — the pre-check above reads the auth-time balance
+     snapshot, so concurrent requests all passed it against one
+     balance, each burned real provider money, and all but the first
+     charge failed. Same price, same action name. */
+  let after: number;
+  try {
+    after = await chargeCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack" });
+  } catch (chargeErr) {
+    if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, PACK_TEXT_CREDIT_COST); return; }
+    if (chargeErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: chargeErr instanceof Error ? chargeErr.message : "Pack generation failed." });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack — Refund" }).catch(() => {});
+  };
 
   const shots = Math.min(Math.max(shotCount ?? 6, 4), PACK_MAX_SHOTS);
   const props = Math.min(Math.max(propCount ?? 4, 1), PACK_MAX_PROPS);
@@ -546,7 +621,7 @@ Return: { "props": [...], "ingredients": [...] }` }],
       })
       .returning();
 
-    const after = await chargeCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack" });
+    // (The charge already landed at reserve-at-start, above.)
 
     res.json({
       pack,
@@ -557,6 +632,7 @@ Return: { "props": [...], "ingredients": [...] }` }],
       assetCreditCost: IMAGE_CREDIT_COST,
     });
   } catch (err) {
+    await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Pack generation failed." });
   }
 });

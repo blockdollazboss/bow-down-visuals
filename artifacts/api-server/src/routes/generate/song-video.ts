@@ -4,7 +4,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -148,6 +148,38 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; every failure exit
+     below refunds it in full. This handler used to generate, save
+     history, and charge last — the pre-check above reads the
+     auth-time balance snapshot, so concurrent requests all passed
+     it against one balance, each burned real provider money, and
+     all but the first charge failed. Same price, same action. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
+      });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Generation failed" });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video — Refund" }).catch(() => {});
+  };
+
   const isExplicit = explicit?.toLowerCase() === "explicit";
 
   const prompt = `Create a complete, premium Song + Video package for the following release. The song and video must feel like they were designed together — same world, same story, same energy.
@@ -272,7 +304,7 @@ Master exclusion list for all AI generations.
 
     const content = completion.choices[0]?.message?.content ?? "";
 
-    // Step 1: Save to history FIRST (throws → outer catch returns 500, no credits charged)
+    // Step 1: Save to history (throws → outer catch refunds the reserve and returns 500)
     const genHistoryId = await recordGenerationHistory({
       userId:         req.userId!,
       generationType: "Make Song + Video",
@@ -283,25 +315,7 @@ Master exclusion list for all AI generations.
       creditsUsed:    CREDIT_COST,
     });
 
-    // Step 2: Deduct credits only after history is confirmed saved.
-    // Atomic single-statement deduction — race-safe (no read-modify-write).
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video" });
-    } catch (deductErr) {
-      if (deductErr instanceof OutOfCreditsError) {
-        res.status(402).json({
-          error: "out_of_credits",
-          message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
-        });
-        return;
-      }
-      if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw deductErr;
-    }
+    // (The charge already landed at reserve-at-start, above.)
 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
@@ -309,6 +323,7 @@ Master exclusion list for all AI generations.
     res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
+    await refundCharge();
     res.status(500).json({ error: message });
   }
 });

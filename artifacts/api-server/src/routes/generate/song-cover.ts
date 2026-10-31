@@ -235,6 +235,39 @@ router.post("/song-cover", requireAuth, async (req, res) => {
   if (cleanLyrics) fullPrompt += `\n\nLyrics:\n${cleanLyrics}`;
   fullPrompt = fullPrompt.slice(0, 4000);
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the ElevenLabs call; every failure exit
+     below refunds it in full. This handler used to generate, upload,
+     and save history first and charge last — the pre-check above reads
+     the auth-time balance snapshot, so concurrent covers all passed it
+     against one balance, each burned real provider money, and all but
+     the first charge failed. Same price, same action name. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
+      return;
+    }
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Cover generation failed." });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    try {
+      await refundCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover — Refund" });
+    } catch (refundErr) {
+      req.log.error({ err: refundErr }, "song-cover: refund failed");
+    }
+  };
+
   let audioBuf: Buffer;
   try {
     const elevenRes = await fetch("https://api.elevenlabs.io/v1/music", {
@@ -255,8 +288,9 @@ router.post("/song-cover", requireAuth, async (req, res) => {
     audioBuf = Buffer.from(await elevenRes.arrayBuffer());
     if (audioBuf.length === 0) throw new Error("The cover came back empty.");
   } catch (err) {
-    // Pre-charge failure: nothing was charged.
+    // Reserve-at-start: the charge already landed — refund it in full.
     req.log.error({ err }, "song-cover: generation failed");
+    await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Cover generation failed." });
     return;
   }
@@ -268,14 +302,14 @@ router.post("/song-cover", requireAuth, async (req, res) => {
   try {
     await r2Upload(r2Key, audioBuf, "audio/mpeg");
   } catch (err) {
-    // Pre-charge failure: nothing was charged.
     req.log.error({ err }, "song-cover: upload failed");
+    await refundCharge();
     res.status(500).json({ error: "Could not save the cover audio." });
     return;
   }
   const coverUrl = r2PublicUrl(r2Key);
 
-  // Step 1: Save to history FIRST (throws → 500, no credits charged).
+  // Step 1: Save to history (throws → refund + 500).
   let genHistoryId: string;
   try {
     genHistoryId = await recordGenerationHistory({
@@ -289,25 +323,12 @@ router.post("/song-cover", requireAuth, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "song-cover: history write failed");
-    res.status(500).json({ error: "Could not save the cover. No Visual Bucs were charged." });
+    await refundCharge();
+    res.status(500).json({ error: "Could not save the cover. Your Visual Bucs were refunded." });
     return;
   }
 
-  // Step 2: Charge. Every failure from here on refunds.
-  let creditsAfter: number;
-  try {
-    creditsAfter = await chargeCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover" });
-  } catch (deductErr) {
-    if (deductErr instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
-    }
-    if (deductErr instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
-      return;
-    }
-    throw deductErr;
-  }
+  // (The charge already landed at reserve-at-start, above.)
 
   // Step 3: Persist the cover in the song library (parent_song_id links it to the original).
   try {
@@ -346,11 +367,7 @@ router.post("/song-cover", requireAuth, async (req, res) => {
   } catch (err) {
     // Post-charge failure: auto-refund, then fail loudly.
     req.log.error({ err }, "song-cover: library save failed, refunding");
-    try {
-      await refundCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover — Refund" });
-    } catch (refundErr) {
-      req.log.error({ err: refundErr }, "song-cover: refund failed");
-    }
+    await refundCharge();
     res.status(500).json({ error: "Could not save the cover to your library. Your Visual Bucs were refunded." });
   }
 });

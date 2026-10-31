@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
+import { generationLimiter } from "../../lib/rate-limit";
 import { chargeCredits } from "../../lib/credits";
 import {
   avatarProviderConfigured,
@@ -224,7 +225,7 @@ router.get("/avatar-presenter/status", requireAuth, async (_req: Request, res: R
  * shows a clear disabled message instead of charging or failing silently.
  * The 1,200 VB charge lands only when the video is finished and stored.
  */
-router.post("/avatar-presenter", requireAuth, async (req: Request, res: Response) => {
+router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Request, res: Response) => {
   if (!avatarProviderConfigured()) {
     const err = new AvatarNotConfiguredError();
     res.status(503).json({ error: err.code, message: err.message });

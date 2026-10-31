@@ -6,7 +6,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { getOpenAI } from "../../lib/ai-clients";
 import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { saveGeneration } from "../../lib/save-generation";
 import {
   uploadMediaToSupabaseStorage,
@@ -495,9 +495,10 @@ const streamPackBodySchema = z.object({
    per-asset progress, per-asset retry).
    1. Validate input (400 before credits).
    2. Credit pre-check (402 when short).
-   3. Render via OpenAI image model.
-   4. Charge 1 credit ONLY on success → upload → return URL.
-   Failures charge nothing.
+   3. Reserve the credit charge (BEFORE the render; a refused charge
+      refuses the request — no provider money moves).
+   4. Render via OpenAI image model → upload → return URL.
+   Failures refund the reserve in full.
 ───────────────────────────────────────────────────────────────────────────── */
 const generateStreamPackHandler = async (req: Request, res: Response) => {
   /* Zod shape check first; resolveStreamPackPlan still owns the domain
@@ -529,6 +530,47 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the image call. This handler used to
+     render first and charge after success — and swallowed a failed
+     charge, delivering the asset free ("asset delivered without
+     charge" was its own log line). The pre-check above reads the
+     auth-time snapshot, so concurrent generates each burned a
+     high-quality image call against one balance. Now a refused
+     charge refuses the request before any provider money moves,
+     and every failure below refunds. Same price, same action. */
+  let chargedAmount = 0;
+  try {
+    await chargeCredits(
+      req.userId!,
+      plan.creditCost,
+      { action: `Stream Pack: ${plan.asset.label}` },
+    );
+    chargedAmount = plan.creditCost;
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: err instanceof Error ? err.message : "Stream pack image generation failed" });
+    return;
+  }
+  const refundCharge = async () => {
+    if (chargedAmount <= 0) return;
+    const amount = chargedAmount;
+    chargedAmount = 0;
+    await refundCredits(req.userId!, amount, {
+      action: `Stream Pack: ${plan.asset.label} — Refund (generation failed)`,
+    }).catch(() => {});
+  };
+
   const prompt = buildStreamPackPrompt(plan);
   req.log.info(
     { userId: req.userId, asset: plan.asset.key, theme: plan.theme.id },
@@ -545,34 +587,12 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
     });
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) {
+      await refundCharge();
       res.status(500).json({ error: "Image generation returned no image data." });
       return;
     }
 
-    /* ── Charge AFTER success (mirrors artist-image sunburst path) ── */
-    let chargedAmount = 0;
-    try {
-      const creditsAfter = await chargeCredits(
-        req.userId!,
-        plan.creditCost,
-        { action: `Stream Pack: ${plan.asset.label}` },
-        { rollbackOnLedgerFailure: false },
-      );
-      chargedAmount = plan.creditCost;
-      req.log.info(
-        { userId: req.userId, creditsAfter, deducted: plan.creditCost },
-        "[stream-pack] credits deducted",
-      );
-    } catch (err) {
-      if (err instanceof LedgerWriteError) {
-        /* rollbackOnLedgerFailure:false — the deduction STANDS (only the
-           ledger trace is missing), so the member has paid. */
-        chargedAmount = plan.creditCost;
-        req.log.error({ err }, "[stream-pack] CRITICAL: ledger write failed after deduction — asset delivered, charge has no ledger trace");
-      } else {
-        req.log.error({ err }, "[stream-pack] credit deduction FAILED — asset delivered without charge");
-      }
-    }
+    /* (The charge already landed at reserve-at-start, above.) */
 
     /* ── Store in generated-clips/stream-packs (self-healing bucket) ──
        If the store/refresh throws, the member paid but no asset can be
@@ -596,6 +616,7 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
         } catch (refundErr) {
           req.log.error({ err: refundErr }, "[stream-pack] CRITICAL: refund failed after delivery failure — manual reconciliation required");
         }
+        chargedAmount = 0;
         req.log.error({ err: uploadErr }, "[stream-pack] delivery failed after charge — credits refunded");
         res.status(500).json({ error: "Stream pack delivery failed — your Visual Bucs were refunded." });
         return;
@@ -630,7 +651,8 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Stream pack image generation failed";
-    req.log.error({ err: msg }, "[stream-pack] generation failed — no credits charged");
+    await refundCharge();
+    req.log.error({ err: msg }, "[stream-pack] generation failed — reserve refunded");
     res.status(500).json({ error: msg });
   }
 };
@@ -639,7 +661,7 @@ router.post("/stream-pack/generate", requireAuth, generateStreamPackHandler);
 
 /* Operator core (Phase 2 Lane E): the Tier 3 streampack.asset tool
    runs this exact handler in-process (lib/rail-core) — one asset per
-   confirmed action, charged at STREAM_PACK_CREDIT_COST on success. */
+   confirmed action, charged at STREAM_PACK_CREDIT_COST (reserved at submit, refunded on failure). */
 export async function runGenerateStreamPack(
   deps: RailCoreDeps,
   body: unknown,

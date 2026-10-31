@@ -7,6 +7,7 @@ import path from "path";
 import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
+import { generationLimiter } from "../../lib/rate-limit";
 import { refundCredits, getCreditBalance } from "../../lib/credits";
 import {
   generationChargeIntentStore,
@@ -76,7 +77,7 @@ function cleanup(f: string) {
    1. Validate channelName + type. 2. Credit pre-check (402 when broke).
    3. Submit 5s Seedance 2.5 job to Runway. 4. Track task — charge on SUCCEEDED.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-intro-outro", requireAuth, async (req, res) => {
+router.post("/generate-intro-outro", requireAuth, generationLimiter, async (req, res) => {
   const parsed = introOutroSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

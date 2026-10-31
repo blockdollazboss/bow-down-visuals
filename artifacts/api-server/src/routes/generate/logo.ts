@@ -5,6 +5,7 @@ import RunwayML from "@runwayml/sdk";
 import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { generationLimiter } from "../../lib/rate-limit";
 import { refundCredits, getCreditBalance } from "../../lib/credits";
 import {
   generationChargeIntentStore,
@@ -69,7 +70,7 @@ async function uploadLogoImage(userId: string, buffer: Buffer, ext: string): Pro
    3a. Premium (GPT Image 2.5, synchronous): generate → charge → upload → return URL.
    3b. Standard (Runway gen4_image, async): submit → track task → return taskId.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/generate-logo", requireAuth, async (req, res) => {
+router.post("/generate-logo", requireAuth, generationLimiter, async (req, res) => {
   const parsed = logoSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
