@@ -4,6 +4,7 @@ import {
   Layers, Radio, TrendingUp, GraduationCap, Dices, ShieldCheck, Briefcase,
   SlidersHorizontal, Paintbrush, Handshake, Rocket, DollarSign, Star,
   Store, ShoppingBag, Newspaper, Compass, Users, Trophy, Gift,
+  Search, Languages, LayoutGrid, MonitorPlay,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -37,6 +38,12 @@ export interface SiteFeature {
   key: string;
   name: string;
   tagline: string;
+  /** Alias words the /features search matches beyond name + tagline —
+      the registry twin of the sidebar's searchTerms (search-truth,
+      Stack1000 N5): the plain words a newcomer types for this feature
+      ("get paid", "sell beats", "now playing") that its real name
+      doesn't happen to contain. English, lowercase. */
+  keywords?: string;
   route: string;
   category: FeatureCategory;
   /** Display price, e.g. "1 credit", "1.5 credits/sec", "Free". */
@@ -100,6 +107,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     key: "video-editor",
     name: "Visual Vibes",
     tagline: "Pro timeline editor with transitions & effects",
+    keywords: "video editor subtitles captions caption styler translate",
     route: "/video-editor",
     category: "create",
     creditCost: "Free–400 Visual Bucs/export",
@@ -132,6 +140,37 @@ export const SITE_FEATURES: SiteFeature[] = [
     category: "create",
     creditCost: "Free / 100 Visual Bucs AI",
     icon: Dices,
+  },
+  {
+    key: "beats-marketplace",
+    name: "Beats Marketplace",
+    tagline: "Buy and sell beats, leases & exclusives",
+    keywords: "instrumentals producer store",
+    route: "/beats",
+    category: "create",
+    creditCost: "Free to browse",
+    icon: Music,
+  },
+  {
+    key: "video-translator",
+    name: "Video Translator",
+    tagline: "Dub your videos into any language",
+    keywords: "translate dub subtitles captions languages translation",
+    route: "/video-editor?tab=translate",
+    category: "create",
+    creditCost: "500 Visual Bucs/min per language",
+    icon: Languages,
+  },
+  {
+    key: "thumbnail-duels",
+    name: "Thumbnail Duels",
+    tagline: "Two thumbnails enter — your fans pick the winner",
+    keywords: "duels versus vote a/b test",
+    route: "/thumbnail-studio",
+    category: "create",
+    creditCost: "Free",
+    icon: Trophy,
+    badge: "NEW",
   },
 
   /* ── Branding ── */
@@ -218,6 +257,59 @@ export const SITE_FEATURES: SiteFeature[] = [
     category: "promote",
     creditCost: "Free",
     icon: Gift,
+  },
+  {
+    key: "show-finder",
+    name: "Show Finder",
+    tagline: "Gigs and performance opportunities matched to you",
+    keywords: "book a show booking gigs live performance venues",
+    route: "/shows",
+    category: "promote",
+    creditCost: "200 Visual Bucs/search",
+    icon: Search,
+  },
+  {
+    key: "green-screen",
+    name: "Green Screen",
+    tagline: "Swap your live background with the Behind Me engine",
+    keywords: "backdrop virtual background behind me",
+    route: "/go-live",
+    category: "promote",
+    creditCost: "Free",
+    icon: Camera,
+  },
+  {
+    key: "widgets-desk",
+    name: "Widgets Desk",
+    tagline: "Widgets and embeds for your other pages",
+    keywords: "embed embeds tip jar latest video widgets desk",
+    route: "/promote",
+    category: "promote",
+    creditCost: "Free",
+    icon: LayoutGrid,
+    badge: "NEW",
+  },
+  {
+    key: "stream-overlays",
+    name: "Stream Overlays",
+    tagline: "Live alert, goal & now playing overlays for your stream",
+    keywords: "obs streamlabs alerts tip goal now playing overlay",
+    route: "/promote",
+    category: "promote",
+    creditCost: "Free",
+    icon: MonitorPlay,
+    badge: "NEW",
+  },
+  {
+    key: "drop-day-kit",
+    name: "Drop Day Kit",
+    tagline: "Everything your release day needs, in one kit",
+    keywords: "release day launch countdown checklist drop",
+    route: "/promote",
+    category: "promote",
+    creditCost: "Free",
+    icon: CalendarDays,
+    badge: "NEW",
   },
 
   /* ── Social ── */
@@ -358,6 +450,16 @@ export const SITE_FEATURES: SiteFeature[] = [
     category: "business",
     creditCost: "100 Visual Bucs",
     icon: Briefcase,
+  },
+  {
+    key: "earnings",
+    name: "Earnings",
+    tagline: "See what you've earned and what's ready to pay out",
+    keywords: "get paid money payouts income revenue",
+    route: "/earnings",
+    category: "business",
+    creditCost: "Free",
+    icon: DollarSign,
   },
 
   /* ── My Studio ── */
