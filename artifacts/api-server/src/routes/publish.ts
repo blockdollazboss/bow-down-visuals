@@ -565,15 +565,46 @@ router.delete("/video/:id", requireAuth, async (req: Request, res: Response) => 
   try {
     const id = req.params.id;
     const current = await db.execute(sql`
-      SELECT profile_id FROM profile_videos WHERE id = ${id} LIMIT 1
+      SELECT profile_id, sound_id FROM profile_videos WHERE id = ${id} LIMIT 1
     `);
-    const row = current.rows[0] as { profile_id?: string } | undefined;
+    const row = current.rows[0] as { profile_id?: string; sound_id?: string | null } | undefined;
     if (!row) {
       res.status(404).json({ error: "Content not found" });
       return;
     }
     await requireOwnedProfile(req, row.profile_id as string);
+    /* Counter truth (stack1100 X5): two denormalized counts live on
+       OTHER rows and were maintained only by their create doors —
+       challenges.entry_count (recomputed when an entry lands, in
+       challenge-engine.ts and shorts.ts) and the sound_use_count
+       stamped across every video sharing a sound_id (refreshed when
+       a short is created, shorts.ts). The entry rows cascade away
+       with the video and the sound's surviving carriers kept the
+       stale total, so a delete orphaned both counts. Capture the
+       affected challenges, delete, then recompute each count from
+       its rows — the same recomputes the create doors run. */
+    const entered = await db.execute(sql`
+      SELECT challenge_id FROM challenge_entries WHERE video_id = ${id}
+    `);
     await db.execute(sql`DELETE FROM profile_videos WHERE id = ${id}`);
+    for (const e of entered.rows as Array<{ challenge_id: string }>) {
+      const counted = await db.execute(sql`
+        SELECT COUNT(*)::int AS c FROM challenge_entries WHERE challenge_id = ${e.challenge_id}
+      `);
+      const c = (counted.rows[0] as { c: number } | undefined)?.c ?? 0;
+      await db.execute(sql`
+        UPDATE challenges SET entry_count = ${c} WHERE id = ${e.challenge_id}
+      `);
+    }
+    if (row.sound_id) {
+      const counted = await db.execute(sql`
+        SELECT COUNT(*)::int AS c FROM profile_videos WHERE sound_id = ${row.sound_id}
+      `);
+      const c = (counted.rows[0] as { c: number } | undefined)?.c ?? 0;
+      await db.execute(sql`
+        UPDATE profile_videos SET sound_use_count = ${c} WHERE sound_id = ${row.sound_id}
+      `);
+    }
     res.json({ deleted: id });
   } catch (err) {
     publishError(res, req, err, "DELETE /publish/video/:id");
