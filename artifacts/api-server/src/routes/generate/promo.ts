@@ -4,7 +4,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -110,6 +110,38 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; a provider failure
+     refunds it in full. This handler used to generate first and charge
+     last — the pre-check above reads the auth-time balance snapshot,
+     so concurrent requests all passed it against one balance, each
+     burned real provider money, and all but the first charge failed.
+     Same price, same action name. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Promo Clips" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
+      });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Generation failed" });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Promo Clips — Refund" }).catch(() => {});
+  };
+
   const promoTypeLine = promoType ? `\nPromo Type Focus: ${promoType} — tailor ALL output specifically for this promo format.` : "";
   const lyricsBlock = lyrics
     ? `\nFull Lyrics / Song Content:\n"""\n${String(lyrics).slice(0, 1200)}\n"""`
@@ -179,25 +211,7 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
-    // Atomic single-statement deduction — race-safe (no read-modify-write).
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Promo Clips" });
-    } catch (deductErr) {
-      if (deductErr instanceof OutOfCreditsError) {
-        res.status(402).json({
-          error: "out_of_credits",
-          message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
-        });
-        return;
-      }
-      if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw deductErr;
-    }
-
+    // (The charge already landed at reserve-at-start, above.)
     if (process.env["NODE_ENV"] === "development") {
       console.log(`[generate-promo-clips] success userId=${req.userId} creditsAfter=${creditsAfter}`);
     }
@@ -205,6 +219,7 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
     res.json({ result: content, creditsRemaining: creditsAfter });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
+    await refundCharge();
     res.status(500).json({ error: message });
   }
 });

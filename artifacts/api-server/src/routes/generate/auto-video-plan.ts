@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 
 const router = Router();
@@ -192,6 +192,38 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; every failure exit
+     below refunds it in full. This handler used to generate, save
+     history, and charge last — the pre-check above reads the
+     auth-time balance snapshot, so concurrent requests all passed it
+     against one balance, each burned real provider money, and all but
+     the first charge failed. Same price, same action name. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
+      });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Plan generation failed" });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan — Refund" }).catch(() => {});
+  };
+
   /* ── Build the song brief ── */
   const lines = Array.isArray(body.transcript) ? body.transcript : [];
   const transcriptText = lines
@@ -310,7 +342,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
       scenes,
     };
 
-    /* ── History first, then charge (same pattern as /generate-video-plan) ── */
+    /* ── History (the charge already landed at reserve-at-start). ── */
     const genHistoryId = await recordGenerationHistory({
       userId: req.userId!,
       generationType: "Auto Director Plan",
@@ -321,28 +353,11 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
       creditsUsed: CREDIT_COST,
     });
 
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan" });
-    } catch (deductErr) {
-      if (deductErr instanceof OutOfCreditsError) {
-        res.status(402).json({
-          error: "out_of_credits",
-          message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
-        });
-        return;
-      }
-      if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw deductErr;
-    }
-
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
     res.json({ plan, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {
+    await refundCharge();
     if (err instanceof OpenAI.APIError && err.status === 429) {
       res.status(429).json({ error: "Rate limited by the AI provider — please wait a moment and try again." });
       return;

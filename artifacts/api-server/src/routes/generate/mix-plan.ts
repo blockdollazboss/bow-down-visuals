@@ -2,7 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -170,6 +170,39 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the provider call; the fallback paths
+     below refund it in full (they used to be free because the charge
+     landed only on success). The pre-check above reads the auth-time
+     balance snapshot, so concurrent requests all passed it against
+     one balance and each burned real provider money. Same price. */
+  let chargeLive = false;
+  if (!isDev) {
+    try {
+      await chargeCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan" });
+      chargeLive = true;
+    } catch (deductErr) {
+      if (deductErr instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+        });
+        return;
+      }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+        return;
+      }
+      res.json(buildFallbackPlan(input));
+        return;
+    }
+  }
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan — Refund" }).catch(() => {});
+  };
+
   const stemLines =
     input.stems.length > 0
       ? input.stems.map((s, i) => `${i + 1}. ${s.name || "Stem"} (${s.type || "unknown"})`).join("\n")
@@ -234,27 +267,13 @@ Rules:
 
     const validated = PlanSchema.safeParse(raw);
     if (!validated.success) {
-      req.log.warn({ issues: validated.error.issues }, "Mix plan output failed validation; using fallback (no charge)");
+      req.log.warn({ issues: validated.error.issues }, "Mix plan output failed validation; using fallback (charge refunded)");
+      await refundCharge();
       res.json(buildFallbackPlan(input));
       return;
     }
 
-    /* ── Deduct credits + record usage on success ── */
-    if (!isDev) {
-      // Atomic single-statement deduction — race-safe (no read-modify-write).
-      try {
-        await chargeCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan" });
-      } catch (deductErr) {
-        if (deductErr instanceof OutOfCreditsError) {
-          res.status(402).json({
-            error: "out_of_credits",
-            message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
-          });
-          return;
-        }
-        throw deductErr;
-      }
-    }
+    /* (The charge already landed at reserve-at-start, above.) */
 
     res.json({
       ...validated.data,
@@ -262,7 +281,8 @@ Rules:
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {
-    req.log.error({ err }, "Mix plan generation failed; using fallback (no charge)");
+    req.log.error({ err }, "Mix plan generation failed; using fallback (charge refunded)");
+    await refundCharge();
     res.json(buildFallbackPlan(input));
   }
 });
