@@ -3,8 +3,9 @@
  *
  * Money-integrity properties:
  * - Contests are FREE to run: create/entry/verify/draw never touch credits.
- * - Only the AI announcement graphic charges (1 credit), charged on success,
- *   402 when short, refunded when storage upload fails after charging.
+ * - Only the AI announcement graphic charges (1 credit), reserved at
+ *   job start (charged before the image call), 402 when short, and
+ *   refunded whenever generation or storage fails after charging.
  *
  * Fairness properties:
  * - The winner draw is deterministic and verifiable: buildDrawSeed is a
@@ -433,13 +434,19 @@ describe("POST /api/contests/:id/announce (money flow)", () => {
     }
   });
 
-  it("charges nothing when image generation fails", async () => {
+  it("nets to zero when image generation fails (reserve charged, then refunded)", async () => {
     await startServer();
     try {
       routeState.imageB64 = null;
       const res = await fetch(`${baseUrl}/api/contests/contest-1/announce`, { method: "POST" });
       expect(res.status).toBe(500);
-      expect(routeState.charged).toEqual([]);
+      /* Spend-pacing (stack1000 P2): the charge now lands BEFORE the
+         image call (reserve at job start) and the failure refunds it —
+         the member's net is zero, exactly as the old charge-on-success
+         contract promised, but the provider call can no longer burn
+         against an uncharged balance snapshot. */
+      expect(routeState.charged).toEqual([100]);
+      expect(routeState.refunded).toEqual([100]);
     } finally {
       await stopServer();
     }
