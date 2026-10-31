@@ -4,7 +4,7 @@ import { z } from "zod";
 import { eq, and, asc, desc, sql, isNull } from "drizzle-orm";
 import { db, contestsTable, contestEntriesTable } from "@workspace/db";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -513,6 +513,46 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the image call. This handler used to
+     generate first and charge after success — and swallowed a failed
+     charge, delivering the graphic free ("graphic delivered without
+     charge" was its own log line). The pre-check above reads the
+     auth-time snapshot, so concurrent announces each burned a
+     high-quality image call against one balance. Now a refused
+     charge refuses the request before any provider money moves, and
+     every failure below refunds. Same price, same action name. */
+  let chargeLive = false;
+  try {
+    await chargeCredits(
+      r.userId!,
+      CONTEST_ANNOUNCE_CREDIT_COST,
+      { action: `Contest announcement: ${contest.title}` },
+    );
+    chargeLive = true;
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: err instanceof Error ? err.message : "Announcement generation failed" });
+    return;
+  }
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(r.userId!, CONTEST_ANNOUNCE_CREDIT_COST, {
+      action: "Contest announcement — Refund (generation failed)",
+    }).catch(() => {});
+  };
+
   const winnerRows = await db
     .select()
     .from(contestEntriesTable)
@@ -539,25 +579,12 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
     });
     const b64 = imageResp.data?.[0]?.b64_json;
     if (!b64) {
+      await refundCharge();
       res.status(500).json({ error: "Image generation returned no image data." });
       return;
     }
 
-    /* ── Charge AFTER success — failure above means no charge ── */
-    try {
-      await chargeCredits(
-        r.userId!,
-        CONTEST_ANNOUNCE_CREDIT_COST,
-        { action: `Contest announcement: ${contest.title}` },
-        { rollbackOnLedgerFailure: false },
-      );
-    } catch (err) {
-      if (err instanceof LedgerWriteError) {
-        req.log?.error?.({ err }, "[contests] CRITICAL: ledger write failed after deduction");
-      } else {
-        req.log?.error?.({ err }, "[contests] credit deduction FAILED — graphic delivered without charge");
-      }
-    }
+    /* (The charge already landed at reserve-at-start, above.) */
 
     /* ── Store; refund if the upload fails after charging ── */
     try {
@@ -580,15 +607,19 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
         creditCost: CONTEST_ANNOUNCE_CREDIT_COST,
       });
     } catch (uploadErr) {
-      await refundCredits(r.userId!, CONTEST_ANNOUNCE_CREDIT_COST, {
-        action: `Contest announcement — Refund (storage failed)`,
-      });
+      if (chargeLive) {
+        chargeLive = false;
+        await refundCredits(r.userId!, CONTEST_ANNOUNCE_CREDIT_COST, {
+          action: `Contest announcement — Refund (storage failed)`,
+        }).catch(() => {});
+      }
       req.log?.error?.({ err: uploadErr }, "[contests] storage upload failed — Visual Buc refunded");
       res.status(500).json({ error: "Could not save the announcement graphic. Your Visual Buc was refunded." });
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Announcement generation failed";
-    req.log?.error?.({ err: msg }, "[contests] generation failed — no credits charged");
+    await refundCharge();
+    req.log?.error?.({ err: msg }, "[contests] generation failed — reserve refunded");
     res.status(500).json({ error: msg });
   }
 });

@@ -7,7 +7,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordThumbnailHistory } from "../../lib/payment-record";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, normalizeToStorageRef } from "../../lib/objectStorage";
 import { isAllowedStemUrl } from "../../lib/audioExport";
 
@@ -278,6 +278,49 @@ router.post("/generate-thumbnail", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The full quoted price (text + image) is charged BEFORE either
+     provider call; when no image comes back, the image part is
+     refunded below, and any failure refunds the whole reserve —
+     the member's net charge is exactly what it was when this rail
+     charged last (TEXT, plus IMAGE only when an image lands). The
+     pre-check above reads the auth-time snapshot, so concurrent
+     requests used to each pass it and burn both provider calls
+     against one balance. Same prices, same action name. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Thumbnail Maker" });
+  } catch (chargeErr) {
+    if (chargeErr instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "out_of_credits", message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating." });
+      return;
+    }
+    if (chargeErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: chargeErr instanceof Error ? chargeErr.message : "Generation failed" });
+    return;
+  }
+  let chargeLive = true;
+  let refundedSoFar = 0;
+  const refundCharge = async (amount: number = CREDIT_COST, action: string = "Thumbnail Maker — Refund") => {
+    if (!chargeLive) return false;
+    // Never refund more than the reserve: a partial (no-image) refund
+    // followed by a late failure refunds only the remainder.
+    const due = Math.min(amount, CREDIT_COST - refundedSoFar);
+    if (due <= 0) return false;
+    if (refundedSoFar + due >= CREDIT_COST) chargeLive = false;
+    try {
+      await refundCredits(req.userId!, due, { action });
+      refundedSoFar += due;
+      return true;
+    } catch (refundErr) {
+      req.log.error({ err: refundErr }, "[generate-thumbnail] refund failed");
+      return false;
+    }
+  };
+
   const prompt = `Create a complete, premium thumbnail and cover art package for the following release. Every prompt must be specific enough to paste directly into Midjourney, DALL-E, Stable Diffusion, or Ideogram.
 
 BOW DOWN VISUALS — CREATOR PACKAGE
@@ -337,21 +380,14 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       req.log,
     );
     const creditsUsed = TEXT_CREDIT_COST + (thumbnailImageUrl ? IMAGE_CREDIT_COST : 0);
-    // chargeCredits(): fresh-read deduct + strict ledger write. A ledger
-    // failure rolls the deduction back and throws LedgerWriteError (loud).
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, creditsUsed, { action: "Thumbnail Maker" });
-    } catch (chargeErr) {
-      if (chargeErr instanceof OutOfCreditsError) {
-        res.status(402).json({ error: "out_of_credits", message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating." });
-        return;
-      }
-      if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw chargeErr;
+    /* Settle the reserve: no image → the image part of the upfront
+       charge is refunded, so the net charge equals the old
+       charge-on-success amount exactly. creditsRemaining reports
+       the post-refund balance when the refund landed. */
+    let creditsRemaining = creditsAfter;
+    if (!thumbnailImageUrl) {
+      const refunded = await refundCharge(IMAGE_CREDIT_COST, "Thumbnail Maker — Refund (no image)");
+      if (refunded) creditsRemaining = creditsAfter + IMAGE_CREDIT_COST;
     }
     if (thumbnailImageUrl) {
       /* Store the stable storage ref in history (not the short-lived signed
@@ -369,7 +405,7 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
     }
 
     req.log.info(
-      { userId: req.userId, creditsAfter, imageGenerated: Boolean(thumbnailImageUrl), imageError },
+      { userId: req.userId, creditsAfter: creditsRemaining, imageGenerated: Boolean(thumbnailImageUrl), imageError },
       "[generate-thumbnail] success",
     );
 
@@ -378,12 +414,13 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       thumbnailImageUrl,
       imageError: thumbnailImageUrl ? null : imageError,
       creditsUsed,
-      creditsRemaining: creditsAfter,
+      creditsRemaining,
     });
     // Retention hook: counts as a creation day + feeds the thumbnail quest.
     void recordCreation(req.userId!, "thumbnail");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
+    await refundCharge();
     res.status(500).json({ error: message });
   }
 });
