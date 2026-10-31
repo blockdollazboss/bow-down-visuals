@@ -80,16 +80,21 @@ export default function SongsPage() {
   const [coversById, setCoversById] = useState<Record<string, SongRecord[]>>({});
   const [coversOpen, setCoversOpen] = useState<string | null>(null);
   const [coversLoading, setCoversLoading] = useState<string | null>(null);
+  const [coversError, setCoversError] = useState<string | null>(null);
   const [comparePair, setComparePair] = useState<{ original: SongRecord; cover: SongRecord } | null>(null);
 
   async function loadCovers(songId: string) {
     setCoversLoading(songId);
     try {
       const res = await fetch(`/api/song-cover/covers/${songId}`, { headers: await authHeaders() });
+      if (!res.ok) throw new Error();
       const data = (await res.json()) as { covers?: SongRecord[] };
-      if (res.ok) setCoversById((m) => ({ ...m, [songId]: data.covers ?? [] }));
+      setCoversById((m) => ({ ...m, [songId]: data.covers ?? [] }));
+      setCoversError((e) => (e === songId ? null : e));
     } catch {
-      /* empty state shown */
+      /* A failed load is NOT "no covers yet" — the error row below renders
+         instead of inviting a duplicate first cover. */
+      setCoversError(songId);
     } finally {
       setCoversLoading(null);
     }
@@ -105,15 +110,20 @@ export default function SongsPage() {
   const [mashupsById, setMashupsById] = useState<Record<string, SongRecord[]>>({});
   const [mashupsOpen, setMashupsOpen] = useState<string | null>(null);
   const [mashupsLoading, setMashupsLoading] = useState<string | null>(null);
+  const [mashupsError, setMashupsError] = useState<string | null>(null);
 
   async function loadMashupsUsing(songId: string) {
     setMashupsLoading(songId);
     try {
       const res = await fetch(`/api/mashup/using/${songId}`, { headers: await authHeaders() });
+      if (!res.ok) throw new Error();
       const data = (await res.json()) as { mashups?: SongRecord[] };
-      if (res.ok) setMashupsById((m) => ({ ...m, [songId]: data.mashups ?? [] }));
+      setMashupsById((m) => ({ ...m, [songId]: data.mashups ?? [] }));
+      setMashupsError((e) => (e === songId ? null : e));
     } catch {
-      /* empty state shown */
+      /* A failed load is NOT "no mashups yet" — the error row below
+         renders instead of the empty copy. */
+      setMashupsError(songId);
     } finally {
       setMashupsLoading(null);
     }
@@ -687,6 +697,18 @@ export default function SongsPage() {
                       <p className="text-xs text-white/40 flex items-center gap-2">
                         <Loader2 className="h-3 w-3 animate-spin" /> Loading covers…
                       </p>
+                    ) : coversError === s.id ? (
+                      <p className="text-xs text-white/50 flex flex-wrap items-center gap-2">
+                        <span>{t("songs.coversLoadError", { defaultValue: "Couldn't load covers for this song — your covers are safe, this just couldn't reach them." })}</span>
+                        <button
+                          type="button"
+                          onClick={() => void loadCovers(s.id)}
+                          className="font-semibold text-primary hover:underline"
+                          data-testid={`btn-retry-covers-${s.id}`}
+                        >
+                          {t("songs.retryLoad", { defaultValue: "Try again" })}
+                        </button>
+                      </p>
                     ) : (coversById[s.id] ?? []).length === 0 ? (
                       <p className="text-xs text-white/40">
                         No covers yet — hit “Make a cover” to create the first one.
@@ -732,6 +754,18 @@ export default function SongsPage() {
                     {mashupsLoading === s.id ? (
                       <p className="text-xs text-white/40 flex items-center gap-2">
                         <Loader2 className="h-3 w-3 animate-spin" /> Loading mashups…
+                      </p>
+                    ) : mashupsError === s.id ? (
+                      <p className="text-xs text-white/50 flex flex-wrap items-center gap-2">
+                        <span>{t("songs.mashupsLoadError", { defaultValue: "Couldn't load mashups for this song — this just couldn't reach them." })}</span>
+                        <button
+                          type="button"
+                          onClick={() => void loadMashupsUsing(s.id)}
+                          className="font-semibold text-primary hover:underline"
+                          data-testid={`btn-retry-mashups-${s.id}`}
+                        >
+                          {t("songs.retryLoad", { defaultValue: "Try again" })}
+                        </button>
                       </p>
                     ) : (mashupsById[s.id] ?? []).length === 0 ? (
                       <p className="text-xs text-white/40">
