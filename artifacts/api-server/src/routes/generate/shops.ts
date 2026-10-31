@@ -372,7 +372,10 @@ const updateShopSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   banner_color: z.string().regex(HEX_COLOR, "Must be a hex color like #0a0a0a.").optional(),
   accent_color: z.string().regex(HEX_COLOR, "Must be a hex color like #d4af37.").optional(),
-  banner_image_url: z.string().trim().max(2000).optional(),
+  /* The one field on this rail with explicit-clear semantics: a present
+     key sets the banner (null or "" removes it); an absent key keeps it.
+     Every other field stays COALESCE-keep, as partial saves rely on it. */
+  banner_image_url: z.string().trim().max(2000).nullable().optional(),
   /* Commerce tracking pixels (wave-4 #41): the owner's own ad-platform
      IDs. "" clears; invalid shapes are refused on save (never stored
      bent), mirroring the release rail's cleanPixelId rule. */
@@ -933,6 +936,10 @@ router.patch("/shops/:id", requireAuth, publicApiLimiter, async (req, res) => {
     }
     nextPixels = cleaned.value;
   }
+  /* Banner: key absent → keep the stored image; key present → the new
+     value wins, mirrored on save like every other external media URL;
+     null/"" clears it (the storefront falls back to the banner color). */
+  const bannerTouched = d.banner_image_url !== undefined;
   const bannerImageUrl = d.banner_image_url
     ? ((await mirrorExternalMediaUrl(d.banner_image_url, { kind: "image", ownerKey: req.userId! })) ?? d.banner_image_url)
     : null;
@@ -943,7 +950,7 @@ router.patch("/shops/:id", requireAuth, publicApiLimiter, async (req, res) => {
       description = COALESCE(${d.description ?? null}, description),
       banner_color = COALESCE(${d.banner_color ?? null}, banner_color),
       accent_color = COALESCE(${d.accent_color ?? null}, accent_color),
-      banner_image_url = COALESCE(${bannerImageUrl}, banner_image_url)${nextPixels ? sql`,
+      banner_image_url = ${bannerTouched ? sql`${bannerImageUrl}` : sql`banner_image_url`}${nextPixels ? sql`,
       meta_pixel_id = ${nextPixels.metaPixelId},
       tiktok_pixel_id = ${nextPixels.tiktokPixelId},
       google_tag_id = ${nextPixels.googleTagId}` : sql``},
