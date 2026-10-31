@@ -58,6 +58,19 @@ self.addEventListener("activate", (event) => {
  * The server sends { title, body, link, kind } as JSON. A payload that
  * doesn't parse still shows an honest generic alert — never a fake
  * stream title. Clicking focuses an open tab on the link or opens it. */
+
+/** VAPID public keys arrive base64url — the Push API wants raw bytes.
+ *  (Mirror of src/lib/push-client.ts's decoder; the worker is a plain
+ *  script and cannot import it.) */
+function urlBase64ToUint8Array(base64) {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const normalized = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(normalized);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
 self.addEventListener("push", (event) => {
   let data = { title: "Bow Down Visuals", body: "Someone you follow is live.", link: "/", kind: "live" };
   try {
@@ -97,6 +110,46 @@ self.addEventListener("notificationclick", (event) => {
       }
       return self.clients.openWindow(link);
     })
+  );
+});
+
+/* ── Push subscription rotation ─────────────────────────────────────────
+ * Browsers rotate push subscriptions on their own schedule and fire
+ * pushsubscriptionchange. A worker that ignores it can be left with NO
+ * subscription at all — and the sign-in repair (src/lib/push-client.ts)
+ * can only re-register a subscription that still exists, so the device
+ * would silently stop receiving pings until the person re-opts-in by
+ * hand in Settings. Resubscribe here with the same VAPID key (the old
+ * subscription's own key when the browser hands it over, otherwise the
+ * public key from the public /api/push/config) so a live subscription
+ * always exists. Registering it to the signed-in user needs their auth,
+ * which the worker never holds — that stays the repair's job at the
+ * next sign-in, and the server prunes the dead endpoint on its next
+ * send (404/410), so the chain closes with no row able to strand. */
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        let applicationServerKey =
+          (event.oldSubscription && event.oldSubscription.options
+            ? event.oldSubscription.options.applicationServerKey
+            : null) || null;
+        if (!applicationServerKey) {
+          const res = await fetch("/api/push/config");
+          const config = res && res.ok ? await res.json().catch(() => null) : null;
+          if (!config || config.configured !== true || typeof config.publicKey !== "string") {
+            return; // push is off in this environment — nothing to renew
+          }
+          applicationServerKey = urlBase64ToUint8Array(config.publicKey);
+        }
+        await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      } catch {
+        /* best effort — the sign-in repair and the settings card remain */
+      }
+    })()
   );
 });
 
