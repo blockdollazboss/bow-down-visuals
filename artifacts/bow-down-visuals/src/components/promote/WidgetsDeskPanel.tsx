@@ -23,7 +23,12 @@ import {
    desktop widths, picks a theme + a size, and copies the iframe code
    with one tap. Inventory comes from GET /api/embed/mine; a widget the
    creator can't power yet (no public profile, no tip page, no shop
-   items) is shown honestly with the door to set it up. */
+   items) is shown honestly with the door to set it up.
+
+   Stack1000 M2 — the ORIGINAL kinds (track / video / playlist) sit in
+   the same picker: the creator chooses one of their own published
+   tracks, published videos or public playlists (also from
+   /api/embed/mine) and gets the same previews + code. */
 
 interface MineProduct {
   id: string;
@@ -33,11 +38,31 @@ interface MineProduct {
   shop_handle: string;
 }
 
+interface MineTrack {
+  id: string;
+  title: string;
+}
+
+interface MineVideo {
+  id: string;
+  title: string;
+  is_short: boolean;
+}
+
+interface MinePlaylist {
+  id: string;
+  title: string;
+  item_count: number;
+}
+
 interface Mine {
   profile: { slug: string; display_name: string; is_public: boolean } | null;
   tip_handle: string | null;
   live: { is_live: boolean; stream: { id: string; title: string; viewer_count: number } | null } | null;
   products: MineProduct[];
+  tracks: MineTrack[];
+  videos: MineVideo[];
+  playlists: MinePlaylist[];
 }
 
 interface KindInfo {
@@ -49,6 +74,9 @@ interface KindInfo {
 const KINDS: KindInfo[] = [
   { key: "profile", name: "Profile card", blurb: "Your face, your name, and a follow button — anywhere." },
   { key: "latest", name: "Latest video", blurb: "Your newest video or short, playable right there." },
+  { key: "track", name: "Track player", blurb: "One of your songs, playable right there." },
+  { key: "video", name: "Video player", blurb: "One of your videos or shorts, playable right there." },
+  { key: "playlist", name: "Playlist", blurb: "A playlist of yours, every song and video in it." },
   { key: "tips", name: "Tip jar", blurb: "Your tip jar card — fans tap through and tip on your own Bow Down page." },
   { key: "live", name: "Live badge", blurb: "Says LIVE with your viewer count while you're on — and flips on its own." },
   { key: "product", name: "Shop item", blurb: "One item from your shop, with its price and a door to buy." },
@@ -65,6 +93,9 @@ export function WidgetsDeskPanel() {
   const [theme, setTheme] = useState<EmbedTheme>("dark");
   const [size, setSize] = useState<EmbedSizeKey>("phone");
   const [productId, setProductId] = useState<string>("");
+  const [trackId, setTrackId] = useState<string>("");
+  const [videoId, setVideoId] = useState<string>("");
+  const [playlistId, setPlaylistId] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -84,6 +115,9 @@ export function WidgetsDeskPanel() {
         if (cancelled) return;
         setMine(data);
         if (data.products[0]) setProductId(data.products[0].id);
+        if (data.tracks[0]) setTrackId(data.tracks[0].id);
+        if (data.videos[0]) setVideoId(data.videos[0].id);
+        if (data.playlists[0]) setPlaylistId(data.playlists[0].id);
         if (data.profile?.slug) {
           try {
             const r = await fetch(`/api/embed/refcode/${encodeURIComponent(data.profile.slug)}`, {
@@ -110,6 +144,9 @@ export function WidgetsDeskPanel() {
   const slug = mine?.profile?.slug ?? null;
   const profilePublic = !!mine?.profile?.is_public;
   const product = mine?.products.find((p) => p.id === productId) ?? mine?.products[0] ?? null;
+  const track = mine?.tracks.find((tr) => tr.id === trackId) ?? mine?.tracks[0] ?? null;
+  const videoPick = mine?.videos.find((v) => v.id === videoId) ?? mine?.videos[0] ?? null;
+  const playlist = mine?.playlists.find((p) => p.id === playlistId) ?? mine?.playlists[0] ?? null;
 
   const target = useMemo(() => {
     switch (kind) {
@@ -121,18 +158,36 @@ export function WidgetsDeskPanel() {
         return mine?.tip_handle ?? null;
       case "product":
         return product?.id ?? null;
+      case "track":
+        return track?.id ?? null;
+      case "video":
+        return videoPick?.id ?? null;
+      case "playlist":
+        return playlist?.id ?? null;
     }
-  }, [kind, slug, mine?.tip_handle, product]);
+  }, [kind, slug, mine?.tip_handle, product, track, videoPick, playlist]);
 
   const kindBlocked =
     ((kind === "profile" || kind === "latest" || kind === "live") && (!slug || !profilePublic)) ||
     (kind === "tips" && !mine?.tip_handle) ||
-    (kind === "product" && !product);
+    (kind === "product" && !product) ||
+    /* The classic embeds resolve only for a public profile's own
+       published media — the same truth the server's getters enforce. */
+    ((kind === "track" || kind === "video" || kind === "playlist") && (!slug || !profilePublic)) ||
+    (kind === "track" && !track) ||
+    (kind === "video" && !videoPick) ||
+    (kind === "playlist" && !playlist);
 
   const widgetTitle =
     kind === "product" && product
       ? product.name
-      : (KINDS.find((k) => k.key === kind)?.name ?? "Widget");
+      : kind === "track" && track
+        ? track.title
+        : kind === "video" && videoPick
+          ? videoPick.title
+          : kind === "playlist" && playlist
+            ? playlist.title
+            : (KINDS.find((k) => k.key === kind)?.name ?? "Widget");
 
   const code =
     target && !kindBlocked
@@ -157,6 +212,8 @@ export function WidgetsDeskPanel() {
     (active
       ? "border-primary/60 bg-primary/15 text-white"
       : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white");
+  const selectCls =
+    "mt-2 w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/60";
 
   if (!user) {
     return (
@@ -241,11 +298,72 @@ export function WidgetsDeskPanel() {
                 value={product?.id ?? ""}
                 aria-label={t("promote.widgets.pickProduct", { defaultValue: "Which item?" })}
                 onChange={(e) => setProductId(e.target.value)}
-                className="mt-2 w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/60"
+                className={selectCls}
               >
                 {mine.products.map((p) => (
                   <option key={p.id} value={p.id} className="bg-black">
                     {p.name} — {p.price_cents > 0 ? `$${(p.price_cents / 100).toFixed(2)}` : "Free"}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {kind === "track" && mine.tracks.length > 0 && (
+            <>
+              <label className="mt-5 block text-xs font-bold uppercase tracking-widest text-white/45">
+                {t("promote.widgets.pickTrack", { defaultValue: "Which track?" })}
+              </label>
+              <select
+                value={track?.id ?? ""}
+                aria-label={t("promote.widgets.pickTrack", { defaultValue: "Which track?" })}
+                onChange={(e) => setTrackId(e.target.value)}
+                className={selectCls}
+              >
+                {mine.tracks.map((tr) => (
+                  <option key={tr.id} value={tr.id} className="bg-black">
+                    {tr.title}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {kind === "video" && mine.videos.length > 0 && (
+            <>
+              <label className="mt-5 block text-xs font-bold uppercase tracking-widest text-white/45">
+                {t("promote.widgets.pickVideo", { defaultValue: "Which video?" })}
+              </label>
+              <select
+                value={videoPick?.id ?? ""}
+                aria-label={t("promote.widgets.pickVideo", { defaultValue: "Which video?" })}
+                onChange={(e) => setVideoId(e.target.value)}
+                className={selectCls}
+              >
+                {mine.videos.map((v) => (
+                  <option key={v.id} value={v.id} className="bg-black">
+                    {v.title}
+                    {v.is_short ? " — Short" : ""}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {kind === "playlist" && mine.playlists.length > 0 && (
+            <>
+              <label className="mt-5 block text-xs font-bold uppercase tracking-widest text-white/45">
+                {t("promote.widgets.pickPlaylist", { defaultValue: "Which playlist?" })}
+              </label>
+              <select
+                value={playlist?.id ?? ""}
+                aria-label={t("promote.widgets.pickPlaylist", { defaultValue: "Which playlist?" })}
+                onChange={(e) => setPlaylistId(e.target.value)}
+                className={selectCls}
+              >
+                {mine.playlists.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-black">
+                    {p.title} — {p.item_count} {p.item_count === 1 ? "item" : "items"}
                   </option>
                 ))}
               </select>
@@ -265,6 +383,30 @@ export function WidgetsDeskPanel() {
               {t("promote.widgets.needProduct", { defaultValue: "Your shop has no items showing yet — add one and this widget wears it." })}{" "}
               <Link href="/my-shop" className="font-bold text-primary underline">
                 {t("promote.widgets.needProductCta", { defaultValue: "Open your shop" })}
+              </Link>
+            </p>
+          )}
+          {kind === "track" && mine.tracks.length === 0 && (
+            <p className="mt-4 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70">
+              {t("promote.widgets.needTrack", { defaultValue: "You don't have a published track yet — put one on your profile and this widget plays it anywhere." })}{" "}
+              <Link href="/artist-setup" className="font-bold text-primary underline">
+                {t("promote.widgets.needTrackCta", { defaultValue: "Add a track" })}
+              </Link>
+            </p>
+          )}
+          {kind === "video" && mine.videos.length === 0 && (
+            <p className="mt-4 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70">
+              {t("promote.widgets.needVideo", { defaultValue: "You don't have a published video yet — put one on your profile and this widget plays it anywhere." })}{" "}
+              <Link href="/artist-setup" className="font-bold text-primary underline">
+                {t("promote.widgets.needVideoCta", { defaultValue: "Add a video" })}
+              </Link>
+            </p>
+          )}
+          {kind === "playlist" && mine.playlists.length === 0 && (
+            <p className="mt-4 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70">
+              {t("promote.widgets.needPlaylist", { defaultValue: "You don't have a public playlist yet — playlists are built from the player: play any track and add it to a new playlist, and this widget wears it." })}{" "}
+              <Link href="/browse" className="font-bold text-primary underline">
+                {t("promote.widgets.needPlaylistCta", { defaultValue: "Find music to start one" })}
               </Link>
             </p>
           )}

@@ -1,9 +1,10 @@
 /**
- * Embed-widget desk math (Stack900 C1): the preset sizes are honest
- * pixels, the preview src and the copied code are built from the same
- * numbers, and the responsive contract holds — every widget has a
- * phone box at 320px (the no-sideways-scroll floor), a tablet box and
- * a desktop box, phone ≤ tablet ≤ desktop.
+ * Embed-widget desk math (Stack900 C1, classics added Stack1000 M2):
+ * the preset sizes are honest pixels, the preview src and the copied
+ * code are built from the same numbers, and the responsive contract
+ * holds — every widget has a phone box at 320px (the no-sideways-
+ * scroll floor), a tablet box and a desktop box, phone ≤ tablet ≤
+ * desktop.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -14,7 +15,16 @@ import {
   type EmbedWidgetKind,
 } from "./embed-widgets";
 
-const KINDS: EmbedWidgetKind[] = ["profile", "latest", "tips", "live", "product"];
+const KINDS: EmbedWidgetKind[] = [
+  "profile",
+  "latest",
+  "tips",
+  "live",
+  "product",
+  "track",
+  "video",
+  "playlist",
+];
 const ORIGIN = "https://bowdownvisuals.com";
 
 describe("WIDGET_DIMS — three honest device sizes per widget", () => {
@@ -63,6 +73,16 @@ describe("embedWidgetSrc", () => {
       `${ORIGIN}/embed/product/a%2Fb`,
     );
   });
+
+  it("builds the classic kinds' real routes — /embed/track|video|playlist/<id>", () => {
+    expect(embedWidgetSrc(ORIGIN, "track", { target: "t-1" }, "dark")).toBe(`${ORIGIN}/embed/track/t-1`);
+    expect(embedWidgetSrc(ORIGIN, "video", { target: "v-1" }, "light")).toBe(
+      `${ORIGIN}/embed/video/v-1?theme=light`,
+    );
+    expect(embedWidgetSrc(ORIGIN, "playlist", { target: "p-1", refCode: "ABC" }, "dark")).toBe(
+      `${ORIGIN}/embed/playlist/p-1?ref=ABC`,
+    );
+  });
 });
 
 describe("buildEmbedCode — the copied code matches the picked preset exactly", () => {
@@ -88,5 +108,14 @@ describe("buildEmbedCode — the copied code matches the picked preset exactly",
     const code = buildEmbedCode(ORIGIN, "product", { target: "p1" }, "dark", "phone", 'The "Gold" Hoodie');
     expect(code).toContain("The &quot;Gold&quot; Hoodie");
     expect(code).not.toContain('title="The "Gold"');
+  });
+
+  it("the classic kinds' code carries their own presets — a track is not a relabelled profile", () => {
+    const code = buildEmbedCode(ORIGIN, "track", { target: "t-1" }, "dark", "desktop", "Gold Standard");
+    const d = WIDGET_DIMS.track.desktop;
+    expect(code).toContain(`src="${ORIGIN}/embed/track/t-1"`);
+    expect(code).toContain(`width="${d.w}"`);
+    expect(code).toContain(`height="${d.h}"`);
+    expect(d).not.toEqual(WIDGET_DIMS.profile.desktop);
   });
 });

@@ -25,12 +25,16 @@ const VIDEO_ID = "22222222-2222-4222-8222-222222222222";
 const STREAM_ID = "33333333-3333-4333-8333-333333333333";
 const SHOP_ID = "55555555-5555-4555-8555-555555555555";
 const PRODUCT_ID = "66666666-6666-4666-8666-666666666666";
+const TRACK_ID = "77777777-7777-4777-8777-777777777777";
+const PLAYLIST_ID = "88888888-8888-4888-8888-888888888888";
 const PROFILE_SLUG = "some-creator";
 
 const h = vi.hoisted(() => ({
   state: {
     profiles: [] as Array<Record<string, unknown>>,
     videos: [] as Array<Record<string, unknown>>,
+    tracks: [] as Array<Record<string, unknown>>,
+    playlists: [] as Array<Record<string, unknown>>,
     streams: [] as Array<Record<string, unknown>>,
     shops: [] as Array<Record<string, unknown>>,
     products: [] as Array<Record<string, unknown>>,
@@ -67,7 +71,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
   const state = h.state;
   const {
     creatorProfilesTable,
+    profileTracksTable,
     profileVideosTable,
+    playlistsTable,
     liveStreamsTable,
     followsTable,
     shopsTable,
@@ -76,7 +82,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
   function rowsFor(table: unknown, fields?: unknown): unknown[] {
     if (table === creatorProfilesTable) return state.profiles;
+    if (table === profileTracksTable) return state.tracks;
     if (table === profileVideosTable) return state.videos;
+    if (table === playlistsTable) return state.playlists;
     if (table === liveStreamsTable) return state.streams;
     if (table === shopsTable) return state.shops;
     if (table === shopProductsTable) return state.products;
@@ -165,6 +173,62 @@ beforeEach(() => {
       videoUrl: "https://cdn.example.com/drop.mp4",
       viewCount: 10,
       createdAt: new Date("2026-10-29T12:00:00Z"),
+    },
+    {
+      id: "99999999-9999-4999-8999-999999999999",
+      profileId: PROFILE_ID,
+      title: "Unreleased Cut",
+      isPublished: false,
+      isShort: false,
+      thumbnailUrl: null,
+      videoUrl: "https://cdn.example.com/cut.mp4",
+      viewCount: 0,
+      createdAt: new Date("2026-10-30T12:00:00Z"),
+    },
+  ];
+  s.tracks = [
+    {
+      id: TRACK_ID,
+      profileId: PROFILE_ID,
+      title: "Gold Standard",
+      isPublished: true,
+      artworkUrl: "https://cdn.example.com/art.jpg",
+      audioUrl: "https://cdn.example.com/gold.mp3",
+      playCount: 5,
+      createdAt: new Date("2026-10-28T12:00:00Z"),
+    },
+    {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      profileId: PROFILE_ID,
+      title: "Draft Tune",
+      isPublished: false,
+      artworkUrl: null,
+      audioUrl: "https://cdn.example.com/draft.mp3",
+      playCount: 0,
+      createdAt: new Date("2026-10-29T12:00:00Z"),
+    },
+  ];
+  s.playlists = [
+    {
+      id: PLAYLIST_ID,
+      ownerProfileId: PROFILE_ID,
+      title: "Evening Mix",
+      isPublic: true,
+      coverUrl: null,
+      items: [
+        { kind: "track", id: TRACK_ID },
+        { kind: "video", id: VIDEO_ID },
+      ],
+      createdAt: new Date("2026-10-27T12:00:00Z"),
+    },
+    {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerProfileId: PROFILE_ID,
+      title: "Private Stash",
+      isPublic: false,
+      coverUrl: null,
+      items: [{ kind: "track", id: TRACK_ID }],
+      createdAt: new Date("2026-10-26T12:00:00Z"),
     },
   ];
   s.streams = [
@@ -342,6 +406,67 @@ describe("GET /api/embed/mine — the desk inventory", () => {
     expect(json.products[0].name).toBe("Gold Hoodie");
     expect(json.products[0].shop_handle).toBe("creator-shop");
   });
+
+  /* Stack1000 M2 — the classic kinds' inventory: the desk can only
+     offer what the embed getters themselves would resolve. */
+  it("carries the owner's PUBLISHED tracks only — drafts never reach the desk", async () => {
+    const { status, json } = await getJson(`/api/embed/mine`);
+    expect(status).toBe(200);
+    expect(json.tracks).toEqual([{ id: TRACK_ID, title: "Gold Standard" }]);
+  });
+
+  it("carries the owner's PUBLISHED videos only, with the short flag for the picker", async () => {
+    const { json } = await getJson(`/api/embed/mine`);
+    expect(json.videos).toEqual([{ id: VIDEO_ID, title: "New Drop", is_short: true }]);
+  });
+
+  it("carries the owner's PUBLIC playlists only, with real item counts", async () => {
+    const { json } = await getJson(`/api/embed/mine`);
+    expect(json.playlists).toEqual([{ id: PLAYLIST_ID, title: "Evening Mix", item_count: 2 }]);
+  });
+
+  it("another creator's media never leaks into the desk (owner scoping is in-code)", async () => {
+    /* The fake ignores where-clauses, so rows owned by someone else sit
+       in the same tables — the handler's own owner checks are the pin. */
+    h.state.tracks = [
+      ...h.state.tracks,
+      {
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        profileId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        title: "Not Yours",
+        isPublished: true,
+        artworkUrl: null,
+        audioUrl: "https://cdn.example.com/not-yours.mp3",
+        playCount: 1,
+        createdAt: new Date("2026-10-30T12:00:00Z"),
+      },
+    ];
+    h.state.playlists = [
+      ...h.state.playlists,
+      {
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        ownerProfileId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        title: "Not Yours Either",
+        isPublic: true,
+        coverUrl: null,
+        items: [],
+        createdAt: new Date("2026-10-30T12:00:00Z"),
+      },
+    ];
+    const { json } = await getJson(`/api/embed/mine`);
+    expect(json.tracks.map((t: any) => t.title)).toEqual(["Gold Standard"]);
+    expect(json.playlists.map((p: any) => p.title)).toEqual(["Evening Mix"]);
+  });
+
+  it("a creator with no profile gets empty classic lists, not an error", async () => {
+    h.state.profiles = [];
+    const { status, json } = await getJson(`/api/embed/mine`);
+    expect(status).toBe(200);
+    expect(json.profile).toBeNull();
+    expect(json.tracks).toEqual([]);
+    expect(json.videos).toEqual([]);
+    expect(json.playlists).toEqual([]);
+  });
 });
 
 describe("embed pages — framing scope", () => {
@@ -414,5 +539,47 @@ describe("embed pages — theme + responsive pins", () => {
     expect(text).toContain('KIND="latest"');
     expect(text).toContain('fetch("/api/embed/"+KIND');
     expect(text).toContain("Newest drop");
+  });
+});
+
+/* Stack1000 M2 — the classic pages (track / video / playlist) predate
+   the desk but ride the same embedShell: theme pre-paint, brandbar
+   footer, ≥44px doors, the framing carve-out. These pins keep them
+   there; the video page's artist door is the one true parity fix —
+   every sibling kind doors home to the artist, video only named them. */
+describe("classic embed pages — parity with the C1 shell", () => {
+  it("the track page rides the shared shell and doors to the artist", async () => {
+    const { status, text } = await getPage(`/embed/track/${TRACK_ID}?theme=light`);
+    expect(status).toBe(200);
+    expect(text).toContain('KIND="track"');
+    expect(text).toContain('get("theme")==="light"');
+    expect(text).toContain("Made with");
+    expect(text).toMatch(/\.door\{[^}]*min-height:44px/);
+    expect(text).toContain("<audio controls");
+    expect(text).toContain("/artist/");
+  });
+
+  it("the video page doors home to the artist profile, like the track page", async () => {
+    const { text } = await getPage(`/embed/video/${VIDEO_ID}`);
+    expect(text).toContain('KIND="video"');
+    expect(text).toContain("<video controls");
+    expect(text).toContain("/artist/");
+    expect(text).toContain(">Profile</a>");
+  });
+
+  it("the playlist page lists items as ≥44px rows dooring to /track/ and /watch/", async () => {
+    const { text } = await getPage(`/embed/playlist/${PLAYLIST_ID}`);
+    expect(text).toContain('KIND="playlist"');
+    expect(text).toContain("min-height:44px");
+    expect(text).toContain('"/track/"');
+    expect(text).toContain('"/watch/"');
+  });
+
+  it("classic pages sit inside the framing carve-out too (no X-Frame-Options)", async () => {
+    for (const path of [`/embed/track/${TRACK_ID}`, `/embed/video/${VIDEO_ID}`, `/embed/playlist/${PLAYLIST_ID}`]) {
+      const { status, headers } = await getPage(path);
+      expect(status).toBe(200);
+      expect(headers.get("x-frame-options")).toBeNull();
+    }
   });
 });

@@ -77,3 +77,40 @@ describe("widgets desk honesty — unpowered widgets say so", () => {
     expect(panel).toContain("Put your Bow Down on any website");
   });
 });
+
+describe("widgets desk classics — the original kinds sit in the same desk (Stack1000 M2)", () => {
+  it("offers track, video and playlist in the kind picker", () => {
+    expect(panel).toContain('key: "track"');
+    expect(panel).toContain('key: "video"');
+    expect(panel).toContain('key: "playlist"');
+    expect(panel).toContain("Track player");
+    expect(panel).toContain("Video player");
+    expect(panel).toContain("Playlist");
+  });
+
+  it("each classic kind gets its own item picker fed by /api/embed/mine", () => {
+    expect(panel).toContain("pickTrack");
+    expect(panel).toContain("pickVideo");
+    expect(panel).toContain("pickPlaylist");
+    expect(panel).toContain("mine.tracks");
+    expect(panel).toContain("mine.videos");
+    expect(panel).toContain("mine.playlists");
+  });
+
+  it("every classic picker select carries an accessible name (the join's product-select lesson)", () => {
+    const selects = panel.match(/<select[\s\S]*?aria-label=\{t\("promote\.widgets\.pick/g) ?? [];
+    expect(selects.length).toBe(4);
+  });
+
+  it("unpowered classics say so with a real door each — never a fake preview", () => {
+    expect(panel).toContain("needTrack");
+    expect(panel).toContain("needVideo");
+    expect(panel).toContain("needPlaylist");
+    expect(panel).toContain("/browse");
+    /* the blocked gate covers the classics, so no preview/code renders
+       for an item the server would 404 */
+    expect(panel).toContain('kind === "track" && !track');
+    expect(panel).toContain('kind === "video" && !videoPick');
+    expect(panel).toContain('kind === "playlist" && !playlist');
+  });
+});
