@@ -57,7 +57,7 @@ import {
   type GroupDigestFrequency,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { isEmailConfigured, sendEmail, type SendEmailResult } from "./email";
+import { emailButton, emailShell, EMAIL_COLORS, isEmailConfigured, sendEmail, type SendEmailResult } from "./email";
 import { getSupabaseAdmin } from "./supabase-admin";
 
 export const GROUP_DIGEST_KIND = "group_digest";
@@ -432,12 +432,15 @@ function escapeHtml(s: string): string {
 
 export function buildDigestEmailHtml(title: string, body: string, link: string): string {
   const base = (process.env["PUBLIC_SITE_URL"] ?? "https://bowdownvisuals.com").replace(/\/$/, "");
-  return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a">
-  <h1 style="font-size:20px;margin:0 0 12px">${escapeHtml(title)}</h1>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 20px">${escapeHtml(body)}</p>
-  <a href="${base}${escapeHtml(link)}" style="display:inline-block;background:#C9A84C;color:#111;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open the group</a>
-  <p style="font-size:12px;color:#777;margin-top:24px">You get this because group digest emails are on in your Bow Down Visuals settings. Turn them off any time in Settings → Group digests.</p>
-</div>`;
+  /* House shell, like every other family: the pre-shell digest set
+     #1a1a1a text on NO background — 1.21:1 in a dark inbox (invisible) —
+     and carried no lockup. */
+  return emailShell(
+    escapeHtml(title),
+    `<p style="margin:0 0 16px;">${escapeHtml(body)}</p>
+${emailButton(`${base}${escapeHtml(link)}`, "Open the group")}
+<p style="color:${EMAIL_COLORS.muted};font-size:12px;margin-top:20px;">You get this because group digest emails are on in your Bow Down Visuals settings. Turn them off any time in Settings → Group digests.</p>`,
+  );
 }
 
 /* ── The sweep ───────────────────────────────────────────────────────── */

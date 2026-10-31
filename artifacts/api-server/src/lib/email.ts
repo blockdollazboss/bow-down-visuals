@@ -151,6 +151,14 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
  * dark-mode behaviour. Body copy uses the on-card tokens below (dark ink
  * + antique gold on ivory), which stay premium and legible even if a
  * client strips backgrounds and forces everything onto white.
+ *
+ * Both-theme contrast (stack1000/email-theme-truth): every text token
+ * below clears WCAG AA (≥4.5:1) on the surface it actually sits on —
+ * muted and goldDeep were darkened Oct 30, 2026 (they sat at 3.2–3.8:1
+ * on the card/box, failing small print and links), and the footer legal
+ * line moved from #6f6450 (3.27:1 on the canvas) to the footerInk token.
+ * email-theme-truth.test.ts pins every pair, so a future palette tweak
+ * cannot silently re-break the inbox in either theme.
  */
 
 /** Palette tokens shared by the shell and call-site email bodies. */
@@ -170,13 +178,16 @@ export const EMAIL_COLORS = {
   ink: "#221c0e",
   /** Secondary text on the card. */
   body: "#4a4230",
-  /** Muted small print on the card. */
-  muted: "#8a7c5c",
-  /** Antique gold — accents, links and strong text ON the ivory card. */
-  goldDeep: "#a67c1a",
+  /** Muted small print on the card. (≥4.5:1 on card AND box.) */
+  muted: "#71644a",
+  /** Antique gold — accents, links and strong text ON the ivory card.
+      (≥4.5:1 on card AND box.) */
+  goldDeep: "#856010",
   /** Bright gold — on the dark band/canvas, and the button fill. */
   gold: "#d4af37",
   goldDim: "#9a8c6a",
+  /** Small legal print on the dark canvas footer. (≥4.5:1 on canvas.) */
+  footerInk: "#8d8271",
 } as const;
 
 const EMAIL_SERIF = "Georgia,'Times New Roman',Times,serif";
@@ -226,7 +237,7 @@ export function emailShell(
     ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${EMAIL_COLORS.canvas};">${opts.preheader}</div>`
     : "";
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>${title}</title></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${title}</title></head>
 <body style="margin:0;padding:0;background:${EMAIL_COLORS.canvas};">
 ${preheader}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${EMAIL_COLORS.canvas};">
@@ -252,7 +263,7 @@ ${signoff}
 <tr><td align="center" style="padding:24px 24px 0;">
 <div style="font-family:${EMAIL_SANS};font-size:12px;font-weight:700;letter-spacing:3px;color:${EMAIL_COLORS.gold};">BOW DOWN VISUALS</div>
 <div style="font-family:${EMAIL_SERIF};font-style:italic;font-size:13px;color:${EMAIL_COLORS.goldDim};margin-top:5px;">The Content Creator's Cheat Code</div>
-<div style="font-family:${EMAIL_SANS};font-size:12px;color:#6f6450;margin-top:12px;line-height:1.6;">This email was sent by Bow Down Visuals.<br><a href="${base}" style="color:${EMAIL_COLORS.gold};text-decoration:none;">bowdownvisuals.com</a></div>
+<div style="font-family:${EMAIL_SANS};font-size:12px;color:${EMAIL_COLORS.footerInk};margin-top:12px;line-height:1.6;">This email was sent by Bow Down Visuals.<br><a href="${base}" style="color:${EMAIL_COLORS.gold};text-decoration:none;">bowdownvisuals.com</a></div>
 </td></tr>
 </table>
 </td></tr>

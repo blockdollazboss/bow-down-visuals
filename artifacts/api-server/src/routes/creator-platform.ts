@@ -49,7 +49,7 @@ import { getPublicSocialProof } from "../lib/social-proof";
 import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
 import { getActiveProducerTag } from "./generate/producer-tag-lifecycle";
-import { sendEmail, emailShell, emailDetailBox, escapeHtml, isEmailConfigured } from "../lib/email";
+import { sendEmail, emailShell, emailDetailBox, escapeHtml, isEmailConfigured, EMAIL_COLORS } from "../lib/email";
 import { mirrorExternalMediaUrl, isExternalHttpUrl, isPermanentMediaValue } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
@@ -2312,7 +2312,7 @@ ${emailDetailBox(`<div style="font-size:14px;line-height:1.7;"><div><strong>Repo
 <div><strong>Email:</strong> ${escapeHtml(d.reporter_email)}</div>
 <div><strong>Infringing URLs:</strong> ${d.infringing_urls.length}</div>
 <div><strong>Report ID:</strong> ${escapeHtml(report.id)}</div></div>`)}
-<p style="margin:0;color:#8a7c5c;font-size:13px;">Review it in the admin panel under DMCA reports (status: new).</p>`,
+<p style="margin:0;color:${EMAIL_COLORS.muted};font-size:13px;">Review it in the admin panel under DMCA reports (status: new).</p>`,
           { signoff: false },
         );
         // Fire-and-forget: the report is already recorded.

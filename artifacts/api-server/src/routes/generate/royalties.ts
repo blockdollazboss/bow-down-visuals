@@ -25,7 +25,7 @@ export {
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
-import { sendEmail, emailShell, emailButton, emailDetailBox, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../../lib/email";
+import { sendEmail, emailShell, emailButton, emailDetailBox, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../../lib/email";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
 
@@ -470,9 +470,9 @@ async function sendPayoutNotice(
   const html = emailShell(
     "Payout received",
     `<p style="margin:0 0 12px;">Money in. Your royalty payout just landed:</p>
-${emailDetailBox(`<div style="color:#a67c1a;font-weight:700;font-size:22px;">${escapeHtml(payout.amount)} ${escapeHtml(payout.currency)}</div>
+${emailDetailBox(`<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:22px;">${escapeHtml(payout.amount)} ${escapeHtml(payout.currency)}</div>
 <div style="font-size:13px;margin-top:4px;">from ${escapeHtml(payout.distributor)}</div>
-<div style="color:#8a7c5c;font-size:12px;">Period ending ${escapeHtml(payout.periodEnd)}</div>`)}
+<div style="color:${EMAIL_COLORS.muted};font-size:12px;">Period ending ${escapeHtml(payout.periodEnd)}</div>`)}
 <p style="margin:0 0 16px;font-size:14px;">Track every dollar in your Money Tracker — the cheat code keeps the receipts.</p>
 ${emailButton(`${baseUrlForEmail()}/coach`, "Open Money Tracker")}`
   );

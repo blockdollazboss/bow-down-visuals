@@ -4,7 +4,7 @@ import {
   db as defaultDb,
   type PresaveReleaseDelivery,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, EMAIL_COLORS } from "./email";
 import { logger } from "./logger";
 
 /* ── Release-day presave fan notifications (wave 3 #15; migration 0186) ──
@@ -301,7 +301,7 @@ export function buildPresaveReleaseEmail(
     .filter(([, url]) => typeof url === "string" && /^https?:\/\//i.test(url))
     .map(
       ([platform, url]) =>
-        `<p style="margin:8px 0;"><a href="${escapeHtml(url)}" style="color:#a67c1a;">Listen on ${escapeHtml(platform.replace(/_/g, " "))}</a></p>`,
+        `<p style="margin:8px 0;"><a href="${escapeHtml(url)}" style="color:${EMAIL_COLORS.goldDeep};">Listen on ${escapeHtml(platform.replace(/_/g, " "))}</a></p>`,
     )
     .join("");
   const html = emailShell(
@@ -310,7 +310,7 @@ export function buildPresaveReleaseEmail(
 <p>You pre-saved it, and the wait is over — <strong>${title}</strong> by ${artist} just dropped.</p>
 ${emailButton(escapeHtml(listenUrl), "Listen now")}
 ${links}
-<p style="color:#8a7c5c;font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
+<p style="color:${EMAIL_COLORS.muted};font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
   );
   const text = [
     `${release.title} by ${release.artistName} is out now.`,

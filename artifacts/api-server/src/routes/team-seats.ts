@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { db, teamSeatsTable, permissionsForRole, TEAM_SEAT_ROLES } from "@workspace/db";
 import { eq, and, desc, isNull } from "drizzle-orm";
-import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured } from "../lib/email";
+import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, EMAIL_COLORS } from "../lib/email";
 
 const router = Router();
 
@@ -139,7 +139,7 @@ router.post("/team-seats/invite", requireAuth, async (req, res) => {
       const inviterName = displayName || req.userEmail || "Your collaborator";
       const html = emailShell(
         "You've been invited to a team",
-        `<p style="margin:0 0 12px;"><strong style="color:#a67c1a;">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+        `<p style="margin:0 0 12px;"><strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
 <p style="margin:0 0 16px;font-size:14px;">Accept the invite to start collaborating — sign in with <strong>${escapeHtml(normalized)}</strong>.</p>
 ${emailButton(escapeHtml(inviteLink), "Accept invite")}`
       );

@@ -32,7 +32,7 @@ import {
   emailEngagementEventsTable,
   emailSubscribersTable,
 } from "@workspace/db";
-import { baseUrlForEmail, escapeHtml } from "./email";
+import { baseUrlForEmail, emailShell, EMAIL_COLORS, escapeHtml } from "./email";
 import { logger } from "./logger";
 
 export type EngagementKind = "open" | "click" | "bounce" | "complaint";
@@ -132,12 +132,17 @@ export interface TrackedHtmlOpts {
   /** Map of target URL → wrapped tracking URL for this delivery. */
   wrappedLinks: Map<string, string>;
   baseUrl?: string;
+  /** Headline for the branded shell (the campaign's subject). */
+  title?: string;
 }
 
 /**
  * Render a campaign body (plain text) to the HTML that actually sends:
  * paragraphs preserved, links wrapped, tracking pixel + an honest
- * footer (one-click unsubscribe + tracking disclosure) appended.
+ * footer (one-click unsubscribe + tracking disclosure) appended — all
+ * inside the house emailShell, so the mail carries the lockup and reads
+ * on the golden-marble card in BOTH inbox themes. (The pre-shell
+ * renderer set #eee text on NO background: invisible in a light inbox.)
  */
 export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
   const base = (opts.baseUrl ?? baseUrlForEmail()).replace(/\/$/, "");
@@ -149,7 +154,7 @@ export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
        so look up the unescaped form as well (& → &amp;). */
     const wrapped = opts.wrappedLinks.get(url.replace(/&amp;/g, "&")) ?? opts.wrappedLinks.get(url);
     if (!wrapped) return raw;
-    return `<a href="${escapeHtml(wrapped)}" style="color:#d4af37;">${url}</a>${tail}`;
+    return `<a href="${escapeHtml(wrapped)}" style="color:${EMAIL_COLORS.goldDeep};">${url}</a>${tail}`;
   });
   const paragraphs = linked
     .split(/\n{2,}/)
@@ -157,17 +162,18 @@ export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
     .join("");
   const unsubUrl = `${base}/api/email-track/u/${opts.deliveryToken}`;
   const pixelUrl = `${base}/api/email-track/o/${opts.deliveryToken}.gif`;
-  return (
-    `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#eee;">` +
-    paragraphs +
-    `<div style="margin-top:28px;padding-top:16px;border-top:1px solid #2a2a2a;font-size:12px;color:#888;line-height:1.5;">` +
+  const footer =
+    `<div style="margin-top:28px;padding-top:16px;border-top:1px solid ${EMAIL_COLORS.cardBorder};font-size:12px;color:${EMAIL_COLORS.muted};line-height:1.5;">` +
     `You're getting this because you subscribed to this creator's email list on Bow Down Visuals. ` +
-    `<a href="${unsubUrl}" style="color:#d4af37;">Unsubscribe in one click</a> — you'll never be emailed again. ` +
+    `<a href="${unsubUrl}" style="color:${EMAIL_COLORS.goldDeep};">Unsubscribe in one click</a> — you'll never be emailed again. ` +
     `Opens and link clicks on this email are tracked so the creator can see what lands.` +
-    `</div>` +
-    `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />` +
-    `</div>`
-  );
+    `</div>`;
+  const pixel = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
+  /* Same shell treatment as the sender path's buildEmailHtml — a
+     campaign must look identical whichever dispatch carries it. */
+  const html = emailShell(opts.title ?? "Bow Down Visuals", paragraphs + footer);
+  /* The pixel rides at the very bottom of the document, outside the card. */
+  return html.replace("</body></html>", `${pixel}</body></html>`);
 }
 
 /** 1×1 transparent GIF for the tracking pixel response. */

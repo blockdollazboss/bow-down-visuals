@@ -138,7 +138,7 @@ vi.mock("../../lib/logger", () => ({
   logger: { error: () => undefined, info: () => undefined, warn: () => undefined },
 }));
 
-vi.mock("../../lib/email", () => ({
+vi.mock("../../lib/email", async (importOriginal) => ({ ...((await importOriginal()) as Record<string, unknown>),
   sendEmail: async (args: { to?: unknown; subject?: unknown; html?: unknown }) => {
     h.emails.push(args);
     return { ok: true };

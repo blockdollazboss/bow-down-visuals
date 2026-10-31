@@ -41,7 +41,7 @@ import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
-import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
+import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
 import {
   GiftCardsUnavailable,
   generateGiftCardCode,
@@ -357,9 +357,9 @@ router.post("/gift-cards/verify", requireAuth, publicApiLimiter, async (req, res
         `You've got a ${emailMoney(amountCents)} gift card`,
         `<p style="margin:0 0 12px;">${escapeHtml(meta["recipient_name"] || "You")} — someone sent you stored value for <strong>${escapeHtml(storeName)}</strong>'s store on Bow Down Visuals.</p>
 ${meta["gift_message"] ? `<p style="margin:0 0 12px;">“${escapeHtml(meta["gift_message"])}”</p>` : ""}
-<div style="background:#f3ecdb;border:1px solid #d9c68d;border-radius:10px;padding:18px 20px;margin:0 0 18px;text-align:center;">
-<div style="color:#8a7c5c;font-size:12px;letter-spacing:2px;">YOUR GIFT CARD CODE</div>
-<div style="color:#a67c1a;font-weight:700;font-size:24px;letter-spacing:1px;margin-top:6px;">${escapeHtml(code)}</div>
+<div style="background:${EMAIL_COLORS.box};border:1px solid ${EMAIL_COLORS.boxBorder};border-radius:10px;padding:18px 20px;margin:0 0 18px;text-align:center;">
+<div style="color:${EMAIL_COLORS.muted};font-size:12px;letter-spacing:2px;">YOUR GIFT CARD CODE</div>
+<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:24px;letter-spacing:1px;margin-top:6px;">${escapeHtml(code)}</div>
 <div style="font-size:14px;margin-top:8px;">Worth <strong>${emailMoney(amountCents)}</strong> — spend it all at once or a little at a time, on anything in ${escapeHtml(storeName)}'s store.</div>
 </div>
 <p style="margin:0 0 16px;font-size:14px;">At checkout, paste the code in the gift-card field (right beside the discount code). Whatever you don't spend stays on the card.</p>

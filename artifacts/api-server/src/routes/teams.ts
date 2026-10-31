@@ -6,7 +6,7 @@ import { chargeCredits, OutOfCreditsError } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
-import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail } from "../lib/email";
+import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
 
 const router = Router();
 
@@ -239,7 +239,7 @@ router.post("/teams/:id/invite", requireAuth, async (req, res) => {
       const teamName = teamRow?.name ?? "a team";
       const html = emailShell(
         `You're invited to "${escapeHtml(teamName)}"`,
-        `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:#a67c1a;">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+        `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
 <p style="margin:0 0 16px;font-size:14px;">Sign in with <strong>${escapeHtml(email)}</strong> to accept — your pending invite is waiting under Teams.</p>
 ${emailButton(`${baseUrlForEmail()}/team`, "View my invite")}`
       );
