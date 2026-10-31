@@ -13,9 +13,12 @@ import {
   buildPostCard,
   postAttachmentImage,
   buildEventCard,
+  buildShortCard,
+  resolveShareCard,
   type ShareCard,
   type PostCardSource,
   type EventCardSource,
+  type ShortCardSource,
 } from "../og-preview";
 
 const ORIGIN = "https://bowdownvisuals.com";
@@ -60,6 +63,9 @@ describe("matchShareableRoute", () => {
     ["/playlist/pl_01abcd", { kind: "playlist", param: "pl_01abcd" }],
     ["/post/550e8400-e29b-41d4-a716-446655440003", { kind: "post", param: "550e8400-e29b-41d4-a716-446655440003" }],
     ["/events/550e8400-e29b-41d4-a716-446655440004", { kind: "event", param: "550e8400-e29b-41d4-a716-446655440004" }],
+    ["/shorts", { kind: "shorts", param: "" }],
+    ["/charts", { kind: "charts", param: "" }],
+    ["/storefronts", { kind: "storefronts", param: "" }],
     ["/artist/shark-king", { kind: "artist", param: "shark-king" }],
     ["/showcase/neon-nights", { kind: "showcase", param: "neon-nights" }],
     ["/challenge/summer-banger", { kind: "challenge", param: "summer-banger" }],
@@ -319,6 +325,72 @@ describe("buildEventCard (Stack1000 P4 share truth)", () => {
     const card = genericCard({ kind: "event", param: "e12345" }, ORIGIN);
     expect(card.title).toBe("Event on Bow Down Visuals");
     expect(card.url).toBe(`${ORIGIN}/events/e12345`);
+  });
+});
+
+describe("buildShortCard + static surfaces (Stack1000 P4 share truth)", () => {
+  const author = {
+    displayName: "Thy Cheat Code",
+    slug: "thy-cheat-code",
+    avatarUrl: "https://cdn.example.com/avatar.png",
+  };
+  const short: ShortCardSource = {
+    id: "550e8400-e29b-41d4-a716-446655440005",
+    title: "15-second hook that stopped the scroll",
+    description: "",
+    thumbnailUrl: "https://cdn.example.com/short-thumb.jpg",
+    videoUrl: "https://cdn.example.com/short.mp4",
+    viewCount: 1200,
+    durationSec: 15,
+    createdAt: new Date("2026-10-29T09:00:00.000Z"),
+  };
+
+  it("names the actual short and creator, with the short's own thumbnail", () => {
+    const card = buildShortCard(short, author, ORIGIN);
+    expect(card.title).toBe("15-second hook that stopped the scroll — Thy Cheat Code");
+    expect(card.image).toBe("https://cdn.example.com/short-thumb.jpg");
+    expect(card.description).toContain("1.2K views");
+    expect(card.videoUrl).toBe("https://cdn.example.com/short.mp4");
+  });
+
+  it("keeps the canonical URL inside the Shorts surface the link was shared from", () => {
+    const card = buildShortCard(short, author, ORIGIN);
+    expect(card.url).toBe(`${ORIGIN}/shorts?start=${short.id}`);
+    expect(card.jsonLd?.["@type"]).toBe("VideoObject");
+    expect(card.jsonLd?.["thumbnailUrl"]).toBe("https://cdn.example.com/short-thumb.jpg");
+  });
+
+  it("thumbnail-less shorts fall back to the author avatar, then the brand card", () => {
+    expect(buildShortCard({ ...short, thumbnailUrl: null }, author, ORIGIN).image).toBe(
+      "https://cdn.example.com/avatar.png",
+    );
+    expect(
+      buildShortCard({ ...short, thumbnailUrl: null }, { ...author, avatarUrl: null }, ORIGIN).image,
+    ).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("the /shorts feed itself resolves to its own card, in the page's own words", async () => {
+    const card = await resolveShareCard({ kind: "shorts", param: "" }, ORIGIN);
+    expect(card?.title).toBe("Shorts — Bow Down Visuals");
+    expect(card?.description).toBe("Watch creator shorts on Bow Down Visuals.");
+    expect(card?.url).toBe(`${ORIGIN}/shorts`);
+  });
+
+  it("/charts resolves to the Charts card in the page's own words", async () => {
+    const card = await resolveShareCard({ kind: "charts", param: "" }, ORIGIN);
+    expect(card?.title).toBe("Charts — Bow Down Visuals");
+    expect(card?.description).toBe(
+      "The hottest tracks, videos, and creators on Bow Down Visuals right now.",
+    );
+    expect(card?.url).toBe(`${ORIGIN}/charts`);
+    expect(card?.image).toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it("/storefronts resolves to the Creator Storefronts card in the page's own words", async () => {
+    const card = await resolveShareCard({ kind: "storefronts", param: "" }, ORIGIN);
+    expect(card?.title).toBe("Creator Storefronts — Bow Down Visuals");
+    expect(card?.description).toContain("Every creator gets their own shop on Bow Down Visuals");
+    expect(card?.url).toBe(`${ORIGIN}/storefronts`);
   });
 });
 

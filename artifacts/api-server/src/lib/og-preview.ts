@@ -115,6 +115,9 @@ export type ShareKind =
   | "playlist"
   | "post"
   | "event"
+  | "shorts"
+  | "charts"
+  | "storefronts"
   | "artist"
   | "showcase"
   | "challenge"
@@ -164,6 +167,13 @@ const ROUTE_PATTERNS: Array<{ kind: ShareKind; re: RegExp }> = [
      card. */
   { kind: "post", re: new RegExp(`^/post/(${ID_RE})$`) },
   { kind: "event", re: new RegExp(`^/events/(${ID_RE})$`) },
+  /* Shorts share links are /shorts?start=<videoId> (the feed page's own
+     share URL) — the route is the feed path; the middleware lifts the
+     start id out of the query into the match param. Charts and
+     Storefronts are param-less public surfaces, templates-style. */
+  { kind: "shorts", re: /^\/shorts\/?$/ },
+  { kind: "charts", re: /^\/charts\/?$/ },
+  { kind: "storefronts", re: /^\/storefronts\/?$/ },
   { kind: "artist", re: new RegExp(`^/artist/(${SLUG_RE})$`) },
   { kind: "showcase", re: new RegExp(`^/showcase/(${SLUG_RE})$`) },
   { kind: "challenge", re: new RegExp(`^/challenge/(${SLUG_RE})$`) },
@@ -257,6 +267,9 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     playlist: `/playlist/${match.param}`,
     post: `/post/${match.param}`,
     event: `/events/${match.param}`,
+    shorts: "/shorts",
+    charts: "/charts",
+    storefronts: "/storefronts",
     artist: `/artist/${match.param}`,
     showcase: `/showcase/${match.param}`,
     challenge: `/challenge/${match.param}`,
@@ -295,6 +308,9 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     playlist: { title: "Playlist on Bow Down Visuals", description: "A creator playlist on Bow Down Visuals — the content creator's cheat code." },
     post: { title: "Post on Bow Down Visuals", description: "A creator post on Bow Down Visuals." },
     event: { title: "Event on Bow Down Visuals", description: "An event on Bow Down Visuals — streams, drops, and premieres." },
+    shorts: { title: "Shorts on Bow Down Visuals", description: "Watch creator shorts on Bow Down Visuals." },
+    charts: { title: "Charts on Bow Down Visuals", description: "The hottest tracks, videos, and creators on Bow Down Visuals right now." },
+    storefronts: { title: "Creator Storefronts — Bow Down Visuals", description: "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront." },
     artist: { title: "Creator on Bow Down Visuals", description: "A creator profile on Bow Down Visuals — the content creator's cheat code." },
     showcase: { title: "Showcase on Bow Down Visuals", description: "Community showcase on Bow Down Visuals — the content creator's cheat code." },
     challenge: { title: "Challenge on Bow Down Visuals", description: "A creator challenge on Bow Down Visuals — join in and take the crown." },
@@ -644,6 +660,88 @@ async function resolveEvent(id: string, origin: string): Promise<ShareCard | nul
   const host = await publicProfileById(event.profileId);
   if (!host) return null;
   return buildEventCard(event, host, origin);
+}
+
+/* ── Stack1000 P4 (share truth): shorts ────────────────────────────────────
+   The Shorts feed shares as /shorts?start=<videoId>&ref=CODE — the single
+   most-pasted creator link shape on the site — and bots got the generic
+   homepage card for it: the route was not in the table at all, and the
+   item id rides the query string where matchShareableRoute never looks.
+   The middleware lifts ?start= into the match param for this kind. */
+
+export interface ShortCardSource {
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string | null;
+  videoUrl: string;
+  viewCount: number;
+  durationSec: number;
+  createdAt: Date | string;
+}
+
+/** Pure card builder for one short; gates live in resolveShorts. Mirrors
+    resolveVideo's composition, with the canonical URL kept in the Shorts
+    surface the link was actually shared from. */
+export function buildShortCard(video: ShortCardSource, author: CardAuthor, origin: string): ShareCard {
+  const image =
+    absoluteMediaUrl(video.thumbnailUrl, origin) ??
+    absoluteMediaUrl(author.avatarUrl, origin) ??
+    fallbackImage(origin);
+  const videoUrl = absoluteMediaUrl(video.videoUrl, origin);
+  const bits = [`"${video.title}" by ${author.displayName}`];
+  if (video.viewCount) bits.push(`${formatCount(video.viewCount)} views`);
+  const url = `${origin}/shorts?start=${video.id}`;
+  return {
+    title: `${video.title} — ${author.displayName}`,
+    description: truncate(
+      video.description
+        ? `${video.description} — Watch ${bits.join(" · ")} in Shorts on Bow Down Visuals.`
+        : `Watch ${bits.join(" · ")} in Shorts on Bow Down Visuals.`,
+      200,
+    ),
+    image,
+    imageAlt: `${video.title} by ${author.displayName} — short`,
+    url,
+    ogType: "video.other",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    ...(videoUrl && /^https?:/i.test(videoUrl) ? { videoUrl, videoType: "video/mp4" } : {}),
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      name: video.title,
+      description: truncate(
+        video.description || `Watch "${video.title}" by ${author.displayName} in Shorts on Bow Down Visuals.`,
+        200,
+      ),
+      thumbnailUrl: image,
+      uploadDate:
+        video.createdAt instanceof Date ? video.createdAt.toISOString() : String(video.createdAt),
+      ...(video.durationSec ? { duration: `PT${video.durationSec}S` } : {}),
+      ...(videoUrl ? { contentUrl: videoUrl } : {}),
+      interactionStatistic: {
+        "@type": "InteractionCounter",
+        interactionType: "https://schema.org/WatchAction",
+        userInteractionCount: video.viewCount ?? 0,
+      },
+    },
+  };
+}
+
+async function resolveShorts(match: ShareMatch, origin: string): Promise<ShareCard | null> {
+  const id = match.param;
+  if (id && new RegExp(`^${ID_RE}$`).test(id)) {
+    const [v] = await db.select().from(profileVideosTable).where(eq(profileVideosTable.id, id)).limit(1);
+    if (v && v.isPublished) {
+      const p = await publicProfileById(v.profileId);
+      if (p) return buildShortCard(v, p, origin);
+    }
+  }
+  /* No start id, or one that doesn't resolve: the /shorts feed itself is
+     the page the link opens, so its own card is the honest answer (the
+     feed card, 200 — not a 404 generic). */
+  return staticCard({ kind: "shorts", param: "" }, origin);
 }
 
 async function resolveArtist(slug: string, origin: string): Promise<ShareCard | null> {
@@ -1242,6 +1340,20 @@ function staticCard(match: ShareMatch, origin: string): ShareCard | null {
       title: `Join @${match.param} — Bow Down Visuals`,
       description: `Join @${match.param}'s list on Bow Down Visuals — drops, presaves, and exclusives.`,
     },
+    /* Stack1000 P4: copy is each page's own words (its usePageTitle /
+       hero copy), not a new invention. */
+    shorts: {
+      title: "Shorts — Bow Down Visuals",
+      description: "Watch creator shorts on Bow Down Visuals.",
+    },
+    charts: {
+      title: "Charts — Bow Down Visuals",
+      description: "The hottest tracks, videos, and creators on Bow Down Visuals right now.",
+    },
+    storefronts: {
+      title: "Creator Storefronts — Bow Down Visuals",
+      description: "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront.",
+    },
   };
   const o = overrides[match.kind];
   if (!o) return null;
@@ -1261,6 +1373,7 @@ export async function resolveShareCard(
     case "playlist": return resolvePlaylist(match.param, origin);
     case "post": return resolvePost(match.param, origin);
     case "event": return resolveEvent(match.param, origin);
+    case "shorts": return resolveShorts(match, origin);
     case "artist": return resolveArtist(match.param, origin);
     case "showcase": return resolveShowcase(match.param, origin);
     case "challenge": return resolveChallenge(match.param, origin);
@@ -1396,17 +1509,24 @@ export function ogPreviewMiddleware() {
         next();
         return;
       }
+      /* Shorts share links are /shorts?start=<videoId> — the item id rides
+         the query string, so lift it into the match param for that kind
+         (Stack1000 P4). Every other kind resolves from the path alone. */
+      const effectiveMatch: ShareMatch =
+        match.kind === "shorts" && typeof req.query["start"] === "string"
+          ? { ...match, param: req.query["start"] as string }
+          : match;
       const origin = siteOrigin();
       let card: ShareCard | null = null;
       try {
-        card = await resolveShareCard(match, origin);
+        card = await resolveShareCard(effectiveMatch, origin);
       } catch (err) {
         // Resolver failure degrades to the branded fallback card — a bot
         // must never get a 500 or the generic homepage card.
-        logger.warn({ err, kind: match.kind, param: match.param }, "og-preview resolve failed; serving fallback card");
+        logger.warn({ err, kind: effectiveMatch.kind, param: effectiveMatch.param }, "og-preview resolve failed; serving fallback card");
       }
       const found = card !== null;
-      const finalCard = card ?? genericCard(match, origin);
+      const finalCard = card ?? genericCard(effectiveMatch, origin);
       res.status(found ? 200 : 404);
       res.set("Content-Type", "text/html; charset=utf-8");
       res.set("Cache-Control", "public, max-age=600");
