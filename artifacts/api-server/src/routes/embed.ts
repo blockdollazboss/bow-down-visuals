@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
+import { isSocialBot, siteOrigin, truncate } from "../lib/og-preview";
 import { requireAuth } from "../middlewares/require-auth";
 import {
   getPublicTipPageByHandleOrSlug,
@@ -645,10 +646,177 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
 }
 `;
 
-function embedShell(kind: string, id: string, inner: string): string {
+/* ── Stack1000 P4 (share truth): embed share cards ─────────────────────────
+   Embed URLs are copy-paste surfaces: creators paste them into blogs,
+   chats, and link pages. The shell carried a generic <title> and no
+   OG/Twitter tags at all, so a pasted embed link unfurled as nothing.
+   Bots now receive the entity's real card injected into the same shell —
+   title/description in the content's own words, the content's own image,
+   and og:url pointing at the CANONICAL page (the embed is a player for
+   the page, never the destination itself). Humans keep the exact shell
+   they had: the card is resolved only for scraper User-Agents, the same
+   bot-only discipline as og-preview.ts and the /invite handler. */
+
+export interface EmbedOgCard {
+  title: string;
+  description: string;
+  image: string;
+  /** Canonical page URL — never the /embed/* URL itself. */
+  url: string;
+  ogType: string;
+}
+
+/** Attribute escaper for the card tags (the shell's own esc() is
+    client-side JS inside its template string, not usable here). */
+function embedEsc(s: string): string {
+  return String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string,
+  );
+}
+
+type EmbedData =
+  | EmbedTrackData
+  | EmbedVideoData
+  | EmbedPlaylistData
+  | EmbedProfileData
+  | EmbedLatestData
+  | EmbedLiveData
+  | EmbedTipsData
+  | EmbedProductData;
+
+/** Pure composition: resolved embed data → its share card. */
+export function embedOgFromData(data: EmbedData, origin: string): EmbedOgCard {
+  const fb = `${origin}/og-fallback.png`;
+  const card = (c: EmbedOgCard): EmbedOgCard => ({
+    ...c,
+    description: truncate(c.description, 200),
+  });
+  switch (data.kind) {
+    case "track":
+      return card({
+        title: `${data.title} — ${data.artist_name}`,
+        description: `Listen to "${data.title}" by ${data.artist_name} on Bow Down Visuals.`,
+        image: data.artwork_url ?? fb,
+        url: `${origin}/track/${data.id}`,
+        ogType: "music.song",
+      });
+    case "video":
+      return card({
+        title: `${data.title} — ${data.artist_name}`,
+        description: `Watch "${data.title}" by ${data.artist_name} on Bow Down Visuals.`,
+        image: data.thumbnail_url ?? fb,
+        url: `${origin}/watch/${data.id}`,
+        ogType: "video.other",
+      });
+    case "playlist":
+      return card({
+        title: `${data.title} — ${data.owner_name}`,
+        description: `A playlist by ${data.owner_name} (${data.item_count} items) on Bow Down Visuals.`,
+        image: data.cover_url ?? fb,
+        url: `${origin}/playlist/${data.id}`,
+        ogType: "music.playlist",
+      });
+    case "profile":
+      return card({
+        title: `${data.display_name} — creator on Bow Down Visuals`,
+        description: data.bio || `${data.display_name} on Bow Down Visuals.`,
+        image: data.avatar_url ?? fb,
+        url: `${origin}/artist/${data.slug}`,
+        ogType: "profile",
+      });
+    case "latest":
+      if (data.video) {
+        return card({
+          title: `${data.video.title} — ${data.artist_name}`,
+          description: `The latest video from ${data.artist_name} on Bow Down Visuals.`,
+          image: data.video.thumbnail_url ?? data.avatar_url ?? fb,
+          url: `${origin}/watch/${data.video.id}`,
+          ogType: "video.other",
+        });
+      }
+      return card({
+        title: `${data.artist_name} — creator on Bow Down Visuals`,
+        description: `${data.artist_name} on Bow Down Visuals.`,
+        image: data.avatar_url ?? fb,
+        url: `${origin}/artist/${data.artist_slug}`,
+        ogType: "profile",
+      });
+    case "live":
+      if (data.stream) {
+        return card({
+          title: `${data.stream.title} — live by ${data.display_name}`,
+          description: `${data.display_name} is live now: "${data.stream.title}" on Bow Down Visuals.`,
+          image: data.avatar_url ?? fb,
+          url: `${origin}/live/${data.stream.id}`,
+          ogType: "video.other",
+        });
+      }
+      return card({
+        title: `${data.display_name} — Bow Down Visuals`,
+        description: `${data.display_name}'s live page on Bow Down Visuals.`,
+        image: data.avatar_url ?? fb,
+        url: `${origin}/artist/${data.artist_slug}`,
+        ogType: "profile",
+      });
+    case "tips":
+      return card({
+        title: `Tip ${data.display_name} — Bow Down Visuals`,
+        description:
+          data.message || `Support ${data.display_name} directly with a tip on Bow Down Visuals.`,
+        image: fb,
+        url: `${origin}/tips/${data.handle}`,
+        ogType: "website",
+      });
+    case "product":
+      return card({
+        title: `${data.name} — ${data.shop_name}`,
+        description: data.description || `${data.name} at ${data.shop_name} on Bow Down Visuals.`,
+        image: data.image_url ?? fb,
+        url: `${origin}/storefront/product/${data.id}`,
+        ogType: "website",
+      });
+  }
+}
+
+async function resolveEmbedOg(kind: string, id: string, origin: string): Promise<EmbedOgCard | null> {
+  const data =
+    kind === "track" ? await getEmbedTrack(id)
+    : kind === "video" ? await getEmbedVideo(id)
+    : kind === "playlist" ? await getEmbedPlaylist(id)
+    : kind === "profile" ? await getEmbedProfile(id)
+    : kind === "latest" ? await getEmbedLatest(id)
+    : kind === "live" ? await getEmbedLive(id)
+    : kind === "tips" ? await getEmbedTips(id)
+    : kind === "product" ? await getEmbedProduct(id)
+    : null;
+  return data ? embedOgFromData(data, origin) : null;
+}
+
+/** The og/twitter tag block for an embed share card (attribute-escaped). */
+export function buildEmbedOgTags(og: EmbedOgCard): string {
+  return [
+    `<meta name="description" content="${embedEsc(og.description)}"/>`,
+    `<meta property="og:site_name" content="Bow Down Visuals"/>`,
+    `<meta property="og:type" content="${embedEsc(og.ogType)}"/>`,
+    `<meta property="og:title" content="${embedEsc(og.title)}"/>`,
+    `<meta property="og:description" content="${embedEsc(og.description)}"/>`,
+    `<meta property="og:url" content="${embedEsc(og.url)}"/>`,
+    `<meta property="og:image" content="${embedEsc(og.image)}"/>`,
+    `<meta name="twitter:card" content="summary_large_image"/>`,
+    `<meta name="twitter:title" content="${embedEsc(og.title)}"/>`,
+    `<meta name="twitter:description" content="${embedEsc(og.description)}"/>`,
+    `<meta name="twitter:image" content="${embedEsc(og.image)}"/>`,
+  ].join("");
+}
+
+export function embedShell(kind: string, id: string, inner: string, og?: EmbedOgCard | null): string {
+  const title = og ? embedEsc(og.title) : "Bow Down Visuals embed";
+  const ogTags = og ? buildEmbedOgTags(og) : "";
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Bow Down Visuals embed</title><script>try{if(new URLSearchParams(location.search).get("theme")==="light")document.documentElement.classList.add("light");}catch(e){}</script><style>${EMBED_CSS}</style></head>
+<title>${title}</title>${ogTags}<script>try{if(new URLSearchParams(location.search).get("theme")==="light")document.documentElement.classList.add("light");}catch(e){}</script><style>${EMBED_CSS}</style></head>
 <body>
 <div class="player" id="player"><div class="spin"></div></div>
 <div class="brandbar"><span class="dot"></span><span>Made with <b>Bow Down Visuals</b></span><a class="cta" id="cta" href="/signup" target="_blank" rel="noopener">Create your own →</a></div>
@@ -810,12 +978,23 @@ p.innerHTML=
 '<a class="door" href="/shop/'+esc(d.shop_handle)+'" target="_blank" rel="noopener" style="align-self:flex-start">See it in the shop</a>';`;
 
 function sendEmbed(kind: string, id: string, js: string) {
-  return (_req: Request, res: Response) => {
+  return async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     /* Embeds must be frameable anywhere — the global middleware skips
        X-Frame-Options/CSP for /embed/* (see app.ts). Cache briefly. */
     res.setHeader("Cache-Control", "public, max-age=120");
-    res.send(embedShell(kind, id, js));
+    /* The response differs by scraper vs browser (Stack1000 P4 card
+       injection below), so it varies on User-Agent like og-preview. */
+    res.setHeader("Vary", "User-Agent");
+    let og: EmbedOgCard | null = null;
+    if (isSocialBot(req.get("user-agent"))) {
+      try {
+        og = await resolveEmbedOg(kind, id, siteOrigin());
+      } catch {
+        og = null; // a failed resolve serves the plain shell, never a 500
+      }
+    }
+    res.send(embedShell(kind, id, js, og));
   };
 }
 
