@@ -273,7 +273,10 @@ router.get("/beats/:id/offers", async (req, res) => {
         templateId: null,
         name: terms.name,
         priceCents: price,
-        available: !(tier === "exclusive" && beat.exclusive_sold),
+        /* An exclusive sale closes the WHOLE shelf, not just the
+           exclusive offer (stack1100 X4): the exclusive buyer's plain
+           words promise the producer stops selling this beat. */
+        available: !beat.exclusive_sold,
         terms,
         plainWords: plainWordsForTerms(terms),
         plainText: renderPlainTermsText(terms),
@@ -292,7 +295,7 @@ router.get("/beats/:id/offers", async (req, res) => {
         templateId: t.id,
         name: terms.name,
         priceCents: t.price_cents,
-        available: !(t.is_exclusive && beat.exclusive_sold),
+        available: !beat.exclusive_sold,
         terms,
         plainWords: plainWordsForTerms(terms),
         plainText: renderPlainTermsText(terms),
@@ -802,13 +805,17 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
            race is truly lost. A dangling flag with no completed sale
            is a crashed attempt: it may only be released when this
            license is the beat's only pending exclusive (its own
-           earlier attempt) — a rival still pending keeps the 409. */
+           earlier attempt) — a rival still pending keeps the 409.
+           A REFUNDED rival is terminal, not pending (stack1100 X4):
+           its reversal already released its claim on the beat, so it
+           must never block this release — the old "not completed"
+           test counted refunded rows as live rivals forever. */
         const others = await db
           .select()
           .from(beatLicensesTable)
           .where(and(eq(beatLicensesTable.beat_id, beat.id), eq(beatLicensesTable.tier, "exclusive")));
         const rivalCompleted = others.some((l) => l.id !== license.id && l.status === "completed");
-        const rivalPending = others.some((l) => l.id !== license.id && l.status !== "completed");
+        const rivalPending = others.some((l) => l.id !== license.id && l.status === "pending_payment");
         if (rivalCompleted || rivalPending) {
           res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
           return;
@@ -878,6 +885,20 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Producers can't license their own beat" });
     return;
   }
+  /* An exclusive sale takes the beat OFF the market. The plain words
+     every exclusive buyer agrees to say "once you buy it, the producer
+     stops selling this beat", and the producer's own template copy
+     says an exclusive "sells once, then the beat is off the market".
+     Until stack1100 X4 the rail only blocked buying a SECOND
+     exclusive — basic, premium and custom licenses kept selling on a
+     beat whose buyer had paid for sole ownership, so "full ownership"
+     was re-sold in slices. The closure sits at the purchase rail for
+     EVERY offer (fixed tiers and custom templates alike); browse and
+     preview stay up — listening is not selling. */
+  if (beat.exclusive_sold) {
+    res.status(409).json({ error: "This beat was sold exclusively and is no longer for sale." });
+    return;
+  }
 
   /* Resolve the offer being bought. Fixed tier: the beat's listed tier
      price + the tier's standing terms. Custom template: the template
@@ -919,11 +940,6 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       : tier === "premium" ? beat.premium_price_cents
       : beat.exclusive_price_cents;
     termsSnapshot = defaultTermsForTier(tier);
-  }
-
-  if (licenseTier === "exclusive" && beat.exclusive_sold) {
-    res.status(409).json({ error: "This beat's exclusive license is already sold" });
-    return;
   }
 
   try {
