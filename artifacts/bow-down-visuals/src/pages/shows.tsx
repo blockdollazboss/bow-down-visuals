@@ -180,9 +180,13 @@ export default function ShowFinder() {
         refreshProfile();
         return;
       }
-      if (!res.ok || !Array.isArray(data.opportunities) || data.opportunities.length === 0) {
+      if (!res.ok || !Array.isArray(data.opportunities)) {
         throw new Error(apiErrorMessage(data, t("shows.errorSearchFailed")));
       }
+      /* An empty result set is a SUCCESSFUL hunt that matched nothing —
+         it renders the zero-match state below, never "Show hunt failed."
+         (The hunt is charged; calling a delivered empty answer a failure
+         invites paying for the same hunt twice.) */
       setResults(data.opportunities);
       setDisclaimer(data.disclaimer || "");
       refreshProfile();
@@ -458,6 +462,11 @@ export default function ShowFinder() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 {disclaimer}
               </div>
+            )}
+            {results.length === 0 && (
+              <p className={`mt-6 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                {t("shows.noMatches", { defaultValue: "Your hunt came back empty this time — no stages matched. That's a real answer, not a failure: try a wider area or a different date window." })}
+              </p>
             )}
             <div className="mt-6 space-y-5">
               {results.map((opp, i) => {

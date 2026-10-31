@@ -36,6 +36,8 @@ export default function SoundPage() {
   const { toast } = useToast();
   const [data, setData] = useState<SoundData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [playing, setPlaying] = useState(false);
   usePageTitle(data?.sound.title ? `${data.sound.title} — Sound` : "Sound", "Listen and use this sound in your next video.");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -46,17 +48,32 @@ export default function SoundPage() {
     (async () => {
       try {
         const res = await fetch(`/api/sounds/${encodeURIComponent(soundId)}`);
+        if (res.status === 404) {
+          /* Genuinely not there — the not-on-the-map state below is the
+             truth for this one. */
+          if (!cancelled) {
+            setData(null);
+            setLoadFailed(false);
+            toast({ title: "Never heard of that sound", description: "It might have gone quiet." });
+          }
+          return;
+        }
         if (!res.ok) throw new Error(String(res.status));
         const json = (await res.json()) as SoundData;
-        if (!cancelled) setData(json);
+        if (!cancelled) {
+          setData(json);
+          setLoadFailed(false);
+        }
       } catch {
-        if (!cancelled) toast({ title: "Never heard of that sound", description: "It might have gone quiet." });
+        /* A server/network failure is NOT a missing sound — the error
+           state below renders instead of "not on the map." */
+        if (!cancelled) setLoadFailed(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [soundId, toast]);
+  }, [soundId, toast, retryNonce]);
 
   function togglePlay() {
     const a = audioRef.current;
@@ -67,6 +84,25 @@ export default function SoundPage() {
 
   if (loading) {
     return <div className={`flex h-[calc(100dvh-4rem)] items-center justify-center`}><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  if (!data && loadFailed) {
+    return (
+      <div className={`flex h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 px-6 text-center`}>
+        <Music2 className={`h-12 w-12 ${isLight ? "text-[#C9A84C]" : "text-white/20"}`} />
+        <p className={isLight ? "text-[#6B5B36]" : "text-white/60"}>We couldn&apos;t load that sound — it may still be there, this page just couldn&apos;t reach it.</p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="rounded-full bg-primary px-6 py-2.5 font-bold text-black"
+            data-testid="btn-retry-sound"
+          >
+            Try again
+          </button>
+          <Link href="/shorts" className="rounded-full border border-white/15 px-6 py-2.5 font-bold text-white/70">Back to Shorts</Link>
+        </div>
+      </div>
+    );
   }
   if (!data) {
     return (

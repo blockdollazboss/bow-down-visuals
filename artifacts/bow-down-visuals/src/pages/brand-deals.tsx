@@ -266,9 +266,13 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
         refreshProfile();
         return;
       }
-      if (!res.ok || !Array.isArray(data.deals) || data.deals.length === 0) {
+      if (!res.ok || !Array.isArray(data.deals)) {
         throw new Error(apiErrorMessage(data, t("brandDeals.errorHuntFailed")));
       }
+      /* An empty result set is a SUCCESSFUL hunt that matched nothing —
+         it renders the zero-match state below, never "Deal hunt failed."
+         (The hunt is charged; calling a delivered empty answer a failure
+         invites paying for the same hunt twice.) */
       setDeals(data.deals);
       setDisclaimer(data.disclaimer || "");
       refreshProfile();
@@ -605,6 +609,11 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 {disclaimer}
               </div>
+            )}
+            {deals.length === 0 && (
+              <p className={`mt-6 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                {t("brandDeals.noMatchesHunt", { defaultValue: "Your hunt came back empty this time — no brands matched. That's a real answer, not a failure: try a wider niche or a bigger audience range." })}
+              </p>
             )}
             <div className="mt-6 space-y-5">
               {deals.map((deal, i) => {

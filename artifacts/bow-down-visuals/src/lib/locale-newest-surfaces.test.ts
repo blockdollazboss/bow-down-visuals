@@ -280,7 +280,7 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill, plus the Stack-200 Community Grants nav key, plus the payfix billing-cancel settings.billing fill, plus the Stack-200 export failure-UX fill, plus the orphan-wave viral-spike kit settings fill, plus the Stack-200 upg-promo #161 Second Life fill and the Stack-200 upg-promo #178 Trend Radar fill, plus the Stack-200 Vault settings.vault fill, plus the Join #2 fills (settings.billing, settings.groupDigest, settings.viralSpike, settings.secondLife, settings.socialX, trends.radar, and the export failure-UX videoExport keys), plus the stack400 lane-3 export-toggle proFinishing fill, plus the stack600 tier-change settings.billing change fill, minus the stack800 lane-3 dead-key removal, plus the stack800 lane-4 billing loadError fill (4646 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill, plus the Stack-200 Community Grants nav key, plus the payfix billing-cancel settings.billing fill, plus the Stack-200 export failure-UX fill, plus the orphan-wave viral-spike kit settings fill, plus the Stack-200 upg-promo #161 Second Life fill and the Stack-200 upg-promo #178 Trend Radar fill, plus the Stack-200 Vault settings.vault fill, plus the Join #2 fills (settings.billing, settings.groupDigest, settings.viralSpike, settings.secondLife, settings.socialX, trends.radar, and the export failure-UX videoExport keys), plus the stack400 lane-3 export-toggle proFinishing fill, plus the stack600 tier-change settings.billing change fill, minus the stack800 lane-3 dead-key removal, plus the stack800 lane-4 billing loadError fill, plus the stack1000 error-truth-2 playlistPitch/press-kit loadError fill (4651 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
@@ -364,8 +364,13 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        their own branch): +4 settings.billing loadError* keys
        (loadErrorSession, loadErrorGated, loadErrorServer,
        loadErrorUnreachable — the bounded Billing load's classified
-       terminal copy) in all ten catalogs = 4646. */
-    expect(REQUIRED.length).toBe(4646);
+       terminal copy) in all ten catalogs = 4646.
+       Plus the stack1000 error-truth-2 fill: +5 keys —
+       playlistPitch.trackerLoadError / trackerLoadErrorBody /
+       retryLoad and press-kit.kitsLoadError / retryLoad (the two
+       pinned-namespace error states of the empty-lie sweep) in all
+       ten catalogs = 4651. */
+    expect(REQUIRED.length).toBe(4651);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -392,10 +397,10 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
     expect(bad, `${locale} placeholder drift: ${bad.slice(0, 10).join(", ")}`).toEqual([]);
   });
 
-  it("playlistPitch exists in the five catalogs that once had none of it (full 121-key set, incl. packetPresaveLabel)", () => {
+  it("playlistPitch exists in the five catalogs that once had none of it (full 124-key set, incl. packetPresaveLabel and the stack1000 error-truth-2 tracker load-error keys)", () => {
     for (const locale of ["hi", "it", "ja", "ko", "pt"] as const) {
       const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("playlistPitch.")).length;
-      expect(count, `${locale} playlistPitch count`).toBe(121);
+      expect(count, `${locale} playlistPitch count`).toBe(124);
     }
   });
 });

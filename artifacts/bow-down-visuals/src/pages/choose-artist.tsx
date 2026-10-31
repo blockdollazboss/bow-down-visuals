@@ -27,6 +27,8 @@ export default function ChooseArtist() {
 
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(activeArtist?.id ?? null);
 
   /* ── Drag-and-drop spotlight slots ───────────────────────────────────
@@ -112,15 +114,20 @@ export default function ChooseArtist() {
         });
         if (!res.ok) throw new Error();
         const data = (await res.json()) as { vaults: ArtistVault[] };
-        if (!cancelled) setVaults(data.vaults ?? []);
+        if (!cancelled) {
+          setVaults(data.vaults ?? []);
+          setLoadError(false);
+        }
       } catch {
-        /* silently show empty state */
+        /* A failed load is NOT an empty vault — the error state below
+           renders instead of the no-profiles empty state. */
+        if (!cancelled) setLoadError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [getAccessToken]);
+  }, [getAccessToken, retryNonce]);
 
   function handleUseArtist() {
     const vault = vaults.find((v) => v.id === selectedId);
@@ -183,6 +190,24 @@ export default function ChooseArtist() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-zinc-300/50" />
+          </div>
+        ) : loadError ? (
+          <div className={`rounded-2xl border p-10 text-center space-y-5 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <div className="h-12 w-12 rounded-xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center mx-auto">
+              <User className="h-6 w-6 text-white/20" />
+            </div>
+            <div>
+              <p className="text-white/60 font-semibold mb-1">{t("chooseArtist.loadErrorTitle", { defaultValue: "We couldn't load your artists" })}</p>
+              <p className="text-sm text-white/35">{t("chooseArtist.loadErrorDescription", { defaultValue: "Your profiles are safe — this page just couldn't reach them. Check your connection and try again." })}</p>
+            </div>
+            <Button
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="h-12 px-8 font-bold gap-2 rounded-2xl"
+              style={{ background: "linear-gradient(135deg, #9B7515, #DAA520)" }}
+              data-testid="btn-retry-vaults"
+            >
+              {t("chooseArtist.retryLoad", { defaultValue: "Try again" })}
+            </Button>
           </div>
         ) : vaults.length === 0 ? (
           <div className={`rounded-2xl border p-10 text-center space-y-5 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>

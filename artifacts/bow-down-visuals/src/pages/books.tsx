@@ -63,6 +63,7 @@ export default function Books() {
 
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [showNewBook, setShowNewBook] = useState(false);
@@ -71,15 +72,19 @@ export default function Books() {
     setLoading(true);
     try {
       const res = await confirmedFetch("/api/books", { skipConfirm: true });
-      if (!res) return;
+      if (!res || !res.ok) throw new Error();
       const data = await res.json();
       setBooks(data.books ?? []);
+      setLoadError(false);
     } catch {
-      toast({ title: "Failed to load books", variant: "destructive" });
+      /* A failed load is NOT an empty library — the error block below
+         renders instead of "No books yet." (The toast alone faded while
+         the settled page kept claiming the library was empty.) */
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [confirmedFetch, toast]);
+  }, [confirmedFetch]);
 
   useEffect(() => { loadBooks(); }, [loadBooks]);
 
@@ -140,6 +145,15 @@ export default function Books() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]" />
+          </div>
+        ) : loadError ? (
+          <div className={`text-center py-20 border border-dashed rounded-2xl ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <BookOpen className="h-12 w-12 mx-auto text-[#C9A84C]/50 mb-4" />
+            <p className="text-white/60 text-lg font-semibold">We couldn&apos;t load your books</p>
+            <p className="text-white/40 text-sm mt-1 mb-6">Your books are safe — this page just couldn&apos;t reach them. Check your connection and try again.</p>
+            <Button onClick={() => void loadBooks()} className="bg-[#C9A84C] text-black font-bold hover:bg-[#e8c86a]" data-testid="btn-retry-books">
+              Try again
+            </Button>
           </div>
         ) : books.length === 0 ? (
           <div className={`text-center py-20 border border-dashed rounded-2xl ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]/60" : "border-white/10 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>

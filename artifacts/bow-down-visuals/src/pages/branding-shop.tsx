@@ -203,6 +203,7 @@ export default function BrandingShop() {
   /* orders state */
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -466,11 +467,16 @@ export default function BrandingShop() {
     setOrdersLoading(true);
     try {
       const res = await authed("/api/branding-shop/orders");
+      if (!res.ok) throw new Error();
       const data = (await res.json().catch(() => ({}))) as { orders?: Order[]; demo?: boolean };
       setOrders(Array.isArray(data.orders) ? data.orders : []);
       setDemoMode(!!data.demo);
+      setOrdersError(false);
     } catch {
-      /* orders list is best-effort */
+      /* A failed load is NOT an empty order book — the error state below
+         renders instead of "no orders." (Previously a 500 body silently
+         became an empty list: the parse fallback fed setOrders directly.) */
+      setOrdersError(true);
     } finally {
       setOrdersLoading(false);
     }
@@ -1021,6 +1027,20 @@ export default function BrandingShop() {
             ) : ordersLoading ? (
               <div className="flex items-center gap-2 text-sm text-white/50">
                 <Loader2 className="h-4 w-4 animate-spin" /> {t("brandingShop.loadingOrders")}
+              </div>
+            ) : ordersError ? (
+              <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">
+                <Package className="mx-auto mb-3 h-10 w-10 text-white/20" />
+                <p className="text-sm font-semibold text-white/60">{t("brandingShop.ordersLoadError", { defaultValue: "We couldn't load your orders" })}</p>
+                <p className="mt-1 text-xs text-white/35">{t("brandingShop.ordersLoadErrorBody", { defaultValue: "Your orders are safe — this page just couldn't reach them. Check your connection and try again." })}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadOrders()}
+                  className="mt-4 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-orders"
+                >
+                  {t("brandingShop.retryLoad", { defaultValue: "Try again" })}
+                </button>
               </div>
             ) : orders.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center">

@@ -1296,6 +1296,9 @@
     "whatToMakeNext": "Que dois-je créer ensuite ? · {{credits}} Visual Bucs"
   },
   "artistVault": {
+    "loadVaultsError": "Impossible de charger vos profils",
+    "loadVaultsErrorBody": "Vos profils sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "pageTitle": "Coffre du créateur",
     "pageDescription": "Ton identité créative — profils d'artiste, photos, voix et assets de marque, tout dans un seul coffre.",
     "closeDialog": "Fermer la boîte de dialogue",
@@ -2087,6 +2090,7 @@
     "findBrands": "Trouver des marques à pitcher"
   },
   "brandDeals": {
+    "noMatchesHunt": "Votre chasse est revenue vide cette fois — aucune marque n'a correspondu. C'est une vraie réponse, pas un échec : essayez une niche plus large ou une audience plus étendue.",
     "addPlatformPlaceholder": "+ ajouter une plateforme",
     "audienceLabel": "Taille de l'audience",
     "audiences": {
@@ -2203,6 +2207,9 @@
     "title": "Trousse de marque"
   },
   "brandingShop": {
+    "ordersLoadError": "Impossible de charger vos commandes",
+    "ordersLoadErrorBody": "Vos commandes sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "addToCart": "Ajouter au panier",
     "brandIdentityLabel": "Identité de marque",
     "brandNameLabel": "Nom de la marque",
@@ -2380,6 +2387,9 @@
     "titleAi": "IA"
   },
   "chooseArtist": {
+    "loadErrorTitle": "Impossible de charger vos artistes",
+    "loadErrorDescription": "Vos profils sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "createProfile": "Créer un profil d'artiste",
     "emptyDescription": "Crée un profil d'artiste pour garder ta musique et tes visuels cohérents. Ça prend environ 2 minutes — ou passe pour l'instant et ajoutes-en un plus tard.",
     "emptyTitle": "Aucun profil d'artiste pour l'instant",
@@ -3167,6 +3177,8 @@
     "your_user_id": "Ton ID utilisateur"
   },
   "distribute": {
+    "songs_load_error": "Impossible de charger votre bibliothèque de chansons — vos chansons sont en sécurité, l'accès a simplement échoué.",
+    "retry_load": "Réessayer",
     "pick_your_music": "Choisis ta musique",
     "release_metadata": "Métadonnées de la sortie",
     "midnight_frequencies": "Fréquences de minuit",
@@ -4327,6 +4339,9 @@
     "designCarried": "Votre design de studio a été repris — vérifiez-le ci-dessous."
   },
   "labelPitch": {
+    "trackerLoadError": "Impossible de charger votre suivi de pitches",
+    "trackerLoadErrorBody": "Vos pitches enregistrés sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "advancedSuffix": " bio, stats & paroles (meilleur package)",
     "allGenres": "tous les genres",
     "analysisEnergy": "Énergie",
@@ -6015,6 +6030,9 @@
     "titleStart": "Du texte aux "
   },
   "shop": {
+    "loadErrorTitle": "Impossible de charger cette boutique",
+    "loadErrorDesc": "La boutique est peut-être toujours là — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "addToCart": "Ajouter au panier",
     "browseAllShops": "Parcourir toutes les boutiques",
     "cartEmpty": "Ton panier est vide.",
@@ -6128,6 +6146,7 @@
     "paidDesc": "Votre shoutout est payé et accepté. Le créateur l'enregistrera et vous l'enverra dans son délai de livraison."
   },
   "shows": {
+    "noMatches": "Votre chasse est revenue vide cette fois — aucune scène n'a correspondu. C'est une vraie réponse, pas un échec : essayez une zone plus large ou une autre période.",
     "artistNameLabel": "Ton nom d'artiste",
     "artistNamePlaceholder": "ex. TRGDY TRBLZ",
     "bioPlaceholder": "ex. artiste hip-hop haute énergie, 2 ans de scène, premières parties de…",
@@ -6398,6 +6417,9 @@
     "guidedTabLabel": "Guidé"
   },
   "songs": {
+    "coversLoadError": "Impossible de charger les reprises de ce titre — vos reprises sont en sécurité, l'accès a simplement échoué.",
+    "mashupsLoadError": "Impossible de charger les mashups de ce titre — l'accès a simplement échoué.",
+    "retryLoad": "Réessayer",
     "cancelButton": "Annuler",
     "chooseFileButton": "Choisir un fichier audio",
     "emptyLibrary": "Aucune chanson pour l'instant. Envoie la première ci-dessus.",
@@ -6831,6 +6853,8 @@
     "sendToScheduler": "Envoyer au programmateur"
   },
   "tour": {
+    "datesLoadError": "Impossible de charger vos dates de tournée — vos dates sont en sécurité, cette page n'a simplement pas pu les atteindre.",
+    "retryLoad": "Réessayer",
     "addDateFree": "Ajouter une date de tournée · Gratuit",
     "addDateTitle": "Ajouter une date de tournée",
     "budgetContingency": "Contingence",
@@ -8819,6 +8843,9 @@
     "filesSkipped_many": "Fichiers ignorés : type non pris en charge ou plus de 25 Mo."
   },
   "playlistPitch": {
+    "trackerLoadError": "Impossible de charger votre suivi de pitches",
+    "trackerLoadErrorBody": "Vos pitches enregistrés sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "copied": "Copié",
     "copyLabel": "Copier {{label}}",
     "copyAria": "Copier {{label}}",
@@ -9767,6 +9794,8 @@
     "promoteRelease": "Promouvoir cette sortie →"
   },
   "press-kit": {
+    "kitsLoadError": "Impossible de charger vos dossiers de presse — vos dossiers sont en sécurité, l'accès a simplement échoué.",
+    "retryLoad": "Réessayer",
     "backToDashboard": "Retour au tableau de bord",
     "confirmDelete": "Supprimer ce dossier de presse ? Cette action est irréversible.",
     "confirmFeatureGenerate": "Générateur de dossier de presse",
@@ -10087,6 +10116,9 @@
     "title": "Politique de confidentialité"
   },
   "promo-clip": {
+    "projectsLoadError": "Impossible de charger vos projets",
+    "projectsLoadErrorBody": "Vos projets sont en sécurité — l'accès a simplement échoué. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer",
     "pageTitle": "Promo Clip Maker",
     "pageDescription": "Transforme n'importe quelle chanson en clips promo qui arrêtent le scroll pour TikTok, Reels et Shorts.",
     "backToDashboard": "Retour au tableau de bord",
@@ -12787,6 +12819,8 @@
     }
   },
   "retentionDelight": {
+    "board_load_error": "Impossible de charger le classement — l'accès a simplement échoué.",
+    "retry_load": "Réessayer",
     "sharkDrop_title": "Le requin a lâché quelque chose",
     "sharkDrop_subtitle": "Le requin a lâché {{amount}} VB dans ton coffre !",
     "sharkDrop_body": "Un cadeau surprise de Thy Cheat Code. Réclame-le avant qu'il ne s'éloigne à la nage.",

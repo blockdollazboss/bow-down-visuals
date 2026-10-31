@@ -67,6 +67,7 @@ export default function Tour() {
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [dates, setDates] = useState<TourDate[]>([]);
   const [loadingDates, setLoadingDates] = useState(true);
+  const [datesError, setDatesError] = useState(false);
   const [plan, setPlan] = useState<TourPlan | null>(null);
 
   /* composer */
@@ -99,19 +100,26 @@ export default function Tour() {
       setLoadingDates(false);
       return;
     }
+    setLoadingDates(true);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/tour/dates", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (!res.ok) throw new Error();
       const data = (await res.json().catch(() => ({}))) as {
         dates?: TourDate[];
       };
-      if (res.ok && Array.isArray(data.dates)) {
+      if (Array.isArray(data.dates)) {
         setDates(data.dates);
+        setDatesError(false);
+      } else {
+        setDatesError(true);
       }
     } catch {
-      /* dates list is a nicety — the page still works */
+      /* A failed load is NOT an empty tour — the error row below renders
+         instead of "No dates yet." */
+      setDatesError(true);
     } finally {
       setLoadingDates(false);
     }
@@ -416,6 +424,18 @@ export default function Tour() {
           {loadingDates ? (
             <p className="mt-4 flex items-center gap-2 text-sm text-white/45">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("tour.loadingDates")}</p>
+          ) : datesError ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-white/50">{t("tour.datesLoadError", { defaultValue: "We couldn't load your tour dates — your dates are safe, this page just couldn't reach them." })}</p>
+              <button
+                type="button"
+                onClick={() => void fetchDates()}
+                className="text-sm font-semibold text-primary hover:underline"
+                data-testid="btn-retry-dates"
+              >
+                {t("tour.retryLoad", { defaultValue: "Try again" })}
+              </button>
+            </div>
           ) : dates.length === 0 ? (
             <p className="mt-4 text-sm text-white/45">{t("tour.noDates")}</p>
           ) : (

@@ -191,33 +191,38 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [selected, setSelected] = useState("");
   const [fetching, setFetching] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadVaults() {
+      setFetching(true);
       try {
         const token = await getAccessToken();
         const res = await fetch("/api/artist-vaults", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        if (res.ok) {
-          const data = (await res.json()) as { vaults: ArtistVault[] };
-          setVaults(data.vaults);
-          if (data.vaults.length > 0) {
-            const sorted = sortVaults(data.vaults, context);
-            setSelected(sorted[0].id);
-          }
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { vaults: ArtistVault[] };
+        setVaults(data.vaults);
+        setLoadError(false);
+        if (data.vaults.length > 0) {
+          const sorted = sortVaults(data.vaults, context);
+          setSelected(sorted[0].id);
         }
       } catch {
-        /* silent */
+        /* A failed load is NOT an empty vault — the error notice below
+           renders instead of "No subject profiles yet." */
+        setLoadError(true);
       } finally {
         setFetching(false);
       }
     }
     loadVaults();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryNonce]);
 
   useEffect(() => {
     if (!dropdownOpen) return;
@@ -236,6 +241,25 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
   if (fetching) return null;
 
   const loaded = loadedVaultProp ?? (loadedVaultId ? vaults.find((v) => v.id === loadedVaultId) : null) ?? null;
+
+  if (!loaded && loadError) {
+    return (
+      <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+        <Archive className="h-4 w-4 text-white/25 shrink-0" />
+        <p className="text-sm text-white/40 flex-1">
+          We couldn&apos;t load your subject profiles — your profiles are safe, this just couldn&apos;t reach them.
+        </p>
+        <button
+          type="button"
+          onClick={() => setRetryNonce((n) => n + 1)}
+          className="text-sm font-semibold text-primary hover:underline shrink-0"
+          data-testid="btn-retry-vaults"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (!loaded && vaults.length === 0) {
     return (

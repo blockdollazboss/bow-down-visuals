@@ -76,6 +76,8 @@ export default function LeaderboardWidget() {
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [board, setBoard] = useState<BoardData | null>(null);
+  const [boardFailed, setBoardFailed] = useState(false);
+  const [boardRetryNonce, setBoardRetryNonce] = useState(0);
   const [prefs, setPrefs] = useState<DelightPrefs | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [savedTick, setSavedTick] = useState(false);
@@ -98,19 +100,28 @@ export default function LeaderboardWidget() {
         if (cancelled) return;
         if (bRes.status === "fulfilled" && bRes.value.ok) {
           setBoard((await bRes.value.json().catch(() => null)) as BoardData | null);
+          setBoardFailed(false);
+        } else {
+          /* A failed load is NOT an empty board — the error row below
+             renders instead of "No creations this week yet." (A refresh
+             failure with a board already on screen keeps that board:
+             the error row only shows while there is no board.) */
+          setBoardFailed(true);
         }
         if (pRes.status === "fulfilled" && pRes.value.ok) {
           const d = (await pRes.value.json().catch(() => ({}))) as { prefs?: DelightPrefs };
           if (d.prefs) setPrefs(d.prefs);
         }
       } catch {
-        /* Non-fatal: the widget simply stays quiet on failure. */
+        /* Auth/header failure before the board fetch: same truth — an
+           error row, not an empty board. */
+        if (!cancelled) setBoardFailed(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [user, authHeaders]);
+  }, [user, authHeaders, boardRetryNonce]);
 
   const setPref = useCallback(
     async (key: keyof DelightPrefs, value: boolean) => {
@@ -150,7 +161,21 @@ export default function LeaderboardWidget() {
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-        {!board || board.rows.length === 0 ? (
+        {boardFailed && !board ? (
+          <div className="px-4 py-6 text-center">
+            <p className="text-xs text-white/50">
+              {t("retentionDelight.board_load_error", { defaultValue: "Couldn't load the board — this just couldn't reach it." })}
+            </p>
+            <button
+              type="button"
+              onClick={() => setBoardRetryNonce((n) => n + 1)}
+              className="mt-2 text-xs font-semibold text-primary hover:underline"
+              data-testid="btn-retry-board"
+            >
+              {t("retentionDelight.retry_load", { defaultValue: "Try again" })}
+            </button>
+          </div>
+        ) : !board || board.rows.length === 0 ? (
           <p className="px-4 py-6 text-center text-xs text-white/35">
             {t("retentionDelight.board_empty")}
           </p>

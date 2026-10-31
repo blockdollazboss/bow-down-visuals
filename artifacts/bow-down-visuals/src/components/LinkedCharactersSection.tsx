@@ -40,6 +40,7 @@ export function LinkedCharactersSection({
   const { getAccessToken } = useAuth();
   const [links, setLinks] = useState<LinkedCharacter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [linking, setLinking] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [selectedRole, setSelectedRole] = useState("collaborator");
@@ -51,12 +52,14 @@ export function LinkedCharactersSection({
       const res = await fetch(`/api/artist-vaults/${vault.id}/links`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (res.ok) {
-        const data = (await res.json()) as { links: LinkedCharacter[] };
-        setLinks(data.links ?? []);
-      }
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { links: LinkedCharacter[] };
+      setLinks(data.links ?? []);
+      setLoadError(false);
     } catch {
-      /* show empty */
+      /* A failed load is NOT an empty cast — the error row below renders
+         instead of "No linked characters yet." */
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -127,6 +130,20 @@ export function LinkedCharactersSection({
       {loading ? (
         <div className="flex items-center justify-center py-4">
           <Loader2 className="h-5 w-5 animate-spin text-white/30" />
+        </div>
+      ) : loadError ? (
+        <div className="flex flex-wrap items-center gap-3 py-2">
+          <p className="text-xs text-white/50">
+            Couldn&apos;t load the linked characters — {vault.artist_name}&apos;s cast is safe, this just couldn&apos;t reach it.
+          </p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="text-xs font-semibold text-primary hover:underline"
+            data-testid="btn-retry-links"
+          >
+            Try again
+          </button>
         </div>
       ) : links.length === 0 ? (
         <p className="text-xs text-white/30 py-2">

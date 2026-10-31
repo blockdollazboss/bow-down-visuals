@@ -1296,6 +1296,9 @@
     "hookLabel": "フック:「{{hook}}」"
   },
   "artistVault": {
+    "loadVaultsError": "プロフィールを読み込めませんでした",
+    "loadVaultsErrorBody": "プロフィールは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "pageTitle": "クリエイターボールト",
     "pageDescription": "あなたのクリエイティブなアイデンティティ — アーティストプロフィール、写真、ボイス、ブランドアセットをひとつのボールトに。",
     "closeDialog": "ダイアログを閉じる",
@@ -1980,6 +1983,7 @@
     "findBrands": "ピッチするブランドを探す"
   },
   "brandDeals": {
+    "noMatchesHunt": "今回のハントは空振りでした — マッチするブランドがありませんでした。これは失敗ではなく本当の答えです。ニッチを広げるか、オーディエンス範囲を広げてお試しください。",
     "addPlatformPlaceholder": "+ プラットフォームを追加",
     "audienceLabel": "オーディエンス規模",
     "audiences": {
@@ -2096,6 +2100,9 @@
     "title": "ブランディングキット"
   },
   "brandingShop": {
+    "ordersLoadError": "注文を読み込めませんでした",
+    "ordersLoadErrorBody": "注文は安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "addToCart": "カートに追加",
     "brandIdentityLabel": "ブランドアイデンティティ",
     "brandNameLabel": "ブランド名",
@@ -2273,6 +2280,9 @@
     "titleAi": "AI"
   },
   "chooseArtist": {
+    "loadErrorTitle": "アーティストを読み込めませんでした",
+    "loadErrorDescription": "プロフィールは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "createProfile": "アーティストプロフィールを作成",
     "emptyDescription": "アーティストプロフィールを設定して、音楽とビジュアルを一貫させましょう。約2分 — 後で追加する場合はスキップもできます。",
     "emptyTitle": "まだアーティストプロフィールがありません",
@@ -3054,6 +3064,8 @@
     "missing": "未設定"
   },
   "distribute": {
+    "songs_load_error": "楽曲ライブラリを読み込めませんでした — 楽曲は安全です。アクセスできなかっただけです。",
+    "retry_load": "もう一度試す",
     "pick_your_music": "楽曲を選ぶ",
     "release_metadata": "リリースのメタデータ",
     "midnight_frequencies": "Midnight Frequencies",
@@ -4160,6 +4172,9 @@
     "designCarried": "スタジオのデザインが引き継がれました — 下で確認してください。"
   },
   "labelPitch": {
+    "trackerLoadError": "ピッチトラッカーを読み込めませんでした",
+    "trackerLoadErrorBody": "記録したピッチは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "advancedSuffix": " プロフィール・統計・歌詞(より良いパッケージ)",
     "allGenres": "すべてのジャンル",
     "analysisEnergy": "エネルギー",
@@ -5845,6 +5860,9 @@
     "titleStart": "テキストから"
   },
   "shop": {
+    "loadErrorTitle": "このショップを読み込めませんでした",
+    "loadErrorDesc": "ショップはまだそこにあるかもしれません — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "addToCart": "カートに入れる",
     "browseAllShops": "すべてのショップを見る",
     "cartEmpty": "カートは空です。",
@@ -5958,6 +5976,7 @@
     "paidDesc": "シャウトアウトは支払い済みで受理されました。クリエイターが録音し、納期以内にあなたへ送ります。"
   },
   "shows": {
+    "noMatches": "今回のハントは空振りでした — マッチするステージがありませんでした。これは失敗ではなく本当の答えです。エリアを広げるか、日付範囲を変えてお試しください。",
     "artistNameLabel": "アーティスト名",
     "artistNamePlaceholder": "例：TRGDY TRBLZ",
     "bioPlaceholder": "例：ハイエネルギーなヒップホップアーティスト、ライブ歴2年、前座で…",
@@ -6228,6 +6247,9 @@
     "simpleTabLabel": "Turbo"
   },
   "songs": {
+    "coversLoadError": "この曲のカバーを読み込めませんでした — カバーは安全です。アクセスできなかっただけです。",
+    "mashupsLoadError": "この曲のマッシュアップを読み込めませんでした — アクセスできなかっただけです。",
+    "retryLoad": "もう一度試す",
     "cancelButton": "キャンセル",
     "chooseFileButton": "音声ファイルを選択",
     "emptyLibrary": "まだ曲がありません。上から最初の1曲をアップロードしましょう。",
@@ -6659,6 +6681,8 @@
     "sendToScheduler": "スケジューラーに送信"
   },
   "tour": {
+    "datesLoadError": "ツアー日程を読み込めませんでした — 日程は安全です。このページからアクセスできなかっただけです。",
+    "retryLoad": "もう一度試す",
     "addDateFree": "ツアー日程を追加 · 無料",
     "addDateTitle": "ツアー日程を追加",
     "budgetContingency": "予備費",
@@ -8420,6 +8444,9 @@
     }
   },
   "playlistPitch": {
+    "trackerLoadError": "ピッチトラッカーを読み込めませんでした",
+    "trackerLoadErrorBody": "記録したピッチは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "copied": "コピーしました",
     "copyLabel": "{{label}}をコピー",
     "copyAria": "{{label}}をコピー",
@@ -9210,6 +9237,8 @@
     "promoteRelease": "このリリースを宣伝 →"
   },
   "press-kit": {
+    "kitsLoadError": "プレスキットを読み込めませんでした — キットは安全です。アクセスできなかっただけです。",
+    "retryLoad": "もう一度試す",
     "backToDashboard": "ダッシュボードに戻る",
     "confirmDelete": "このプレスキットを削除しますか？この操作は取り消せません。",
     "confirmFeatureGenerate": "プレスキット生成",
@@ -12574,6 +12603,9 @@
     "viewRoyalties": "ロイヤリティ"
   },
   "promo-clip": {
+    "projectsLoadError": "プロジェクトを読み込めませんでした",
+    "projectsLoadErrorBody": "プロジェクトは安全です — アクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す",
     "platforms": {
       "tiktok": "TikTok",
       "reels": "Reels",
@@ -12808,6 +12840,8 @@
     "calendarFixDayHook": "🩺 離脱を修正：{{fixes}}"
   },
   "retentionDelight": {
+    "board_load_error": "ボードを読み込めませんでした — アクセスできなかっただけです。",
+    "retry_load": "もう一度試す",
     "sharkDrop_title": "シャークが何かを落としました",
     "sharkDrop_subtitle": "シャークがあなたのボールトに{{amount}} VBを落としました！",
     "sharkDrop_body": "Thy Cheat Codeからのサプライズギフト。泳ぎ去る前に受け取りましょう。",

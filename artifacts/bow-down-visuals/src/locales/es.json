@@ -1296,6 +1296,9 @@
     "hookLabel": "Gancho: “{{hook}}”"
   },
   "artistVault": {
+    "loadVaultsError": "No se pudieron cargar tus perfiles",
+    "loadVaultsErrorBody": "Tus perfiles están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "pageTitle": "Bóveda del Creador",
     "pageDescription": "Tu identidad creativa — perfiles de artista, fotos, voz y recursos de marca en una sola bóveda.",
     "closeDialog": "Cerrar diálogo",
@@ -1981,6 +1984,7 @@
     "findBrands": "Encontrar marcas para proponer"
   },
   "brandDeals": {
+    "noMatchesHunt": "Tu búsqueda volvió vacía esta vez — ninguna marca coincidió. Es una respuesta real, no un fallo: prueba un nicho más amplio o un rango de audiencia mayor.",
     "addPlatformPlaceholder": "+ agregar plataforma",
     "audienceLabel": "Tamaño de audiencia",
     "audiences": {
@@ -2097,6 +2101,9 @@
     "title": "Kit de Branding"
   },
   "brandingShop": {
+    "ordersLoadError": "No se pudieron cargar tus pedidos",
+    "ordersLoadErrorBody": "Tus pedidos están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "addToCart": "Agregar al carrito",
     "brandIdentityLabel": "Identidad de marca",
     "brandNameLabel": "Nombre de la marca",
@@ -2274,6 +2281,9 @@
     "titleAi": "IA"
   },
   "chooseArtist": {
+    "loadErrorTitle": "No se pudieron cargar tus artistas",
+    "loadErrorDescription": "Tus perfiles están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "createProfile": "Crear perfil de artista",
     "emptyDescription": "Configura un perfil de artista para mantener tu música y tus visuales coherentes. Toma unos 2 minutos — o omítelo por ahora y añádelo después.",
     "emptyTitle": "Aún no hay perfiles de artista",
@@ -3061,6 +3071,8 @@
     "missing": "faltante"
   },
   "distribute": {
+    "songs_load_error": "No se pudo cargar tu biblioteca de canciones — tus canciones están a salvo, esto simplemente no pudo acceder a ellas.",
+    "retry_load": "Intentar de nuevo",
     "pick_your_music": "Elige tu música",
     "release_metadata": "Metadatos del lanzamiento",
     "midnight_frequencies": "Midnight Frequencies",
@@ -4169,6 +4181,9 @@
     "designCarried": "Tu diseño del estudio se trasladó: revísalo abajo."
   },
   "labelPitch": {
+    "trackerLoadError": "No se pudo cargar tu registro de pitches",
+    "trackerLoadErrorBody": "Tus pitches registrados están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "advancedSuffix": " bio, estadísticas y letras (mejor paquete)",
     "allGenres": "todos los géneros",
     "analysisEnergy": "Energía",
@@ -5857,6 +5872,9 @@
     "titleStart": "Texto-a-"
   },
   "shop": {
+    "loadErrorTitle": "No se pudo cargar esta tienda",
+    "loadErrorDesc": "Es posible que la tienda siga ahí — esta página simplemente no pudo acceder a ella. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "addToCart": "Agregar al carrito",
     "browseAllShops": "Explorar todas las tiendas",
     "cartEmpty": "Tu carrito está vacío.",
@@ -5970,6 +5988,7 @@
     "paidDesc": "Tu shoutout está pagado y aceptado. El creador lo grabará y te lo enviará dentro de su tiempo de entrega."
   },
   "shows": {
+    "noMatches": "Tu búsqueda volvió vacía esta vez — ningún escenario coincidió. Es una respuesta real, no un fallo: prueba una zona más amplia u otro rango de fechas.",
     "artistNameLabel": "Tu nombre artístico",
     "artistNamePlaceholder": "p. ej. TRGDY TRBLZ",
     "bioPlaceholder": "p. ej. Artista de hip-hop de alta energía, 2 años actuando, abrió para…",
@@ -6240,6 +6259,9 @@
     "guidedTabLabel": "Guiado"
   },
   "songs": {
+    "coversLoadError": "No se pudieron cargar las versiones de esta canción — tus versiones están a salvo, esto simplemente no pudo acceder a ellas.",
+    "mashupsLoadError": "No se pudieron cargar los mashups de esta canción — esto simplemente no pudo acceder a ellos.",
+    "retryLoad": "Intentar de nuevo",
     "cancelButton": "Cancelar",
     "chooseFileButton": "Elegir archivo de audio",
     "emptyLibrary": "Aún no hay canciones. Sube la primera arriba.",
@@ -6673,6 +6695,8 @@
     "sendToScheduler": "Enviar al programador"
   },
   "tour": {
+    "datesLoadError": "No se pudieron cargar las fechas de tu gira — tus fechas están a salvo, esta página simplemente no pudo acceder a ellas.",
+    "retryLoad": "Intentar de nuevo",
     "addDateFree": "Agregar fecha de gira · Gratis",
     "addDateTitle": "Agregar una fecha de gira",
     "budgetContingency": "Imprevistos",
@@ -8527,6 +8551,9 @@
     "filesSkipped_many": "Se omitieron {{count}} archivos — tipo no compatible o más de 25 MB."
   },
   "playlistPitch": {
+    "trackerLoadError": "No se pudo cargar tu registro de pitches",
+    "trackerLoadErrorBody": "Tus pitches registrados están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "copied": "Copiado",
     "copyLabel": "Copiar {{label}}",
     "copyAria": "Copiar {{label}}",
@@ -9475,6 +9502,8 @@
     "promoteRelease": "Promocionar este lanzamiento →"
   },
   "press-kit": {
+    "kitsLoadError": "No se pudieron cargar tus kits de prensa — tus kits están a salvo, esto simplemente no pudo acceder a ellos.",
+    "retryLoad": "Intentar de nuevo",
     "backToDashboard": "Volver al panel",
     "confirmDelete": "¿Eliminar este kit de prensa? Esto no se puede deshacer.",
     "confirmFeatureGenerate": "Generador de kit de prensa",
@@ -9795,6 +9824,9 @@
     "title": "Política de privacidad"
   },
   "promo-clip": {
+    "projectsLoadError": "No se pudieron cargar tus proyectos",
+    "projectsLoadErrorBody": "Tus proyectos están a salvo — esto simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo",
     "pageTitle": "Promo Clip Maker",
     "pageDescription": "Convierte cualquier canción en clips promocionales que detienen el scroll para TikTok, Reels y Shorts.",
     "backToDashboard": "Volver al panel",
@@ -13404,6 +13436,8 @@
     "calendarFixDayHook": "🩺 Corrige los abandonos: {{fixes}}"
   },
   "retentionDelight": {
+    "board_load_error": "No se pudo cargar el tablero — esto simplemente no pudo acceder a él.",
+    "retry_load": "Intentar de nuevo",
     "sharkDrop_title": "El tiburón dejó caer algo",
     "sharkDrop_subtitle": "¡El tiburón dejó caer {{amount}} VB en tu bóveda!",
     "sharkDrop_body": "Un regalo sorpresa de Thy Cheat Code. Reclámalo antes de que se aleje nadando.",
