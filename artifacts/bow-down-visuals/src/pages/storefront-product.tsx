@@ -1,7 +1,8 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
-import { Link, useParams, useLocation } from "wouter";
+import { Link, useParams, useLocation, useSearch } from "wouter";
+import { loginPathWithNext } from "@/lib/auth-next";
 import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Minus, Plus, Timer, BellRing, Mail, CheckCircle2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
@@ -285,7 +286,11 @@ function RestockAlert({ productId, title, creatorName, waitingCount }: {
   waitingCount: number;
 }) {
   const { user, getAccessToken } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  /* The guest door carries the way back to this page (affiliate ?ref=
+     included) — public-surface truth, stack1000 R1. */
+  const signInDoor = loginPathWithNext(location, search);
   const [state, setState] = useState<"loading" | "idle" | "subscribed">("loading");
   const [busy, setBusy] = useState(false);
   const [count, setCount] = useState(waitingCount);
@@ -320,7 +325,7 @@ function RestockAlert({ productId, title, creatorName, waitingCount }: {
 
   async function toggle() {
     if (!user) {
-      navigate("/login");
+      navigate(signInDoor);
       return;
     }
     setBusy(true);
@@ -328,7 +333,7 @@ function RestockAlert({ productId, title, creatorName, waitingCount }: {
     try {
       const token = await getAccessToken();
       if (!token) {
-        navigate("/login");
+        navigate(signInDoor);
         return;
       }
       if (state === "subscribed") {
@@ -389,7 +394,11 @@ export default function StorefrontProduct() {
   const isLight = useIsLightTheme();
   usePageTitle("Product", "Buy directly from the creator on Bow Down Visuals.");
   const params = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  /* The guest door carries the way back to this product (affiliate
+     ?ref= included) — public-surface truth, stack1000 R1. */
+  const signInDoor = loginPathWithNext(location, search);
   const { user, getAccessToken } = useAuth();
   const [data, setData] = useState<ProductData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -479,7 +488,7 @@ export default function StorefrontProduct() {
   async function claimNow() {
     if (!data) return;
     if (!user) {
-      navigate("/login");
+      navigate(signInDoor);
       return;
     }
     if (!claimConsent) {
@@ -563,7 +572,7 @@ export default function StorefrontProduct() {
   async function buyNow() {
     if (!data) return;
     if (!user) {
-      navigate("/login");
+      navigate(signInDoor);
       return;
     }
     setBuying(true);
@@ -656,7 +665,7 @@ export default function StorefrontProduct() {
   async function buyWithOffer(offer: ProductOffer) {
     if (!data) return;
     if (!user) {
-      navigate("/login");
+      navigate(signInDoor);
       return;
     }
     const token = await getAccessToken();

@@ -121,7 +121,7 @@ describe("normalizeChartCreators", () => {
       "creators",
     );
     expect(rows).toEqual([
-      { id: "c1", displayName: "Ada Gold", vertical: "music", followerCount: 1200, totalPlays: 34000, newFollowers: null, earnedCents30d: null, topGenre: null, trackCount: null, videoCount: null },
+      { id: "c1", displayName: "Ada Gold", vertical: "music", followerCount: 1200, totalPlays: 34000, newFollowers: null, topGenre: null, trackCount: null, videoCount: null },
     ]);
   });
 
@@ -140,17 +140,21 @@ describe("normalizeChartCreators", () => {
     expect(rows[1]).toMatchObject({ topGenre: null, trackCount: 0, videoCount: 0 });
   });
 
-  it("rising rows carry their new-follower count; earner rows their 30-day take", () => {
+  it("rising rows carry their new-follower count; earner rows never carry a take", () => {
     const rising = normalizeChartCreators(
       { rising: [{ id: "c9", display_name: "Breaker", follower_count: 10, total_plays: 20, new_followers: 77 }] },
       "rising",
     );
     expect(rising[0]!.newFollowers).toBe(77);
+    /* Public-surface truth (stack1000 R1): a creator's earnings are
+       their private number — even if a payload tried to carry one,
+       the board's row shape has no place for it. */
     const earners = normalizeChartCreators(
       { earners: [{ id: "c8", display_name: "Earner", follower_count: 10, total_plays: 20, earned_cents_30d: 12345 }] },
       "earners",
     );
-    expect(earners[0]!.earnedCents30d).toBe(12345);
+    expect(earners[0]).not.toHaveProperty("earnedCents30d");
+    expect(earners[0]).not.toHaveProperty("earned_cents_30d");
   });
 
   it("reads only its own key — a rising payload is not a creators payload", () => {

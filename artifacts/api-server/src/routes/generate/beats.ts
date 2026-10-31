@@ -45,6 +45,26 @@ async function presentBeat<T extends { audio_url: string; audio_path: string | n
   };
 }
 
+/**
+ * The PUBLIC shape of a beat (guest browse reads — the marketplace is
+ * public to browse, D5). audio_url is the FULL master file — the very
+ * thing a license sells — while preview_url is the watermarked
+ * preview made for listening before buying. The public reads used to
+ * hand out the refreshed master next to the preview, so the product
+ * itself was free to anyone who opened the payload (public-surface
+ * truth, stack1000 R1). On public reads the master is masked behind
+ * the preview: audio_url carries the preview's URL and the storage
+ * path is dropped. A beat with NO distinct preview keeps the schema's
+ * documented fallback (the full file is its preview — the producer
+ * never made a separate one). Owner and buyer reads keep presentBeat:
+ * a paid license's download IS the master.
+ */
+export async function presentBeatPublic<T extends { audio_url: string; audio_path: string | null; preview_url: string | null }>(row: T): Promise<T> {
+  const presented = await presentBeat(row);
+  if (!presented.preview_url) return presented;
+  return { ...presented, audio_url: presented.preview_url, audio_path: null };
+}
+
 const router = Router();
 
 /* A license purchase names exactly one offer: a fixed tier OR one of the
@@ -174,7 +194,7 @@ router.get("/beats", async (req, res) => {
       .orderBy(desc(beatsTable.created_at))
       .limit(f.limit)
       .offset(f.offset);
-    const presented = await Promise.all(rows.map(presentBeat));
+    const presented = await Promise.all(rows.map(presentBeatPublic));
     res.json({ beats: await attachLicenseTemplates(presented) });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to list beats";
@@ -200,7 +220,7 @@ router.get("/beats/:id", async (req, res) => {
         .set({ plays: sql`${beatsTable.plays} + 1` })
         .where(eq(beatsTable.id, id));
     } catch { /* ignore */ }
-    const [withTemplates] = await attachLicenseTemplates([await presentBeat({ ...beat, plays: beat.plays + 1 })]);
+    const [withTemplates] = await attachLicenseTemplates([await presentBeatPublic({ ...beat, plays: beat.plays + 1 })]);
     res.json({ beat: withTemplates });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch beat";

@@ -9,6 +9,7 @@ import {
   Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent, RotateCcw, Pause, Play, Compass,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { loginPathWithNext } from "@/lib/auth-next";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Fan Memberships ───────────────────────────────────────────────────
@@ -193,6 +194,9 @@ function FanClubJoin({
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState(false);
+  /* The guest door carries the way back to THIS creator's club —
+     public-surface truth, stack1000 R1. */
+  const signInDoor = loginPathWithNext("/memberships", `creator=${encodeURIComponent(creatorUserId)}`);
 
   useEffect(() => {
     let alive = true;
@@ -214,7 +218,7 @@ function FanClubJoin({
     n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
 
   async function join(tier: Tier, mode: "checkout" | "trial") {
-    if (!signedIn) { window.location.href = "/login"; return; }
+    if (!signedIn) { window.location.href = signInDoor; return; }
     setBusy(tier.id + mode);
     setMsg(null);
     try {
@@ -829,7 +833,7 @@ export default function Memberships() {
         {!user ? (
           <div className={CARD + " text-center"}>
             <p className="text-white/70 mb-4">{t("memberships.signInPrompt")}</p>
-            <Link href="/login" className={GOLD_BTN}>{t("memberships.signIn")}</Link>
+            <Link href={loginPathWithNext("/memberships", typeof window !== "undefined" ? window.location.search : "")} className={GOLD_BTN}>{t("memberships.signIn")}</Link>
           </div>
         ) : loading ? (
           <div className="flex justify-center py-20">

@@ -420,3 +420,73 @@ describe("Defect C — play counts ship under the names the client reads", () =>
     expect(item.play_count).toBe(TRACK_PLAYS);
   });
 });
+
+/* ─── Defect D — private earnings on public payloads (stack1000 R1) ──── */
+
+describe("Defect D — a creator's earnings never ride a public payload", () => {
+  /* The public discovery family shipped each creator's exact last-30-
+     days take (month_earnings_cents, and earned_cents_30d / sales_30d
+     on /rising-earners) to anonymous guests — the FE rendered it as
+     "$X/mo" on public cards, the charts Earners tab and the World
+     board. Whether a creator is selling is public (their storefront
+     shows it); what they earned is their private number. The fake db
+     builds rows FROM the emitted SQL, so these assertions fail if an
+     earnings expression ever re-enters a public select list. */
+  const EARNINGS_KEYS = ["month_earnings_cents", "earned_cents_30d", "sales_30d"];
+
+  function expectNoEarnings(row: Record<string, unknown>) {
+    for (const key of EARNINGS_KEYS) {
+      expect(row).not.toHaveProperty(key);
+    }
+  }
+
+  it("GET /charts/creators?window=all — has_sales rides, the take does not", async () => {
+    const { status, json } = await get("/charts/creators?window=all");
+    expect(status).toBe(200);
+    const c = json.creators[0];
+    expect(c).toHaveProperty("has_sales");
+    expectNoEarnings(c);
+  });
+
+  it("GET /charts — the combined payload's creator rows are clean too", async () => {
+    const { status, json } = await get("/charts?window=all");
+    expect(status).toBe(200);
+    expectNoEarnings(json.creators[0]);
+  });
+
+  it("GET /rising-earners — ranked by the house, figures never shipped", async () => {
+    const { status, json } = await get("/rising-earners");
+    expect(status).toBe(200);
+    expectNoEarnings(json.earners[0]);
+  });
+
+  it("GET /rising — clean", async () => {
+    const { status, json } = await get("/rising");
+    expect(status).toBe(200);
+    expectNoEarnings(json.rising[0]);
+  });
+
+  it("GET /brands — clean", async () => {
+    const { status, json } = await get("/brands");
+    expect(status).toBe(200);
+    expectNoEarnings(json.creators[0]);
+  });
+
+  it("GET /search?type=creator — clean", async () => {
+    const { status, json } = await get("/search?q=sentinel&type=creator");
+    expect(status).toBe(200);
+    expectNoEarnings(json.creators[0]);
+  });
+
+  it("GET /genre/:genre — creator rows clean", async () => {
+    const { status, json } = await get("/genre/rock");
+    expect(status).toBe(200);
+    expectNoEarnings(json.creators[0]);
+  });
+
+  it("GET /related/creators/:slug — clean", async () => {
+    const { status, json } = await get("/related/creators/sentinel-creator");
+    expect(status).toBe(200);
+    expectNoEarnings(json.related[0]);
+  });
+});

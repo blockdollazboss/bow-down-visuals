@@ -4,7 +4,6 @@ import { Link } from "wouter";
 import { Trophy, Flame, Users, Disc3, Clapperboard, Briefcase, Banknote, SlidersHorizontal, X, AlertTriangle, RotateCcw, Sparkles, Monitor, MapPin, ChevronRight } from "lucide-react";
 import { fetchSceneDirectory, type SceneCityEntry } from "@/lib/scenes";
 import { useMinStars } from "@/lib/creator-level";
-import { formatMoney } from "@/components/discovery/cards";
 import { formatCount } from "@/lib/streaming";
 import {
   CreatorCard, TrackRow, VideoCard, SectionHeader,
@@ -590,8 +589,11 @@ export default function Charts() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {earners.map((c, i) => (
                 <div key={c.id} className="relative">
+                  {/* The board's order is the ranking; what each
+                      creator earned is their private number and is
+                      never displayed (public-surface truth, R1). */}
                   <span className="absolute left-2 top-2 z-10 rounded-full bg-emerald-400/90 px-2 py-0.5 text-[11px] font-black text-black">
-                    {formatMoney((c as CreatorLite & { earned_cents_30d?: number }).earned_cents_30d)}/mo
+                    Top seller
                   </span>
                   <CreatorCard creator={c} rank={i} followState={followStates[c.id]} />
                 </div>
