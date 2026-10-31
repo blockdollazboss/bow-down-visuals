@@ -713,6 +713,7 @@ export default function WorldPage() {
   const [radioOpen, setRadioOpen] = useState(false);
   const [myStream, setMyStream] = useState<{ id: string; title: string } | null>(null);
   const [catalog, setCatalog] = useState<{ mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } | null>(null);
+  const [catalogFailed, setCatalogFailed] = useState(false);
   const [screenNote, setScreenNote] = useState<string | null>(null);
   /* The doors (the access layer): the station I'm standing at —
      polled off the scene's pose against the same registry the
@@ -1954,9 +1955,16 @@ export default function WorldPage() {
       if (catalogRes.ok) {
         const data = (await catalogRes.json()) as { catalog: { mine: ScreenCatalogItem[]; public: ScreenCatalogItem[] } };
         setCatalog(data.catalog);
+        setCatalogFailed(false);
+      } else {
+        setCatalogFailed(true);
       }
     } catch {
-      /* the panel keeps its honest empty states */
+      /* A failed load is NOT a loading-forever panel and NOT an empty
+         catalog — the error row below renders with a retry. (The old
+         comment here claimed "honest empty states"; on failure the panel
+         actually sat on "Loading the catalog…" forever.) */
+      setCatalogFailed(true);
     }
   };
 
@@ -4321,7 +4329,21 @@ export default function WorldPage() {
                 <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                   Play a video — a watch party for the whole hall
                 </p>
-                {catalog === null ? (
+                {catalog === null && catalogFailed ? (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                    <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                      Couldn&apos;t load the catalog — your videos are safe, this just couldn&apos;t reach them.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadStageTools()}
+                      className="text-sm font-semibold text-primary hover:underline"
+                      data-testid="btn-retry-world-catalog"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : catalog === null ? (
                   <p className={`mt-1.5 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Loading the catalog…</p>
                 ) : catalog.mine.length + catalog.public.length === 0 ? (
                   <p className={`mt-1.5 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
