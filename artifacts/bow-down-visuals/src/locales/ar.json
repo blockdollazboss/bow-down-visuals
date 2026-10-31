@@ -5895,6 +5895,8 @@
     "libraryEmpty": "لا شيء هنا بعد — أنشئ أول مؤثر صوتي أعلاه.",
     "libraryEmptyDesc": "أصواتك المُنشأة تعيش هنا.",
     "librarySubtitle": "{{count}} صوتاً · حدّد لتصدير حزمة",
+    "librarySyncFailed": "تعذّر تحميل أصواتك المحفوظة — لم نتمكن من الوصول إلى الأصوات التي أنشأتها على جهاز آخر. أصواتك آمنة في حسابك.",
+    "librarySyncRetry": "حاول مرة أخرى",
     "libraryTitle": "مكتبة SFX",
     "packButton": "حزمة ({{count}}) · ZIP",
     "promptLabel": "صف الصوت",

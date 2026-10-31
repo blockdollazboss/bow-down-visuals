@@ -5848,6 +5848,8 @@
     "libraryEmptyDesc": "Ihre erstellten Sounds leben hier.",
     "libraryTitle": "SFX-Bibliothek",
     "librarySubtitle": "{{count}} Sounds · zum Pack-Export auswählen",
+    "librarySyncFailed": "Deine gespeicherten Sounds konnten nicht geladen werden — Sounds, die du auf einem anderen Gerät erstellt hast, waren nicht erreichbar. Deine Sounds sind in deinem Konto sicher.",
+    "librarySyncRetry": "Erneut versuchen",
     "packButton": "Pack ({{count}}) · ZIP",
     "promptLabel": "Den Sound beschreiben",
     "promptPlaceholder": "z. B. massive cineastische Explosion mit tiefem Subbass-Grollen…",

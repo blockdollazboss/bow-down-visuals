@@ -220,6 +220,26 @@ const SURFACES: SurfacePin[] = [
     forbidden: [/!Array\.isArray\(data\.deals\) \|\| data\.deals\.length === 0/],
     extra: [["the throw guard covers transport + shape only", /if \(!res\.ok \|\| !Array\.isArray\(data\.deals\)\) \{\s*throw/]],
   },
+  {
+    /* Q1 recorded this corner as observed-not-fixed; the stack1100
+       residuals round-up convicted it: local-first library + a
+       swallowed server merge meant a signed-in member whose sounds
+       live on the server (made on another device) was told "Nothing
+       here yet — generate your first sound effect" when the merge
+       leg failed. Only the narrow shape is pinned: signed-in, local
+       empty, merge failed. A member with local sounds renders their
+       real list either way. */
+    name: "ai-audio SFX library server merge (the cross-device corner)",
+    file: "pages/ai-audio.tsx",
+    failureSet: /setLibrarySyncFailed\(true\)/,
+    errorRender: /data-testid="btn-retry-sfx-library"/,
+    order: [/librarySyncFailed && library\.length === 0 \?/, /library\.length === 0 \?/],
+    forbidden: [/library merge is a nicety/],
+    extra: [
+      ["the merge throws on non-OK before trusting the body", /if \(!res\.ok\) throw new Error\("sfx library load failed"\)/],
+      ["the retry is wired to the real merge loader", /onClick=\{\(\) => void loadServerLibrary\(\)\}/],
+    ],
+  },
 ];
 
 describe("error-truth-2 guard — a failed load never renders as an empty account", () => {
@@ -276,6 +296,7 @@ describe("error-truth-2 guard — a failed load never renders as an empty accoun
       ["pages/shop.tsx", /shop\.loadErrorTitle/, /shop\.notFoundTitle/],
       ["pages/shows.tsx", /shows\.noMatches/, /shows\.errorSearchFailed/],
       ["pages/brand-deals.tsx", /brandDeals\.noMatchesHunt/, /brandDeals\.errorHuntFailed/],
+      ["pages/ai-audio.tsx", /sfx\.librarySyncFailed/, /sfx\.libraryEmpty/],
     ];
     for (const [file, errRe, emptyRe] of pairs) {
       const src = read(file);

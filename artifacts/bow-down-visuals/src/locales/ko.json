@@ -5847,6 +5847,8 @@
     "libraryEmpty": "아직 없습니다 — 위에서 첫 효과음을 생성해 보세요.",
     "libraryEmptyDesc": "생성한 사운드가 여기에 저장됩니다.",
     "librarySubtitle": "사운드 {{count}}개 · 선택해 팩으로 내보내기",
+    "librarySyncFailed": "저장한 사운드를 불러오지 못했습니다 — 다른 기기에서 만든 사운드에 연결할 수 없었습니다. 사운드는 계정에 안전하게 보관되어 있습니다.",
+    "librarySyncRetry": "다시 시도",
     "libraryTitle": "SFX 라이브러리",
     "packButton": "팩 ({{count}}) · ZIP",
     "promptLabel": "사운드 설명",

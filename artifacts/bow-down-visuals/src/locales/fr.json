@@ -6017,6 +6017,8 @@
     "libraryEmpty": "Rien ici pour l'instant - génére ton premier effet sonore ci-dessus.",
     "libraryEmptyDesc": "Tes sons générés vivent ici.",
     "librarySubtitle": "{{count}} sons · sélectionne pour exporter un pack",
+    "librarySyncFailed": "Impossible de charger vos sons enregistrés — ceux que vous avez créés sur un autre appareil n'ont pas pu être joints. Vos sons sont en sécurité dans votre compte.",
+    "librarySyncRetry": "Réessayer",
     "libraryTitle": "Bibliothèque SFX",
     "packButton": "Pack ({{count}}) · ZIP",
     "promptLabel": "Décrire le son",

@@ -6124,6 +6124,8 @@
     "libraryEmpty": "Nothing here yet — generate your first sound effect above.",
     "libraryEmptyDesc": "Your generated sounds live here.",
     "librarySubtitle": "{{count}} sounds · select to export a pack",
+    "librarySyncFailed": "Couldn't load your saved sounds — anything you made on another device couldn't be reached. Your sounds are safe in your account.",
+    "librarySyncRetry": "Try again",
     "libraryTitle": "SFX Library",
     "packButton": "Pack ({{count}}) · ZIP",
     "promptLabel": "Describe the sound",
