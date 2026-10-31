@@ -69,6 +69,7 @@ import type { WorldPalace, PalaceDirectoryEvent } from "./world-palace";
 import { combinedDropWeekSpendVb, STREAM_DROP_WEEKLY_CAP_VB } from "./stream-drops";
 import { currentWeekStart } from "./retention";
 import { addCreditsAtomic } from "./supabase-admin";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 import { logger } from "./logger";
 
 export const MUSIC_HALL_ROOM_ID = "world:music-hall";
@@ -301,6 +302,39 @@ export function toWorldEventDto(row: WorldEventRow, hostName: string): WorldEven
 /* ── Drop spectacle claims — the existing drop rails ──────────────── */
 
 /**
+/* ── Drop-claim push (M3 R2, stack1000 lane N1) ────────────────────
+   A landed spectacle claim is a money moment for the claimer, in
+   the same family as the King's gift (world-king-moment) and a
+   landed stage tip (world-stage-tips): VB just moved into their
+   balance, and the claimer may already have left the room — the
+   bell is the durable record. The tell fires only from the one
+   path that lands THIS claim's grant: inside claimSpectacleDrop,
+   after addCreditsAtomic succeeds. Exactly-once rides the claim's
+   own machinery, never a new counter: the room's reservation
+   (claimedUserIds + claimsLeft) flips synchronously before the
+   payout runs and rolls back on any !ok result, so a replayed or
+   refused claim never reaches this point, and the retry that
+   finally lands tells exactly once. Category money (every
+   landed-credit precedent), deep link /world. */
+type DropClaimEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _dropClaimEventNotifier: DropClaimEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setDropClaimEventNotifier(fn: DropClaimEventNotifier | null): void {
+  _dropClaimEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildDropClaimEvent(input: { userId: string; amountVb: number }): UserEventInput {
+  return {
+    userId: input.userId,
+    category: "money",
+    kind: "drop_claim",
+    title: "🦈 World drop claimed",
+    body: `You just claimed a ${input.amountVb.toLocaleString("en-US")} VB drop in the World — it landed in your balance.`,
+    link: "/world",
+  };
+}
+
+/**
  * Pay one spectacle claim through the EXISTING drop rails: the amount
  * counts against the combined weekly drop spend (stream awards +
  * regular shark-drop claims, lib/stream-drops) under the same
@@ -310,12 +344,13 @@ export function toWorldEventDto(row: WorldEventRow, hostName: string): WorldEven
  * sees every spectacle VB. No new issuance, no parallel budget. The
  * cap is advisory at this seam (checked, then granted — the room
  * serializes claims per spectacle, and the envelope is re-read on
- * every claim).
+ * every claim). A landed claim also tells the claimer (bell + ping,
+ * above) — the durable record of the moment.
  */
 export async function claimSpectacleDrop(
   userId: string,
   amountVb: number,
-  _eventId: string,
+  eventId: string,
 ): Promise<{ ok: true } | { ok: false; reason: "budget" | "error" }> {
   try {
     const spent = await combinedDropWeekSpendVb(currentWeekStart());
@@ -333,8 +368,19 @@ export async function claimSpectacleDrop(
         expiresAt: new Date(Date.now() + 48 * 3600_000),
       })
       .catch((err) =>
-        logger.warn({ err, userId }, "[world-events] drop ledger row failed (claim already paid)"),
+        logger.warn(
+          { err, userId, amountVb, eventId },
+          "[world-events] drop ledger row failed (claim already paid)",
+        ),
       );
+    /* The claim landed — tell the claimer (bell + device ping
+       through notifyUserEvent). Best-effort: the VB has already
+       landed, so a failing tell can never unwind the claim. */
+    try {
+      await _dropClaimEventNotifier(buildDropClaimEvent({ userId, amountVb }));
+    } catch (notifyErr) {
+      logger.warn({ notifyErr, userId, eventId }, "[world-events] drop claim push failed (non-fatal)");
+    }
     return { ok: true };
   } catch (err) {
     logger.error({ err, userId }, "[world-events] spectacle drop claim failed");

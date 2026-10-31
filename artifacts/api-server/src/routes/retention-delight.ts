@@ -12,6 +12,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { getCreatorRank } from "../lib/creator-rank";
 import { logger } from "../lib/logger";
 
@@ -220,6 +221,39 @@ router.get("/retention/shark-drop", requireAuth, publicApiLimiter, async (req: R
 
 const claimDropSchema = z.object({ dropId: z.string().uuid() });
 
+/* ── Shark-drop claim push (M3 R2, stack1000 lane N1) ───────────────
+   A landed claim is a money moment: VB just moved into the member's
+   balance, and the modal that claimed it is gone a moment later —
+   the bell is the durable record. The tell fires only from the one
+   path that lands THIS claim: in the handler below, after the
+   conditional-UPDATE claim flip, the grant, and the strict ledger
+   have ALL landed. Exactly-once rides the claim flip itself
+   (claimed_at IS NULL is the lock): a replay 404s at the flip and
+   never reaches the tell, and every failure path releases the
+   claim and returns before it, so the retry that finally lands
+   tells exactly once. Category money (every landed-credit
+   precedent), deep link /credit-history — the balance surface
+   where this claim's strict ledger row shows. */
+export function buildSharkDropClaimEvent(userId: string, amountVb: number): UserEventInput {
+  return {
+    userId,
+    category: "money",
+    kind: "drop_claim",
+    title: "🦈 Shark drop claimed",
+    body: `You just claimed a shark drop — ${amountVb.toLocaleString("en-US")} VB landed in your balance.`,
+    link: "/credit-history",
+  };
+}
+
+type SharkDropClaimEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _sharkDropClaimEventNotifier: SharkDropClaimEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setSharkDropClaimEventNotifier(
+  fn: SharkDropClaimEventNotifier | null,
+): void {
+  _sharkDropClaimEventNotifier = fn ?? notifyUserEvent;
+}
+
 /* POST /api/retention/shark-drop/claim — claim FIRST with a conditional
    UPDATE (claimed_at IS NULL is the lock), then credit the VB with a
    strict ledger write. Any payout failure releases the claim so the
@@ -304,6 +338,18 @@ router.post("/retention/shark-drop/claim", requireAuth, publicApiLimiter, async 
       }
       await releaseClaim().catch(() => {});
       throw ledgerErr;
+    }
+
+    /* The claim landed (flip + grant + strict ledger) — tell the
+       member (bell + device ping through notifyUserEvent).
+       Best-effort: a failing tell can never unwind a landed claim. */
+    try {
+      await _sharkDropClaimEventNotifier(buildSharkDropClaimEvent(userId, drop.amount));
+    } catch (notifyErr) {
+      logger.warn(
+        { notifyErr, userId, dropId: drop.id },
+        "[retention-delight] shark drop claim push failed (non-fatal)",
+      );
     }
 
     logger.info({ userId, dropId: drop.id, amount: drop.amount }, "[retention-delight] shark drop claimed");

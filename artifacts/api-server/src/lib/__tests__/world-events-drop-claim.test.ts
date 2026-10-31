@@ -66,9 +66,14 @@ vi.mock("../supabase-admin", () => ({
   }),
 }));
 
-import { claimSpectacleDrop } from "../world-events";
+import { claimSpectacleDrop, __setDropClaimEventNotifier } from "../world-events";
 
 beforeEach(() => {
+  /* Isolate the payout rail from the claim bell (lane N1): the
+     bell's notifications insert would otherwise land in this
+     harness's insert log and blur the ledger-row assertions. The
+     bell has its own suite (push-drop-claim-wiring.test.ts). */
+  __setDropClaimEventNotifier(async () => {});
   h.spentVb = 0;
   h.spendWeekArgs = [];
   h.grants = [];
