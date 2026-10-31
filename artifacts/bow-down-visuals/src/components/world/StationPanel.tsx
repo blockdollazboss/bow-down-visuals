@@ -35,6 +35,7 @@ import {
 import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
 import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
 import { GroupsDesk } from "@/components/world/native/GroupsDesk";
+import { EventsDesk } from "@/components/world/native/EventsDesk";
 import { ExploreDesk, MyProfileDesk } from "@/components/world/native/SocialWave2";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
 import {
@@ -1747,6 +1748,10 @@ export default function StationPanel(props: StationPanelProps) {
                   {/* Groups + forums (stack-100 #76/#77): the Hall's
                       promised crews, on the /api/groups rails. */}
                   <GroupsDesk isLight={isLight} isGuest={isGuest} />
+                  {/* Events (stack1100 parity): the Hall slate's
+                      promised third — browse / RSVP / host on the
+                      /api/events rails, in the room. */}
+                  <EventsDesk isLight={isLight} isGuest={isGuest} />
                 </div>
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
