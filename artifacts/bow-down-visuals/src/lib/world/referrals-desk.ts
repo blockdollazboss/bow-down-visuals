@@ -64,8 +64,8 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
 }
 
-function str(v: unknown): string {
-  return typeof v === "string" ? v : "";
+function str(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
 }
 
 function num(v: unknown): number {
