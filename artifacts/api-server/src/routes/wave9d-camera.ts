@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
-import { publicApiLimiter } from "../lib/rate-limit";
+import { publicApiLimiter, freeAiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
@@ -264,7 +264,7 @@ const designResponseSchema = z.object({
   summary: z.string().trim().max(300).optional().default(""),
 });
 
-router.post("/wave9d/camera/design", requireAuth, publicApiLimiter, async (req, res) => {
+router.post("/wave9d/camera/design", requireAuth, publicApiLimiter, freeAiLimiter, async (req, res) => {
   const parsed = designRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({

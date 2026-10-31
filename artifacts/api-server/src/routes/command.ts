@@ -2,6 +2,7 @@ import { Router } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
+import { freeAiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { storeSales, memberships, brandDeals, tips } from "./earnings";
@@ -398,7 +399,7 @@ panelRoute("/command/revenue", commandRevenue);
 panelRoute("/command/content", commandContent);
 panelRoute("/command/actions", commandActions);
 
-router.get("/command/brief", requireAuth, async (req, res) => {
+router.get("/command/brief", requireAuth, freeAiLimiter, async (req, res) => {
   const userId = req.userId!;
   /* Resilience contract (dashboard law, extended to this panel): the
      digest is built FIRST because it is both the model's evidence and
