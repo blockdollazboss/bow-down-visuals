@@ -13,6 +13,7 @@ import {
   createOnboardingLink,
   getConnectStatus,
   createPayoutTransfer,
+  findTransferForPayout,
   getUserEmail,
   persistConnectFlags,
   connectStateFromStored,
@@ -331,8 +332,76 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
       return;
     }
 
+    /* ── Lost-response reconciliation (money-hardening round 2) ──────
+       A payout whose Stripe transfer LANDED but whose response was
+       lost (timeout, connection reset after Stripe processed it)
+       sits in creator_payouts as 'failed' with NO transfer id — its
+       outcome is unknown, not negative. Before this block, a seller
+       retry minted a new payout row with a new idempotency key and
+       paid the same earnings a second time. Now: every unknown-
+       outcome failure is checked against Stripe first (the transfer
+       carries the payout's id in its metadata). A landed transfer is
+       ADOPTED — the failed row becomes the pending payout it always
+       was — and only the still-unpaid remainder can mint a new
+       payout below. If Stripe can't be asked, fail closed: sending
+       money we cannot prove wasn't already sent is the one outcome
+       worse than a delayed payout. */
+    let recoveredPayout: { id: string; amountCents: number; stripeTransferId: string } | null = null;
+    const unknownFailures = await db.execute(sql`
+      SELECT id, amount_cents, created_at FROM creator_payouts
+      WHERE profile_id = ${profileId} AND status = 'failed' AND stripe_transfer_id IS NULL
+      ORDER BY created_at ASC
+    `);
+    for (const failedRow of unknownFailures.rows as Array<Record<string, unknown>>) {
+      const failedId = String(failedRow["id"]);
+      let landed: Awaited<ReturnType<typeof findTransferForPayout>>;
+      try {
+        landed = await findTransferForPayout(
+          fields.accountId,
+          failedId,
+          new Date(failedRow["created_at"] as string).toISOString(),
+        );
+      } catch (lookupErr) {
+        logger.error(
+          { err: lookupErr, profileId, payoutId: failedId },
+          "[connect] payout reconciliation lookup failed — refusing to send until the earlier attempt's outcome is known",
+        );
+        res.status(503).json({
+          error: "PAYOUT_VERIFY_FAILED",
+          message: "We couldn't confirm whether an earlier payout already went through, so we didn't send it again. Try again in a few minutes.",
+        });
+        return;
+      }
+      if (landed) {
+        await db.execute(sql`
+          UPDATE creator_payouts
+          SET stripe_transfer_id = ${landed.id}, status = 'pending', updated_at = NOW()
+          WHERE id = ${failedId} AND status = 'failed'
+        `);
+        logger.error(
+          { profileId, payoutId: failedId, transferId: landed.id },
+          "[connect] payout reconciliation: an earlier attempt's transfer HAD landed — adopted it instead of paying twice",
+        );
+        recoveredPayout = {
+          id: failedId,
+          amountCents: Number(failedRow["amount_cents"]),
+          stripeTransferId: landed.id,
+        };
+      }
+    }
+
     const available = await pendingPayoutCents(profileId);
     if (available < MIN_PAYOUT_CENTS) {
+      if (recoveredPayout) {
+        /* The "retry" turned out to be the recovery of money already
+           sent — answer with the payout the seller actually has. */
+        res.json({
+          payout: { ...recoveredPayout, status: "pending" },
+          recovered: true,
+          testMode: isTestMode(),
+        });
+        return;
+      }
       res.status(400).json({
         error: "MINIMUM_NOT_MET",
         message: `You need at least $${(MIN_PAYOUT_CENTS / 100).toFixed(2)} pending to cash out.`,
@@ -375,6 +444,7 @@ router.post("/connect/payout", requireAuth, publicApiLimiter, async (req, res) =
         fields.accountId,
         available,
         `connect_payout_${payoutId}`,
+        { payoutId, profileId },
       );
       await db.execute(sql`
         UPDATE creator_payouts

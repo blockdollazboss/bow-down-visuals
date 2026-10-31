@@ -16,7 +16,8 @@
  *      then the per-rail grant rows keyed on the session id —
  *      fan_members, beat_licenses, digital_sales, shop_events,
  *      store_orders, live_shop_sales, tip_jar_tips, shoutout_requests,
- *      sponsor_deals — the same id every rail's verify path keys on.
+ *      sponsor_deals, performance_bookings — the same id every rail's
+ *      verify path keys on.
  *
  * Discipline, mirroring the grant side (payment-record.ts):
  *   - Insert-first claiming on payment_reversals (UNIQUE charge id)
@@ -215,6 +216,11 @@ async function identifyRail(
     if (deal) return deal;
   }
 
+  if (meta["performance_booking_id"]) {
+    const booking = await identifyPerformanceBooking(String(meta["performance_booking_id"]), sid);
+    if (booking) return booking;
+  }
+
   const probes: Array<() => Promise<IdentifiedRail | null>> = [
     async () => {
       const r = await db.execute(sql`
@@ -389,6 +395,62 @@ async function identifySponsorDeal(
     sessionId,
     grantedCredits: 0,
     details: { dealId: id, escrowStatus: String(row["escrow_status"]), dealStatus: String(row["status"]) },
+  };
+}
+
+/**
+ * Performance-booking escrow identification (money-hardening round
+ * 2). Before this probe the Book-the-Artist rail was invisible to
+ * the engine: its funding sessions carry performance_booking_id
+ * metadata, but no probe read them, so a refunded booking charge
+ * parked as 'unidentified' while the booking kept reading
+ * escrow_status='funded' — releasable against money Stripe had
+ * already returned (the same hole stack800 closed for PI-funded
+ * sponsor deals). Shape mirrors identifySponsorDeal exactly:
+ * released (paid) → manual review; otherwise the auto rail flips
+ * the escrow to 'refunded' on a full reversal. The probe is guarded
+ * like the sponsor PI probe: a database the performance-bookings
+ * migration hasn't reached degrades to unidentified (manual review),
+ * never a throw that would 500 the webhook into a retry loop over a
+ * charge only a human can settle.
+ */
+async function identifyPerformanceBooking(
+  bookingId: string,
+  sessionId: string,
+): Promise<IdentifiedRail | null> {
+  let row: Row | undefined;
+  try {
+    const r = await db.execute(sql`
+      SELECT id, escrow_status, status, artist_payout_cents
+      FROM performance_bookings WHERE id = ${bookingId} LIMIT 1
+    `);
+    row = firstRow(r);
+  } catch (err) {
+    logger.error(
+      { err, bookingId },
+      "payment reversal: performance_bookings probe failed — treating the charge as unidentified (manual review)",
+    );
+    return null;
+  }
+  if (!row) return null;
+  const id = String(row["id"]);
+  if (String(row["status"]) === "paid" || row["artist_payout_cents"] != null) {
+    return {
+      rail: "performance_booking",
+      userId: null,
+      sessionId,
+      grantedCredits: 0,
+      manual:
+        "Performance booking escrow already released to the artist — the artist side may already be settled; a human reconciles.",
+      details: { bookingId: id, escrowStatus: String(row["escrow_status"]), bookingStatus: String(row["status"]) },
+    };
+  }
+  return {
+    rail: "performance_booking",
+    userId: null,
+    sessionId,
+    grantedCredits: 0,
+    details: { bookingId: id, escrowStatus: String(row["escrow_status"]), bookingStatus: String(row["status"]) },
   };
 }
 
@@ -743,6 +805,24 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
       const s = await db.execute(sql`
         UPDATE sponsor_deals SET escrow_status = 'unfunded'
         WHERE id = ${dealId} AND escrow_status = 'funded'
+        RETURNING id
+      `);
+      return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
+    }
+    case "performance_booking": {
+      /* Funded but never released (released bookings are
+         manual-review at identification): flip the escrow to the
+         rail's own refunded state — the same state its cancel path
+         writes — so it can never be released against refunded money.
+         The booking status is deliberately untouched: a refund is
+         not a cancellation, and a later cancel still runs (its
+         refund attempt finds the charge already refunded and the
+         state already here). */
+      const bookingId = String(ident.details["bookingId"] ?? "");
+      if (!bookingId) return { entitlement: false, seller: false };
+      const s = await db.execute(sql`
+        UPDATE performance_bookings SET escrow_status = 'refunded', updated_at = NOW()
+        WHERE id = ${bookingId} AND escrow_status = 'funded'
         RETURNING id
       `);
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };

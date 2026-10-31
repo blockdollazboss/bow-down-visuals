@@ -409,6 +409,7 @@ export async function createPayoutTransfer(
   accountId: string,
   amountCents: number,
   idempotencyKey: string,
+  metadata?: { payoutId: string; profileId: string },
 ): Promise<Stripe.Transfer> {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     throw new Error("payout amount must be a positive integer of cents");
@@ -420,9 +421,47 @@ export async function createPayoutTransfer(
       currency: "usd",
       destination: accountId,
       description: "Bow Down Visuals creator payout",
+      /* The payout id rides the transfer itself (money-hardening
+         round 2): it is the ONLY handle by which a later payout
+         attempt can prove whether THIS attempt's transfer landed
+         when its response was lost — see findTransferForPayout. */
+      ...(metadata
+        ? { metadata: { payout_id: metadata.payoutId, profile_id: metadata.profileId } }
+        : {}),
     },
     { idempotencyKey },
   );
+}
+
+/**
+ * Find the transfer a payout attempt actually created at Stripe, or
+ * null when no transfer for it exists. The reconciliation read for
+ * the lost-response hole (money-hardening round 2): a transfer can
+ * land at Stripe while its response never reaches us — the payout
+ * row flips to 'failed' with no transfer id, and before this read
+ * existed a seller retry minted a NEW payout row with a NEW
+ * idempotency key and paid the same earnings twice. Matching is by
+ * the payout_id metadata createPayoutTransfer stamps — never by
+ * amount (amounts repeat; a wrong adoption is worse than none).
+ * The created-window starts a few minutes before the payout row
+ * (clock skew) — a payout's transfer cannot predate its row.
+ */
+export async function findTransferForPayout(
+  accountId: string,
+  payoutId: string,
+  payoutCreatedAt: string,
+): Promise<Stripe.Transfer | null> {
+  const stripe = getConnectStripe();
+  const sinceSec = Math.floor(new Date(payoutCreatedAt).getTime() / 1000) - 300;
+  const page = await stripe.transfers.list({
+    destination: accountId,
+    created: { gte: sinceSec },
+    limit: 100,
+  });
+  for (const transfer of page.data) {
+    if (transfer.metadata?.["payout_id"] === payoutId) return transfer;
+  }
+  return null;
 }
 
 /* account.updated webhook → keep the profile flags in sync.

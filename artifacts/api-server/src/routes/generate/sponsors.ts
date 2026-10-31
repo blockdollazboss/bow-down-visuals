@@ -10,6 +10,7 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, canUseCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { escrowHeldCents } from "../../lib/escrow-held";
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Money rules (standing pricing rule: AI/compute burns credits, pure UI is free):
@@ -1089,31 +1090,78 @@ router.post("/sponsors/deals/:id/release", requireAuth, publicApiLimiter, async 
       res.status(409).json({ error: "This deal has no agreed payout to release." });
       return;
     }
-    const { feeCents, netCents } = sponsorFeeSplit(gross);
+    /* ── Release only what is still held (money-hardening round 2) ──
+       A partial refund against the funding charge leaves the escrow
+       'funded' by design (the reversal engine keeps entitlements on
+       partials), so the agreed figure is NOT what the platform still
+       holds. Splitting the stale gross would promise the creator
+       money already returned to the brand — released + refunded >
+       charged. escrowHeldCents unions Stripe's live charge state
+       with the reversal ledger (lost disputes live only there); a
+       Stripe read failure fails closed — no release on a guess. */
+    let held: Awaited<ReturnType<typeof escrowHeldCents>>;
+    try {
+      held = await escrowHeldCents({
+        stripe: isStripeConfigured() ? createGuardedStripeClient() : null,
+        paymentIntentId: deal.stripe_payment_intent_id,
+        grossCents: gross,
+      });
+    } catch (err) {
+      logger.error({ err, dealId }, "[sponsors] escrow release: held-amount verification failed — release refused");
+      res.status(503).json({ error: "Couldn't verify the escrow balance just now — no money moved. Try again in a moment." });
+      return;
+    }
+    if (held.heldCents <= 0) {
+      res.status(409).json({ error: "The escrow payment was refunded in full — there is nothing left to release." });
+      return;
+    }
+    const releaseGross = held.heldCents;
+    const { feeCents, netCents } = sponsorFeeSplit(releaseGross);
     /* Fast-path idempotency check (pg-mem can't plan ON CONFLICT against
        the table-level UNIQUE(deal_id); the status guard below is the
        production race guard since release only runs from 'completed'). */
     const existingPayout = await db.execute(sql`
       SELECT id FROM sponsor_payouts WHERE deal_id = ${dealId} LIMIT 1
     `);
+    let insertedPayoutId: string | null = null;
     if (existingPayout.rows.length === 0) {
+      insertedPayoutId = randomUUID();
       await db.execute(sql`
         INSERT INTO sponsor_payouts (id, deal_id, creator_user_id, gross_cents, fee_cents, net_cents, status)
-        VALUES (${randomUUID()}, ${dealId}, ${deal.accepted_user_id}, ${gross}, ${feeCents}, ${netCents}, 'released')
+        VALUES (${insertedPayoutId}, ${dealId}, ${deal.accepted_user_id}, ${releaseGross}, ${feeCents}, ${netCents}, 'released')
       `);
     }
-    await db.execute(sql`
+    /* The flip is a conditional claim, not a blind write: between
+       the read above and this UPDATE, a full-refund reversal can
+       un-fund the escrow (or a racing release can land). The old
+       unconditional UPDATE overwrote either — a refunded deal came
+       back 'released' with a payable payout row. Zero rows flipped
+       means the state moved: void the just-written payout row (it
+       was never settled against anything) and answer honestly. */
+    const flipped = await db.execute(sql`
       UPDATE sponsor_deals
       SET status = 'paid', escrow_status = 'released',
           platform_fee_cents = ${feeCents}, creator_payout_cents = ${netCents},
           paid_at = NOW()
-      WHERE id = ${dealId}
+      WHERE id = ${dealId} AND status = 'completed' AND escrow_status = 'funded'
+      RETURNING id
     `);
-    logger.info({ dealId, gross, feeCents, netCents }, "[sponsors] escrow released — platform fee collected");
+    if (flipped.rows.length === 0) {
+      if (insertedPayoutId) {
+        await db.execute(sql`DELETE FROM sponsor_payouts WHERE id = ${insertedPayoutId}`).catch(() => undefined);
+      }
+      res.status(409).json({ error: "This deal's escrow just changed — refresh and try again." });
+      return;
+    }
+    logger.info(
+      { dealId, gross, releaseGross, refundedCents: held.refundedCents, feeCents, netCents },
+      "[sponsors] escrow released — platform fee collected",
+    );
     res.json({
       success: true,
       status: "paid",
-      grossCents: gross,
+      grossCents: releaseGross,
+      ...(held.refundedCents > 0 ? { refundedCents: held.refundedCents } : {}),
       platformFeeCents: feeCents,
       creatorPayoutCents: netCents,
     });
