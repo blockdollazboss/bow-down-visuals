@@ -72,6 +72,29 @@ export default defineConfig({
           ) {
             return "vendor-radix";
           }
+          // Speed-truth (Stack1000 N3): two tiny shared leaves — clsx (the
+          // cn() helper nearly every component imports) and
+          // use-sync-external-store/shim (wouter + react-i18next import it)
+          // — are ALSO imported inside recharts' dependency tree (clsx
+          // directly; the shim via react-redux). Rolldown's grouping parks
+          // an unpinned shared leaf inside the manual chunk of its
+          // heaviest importer: both leaves landed inside vendor-recharts,
+          // so every first load statically dragged the whole chart library
+          // (373,439 B, modulepreloaded in index.html) for ~6 KB of
+          // helpers, though recharts is used only by the lazy
+          // analytics-hub route. Pin both leaves to one tiny shared vendor
+          // chunk so vendor-recharts stays behind the route that uses it.
+          // (Chunk name kept as "vendor-clsx" — the first pin's name:
+          // renaming the target to "vendor-shared" was measured to make
+          // Rolldown merge the leaves straight back into vendor-recharts,
+          // so the proven name stays and this comment carries the truth
+          // about what's inside.)
+          if (
+            /[\\/]node_modules[\\/]clsx[\\/]/.test(id) ||
+            /[\\/]node_modules[\\/]use-sync-external-store[\\/]/.test(id)
+          ) {
+            return "vendor-clsx";
+          }
           // Stack-28 #51: recharts is used ONLY by the analytics-hub route — keep it in
           // its own vendor chunk so the hub's panel code stays lean and
           // the chart library's size is visible on its own line.
