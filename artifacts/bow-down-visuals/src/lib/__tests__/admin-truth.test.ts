@@ -133,3 +133,27 @@ describe("C4 — the floating admin panel gates on the server predicate", () => 
     expect(panel).toContain("if (isAdmin !== true) return null;");
   });
 });
+
+/**
+ * C5 — the Jewelry Reservations header showed ({orders.length}) —
+ * the length of a list the server caps at 500 rows — as the
+ * reservations count. The admin orders response now carries the
+ * table's exact total and the header renders it (falling back to the
+ * page length only while no total has loaded). The figure behaviour
+ * is pinned behaviourally in the API guard sweep (505 seeded orders
+ * → total 505 over a 500-row page).
+ */
+describe("C5 — the jewelry reservations count is the server's total", () => {
+  const comp = read("../../components/JewelryOrdersAdmin.tsx");
+  const route = read("../../../../api-server/src/routes/jewelry.ts");
+
+  it("the component renders the server total, not the page length", () => {
+    expect(comp).toContain("({total ?? orders.length})");
+    expect(comp).toContain("json.total");
+  });
+
+  it("the route answers an exact count alongside the page", () => {
+    expect(route).toContain('count: "exact", head: true');
+    expect(route).toContain("total: count ?? orders.length");
+  });
+});
