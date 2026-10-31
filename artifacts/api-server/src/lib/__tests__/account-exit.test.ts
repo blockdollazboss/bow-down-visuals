@@ -62,6 +62,8 @@ CREATE TABLE creator_subscriptions (
 CREATE TABLE store_products (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE);
 CREATE TABLE posts (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE);
 CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE playlists (id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE);
+CREATE TABLE playlist_follows (user_id uuid NOT NULL, playlist_id uuid NOT NULL REFERENCES playlists(id) ON DELETE CASCADE, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE gift_cards (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL REFERENCES creator_profiles(id) ON DELETE CASCADE,
   buyer_user_id uuid, status text NOT NULL DEFAULT 'active', balance_cents integer NOT NULL DEFAULT 0);
@@ -274,6 +276,8 @@ describe("revokeAccountSessions", () => {
 describe("eraseAccountData", () => {
   function seedContent() {
     const vault = randomUUID();
+    const userPlaylist = randomUUID();
+    const otherPlaylist = randomUUID();
     const song = randomUUID();
     const album = randomUUID();
     mem.public.none(`
@@ -296,6 +300,8 @@ describe("eraseAccountData", () => {
       INSERT INTO posts (id, profile_id) VALUES ('${randomUUID()}', '${PROFILE}');
       INSERT INTO store_products (id, profile_id) VALUES ('${randomUUID()}', '${PROFILE}');
       INSERT INTO follows (follower_user_id, profile_id) VALUES ('${USER}', '${OTHER_PROFILE}'), ('${OTHER}', '${PROFILE}');
+      INSERT INTO playlists (id, profile_id) VALUES ('${userPlaylist}', '${PROFILE}'), ('${otherPlaylist}', '${OTHER_PROFILE}');
+      INSERT INTO playlist_follows (user_id, playlist_id) VALUES ('${USER}', '${otherPlaylist}'), ('${OTHER}', '${userPlaylist}'), ('${OTHER}', '${otherPlaylist}');
       INSERT INTO shop_products (id, user_id, status) VALUES ('${randomUUID()}', '${USER}', 'active');
     `);
     return { vault, song, album };
@@ -324,6 +330,14 @@ describe("eraseAccountData", () => {
       expect(q(`SELECT * FROM ${table};`), table).toHaveLength(0);
     }
     expect(q(`SELECT * FROM creator_profiles WHERE id = '${PROFILE}';`)).toHaveLength(0);
+    // Playlist follows (migration 0303, join-composed R2×M3): the row BY
+    // the member is erased by the explicit delete; the row pointing at
+    // the member's own playlist cascades with it; the other member's
+    // follow of their own playlist — and that playlist — stand.
+    const pf = q(`SELECT user_id FROM playlist_follows;`);
+    expect(pf).toHaveLength(1);
+    expect(pf[0].user_id).toBe(OTHER);
+    expect(q(`SELECT * FROM playlists;`)).toHaveLength(1);
     // The shop's products are paused, not deleted — the shop record stays.
     const shop = q(`SELECT status FROM shop_products WHERE user_id = '${USER}';`);
     expect(shop).toHaveLength(1);

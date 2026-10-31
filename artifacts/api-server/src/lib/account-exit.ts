@@ -57,6 +57,7 @@ import {
   giftCardsTable,
   hubProjectsTable,
   performanceBookingsTable,
+  playlistFollowsTable,
   projectDraftsTable,
   shopProductsTable,
   songDjAnalysisTable,
@@ -338,6 +339,12 @@ export async function eraseAccountData(userId: string): Promise<void> {
 
     /* Follows BY this member (follows TO their profile cascade with it). */
     await tx.delete(followsTable).where(eq(followsTable.followerUserId, userId));
+
+    /* Playlist follows BY this member (migration 0303's rows, composed
+     * at the stack1000 join — M3's table post-dates this erasure set.
+     * Follows of the member's OWN playlists cascade with those playlists
+     * when the profile goes below.) */
+    await tx.delete(playlistFollowsTable).where(eq(playlistFollowsTable.userId, userId));
 
     /* The public creator identity — last, so its cascades take the
      * whole public surface (posts, stories, playlists, store, tracks,

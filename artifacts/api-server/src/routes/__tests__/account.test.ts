@@ -106,6 +106,8 @@ CREATE TABLE beat_license_templates (id uuid PRIMARY KEY, producer_id uuid NOT N
 CREATE TABLE shop_products (id uuid PRIMARY KEY, user_id uuid NOT NULL, status text NOT NULL DEFAULT 'active');
 CREATE TABLE bio_pages (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 CREATE TABLE follows (follower_user_id uuid NOT NULL, profile_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE playlists (id uuid PRIMARY KEY, profile_id uuid NOT NULL);
+CREATE TABLE playlist_follows (user_id uuid NOT NULL, playlist_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
 `;
 
 const USER = randomUUID();
