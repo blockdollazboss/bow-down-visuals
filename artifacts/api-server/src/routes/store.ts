@@ -1462,7 +1462,12 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
 
   let session: Stripe.Checkout.Session;
   try {
-    session = await stripe.checkout.sessions.retrieve(sessionId);
+    /* Expand the payment intent's latest charge (money-hardening
+       round 2): the refunded-payment guard below reads the charge's
+       refund state from this same object — no extra Stripe call. */
+    session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent.latest_charge"],
+    });
   } catch {
     res.status(400).json({ error: "Could not retrieve this checkout session." });
     return;
@@ -1594,6 +1599,76 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       duplicate = true;
       logger.info({ sessionId, saleId }, "[store] verify: duplicate ignored, sale already recorded");
     } else {
+      /* ── REFUNDED-PAYMENT GUARD (money-hardening round 2, area 3) ──
+         This is the one verify path with no refund check: if the
+         payment was ALREADY refunded in full before the buyer first
+         verified — a dashboard refund, a lost dispute, or the D5
+         auto-refund racing a slow buyer — no digital_sales row
+         existed for the reversal engine to revoke (it parks the
+         charge 'unidentified'), and the code below would record the
+         sale, mint download links and license keys, and credit the
+         seller's payout ledgers: goods and seller earnings against
+         money the buyer already got back. A fully reversed payment
+         now refuses delivery outright. PARTIAL refunds keep the
+         engine's entitlement-kept posture and verify normally.
+
+         Two witnesses, either sufficient: the reversal ledger (a
+         lost dispute never shows on the charge's refund counters),
+         and the expanded charge on this very session (refunded in
+         full at Stripe). The ledger leg is guarded — a store test
+         database without the reversals table degrades to the Stripe
+         witness alone, never a 500 on a paid order. A sale already
+         recorded is the engine's domain (it revokes on
+         charge.refunded) and is deliberately NOT re-judged here. */
+      const piId = typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : (session.payment_intent?.id ?? null);
+      let fullyReversed = false;
+      if (piId) {
+        try {
+          const led = await db.execute(sql`
+            SELECT dispute_lost, refunded_cents_seen, charge_amount_cents
+            FROM payment_reversals WHERE stripe_payment_intent_id = ${piId}
+          `);
+          for (const r of led.rows as Array<Record<string, unknown>>) {
+            const chargeAmt = Number(r["charge_amount_cents"] ?? 0);
+            if (
+              r["dispute_lost"] === true ||
+              (chargeAmt > 0 && Number(r["refunded_cents_seen"] ?? 0) >= chargeAmt)
+            ) {
+              fullyReversed = true;
+              break;
+            }
+          }
+        } catch (err) {
+          logger.warn(
+            { err, sessionId },
+            "[store] verify: reversal-ledger probe failed — relying on the Stripe charge state alone",
+          );
+        }
+        const piObj = typeof session.payment_intent === "object" ? session.payment_intent : null;
+        const latestCharge = (piObj as { latest_charge?: unknown } | null)?.latest_charge;
+        if (latestCharge && typeof latestCharge === "object") {
+          const c = latestCharge as { refunded?: boolean; amount_refunded?: number; amount?: number };
+          if (
+            c.refunded === true ||
+            (typeof c.amount === "number" && c.amount > 0 && (c.amount_refunded ?? 0) >= c.amount)
+          ) {
+            fullyReversed = true;
+          }
+        }
+      }
+      if (fullyReversed) {
+        logger.error(
+          { sessionId, paymentIntentId: piId },
+          "[store] verify: refusing delivery — the payment was already refunded in full",
+        );
+        res.status(400).json({
+          error: "This payment was refunded in full, so there's nothing left to deliver. If you didn't ask for the refund, contact support and we'll sort it out.",
+          refunded: true,
+        });
+        return;
+      }
       const inserted = splits.bump
         ? await db.execute(sql`
             INSERT INTO digital_sales
