@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { shouldCountView, viewKey } from "../lib/view-counting";
 import { db, contentPlansTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 
@@ -101,18 +102,23 @@ router.get("/content-plans/p/:slug", publicApiLimiter, async (req, res) => {
       res.status(404).json({ error: "Content plan not found." });
       return;
     }
-    // Fire-and-forget view count — never block the read.
-    db.update(contentPlansTable)
-      .set({ views: sql`${contentPlansTable.views} + 1` })
-      .where(eq(contentPlansTable.id, item.id))
-      .catch(() => {});
+    // Fire-and-forget view count — never block the read. Deduped per
+    // viewer+item (lib/view-counting); the echoed count only claims
+    // the +1 when it landed.
+    const countIt = shouldCountView(viewKey("content-plan", item.id, req.ip));
+    if (countIt) {
+      db.update(contentPlansTable)
+        .set({ views: sql`${contentPlansTable.views} + 1` })
+        .where(eq(contentPlansTable.id, item.id))
+        .catch(() => {});
+    }
     res.json({
       slug: item.slug,
       title: item.title,
       plan: item.plan,
       creatorName: item.creator_name,
       includeCredit: item.include_credit,
-      views: item.views + 1,
+      views: item.views + (countIt ? 1 : 0),
       createdAt: item.created_at,
     });
   } catch (err) {

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { shouldCountView, viewKey } from "../lib/view-counting";
 import { db, bioPagesTable, bioLinkClicksTable, BIO_THEME_KEYS, BIO_LINK_ICON_KEYS } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -398,11 +399,14 @@ router.get("/bio-pages/public/:slug", async (req: Request, res: Response) => {
       res.status(404).json({ ok: false, error: "Page not found" });
       return;
     }
-    // Best-effort view count (analytics only — not money).
-    db.update(bioPagesTable)
-      .set({ viewCount: sql`${bioPagesTable.viewCount} + 1` })
-      .where(eq(bioPagesTable.id, page.id))
-      .then(() => undefined, () => undefined);
+    // Best-effort view count (analytics only — not money). Deduped
+    // per viewer+item (lib/view-counting) so refreshes can't mint.
+    if (shouldCountView(viewKey("bio-page", page.id, req.ip))) {
+      db.update(bioPagesTable)
+        .set({ viewCount: sql`${bioPagesTable.viewCount} + 1` })
+        .where(eq(bioPagesTable.id, page.id))
+        .then(() => undefined, () => undefined);
+    }
     // Owner's referral code so shared URLs carry ?ref=CODE (viral earning loop).
     let referralCode: string | null = null;
     try {
