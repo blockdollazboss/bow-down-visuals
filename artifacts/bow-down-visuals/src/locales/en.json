@@ -10004,6 +10004,8 @@
     "edit": "Edit",
     "editTitle": "Edit press kit",
     "emptyKits": "No press kits yet — create your first.",
+    "kitsLoadError": "Couldn't load your press kits — your kits are safe, this just couldn't reach them.",
+    "retryLoad": "Try again",
     "errors": {
       "bioRefreshFailed": "Bio refresh failed.",
       "generationFailed": "Generation failed.",

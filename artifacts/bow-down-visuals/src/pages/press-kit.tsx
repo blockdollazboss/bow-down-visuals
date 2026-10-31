@@ -85,6 +85,8 @@ export default function PressKitBuilder() {
   const { addAsset } = useHubProject();
   const [vaults, setVaults] = useState<Vault[]>([]);
   const [kits, setKits] = useState<PressKit[]>([]);
+  const [kitsError, setKitsError] = useState(false);
+  const [sourcesRetryNonce, setSourcesRetryNonce] = useState(0);
   const [selectedKit, setSelectedKit] = useState<PressKit | null>(null);
   const [editing, setEditing] = useState(false);
 
@@ -130,7 +132,10 @@ export default function PressKitBuilder() {
     (async () => {
       /* Per-source settle (S27-44): vaults and kits are independent —
          a rejected fetch for one must not discard the other. Each is
-         non-fatal on its own, as before. */
+         non-fatal on its own, as before. Per-source TRUTH (error-truth-2):
+         a failed kits leg renders its error line, never "No press kits
+         yet" — the settle protects the legs from each other, not from
+         their own failures. */
       const [vSettled, kSettled] = await Promise.allSettled([
         fetch("/api/artist-vaults", { credentials: "include" }),
         fetch("/api/press-kit/mine", { credentials: "include" }),
@@ -141,10 +146,17 @@ export default function PressKitBuilder() {
       }
       if (kSettled.status === "fulfilled" && kSettled.value.ok) {
         const k = await kSettled.value.json().catch(() => null);
-        if (k) setKits(k.kits ?? []);
+        if (k) {
+          setKits(k.kits ?? []);
+          setKitsError(false);
+        } else {
+          setKitsError(true);
+        }
+      } else {
+        setKitsError(true);
       }
     })();
-  }, [user]);
+  }, [user, sourcesRetryNonce]);
 
   useEffect(() => {
     if (vaultId && !artistName) {
@@ -457,7 +469,19 @@ export default function PressKitBuilder() {
                   <div className={`text-xs truncate ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>/press/{k.handle}</div>
                 </button>
               ))}
-              {kits.length === 0 && (
+              {kitsError && kits.length === 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={`text-sm ${isLight ? "text-[#8A7A56]" : "text-white/40"}`}>{t("press-kit.kitsLoadError", { defaultValue: "Couldn't load your press kits — your kits are safe, this just couldn't reach them." })}</p>
+                  <button
+                    type="button"
+                    onClick={() => setSourcesRetryNonce((n) => n + 1)}
+                    className="text-sm font-semibold text-primary hover:underline"
+                    data-testid="btn-retry-kits"
+                  >
+                    {t("press-kit.retryLoad", { defaultValue: "Try again" })}
+                  </button>
+                </div>
+              ) : kits.length === 0 && (
                 <p className={`text-sm ${isLight ? "text-[#8A7A56]" : "text-white/30"}`}>{t("press-kit.emptyKits")}</p>
               )}
             </div>
