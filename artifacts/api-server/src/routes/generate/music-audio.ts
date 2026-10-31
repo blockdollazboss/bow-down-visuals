@@ -211,6 +211,47 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the first provider call, and every failure
+     exit from here refunds it in full. This handler used to generate,
+     upload, and save history first and charge last: the affordability
+     pre-check above reads the balance snapshot taken at auth, so a
+     burst of concurrent requests all passed it against the same
+     balance — every one burned real ElevenLabs money, and all but the
+     first charge then failed, leaving the spend uncharged. Charging
+     first makes the balance itself the pace: chargeCredits re-reads
+     fresh and refuses past it, so a loop can never outrun the member's
+     own Bucs. Same price, same action name — only the order moved. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Generate Audio" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
+      });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    // Same response the old post-generation charge produced for an
+    // unexpected charge failure (its outer catch rendered the message).
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Generation failed" });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    try {
+      await refundCredits(req.userId!, creditCost, { action: "Generate Audio — Refund" });
+    } catch (refundErr) {
+      req.log.error({ err: refundErr }, "generate-music-audio: refund failed");
+    }
+  };
 
   // Pin the music model explicitly — the API default can lag behind releases.
   // Override with ELEVENLABS_MUSIC_MODEL if a newer model ships.
@@ -324,6 +365,7 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
         await r2Upload(r2Key, finalBuffers[v], "audio/mpeg");
       } catch (upErr) {
         req.log.error({ err: upErr }, "generate-music-audio: upload failed");
+        await refundCharge();
         res.status(500).json({ error: "Could not save the generated audio.", code: "upload_failed" });
         return;
       }
@@ -335,7 +377,8 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
       });
     }
 
-    // Step 1: Save to history FIRST (throws → outer catch returns 500, no credits charged)
+    // Step 1: Save to history (throws → outer catch refunds the
+    // reserve-at-start charge and returns 500).
     const genHistoryId = await recordGenerationHistory({
       userId:         req.userId!,
       generationType: "Generate Audio",
@@ -346,24 +389,8 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
       creditsUsed:    creditCost,
     });
 
-    // Step 2: Deduct credits only after history is confirmed saved.
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Generate Audio" });
-    } catch (deductErr) {
-      if (deductErr instanceof OutOfCreditsError) {
-        res.status(402).json({
-          error: "out_of_credits",
-          message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
-        });
-        return;
-      }
-      if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw deductErr;
-    }
+    // (The charge itself already landed at reserve-at-start, above —
+    // `creditsAfter` is the balance it returned.)
 
     // Step 3: Persist every variant in the song library (source:
     // "generated") — the same post-charge library save covers and
@@ -428,11 +455,7 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
       // and fail loudly rather than strand a paid generation outside
       // the library it was promised to.
       req.log.error({ err: libErr }, "generate-music-audio: library save failed, refunding");
-      try {
-        await refundCredits(req.userId!, creditCost, { action: "Generate Audio — Refund" });
-      } catch (refundErr) {
-        req.log.error({ err: refundErr }, "generate-music-audio: refund failed");
-      }
+      await refundCharge();
       res.status(500).json({ error: "Could not save the song to your library. Your Visual Bucs were refunded." });
       return;
     }
@@ -458,6 +481,9 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     req.log.error({ err }, "generate-music-audio: unexpected error");
+    // Reserve-at-start: any failure that reaches here (provider error,
+    // empty audio, history write) refunds the charge in full.
+    await refundCharge();
     res.status(500).json({ error: message });
   }
 };
@@ -608,6 +634,37 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Reserve at job start (spend-pacing, stack1000 P2): same reorder as
+     the main endpoint — the charge lands before the ElevenLabs call and
+     every failure exit below refunds it, so concurrent extensions can
+     no longer each pass the snapshot pre-check and burn provider money
+     against one balance. Same price, same action name. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Extend Audio" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
+      return;
+    }
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Extension failed" });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    try {
+      await refundCredits(req.userId!, creditCost, { action: "Extend Audio — Refund" });
+    } catch (refundErr) {
+      req.log.error({ err: refundErr }, "generate-music-audio/extend: refund failed");
+    }
+  };
+
   const musicModel = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
 
   // Continuation prompt: carry the original's style into the new section.
@@ -656,7 +713,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     }
     const extendedUrl = r2PublicUrl(r2Key);
 
-    // 4. History + charge (same pattern as the main endpoint).
+    // 4. History (the charge already landed at reserve-at-start).
     const genHistoryId = await recordGenerationHistory({
       userId: req.userId!,
       generationType: "Extend Audio",
@@ -666,21 +723,6 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
       songTitle: songTitle ? `${songTitle} (Extended)` : undefined,
       creditsUsed: creditCost,
     });
-
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Extend Audio" });
-    } catch (deductErr) {
-      if (deductErr instanceof OutOfCreditsError) {
-        res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-        return;
-      }
-      if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
-        return;
-      }
-      throw deductErr;
-    }
 
     // Step 4: Persist the extended song in the song library (source:
     // "generated") — the same post-charge library save the main
@@ -741,11 +783,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
       // and fail loudly rather than strand a paid extension outside
       // the library it was promised to.
       req.log.error({ err: libErr }, "generate-music-audio/extend: library save failed, refunding");
-      try {
-        await refundCredits(req.userId!, creditCost, { action: "Extend Audio — Refund" });
-      } catch (refundErr) {
-        req.log.error({ err: refundErr }, "generate-music-audio/extend: refund failed");
-      }
+      await refundCharge();
       res.status(500).json({ error: "Could not save the extended song to your library. Your Visual Bucs were refunded." });
       return;
     }
@@ -767,6 +805,8 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Extension failed";
     req.log.error({ err }, "generate-music-audio/extend: failed");
+    // Reserve-at-start: provider/join/upload/history failures refund.
+    await refundCharge();
     res.status(500).json({ error: message });
   }
 });

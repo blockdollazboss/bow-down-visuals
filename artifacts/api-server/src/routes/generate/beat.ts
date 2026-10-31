@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
 
 const router = Router();
@@ -93,6 +93,38 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the ElevenLabs call; every failure exit
+     below refunds it. This handler used to generate, upload, and save
+     history first and charge last — the pre-check above reads the
+     auth-time balance snapshot, so concurrent requests all passed it
+     against one balance, each burned real provider money, and all but
+     the first charge failed. Same price, same action name. */
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Generate Beat" });
+  } catch (deductErr) {
+    if (deductErr instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You are out of Visual Bucs. Top up to keep making beats.",
+      });
+      return;
+    }
+    if (deductErr instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \\u2014 no Visual Bucs were charged. Please try again." });
+      return;
+    }
+    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Generation failed" });
+    return;
+  }
+  let chargeLive = true;
+  const refundCharge = async () => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Generate Beat — Refund" }).catch(() => {});
+  };
+
   const prompt = buildBeatPrompt({
     vibe,
     genre,
@@ -119,6 +151,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     if (!elevenRes.ok) {
       const errText = await elevenRes.text().catch(() => "");
       req.log.error({ status: elevenRes.status, errText }, "beat/generate: ElevenLabs request failed");
+      await refundCharge();
       res.status(502).json({
         error: "Beat generation failed. Try a different vibe or try again shortly.",
         code: "audio_gen_failed",
@@ -130,6 +163,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     const buffer = Buffer.from(arrayBuffer);
 
     if (buffer.length === 0) {
+      await refundCharge();
       res.status(502).json({ error: "Beat generation returned no audio.", code: "audio_gen_empty" });
       return;
     }
@@ -140,12 +174,13 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
       await r2Upload(r2Key, buffer, "audio/mpeg");
     } catch (upErr) {
       req.log.error({ err: upErr }, "beat/generate: upload failed");
+      await refundCharge();
       res.status(500).json({ error: "Could not save the generated beat.", code: "upload_failed" });
       return;
     }
     const beatUrl = r2PublicUrl(r2Key);
 
-    // Step 1: Save to history FIRST (throws → outer catch returns 500, no credits charged)
+    // Save to history (throws → outer catch refunds the reserve).
     const genHistoryId = await recordGenerationHistory({
       userId:         req.userId!,
       generationType: "Generate Beat",
@@ -155,25 +190,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
       creditsUsed:    CREDIT_COST,
     });
 
-    // Step 2: Deduct credits only after history is confirmed saved.
-    let creditsAfter: number;
-    try {
-      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Generate Beat" });
-    } catch (deductErr) {
-      if (deductErr instanceof OutOfCreditsError) {
-        res.status(402).json({
-          error: "out_of_credits",
-          message: "You are out of Visual Bucs. Top up to keep making beats.",
-        });
-        return;
-      }
-      if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
-        return;
-      }
-      throw deductErr;
-    }
-
+    // (The charge already landed at reserve-at-start, above.)
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
@@ -187,6 +204,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     req.log.error({ err }, "beat/generate: unexpected error");
+    await refundCharge();
     res.status(500).json({ error: message });
   }
 });
