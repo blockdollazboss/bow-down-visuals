@@ -173,7 +173,15 @@ describe("touch patterns 2.5: M4's two observed controls", () => {
   });
 
   it("ReportButton's icon default is untouched by this lane", () => {
-    expect(reportButton).toContain("rounded-full p-2 text-neutral-400");
+    /* Join composition (stack1000): on this lane's base the icon default
+       was the pre-M4 "rounded-full p-2 …" string this pin originally
+       asserted. M4's lane legitimately lifted that default to
+       p-[14px] -m-[6px] (its own pin file guards the landing math).
+       The intent here stands — N4 changed only the TEXT variant — so
+       the pin now asserts the composed truth: the icon default carries
+       M4's lift verbatim, and the old p-2 string is gone. */
+    expect(reportButton).toContain("rounded-full p-[14px] -m-[6px] text-neutral-400");
+    expect(reportButton).not.toContain("rounded-full p-2 text-neutral-400");
   });
 
   it("post.tsx's filled CTA pill — both instances land on 44, slot rebalanced", () => {
