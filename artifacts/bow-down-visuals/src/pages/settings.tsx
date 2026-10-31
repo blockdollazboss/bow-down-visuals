@@ -75,6 +75,19 @@ const SOCIAL_MESSAGE_KEYS: Record<string, { titleKey: string; descKey: string; d
 };
 
 /* ─── Danger Zone: export data / delete account ─────────────────────────── */
+/* The server's plain sentence for a failed account action (L1 error
+   truth): a 409 from DELETE /api/account carries the exact blockers,
+   a 502 the failed plan cancel. Returns "" when the response carries
+   no usable sentence, so callers fall back to the generic line. */
+async function serverSentence(res: Response): Promise<string> {
+  try {
+    const data = (await res.json()) as { error?: unknown } | null;
+    return typeof data?.error === "string" ? data.error : "";
+  } catch {
+    return "";
+  }
+}
+
 function DangerZone() {
   const { t } = useTranslation();
   const { getAccessToken, signOut } = useAuth();
@@ -92,7 +105,7 @@ function DangerZone() {
       const res = await fetch("/api/account/export", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await serverSentence(res));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -102,8 +115,8 @@ function DangerZone() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch {
-      setError(t("settings.exportError"));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : t("settings.exportError"));
     } finally {
       setExporting(false);
     }
@@ -123,11 +136,14 @@ function DangerZone() {
         },
         body: JSON.stringify({ confirm: "DELETE" }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await serverSentence(res));
       await signOut();
       setLocation("/");
-    } catch {
-      setError(t("settings.deleteError"));
+    } catch (e) {
+      /* The server's own sentence leads (the 409 blockers name exactly
+         what has to settle first; the 502 names the failed cancel) —
+         the generic line is only the fallback. */
+      setError(e instanceof Error && e.message ? e.message : t("settings.deleteError"));
       setDeleting(false);
     }
   }
