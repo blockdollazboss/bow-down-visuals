@@ -693,11 +693,13 @@ describe("stream pack bench wiring (source pins)", () => {
 describe("parity follow-on log — thorough, each bench named", () => {
   it("covers every bench the task names for this lane", () => {
     const ids = BUSINESS_NATIVE_FOLLOW_ONS.map((f) => f.id);
-    for (const required of [
-      "press-release-panel",
-    ]) {
-      expect(ids, required).toContain(required);
-    }
+    // The press-release writer graduated (stack1100 world parity
+    // W3): it docks natively under the Press Kit desk
+    // (PressReleaseWriter on lib/world/press-release-writer.ts), so
+    // the business bench is EMPTY — the last follow-on leaves the
+    // log like every graduated item before it.
+    expect(ids).not.toContain("press-release-panel");
+    expect(BUSINESS_NATIVE_FOLLOW_ONS).toHaveLength(0);
     // Stage D Brand wave (Stack-100 #71–#75) graduated the press-kit
     // editor, the jewelry bench, brand-kit manual editing and the
     // logo save-back — all four leave the follow-on log.

@@ -25,6 +25,7 @@ import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
 import { NativeBoard } from "./NativeBoard";
 import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./NativeStates";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
+import { PressReleaseWriter } from "./PressReleaseWriter";
 import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
 import { applyBrandKit, fetchBrandKit, saveBrandKit, saveLogoToBrandKit, BRAND_KIT_COLOR_ROLES, type BrandKit } from "@/lib/brand-kit";
 import {
@@ -1763,6 +1764,21 @@ export function PressKitDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
             ) : null}
           </div>
         )}
+        {/* Press-release writer (stack1100 parity): the bench's last
+            BUSINESS follow-on graduates — the writer that shares the
+            2D press-kit page, docked under the kit it saves into.
+            Members only: it is a charged tool, and the desk's guest
+            pitch above governs the section for guests. */}
+        {state === "ready" && !isGuest ? (
+          <div className={`border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
+            <PressReleaseWriter
+              isLight={isLight}
+              kitId={kit?.id ?? null}
+              artistNameSeed={kit?.artist_name ?? ""}
+              onSavedToKit={() => setReloadTick((t) => t + 1)}
+            />
+          </div>
+        ) : null}
       </SectionShell>
     </div>
   );

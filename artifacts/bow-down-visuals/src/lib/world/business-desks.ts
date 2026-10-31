@@ -1460,11 +1460,11 @@ export interface BusinessFollowOn {
 }
 
 export const BUSINESS_NATIVE_FOLLOW_ONS: BusinessFollowOn[] = [
-  {
-    id: "press-release-panel",
-    title: "NATIVE FOLLOW-ON: Press-release panel",
-    desk: "press-kit",
-    benchPath: "/press-kit",
-    note: "The press-release generator panel that shares the 2D press-kit page (POST /api/press-release/…) — Stack-100 #71 graduated the kit editor itself (full field editing, layout, public toggle, PDF via the public page, copy-link, delete); the release writer is the part that remains on the bench.",
-  },
+  /* Empty — the bench is clear. The last entry, press-release-panel,
+     graduated in stack1100 (world parity W3): the writer that shares
+     the 2D press-kit page now docks natively under the Press Kit
+     desk (components/world/native/PressReleaseWriter.tsx on
+     lib/world/press-release-writer.ts), riding POST
+     /api/press-release through the credit confirmation and saving
+     into the kit through the page's own PUT append chain. */
 ];
