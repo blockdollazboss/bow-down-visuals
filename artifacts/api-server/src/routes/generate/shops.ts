@@ -257,6 +257,20 @@ async function presentShopProductRow<T extends { image_url: string | null; image
   return presented;
 }
 
+/* Buyer-facing splits (#36, public-surface truth stack1000 R1): the
+   public storefront reads carry the split FACT (how many sellers
+   share this product, and the shares — the same truth the store
+   product rail presents with names) but never the co-sellers'
+   account ids. This file's rule for the shop row is "never leaks
+   user_id"; the raw splits column rode both public reads verbatim
+   and broke it for every co-seller on the product. Owner reads keep
+   the full list via presentShopProductRow. */
+export function buyerSplits(raw: unknown): Array<{ sharePct: number }> | null {
+  const splits = normalizeSplits(raw);
+  if (!splits) return null;
+  return splits.map((s) => ({ sharePct: s.sharePct }));
+}
+
 /* ── Pinned UGC ads (migration 0178) ─────────────────────────────────────
    shop_products.pinned_ugc_ad_id points at the ugc_ads row the seller
    pinned to the product (the pin verb lives on the ad record, in
@@ -1016,6 +1030,8 @@ router.get("/shops/handle/:handle", async (req, res) => {
         const cfg = bumpConfigs.get(pid) ?? null;
         return {
           ...pub,
+          /* Public read: co-seller account ids never leave (buyerSplits). */
+          splits: buyerSplits((pub as Record<string, unknown>)["splits"]),
           image_url: p.image_url ? await refreshSupabaseStorageUrl(p.image_url) : p.image_url,
           pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
           bump: shopBumpOfferFromRows(
@@ -2121,6 +2137,8 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     const cfg = bumpConfigs.get(pid) ?? null;
     return {
       ...pub,
+      /* Public read: co-seller account ids never leave (buyerSplits). */
+      splits: buyerSplits(pub["splits"]),
       pinned_ad: pinned_ugc_ad_id ? (pinnedAds.get(pinned_ugc_ad_id) ?? null) : null,
       bump: shopBumpOfferFromRows(
         { id: pid, shop_id: shop.id },
