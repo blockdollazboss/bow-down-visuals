@@ -12,7 +12,11 @@
  *  • absolute family (crop, export range, loop): the drag sets an edge
  *    to a snapped absolute time `t` (already clamped to [0, totalDur]
  *    and snapped by the caller, exactly as onPointerMove computes it),
- *    with a minimum gap to the opposite edge. */
+ *    with a minimum gap to the opposite edge.
+ *  • pixel family (dock height, stack1100 residuals round-up): the
+ *    resize handle tracks a pixel height between the dock's named
+ *    MIN/MAX bounds — no timeline, no snapping; the pointer's
+ *    clamp+round, shared verbatim with the handle's arrow keys. */
 
 export type DockSnapFn = (t: number) => number;
 
@@ -73,6 +77,18 @@ export function rangeDragNext(
   return side === "start"
     ? { mode: "custom", customStartSec: Math.min(t, cur.customEndSec - 0.3), customEndSec: cur.customEndSec }
     : { mode: "custom", customStartSec: cur.customStartSec, customEndSec: Math.max(t, cur.customStartSec + 0.3) };
+}
+
+/** Dock height → next height in pixels, clamped to the dock's
+ *  [min, max] bounds and rounded to a whole pixel — the pointer
+ *  resize branch's math verbatim (drag up = positive delta = taller). */
+export function dockHeightNext(
+  cur: number,
+  deltaPx: number,
+  min: number,
+  max: number,
+): number {
+  return Math.round(Math.max(min, Math.min(max, cur + deltaPx)));
 }
 
 /** Loop-region edge → next loop edges. Min gap 0.3s. */

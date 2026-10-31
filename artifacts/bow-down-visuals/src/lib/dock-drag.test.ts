@@ -9,7 +9,7 @@
  * including the extreme-delta values the keyboard Home/End keys produce.
  */
 import { describe, expect, it } from "vitest";
-import { cropDragNext, fadeDragValue, loopDragNext, rangeDragNext, trimDragValue } from "./dock-drag";
+import { cropDragNext, dockHeightNext, fadeDragValue, loopDragNext, rangeDragNext, trimDragValue } from "./dock-drag";
 
 const id = (t: number) => t; // snapping off
 const snap05 = (t: number) => Math.round(t / 0.5) * 0.5; // half-second beat grid stub
@@ -74,5 +74,26 @@ describe("cropDragNext / rangeDragNext / loopDragNext — absolute edges with mi
   it("loop: keeps a 0.3s gap", () => {
     expect(loopDragNext({ startSec: 5, endSec: 40 }, "end", 5.1)).toEqual({ startSec: 5, endSec: 5.3 });
     expect(loopDragNext({ startSec: 5, endSec: 40 }, "start", 12)).toEqual({ startSec: 12, endSec: 40 });
+  });
+});
+
+describe("dockHeightNext — the resize handle's pixel math (stack1100 residuals)", () => {
+  // The dock's real bounds (lib/editor-settings TIMELINE_DOCK_MIN/MAX_HEIGHT).
+  const MIN = 100;
+  const MAX = 400;
+  it("a positive delta (drag up / ArrowUp) grows the dock; negative shrinks it", () => {
+    expect(dockHeightNext(128, 4, MIN, MAX)).toBe(132);
+    expect(dockHeightNext(128, -4, MIN, MAX)).toBe(124);
+    expect(dockHeightNext(128, 40, MIN, MAX)).toBe(168);
+  });
+  it("clamps to [MIN, MAX] — the keyboard Home/End extremes ride the same bounds", () => {
+    expect(dockHeightNext(396, 40, MIN, MAX)).toBe(400);
+    expect(dockHeightNext(104, -40, MIN, MAX)).toBe(100);
+    expect(dockHeightNext(128, 100000, MIN, MAX)).toBe(400);
+    expect(dockHeightNext(128, -100000, MIN, MAX)).toBe(100);
+  });
+  it("rounds fractional drag deltas to a whole pixel, as the pointer branch did", () => {
+    expect(dockHeightNext(128, 3.6, MIN, MAX)).toBe(132);
+    expect(dockHeightNext(128, -3.6, MIN, MAX)).toBe(124);
   });
 });

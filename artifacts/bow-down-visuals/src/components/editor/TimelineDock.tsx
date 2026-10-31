@@ -46,7 +46,7 @@ import {
   TIMELINE_DOCK_DEFAULT_HEIGHT, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT,
 } from "@/lib/editor-settings";
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
-import { cropDragNext, fadeDragValue, loopDragNext, rangeDragNext, trimDragValue } from "@/lib/dock-drag";
+import { cropDragNext, dockHeightNext, fadeDragValue, loopDragNext, rangeDragNext, trimDragValue } from "@/lib/dock-drag";
 import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
 import { buildSongAudioContextItems } from "@/lib/audio-context-menu";
 import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
@@ -308,6 +308,28 @@ export function TimelineDock({
     });
   }
 
+  /* ── Dock-height handle keys (stack1100 residuals round-up — the one
+   * handle family M5 left pointer-only). Same rule as the timeline
+   * handles: arrows move the handle's own value, Shift moves ×10,
+   * Home/End jump to the ends — here the value is the dock's pixel
+   * height (4px steps, 40 with Shift, over the 100–400 range), and
+   * the step lands through dockHeightNext, the same clamp+round the
+   * pointer resize branch uses, into the same settings field. Up
+   * grows the dock, matching the drag (drag up = taller). */
+  function handleResizeKey(e: React.KeyboardEvent) {
+    const cur = settings.timelineDockHeight ?? TIMELINE_DOCK_DEFAULT_HEIGHT;
+    const step = e.shiftKey ? 40 : 4;
+    let next: number | null = null;
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") next = dockHeightNext(cur, step, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT);
+    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") next = dockHeightNext(cur, -step, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT);
+    else if (e.key === "Home") next = TIMELINE_DOCK_MIN_HEIGHT;
+    else if (e.key === "End") next = TIMELINE_DOCK_MAX_HEIGHT;
+    if (next === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setSettings({ ...settings, timelineDockHeight: next });
+  }
+
   const startTrimDrag = useCallback((e: React.PointerEvent, side: "start" | "end", sceneId: string, clipDur: number, clipStart: number) => {
     if (timelineLocked) return;
     e.stopPropagation();
@@ -364,7 +386,7 @@ export function TimelineDock({
       const drag = resizeDragRef.current;
       // Dragging the handle up (smaller clientY) grows the dock; dragging down shrinks it.
       const deltaY = drag.startY - e.clientY;
-      const newHeight = Math.round(Math.max(TIMELINE_DOCK_MIN_HEIGHT, Math.min(TIMELINE_DOCK_MAX_HEIGHT, drag.startHeight + deltaY)));
+      const newHeight = dockHeightNext(drag.startHeight, deltaY, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT);
       setSettings({ ...settings, timelineDockHeight: newHeight });
       return;
     }
@@ -1176,14 +1198,17 @@ export function TimelineDock({
         onPointerDown={startResizeDrag}
         onPointerCancel={onPointerUp}
         onDoubleClick={resetDockHeight}
+        onKeyDown={handleResizeKey}
+        tabIndex={0}
         data-testid="timeline-dock-resize-handle"
-        title="Drag to resize the timeline · double-click to reset"
+        title="Drag or use arrow keys to resize the timeline · double-click to reset"
         aria-label="Resize timeline"
         role="slider"
         aria-orientation="vertical"
         aria-valuemin={TIMELINE_DOCK_MIN_HEIGHT}
         aria-valuemax={TIMELINE_DOCK_MAX_HEIGHT}
         aria-valuenow={settings.timelineDockHeight ?? TIMELINE_DOCK_DEFAULT_HEIGHT}
+        aria-valuetext={`${settings.timelineDockHeight ?? TIMELINE_DOCK_DEFAULT_HEIGHT} pixels tall`}
         className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center h-10 w-32 cursor-ns-resize touch-none select-none group"
       >
         <div className="h-1.5 w-12 rounded-full bg-border group-hover:bg-primary/60 group-active:bg-primary transition-colors" />
