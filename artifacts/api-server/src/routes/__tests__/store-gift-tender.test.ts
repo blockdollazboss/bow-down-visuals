@@ -57,7 +57,7 @@ vi.mock("../../lib/job-notifications", () => ({
   createJobNotification: vi.fn(async () => undefined),
 }));
 
-vi.mock("../../lib/email", () => ({
+vi.mock("../../lib/email", async (importOriginal) => ({ ...((await importOriginal()) as Record<string, unknown>),
   sendEmail: vi.fn(async () => ({ ok: true })),
   emailShell: (_t: string, html: string) => html,
   emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,

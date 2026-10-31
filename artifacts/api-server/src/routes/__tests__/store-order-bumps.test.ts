@@ -96,7 +96,7 @@ vi.mock("../../lib/rate-limit", () => ({
   publicApiLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
-vi.mock("../../lib/email", () => ({
+vi.mock("../../lib/email", async (importOriginal) => ({ ...((await importOriginal()) as Record<string, unknown>),
   sendEmail: async () => undefined,
   emailShell: (_title: string, html: string) => html,
   emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
