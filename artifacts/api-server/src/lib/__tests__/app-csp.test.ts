@@ -64,4 +64,17 @@ describe("app CSP — the kit's engine bucket is reachable", () => {
     const occurrences = appSrc.split(MEDIA_BUCKET_ORIGIN).length - 1;
     expect(occurrences).toBe(2);
   });
+
+  it("connect-src allows the engine chains' last-resort model hosts", () => {
+    /* The kit's URL builders advertise third legs — the RVM model
+       on the project's GitHub release (redirecting to a
+       githubusercontent host) and the Tasks model in Google's
+       canonical bucket. CSP is enforced per fetch (and per
+       redirect hop), so without these the legs existed in code
+       but could never run in production (Oct 30, 2026
+       green-screen load-path audit). */
+    expect(directive("connect-src")).toContain("https://github.com");
+    expect(directive("connect-src")).toContain("https://*.githubusercontent.com");
+    expect(directive("connect-src")).toContain("https://storage.googleapis.com");
+  });
 });

@@ -204,6 +204,19 @@ describe("TasksSegmenterEngine", () => {
     await expect(engine.init()).rejects.toMatchObject({ code: "LOAD_FAILED" });
   });
 
+  it("a bundle that will not import anywhere fails LOAD_FAILED naming the last URL tried", async () => {
+    const { TasksSegmenterEngine } = await loadEngine();
+    const engine = new TasksSegmenterEngine({
+      importModule: async () => {
+        throw new Error("import refused");
+      },
+    });
+    await expect(engine.init()).rejects.toMatchObject({
+      code: "LOAD_FAILED",
+      message: expect.stringContaining("vision_bundle.mjs"),
+    });
+  });
+
   it("process returns the person matte, copies its alpha, closes the mask, and attaches the send-time frame", async () => {
     const { TasksSegmenterEngine } = await loadEngine();
     const state = freshState();

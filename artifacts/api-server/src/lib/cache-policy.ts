@@ -5,19 +5,37 @@
  *  - index.html → no-cache: it references the hashed asset filenames,
  *    so a browser must always revalidate it or it can sit on a stale
  *    shell and never pick up a new deploy.
- *  - /engines/* → immutable for a year: the vendored engine files
- *    (WASM, models — tens of MB) ship under stable, version-pinned
- *    names, so the hashed-asset rule never matched them and repeat
- *    visits revalidated/re-downloaded them (Lane F audit, cache flag).
- *    They change only when a new engine version is vendored.
+ *  - /engines/* HEAVY BINARIES → immutable for a year: the vendored
+ *    engine payloads (WASM, models, task files — tens of MB) ship
+ *    under stable, version-pinned names whose content never changes
+ *    under the name (a new model is a new filename), so the
+ *    hashed-asset rule never matched them and repeat visits
+ *    revalidated/re-downloaded them (Lane F audit, cache flag).
+ *  - /engines/* SCRIPT GLUE (.js/.mjs) → NO immutable policy: the
+ *    worker and bundle scripts are mutable code whose content DOES
+ *    change under a stable name — rvm-worker.js was rewritten on
+ *    Oct 29, 2026 (the fp16 feed fix) eleven days after the blanket
+ *    engines rule made it immutable for a year, so a browser that
+ *    had fetched the pre-fix worker held it against every later
+ *    client and the Pro engine parked on its fp16 type contract
+ *    (the owner's Oct 30, 2026 live-retest failure). Glue
+ *    revalidates like everything else; the RVM worker additionally
+ *    carries a content-hash query on its URL (rvm-engine.ts), so
+ *    even an already-pinned copy is bypassed by a new URL.
  *  - hashed build assets (name contains a ≥8-char content hash) →
  *    immutable for a year, the original rule.
  * Everything else → null (serve-static's default: revalidate).
  */
+const ENGINE_IMMUTABLE_EXTENSIONS = new Set(["wasm", "onnx", "tflite", "task", "bin", "data", "binarypb"]);
+
 export function cacheControlForFile(filePath: string): string | null {
   const normalized = filePath.replace(/\\/g, "/");
   if (normalized.endsWith("index.html")) return "no-cache";
-  if (normalized.includes("/engines/")) return "public, max-age=31536000, immutable";
+  if (normalized.includes("/engines/")) {
+    const ext = normalized.slice(normalized.lastIndexOf(".") + 1).toLowerCase();
+    if (ENGINE_IMMUTABLE_EXTENSIONS.has(ext)) return "public, max-age=31536000, immutable";
+    return null;
+  }
   if (/[.-][0-9a-f]{8,}\.[^.]+$/.test(normalized)) return "public, max-age=31536000, immutable";
   return null;
 }

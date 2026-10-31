@@ -106,6 +106,21 @@ var step = 0;
 var feed = null;
 var feedCtx = null;
 
+/* The most recent init failure, in plain words (which leg, at
+   which base/URL, with the underlying error's own message). When
+   every base's chain has failed, init-error carries this back to
+   the page: an engine-down note that cannot say WHAT failed
+   leaves the creator — and anyone reading their screenshot —
+   guessing among a dead script load, a missing model, and a
+   browser that lacks a feature the model needs. Bounded: only
+   the last failure is kept, and messages are clipped. */
+var lastInitDetail = null;
+function noteInitFailure(stage, where, err) {
+  var raw = err && err.message ? String(err.message) : String(err || "");
+  if (raw.length > 160) raw = raw.slice(0, 160) + "…";
+  lastInitDetail = stage + " failed at " + where + (raw ? " — " + raw : "");
+}
+
 function ratioFor(stepDef, feedLongSide) {
   if (stepDef.ratio !== "auto") return stepDef.ratio;
   var r = 480 / Math.max(1, feedLongSide);
@@ -160,6 +175,7 @@ function attemptBase(base, modelUrls, threads) {
     try {
       importScripts(base + "/ort.all.min.js");
     } catch (err) {
+      noteInitFailure("runtime script load", base + "/ort.all.min.js", err);
       return Promise.resolve(false);
     }
   }
@@ -183,7 +199,8 @@ function attemptBase(base, modelUrls, threads) {
             self.postMessage({ type: "ready", provider: provider });
             return true;
           },
-          function () {
+          function (err) {
+            noteInitFailure("session create", url, err);
             return false;
           },
         );
@@ -201,7 +218,8 @@ function init(msg) {
   if (typeof Float16Array !== "function") {
     self.postMessage({
       type: "init-error",
-      message: "The Pro background engine could not be loaded.",
+      message:
+        "The Pro background engine could not be loaded — this browser is missing Float16Array, which the engine needs to feed its model.",
     });
     return Promise.resolve();
   }
@@ -218,7 +236,9 @@ function init(msg) {
     if (!done) {
       self.postMessage({
         type: "init-error",
-        message: "The Pro background engine could not be loaded.",
+        message:
+          "The Pro background engine could not be loaded." +
+          (lastInitDetail ? " Last failure: " + lastInitDetail + "." : ""),
       });
     }
   });

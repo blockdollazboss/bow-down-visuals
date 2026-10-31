@@ -84,6 +84,27 @@ describe("cacheControlForFile (engines cache fix)", () => {
       "public, max-age=31536000, immutable",
     );
   });
+  it("engine SCRIPT GLUE is never immutable — it is mutable code under a stable name", () => {
+    /* Oct 30, 2026: the blanket engines rule made rvm-worker.js
+       immutable for a year on Oct 16; the worker's content was
+       rewritten Oct 29 (fp16 feed fix) under the same name, and a
+       browser holding the pre-fix copy ran it against the new
+       client until the engine parked. Glue (.js/.mjs) gets no
+       explicit policy — it revalidates; only the heavy binaries
+       whose content never changes under their name stay pinned. */
+    expect(cacheControlForFile("/srv/dist/public/engines/rvm/rvm-worker.js")).toBeNull();
+    expect(cacheControlForFile("/srv/dist/public/engines/face-landmarker/vision_bundle.mjs")).toBeNull();
+    expect(cacheControlForFile("/srv/dist/public/engines/onnxruntime/ort.all.min.js")).toBeNull();
+    expect(cacheControlForFile("/srv/dist/public/engines/onnxruntime/ort-wasm-simd-threaded.mjs")).toBeNull();
+    expect(cacheControlForFile("/srv/dist/public/engines/selfie-segmentation/selfie_segmentation.js")).toBeNull();
+    /* …while the binaries those scripts load keep the year. */
+    expect(cacheControlForFile("/srv/dist/public/engines/selfie-segmentation/selfie_segmentation.tflite")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+    expect(cacheControlForFile("/srv/dist/public/engines/tasks-segmenter/selfie_segmenter.tflite")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+  });
   it("index.html always revalidates; hashed assets stay immutable; other files get no explicit policy", () => {
     expect(cacheControlForFile("/srv/dist/public/index.html")).toBe("no-cache");
     expect(cacheControlForFile("/srv/dist/public/assets/index-a1b2c3d4.js")).toBe(
