@@ -32,6 +32,7 @@ import {
 } from "@/lib/world/world-client";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import { PalaceCalendarBlock } from "./PalaceCalendarBlock";
+import { PitchFixBoard } from "./PitchFixBoard";
 
 /* ─── Kingdom Board blocks (Lane K2, item 2) ───────────────────────
    Blocks joining the Kingdom Board's room directory:
@@ -448,6 +449,10 @@ export function KingdomBoardBlocks({
           )}
         </NativeBoard>
       </div>
+      {/* Pitch & Fix (stack1100 parity): the kingdom's suggestion
+          board stands on the Kingdom Board itself — read, vote,
+          file and track on the /api/pitch-fix rails, in the room. */}
+      <PitchFixBoard isLight={isLight} isGuest={isGuest} />
     </div>
   );
 }
