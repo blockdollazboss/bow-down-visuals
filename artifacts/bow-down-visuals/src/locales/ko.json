@@ -913,7 +913,7 @@
     "errorFriendEmail": "친구의 이메일을 입력하세요.",
     "friendGrantedMessage": "{{email}}님에게 {{amount}} Visual Bucs를 지급했습니다. 상대방의 새 잔액: {{balance}}.",
     "planTitle": "플랜 등급 설정",
-    "planDescription": "사용자의 플랜 등급은 Creator Level 별 개수를 제한합니다 — 등급 1은 별 1개, 등급 6은 6개 모두 획득합니다.",
+    "planDescription": "사용자를 1~6 플랜 래더에 배치합니다 — 등급 1~3은 Free, 4~5는 Pro, 6은 Elite로, 등급 게이트가 적용되는 곳에서 읽힙니다. 이는 플랜 기록만 변경합니다. Creator Level 별은 실제 작업으로 얻는 것이며, 어떤 등급도 별을 정하거나 제한하지 않습니다.",
     "planEmailPlaceholder": "user@email.com",
     "tiers": {
       "tier1": "스트리트 펑크",
@@ -927,7 +927,7 @@
     "errorTierRange": "1~6 사이의 등급을 선택하세요.",
     "errorUserEmail": "사용자의 이메일을 입력하세요.",
     "errorPlanSet": "플랜 등급을 설정할 수 없습니다.",
-    "planSetMessage": "{{email}}님을 {{rank}}(으)로 설정했습니다 (등급 {{tier}}).",
+    "planSetMessage": "{{email}}님의 플랜 등급을 {{tier}}(으)로 설정했습니다 ({{rank}}).",
     "bowRaceTitle": "글로벌 Bow 레이스",
     "bowRaceDescription": "매달 한 번의 비밀 사이트 전체 레이스가 진행됩니다. 로그인한 모든 사용자의 bow가 하나의 카운터에 누적되며, 매달 1,000~5,000 bow 중 랜덤 목표가 추첨됩니다. 목표에 정확히 도달한 bow의 소유자는 Visual Buc 리워드를 받고 깜짝 \"You Cracked the Code!\" 팝업을 보게 됩니다. 레이스는 어디에도 공지되지 않습니다 — 이 패널이 유일한 공개 창구입니다.",
     "raceWon": "레이스 우승 — {{period}}",

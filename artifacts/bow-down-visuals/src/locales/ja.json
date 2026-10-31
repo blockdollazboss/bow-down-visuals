@@ -913,7 +913,7 @@
     "errorFriendEmail": "友人のメールアドレスを入力してください。",
     "friendGrantedMessage": "{{email}}に{{amount}} Visual Bucsを付与しました。相手の新しい残高: {{balance}}。",
     "planTitle": "プランティアを設定",
-    "planDescription": "ユーザーのプランティアがクリエイターレベルの星の上限を決めます——ティア1は1つ星、ティア6は6つ星すべてを獲得できます。",
+    "planDescription": "ユーザーを1–6のプランラダーに設定します — ティア1–3はFree、4–5はPro、6はEliteとして、ティアゲートが適用される場所で扱われます。これはプランの記録のみを変更します。Creator Levelの星は実際の活動で獲得するもので、ティアが設定したり上限を決めたりすることはありません。",
     "planEmailPlaceholder": "user@email.com",
     "tiers": {
       "tier1": "ストリートパンク",
@@ -927,7 +927,7 @@
     "errorTierRange": "1〜6のティアを選んでください。",
     "errorUserEmail": "ユーザーのメールアドレスを入力してください。",
     "errorPlanSet": "プランティアを設定できませんでした。",
-    "planSetMessage": "{{email}}を{{rank}}(ティア{{tier}})に設定しました。",
+    "planSetMessage": "{{email}}のプランティアを{{tier}}({{rank}})に設定しました。",
     "bowRaceTitle": "グローバルお辞儀レース",
     "bowRaceDescription": "毎月1回の秘密のサイト全体レース。サインインした全ユーザーのお辞儀が単一のカウンターに蓄積され、毎月1,000〜5,000のお辞儀からランダムに目標値が抽選されます。目標値にちょうど達したお辞儀をした人がVisual Bucs報酬を獲得し、サプライズの「You Cracked the Code!」ポップアップが表示されます。レースはどこにも告知されません——このパネルだけが表示される場所です。",
     "raceWon": "レース終了——{{period}}",

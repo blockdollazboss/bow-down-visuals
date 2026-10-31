@@ -913,7 +913,7 @@
     "errorFriendEmail": "Digite o e-mail do seu amigo.",
     "friendGrantedMessage": "Concedidos {{amount}} Visual Bucs para {{email}}. Novo saldo deles: {{balance}}.",
     "planTitle": "Definir nível do plano",
-    "planDescription": "O nível do plano de um usuário limita as estrelas do Creator Level dele — nível 1 tem 1 estrela, nível 6 tem as 6.",
+    "planDescription": "Define o lugar de um usuário na escada de planos 1–6 — os níveis 1–3 contam como Free, 4–5 como Pro e 6 como Elite onde houver uma porta de nível. Isso muda apenas o registro do plano: as estrelas de Creator Level são conquistadas com trabalho real, e nenhum nível as define nem as limita.",
     "planEmailPlaceholder": "user@email.com",
     "tiers": {
       "tier1": "Punk de Rua",
@@ -927,7 +927,7 @@
     "errorTierRange": "Escolha um nível de 1 a 6.",
     "errorUserEmail": "Digite o e-mail do usuário.",
     "errorPlanSet": "Não foi possível definir o nível do plano.",
-    "planSetMessage": "{{email}} definido como {{rank}} (nível {{tier}}).",
+    "planSetMessage": "Nível do plano de {{email}} definido como {{tier}} ({{rank}}).",
     "bowRaceTitle": "Corrida Global de Bows",
     "bowRaceDescription": "Uma corrida secreta para todo o site por mês. Os bows de cada usuário logado alimentam um único contador; todo mês é sorteada uma meta aleatória de 1.000–5.000 bows. Quem der o bow exatamente na meta ganha a recompensa em Visual Bucs e vê o popup surpresa \"Você Quebrou o Código!\". A corrida nunca é anunciada em lugar nenhum — este painel é o único lugar onde ela aparece.",
     "raceWon": "Corrida vencida — {{period}}",

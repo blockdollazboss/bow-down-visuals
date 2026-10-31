@@ -895,7 +895,7 @@
     "errorFriendEmail": "Enter your friend's email.",
     "friendGrantedMessage": "Granted {{amount}} Visual Bucs to {{email}}. Their new balance: {{balance}}.",
     "planTitle": "Set plan tier",
-    "planDescription": "A user's plan tier caps their Creator Level stars — tier 1 gets 1 star, tier 6 gets all 6.",
+    "planDescription": "Set a user's place on the 1–6 plan ladder — tiers 1–3 read as Free, 4–5 as Pro and 6 as Elite wherever a tier gate applies. This changes the plan record only: Creator Level stars are earned from real work, and no tier sets or caps them.",
     "planEmailPlaceholder": "user@email.com",
     "tiers": {
       "tier1": "Street Punk",
@@ -909,7 +909,7 @@
     "errorTierRange": "Pick a tier from 1 to 6.",
     "errorUserEmail": "Enter the user's email.",
     "errorPlanSet": "Could not set plan tier.",
-    "planSetMessage": "Set {{email}} to {{rank}} (tier {{tier}}).",
+    "planSetMessage": "Set {{email}}'s plan tier to {{tier}} — {{rank}}.",
     "bowRaceTitle": "Global Bow Race",
     "bowRaceDescription": "One secret site-wide race per month. Every signed-in user's bows feed a single counter; each month draws a random target of 1,000–5,000 bows. Whoever's bow lands exactly on the target wins the Visual Buc reward and sees the surprise \"You Cracked the Code!\" popup. The race is never announced anywhere — this panel is the only place it surfaces.",
     "raceWon": "Race won — {{period}}",

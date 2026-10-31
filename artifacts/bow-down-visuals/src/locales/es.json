@@ -913,7 +913,7 @@
     "errorFriendEmail": "Ingresa el correo de tu amigo.",
     "friendGrantedMessage": "Otorgados {{amount}} Visual Bucs a {{email}}. Su nuevo saldo: {{balance}}.",
     "planTitle": "Definir nivel de plan",
-    "planDescription": "El nivel de plan de un usuario limita sus estrellas de Nivel de Creador — el nivel 1 obtiene 1 estrella, el nivel 6 obtiene las 6.",
+    "planDescription": "Define el lugar de un usuario en la escala de planes 1–6: los niveles 1–3 cuentan como Free, 4–5 como Pro y 6 como Elite donde aplique una puerta de nivel. Esto cambia solo el registro del plan: las estrellas de Creator Level se ganan con trabajo real, y ningún nivel las define ni las limita.",
     "planEmailPlaceholder": "usuario@email.com",
     "tiers": {
       "tier1": "Punk Callejero",
@@ -927,7 +927,7 @@
     "errorTierRange": "Elige un nivel del 1 al 6.",
     "errorUserEmail": "Ingresa el correo del usuario.",
     "errorPlanSet": "No se pudo definir el nivel de plan.",
-    "planSetMessage": "Se definió {{email}} como {{rank}} (nivel {{tier}}).",
+    "planSetMessage": "Se definió el nivel de plan de {{email}} como {{tier}} ({{rank}}).",
     "bowRaceTitle": "Carrera Bow Global",
     "bowRaceDescription": "Una carrera secreta en todo el sitio por mes. Los bows de cada usuario con sesión iniciada alimentan un solo contador; cada mes se sortea un objetivo aleatorio de 1,000–5,000 bows. El bow que caiga exactamente en el objetivo gana la recompensa en Visual Bucs y ve la ventana sorpresa “¡Descifraste el Código!”. La carrera nunca se anuncia en ningún lado — este panel es el único lugar donde aparece.",
     "raceWon": "Carrera ganada — {{period}}",

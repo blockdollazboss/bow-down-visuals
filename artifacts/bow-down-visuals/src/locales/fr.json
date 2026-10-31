@@ -913,7 +913,7 @@
     "errorFriendEmail": "Saisissez l'e-mail de votre ami.",
     "friendGrantedMessage": "{{amount}} Visual Bucs attribués à {{email}}. Nouveau solde : {{balance}}.",
     "planTitle": "Définir le niveau d'abonnement",
-    "planDescription": "Le niveau d'abonnement d'un utilisateur plafonne ses étoiles de Creator Level — le niveau 1 obtient 1 étoile, le niveau 6 les 6.",
+    "planDescription": "Définit la place d'un utilisateur sur l'échelle des abonnements 1–6 — les niveaux 1–3 comptent comme Free, 4–5 comme Pro et 6 comme Elite partout où une porte de niveau s'applique. Cela ne change que l'enregistrement de l'abonnement : les étoiles Creator Level se gagnent par le travail réel, et aucun niveau ne les définit ni ne les plafonne.",
     "planEmailPlaceholder": "utilisateur@e-mail.com",
     "tiers": {
       "tier1": "Punk des rues",
@@ -927,7 +927,7 @@
     "errorTierRange": "Choisissez un niveau de 1 à 6.",
     "errorUserEmail": "Saisissez l'e-mail de l'utilisateur.",
     "errorPlanSet": "Impossible de définir le niveau d'abonnement.",
-    "planSetMessage": "{{email}} défini sur {{rank}} (niveau {{tier}}).",
+    "planSetMessage": "Abonnement de {{email}} défini au niveau {{tier}} ({{rank}}).",
     "bowRaceTitle": "Bow Race mondiale",
     "bowRaceDescription": "Une course mensuelle secrète sur tout le site. Les révérences de chaque utilisateur connecté alimentent un compteur unique ; chaque mois, un objectif aléatoire de 1 000 à 5 000 révérences est tiré. Celui dont la révérence tombe exactement sur l'objectif remporte la récompense en Visual Bucs et voit apparaître la fenêtre surprise « Tu as craqué le code ! ». La course n'est annoncée nulle part — ce panneau est le seul endroit où elle apparaît.",
     "raceWon": "Course gagnée — {{period}}",

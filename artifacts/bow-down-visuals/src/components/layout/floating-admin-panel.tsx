@@ -112,7 +112,7 @@ function AdminTools({
         tier: t,
         email: tierEmail.trim(),
       });
-      setTierMsg(`✓ ${tierEmail.trim()} → ${String(data.rank)} (tier ${String(data.tier)})`);
+      setTierMsg(`✓ ${tierEmail.trim()} → plan tier ${String(data.tier)} (${String(data.rank)})`);
       setTierEmail("");
     } catch (e) {
       setTierMsg(`✗ ${plainErrorText(e, "Failed.")}`);
@@ -167,9 +167,9 @@ function AdminTools({
 
   return (
     <div className="space-y-3">
-      {/* Upgrade user tier */}
+      {/* Set user plan tier */}
       <div>
-        <p className={labelCls}>Upgrade user tier</p>
+        <p className={labelCls}>Set user plan tier</p>
         <input aria-label="user@email.com"
           type="email"
           placeholder="user@email.com"

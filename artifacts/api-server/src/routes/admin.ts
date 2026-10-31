@@ -9,7 +9,11 @@
  *                                  to yourself (default), another user by id,
  *                                  or a friend by email.
  *  POST /api/admin/plan/set        { tier, userId?, email? } — set a user's plan tier.
- *                                  Tier N caps Creator Level at N stars.
+ *                                  The ladder number is a plan record, not a rank:
+ *                                  tiers 1–3 read as free, 4–5 as pro, 6 as elite
+ *                                  (lib/platform-fees tierFromPlanTier). Creator
+ *                                  Level stars are earned separately (lib/
+ *                                  creator-rank) and no tier moves them.
  *  GET  /api/admin/dmca-reports    the moderation bench's takedown queue.
  *  GET  /api/admin/content/:id     one post/comment's moderation state.
  *  PATCH /api/admin/content/:id    { removed, reason?, note? } — the
