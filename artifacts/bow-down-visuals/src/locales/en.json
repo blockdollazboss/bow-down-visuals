@@ -13554,6 +13554,8 @@
     "board_creations": "creations",
     "board_you": "You",
     "board_empty": "No creations this week yet — be the first on the board.",
+    "board_load_error": "Couldn't load the board — this just couldn't reach it.",
+    "retry_load": "Try again",
     "board_note": "Status only — no VB payouts. Bragging rights forever.",
     "prefs_title": "Delight settings",
     "prefs_subtitle": "Surprise moments, your call. Turn any of these off anytime.",

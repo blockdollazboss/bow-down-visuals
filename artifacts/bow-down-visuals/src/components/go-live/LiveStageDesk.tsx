@@ -104,6 +104,7 @@ export default function LiveStageDesk() {
   const [prefsDirty, setPrefsDirty] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [streams, setStreams] = useState<MyStream[]>([]);
+  const [streamsError, setStreamsError] = useState(false);
   const [streamId, setStreamId] = useState<string>("");
   const [stage, setStage] = useState<StageState | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -123,11 +124,18 @@ export default function LiveStageDesk() {
   }, [authed]);
 
   const loadStreams = useCallback(async () => {
-    const res = await fetch("/api/live-streams/mine", { headers: await authed() });
-    if (!res.ok) return;
-    const data = (await res.json()) as { streams: MyStream[] };
-    setStreams(data.streams);
-    setStreamId((prev) => prev || data.streams.find((s) => s.status === "live")?.id || data.streams[0]?.id || "");
+    try {
+      const res = await fetch("/api/live-streams/mine", { headers: await authed() });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { streams: MyStream[] };
+      setStreams(data.streams);
+      setStreamsError(false);
+      setStreamId((prev) => prev || data.streams.find((s) => s.status === "live")?.id || data.streams[0]?.id || "");
+    } catch {
+      /* A failed load is NOT an empty stream list — the picker shows its
+         error option + retry instead of "No streams yet." */
+      setStreamsError(true);
+    }
   }, [authed]);
 
   const stream = streams.find((s) => s.id === streamId) ?? null;
@@ -281,11 +289,21 @@ export default function LiveStageDesk() {
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Stream desk</p>
           <select aria-label="Stream" value={streamId} onChange={(e) => setStreamId(e.target.value)} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white" data-testid="select-stage-stream">
-            {streams.length === 0 && <option value="">No streams yet</option>}
+            {streams.length === 0 && <option value="">{streamsError ? "Couldn't load your streams" : "No streams yet"}</option>}
             {streams.map((s) => (
               <option key={s.id} value={s.id}>{s.title} · {s.status}{s.is_class ? " · class" : ""}</option>
             ))}
           </select>
+          {streamsError && streams.length === 0 && (
+            <button
+              type="button"
+              onClick={() => void loadStreams()}
+              className="text-xs font-semibold text-primary hover:underline"
+              data-testid="btn-retry-streams"
+            >
+              Try again
+            </button>
+          )}
           {stream && <span className="text-xs text-white/40">{stream.has_vod ? "Recording saved" : "No recording yet"}</span>}
         </div>
 

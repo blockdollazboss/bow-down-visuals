@@ -36,15 +36,23 @@ export function UnlockGatesPanel() {
   const [contentLabel, setContentLabel] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const t = await getAccessToken();
       const d = await api(t, "GET", "/api/promote/unlock-gates");
       setGates(d.gates ?? []);
+      setLoadFailed(false);
       const meRes = await fetch("/api/creator-profiles/me", { headers: t ? { Authorization: `Bearer ${t}` } : {} });
       if (meRes.ok) { const me = await meRes.json(); setProfileId(me?.id ?? me?.profile?.id ?? null); }
-    } catch { setErr("Couldn't load your unlock gates."); setGates([]); }
+    } catch {
+      /* A failed load is NOT an empty gate list — gates stays null so the
+         "No gates yet" line cannot render under the error. */
+      setErr("Couldn't load your unlock gates.");
+      setLoadFailed(true);
+      setGates(null);
+    }
   }, [getAccessToken]);
   useEffect(() => { void load(); }, [load]);
 
@@ -74,7 +82,21 @@ export function UnlockGatesPanel() {
         honor-system: a follow gate checks the fan&apos;s real follow on your page, a share gate checks a share
         recorded on the fan&apos;s account — and the content link stays hidden until the check passes.
       </p>
-      {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
+      {err && (
+        <p className="mt-2 text-sm text-red-300">
+          {err}
+          {loadFailed && (
+            <button
+              type="button"
+              onClick={() => { setErr(null); void load(); }}
+              className="ml-2 font-semibold text-primary hover:underline"
+              data-testid="btn-retry-gates"
+            >
+              Try again
+            </button>
+          )}
+        </p>
+      )}
       {msg && <p className="mt-2 text-sm text-emerald-300">{msg}</p>}
       <div className="mt-4 grid gap-3">
         <div><p className={label}>What fans unlock</p><input aria-label="Exclusive demo, unreleased video…" className={input + " mt-1"} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Exclusive demo, unreleased video…" /></div>
