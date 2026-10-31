@@ -3177,9 +3177,50 @@ router.delete("/posts/:id", requireAuth, async (req: Request, res: Response) => 
     const [post] = await db.select().from(postsTable)
       .where(and(eq(postsTable.id, id), eq(postsTable.profileId, me.id))).limit(1);
     if (!post) return res.status(404).json({ error: "not_found", message: "Only your own posts can be deleted." });
-    /* The thread dies with its parent; quotes keep a null quoted ref ("unavailable"). */
-    await db.delete(postsTable).where(eq(postsTable.replyTo, id));
-    await db.delete(postsTable).where(eq(postsTable.id, id));
+    /* The thread dies with its parent; quotes keep a null quoted ref
+       ("unavailable"). The reply subtree is collected level by level
+       and deleted deepest-first: the reply_to FK is NO ACTION, and
+       the old delete (all direct replies in one statement, then the
+       post) violated it whenever a reply had replies of its own, so
+       a thread deeper than one level could not be deleted at all.
+       Deepest-first means no statement ever removes a row that a
+       standing row still references.
+       Counter truth (stack1100 X5): the counters THIS post moved on
+       other posts move back on the landed delete — a deleted reply
+       leaves its parent's reply_count, a deleted repost leaves the
+       original's repost_count. (Replies inside the subtree fed only
+       counts on posts that die with it.) */
+    const levels: string[][] = [[id]];
+    const seen = new Set<string>([id]);
+    let frontier: string[] = [id];
+    while (frontier.length > 0) {
+      const children = await db.select({ id: postsTable.id }).from(postsTable)
+        .where(inArray(postsTable.replyTo, frontier));
+      const next = children.map((c) => c.id).filter((c) => !seen.has(c));
+      if (next.length === 0) break;
+      for (const c of next) seen.add(c);
+      levels.push(next);
+      frontier = next;
+    }
+    let deletedRoot = 0;
+    for (let depth = levels.length - 1; depth >= 0; depth--) {
+      const gone = await db.delete(postsTable)
+        .where(inArray(postsTable.id, levels[depth]!))
+        .returning({ id: postsTable.id });
+      if (depth === 0) deletedRoot = gone.length;
+    }
+    if (deletedRoot > 0) {
+      if (post.replyTo) {
+        await db.update(postsTable)
+          .set({ replyCount: sql`GREATEST(${postsTable.replyCount} - 1, 0)` })
+          .where(eq(postsTable.id, post.replyTo));
+      }
+      if (post.kind === "repost" && post.repostOf) {
+        await db.update(postsTable)
+          .set({ repostCount: sql`GREATEST(${postsTable.repostCount} - 1, 0)` })
+          .where(eq(postsTable.id, post.repostOf));
+      }
+    }
     return res.json({ ok: true });
   } catch {
     return res.status(500).json({ error: "delete_failed" });
