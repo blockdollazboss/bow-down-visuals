@@ -89,7 +89,10 @@ export async function getStripePaymentRecord(
   return {
     userId: row.userId,
     creditsAmount: row.creditsAmount,
-    status: row.status,
+    /* The column carries a 'completed' default but is typed nullable;
+       a null here would be a legacy row — report it as unknown rather
+       than invent a state. */
+    status: row.status ?? "unknown",
   };
 }
 
