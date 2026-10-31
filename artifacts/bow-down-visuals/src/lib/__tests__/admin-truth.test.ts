@@ -107,3 +107,29 @@ describe("C2 — the plan-tier card no longer claims it moves Creator Level star
     expect(rank).toContain("Rank is NEVER purchasable");
   });
 });
+
+/**
+ * C4 — the floating admin panel decided visibility with
+ * profile.plan === "studio", a legacy plan string, instead of the
+ * server's one admin predicate. Every other admin surface (the
+ * /admin page, AdminRoute, the Discord Bot page, the World desks)
+ * asks GET /api/admin/status and trusts only isAdmin === true. The
+ * panel now does the same and renders nothing until the server says
+ * true (fail closed, no flash of admin tooling).
+ */
+describe("C4 — the floating admin panel gates on the server predicate", () => {
+  const panel = read("../../components/layout/floating-admin-panel.tsx");
+
+  it("no longer reads the legacy plan string as an admin check", () => {
+    expect(panel).not.toContain('plan === "studio"');
+  });
+
+  it("asks /api/admin/status and trusts only isAdmin === true", () => {
+    expect(panel).toContain('fetch("/api/admin/status"');
+    expect(panel).toContain("status.isAdmin === true");
+  });
+
+  it("renders nothing until the server confirms (fail closed)", () => {
+    expect(panel).toContain("if (isAdmin !== true) return null;");
+  });
+});
