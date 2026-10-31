@@ -288,8 +288,11 @@ export default function Charts() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
-  /* Advanced (4-6 stars only): custom lookback + vertical cross-tab.
-     Search, charts and follow stay ungated for everyone. */
+  /* Advanced panel: custom lookback + vertical cross-tab. Shown at
+     4+ stars (with the creator-rank grandfather floor) as a UI
+     exposure choice ONLY — the charts API is public and the server
+     never checks rank for `days`. Search, charts and follow stay
+     ungated for everyone. */
   const advanced = useMinStars(4);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [days, setDays] = useState<number | null>(null);
@@ -472,7 +475,7 @@ export default function Charts() {
                 <SectionHeader
                   icon={<Users className="h-5 w-5" />}
                   title={`Top creators${vertical !== "all" ? ` — ${verticalLabel(vertical)}` : ""}`}
-                  blurb="Ranked by plays + new followers. Follow them before they blow."
+                  blurb="Ranked by plays + followers — every follower counts as 50 plays. Follow them before they blow."
                 />
                 {data.creators.length === 0 ? (
                   <EmptyState
