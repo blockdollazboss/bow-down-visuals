@@ -23,9 +23,10 @@ export interface CreatorLite {
   bio?: string | null;
   new_followers?: number;
   window_plays?: number;
-  /** Guide-to-money: true when the creator has digital sales. */
+  /** Guide-to-money: true when the creator has digital sales. What
+   *  they earned is their private number — the server never sends it
+   *  on a public payload (public-surface truth, stack1000 R1). */
   has_sales?: boolean;
-  month_earnings_cents?: number;
 }
 
 export function formatMoney(cents: number | null | undefined): string {
@@ -168,11 +169,6 @@ export function CreatorCard({
           className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-0.5 text-[11px] font-black text-emerald-300 transition-colors hover:bg-emerald-400/20"
         >
           💰 Selling
-          {(creator.month_earnings_cents ?? 0) > 0 && (
-            <span className="font-semibold text-emerald-200/80">
-              · {formatMoney(creator.month_earnings_cents)}/mo
-            </span>
-          )}
         </Link>
       )}
       <div className="mt-3" onClick={(e) => e.stopPropagation()}>

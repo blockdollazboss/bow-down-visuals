@@ -136,14 +136,15 @@ const PROFILE_COLS = sql`
   p.id AS profile_id, p.slug, p.display_name, p.avatar_url, p.vertical,
   p.follower_count, p.total_plays`;
 
-/* Guide-to-money: every creator payload says whether they're selling and
-   what they earned in the last 30 days. digital_sales lands in 0088, so
-   this table always exists by the time 0094 applies. */
+/* Guide-to-money, public half: every public creator payload says
+   whether the creator is selling — that fact is already public on
+   their storefront. What they EARNED is their private number: it
+   never rides a public payload (public-surface truth, stack1000 R1 —
+   the exact 30-day take used to ship to anonymous guests here).
+   digital_sales lands in 0088, so this table always exists by the
+   time 0094 applies. */
 const EARNINGS_COLS = sql`,
-  EXISTS (SELECT 1 FROM digital_sales ds WHERE ds.profile_id = p.id) AS has_sales,
-  COALESCE((SELECT SUM(ds2.creator_amount_cents) FROM digital_sales ds2
-            WHERE ds2.profile_id = p.id
-              AND ds2.created_at >= NOW() - INTERVAL '30 days'), 0)::int AS month_earnings_cents`;
+  EXISTS (SELECT 1 FROM digital_sales ds WHERE ds.profile_id = p.id) AS has_sales`;
 
 /* ─── Charts ──────────────────────────────────────────────────────────────
    GET /charts?window=today|week|all&vertical=&limit=
@@ -447,7 +448,11 @@ router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
 /* ─── Rising earners ────────────────────────────────────────────────────────
    GET /rising-earners?vertical=&limit= — guide to the money: creators
    ranked by what fans actually paid them (creator_amount_cents, last
-   30 days). Streaming is vanity; selling is sanity. */
+   30 days). Streaming is vanity; selling is sanity. The RANKING is the
+   house's own editorial order (the "top sellers" shelf); the figures
+   behind it are each creator's private numbers and never ship —
+   the payload carries the same public card as every other chart
+   (public-surface truth, stack1000 R1). */
 
 router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = parseChartsQuery(req, res);
@@ -457,15 +462,12 @@ router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) =>
   const rows = await db.execute(sql`
     WITH earnings AS (
       SELECT ds.profile_id AS pid,
-             SUM(ds.creator_amount_cents)::int AS earned_cents,
-             COUNT(*)::int AS sales
+             SUM(ds.creator_amount_cents)::int AS earned_cents
       FROM digital_sales ds
       WHERE ds.created_at >= NOW() - INTERVAL '30 days'
       GROUP BY ds.profile_id
     )
-    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio,
-           e.earned_cents::int AS earned_cents_30d,
-           e.sales::int AS sales_30d
+    SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
     FROM creator_profiles p
     JOIN earnings e ON e.pid = p.id
     WHERE p.is_public ${vf ?? sql``}

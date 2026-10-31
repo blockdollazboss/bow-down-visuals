@@ -765,11 +765,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                       .filter(Boolean)
                       .join(" · ") || undefined
                   }
-                  meta={
-                    row.earnedCents30d !== null
-                      ? `${formatMoney(row.earnedCents30d)}/mo`
-                      : `${formatCount(row.totalPlays)} plays`
-                  }
+                  meta={`${formatCount(row.totalPlays)} plays`}
                   highlighted={i === 0}
                   action={
                     isGuest ? undefined : (

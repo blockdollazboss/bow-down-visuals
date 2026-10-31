@@ -90,8 +90,9 @@ export interface ChartCreatorRow {
   totalPlays: number;
   /** Rising rows only: followers gained in the last 7 days. */
   newFollowers: number | null;
-  /** Earner rows only: what fans paid them in the last 30 days. */
-  earnedCents30d: number | null;
+  /** Earner rows are ranked by the house from real sales; what each
+   *  creator earned is their private number and is never carried
+   *  here (public-surface truth, stack1000 R1). */
   /** Brand rows only: the creator's most-published genre, and how
    *  much published work stands behind the audience (the /brands
    *  DTO's scouting fields). Null on every other creator read —
@@ -192,7 +193,6 @@ export function normalizeChartCreators(
       followerCount: num(r["follower_count"] ?? r["followerCount"]) ?? 0,
       totalPlays: num(r["total_plays"] ?? r["totalPlays"]) ?? 0,
       newFollowers: num(r["new_followers"] ?? r["newFollowers"]),
-      earnedCents30d: num(r["earned_cents_30d"] ?? r["earnedCents30d"]),
       topGenre: str(r["top_genre"] ?? r["topGenre"]),
       trackCount: num(r["track_count"] ?? r["trackCount"]),
       videoCount: num(r["video_count"] ?? r["videoCount"]),
