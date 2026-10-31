@@ -5953,7 +5953,7 @@
     "exporting": "Preparing export…",
     "exportError": "Export failed. Try again.",
     "deleteTitle": "Delete my account",
-    "deleteDescription": "Type DELETE below to confirm. This permanently deletes your account, projects, and data.",
+    "deleteDescription": "Type DELETE below to confirm. This permanently deletes your account, your profile, projects, drafts, songs, clips and shop listings, and cancels your plan so billing stops. We keep records of purchases, sales and payments for accounting. If money is still in flight — an escrow someone is waiting on, paid time left in your fan club, gift card balances — we will tell you what has to settle first.",
     "deletePlaceholder": "Type DELETE to confirm",
     "deleteButton": "Delete my account",
     "deleting": "Deleting…",
