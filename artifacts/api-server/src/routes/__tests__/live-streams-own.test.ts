@@ -296,7 +296,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
   return { ...actual, db: fakeDb };
 });
 
-import router, { __resetViewerTracker } from "../live-streams";
+import router, { __resetViewerTracker, recoverInterruptedLiveStreams } from "../live-streams";
 
 const realFetch = globalThis.fetch;
 let server: any;
@@ -605,5 +605,100 @@ describe("end → engine finalize → replay", () => {
     expect(row["vod_url"]).toBeNull();
     const site = (row["destinations"] as Array<Record<string, unknown>>).find((d) => d["platform"] === "site");
     expect(site).toMatchObject({ vod_state: "not_saved" });
+  });
+});
+
+/* ── W4: zombie lives ──────────────────────────────────────────────────────
+   Own-server sessions live only in the process's memory, so a live
+   row with no session behind it is a corpse the public surfaces must
+   not show as live: boot recovery ends the previous process's rows,
+   and the read paths end any session-less row past a short grace. */
+describe("zombie lives: boot recovery + session reconcile", () => {
+  const TEN_MIN_AGO = () => new Date(Date.now() - 10 * 60_000);
+
+  it("boot ends a session-less live own-server row and saves the partial replay", async () => {
+    const id = seedRow({ started_at: TEN_MIN_AGO() });
+    h.state.own.finalizeResult = {
+      vodUrl: `https://media.example/${AUTH_USER}/live/${id}.webm`,
+      contentType: "video/webm",
+    };
+    await recoverInterruptedLiveStreams();
+    const row = h.state.streams.get(id)!;
+    expect(row["status"]).toBe("ended");
+    expect(row["ended_at"]).toBeTruthy();
+    expect(h.state.own.finalizeCalls).toEqual([id]);
+    expect(row["vod_url"]).toBe(`https://media.example/${AUTH_USER}/live/${id}.webm`);
+    const site = (row["destinations"] as Array<Record<string, unknown>>).find((d) => d["platform"] === "site");
+    expect(site).toMatchObject({ vod_state: "saved" });
+  });
+
+  it("boot records not_saved when the orphaned stream left no recording", async () => {
+    const id = seedRow({ started_at: TEN_MIN_AGO() });
+    h.state.own.finalizeResult = null;
+    await recoverInterruptedLiveStreams();
+    const row = h.state.streams.get(id)!;
+    expect(row["status"]).toBe("ended");
+    expect(row["vod_url"]).toBeNull();
+    const site = (row["destinations"] as Array<Record<string, unknown>>).find((d) => d["platform"] === "site");
+    expect(site).toMatchObject({ vod_state: "not_saved" });
+  });
+
+  it("boot leaves a cloudflare live row alone — its session lives at the provider", async () => {
+    const id = seedRow({ provider: "cloudflare-stream", started_at: TEN_MIN_AGO() });
+    await recoverInterruptedLiveStreams();
+    expect(h.state.streams.get(id)!["status"]).toBe("live");
+    expect(h.state.own.finalizeCalls).toEqual([]);
+  });
+
+  it("boot leaves an own-server row with a live session alone", async () => {
+    const id = seedRow({ started_at: TEN_MIN_AGO() });
+    h.state.own.sessions.add(id);
+    await recoverInterruptedLiveStreams();
+    expect(h.state.streams.get(id)!["status"]).toBe("live");
+    expect(h.state.own.finalizeCalls).toEqual([]);
+  });
+
+  it("boot finishes the VOD outcome of a stream whose finalize died mid-upload", async () => {
+    const done = seedRow({ status: "ended", ended_at: new Date(), started_at: TEN_MIN_AGO() });
+    const settled = seedRow({
+      status: "ended",
+      ended_at: new Date(),
+      started_at: TEN_MIN_AGO(),
+      destinations: [
+        { platform: "site", label: "Your profile", status: "ended", save_recording: true, vod_url: null, vod_state: "not_saved" },
+      ],
+    });
+    h.state.own.finalizeResult = {
+      vodUrl: `https://media.example/${AUTH_USER}/live/${done}.webm`,
+      contentType: "video/webm",
+    };
+    await recoverInterruptedLiveStreams();
+    expect(h.state.own.finalizeCalls).toEqual([done]);
+    expect(h.state.streams.get(done)!["vod_url"]).toBe(`https://media.example/${AUTH_USER}/live/${done}.webm`);
+    expect(h.state.streams.get(settled)!["vod_url"]).toBeNull();
+  });
+
+  it("a read ends a session-less own-server row past the grace — and finalizes it", async () => {
+    const id = seedRow({ started_at: TEN_MIN_AGO() });
+    const { status, json } = await call("GET", `/live-streams/${id}`, undefined, null);
+    expect(status).toBe(200);
+    expect(json.stream.status).toBe("ended");
+    await flush();
+    expect(h.state.streams.get(id)!["status"]).toBe("ended");
+    expect(h.state.own.finalizeCalls).toEqual([id]);
+  });
+
+  it("a read keeps a just-started session-less row live (the grace)", async () => {
+    const id = seedRow({ started_at: new Date(Date.now() - 30_000) });
+    const { json } = await call("GET", `/live-streams/${id}`, undefined, null);
+    expect(json.stream.status).toBe("live");
+    expect(h.state.own.finalizeCalls).toEqual([]);
+  });
+
+  it("a read keeps a session-backed own-server row live however old it is", async () => {
+    const id = seedRow({ started_at: TEN_MIN_AGO() });
+    h.state.own.sessions.add(id);
+    const { json } = await call("GET", `/live-streams/${id}`, undefined, null);
+    expect(json.stream.status).toBe("live");
   });
 });

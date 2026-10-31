@@ -585,18 +585,43 @@ async function endStreamRow(row: LiveStream, finalViewerCount: number): Promise<
   return updated[0] ?? { ...row, status: "ended", ended_at: now };
 }
 
+/* An own-server row whose engine session is GONE is just as dead as
+   a 12h row: sessions live only in this process's memory, so a
+   restart the boot pass hasn't run for yet, or a stall close-out
+   whose row update failed, leaves the same corpse — publicly "live",
+   ingest answering 409 forever. A real session begins synchronously
+   inside create/publish, so absence past a short grace is never a
+   mid-start state. */
+const SESSION_ABSENT_GRACE_MS = 120_000;
+
+function ownServerSessionGone(row: LiveStream, nowMs: number): boolean {
+  if (row.provider !== "own-server") return false;
+  if (hasSession(row.id)) return false;
+  const started =
+    row.started_at instanceof Date ? row.started_at.getTime() : Date.parse(String(row.started_at));
+  return Number.isFinite(started) && nowMs - started > SESSION_ABSENT_GRACE_MS;
+}
+
 /** A "live" row older than MAX_LIVE_MS is a zombie (tab closed, WHIP long
- *  gone). End it lazily wherever it's read so the rail never lies. */
+ *  gone) — and so is an own-server row whose ingest session is gone.
+ *  End either lazily wherever it's read so the rail never lies. */
 async function reconcileStale(row: LiveStream): Promise<LiveStream> {
   if (row.status !== "live") return row;
   const started = row.started_at instanceof Date ? row.started_at.getTime() : Date.parse(String(row.started_at));
-  if (!Number.isFinite(started) || Date.now() - started <= MAX_LIVE_MS) return row;
+  const tooOld = Number.isFinite(started) && Date.now() - started > MAX_LIVE_MS;
+  const sessionGone = ownServerSessionGone(row, Date.now());
+  if (!tooOld && !sessionGone) return row;
   clearViewers(row.id);
   const ended = await endStreamRow(row, 0);
   /* Ending a stream ALWAYS closes out its destinations (stops the
      fan-out relays, marks them ended) — the stale paths used to skip
      this, leaving relays running against a dead stream (Flag S-3). */
   await closeOutDestinations(row.id).catch(() => undefined);
+  /* A session-gone row can still hold media on disk (the stall
+     handler ends the engine session even when its own row update
+     failed): finalize it, so the partial show becomes the replay —
+     or an honest not_saved — instead of silence. */
+  if (sessionGone) void finalizeOwnServerStream(row);
   return ended;
 }
 
@@ -619,6 +644,59 @@ async function sweepStaleLive(): Promise<void> {
     await expireQueuedRequests(s.id).catch(() => undefined);
     /* D3: same bypass, same duty — clear the now-playing row. */
     await clearNowPlaying(s.id).catch(() => undefined);
+  }
+}
+
+/* ── Boot recovery ────────────────────────────────────────────────────────
+   Own-server ingest sessions live only in the process's memory, so
+   EVERY own-server row still marked "live" when a fresh process
+   boots is a stream the previous process left behind (deploy,
+   watchdog restart, crash): publicly live, its ingest dead, its
+   broadcaster blocked by ALREADY_LIVE, for up to the 12h lazy
+   reconcile. End them all at boot with the full close-out — and run
+   the finalize, so a master that reached the disk still becomes the
+   replay (or an honest not_saved) instead of vanishing with the
+   session directory. A second pass finishes the VOD outcome for
+   rows that ended cleanly but whose finalize died with the process
+   mid-upload: ended, no replay, no outcome recorded. Cloudflare
+   rows are NOT touched — their sessions live at the provider and
+   survive our restart. Wired in index.ts with the other recoveries. */
+export async function recoverInterruptedLiveStreams(): Promise<void> {
+  const liveRows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(eq(liveStreamsTable.status, "live"))
+    .limit(100);
+  for (const row of liveRows) {
+    if (row.provider !== "own-server" || hasSession(row.id)) continue;
+    try {
+      await endStreamRow(row, 0);
+      clearViewers(row.id);
+      await closeOutDestinations(row.id).catch(() => undefined);
+      await finalizeOwnServerStream(row);
+      logger.info(
+        { streamId: row.id },
+        "live-streams recovery: ended a live row orphaned by the previous process",
+      );
+    } catch (err) {
+      logger.error({ err, streamId: row.id }, "live-streams recovery: orphan close-out failed");
+    }
+  }
+  const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+  const endedRows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(eq(liveStreamsTable.status, "ended"))
+    .orderBy(desc(liveStreamsTable.ended_at))
+    .limit(200);
+  for (const row of endedRows) {
+    if (row.provider !== "own-server" || row.vod_url) continue;
+    if (!row.ended_at || new Date(row.ended_at).getTime() < cutoffMs) continue;
+    const site = normalizeDestinations(row.destinations).find((d) => d.platform === "site");
+    if (!site || site.vod_state !== null) continue;
+    await finalizeOwnServerStream(row).catch((err) =>
+      logger.error({ err, streamId: row.id }, "live-streams recovery: orphaned VOD finalize failed"),
+    );
   }
 }
 
