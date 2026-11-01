@@ -43,6 +43,21 @@ describe("LatentSync switch — gates fail closed before charging", () => {
   });
 });
 
+describe("stack1200 (Z3 residual) — check-provider-job reports the route it queried", () => {
+  it("both success answers carry the resolved provider for the client's recovery stamp", () => {
+    const start = lipSyncSrc.indexOf('"/lip-sync/check-provider-job/:syncJobId"');
+    const end = lipSyncSrc.indexOf('"/lip-sync/check-inputs"', start);
+    const handler = lipSyncSrc.slice(start, end);
+    // One `provider` field per success branch (WaveSpeed + Sync.so):
+    // the route that actually answered for the job id, so the FE
+    // recovery paths stamp truth instead of a hardcoded route name.
+    expect(handler.match(/^\s+provider,$/gm) ?? []).toHaveLength(2);
+    // Read-only addition: the handler still refuses before querying
+    // when no route resolves.
+    expect(handler).toContain('code: "no_api_key"');
+  });
+});
+
 describe("Owner's ruling (2026-10-26) — run-all rides the same switch as the single-clip rail", () => {
   it("the run-all orchestrator stamps each scene sub-job with the effective provider", () => {
     const runAllStart = lipSyncSrc.indexOf("async function processRunAll");
