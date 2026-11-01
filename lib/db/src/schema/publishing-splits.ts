@@ -38,7 +38,7 @@ export type PublishingSongKind = (typeof PUBLISHING_SONG_KINDS)[number];
 export const PUBLISHING_WRITER_STATUSES = ["pending", "confirmed", "disputed", "unlinked"] as const;
 export type PublishingWriterStatus = (typeof PUBLISHING_WRITER_STATUSES)[number];
 
-export const publishingSplitRegistrationsTable = pgTable(
+const publishingSplitRegistrationsTable = pgTable(
   "publishing_split_registrations",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -59,7 +59,7 @@ export const publishingSplitRegistrationsTable = pgTable(
   ],
 );
 
-export const publishingSplitWritersTable = pgTable(
+const publishingSplitWritersTable = pgTable(
   "publishing_split_writers",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -86,16 +86,12 @@ export const publishingSplitWritersTable = pgTable(
   ],
 );
 
-export const insertPublishingSplitRegistrationSchema = createInsertSchema(
+const insertPublishingSplitRegistrationSchema = createInsertSchema(
   publishingSplitRegistrationsTable,
 ).omit({ id: true, created_at: true, updated_at: true });
-export type InsertPublishingSplitRegistration = z.infer<typeof insertPublishingSplitRegistrationSchema>;
-export type PublishingSplitRegistration = typeof publishingSplitRegistrationsTable.$inferSelect;
 
-export const insertPublishingSplitWriterSchema = createInsertSchema(publishingSplitWritersTable).omit({
+const insertPublishingSplitWriterSchema = createInsertSchema(publishingSplitWritersTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertPublishingSplitWriter = z.infer<typeof insertPublishingSplitWriterSchema>;
-export type PublishingSplitWriter = typeof publishingSplitWritersTable.$inferSelect;

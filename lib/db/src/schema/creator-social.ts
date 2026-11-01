@@ -34,7 +34,6 @@ export const playlistFollowsTable = pgTable("playlist_follows", {
   createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.userId, t.playlistId] })]);
 
-export type PlaylistFollow = typeof playlistFollowsTable.$inferSelect;
 
 /* ── Creator comment controls (Stack-100 #3, #27) ──────────────────────────
    PENDING MIGRATION: the status / pinned / pinned_at / held_reason columns
@@ -66,8 +65,7 @@ export const profileCommentsTable = pgTable("profile_comments", {
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [check("profile_comments_status_check", sql`${t.status} IN ('public','held','hidden')`)]);
 
-export const insertProfileCommentSchema = createInsertSchema(profileCommentsTable).omit({ id: true, createdAt: true });
-export type InsertProfileComment = z.infer<typeof insertProfileCommentSchema>;
+const insertProfileCommentSchema = createInsertSchema(profileCommentsTable).omit({ id: true, createdAt: true });
 export type ProfileComment = typeof profileCommentsTable.$inferSelect;
 
 export const mediaCommentsTable = pgTable("media_comments", {
@@ -86,8 +84,7 @@ export const mediaCommentsTable = pgTable("media_comments", {
   check("media_comments_status_check", sql`${t.status} IN ('public','held','hidden')`),
 ]);
 
-export const insertMediaCommentSchema = createInsertSchema(mediaCommentsTable).omit({ id: true, createdAt: true });
-export type InsertMediaComment = z.infer<typeof insertMediaCommentSchema>;
+const insertMediaCommentSchema = createInsertSchema(mediaCommentsTable).omit({ id: true, createdAt: true });
 export type MediaComment = typeof mediaCommentsTable.$inferSelect;
 
 /**
@@ -104,12 +101,10 @@ export const creatorCommentSettingsTable = pgTable("creator_comment_settings", {
   updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [check("creator_comment_settings_hold_mode_check", sql`${t.holdMode} IN ('off','all','first_time')`)]);
 
-export const insertCreatorCommentSettingsSchema = createInsertSchema(creatorCommentSettingsTable).omit({ updatedAt: true });
-export type InsertCreatorCommentSettings = z.infer<typeof insertCreatorCommentSettingsSchema>;
+const insertCreatorCommentSettingsSchema = createInsertSchema(creatorCommentSettingsTable).omit({ updatedAt: true });
 export type CreatorCommentSettings = typeof creatorCommentSettingsTable.$inferSelect;
 
-export const LIKE_KINDS = ["track", "video", "playlist", "comment"] as const;
-export type LikeKind = (typeof LIKE_KINDS)[number];
+const LIKE_KINDS = ["track", "video", "playlist", "comment"] as const;
 
 export const likesTable = pgTable("likes", {
   userId:    uuid("user_id").notNull(),
@@ -145,7 +140,6 @@ export const playEventsTable = pgTable("play_events", {
   playedAt: timestamp("played_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [check("play_events_kind_check", sql`${t.kind} IN ('track','video')`)]);
 
-export type PlayEvent = typeof playEventsTable.$inferSelect;
 
 export const notificationsTable = pgTable("notifications", {
   id:        uuid("id").primaryKey().defaultRandom(),
@@ -158,6 +152,5 @@ export const notificationsTable = pgTable("notifications", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });
 export type Notification = typeof notificationsTable.$inferSelect;

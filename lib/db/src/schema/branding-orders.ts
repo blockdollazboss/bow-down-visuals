@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 /* Branding shop orders (dropship model).
    Fulfillment statuses are only ever set from the provider (Printful live
    or the clearly-labeled mock sandbox) — never fabricated. */
-export const brandingOrdersTable = pgTable("branding_orders", {
+const brandingOrdersTable = pgTable("branding_orders", {
   id:        uuid("id").primaryKey().defaultRandom(),
   userId:    text("user_id").notNull(),
   items:     jsonb("items").notNull(),
@@ -27,12 +27,10 @@ export const brandingOrdersTable = pgTable("branding_orders", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertBrandingOrderSchema = createInsertSchema(brandingOrdersTable).omit({
+const insertBrandingOrderSchema = createInsertSchema(brandingOrdersTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertBrandingOrder = z.infer<typeof insertBrandingOrderSchema>;
-export type BrandingOrder = typeof brandingOrdersTable.$inferSelect;
 
 export const BRANDING_ORDER_STATUSES = [
   "received",
@@ -43,4 +41,3 @@ export const BRANDING_ORDER_STATUSES = [
   "canceled",
   "failed",
 ] as const;
-export type BrandingOrderStatus = (typeof BRANDING_ORDER_STATUSES)[number];

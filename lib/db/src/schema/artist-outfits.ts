@@ -18,12 +18,10 @@ export const artistOutfitsTable = pgTable("artist_outfits", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertArtistOutfitSchema = createInsertSchema(artistOutfitsTable).omit({
+const insertArtistOutfitSchema = createInsertSchema(artistOutfitsTable).omit({
   id: true,
   created_at: true,
 });
 
 export const selectArtistOutfitSchema = createSelectSchema(artistOutfitsTable);
 
-export type ArtistOutfitRow = typeof artistOutfitsTable.$inferSelect;
-export type InsertArtistOutfit = z.infer<typeof insertArtistOutfitSchema>;

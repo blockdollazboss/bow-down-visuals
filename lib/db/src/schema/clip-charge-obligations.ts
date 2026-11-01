@@ -29,8 +29,7 @@ import { z } from "zod/v4";
  * time), never from a current-price constant — the same discipline
  * the operator's pending-action store uses for quoted prices.
  */
-export const CLIP_CHARGE_STATUSES = ["pending", "delivered", "refunded"] as const;
-export type ClipChargeStatus = (typeof CLIP_CHARGE_STATUSES)[number];
+const CLIP_CHARGE_STATUSES = ["pending", "delivered", "refunded"] as const;
 
 export const clipChargeObligationsTable = pgTable("clip_charge_obligations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -53,7 +52,7 @@ export const clipChargeObligationsTable = pgTable("clip_charge_obligations", {
   index("clip_charge_obligations_pending_idx").on(t.status, t.created_at),
 ]);
 
-export const insertClipChargeObligationSchema = createInsertSchema(clipChargeObligationsTable).omit({
+const insertClipChargeObligationSchema = createInsertSchema(clipChargeObligationsTable).omit({
   id: true,
   created_at: true,
   resolved_at: true,
@@ -61,4 +60,3 @@ export const insertClipChargeObligationSchema = createInsertSchema(clipChargeObl
 export const selectClipChargeObligationSchema = createSelectSchema(clipChargeObligationsTable);
 
 export type ClipChargeObligationRow = typeof clipChargeObligationsTable.$inferSelect;
-export type InsertClipChargeObligation = z.infer<typeof insertClipChargeObligationSchema>;

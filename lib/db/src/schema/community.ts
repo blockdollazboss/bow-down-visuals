@@ -19,14 +19,11 @@ import { fanTiersTable } from "./fan-memberships";
 /* Stack 10: the ladder is owner > admin > moderator > member.
    "mod" is the legacy stored value for moderator and is normalized
    by group-roles.ts (normalizeGroupRole) wherever it is read. */
-export const GROUP_ROLES = ["owner", "admin", "moderator", "member"] as const;
-export type GroupRole = (typeof GROUP_ROLES)[number];
+const GROUP_ROLES = ["owner", "admin", "moderator", "member"] as const;
 
 export const EVENT_KINDS = ["stream", "drop", "premiere", "other"] as const;
-export type EventKind = (typeof EVENT_KINDS)[number];
 
-export const CONVERSATION_STATUSES = ["inbox", "request", "blocked"] as const;
-export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+const CONVERSATION_STATUSES = ["inbox", "request", "blocked"] as const;
 
 /* ── Groups ─────────────────────────────────────────────────────────────── */
 
@@ -42,8 +39,7 @@ export const groupsTable = pgTable("groups", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertGroupSchema = createInsertSchema(groupsTable).omit({ id: true, createdAt: true });
-export type InsertGroup = z.infer<typeof insertGroupSchema>;
+const insertGroupSchema = createInsertSchema(groupsTable).omit({ id: true, createdAt: true });
 export type Group = typeof groupsTable.$inferSelect;
 
 export const groupMembersTable = pgTable("group_members", {
@@ -56,7 +52,6 @@ export const groupMembersTable = pgTable("group_members", {
   index("group_members_user_idx").on(t.userId),
 ]);
 
-export type GroupMember = typeof groupMembersTable.$inferSelect;
 
 /* ── Group-scoped posts ─────────────────────────────────────────────────
    Worker 8's `posts` table landed (0096) with nullable group_id — but
@@ -76,9 +71,7 @@ export const groupPostsTable = pgTable("group_posts", {
   index("group_posts_author_idx").on(t.authorUserId),
 ]);
 
-export const insertGroupPostSchema = createInsertSchema(groupPostsTable).omit({ id: true, createdAt: true });
-export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
-export type GroupPost = typeof groupPostsTable.$inferSelect;
+const insertGroupPostSchema = createInsertSchema(groupPostsTable).omit({ id: true, createdAt: true });
 
 /* ── Group forum channels / threads / replies (migration 0185, Wave 3 #13) ──
    The group feed is one flat stream; forums give a group topic-contained
@@ -119,9 +112,7 @@ export const groupForumChannelsTable = pgTable("group_forum_channels", {
   index("group_forum_channels_group_idx").on(t.groupId, t.position, t.createdAt),
 ]);
 
-export const insertGroupForumChannelSchema = createInsertSchema(groupForumChannelsTable).omit({ id: true, createdAt: true });
-export type InsertGroupForumChannel = z.infer<typeof insertGroupForumChannelSchema>;
-export type GroupForumChannel = typeof groupForumChannelsTable.$inferSelect;
+const insertGroupForumChannelSchema = createInsertSchema(groupForumChannelsTable).omit({ id: true, createdAt: true });
 
 export const groupForumThreadsTable = pgTable("group_forum_threads", {
   id:            uuid("id").primaryKey().defaultRandom(),
@@ -142,9 +133,7 @@ export const groupForumThreadsTable = pgTable("group_forum_threads", {
   index("group_forum_threads_author_idx").on(t.authorUserId),
 ]);
 
-export const insertGroupForumThreadSchema = createInsertSchema(groupForumThreadsTable).omit({ id: true, createdAt: true });
-export type InsertGroupForumThread = z.infer<typeof insertGroupForumThreadSchema>;
-export type GroupForumThread = typeof groupForumThreadsTable.$inferSelect;
+const insertGroupForumThreadSchema = createInsertSchema(groupForumThreadsTable).omit({ id: true, createdAt: true });
 
 export const groupForumRepliesTable = pgTable("group_forum_replies", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -158,9 +147,7 @@ export const groupForumRepliesTable = pgTable("group_forum_replies", {
   index("group_forum_replies_group_idx").on(t.groupId),
 ]);
 
-export const insertGroupForumReplySchema = createInsertSchema(groupForumRepliesTable).omit({ id: true, createdAt: true });
-export type InsertGroupForumReply = z.infer<typeof insertGroupForumReplySchema>;
-export type GroupForumReply = typeof groupForumRepliesTable.$inferSelect;
+const insertGroupForumReplySchema = createInsertSchema(groupForumRepliesTable).omit({ id: true, createdAt: true });
 
 /* ── Events ─────────────────────────────────────────────────────────────── */
 
@@ -183,9 +170,7 @@ export const eventsTable = pgTable("events", {
   index("events_profile_idx").on(t.profileId),
 ]);
 
-export const insertEventSchema = createInsertSchema(eventsTable).omit({ id: true, createdAt: true });
-export type InsertEvent = z.infer<typeof insertEventSchema>;
-export type PlatformEvent = typeof eventsTable.$inferSelect;
+const insertEventSchema = createInsertSchema(eventsTable).omit({ id: true, createdAt: true });
 
 export const eventRsvpsTable = pgTable("event_rsvps", {
   eventId:   uuid("event_id").notNull().references(() => eventsTable.id, { onDelete: "cascade" }),
@@ -196,7 +181,6 @@ export const eventRsvpsTable = pgTable("event_rsvps", {
   index("event_rsvps_user_idx").on(t.userId),
 ]);
 
-export type EventRsvp = typeof eventRsvpsTable.$inferSelect;
 
 /* ── DMs ────────────────────────────────────────────────────────────────── */
 
@@ -237,8 +221,7 @@ export const messagesTable = pgTable("messages", {
   index("messages_sender_idx").on(t.senderUserId),
 ]);
 
-export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true });
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
+const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true });
 export type Message = typeof messagesTable.$inferSelect;
 
 /* DM reply drafts (STACK-20 #15, migration 0157): ONE in-progress reply

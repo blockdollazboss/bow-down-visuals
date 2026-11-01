@@ -11,4 +11,3 @@ export const hourlyCrateClaimsTable = pgTable("hourly_crate_claims", {
   prize_credits: integer("prize_credits").notNull(),
 });
 
-export type HourlyCrateClaimRow = typeof hourlyCrateClaimsTable.$inferSelect;

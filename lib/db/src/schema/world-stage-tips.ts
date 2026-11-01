@@ -45,5 +45,3 @@ export const worldStageTipsTable = pgTable(
   ],
 );
 
-export type WorldStageTip = typeof worldStageTipsTable.$inferSelect;
-export type NewWorldStageTip = typeof worldStageTipsTable.$inferInsert;

@@ -25,13 +25,13 @@ import { z } from "zod/v4";
    store_products.affiliate_enabled / affiliate_commission_bps and
    shop_products.affiliate_enabled / affiliate_commission_bps (0205). */
 
-export const AFFILIATE_SURFACES = ["store_product", "shop_product"] as const;
+const AFFILIATE_SURFACES = ["store_product", "shop_product"] as const;
 export type AffiliateSurface = (typeof AFFILIATE_SURFACES)[number];
 
-export const AFFILIATE_SALE_STATUSES = ["owed", "paid", "void"] as const;
-export type AffiliateSaleStatus = (typeof AFFILIATE_SALE_STATUSES)[number];
+const AFFILIATE_SALE_STATUSES = ["owed", "paid", "void"] as const;
+type AffiliateSaleStatus = (typeof AFFILIATE_SALE_STATUSES)[number];
 
-export const affiliateCodesTable = pgTable("affiliate_codes", {
+const affiliateCodesTable = pgTable("affiliate_codes", {
   id:              uuid("id").primaryKey().defaultRandom(),
   /** Share code as presented in links (?ref=CODE). Stored uppercase. */
   code:            text("code").notNull(),
@@ -49,13 +49,11 @@ export const affiliateCodesTable = pgTable("affiliate_codes", {
   index("affiliate_codes_product_idx").on(t.surface, t.productId),
 ]);
 
-export const insertAffiliateCodeSchema = createInsertSchema(affiliateCodesTable).omit({
+const insertAffiliateCodeSchema = createInsertSchema(affiliateCodesTable).omit({
   id: true, createdAt: true,
 });
-export type InsertAffiliateCode = z.infer<typeof insertAffiliateCodeSchema>;
-export type AffiliateCode = typeof affiliateCodesTable.$inferSelect;
 
-export const affiliateSalesTable = pgTable("affiliate_sales", {
+const affiliateSalesTable = pgTable("affiliate_sales", {
   id:               uuid("id").primaryKey().defaultRandom(),
   affiliateCodeId:  uuid("affiliate_code_id").notNull().references(() => affiliateCodesTable.id, { onDelete: "cascade" }),
   affiliateUserId:  uuid("affiliate_user_id").notNull(),
@@ -88,8 +86,6 @@ export const affiliateSalesTable = pgTable("affiliate_sales", {
   index("affiliate_sales_code_idx").on(t.affiliateCodeId),
 ]);
 
-export const insertAffiliateSaleSchema = createInsertSchema(affiliateSalesTable).omit({
+const insertAffiliateSaleSchema = createInsertSchema(affiliateSalesTable).omit({
   id: true, createdAt: true,
 });
-export type InsertAffiliateSale = z.infer<typeof insertAffiliateSaleSchema>;
-export type AffiliateSale = typeof affiliateSalesTable.$inferSelect;

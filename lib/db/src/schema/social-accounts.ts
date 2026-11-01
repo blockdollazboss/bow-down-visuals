@@ -40,10 +40,8 @@ export const socialAccountsTable = pgTable(
   ],
 );
 
-export const insertSocialAccountSchema = createInsertSchema(socialAccountsTable).omit({
+const insertSocialAccountSchema = createInsertSchema(socialAccountsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertSocialAccount = z.infer<typeof insertSocialAccountSchema>;
-export type SocialAccount = typeof socialAccountsTable.$inferSelect;

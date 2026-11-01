@@ -29,7 +29,7 @@ export const artistCharacterLinksTable = pgTable("artist_character_links", {
   check("no_self_link", sql`${t.character_id} <> ${t.linked_character_id}`),
 ]);
 
-export const insertArtistCharacterLinkSchema = createInsertSchema(
+const insertArtistCharacterLinkSchema = createInsertSchema(
   artistCharacterLinksTable,
 ).omit({ id: true, created_at: true });
 
@@ -37,8 +37,6 @@ export const selectArtistCharacterLinkSchema = createSelectSchema(
   artistCharacterLinksTable,
 );
 
-export type ArtistCharacterLinkRow = typeof artistCharacterLinksTable.$inferSelect;
-export type InsertArtistCharacterLink = z.infer<typeof insertArtistCharacterLinkSchema>;
 
 /** Roles a linked character can play in another character's content. */
 export const CHARACTER_LINK_ROLES = [

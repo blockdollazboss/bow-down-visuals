@@ -37,7 +37,6 @@ export const kingMomentsTable = pgTable("king_moments", {
 });
 
 export type KingMoment = typeof kingMomentsTable.$inferSelect;
-export type NewKingMoment = typeof kingMomentsTable.$inferInsert;
 
 export const kingMomentClaimsTable = pgTable(
   "king_moment_claims",
@@ -55,13 +54,5 @@ export const kingMomentClaimsTable = pgTable(
   ],
 );
 
-export type KingMomentClaim = typeof kingMomentClaimsTable.$inferSelect;
-export type NewKingMomentClaim = typeof kingMomentClaimsTable.$inferInsert;
 
 /** The announcement payload a firing records (risers + tonight). */
-export interface KingMomentPayload {
-  kingName: string;
-  risers: { name: string; score: number }[];
-  tonight: { title: string; roomName: string; startsAt: string }[];
-  text: string;
-}

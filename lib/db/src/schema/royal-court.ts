@@ -41,5 +41,3 @@ export const royalCourtTable = pgTable(
   ],
 );
 
-export type RoyalCourtEntry = typeof royalCourtTable.$inferSelect;
-export type NewRoyalCourtEntry = typeof royalCourtTable.$inferInsert;

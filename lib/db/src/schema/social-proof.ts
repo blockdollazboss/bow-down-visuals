@@ -44,9 +44,7 @@ export const creatorSocialProofTable = pgTable(
   (t) => [index("creator_social_proof_user_idx").on(t.userId)],
 );
 
-export const insertCreatorSocialProofSchema = createInsertSchema(creatorSocialProofTable).omit({
+const insertCreatorSocialProofSchema = createInsertSchema(creatorSocialProofTable).omit({
   createdAt: true,
   updatedAt: true,
 });
-export type InsertCreatorSocialProof = z.infer<typeof insertCreatorSocialProofSchema>;
-export type CreatorSocialProof = typeof creatorSocialProofTable.$inferSelect;

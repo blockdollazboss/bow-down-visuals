@@ -27,7 +27,7 @@ export const nfcProfilesTable = pgTable("nfc_profiles", {
   updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const nfcCardOrdersTable = pgTable("nfc_card_orders", {
+const nfcCardOrdersTable = pgTable("nfc_card_orders", {
   id:              uuid("id").primaryKey().defaultRandom(),
   userId:          text("user_id").notNull(),
   profileId:       uuid("profile_id").references(() => nfcProfilesTable.id, { onDelete: "set null" }),
@@ -45,33 +45,29 @@ export const nfcCardOrdersTable = pgTable("nfc_card_orders", {
   updatedAt:       timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertNfcProfileSchema = createInsertSchema(nfcProfilesTable).omit({
+const insertNfcProfileSchema = createInsertSchema(nfcProfilesTable).omit({
   id: true,
   tapCount: true,
   createdAt: true,
   updatedAt: true,
 });
-export type InsertNfcProfile = z.infer<typeof insertNfcProfileSchema>;
 export type NfcProfile = typeof nfcProfilesTable.$inferSelect;
 
-export const insertNfcCardOrderSchema = createInsertSchema(nfcCardOrdersTable).omit({
+const insertNfcCardOrderSchema = createInsertSchema(nfcCardOrdersTable).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
-export type InsertNfcCardOrder = z.infer<typeof insertNfcCardOrderSchema>;
-export type NfcCardOrder = typeof nfcCardOrdersTable.$inferSelect;
 
 /* One row per physical card in an order — each card links to its own
    profile so every card gets a unique NFC URL + QR. */
-export const nfcOrderCardsTable = pgTable("nfc_order_cards", {
+const nfcOrderCardsTable = pgTable("nfc_order_cards", {
   id:        uuid("id").primaryKey().defaultRandom(),
   orderId:   uuid("order_id").notNull().references(() => nfcCardOrdersTable.id, { onDelete: "cascade" }),
   profileId: uuid("profile_id").notNull().references(() => nfcProfilesTable.id, { onDelete: "cascade" }),
   cardIndex: integer("card_index").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type NfcOrderCard = typeof nfcOrderCardsTable.$inferSelect;
 
 /* Card styles: key, label, price, blurb. Backend-validated on order. */
 export const NFC_CARD_STYLES = [
@@ -82,14 +78,8 @@ export const NFC_CARD_STYLES = [
   { key: "metal-gold",      label: "Gold Metal",      priceCents: 6900, blurb: "Gold-finish metal, etched — pure luxury" },
 ] as const;
 
-export type NfcCardStyleKey = (typeof NFC_CARD_STYLES)[number]["key"];
 
 export function nfcCardStyleByKey(key: string) {
   return NFC_CARD_STYLES.find((s) => s.key === key);
 }
 
-export const NFC_ORDER_STATUSES = [
-  "received",
-  "pending_fulfillment",
-  "in_production",
-] as const;

@@ -20,7 +20,7 @@ import { pgTable, uuid, text, integer, timestamp, jsonb } from "drizzle-orm/pg-c
  * Per-ratio charging does not fit export_jobs' single credits_charged
  * flag, hence the dedicated table.
  */
-export const multiRatioJobsTable = pgTable("multi_ratio_jobs", {
+const multiRatioJobsTable = pgTable("multi_ratio_jobs", {
   id: uuid("id").primaryKey(),
   user_id: uuid("user_id").notNull(),
   video_url: text("video_url").notNull(),
@@ -34,4 +34,3 @@ export const multiRatioJobsTable = pgTable("multi_ratio_jobs", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type MultiRatioJobRow = typeof multiRatioJobsTable.$inferSelect;

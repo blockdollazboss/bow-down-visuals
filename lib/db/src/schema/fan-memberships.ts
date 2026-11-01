@@ -40,7 +40,6 @@ export const fanTiersTable = pgTable(
   ],
 );
 
-export type FanTier = typeof fanTiersTable.$inferSelect;
 
 /* "refunded" (migration 0183, defect D1): the payment behind the join
    was refunded or lost to a chargeback — the clawback engine sets it
@@ -113,7 +112,6 @@ export const fanMembersTable = pgTable(
   ],
 );
 
-export type FanMember = typeof fanMembersTable.$inferSelect;
 
 /* Gifted memberships (migration 0132): one row per gift purchase, so both
    the purchaser and the recipient can see an honest gift state. The actual
@@ -143,4 +141,3 @@ export const fanMembershipGiftsTable = pgTable(
   ],
 );
 
-export type FanMembershipGift = typeof fanMembershipGiftsTable.$inferSelect;

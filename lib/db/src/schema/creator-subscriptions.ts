@@ -37,4 +37,3 @@ export const creatorSubscriptionsTable = pgTable(
   ],
 );
 
-export type CreatorSubscription = typeof creatorSubscriptionsTable.$inferSelect;

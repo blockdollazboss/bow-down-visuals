@@ -25,4 +25,3 @@ export const photoPresetsTable = pgTable("photo_presets", {
   index("photo_presets_public_idx").on(t.is_public).where(sql`${t.is_public}`),
 ]);
 
-export type PhotoPresetRow = typeof photoPresetsTable.$inferSelect;

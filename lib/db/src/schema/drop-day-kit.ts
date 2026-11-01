@@ -48,4 +48,3 @@ export const dropDayKitsTable = pgTable(
   ],
 );
 
-export type DropDayKit = typeof dropDayKitsTable.$inferSelect;

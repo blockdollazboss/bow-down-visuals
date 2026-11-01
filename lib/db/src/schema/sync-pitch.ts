@@ -8,10 +8,8 @@ import { z } from "zod/v4";
    sent -> pending -> placed statuses. See migration 0078. */
 
 export const SYNC_PROJECT_TYPES = ["tv", "film", "ad", "game"] as const;
-export type SyncProjectType = (typeof SYNC_PROJECT_TYPES)[number];
 
 export const SYNC_PITCH_STATUSES = ["sent", "pending", "placed", "dead"] as const;
-export type SyncPitchStatus = (typeof SYNC_PITCH_STATUSES)[number];
 
 export const syncOneSheetsTable = pgTable("sync_one_sheets", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -86,6 +84,3 @@ export const selectSyncOneSheetSchema = createSelectSchema(syncOneSheetsTable);
 export const selectSyncBriefSchema = createSelectSchema(syncBriefsTable);
 export const selectSyncPitchSchema = createSelectSchema(syncPitchesTable);
 
-export type SyncOneSheetRow = typeof syncOneSheetsTable.$inferSelect;
-export type SyncBriefRow = typeof syncBriefsTable.$inferSelect;
-export type SyncPitchRow = typeof syncPitchesTable.$inferSelect;

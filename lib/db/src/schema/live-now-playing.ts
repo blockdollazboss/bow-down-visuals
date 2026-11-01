@@ -64,6 +64,5 @@ export const liveNowPlayingTable = pgTable(
   (t) => [index("live_now_playing_creator_idx").on(t.creator_user_id)],
 );
 
-export const insertLiveNowPlayingSchema = createInsertSchema(liveNowPlayingTable);
-export type InsertLiveNowPlaying = z.infer<typeof insertLiveNowPlayingSchema>;
+const insertLiveNowPlayingSchema = createInsertSchema(liveNowPlayingTable);
 export type LiveNowPlaying = typeof liveNowPlayingTable.$inferSelect;

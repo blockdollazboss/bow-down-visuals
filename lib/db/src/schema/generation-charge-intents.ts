@@ -27,8 +27,7 @@ import { z } from "zod/v4";
  * delivered_at is stamped when a poll hands over the finished work;
  * the retry sweeper re-charges only delivered-but-uncharged intents.
  */
-export const GENERATION_CHARGE_INTENT_STATUSES = ["awaiting", "charged", "failed", "expired"] as const;
-export type GenerationChargeIntentStatus = (typeof GENERATION_CHARGE_INTENT_STATUSES)[number];
+const GENERATION_CHARGE_INTENT_STATUSES = ["awaiting", "charged", "failed", "expired"] as const;
 
 export const generationChargeIntentsTable = pgTable("generation_charge_intents", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -49,7 +48,7 @@ export const generationChargeIntentsTable = pgTable("generation_charge_intents",
   index("generation_charge_intents_status_idx").on(t.status, t.created_at),
 ]);
 
-export const insertGenerationChargeIntentSchema = createInsertSchema(generationChargeIntentsTable).omit({
+const insertGenerationChargeIntentSchema = createInsertSchema(generationChargeIntentsTable).omit({
   id: true,
   created_at: true,
   resolved_at: true,
@@ -57,4 +56,3 @@ export const insertGenerationChargeIntentSchema = createInsertSchema(generationC
 export const selectGenerationChargeIntentSchema = createSelectSchema(generationChargeIntentsTable);
 
 export type GenerationChargeIntentRow = typeof generationChargeIntentsTable.$inferSelect;
-export type InsertGenerationChargeIntent = z.infer<typeof insertGenerationChargeIntentSchema>;

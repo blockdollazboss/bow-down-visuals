@@ -27,11 +27,10 @@ export const hubProjectsTable = pgTable("hub_projects", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertHubProjectSchema = createInsertSchema(hubProjectsTable).omit({
+const insertHubProjectSchema = createInsertSchema(hubProjectsTable).omit({
   created_at: true,
 });
 
 export const selectHubProjectSchema = createSelectSchema(hubProjectsTable);
 
 export type HubProjectRow = typeof hubProjectsTable.$inferSelect;
-export type InsertHubProject = z.infer<typeof insertHubProjectSchema>;

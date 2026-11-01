@@ -21,9 +21,7 @@ export const socialStatSnapshotsTable = pgTable(
   (t) => [index("social_stat_snapshots_user_platform_idx").on(t.user_id, t.platform, t.recorded_at)],
 );
 
-export const insertSocialStatSnapshotSchema = createInsertSchema(socialStatSnapshotsTable).omit({
+const insertSocialStatSnapshotSchema = createInsertSchema(socialStatSnapshotsTable).omit({
   id: true,
   recorded_at: true,
 });
-export type InsertSocialStatSnapshot = z.infer<typeof insertSocialStatSnapshotSchema>;
-export type SocialStatSnapshot = typeof socialStatSnapshotsTable.$inferSelect;

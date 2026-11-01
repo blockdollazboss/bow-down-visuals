@@ -20,7 +20,7 @@ export const generationsTable = pgTable("generations", {
   deleted_at: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const insertGenerationSchema = createInsertSchema(generationsTable).omit({
+const insertGenerationSchema = createInsertSchema(generationsTable).omit({
   id: true,
   created_at: true,
   deleted_at: true,
@@ -28,5 +28,3 @@ export const insertGenerationSchema = createInsertSchema(generationsTable).omit(
 
 export const selectGenerationSchema = createSelectSchema(generationsTable);
 
-export type GenerationRow = typeof generationsTable.$inferSelect;
-export type InsertGeneration = z.infer<typeof insertGenerationSchema>;

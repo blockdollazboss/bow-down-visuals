@@ -26,10 +26,10 @@ import { z } from "zod/v4";
    Privacy: a wishlist row belongs to the fan. Sellers never see who
    saved their product — no read path exposes another user's rows. */
 
-export const WISHLIST_ITEM_KINDS = ["store_product", "shop_product"] as const;
+const WISHLIST_ITEM_KINDS = ["store_product", "shop_product"] as const;
 export type WishlistItemKind = (typeof WISHLIST_ITEM_KINDS)[number];
 
-export const wishlistsTable = pgTable("wishlists", {
+const wishlistsTable = pgTable("wishlists", {
   id:              uuid("id").primaryKey().defaultRandom(),
   userId:          uuid("user_id").notNull(),
   itemKind:        text("item_kind").notNull().$type<WishlistItemKind>(),
@@ -50,8 +50,7 @@ export const wishlistsTable = pgTable("wishlists", {
   index("wishlists_item_idx").on(t.itemKind, t.itemId),
 ]);
 
-export const insertWishlistSchema = createInsertSchema(wishlistsTable).omit({
+const insertWishlistSchema = createInsertSchema(wishlistsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertWishlist = z.infer<typeof insertWishlistSchema>;
 export type Wishlist = typeof wishlistsTable.$inferSelect;

@@ -18,4 +18,3 @@ export const creatorOverlayTokensTable = pgTable("creator_overlay_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type CreatorOverlayToken = typeof creatorOverlayTokensTable.$inferSelect;

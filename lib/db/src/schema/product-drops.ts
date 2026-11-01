@@ -27,10 +27,10 @@ import { creatorProfilesTable } from "./creator-platform";
    gracefully (undefined-table → "no drop"), so products behave exactly
    as they did before this feature. */
 
-export const PRODUCT_DROP_STATUSES = ["scheduled", "live", "cancelled"] as const;
-export type ProductDropStatus = (typeof PRODUCT_DROP_STATUSES)[number];
+const PRODUCT_DROP_STATUSES = ["scheduled", "live", "cancelled"] as const;
+type ProductDropStatus = (typeof PRODUCT_DROP_STATUSES)[number];
 
-export const productDropsTable = pgTable("product_drops", {
+const productDropsTable = pgTable("product_drops", {
   id: uuid("id").primaryKey().defaultRandom(),
   productId: uuid("product_id")
     .notNull()
@@ -55,12 +55,11 @@ export const productDropsTable = pgTable("product_drops", {
   index("product_drops_profile_idx").on(t.profileId),
 ]);
 
-export type ProductDrop = typeof productDropsTable.$inferSelect;
 
 /* One row per (drop, email) capture on the public drop page — the
    product-drop twin of presave_follows. The email is ALSO subscribed to
    the creator's email list server-side (source 'drop'). */
-export const productDropCapturesTable = pgTable("product_drop_captures", {
+const productDropCapturesTable = pgTable("product_drop_captures", {
   id: uuid("id").primaryKey().defaultRandom(),
   dropId: uuid("drop_id")
     .notNull()
@@ -77,10 +76,8 @@ export const productDropCapturesTable = pgTable("product_drop_captures", {
   index("product_drop_captures_drop_idx").on(t.dropId),
 ]);
 
-export type ProductDropCapture = typeof productDropCapturesTable.$inferSelect;
 
-export const PRODUCT_DROP_DELIVERY_STATUSES = ["pending", "sent", "failed", "dead"] as const;
-export type ProductDropDeliveryStatus = (typeof PRODUCT_DROP_DELIVERY_STATUSES)[number];
+const PRODUCT_DROP_DELIVERY_STATUSES = ["pending", "sent", "failed", "dead"] as const;
 
 /* Drop-day fan notifications: the delivery ledger for the "one email
    when the drop goes live" promise. One row per (drop, fan email),
@@ -92,7 +89,7 @@ export type ProductDropDeliveryStatus = (typeof PRODUCT_DROP_DELIVERY_STATUSES)[
      failed  → the send attempt failed (last_error recorded); a later
                sweep may retry while attempts < the cap.
      dead    → attempts exhausted; terminal, never retried. */
-export const productDropDeliveriesTable = pgTable("product_drop_deliveries", {
+const productDropDeliveriesTable = pgTable("product_drop_deliveries", {
   id: uuid("id").primaryKey().defaultRandom(),
   dropId: uuid("drop_id")
     .notNull()

@@ -30,7 +30,7 @@ import { z } from "zod/v4";
  * is rendered server-side, and the UI says so (a labeled live-preview
  * affordance) instead of faking a screenshot.
  */
-export const WEBSITE_BUILD_SOURCES = ["generate", "regenerate", "edit", "restore", "save"] as const;
+const WEBSITE_BUILD_SOURCES = ["generate", "regenerate", "edit", "restore", "save"] as const;
 export type WebsiteBuildSource = (typeof WEBSITE_BUILD_SOURCES)[number];
 
 /** The brief/settings that produced a build (or one version of it). */
@@ -43,7 +43,7 @@ export interface WebsiteBuildBrief {
 /** The generated site payload: file path -> full file contents. */
 export type WebsiteBuildFiles = Record<string, string>;
 
-export const websiteBuilderProjectsTable = pgTable("website_builder_projects", {
+const websiteBuilderProjectsTable = pgTable("website_builder_projects", {
   id: uuid("id").primaryKey().defaultRandom(),
   user_id: uuid("user_id").notNull(),
   client_ref: text("client_ref"),
@@ -61,7 +61,7 @@ export const websiteBuilderProjectsTable = pgTable("website_builder_projects", {
   index("website_builder_projects_user_idx").on(t.user_id, t.updated_at),
 ]);
 
-export const websiteBuilderVersionsTable = pgTable("website_builder_versions", {
+const websiteBuilderVersionsTable = pgTable("website_builder_versions", {
   id: uuid("id").primaryKey().defaultRandom(),
   project_id: uuid("project_id")
     .notNull()
@@ -85,20 +85,16 @@ export const websiteBuilderVersionsTable = pgTable("website_builder_versions", {
   uniqueIndex("website_builder_versions_project_version_idx").on(t.project_id, t.version),
 ]);
 
-export const insertWebsiteBuilderProjectSchema = createInsertSchema(websiteBuilderProjectsTable).omit({
+const insertWebsiteBuilderProjectSchema = createInsertSchema(websiteBuilderProjectsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
 export const selectWebsiteBuilderProjectSchema = createSelectSchema(websiteBuilderProjectsTable);
 
-export const insertWebsiteBuilderVersionSchema = createInsertSchema(websiteBuilderVersionsTable).omit({
+const insertWebsiteBuilderVersionSchema = createInsertSchema(websiteBuilderVersionsTable).omit({
   id: true,
   created_at: true,
 });
 export const selectWebsiteBuilderVersionSchema = createSelectSchema(websiteBuilderVersionsTable);
 
-export type WebsiteBuilderProjectRow = typeof websiteBuilderProjectsTable.$inferSelect;
-export type InsertWebsiteBuilderProject = z.infer<typeof insertWebsiteBuilderProjectSchema>;
-export type WebsiteBuilderVersionRow = typeof websiteBuilderVersionsTable.$inferSelect;
-export type InsertWebsiteBuilderVersion = z.infer<typeof insertWebsiteBuilderVersionSchema>;

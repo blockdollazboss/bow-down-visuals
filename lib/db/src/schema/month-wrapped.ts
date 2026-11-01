@@ -17,4 +17,3 @@ export const monthWrappedPrefsTable = pgTable("month_wrapped_prefs", {
   enabled:   boolean("enabled").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type MonthWrappedPrefs = typeof monthWrappedPrefsTable.$inferSelect;

@@ -36,8 +36,6 @@ export const bookChaptersTable = pgTable("book_chapters", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type BookRow = typeof booksTable.$inferSelect;
-export type BookChapterRow = typeof bookChaptersTable.$inferSelect;
 
 /* Print-on-demand orders via Lulu. */
 export const bookPrintOrdersTable = pgTable("book_print_orders", {
@@ -64,4 +62,3 @@ export const bookPrintOrdersTable = pgTable("book_print_orders", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type BookPrintOrderRow = typeof bookPrintOrdersTable.$inferSelect;

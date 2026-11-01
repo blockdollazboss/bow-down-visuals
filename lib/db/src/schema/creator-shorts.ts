@@ -40,8 +40,7 @@ export const challengesTable = pgTable("challenges", {
   createdAt:        timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertChallengeSchema = createInsertSchema(challengesTable).omit({ id: true, createdAt: true });
-export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
+const insertChallengeSchema = createInsertSchema(challengesTable).omit({ id: true, createdAt: true });
 export type Challenge = typeof challengesTable.$inferSelect;
 
 export const challengeEntriesTable = pgTable("challenge_entries", {
@@ -70,7 +69,6 @@ export const challengePrizesTable = pgTable("challenge_prizes", {
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type ChallengePrize = typeof challengePrizesTable.$inferSelect;
 
 /** One vote per user per entry — enforced by UNIQUE(user_id, video_id). */
 export const challengeVotesTable = pgTable("challenge_votes", {
@@ -81,7 +79,6 @@ export const challengeVotesTable = pgTable("challenge_votes", {
   createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type ChallengeVote = typeof challengeVotesTable.$inferSelect;
 
 /** Announced winners. paid_at IS NULL until the prize is paid; the payout
     claims the row with UPDATE ... WHERE paid_at IS NULL so concurrent
@@ -98,4 +95,3 @@ export const challengeWinnersTable = pgTable("challenge_winners", {
   announcedAt:  timestamp("announced_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type ChallengeWinner = typeof challengeWinnersTable.$inferSelect;

@@ -27,7 +27,7 @@ export const CONTENT_WARNING_LABELS = [
 ] as const;
 export type ContentWarningLabel = (typeof CONTENT_WARNING_LABELS)[number];
 
-export function isContentWarningLabel(v: unknown): v is ContentWarningLabel {
+function isContentWarningLabel(v: unknown): v is ContentWarningLabel {
   return typeof v === "string" && (CONTENT_WARNING_LABELS as readonly string[]).includes(v);
 }
 
@@ -56,4 +56,3 @@ export const contentWarningPreferencesTable = pgTable("content_warning_preferenc
   updatedAt:    timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type ContentWarningPreferences = typeof contentWarningPreferencesTable.$inferSelect;

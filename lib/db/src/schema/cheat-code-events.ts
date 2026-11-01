@@ -56,10 +56,9 @@ export const cheatCodeEventsTable = pgTable(
   ],
 );
 
-export type CheatCodeEvent = typeof cheatCodeEventsTable.$inferSelect;
 
 /* Audit + rate-limit log for jackpot attempts. */
-export const cheatCodeAttemptsTable = pgTable(
+const cheatCodeAttemptsTable = pgTable(
   "cheat_code_attempts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -80,8 +79,6 @@ export const cheatCodeAttemptsTable = pgTable(
   ],
 );
 
-export type CheatCodeAttempt = typeof cheatCodeAttemptsTable.$inferSelect;
 
 /** Valid D-pad directions for a jackpot sequence. */
 export const CHEAT_CODE_DIRECTIONS = ["up", "down", "left", "right"] as const;
-export type CheatCodeDirection = (typeof CHEAT_CODE_DIRECTIONS)[number];

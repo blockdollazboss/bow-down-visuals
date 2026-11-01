@@ -34,11 +34,10 @@ export const apiKeysTable = pgTable(
   (t) => [index("api_keys_user_idx").on(t.userId), index("api_keys_hash_idx").on(t.keyHash)],
 );
 
-export const insertApiKeySchema = createInsertSchema(apiKeysTable).omit({
+const insertApiKeySchema = createInsertSchema(apiKeysTable).omit({
   id: true,
   createdAt: true,
   lastUsedAt: true,
   revokedAt: true,
 });
-export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type ApiKey = typeof apiKeysTable.$inferSelect;

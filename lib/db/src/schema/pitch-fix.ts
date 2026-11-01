@@ -39,11 +39,9 @@ import { sql } from "drizzle-orm";
  * Visual Bucs only — never cash.
  */
 
-export const PITCH_FIX_KINDS = ["pitch", "fix", "feedback"] as const;
-export type PitchFixKind = (typeof PITCH_FIX_KINDS)[number];
+const PITCH_FIX_KINDS = ["pitch", "fix", "feedback"] as const;
 
-export const PITCH_FIX_SOURCES = ["door", "feedback_popup"] as const;
-export type PitchFixSource = (typeof PITCH_FIX_SOURCES)[number];
+const PITCH_FIX_SOURCES = ["door", "feedback_popup"] as const;
 
 export const PITCH_CATEGORIES = ["create", "world", "money", "social", "other"] as const;
 export type PitchCategory = (typeof PITCH_CATEGORIES)[number];
@@ -67,16 +65,12 @@ export const FIX_SEVERITIES = ["blocks_me", "annoying", "small"] as const;
 export type FixSeverity = (typeof FIX_SEVERITIES)[number];
 
 export const PITCH_BOARD_STATUSES = ["reviewing", "approved", "building", "shipped"] as const;
-export type PitchBoardStatus = (typeof PITCH_BOARD_STATUSES)[number];
 
 export const FIX_BOARD_STATUSES = ["received", "confirmed", "fixing", "fixed"] as const;
-export type FixBoardStatus = (typeof FIX_BOARD_STATUSES)[number];
 
-export const PITCH_FIX_MODERATION_STATUSES = ["pending", "approved", "rejected"] as const;
-export type PitchFixModerationStatus = (typeof PITCH_FIX_MODERATION_STATUSES)[number];
+const PITCH_FIX_MODERATION_STATUSES = ["pending", "approved", "rejected"] as const;
 
-export const PITCH_FIX_REWARD_STATUSES = ["none", "queued", "paid", "ineligible"] as const;
-export type PitchFixRewardStatus = (typeof PITCH_FIX_REWARD_STATUSES)[number];
+const PITCH_FIX_REWARD_STATUSES = ["none", "queued", "paid", "ineligible"] as const;
 
 /** The ruled reward amounts (Visual Bucs only). */
 export const PITCH_REWARD_VB = 500;
@@ -158,4 +152,3 @@ export const feedbackPromptPrefsTable = pgTable("feedback_prompt_prefs", {
 });
 
 export type PitchFixSubmission = typeof pitchFixSubmissionsTable.$inferSelect;
-export type FeedbackPromptPrefs = typeof feedbackPromptPrefsTable.$inferSelect;

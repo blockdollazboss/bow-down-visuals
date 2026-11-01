@@ -81,7 +81,7 @@ export const referralPayoutsTable = pgTable(
 
 /* One row per (promoter, star tier) milestone bonus ever awarded —
    UNIQUE(referrer_user_id, stars) makes the bonus exactly-once. */
-export const referralMilestonesTable = pgTable(
+const referralMilestonesTable = pgTable(
   "referral_milestones",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -96,13 +96,8 @@ export const referralMilestonesTable = pgTable(
   ],
 );
 
-export const insertReferralCodeSchema = createInsertSchema(referralCodesTable).omit({ id: true, createdAt: true });
-export type InsertReferralCode = z.infer<typeof insertReferralCodeSchema>;
-export type ReferralCode = typeof referralCodesTable.$inferSelect;
+const insertReferralCodeSchema = createInsertSchema(referralCodesTable).omit({ id: true, createdAt: true });
 
-export const insertReferralSchema = createInsertSchema(referralsTable).omit({ id: true, createdAt: true });
-export type InsertReferral = z.infer<typeof insertReferralSchema>;
+const insertReferralSchema = createInsertSchema(referralsTable).omit({ id: true, createdAt: true });
 export type Referral = typeof referralsTable.$inferSelect;
 
-export type ReferralPayout = typeof referralPayoutsTable.$inferSelect;
-export type ReferralMilestone = typeof referralMilestonesTable.$inferSelect;

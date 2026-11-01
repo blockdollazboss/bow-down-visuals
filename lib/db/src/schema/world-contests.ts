@@ -64,7 +64,6 @@ export const worldContestEntriesTable = pgTable(
 );
 
 export type WorldContestEntry = typeof worldContestEntriesTable.$inferSelect;
-export type NewWorldContestEntry = typeof worldContestEntriesTable.$inferInsert;
 
 /** The podium's size: first, second, third — no deeper. */
 export const CONTEST_MAX_PLACES = 3;
@@ -105,4 +104,3 @@ export const worldContestWinnersTable = pgTable(
 );
 
 export type WorldContestWinner = typeof worldContestWinnersTable.$inferSelect;
-export type NewWorldContestWinner = typeof worldContestWinnersTable.$inferInsert;

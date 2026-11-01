@@ -19,7 +19,7 @@ export const contentPlansTable = pgTable("content_plans", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertContentPlanSchema = createInsertSchema(contentPlansTable).omit({
+const insertContentPlanSchema = createInsertSchema(contentPlansTable).omit({
   id: true,
   views: true,
   created_at: true,
@@ -27,5 +27,3 @@ export const insertContentPlanSchema = createInsertSchema(contentPlansTable).omi
 
 export const selectContentPlanSchema = createSelectSchema(contentPlansTable);
 
-export type ContentPlanRow = typeof contentPlansTable.$inferSelect;
-export type InsertContentPlan = z.infer<typeof insertContentPlanSchema>;

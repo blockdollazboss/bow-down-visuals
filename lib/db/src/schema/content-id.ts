@@ -17,7 +17,7 @@ export const CONTENT_ID_OPTIN_STATUSES = [
   "paused",
   "opted_out",
 ] as const;
-export type ContentIdOptinStatus = (typeof CONTENT_ID_OPTIN_STATUSES)[number];
+type ContentIdOptinStatus = (typeof CONTENT_ID_OPTIN_STATUSES)[number];
 
 export const CONTENT_ID_DETECTION_STATUSES = [
   "detected",
@@ -26,7 +26,7 @@ export const CONTENT_ID_DETECTION_STATUSES = [
   "disputed",
   "released",
 ] as const;
-export type ContentIdDetectionStatus = (typeof CONTENT_ID_DETECTION_STATUSES)[number];
+type ContentIdDetectionStatus = (typeof CONTENT_ID_DETECTION_STATUSES)[number];
 
 export const contentIdOptinsTable = pgTable("content_id_optins", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -81,7 +81,3 @@ export const insertContentIdDetectionSchema = createInsertSchema(contentIdDetect
 export const selectContentIdOptinSchema = createSelectSchema(contentIdOptinsTable);
 export const selectContentIdDetectionSchema = createSelectSchema(contentIdDetectionsTable);
 
-export type InsertContentIdOptin = z.infer<typeof insertContentIdOptinSchema>;
-export type ContentIdOptin = typeof contentIdOptinsTable.$inferSelect;
-export type InsertContentIdDetection = z.infer<typeof insertContentIdDetectionSchema>;
-export type ContentIdDetection = typeof contentIdDetectionsTable.$inferSelect;

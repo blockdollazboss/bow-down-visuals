@@ -109,30 +109,24 @@ export const royaltyPayoutsTable = pgTable(
   ],
 );
 
-export const PAYOUT_STATUSES = ["expected", "received", "partial", "overdue"] as const;
-export type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
+const PAYOUT_STATUSES = ["expected", "received", "partial", "overdue"] as const;
+type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
 
 export function isPayoutStatus(v: unknown): v is PayoutStatus {
   return typeof v === "string" && (PAYOUT_STATUSES as readonly string[]).includes(v);
 }
 
-export const insertRoyaltyEntrySchema = createInsertSchema(royaltyEntriesTable).omit({
+const insertRoyaltyEntrySchema = createInsertSchema(royaltyEntriesTable).omit({
   id: true,
   created_at: true,
 });
-export type InsertRoyaltyEntry = z.infer<typeof insertRoyaltyEntrySchema>;
-export type RoyaltyEntry = typeof royaltyEntriesTable.$inferSelect;
 
-export const insertRoyaltyPlatformConnectionSchema = createInsertSchema(
+const insertRoyaltyPlatformConnectionSchema = createInsertSchema(
   royaltyPlatformConnectionsTable,
 ).omit({ id: true, connected_at: true });
-export type InsertRoyaltyPlatformConnection = z.infer<typeof insertRoyaltyPlatformConnectionSchema>;
-export type RoyaltyPlatformConnection = typeof royaltyPlatformConnectionsTable.$inferSelect;
 
-export const insertRoyaltyPayoutSchema = createInsertSchema(royaltyPayoutsTable).omit({
+const insertRoyaltyPayoutSchema = createInsertSchema(royaltyPayoutsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertRoyaltyPayout = z.infer<typeof insertRoyaltyPayoutSchema>;
-export type RoyaltyPayout = typeof royaltyPayoutsTable.$inferSelect;

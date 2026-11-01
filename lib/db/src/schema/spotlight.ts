@@ -17,11 +17,10 @@ export const spotlightInquiriesTable = pgTable("spotlight_inquiries", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertSpotlightInquirySchema = createInsertSchema(spotlightInquiriesTable).omit({
+const insertSpotlightInquirySchema = createInsertSchema(spotlightInquiriesTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertSpotlightInquiry = z.infer<typeof insertSpotlightInquirySchema>;
 export type SpotlightInquiry = typeof spotlightInquiriesTable.$inferSelect;
 
 /* Public offer details — shared by the promo overlay and the inquiry modal. */

@@ -44,5 +44,3 @@ export const supporterBoardOptOutsTable = pgTable(
   ],
 );
 
-export type SupporterBoardSettingsRow = typeof supporterBoardSettingsTable.$inferSelect;
-export type SupporterBoardOptOutRow = typeof supporterBoardOptOutsTable.$inferSelect;

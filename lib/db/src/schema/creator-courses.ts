@@ -55,8 +55,8 @@ import { profileVideosTable } from "./creator-platform";
  * stops unlocking the moment its status flips.
  */
 
-export const COURSE_LESSON_KINDS = ["video", "text"] as const;
-export type CourseLessonKind = (typeof COURSE_LESSON_KINDS)[number];
+const COURSE_LESSON_KINDS = ["video", "text"] as const;
+type CourseLessonKind = (typeof COURSE_LESSON_KINDS)[number];
 
 export const courseSectionsTable = pgTable("course_sections", {
   id:        uuid("id").primaryKey().defaultRandom(),
@@ -70,10 +70,9 @@ export const courseSectionsTable = pgTable("course_sections", {
   uniqueIndex("course_sections_position_unique").on(t.productId, t.position),
 ]);
 
-export const insertCourseSectionSchema = createInsertSchema(courseSectionsTable).omit({
+const insertCourseSectionSchema = createInsertSchema(courseSectionsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertCourseSection = z.infer<typeof insertCourseSectionSchema>;
 export type CourseSection = typeof courseSectionsTable.$inferSelect;
 
 export const courseLessonsTable = pgTable("course_lessons", {
@@ -102,14 +101,13 @@ export const courseLessonsTable = pgTable("course_lessons", {
   uniqueIndex("course_lessons_position_unique").on(t.sectionId, t.position),
 ]);
 
-export const insertCourseLessonSchema = createInsertSchema(courseLessonsTable).omit({
+const insertCourseLessonSchema = createInsertSchema(courseLessonsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertCourseLesson = z.infer<typeof insertCourseLessonSchema>;
 export type CourseLesson = typeof courseLessonsTable.$inferSelect;
 
-export const COURSE_PROGRESS_STATUSES = ["started", "in_progress", "completed"] as const;
-export type CourseProgressStatus = (typeof COURSE_PROGRESS_STATUSES)[number];
+const COURSE_PROGRESS_STATUSES = ["started", "in_progress", "completed"] as const;
+type CourseProgressStatus = (typeof COURSE_PROGRESS_STATUSES)[number];
 
 export const courseLessonProgressTable = pgTable("course_lesson_progress", {
   id:              uuid("id").primaryKey().defaultRandom(),
@@ -129,8 +127,6 @@ export const courseLessonProgressTable = pgTable("course_lesson_progress", {
   index("course_lesson_progress_user_product_idx").on(t.userId, t.productId),
 ]);
 
-export const insertCourseLessonProgressSchema = createInsertSchema(courseLessonProgressTable).omit({
+const insertCourseLessonProgressSchema = createInsertSchema(courseLessonProgressTable).omit({
   id: true, startedAt: true, updatedAt: true,
 });
-export type InsertCourseLessonProgress = z.infer<typeof insertCourseLessonProgressSchema>;
-export type CourseLessonProgress = typeof courseLessonProgressTable.$inferSelect;

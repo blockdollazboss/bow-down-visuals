@@ -25,7 +25,7 @@ import { liveStreamsTable } from "./live-streams";
    most recent completed battle) and a World palace announcement —
    both honours, never money. */
 
-export const LIVE_BATTLE_STATUSES = [
+const LIVE_BATTLE_STATUSES = [
   "pending",
   "accepted",
   "declined",
@@ -34,10 +34,8 @@ export const LIVE_BATTLE_STATUSES = [
   "completed",
   "voided",
 ] as const;
-export type LiveBattleStatus = (typeof LIVE_BATTLE_STATUSES)[number];
 
-export const LIVE_BATTLE_SIDES = ["challenger", "opponent"] as const;
-export type LiveBattleSide = (typeof LIVE_BATTLE_SIDES)[number];
+const LIVE_BATTLE_SIDES = ["challenger", "opponent"] as const;
 
 export const liveBattlesTable = pgTable(
   "live_battles",
@@ -114,11 +112,10 @@ export const liveBattleVotesTable = pgTable(
   ],
 );
 
-export const insertLiveBattleSchema = createInsertSchema(liveBattlesTable).omit({
+const insertLiveBattleSchema = createInsertSchema(liveBattlesTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertLiveBattle = z.infer<typeof insertLiveBattleSchema>;
 export type LiveBattle = typeof liveBattlesTable.$inferSelect;
 export type LiveBattleVote = typeof liveBattleVotesTable.$inferSelect;

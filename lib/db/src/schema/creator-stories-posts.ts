@@ -42,8 +42,7 @@ export const storiesTable = pgTable("stories", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertStorySchema = createInsertSchema(storiesTable).omit({ id: true, createdAt: true, viewCount: true });
-export type InsertStory = z.infer<typeof insertStorySchema>;
+const insertStorySchema = createInsertSchema(storiesTable).omit({ id: true, createdAt: true, viewCount: true });
 export type Story = typeof storiesTable.$inferSelect;
 
 export const storyHighlightsTable = pgTable("story_highlights", {
@@ -55,12 +54,10 @@ export const storyHighlightsTable = pgTable("story_highlights", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertStoryHighlightSchema = createInsertSchema(storyHighlightsTable).omit({ id: true, createdAt: true });
-export type InsertStoryHighlight = z.infer<typeof insertStoryHighlightSchema>;
+const insertStoryHighlightSchema = createInsertSchema(storyHighlightsTable).omit({ id: true, createdAt: true });
 export type StoryHighlight = typeof storyHighlightsTable.$inferSelect;
 
-export const POST_KINDS = ["post", "thread_reply", "quote", "repost"] as const;
-export type PostKind = (typeof POST_KINDS)[number];
+const POST_KINDS = ["post", "thread_reply", "quote", "repost"] as const;
 
 /** The reason categories an admin records when removing a post or a
  *  thread reply (Stack-4 admin content-removal rail, migration 0175).
@@ -69,7 +66,6 @@ export type PostKind = (typeof POST_KINDS)[number];
  *  adds beside it never leaves the admin DTO. Enforced in the DB by
  *  posts_removal_reason_check and in the route by zod. */
 export const POST_REMOVAL_REASONS = ["spam", "harassment", "hate_speech", "violence", "sexual_content", "copyright", "impersonation", "other"] as const;
-export type PostRemovalReason = (typeof POST_REMOVAL_REASONS)[number];
 
 export const postsTable = pgTable("posts", {
   id:          uuid("id").primaryKey().defaultRandom(),
@@ -137,7 +133,6 @@ export type Post = typeof postsTable.$inferSelect;
  *  metadata on the draft. No generation is wired to a draft: the tone
  *  is the member's chosen voice for the reply, nothing more. */
 export const POST_REPLY_DRAFT_TONES = ["hype", "grateful", "playful", "professional"] as const;
-export type PostReplyDraftTone = (typeof POST_REPLY_DRAFT_TONES)[number];
 
 /* Post reply drafts (STACK-20 R2 #8, migration 0160): ONE in-progress
    reply per member per board post, held server-side so a half-written
@@ -178,11 +173,9 @@ export type Attachment =
   | { kind: "product"; id: string; kindSlug: string; title?: string; image?: string; storeSlug?: string; alt?: string }
   | { kind: "event"; id: string; title?: string; date?: string; venue?: string };
 
-export const REACTION_EMOJIS = ["like", "love", "fire", "clap", "mindblown"] as const;
-export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
+const REACTION_EMOJIS = ["like", "love", "fire", "clap", "mindblown"] as const;
 
-export const REACTION_TARGETS = ["post", "track", "video", "profile"] as const;
-export type ReactionTarget = (typeof REACTION_TARGETS)[number];
+const REACTION_TARGETS = ["post", "track", "video", "profile"] as const;
 
 export const reactionsTable = pgTable("reactions", {
   userId:     uuid("user_id").notNull(),
@@ -198,8 +191,7 @@ export const reactionsTable = pgTable("reactions", {
 
 export type Reaction = typeof reactionsTable.$inferSelect;
 
-export const SAVE_KINDS = ["post", "track", "video", "profile"] as const;
-export type SaveKind = (typeof SAVE_KINDS)[number];
+const SAVE_KINDS = ["post", "track", "video", "profile"] as const;
 
 export const savesTable = pgTable("saves", {
   userId:    uuid("user_id").notNull(),
@@ -224,9 +216,7 @@ export const pollOptionsTable = pgTable("poll_options", {
   createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertPollOptionSchema = createInsertSchema(pollOptionsTable).omit({ id: true, createdAt: true, voteCount: true });
-export type InsertPollOption = z.infer<typeof insertPollOptionSchema>;
-export type PollOption = typeof pollOptionsTable.$inferSelect;
+const insertPollOptionSchema = createInsertSchema(pollOptionsTable).omit({ id: true, createdAt: true, voteCount: true });
 
 export const pollVotesTable = pgTable("poll_votes", {
   userId:    uuid("user_id").notNull(),
@@ -235,4 +225,3 @@ export const pollVotesTable = pgTable("poll_votes", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.userId, t.postId] })]);
 
-export type PollVote = typeof pollVotesTable.$inferSelect;

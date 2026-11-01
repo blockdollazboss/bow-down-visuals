@@ -65,4 +65,3 @@ export const secondLifeRevivalsTable = pgTable(
   ],
 );
 
-export type SecondLifeRevival = typeof secondLifeRevivalsTable.$inferSelect;

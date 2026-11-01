@@ -23,11 +23,9 @@ import { paymentReversalsTable } from "./payment-reversals";
  *  - 'dismiss'   reviewed, no reversal — the row lands at 'dismissed'
  *                and NO money moves
  */
-export const PAYMENT_REVERSAL_RESOLUTION_DECISIONS = ["complete", "dismiss"] as const;
-export type PaymentReversalResolutionDecision =
-  (typeof PAYMENT_REVERSAL_RESOLUTION_DECISIONS)[number];
+const PAYMENT_REVERSAL_RESOLUTION_DECISIONS = ["complete", "dismiss"] as const;
 
-export const paymentReversalResolutionsTable = pgTable("payment_reversal_resolutions", {
+const paymentReversalResolutionsTable = pgTable("payment_reversal_resolutions", {
   id:             uuid("id").primaryKey().defaultRandom(),
   reversalId:     uuid("reversal_id").notNull().references(() => paymentReversalsTable.id, { onDelete: "cascade" }),
   stripeChargeId: text("stripe_charge_id").notNull(),
@@ -41,9 +39,7 @@ export const paymentReversalResolutionsTable = pgTable("payment_reversal_resolut
   index("payment_reversal_resolutions_created_idx").on(t.createdAt),
 ]);
 
-export const insertPaymentReversalResolutionSchema = createInsertSchema(paymentReversalResolutionsTable).omit({
+const insertPaymentReversalResolutionSchema = createInsertSchema(paymentReversalResolutionsTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertPaymentReversalResolution = z.infer<typeof insertPaymentReversalResolutionSchema>;
-export type PaymentReversalResolution = typeof paymentReversalResolutionsTable.$inferSelect;

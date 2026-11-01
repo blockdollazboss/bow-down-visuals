@@ -21,7 +21,7 @@ import { groupsTable } from "./community";
  * mark — the next digest aggregates everything since it, so a quiet
  * period sends nothing and loses nothing.
  */
-export const GROUP_DIGEST_FREQUENCIES = ["daily", "weekly"] as const;
+const GROUP_DIGEST_FREQUENCIES = ["daily", "weekly"] as const;
 export type GroupDigestFrequency = (typeof GROUP_DIGEST_FREQUENCIES)[number];
 
 export const groupDigestPrefsTable = pgTable("group_digest_prefs", {
@@ -50,4 +50,3 @@ export const groupDigestDeliveriesTable = pgTable("group_digest_deliveries", {
   index("group_digest_deliveries_user_idx").on(t.userId, t.periodEnd),
 ]);
 
-export type GroupDigestDelivery = typeof groupDigestDeliveriesTable.$inferSelect;

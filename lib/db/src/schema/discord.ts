@@ -50,21 +50,17 @@ export const discordStreamsTable = pgTable(
   (t) => [index("discord_streams_user_id_idx").on(t.user_id)],
 );
 
-export const insertDiscordWebhookSchema = createInsertSchema(discordWebhooksTable).omit({
+const insertDiscordWebhookSchema = createInsertSchema(discordWebhooksTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertDiscordWebhook = z.infer<typeof insertDiscordWebhookSchema>;
-export type DiscordWebhook = typeof discordWebhooksTable.$inferSelect;
 
-export const insertDiscordStreamSchema = createInsertSchema(discordStreamsTable).omit({
+const insertDiscordStreamSchema = createInsertSchema(discordStreamsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertDiscordStream = z.infer<typeof insertDiscordStreamSchema>;
-export type DiscordStream = typeof discordStreamsTable.$inferSelect;
 
 /* Discord Live Companion Bot (Phase 1).
    A discord.js bot service (artifacts/discord-bot) watches the user's
@@ -95,12 +91,11 @@ export const discordBotConfigTable = pgTable(
   (t) => [index("discord_bot_config_user_id_idx").on(t.user_id)],
 );
 
-export const insertDiscordBotConfigSchema = createInsertSchema(discordBotConfigTable).omit({
+const insertDiscordBotConfigSchema = createInsertSchema(discordBotConfigTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertDiscordBotConfig = z.infer<typeof insertDiscordBotConfigSchema>;
 export type DiscordBotConfig = typeof discordBotConfigTable.$inferSelect;
 
 /* Live state, written by the bot service (POST /discord-bot/live) and read
@@ -124,9 +119,7 @@ export const discordLiveStateTable = pgTable(
   (t) => [index("discord_live_state_user_id_idx").on(t.user_id)],
 );
 
-export const insertDiscordLiveStateSchema = createInsertSchema(discordLiveStateTable).omit({
+const insertDiscordLiveStateSchema = createInsertSchema(discordLiveStateTable).omit({
   id: true,
   updated_at: true,
 });
-export type InsertDiscordLiveState = z.infer<typeof insertDiscordLiveStateSchema>;
-export type DiscordLiveState = typeof discordLiveStateTable.$inferSelect;

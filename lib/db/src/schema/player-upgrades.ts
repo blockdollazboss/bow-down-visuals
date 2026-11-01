@@ -36,7 +36,6 @@ export const insertVideoAutoChaptersSchema = createInsertSchema(videoAutoChapter
   updated_at: true,
 });
 export const selectVideoAutoChaptersSchema = createSelectSchema(videoAutoChaptersTable);
-export type VideoAutoChaptersRow = typeof videoAutoChaptersTable.$inferSelect;
 
 /* ── #174: Thumbnail Duels ───────────────────────────────────────────────────
    A creator ships cover A + cover B for one published video. The audience is
@@ -73,7 +72,6 @@ export const insertThumbnailDuelSchema = createInsertSchema(thumbnailDuelsTable)
   resolved_at: true,
 });
 export const selectThumbnailDuelSchema = createSelectSchema(thumbnailDuelsTable);
-export type ThumbnailDuelRow = typeof thumbnailDuelsTable.$inferSelect;
 
 /* One counted click per audience member per cover (same voter-fingerprint
    dedupe the showcase like rail uses). */
@@ -91,7 +89,6 @@ export const thumbnailDuelClicksTable = pgTable(
   (t) => [uniqueIndex("thumbnail_duel_clicks_uq").on(t.duel_id, t.cover, t.voter_key)],
 );
 
-export type ThumbnailDuelClickRow = typeof thumbnailDuelClicksTable.$inferSelect;
 
 /* ── N9: Karaoke sing-alongs ─────────────────────────────────────────────────
    A fan's recorded sing-along over a song whose creator enabled Karaoke
@@ -118,7 +115,6 @@ export const insertKaraokeSingalongSchema = createInsertSchema(karaokeSingalongs
   created_at: true,
 });
 export const selectKaraokeSingalongSchema = createSelectSchema(karaokeSingalongsTable);
-export type KaraokeSingalongRow = typeof karaokeSingalongsTable.$inferSelect;
 
 export const karaokeSettingsSchema = z.object({
   enabled: z.boolean().optional(),

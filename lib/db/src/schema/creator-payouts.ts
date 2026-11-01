@@ -8,7 +8,7 @@ import type { z } from "zod";
  * each payout row settles part of that balance. status: processing ->
  * pending (transfer created) | failed. "paid" is set once Stripe confirms
  * the transfer (transfer.updated webhook — future build). */
-export const creatorPayoutsTable = pgTable("creator_payouts", {
+const creatorPayoutsTable = pgTable("creator_payouts", {
   id:               uuid("id").primaryKey().defaultRandom(),
   profileId:        uuid("profile_id").notNull(),
   amountCents:      integer("amount_cents").notNull(),
@@ -23,8 +23,6 @@ export const creatorPayoutsTable = pgTable("creator_payouts", {
   uniqueIndex("creator_payouts_profile_processing_ux").on(t.profileId).where(sql`status = 'processing'`),
 ]);
 
-export const insertCreatorPayoutSchema = createInsertSchema(creatorPayoutsTable).omit({
+const insertCreatorPayoutSchema = createInsertSchema(creatorPayoutsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertCreatorPayout = z.infer<typeof insertCreatorPayoutSchema>;
-export type CreatorPayout = typeof creatorPayoutsTable.$inferSelect;

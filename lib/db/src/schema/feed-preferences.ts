@@ -14,10 +14,9 @@ import { pgTable, uuid, boolean, timestamp } from "drizzle-orm/pg-core";
  * Owner-scoped by construction: the routes only ever read and write
  * the caller's own row (user_id is the primary key).
  */
-export const feedPreferencesTable = pgTable("feed_preferences", {
+const feedPreferencesTable = pgTable("feed_preferences", {
   userId:        uuid("user_id").primaryKey(),
   forYouEnabled: boolean("for_you_enabled").notNull().default(true),
   updatedAt:     timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type FeedPreferences = typeof feedPreferencesTable.$inferSelect;

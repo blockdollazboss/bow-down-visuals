@@ -10,7 +10,7 @@ export interface BioLinkRow {
   icon: string;
 }
 
-export interface BioSocials {
+interface BioSocials {
   instagram?: string;
   tiktok?: string;
   youtube?: string;
@@ -46,7 +46,6 @@ export const bioPagesTable = pgTable("bio_pages", {
   createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type BioPage = typeof bioPagesTable.$inferSelect;
 
 export const bioLinkClicksTable = pgTable("bio_link_clicks", {
   id:        uuid("id").primaryKey().defaultRandom(),
@@ -56,7 +55,6 @@ export const bioLinkClicksTable = pgTable("bio_link_clicks", {
   referrer:  text("referrer"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type BioLinkClick = typeof bioLinkClicksTable.$inferSelect;
 
 /* Gold/black luxury theme variants for bio pages. Backend-validated on save. */
 export const BIO_THEMES = [
@@ -64,7 +62,6 @@ export const BIO_THEMES = [
   { key: "midnight-gold", label: "Midnight Gold", blurb: "Deep blue-black with warm gold accents" },
   { key: "onyx-minimal", label: "Onyx Minimal", blurb: "Pure black, hairline gold rules — ultra clean" },
 ] as const;
-export type BioThemeKey = (typeof BIO_THEMES)[number]["key"];
 export const BIO_THEME_KEYS = new Set(BIO_THEMES.map((t) => t.key));
 
 export const BIO_LINK_ICON_KEYS = new Set([

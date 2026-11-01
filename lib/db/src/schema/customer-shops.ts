@@ -209,7 +209,7 @@ export const shopEventsTable = pgTable("shop_events", {
    code name per shop. Validation/redemption discipline lives in
    routes/generate/shops.ts, mirroring routes/storefront.ts. */
 
-export const shopDiscountCodesTable = pgTable("shop_discount_codes", {
+const shopDiscountCodesTable = pgTable("shop_discount_codes", {
   id: uuid("id").primaryKey().defaultRandom(),
   shop_id: uuid("shop_id")
     .notNull()
@@ -236,7 +236,6 @@ export const insertShopDiscountCodeSchema = createInsertSchema(shopDiscountCodes
 
 export const selectShopDiscountCodeSchema = createSelectSchema(shopDiscountCodesTable);
 
-export type ShopDiscountCode = typeof shopDiscountCodesTable.$inferSelect;
 
 export const insertShopEventSchema = createInsertSchema(shopEventsTable).omit({
   id: true,
@@ -246,10 +245,10 @@ export const insertShopEventSchema = createInsertSchema(shopEventsTable).omit({
 export const selectShopEventSchema = createSelectSchema(shopEventsTable);
 
 /** Shop product listing state (migration 0176). */
-export type ShopProductStatus = "active" | "paused";
+type ShopProductStatus = "active" | "paused";
 
 /** Digital delivery product kind (payfix lane 4). */
-export type ShopProductType = "digital" | "physical";
+type ShopProductType = "digital" | "physical";
 
 /* ── Shop deliveries (payfix lane 4, provisional migration
    0271_shop_delivery) ───────────────────────────────────────────────────
@@ -262,7 +261,7 @@ export type ShopProductType = "digital" | "physical";
    order identifier the buyer sees (the checkout group). The
    deliverable URL is snapshotted at delivery time so a seller editing
    the product later never rewrites what an earlier buyer received. */
-export const shopDeliveriesTable = pgTable("shop_deliveries", {
+const shopDeliveriesTable = pgTable("shop_deliveries", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** The shop_events sale row this delivery fulfils — UNIQUE. */
   sale_event_id: uuid("sale_event_id").notNull().unique(),
@@ -289,8 +288,5 @@ export const insertShopDeliverySchema = createInsertSchema(shopDeliveriesTable).
   created_at: true,
 });
 export const selectShopDeliverySchema = createSelectSchema(shopDeliveriesTable);
-export type ShopDelivery = typeof shopDeliveriesTable.$inferSelect;
 
 export type Shop = typeof shopsTable.$inferSelect;
-export type ShopProduct = typeof shopProductsTable.$inferSelect;
-export type ShopEvent = typeof shopEventsTable.$inferSelect;

@@ -35,7 +35,7 @@ import {
  * migrations/0019_content_scheduler.sql — the schema here must stay in
  * sync with it so boot-time `drizzle-kit push` matches the migration. */
 
-export type ScheduledPostStatus =
+type ScheduledPostStatus =
   | "draft"
   | "scheduled"
   | "publishing"
@@ -95,7 +95,7 @@ export interface ScheduledPlatformResult {
 }
 
 /** AI best-time suggestion payload (stored for review, free to view). */
-export interface AiBestTimeSuggestion {
+interface AiBestTimeSuggestion {
   suggestedAt: string;
   timezone: string;
   slots: Array<{
@@ -176,4 +176,3 @@ export const scheduledPostsTable = pgTable(
 );
 
 export type ScheduledPost = typeof scheduledPostsTable.$inferSelect;
-export type NewScheduledPost = typeof scheduledPostsTable.$inferInsert;

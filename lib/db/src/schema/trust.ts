@@ -10,11 +10,11 @@ import { sql } from "drizzle-orm";
    roles/onboarding extend community groups, and retention events feed
    the analytics area. Money paths are read-only here. */
 
-export const CONTENT_ID_CLAIM_STATUSES = ["pending", "accepted", "disputed", "resolved"] as const;
-export type ContentIdClaimStatus = (typeof CONTENT_ID_CLAIM_STATUSES)[number];
+const CONTENT_ID_CLAIM_STATUSES = ["pending", "accepted", "disputed", "resolved"] as const;
+type ContentIdClaimStatus = (typeof CONTENT_ID_CLAIM_STATUSES)[number];
 
 /** One landmark: hash of a spectral-peak pair + its anchor time (frames). */
-export interface FingerprintLandmark { h: number; t: number }
+interface FingerprintLandmark { h: number; t: number }
 
 export const contentIdFingerprintsTable = pgTable("content_id_fingerprints", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -48,8 +48,8 @@ export const contentIdMatchesTable = pgTable("content_id_matches", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("content_id_matches_owner_idx").on(t.owner_user_id), index("content_id_matches_uploader_idx").on(t.uploader_user_id)]);
 
-export const LEGACY_STATUSES = ["pending", "accepted", "declined", "revoked"] as const;
-export type LegacyStatus = (typeof LEGACY_STATUSES)[number];
+const LEGACY_STATUSES = ["pending", "accepted", "declined", "revoked"] as const;
+type LegacyStatus = (typeof LEGACY_STATUSES)[number];
 
 /** Designation ONLY. Activation is a manual, human-reviewed process;
  *  no row in this table ever triggers a transfer by itself. Heirs never
@@ -158,9 +158,6 @@ export const videoRetentionEventsTable = pgTable("video_retention_events", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("video_retention_video_idx").on(t.video_id, t.created_at), index("video_retention_viewer_idx").on(t.viewer_user_id, t.created_at)]);
 
-export type ContentIdFingerprint = typeof contentIdFingerprintsTable.$inferSelect;
 export type ContentIdMatch = typeof contentIdMatchesTable.$inferSelect;
 export type LegacyDesignation = typeof legacyDesignationsTable.$inferSelect;
 export type LegacyContact = typeof legacyContactsTable.$inferSelect;
-export type CatalogExportJob = typeof catalogExportJobsTable.$inferSelect;
-export type StageRoomRow = typeof stageRoomsTable.$inferSelect;

@@ -33,7 +33,6 @@ export const shoutoutSettingsTable = pgTable(
   ],
 );
 
-export type ShoutoutSettings = typeof shoutoutSettingsTable.$inferSelect;
 
 /* Request lifecycle in v1:
    pending_payment → accepted → in_progress → delivered

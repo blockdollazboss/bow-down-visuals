@@ -15,7 +15,7 @@ import { z } from "zod/v4";
    Pure per-user data — every read/write is owner-scoped by user_id. */
 
 export const COACH_ACTION_SOURCES = ["plan", "niche", "custom"] as const;
-export type CoachActionSource = (typeof COACH_ACTION_SOURCES)[number];
+type CoachActionSource = (typeof COACH_ACTION_SOURCES)[number];
 
 export const coachActionItemsTable = pgTable("coach_action_items", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -47,5 +47,3 @@ export const insertCoachActionItemSchema = createInsertSchema(coachActionItemsTa
 export const selectCoachActionItemSchema = createSelectSchema(coachActionItemsTable);
 export const selectCoachGoalSchema = createSelectSchema(coachGoalsTable);
 
-export type CoachActionItem = typeof coachActionItemsTable.$inferSelect;
-export type CoachGoal = typeof coachGoalsTable.$inferSelect;

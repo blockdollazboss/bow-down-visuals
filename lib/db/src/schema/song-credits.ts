@@ -57,7 +57,7 @@ export const SONG_CREDIT_ROLES = [
 ] as const;
 export type SongCreditRole = (typeof SONG_CREDIT_ROLES)[number];
 
-export const songCreditEntriesTable = pgTable(
+const songCreditEntriesTable = pgTable(
   "song_credit_entries",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -84,7 +84,7 @@ export const songCreditEntriesTable = pgTable(
   ],
 );
 
-export const songCreditRevisionsTable = pgTable(
+const songCreditRevisionsTable = pgTable(
   "song_credit_revisions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -98,11 +98,8 @@ export const songCreditRevisionsTable = pgTable(
   (t) => [index("song_credit_revisions_song_idx").on(t.song_kind, t.song_id, t.version)],
 );
 
-export const insertSongCreditEntrySchema = createInsertSchema(songCreditEntriesTable).omit({
+const insertSongCreditEntrySchema = createInsertSchema(songCreditEntriesTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertSongCreditEntry = z.infer<typeof insertSongCreditEntrySchema>;
-export type SongCreditEntryRow = typeof songCreditEntriesTable.$inferSelect;
-export type SongCreditRevisionRow = typeof songCreditRevisionsTable.$inferSelect;

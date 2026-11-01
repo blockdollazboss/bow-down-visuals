@@ -149,6 +149,4 @@ export const liveViewerSamplesTable = pgTable(
 
 export type LiveStreamTip = typeof liveStreamTipsTable.$inferSelect;
 export type LiveStreamTicket = typeof liveStreamTicketsTable.$inferSelect;
-export type LiveChannelModerator = typeof liveChannelModeratorsTable.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptionsTable.$inferSelect;
-export type LiveViewerSample = typeof liveViewerSamplesTable.$inferSelect;

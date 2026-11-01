@@ -45,19 +45,19 @@ import { z } from "zod/v4";
  * 'paid') are subtracted by the pending read; a 'failed' payout stops
  * subtracting, so its money becomes payable again with no cleanup.
  */
-export const PENDING_PAYOUT_SOURCE_KINDS = [
+const PENDING_PAYOUT_SOURCE_KINDS = [
   "digital_sale",
   "store_order",
   "shop_event",
   "beat_license",
   "membership",
 ] as const;
-export type PendingPayoutSourceKind = (typeof PENDING_PAYOUT_SOURCE_KINDS)[number];
+type PendingPayoutSourceKind = (typeof PENDING_PAYOUT_SOURCE_KINDS)[number];
 
-export const PENDING_PAYOUT_ENTRY_TYPES = ["accrual", "reversal"] as const;
-export type PendingPayoutEntryType = (typeof PENDING_PAYOUT_ENTRY_TYPES)[number];
+const PENDING_PAYOUT_ENTRY_TYPES = ["accrual", "reversal"] as const;
+type PendingPayoutEntryType = (typeof PENDING_PAYOUT_ENTRY_TYPES)[number];
 
-export const pendingPayoutLedgerTable = pgTable("pending_payout_ledger", {
+const pendingPayoutLedgerTable = pgTable("pending_payout_ledger", {
   id:               uuid("id").primaryKey().defaultRandom(),
   sellerUserId:     uuid("seller_user_id").notNull(),
   sellerProfileId:  uuid("seller_profile_id"),
@@ -76,6 +76,4 @@ export const pendingPayoutLedgerTable = pgTable("pending_payout_ledger", {
   index("pending_payout_ledger_seller_idx").on(t.sellerUserId, t.createdAt),
 ]);
 
-export const insertPendingPayoutLedgerSchema = createInsertSchema(pendingPayoutLedgerTable).omit({ id: true, createdAt: true });
-export type InsertPendingPayoutLedger = z.infer<typeof insertPendingPayoutLedgerSchema>;
-export type PendingPayoutLedgerEntry = typeof pendingPayoutLedgerTable.$inferSelect;
+const insertPendingPayoutLedgerSchema = createInsertSchema(pendingPayoutLedgerTable).omit({ id: true, createdAt: true });

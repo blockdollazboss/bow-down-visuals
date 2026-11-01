@@ -41,10 +41,8 @@ export const merchDesignsTable = pgTable(
   (t) => [index("merch_designs_user_id_idx").on(t.user_id)],
 );
 
-export const insertMerchDesignSchema = createInsertSchema(merchDesignsTable).omit({
+const insertMerchDesignSchema = createInsertSchema(merchDesignsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertMerchDesign = z.infer<typeof insertMerchDesignSchema>;
-export type MerchDesign = typeof merchDesignsTable.$inferSelect;

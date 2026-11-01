@@ -75,12 +75,10 @@ export const resultsWallPrefsTable = pgTable("results_wall_prefs", {
   index("results_wall_prefs_profile_idx").on(t.profileId),
 ]);
 
-export const insertResultsWallPrefsSchema = createInsertSchema(resultsWallPrefsTable).omit({
+const insertResultsWallPrefsSchema = createInsertSchema(resultsWallPrefsTable).omit({
   createdAt: true,
   updatedAt: true,
 });
-export type InsertResultsWallPrefs = z.infer<typeof insertResultsWallPrefsSchema>;
-export type ResultsWallPrefs = typeof resultsWallPrefsTable.$inferSelect;
 
 export const resultsWallEventsTable = pgTable("results_wall_events", {
   id:         uuid("id").primaryKey().defaultRandom(),
@@ -106,10 +104,8 @@ export const resultsWallEventsTable = pgTable("results_wall_events", {
   index("results_wall_events_profile_idx").on(t.profileId, t.occurredAt),
 ]);
 
-export const insertResultsWallEventSchema = createInsertSchema(resultsWallEventsTable).omit({
+const insertResultsWallEventSchema = createInsertSchema(resultsWallEventsTable).omit({
   id: true,
   createdAt: true,
   verifiedAt: true,
 });
-export type InsertResultsWallEvent = z.infer<typeof insertResultsWallEventSchema>;
-export type ResultsWallEvent = typeof resultsWallEventsTable.$inferSelect;

@@ -105,10 +105,9 @@ export const liveStreamsTable = pgTable(
   ],
 );
 
-export const insertLiveStreamSchema = createInsertSchema(liveStreamsTable).omit({
+const insertLiveStreamSchema = createInsertSchema(liveStreamsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertLiveStream = z.infer<typeof insertLiveStreamSchema>;
 export type LiveStream = typeof liveStreamsTable.$inferSelect;

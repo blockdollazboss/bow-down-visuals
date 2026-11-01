@@ -106,12 +106,11 @@ export const liveBackstageMessagesTable = pgTable(
   (t) => [index("live_backstage_messages_stream_created_idx").on(t.stream_id, t.created_at)],
 );
 
-export const insertLiveGuestInviteSchema = createInsertSchema(liveGuestInvitesTable).omit({
+const insertLiveGuestInviteSchema = createInsertSchema(liveGuestInvitesTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertLiveGuestInvite = z.infer<typeof insertLiveGuestInviteSchema>;
 export type LiveGuestInvite = typeof liveGuestInvitesTable.$inferSelect;
 export type LiveGuestSession = typeof liveGuestSessionsTable.$inferSelect;
 export type LiveBackstageMessage = typeof liveBackstageMessagesTable.$inferSelect;

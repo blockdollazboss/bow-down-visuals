@@ -28,7 +28,7 @@ export const COLLAB_NICHES = [
   "podcasting",
   "other",
 ] as const;
-export type CollabNiche = (typeof COLLAB_NICHES)[number];
+type CollabNiche = (typeof COLLAB_NICHES)[number];
 
 export function isCollabNicheKey(v: unknown): v is CollabNiche {
   return typeof v === "string" && (COLLAB_NICHES as readonly string[]).includes(v);
@@ -42,13 +42,13 @@ export const COLLAB_PLATFORMS = [
   "x",
   "discord",
 ] as const;
-export type CollabPlatform = (typeof COLLAB_PLATFORMS)[number];
+type CollabPlatform = (typeof COLLAB_PLATFORMS)[number];
 
 export function isCollabPlatformKey(v: unknown): v is CollabPlatform {
   return typeof v === "string" && (COLLAB_PLATFORMS as readonly string[]).includes(v);
 }
 
-export const COLLAB_REQUEST_STATUSES = ["pending", "accepted", "declined"] as const;
+const COLLAB_REQUEST_STATUSES = ["pending", "accepted", "declined"] as const;
 export type CollabRequestStatus = (typeof COLLAB_REQUEST_STATUSES)[number];
 
 /* One public collab profile per user. */
@@ -73,14 +73,12 @@ export const collabProfilesTable = pgTable(
   ],
 );
 
-export const insertCollabProfileSchema = createInsertSchema(collabProfilesTable).omit({
+const insertCollabProfileSchema = createInsertSchema(collabProfilesTable).omit({
   id: true,
   user_id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertCollabProfile = z.infer<typeof insertCollabProfileSchema>;
-export type CollabProfile = typeof collabProfilesTable.$inferSelect;
 
 /* Collab requests between creators. Free to send/answer. */
 export const collabRequestsTable = pgTable(
@@ -100,14 +98,12 @@ export const collabRequestsTable = pgTable(
   ],
 );
 
-export const insertCollabRequestSchema = createInsertSchema(collabRequestsTable).omit({
+const insertCollabRequestSchema = createInsertSchema(collabRequestsTable).omit({
   id: true,
   from_user_id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertCollabRequest = z.infer<typeof insertCollabRequestSchema>;
-export type CollabRequest = typeof collabRequestsTable.$inferSelect;
 
 /* ── Co-post author sides (Stack-100 #3, #24) ──────────────────────────────
    ONE Feed post (`posts`, single author column = the initiator) with TWO
@@ -164,7 +160,6 @@ export const postCoAuthorsTable = pgTable(
   ],
 );
 
-export type PostCoAuthor = typeof postCoAuthorsTable.$inferSelect;
 
 /* ── Co-release sides + agreed splits (Stack-100 #3 Wave 3, co-posts phase 2) ──
    ONE existing item — a distribution release (`item_kind='release'`,
@@ -189,7 +184,6 @@ export type PostCoAuthor = typeof postCoAuthorsTable.$inferSelect;
 export const CO_RELEASE_ITEM_KINDS = ["release", "product"] as const;
 export type CoReleaseItemKind = (typeof CO_RELEASE_ITEM_KINDS)[number];
 export const CO_RELEASE_SIDE_STATUSES = ["pending", "accepted", "declined", "withdrawn"] as const;
-export type CoReleaseSideStatusDb = (typeof CO_RELEASE_SIDE_STATUSES)[number];
 
 export const coReleasesTable = pgTable(
   "co_releases",
@@ -245,7 +239,6 @@ export const coReleaseSidesTable = pgTable(
 );
 
 export type CoReleaseRow = typeof coReleasesTable.$inferSelect;
-export type CoReleaseSideRow = typeof coReleaseSidesTable.$inferSelect;
 
 /* ── Collab Match — house-suggested pairings (#175, dedupe-audit UPGRADE) ──
    The house (not a creator) initiates pairings by niche + audience size.
@@ -256,10 +249,8 @@ export type CoReleaseSideRow = typeof coReleaseSidesTable.$inferSelect;
    intro message) and the existing inbox flow takes over. A `passed`
    mark from either side closes the pair forever — the scorer never
    re-suggests a pair that has a row, so a pass can never be nagged. */
-export const COLLAB_SUGGESTION_SIDE_STATUSES = ["pending", "interested", "passed"] as const;
-export type CollabSuggestionSideStatus = (typeof COLLAB_SUGGESTION_SIDE_STATUSES)[number];
-export const COLLAB_SUGGESTION_STATUSES = ["open", "connected", "closed"] as const;
-export type CollabSuggestionStatus = (typeof COLLAB_SUGGESTION_STATUSES)[number];
+const COLLAB_SUGGESTION_SIDE_STATUSES = ["pending", "interested", "passed"] as const;
+const COLLAB_SUGGESTION_STATUSES = ["open", "connected", "closed"] as const;
 
 export const collabSuggestionsTable = pgTable(
   "collab_suggestions",

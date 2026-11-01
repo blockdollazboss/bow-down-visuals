@@ -25,13 +25,13 @@ import { pgTable, uuid, text, timestamp, numeric, index, uniqueIndex, jsonb } fr
    routes answer 503 plain_deal_not_ready and reads degrade to empty
    (the lib's isMissingPlainDealTable guard). */
 
-export interface PlainDealAgreedShare {
+interface PlainDealAgreedShare {
   profileId: string;
   userId: string;
   sharePct: number;
 }
 
-export interface PlainDealSplitAttachRecord {
+interface PlainDealSplitAttachRecord {
   rail: "co_release" | "sale_splits";
   refId: string;
   at: string;
@@ -107,5 +107,4 @@ export const plainDealSidesTable = pgTable(
   ],
 );
 
-export type PlainDealRow = typeof plainDealsTable.$inferSelect;
 export type PlainDealSideRow = typeof plainDealSidesTable.$inferSelect;

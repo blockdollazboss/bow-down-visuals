@@ -51,4 +51,3 @@ export const viralSpikeEpisodesTable = pgTable(
   ],
 );
 
-export type ViralSpikeEpisode = typeof viralSpikeEpisodesTable.$inferSelect;

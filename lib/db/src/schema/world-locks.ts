@@ -56,10 +56,6 @@ export const worldDoorLocksTable = pgTable("world_door_locks", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertWorldPersonLockSchema = createInsertSchema(worldPersonLocksTable).omit({ id: true, createdAt: true });
-export type InsertWorldPersonLock = z.infer<typeof insertWorldPersonLockSchema>;
-export type WorldPersonLock = typeof worldPersonLocksTable.$inferSelect;
+const insertWorldPersonLockSchema = createInsertSchema(worldPersonLocksTable).omit({ id: true, createdAt: true });
 
-export const insertWorldDoorLockSchema = createInsertSchema(worldDoorLocksTable).omit({ createdAt: true });
-export type InsertWorldDoorLock = z.infer<typeof insertWorldDoorLockSchema>;
-export type WorldDoorLock = typeof worldDoorLocksTable.$inferSelect;
+const insertWorldDoorLockSchema = createInsertSchema(worldDoorLocksTable).omit({ createdAt: true });

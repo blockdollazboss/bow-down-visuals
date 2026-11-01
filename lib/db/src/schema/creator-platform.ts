@@ -95,8 +95,7 @@ export const creatorProfilesTable = pgTable("creator_profiles", {
   check("creator_profiles_collection_visibility_check", sql`${t.collectionVisibility} IN ('public', 'private')`),
 ]);
 
-export const insertCreatorProfileSchema = createInsertSchema(creatorProfilesTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertCreatorProfile = z.infer<typeof insertCreatorProfileSchema>;
+const insertCreatorProfileSchema = createInsertSchema(creatorProfilesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type CreatorProfile = typeof creatorProfilesTable.$inferSelect;
 
 export const profileTracksTable = pgTable("profile_tracks", {
@@ -123,9 +122,7 @@ export const profileTracksTable = pgTable("profile_tracks", {
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertProfileTrackSchema = createInsertSchema(profileTracksTable).omit({ id: true, createdAt: true });
-export type InsertProfileTrack = z.infer<typeof insertProfileTrackSchema>;
-export type ProfileTrack = typeof profileTracksTable.$inferSelect;
+const insertProfileTrackSchema = createInsertSchema(profileTracksTable).omit({ id: true, createdAt: true });
 
 export const profileVideosTable = pgTable("profile_videos", {
   id:                uuid("id").primaryKey().defaultRandom(),
@@ -191,9 +188,7 @@ export const profileVideosTable = pgTable("profile_videos", {
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertProfileVideoSchema = createInsertSchema(profileVideosTable).omit({ id: true, createdAt: true });
-export type InsertProfileVideo = z.infer<typeof insertProfileVideoSchema>;
-export type ProfileVideo = typeof profileVideosTable.$inferSelect;
+const insertProfileVideoSchema = createInsertSchema(profileVideosTable).omit({ id: true, createdAt: true });
 
 export const playlistsTable = pgTable("playlists", {
   id:             uuid("id").primaryKey().defaultRandom(),
@@ -220,6 +215,5 @@ export const playlistsTable = pgTable("playlists", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertPlaylistSchema = createInsertSchema(playlistsTable).omit({ id: true, createdAt: true });
-export type InsertPlaylist = z.infer<typeof insertPlaylistSchema>;
+const insertPlaylistSchema = createInsertSchema(playlistsTable).omit({ id: true, createdAt: true });
 export type Playlist = typeof playlistsTable.$inferSelect;

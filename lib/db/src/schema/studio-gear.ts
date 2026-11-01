@@ -10,7 +10,7 @@ import { z } from "zod/v4";
    all-house orders carry proof_status = 'not_required'.
    TEST MODE: test_mode is true on every row of this rail for now and the
    checkout never takes a real charge (paid rows carry a test session id). */
-export const studioGearOrdersTable = pgTable("studio_gear_orders", {
+const studioGearOrdersTable = pgTable("studio_gear_orders", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull(),
   /* [{ product, variant, option, qty, unitPriceCents, customText?,
@@ -36,13 +36,11 @@ export const studioGearOrdersTable = pgTable("studio_gear_orders", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertStudioGearOrderSchema = createInsertSchema(studioGearOrdersTable).omit({
+const insertStudioGearOrderSchema = createInsertSchema(studioGearOrdersTable).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
-export type InsertStudioGearOrder = z.infer<typeof insertStudioGearOrderSchema>;
-export type StudioGearOrder = typeof studioGearOrdersTable.$inferSelect;
 
 export const STUDIO_GEAR_ORDER_STATUSES = [
   "received",

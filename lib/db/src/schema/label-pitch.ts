@@ -23,7 +23,7 @@ export const labelPitchesTable = pgTable("label_pitches", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertLabelPitchSchema = createInsertSchema(labelPitchesTable).omit({
+const insertLabelPitchSchema = createInsertSchema(labelPitchesTable).omit({
   id: true,
   user_id: true,
   created_at: true,
@@ -32,5 +32,3 @@ export const insertLabelPitchSchema = createInsertSchema(labelPitchesTable).omit
 
 export const selectLabelPitchSchema = createSelectSchema(labelPitchesTable);
 
-export type LabelPitchRow = typeof labelPitchesTable.$inferSelect;
-export type InsertLabelPitch = z.infer<typeof insertLabelPitchSchema>;

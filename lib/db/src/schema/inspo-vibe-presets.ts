@@ -14,12 +14,10 @@ export const inspoVibePresetsTable = pgTable("inspo_vibe_presets", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertInspoVibePresetSchema = createInsertSchema(inspoVibePresetsTable).omit({
+const insertInspoVibePresetSchema = createInsertSchema(inspoVibePresetsTable).omit({
   id: true,
   created_at: true,
 });
 
 export const selectInspoVibePresetSchema = createSelectSchema(inspoVibePresetsTable);
 
-export type InspoVibePresetRow = typeof inspoVibePresetsTable.$inferSelect;
-export type InsertInspoVibePreset = z.infer<typeof insertInspoVibePresetSchema>;

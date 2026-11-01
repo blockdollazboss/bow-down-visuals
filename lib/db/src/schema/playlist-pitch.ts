@@ -26,7 +26,7 @@ export const playlistPitchesTable = pgTable("playlist_pitches", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertPlaylistPitchSchema = createInsertSchema(playlistPitchesTable).omit({
+const insertPlaylistPitchSchema = createInsertSchema(playlistPitchesTable).omit({
   id: true,
   user_id: true,
   created_at: true,
@@ -35,8 +35,6 @@ export const insertPlaylistPitchSchema = createInsertSchema(playlistPitchesTable
 
 export const selectPlaylistPitchSchema = createSelectSchema(playlistPitchesTable);
 
-export type PlaylistPitchRow = typeof playlistPitchesTable.$inferSelect;
-export type InsertPlaylistPitch = z.infer<typeof insertPlaylistPitchSchema>;
 
 /* Pitch submission deadlines (migration 0199, competitor gap G7).
    One row per submission deadline a creator is tracking for a playlist
@@ -72,7 +70,7 @@ export const pitchDeadlinesTable = pgTable("pitch_deadlines", {
   index("pitch_deadlines_user_deadline_idx").on(t.user_id, t.deadline_at),
 ]);
 
-export const insertPitchDeadlineSchema = createInsertSchema(pitchDeadlinesTable).omit({
+const insertPitchDeadlineSchema = createInsertSchema(pitchDeadlinesTable).omit({
   id: true,
   user_id: true,
   created_at: true,
@@ -80,5 +78,3 @@ export const insertPitchDeadlineSchema = createInsertSchema(pitchDeadlinesTable)
 });
 export const selectPitchDeadlineSchema = createSelectSchema(pitchDeadlinesTable);
 
-export type PitchDeadlineRow = typeof pitchDeadlinesTable.$inferSelect;
-export type InsertPitchDeadline = z.infer<typeof insertPitchDeadlineSchema>;

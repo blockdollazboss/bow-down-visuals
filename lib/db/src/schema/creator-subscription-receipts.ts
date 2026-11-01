@@ -34,4 +34,3 @@ export const creatorSubscriptionReceiptsTable = pgTable(
   ],
 );
 
-export type CreatorSubscriptionReceipt = typeof creatorSubscriptionReceiptsTable.$inferSelect;

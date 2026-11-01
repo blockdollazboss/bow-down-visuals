@@ -78,8 +78,6 @@ export const performanceBookingsTable = pgTable("performance_bookings", {
   index("performance_bookings_profile_idx").on(t.profileId),
 ]);
 
-export const insertPerformanceBookingSchema = createInsertSchema(performanceBookingsTable).omit({
+const insertPerformanceBookingSchema = createInsertSchema(performanceBookingsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertPerformanceBooking = z.infer<typeof insertPerformanceBookingSchema>;
-export type PerformanceBooking = typeof performanceBookingsTable.$inferSelect;

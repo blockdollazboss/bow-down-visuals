@@ -8,12 +8,12 @@ import { z } from "zod/v4";
    a public shareable URL (/press/:handle). The AI bio is the only
    compute-burning step (3 credits); all editing is free. */
 
-export interface PressKitTrack {
+interface PressKitTrack {
   title: string;
   url: string;
 }
 
-export interface PressKitQuote {
+interface PressKitQuote {
   quote: string;
   source: string;
 }
@@ -73,9 +73,9 @@ export interface PressKitLayoutEntry {
   visible: boolean;
 }
 
-export type PressKitLayout = PressKitLayoutEntry[];
+type PressKitLayout = PressKitLayoutEntry[];
 
-export const pressKitSectionKeySchema = z.enum(PRESS_KIT_SECTION_KEYS);
+const pressKitSectionKeySchema = z.enum(PRESS_KIT_SECTION_KEYS);
 
 export const pressKitLayoutSchema = z
   .array(
@@ -99,7 +99,7 @@ export const pressKitLayoutSchema = z
     });
   });
 
-export const DEFAULT_PRESS_KIT_LAYOUT: PressKitLayout = PRESS_KIT_SECTION_KEYS.map(
+const DEFAULT_PRESS_KIT_LAYOUT: PressKitLayout = PRESS_KIT_SECTION_KEYS.map(
   (key) => ({ key, visible: true }),
 );
 
@@ -162,19 +162,18 @@ export const pressKitsTable = pgTable("press_kits", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertPressKitSchema = createInsertSchema(pressKitsTable).omit({
+const insertPressKitSchema = createInsertSchema(pressKitsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
 
-export const selectPressKitSchema = createSelectSchema(pressKitsTable);
+const selectPressKitSchema = createSelectSchema(pressKitsTable);
 
 export type PressKit = typeof pressKitsTable.$inferSelect;
-export type InsertPressKit = z.infer<typeof insertPressKitSchema>;
 
 /** Public shape served at /press/:handle — never leaks user_id. */
-export const publicPressKitSchema = selectPressKitSchema.omit({ user_id: true });
+const publicPressKitSchema = selectPressKitSchema.omit({ user_id: true });
 export type PublicPressKit = z.infer<typeof publicPressKitSchema>;
 
 /** Handle rules: 3-30 chars, lowercase letters/numbers/hyphens, no leading/trailing hyphen. */

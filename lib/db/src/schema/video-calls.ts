@@ -31,7 +31,7 @@ import { conversationsTable } from "./community";
  * canCallConversation). Guests have no account and no conversation,
  * so they can never appear here.
  */
-export const VIDEO_CALL_STATUSES = [
+const VIDEO_CALL_STATUSES = [
   "ringing",
   "accepted",
   "declined",
@@ -42,7 +42,6 @@ export const VIDEO_CALL_STATUSES = [
   "failed",
   "ended",
 ] as const;
-export type VideoCallStatus = (typeof VIDEO_CALL_STATUSES)[number];
 
 export const videoCallsTable = pgTable("video_calls", {
   id:             uuid("id").primaryKey().defaultRandom(),
@@ -68,6 +67,5 @@ export const videoCallsTable = pgTable("video_calls", {
   index("video_calls_status_idx").on(t.status, t.createdAt),
 ]);
 
-export const insertVideoCallSchema = createInsertSchema(videoCallsTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertVideoCall = z.infer<typeof insertVideoCallSchema>;
+const insertVideoCallSchema = createInsertSchema(videoCallsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type VideoCall = typeof videoCallsTable.$inferSelect;

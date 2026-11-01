@@ -46,7 +46,7 @@ export const artistVaultIdentityPhotosTable = pgTable("artist_vault_identity_pho
   deleted_at: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const insertArtistVaultIdentityPhotoSchema = createInsertSchema(artistVaultIdentityPhotosTable).omit({
+const insertArtistVaultIdentityPhotoSchema = createInsertSchema(artistVaultIdentityPhotosTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
@@ -55,5 +55,3 @@ export const insertArtistVaultIdentityPhotoSchema = createInsertSchema(artistVau
 
 export const selectArtistVaultIdentityPhotoSchema = createSelectSchema(artistVaultIdentityPhotosTable);
 
-export type ArtistVaultIdentityPhotoRow = typeof artistVaultIdentityPhotosTable.$inferSelect;
-export type InsertArtistVaultIdentityPhoto = z.infer<typeof insertArtistVaultIdentityPhotoSchema>;

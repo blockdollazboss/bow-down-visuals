@@ -72,5 +72,3 @@ export const fanArtPiecesTable = pgTable(
   ],
 );
 
-export type FanArtPieceRow = typeof fanArtPiecesTable.$inferSelect;
-export type InsertFanArtPiece = typeof fanArtPiecesTable.$inferInsert;

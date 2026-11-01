@@ -20,12 +20,10 @@ export const generatedClipsTable = pgTable("generated_clips", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertGeneratedClipSchema = createInsertSchema(generatedClipsTable).omit({
+const insertGeneratedClipSchema = createInsertSchema(generatedClipsTable).omit({
   id: true,
   created_at: true,
 });
 
 export const selectGeneratedClipSchema = createSelectSchema(generatedClipsTable);
 
-export type GeneratedClipRow = typeof generatedClipsTable.$inferSelect;
-export type InsertGeneratedClip = z.infer<typeof insertGeneratedClipSchema>;

@@ -53,7 +53,6 @@ export const insertEmailListSchema = createInsertSchema(emailListsTable)
     welcome3Subject: z.string().max(200).optional(),
     welcome3Body: z.string().max(20000).optional(),
   });
-export type InsertEmailList = z.infer<typeof insertEmailListSchema>;
 export type EmailList = typeof emailListsTable.$inferSelect;
 
 /* ─── Subscribers ──────────────────────────────────────────────────────────
@@ -85,13 +84,12 @@ export const emailSubscribersTable = pgTable("email_subscribers", {
   subscribedAt: timestamp("subscribed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertEmailSubscriberSchema = createInsertSchema(emailSubscribersTable)
+const insertEmailSubscriberSchema = createInsertSchema(emailSubscribersTable)
   .omit({ id: true, subscribedAt: true, opens: true, clicks: true, unsubscribedAt: true, unsubscribeToken: true })
   .extend({
     email: z.string().email("Enter a valid email address.").max(254),
     name: z.string().max(120).optional(),
   });
-export type InsertEmailSubscriber = z.infer<typeof insertEmailSubscriberSchema>;
 export type EmailSubscriber = typeof emailSubscribersTable.$inferSelect;
 
 /* ─── Campaigns (newsletters) ──────────────────────────────────────────────
@@ -141,7 +139,7 @@ export const emailCampaignsTable = pgTable("email_campaigns", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertEmailCampaignSchema = createInsertSchema(emailCampaignsTable)
+const insertEmailCampaignSchema = createInsertSchema(emailCampaignsTable)
   .omit({ id: true, createdAt: true, sentAt: true, recipientCount: true, deliveredCount: true, openCount: true, clickCount: true })
   .extend({
     subject: z.string().min(1, "Subject is required.").max(200),
@@ -151,7 +149,6 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaignsTable)
     status: z.enum(["draft", "queued", "sending", "sent", "failed", "held_stale"]).default("draft"),
     kind: z.enum(["campaign"]).default("campaign"),
   });
-export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaign = typeof emailCampaignsTable.$inferSelect;
 
 /* ─── Tags (migration 0189) ───────────────────────────────────────────────
@@ -170,7 +167,6 @@ export const emailTagsTable = pgTable("email_tags", {
   uniqueIndex("email_tags_list_name_ux").on(t.listId, t.name),
 ]);
 
-export type EmailTag = typeof emailTagsTable.$inferSelect;
 
 export const emailSubscriberTagsTable = pgTable("email_subscriber_tags", {
   subscriberId: uuid("subscriber_id").notNull().references(() => emailSubscribersTable.id, { onDelete: "cascade" }),
@@ -180,7 +176,6 @@ export const emailSubscriberTagsTable = pgTable("email_subscriber_tags", {
   primaryKey({ columns: [t.subscriberId, t.tagId] }),
 ]);
 
-export type EmailSubscriberTag = typeof emailSubscriberTagsTable.$inferSelect;
 
 /* ─── Segments (migration 0189) ───────────────────────────────────────────
    A saved audience definition over one list. criteria shape (validated
@@ -203,7 +198,6 @@ export const emailSegmentsTable = pgTable("email_segments", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type EmailSegment = typeof emailSegmentsTable.$inferSelect;
 
 /* ─── Campaign deliveries (migration 0189) ────────────────────────────────
    One row per (campaign, subscriber) created at dispatch time. The
@@ -225,7 +219,6 @@ export const emailCampaignDeliveriesTable = pgTable("email_campaign_deliveries",
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type EmailCampaignDelivery = typeof emailCampaignDeliveriesTable.$inferSelect;
 
 /* One wrapped link per (delivery, distinct target URL in the body).
    The redirect endpoint resolves the target FROM THIS ROW by token —
@@ -239,7 +232,6 @@ export const emailCampaignLinksTable = pgTable("email_campaign_links", {
   createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type EmailCampaignLink = typeof emailCampaignLinksTable.$inferSelect;
 
 /* ─── Engagement events (migration 0189) ──────────────────────────────────
    Append-only record of real engagement signals. First-signal-wins:
@@ -264,7 +256,6 @@ export const emailEngagementEventsTable = pgTable("email_engagement_events", {
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type EmailEngagementEvent = typeof emailEngagementEventsTable.$inferSelect;
 
 /* ─── Automations (migration 0198) ───────────────────────────────────────
    One row per (list, kind) — the three starter automations. A row is
@@ -354,7 +345,6 @@ export const emailAutomationSendsTable = pgTable("email_automation_sends", {
   uniqueIndex("email_automation_sends_dedupe_ux").on(t.automationId, t.triggerRef),
 ]);
 
-export type EmailAutomationSend = typeof emailAutomationSendsTable.$inferSelect;
 
 /* ─── Abandoned checkouts (migration 0204) ───────────────────────────────
    One row per store / storefront Stripe checkout that expired unpaid,
@@ -366,7 +356,7 @@ export type EmailAutomationSend = typeof emailAutomationSendsTable.$inferSelect;
    is NOT stored — it is resolved through the auth rail when the
    sweeper evaluates, exactly like digital_sales triggers. */
 
-export const ABANDONED_CHECKOUT_RAILS = ["storefront", "store"] as const;
+const ABANDONED_CHECKOUT_RAILS = ["storefront", "store"] as const;
 export type AbandonedCheckoutRail = (typeof ABANDONED_CHECKOUT_RAILS)[number];
 
 export const abandonedCheckoutsTable = pgTable("abandoned_checkouts", {
@@ -390,7 +380,6 @@ export const abandonedCheckoutsTable = pgTable("abandoned_checkouts", {
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type AbandonedCheckout = typeof abandonedCheckoutsTable.$inferSelect;
 
 /* ─── Welcome-sequence deliveries ─────────────────────────────────────────
    One row per subscriber per sequence step, queued at signup by the
@@ -414,13 +403,12 @@ export const emailSequenceDeliveriesTable = pgTable("email_sequence_deliveries",
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertEmailSequenceDeliverySchema = createInsertSchema(emailSequenceDeliveriesTable)
+const insertEmailSequenceDeliverySchema = createInsertSchema(emailSequenceDeliveriesTable)
   .omit({ id: true, createdAt: true, sentAt: true })
   .extend({
     step: z.number().int().min(1).max(3),
     status: z.enum(["queued", "sending", "sent", "failed", "skipped"]).default("queued"),
   });
-export type InsertEmailSequenceDelivery = z.infer<typeof insertEmailSequenceDeliverySchema>;
 export type EmailSequenceDelivery = typeof emailSequenceDeliveriesTable.$inferSelect;
 
 /* ─── Per-recipient send log ───────────────────────────────────────────────
@@ -441,14 +429,12 @@ export const emailCampaignSendsTable = pgTable("email_campaign_sends", {
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertEmailCampaignSendSchema = createInsertSchema(emailCampaignSendsTable)
+const insertEmailCampaignSendSchema = createInsertSchema(emailCampaignSendsTable)
   .omit({ id: true, createdAt: true })
   .extend({
     email: z.string().email("Enter a valid email address.").max(254),
     status: z.enum(["pending", "sent", "failed"]).default("pending"),
   });
-export type InsertEmailCampaignSend = z.infer<typeof insertEmailCampaignSendSchema>;
-export type EmailCampaignSend = typeof emailCampaignSendsTable.$inferSelect;
 
 /* ─── Shared constants ───────────────────────────────────────────────────── */
 

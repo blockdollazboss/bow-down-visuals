@@ -31,13 +31,13 @@ export const reviewCommentsTable = pgTable("review_comments", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertReviewLinkSchema = createInsertSchema(reviewLinksTable).omit({
+const insertReviewLinkSchema = createInsertSchema(reviewLinksTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
 
-export const insertReviewCommentSchema = createInsertSchema(reviewCommentsTable).omit({
+const insertReviewCommentSchema = createInsertSchema(reviewCommentsTable).omit({
   id: true,
   created_at: true,
 });
@@ -45,7 +45,3 @@ export const insertReviewCommentSchema = createInsertSchema(reviewCommentsTable)
 export const selectReviewLinkSchema = createSelectSchema(reviewLinksTable);
 export const selectReviewCommentSchema = createSelectSchema(reviewCommentsTable);
 
-export type ReviewLinkRow = typeof reviewLinksTable.$inferSelect;
-export type ReviewCommentRow = typeof reviewCommentsTable.$inferSelect;
-export type InsertReviewLink = z.infer<typeof insertReviewLinkSchema>;
-export type InsertReviewComment = z.infer<typeof insertReviewCommentSchema>;

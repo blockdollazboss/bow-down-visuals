@@ -32,4 +32,3 @@ export const worldTutorialProgressTable = pgTable("world_tutorial_progress", {
 });
 
 export type WorldTutorialProgress = typeof worldTutorialProgressTable.$inferSelect;
-export type NewWorldTutorialProgress = typeof worldTutorialProgressTable.$inferInsert;

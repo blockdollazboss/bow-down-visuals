@@ -9,7 +9,7 @@ import { z } from "zod/v4";
    into referral_contest_prizes. UNIQUE(contest_id, referrer_user_id) keeps
    every payout exactly-once. */
 
-export const referralContestsTable = pgTable(
+const referralContestsTable = pgTable(
   "referral_contests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -27,7 +27,7 @@ export const referralContestsTable = pgTable(
   (t) => [index("referral_contests_period_idx").on(t.period)],
 );
 
-export const referralContestPrizesTable = pgTable(
+const referralContestPrizesTable = pgTable(
   "referral_contest_prizes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -46,10 +46,7 @@ export const referralContestPrizesTable = pgTable(
   ],
 );
 
-export const insertReferralContestSchema = createInsertSchema(referralContestsTable).omit({ id: true, createdAt: true });
-export type InsertReferralContest = z.infer<typeof insertReferralContestSchema>;
+const insertReferralContestSchema = createInsertSchema(referralContestsTable).omit({ id: true, createdAt: true });
 export type ReferralContest = typeof referralContestsTable.$inferSelect;
 
-export const insertReferralContestPrizeSchema = createInsertSchema(referralContestPrizesTable).omit({ id: true, awardedAt: true });
-export type InsertReferralContestPrize = z.infer<typeof insertReferralContestPrizeSchema>;
-export type ReferralContestPrize = typeof referralContestPrizesTable.$inferSelect;
+const insertReferralContestPrizeSchema = createInsertSchema(referralContestPrizesTable).omit({ id: true, awardedAt: true });

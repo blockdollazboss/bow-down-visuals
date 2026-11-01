@@ -29,4 +29,3 @@ export const userStripeCustomersTable = pgTable(
   ],
 );
 
-export type UserStripeCustomer = typeof userStripeCustomersTable.$inferSelect;

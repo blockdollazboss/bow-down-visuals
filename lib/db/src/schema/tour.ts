@@ -28,14 +28,12 @@ export const tourDatesTable = pgTable(
   (t) => [index("tour_dates_user_id_idx").on(t.user_id)],
 );
 
-export const insertTourDateSchema = createInsertSchema(tourDatesTable).omit({
+const insertTourDateSchema = createInsertSchema(tourDatesTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertTourDate = z.infer<typeof insertTourDateSchema>;
 export type TourDate = typeof tourDatesTable.$inferSelect;
 
 /* Status values for tour dates — keep in sync with the frontend. */
 export const TOUR_STATUSES = ["upcoming", "confirmed", "completed", "cancelled"] as const;
-export type TourStatus = (typeof TOUR_STATUSES)[number];

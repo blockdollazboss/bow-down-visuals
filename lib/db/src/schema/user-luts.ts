@@ -12,12 +12,10 @@ export const userLutsTable = pgTable("user_luts", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertUserLutSchema = createInsertSchema(userLutsTable).omit({
+const insertUserLutSchema = createInsertSchema(userLutsTable).omit({
   id: true,
   created_at: true,
 });
 
 export const selectUserLutSchema = createSelectSchema(userLutsTable);
 
-export type UserLutRow = typeof userLutsTable.$inferSelect;
-export type InsertUserLut = z.infer<typeof insertUserLutSchema>;

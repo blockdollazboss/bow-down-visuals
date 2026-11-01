@@ -62,7 +62,7 @@ export const contestEntriesTable = pgTable(
   ],
 );
 
-export const insertContestSchema = createInsertSchema(contestsTable).omit({
+const insertContestSchema = createInsertSchema(contestsTable).omit({
   id: true,
   winner_entry_id: true,
   draw_audit: true,
@@ -70,13 +70,11 @@ export const insertContestSchema = createInsertSchema(contestsTable).omit({
   created_at: true,
   updated_at: true,
 });
-export type InsertContest = z.infer<typeof insertContestSchema>;
 export type Contest = typeof contestsTable.$inferSelect;
 
-export const insertContestEntrySchema = createInsertSchema(contestEntriesTable).omit({
+const insertContestEntrySchema = createInsertSchema(contestEntriesTable).omit({
   id: true,
   is_verified: true,
   created_at: true,
 });
-export type InsertContestEntry = z.infer<typeof insertContestEntrySchema>;
 export type ContestEntry = typeof contestEntriesTable.$inferSelect;

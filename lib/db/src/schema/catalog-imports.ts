@@ -23,10 +23,10 @@ import { createInsertSchema } from "drizzle-zod";
    in this table represents an audience — followers do not transfer, and
    no column pretends otherwise. */
 
-export type CatalogImportSourceKind = "connected" | "upload";
-export type CatalogImportPlatform = "instagram" | "facebook" | "tiktok";
-export type CatalogImportKind = "video" | "audio";
-export type CatalogImportStatus =
+type CatalogImportSourceKind = "connected" | "upload";
+type CatalogImportPlatform = "instagram" | "facebook" | "tiktok";
+type CatalogImportKind = "video" | "audio";
+type CatalogImportStatus =
   | "listed"
   | "fetching"
   | "here"
@@ -44,7 +44,7 @@ export interface CatalogImportDraftNote {
   reason?: string;
 }
 
-export interface CatalogImportChapter {
+interface CatalogImportChapter {
   atSec: number;
   label: string;
 }
@@ -124,4 +124,3 @@ export const insertCatalogImportItemSchema = createInsertSchema(catalogImportIte
   updatedAt: true,
 });
 export type CatalogImportItem = typeof catalogImportItemsTable.$inferSelect;
-export type NewCatalogImportItem = typeof catalogImportItemsTable.$inferInsert;

@@ -29,8 +29,8 @@ import { storeProductsTable } from "./storefront";
  *    with a UNIQUE idempotency_key per money movement.
  */
 
-export const GIFT_CARD_STATUSES = ["active", "depleted", "refunded", "void"] as const;
-export type GiftCardStatus = (typeof GIFT_CARD_STATUSES)[number];
+const GIFT_CARD_STATUSES = ["active", "depleted", "refunded", "void"] as const;
+type GiftCardStatus = (typeof GIFT_CARD_STATUSES)[number];
 
 export const giftCardsTable = pgTable("gift_cards", {
   id:              uuid("id").primaryKey().defaultRandom(),
@@ -62,19 +62,17 @@ export const giftCardsTable = pgTable("gift_cards", {
   index("gift_cards_recipient_idx").on(t.recipientEmail),
 ]);
 
-export const insertGiftCardSchema = createInsertSchema(giftCardsTable).omit({
+const insertGiftCardSchema = createInsertSchema(giftCardsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertGiftCard = z.infer<typeof insertGiftCardSchema>;
-export type GiftCard = typeof giftCardsTable.$inferSelect;
 
-export const GIFT_CARD_LEDGER_KINDS = ["issue", "redeem", "refund_clawback"] as const;
-export type GiftCardLedgerKind = (typeof GIFT_CARD_LEDGER_KINDS)[number];
+const GIFT_CARD_LEDGER_KINDS = ["issue", "redeem", "refund_clawback"] as const;
+type GiftCardLedgerKind = (typeof GIFT_CARD_LEDGER_KINDS)[number];
 
 /** Append-only money ledger: every issuance, redemption and refund
  *  clawback lands exactly once (UNIQUE idempotency_key) with the
  *  balance it left behind, so issue − redeem − clawback ≡ balance. */
-export const giftCardLedgerTable = pgTable("gift_card_ledger", {
+const giftCardLedgerTable = pgTable("gift_card_ledger", {
   id:                uuid("id").primaryKey().defaultRandom(),
   giftCardId:        uuid("gift_card_id").notNull().references(() => giftCardsTable.id, { onDelete: "cascade" }),
   kind:              text("kind").notNull().$type<GiftCardLedgerKind>(),
@@ -93,15 +91,14 @@ export const giftCardLedgerTable = pgTable("gift_card_ledger", {
   index("gift_card_ledger_card_idx").on(t.giftCardId),
 ]);
 
-export type GiftCardLedgerEntry = typeof giftCardLedgerTable.$inferSelect;
 
-export const GIFT_CARD_RESERVATION_STATUSES = ["reserved", "redeemed", "released"] as const;
-export type GiftCardReservationStatus = (typeof GIFT_CARD_RESERVATION_STATUSES)[number];
+const GIFT_CARD_RESERVATION_STATUSES = ["reserved", "redeemed", "released"] as const;
+type GiftCardReservationStatus = (typeof GIFT_CARD_RESERVATION_STATUSES)[number];
 
 /** A hold placed at checkout creation and settled at verify: redeemed
  *  when the sale records, released when the checkout dies/expires.
  *  UNIQUE(rail, ref) makes one checkout hold at most one tender. */
-export const giftCardReservationsTable = pgTable("gift_card_reservations", {
+const giftCardReservationsTable = pgTable("gift_card_reservations", {
   id:          uuid("id").primaryKey().defaultRandom(),
   giftCardId:  uuid("gift_card_id").notNull().references(() => giftCardsTable.id, { onDelete: "cascade" }),
   rail:        text("rail").notNull(),
@@ -119,4 +116,3 @@ export const giftCardReservationsTable = pgTable("gift_card_reservations", {
   index("gift_card_reservations_expiry_idx").on(t.status, t.expiresAt),
 ]);
 
-export type GiftCardReservation = typeof giftCardReservationsTable.$inferSelect;

@@ -22,7 +22,7 @@ import { pgTable, uuid, text, integer, timestamp, unique } from "drizzle-orm/pg-
  * `delivered_at` is flipped atomically (only when still NULL), so two
  * relays racing the same row still produce exactly one user-facing ping.
  */
-export const jobNotificationsTable = pgTable(
+const jobNotificationsTable = pgTable(
   "job_notifications",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -47,4 +47,3 @@ export const jobNotificationsTable = pgTable(
   (t) => [unique("job_notifications_job_uniq").on(t.job_type, t.job_id)],
 );
 
-export type JobNotificationRow = typeof jobNotificationsTable.$inferSelect;

@@ -30,10 +30,10 @@ import { storeProductsTable } from "./storefront";
    The seller's demand signal is a plain count of 'waiting' rows per
    product (rides the product payloads like the drop captureCount). */
 
-export const STOCK_ALERT_STATUSES = ["waiting", "notified"] as const;
-export type StockAlertStatus = (typeof STOCK_ALERT_STATUSES)[number];
+const STOCK_ALERT_STATUSES = ["waiting", "notified"] as const;
+type StockAlertStatus = (typeof STOCK_ALERT_STATUSES)[number];
 
-export const stockAlertsTable = pgTable("stock_alerts", {
+const stockAlertsTable = pgTable("stock_alerts", {
   id:         uuid("id").primaryKey().defaultRandom(),
   /** The fan (an auth user id; users live in Supabase auth, so — like
    *  notifications.user_id — this carries no local FK). */
@@ -50,8 +50,6 @@ export const stockAlertsTable = pgTable("stock_alerts", {
   index("stock_alerts_user_idx").on(t.userId),
 ]);
 
-export const insertStockAlertSchema = createInsertSchema(stockAlertsTable).omit({
+const insertStockAlertSchema = createInsertSchema(stockAlertsTable).omit({
   id: true, createdAt: true, notifiedAt: true,
 });
-export type InsertStockAlert = z.infer<typeof insertStockAlertSchema>;
-export type StockAlert = typeof stockAlertsTable.$inferSelect;

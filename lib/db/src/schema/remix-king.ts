@@ -33,8 +33,7 @@ import { sql } from "drizzle-orm";
 export const REMIX_KING_EVENT_STATUSES = ["draft", "open", "judging", "decided", "released", "cancelled"] as const;
 export type RemixKingEventStatus = (typeof REMIX_KING_EVENT_STATUSES)[number];
 
-export const REMIX_KING_ENTRY_STATUSES = ["submitted", "shortlisted", "winner", "not_selected"] as const;
-export type RemixKingEntryStatus = (typeof REMIX_KING_ENTRY_STATUSES)[number];
+const REMIX_KING_ENTRY_STATUSES = ["submitted", "shortlisted", "winner", "not_selected"] as const;
 
 export const REMIX_KING_SPLIT_ROLES = ["winner", "king", "house"] as const;
 export type RemixKingSplitRole = (typeof REMIX_KING_SPLIT_ROLES)[number];
@@ -150,4 +149,3 @@ export const remixKingSplitPaymentsTable = pgTable("remix_king_split_payments", 
 export type RemixKingEvent = typeof remixKingEventsTable.$inferSelect;
 export type RemixKingEntry = typeof remixKingEntriesTable.$inferSelect;
 export type RemixKingRelease = typeof remixKingReleasesTable.$inferSelect;
-export type RemixKingSplitPayment = typeof remixKingSplitPaymentsTable.$inferSelect;

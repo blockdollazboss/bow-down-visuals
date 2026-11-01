@@ -54,12 +54,11 @@ export const songRequestRulesTable = pgTable(
   (t) => [uniqueIndex("song_request_rules_creator_idx").on(t.creator_user_id)],
 );
 
-export const insertSongRequestRulesSchema = createInsertSchema(songRequestRulesTable).omit({
+const insertSongRequestRulesSchema = createInsertSchema(songRequestRulesTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertSongRequestRules = z.infer<typeof insertSongRequestRulesSchema>;
 export type SongRequestRules = typeof songRequestRulesTable.$inferSelect;
 
 /* One row per request; the row IS the transition record:
@@ -101,10 +100,9 @@ export const songRequestsTable = pgTable(
   ],
 );
 
-export const insertSongRequestSchema = createInsertSchema(songRequestsTable).omit({
+const insertSongRequestSchema = createInsertSchema(songRequestsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertSongRequest = z.infer<typeof insertSongRequestSchema>;
 export type SongRequest = typeof songRequestsTable.$inferSelect;

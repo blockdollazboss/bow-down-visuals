@@ -15,4 +15,3 @@ export const chartsRadioPrefsTable = pgTable("charts_radio_prefs", {
   tunedIn:   boolean("tuned_in").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type ChartsRadioPrefs = typeof chartsRadioPrefsTable.$inferSelect;

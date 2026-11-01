@@ -32,7 +32,7 @@ import { z } from "zod/v4";
  *                          the dismissal answers the facts as they
  *                          stood, not facts that arrive afterwards.
  */
-export const PAYMENT_REVERSAL_RAILS = [
+const PAYMENT_REVERSAL_RAILS = [
   "credit_pack",
   "membership",
   "beat_license",
@@ -47,9 +47,8 @@ export const PAYMENT_REVERSAL_RAILS = [
   "subscription",
   "unidentified",
 ] as const;
-export type PaymentReversalRail = (typeof PAYMENT_REVERSAL_RAILS)[number];
 
-export const PAYMENT_REVERSAL_STATUSES = [
+const PAYMENT_REVERSAL_STATUSES = [
   "processing",
   "completed",
   "partial_shortfall",
@@ -57,7 +56,6 @@ export const PAYMENT_REVERSAL_STATUSES = [
   "needs_manual_review",
   "dismissed",
 ] as const;
-export type PaymentReversalStatus = (typeof PAYMENT_REVERSAL_STATUSES)[number];
 
 export const paymentReversalsTable = pgTable("payment_reversals", {
   id:                   uuid("id").primaryKey().defaultRandom(),
@@ -87,10 +85,8 @@ export const paymentReversalsTable = pgTable("payment_reversals", {
   index("payment_reversals_user_idx").on(t.userId, t.createdAt),
 ]);
 
-export const insertPaymentReversalSchema = createInsertSchema(paymentReversalsTable).omit({
+const insertPaymentReversalSchema = createInsertSchema(paymentReversalsTable).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
-export type InsertPaymentReversal = z.infer<typeof insertPaymentReversalSchema>;
-export type PaymentReversal = typeof paymentReversalsTable.$inferSelect;

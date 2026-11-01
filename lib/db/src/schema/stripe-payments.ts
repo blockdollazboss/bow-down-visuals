@@ -15,10 +15,8 @@ export const stripePaymentsTable = pgTable("stripe_payments", {
   createdAt:            timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertStripePaymentSchema = createInsertSchema(stripePaymentsTable).omit({
+const insertStripePaymentSchema = createInsertSchema(stripePaymentsTable).omit({
   id: true,
   createdAt: true,
 });
 
-export type InsertStripePayment = z.infer<typeof insertStripePaymentSchema>;
-export type StripePayment = typeof stripePaymentsTable.$inferSelect;

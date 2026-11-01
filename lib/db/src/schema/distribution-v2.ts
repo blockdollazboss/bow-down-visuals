@@ -14,25 +14,6 @@ import { pgTable, uuid, text, jsonb, timestamp, boolean, numeric, integer } from
      Never fabricate these: they come from the aggregator adapter.
    - presave_slug: public pre-save landing link slug (unique, nullable) */
 
-export const distributionReleaseV2Columns = {
-  releaseType: text("release_type").notNull().default("single"),
-  isrc: text("isrc"),
-  genre: text("genre"),
-  explicit: boolean("explicit").notNull().default(false),
-  explicitDeclared: boolean("explicit_declared").notNull().default(false),
-  upc: text("upc"),
-  label: text("label"),
-  copyrightLine: text("copyright_line"),
-  songId: uuid("song_id"),
-  tracks: jsonb("tracks").notNull().$type<Array<{ title: string; isrc?: string }>>().default([]),
-  aggregator: text("aggregator").notNull().default("none"),
-  aggregatorReleaseId: text("aggregator_release_id"),
-  platformStatuses: jsonb("platform_statuses")
-    .notNull()
-    .$type<Array<{ platform: string; status: string; detail?: string; updatedAt: string }>>()
-    .default([]),
-  presaveSlug: text("presave_slug"),
-};
 
 /* Royalty splits: who gets paid what on a release. Shares are validated to
    sum to exactly 100 at the API layer; the CHECK constraint guards the
@@ -45,10 +26,10 @@ export const distributionReleaseV2Columns = {
    invite_status is 'not_invited' | 'invited' | 'accepted'. Invite emails are
    a stub until an email provider is configured; the invite is always
    recorded in the ledger. */
-export const SPLIT_INVITE_STATUSES = ["not_invited", "invited", "accepted"] as const;
-export type SplitInviteStatus = (typeof SPLIT_INVITE_STATUSES)[number];
+const SPLIT_INVITE_STATUSES = ["not_invited", "invited", "accepted"] as const;
+type SplitInviteStatus = (typeof SPLIT_INVITE_STATUSES)[number];
 
-export const distributionRoyaltySplitsTable = pgTable("distribution_royalty_splits", {
+const distributionRoyaltySplitsTable = pgTable("distribution_royalty_splits", {
   id: uuid("id").primaryKey().defaultRandom(),
   releaseId: uuid("release_id").notNull(),
   userId: uuid("user_id").notNull(),
@@ -64,7 +45,6 @@ export const distributionRoyaltySplitsTable = pgTable("distribution_royalty_spli
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type DistributionRoyaltySplitRow = typeof distributionRoyaltySplitsTable.$inferSelect;
 
 /* Release Metadata Manager (migration 0079) — DistroKid-parity columns:
    - upc_kind ('internal' | 'official'): generated barcodes are marked
@@ -76,14 +56,3 @@ export type DistributionRoyaltySplitRow = typeof distributionRoyaltySplitsTable.
    - territories_mode ('worldwide' | 'include' | 'exclude') + territories
      jsonb of ISO 3166-1 alpha-2 codes. */
 
-export const distributionReleaseMetadataColumns = {
-  upcKind: text("upc_kind").notNull().default("internal"),
-  labelImprint: text("label_imprint"),
-  copyrightCLine: text("copyright_c_line"),
-  copyrightPLine: text("copyright_p_line"),
-  subgenre: text("subgenre"),
-  originalReleaseDate: text("original_release_date"),
-  preorderDate: text("preorder_date"),
-  territoriesMode: text("territories_mode").notNull().default("worldwide"),
-  territories: jsonb("territories").notNull().$type<string[]>().default([]),
-};

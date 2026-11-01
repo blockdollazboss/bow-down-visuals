@@ -30,6 +30,4 @@ export const creditUsageTable = pgTable("credit_usage", {
   createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertCreditUsageSchema = createInsertSchema(creditUsageTable).omit({ id: true, createdAt: true });
-export type InsertCreditUsage = z.infer<typeof insertCreditUsageSchema>;
-export type CreditUsage = typeof creditUsageTable.$inferSelect;
+const insertCreditUsageSchema = createInsertSchema(creditUsageTable).omit({ id: true, createdAt: true });

@@ -25,12 +25,10 @@ import { sql } from "drizzle-orm";
  * re-queues the same row instead of minting a duplicate).
  */
 
-export const PROXY_STATUSES = ["pending", "generating", "ready", "failed"] as const;
-export type ProxyStatus = (typeof PROXY_STATUSES)[number];
+const PROXY_STATUSES = ["pending", "generating", "ready", "failed"] as const;
 
 /** The one proxy rendition profile: long edge capped at 854 px. */
 export const PROXY_MAX_EDGE = 854;
-export const PROXY_PROFILE_LABEL = "Proxy 854";
 
 export const proxyMediaTable = pgTable("proxy_media", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -75,5 +73,3 @@ export const proxyPrefsTable = pgTable("proxy_prefs", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type ProxyMediaRow = typeof proxyMediaTable.$inferSelect;
-export type ProxyPrefsRow = typeof proxyPrefsTable.$inferSelect;

@@ -129,7 +129,6 @@ export const insertBeatLicenseTemplateSchema = createInsertSchema(beatLicenseTem
 export const selectBeatLicenseTemplateSchema = createSelectSchema(beatLicenseTemplatesTable);
 
 export type BeatLicenseTemplate = typeof beatLicenseTemplatesTable.$inferSelect;
-export type NewBeatLicenseTemplate = typeof beatLicenseTemplatesTable.$inferInsert;
 
 export const insertBeatSchema = createInsertSchema(beatsTable).omit({
   id: true,
@@ -142,7 +141,6 @@ export const insertBeatSchema = createInsertSchema(beatsTable).omit({
 export const selectBeatSchema = createSelectSchema(beatsTable);
 
 export type Beat = typeof beatsTable.$inferSelect;
-export type NewBeat = typeof beatsTable.$inferInsert;
 
 /* ── Beat license purchases ────────────────────────────────────────────────
    Records an artist's license acquisition. Every row starts as
@@ -150,8 +148,7 @@ export type NewBeat = typeof beatsTable.$inferInsert;
    paid checkout session (POST /api/beats/license/verify). The honesty
    contract is enforced by tests. */
 
-export const BEAT_LICENSE_STATUSES = ["pending_payment", "completed", "refunded"] as const;
-export type BeatLicenseStatus = (typeof BEAT_LICENSE_STATUSES)[number];
+const BEAT_LICENSE_STATUSES = ["pending_payment", "completed", "refunded"] as const;
 
 export const beatLicensesTable = pgTable("beat_licenses", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -195,4 +192,3 @@ export const insertBeatLicenseSchema = createInsertSchema(beatLicensesTable).omi
 
 export const selectBeatLicenseSchema = createSelectSchema(beatLicensesTable);
 
-export type BeatLicense = typeof beatLicensesTable.$inferSelect;

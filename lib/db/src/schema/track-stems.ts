@@ -20,8 +20,8 @@ import { profileTracksTable } from "./creator-platform";
    playback delivery pattern the master audio_url uses), and there is no
    download/export path for stems from the player. */
 
-export type TrackStemKey = "vocals" | "drums" | "bass" | "other" | "guitar" | "piano";
-export type TrackStemRefs = Partial<Record<TrackStemKey, string>>;
+type TrackStemKey = "vocals" | "drums" | "bass" | "other" | "guitar" | "piano";
+type TrackStemRefs = Partial<Record<TrackStemKey, string>>;
 
 export const trackStemsTable = pgTable("track_stems", {
   trackId: uuid("track_id").primaryKey().references(() => profileTracksTable.id, { onDelete: "cascade" }),
@@ -32,4 +32,3 @@ export const trackStemsTable = pgTable("track_stems", {
 
 export const insertTrackStemSchema = createInsertSchema(trackStemsTable);
 export const selectTrackStemSchema = createSelectSchema(trackStemsTable);
-export type TrackStems = typeof trackStemsTable.$inferSelect;

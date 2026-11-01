@@ -28,12 +28,10 @@ export const tipJarTipsTable = pgTable(
   (t) => [index("tip_jar_tips_page_user_idx").on(t.page_user_id)],
 );
 
-export const insertTipJarTipSchema = createInsertSchema(tipJarTipsTable).omit({
+const insertTipJarTipSchema = createInsertSchema(tipJarTipsTable).omit({
   id: true,
   created_at: true,
 });
 
 export const selectTipJarTipSchema = createSelectSchema(tipJarTipsTable);
 
-export type TipJarTipRow = typeof tipJarTipsTable.$inferSelect;
-export type InsertTipJarTip = z.infer<typeof insertTipJarTipSchema>;

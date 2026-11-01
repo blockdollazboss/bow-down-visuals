@@ -17,7 +17,7 @@ import { z } from "zod/v4";
    live permanently on Bow Down Visuals — our own hosting, a guarantee we
    CAN make. One row per user+release (unique index). */
 
-export const MILESTONE_AWARD_TIERS = [
+const MILESTONE_AWARD_TIERS = [
   "none",
   "bronze",
   "silver",
@@ -25,10 +25,8 @@ export const MILESTONE_AWARD_TIERS = [
   "platinum",
   "diamond",
 ] as const;
-export type MilestoneAwardTier = (typeof MILESTONE_AWARD_TIERS)[number];
 
-export const MILESTONE_SOURCES = ["manual", "csv"] as const;
-export type MilestoneSource = (typeof MILESTONE_SOURCES)[number];
+const MILESTONE_SOURCES = ["manual", "csv"] as const;
 
 export const milestonesTable = pgTable("milestones", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -43,11 +41,10 @@ export const milestonesTable = pgTable("milestones", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertMilestoneSchema = createInsertSchema(milestonesTable).omit({
+const insertMilestoneSchema = createInsertSchema(milestonesTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type Milestone = typeof milestonesTable.$inferSelect;
 
 export const catalogVaultsTable = pgTable("catalog_vaults", {
@@ -60,10 +57,8 @@ export const catalogVaultsTable = pgTable("catalog_vaults", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertCatalogVaultSchema = createInsertSchema(catalogVaultsTable).omit({
+const insertCatalogVaultSchema = createInsertSchema(catalogVaultsTable).omit({
   id: true,
   createdAt: true,
   vaultedAt: true,
 });
-export type InsertCatalogVault = z.infer<typeof insertCatalogVaultSchema>;
-export type CatalogVault = typeof catalogVaultsTable.$inferSelect;

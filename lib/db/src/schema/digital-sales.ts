@@ -16,7 +16,7 @@ import { z } from "zod/v4";
     migrations 0090 + 0192 ('series' = a paid Series unlock on a
     kind='series' playlist; the sale row is the buyer's entitlement). */
 export const DIGITAL_ITEM_KINDS = ["track", "video", "album", "pack", "digital", "series", "bundle"] as const;
-export type DigitalItemKind = (typeof DIGITAL_ITEM_KINDS)[number];
+type DigitalItemKind = (typeof DIGITAL_ITEM_KINDS)[number];
 
 export const digitalSalesTable = pgTable("digital_sales", {
   id:                 uuid("id").primaryKey().defaultRandom(),
@@ -61,11 +61,10 @@ export const digitalBumpOffersTable = pgTable("digital_bump_offers", {
   check("digital_bump_offers_percent_off_range", sql`${t.percentOff} >= 0 AND ${t.percentOff} <= 90`),
 ]);
 
-export const insertDigitalSaleSchema = createInsertSchema(digitalSalesTable).omit({ id: true, createdAt: true });
-export type InsertDigitalSale = z.infer<typeof insertDigitalSaleSchema>;
+const insertDigitalSaleSchema = createInsertSchema(digitalSalesTable).omit({ id: true, createdAt: true });
 export type DigitalSale = typeof digitalSalesTable.$inferSelect;
 
-export const downloadLinksTable = pgTable("download_links", {
+const downloadLinksTable = pgTable("download_links", {
   token:     text("token").primaryKey(),
   saleId:    uuid("sale_id").notNull().references(() => digitalSalesTable.id, { onDelete: "cascade" }),
   fileUrl:   text("file_url").notNull(),
@@ -73,15 +72,13 @@ export const downloadLinksTable = pgTable("download_links", {
   usedCount: integer("used_count").notNull().default(0),
 });
 
-export const insertDownloadLinkSchema = createInsertSchema(downloadLinksTable).omit({ usedCount: true });
-export type InsertDownloadLink = z.infer<typeof insertDownloadLinkSchema>;
-export type DownloadLink = typeof downloadLinksTable.$inferSelect;
+const insertDownloadLinkSchema = createInsertSchema(downloadLinksTable).omit({ usedCount: true });
 
 /** Per-item digital-delivery settings (migration 0234, Wave 4 #35):
     one row per sellable item, keyed like digital_bump_offers because
     store items span several catalog tables. A row exists only once a
     seller touches the settings; absence = license keys off. */
-export const digitalProductSettingsTable = pgTable("digital_product_settings", {
+const digitalProductSettingsTable = pgTable("digital_product_settings", {
   itemKind:           text("item_kind").notNull().$type<DigitalItemKind>(),
   itemId:             uuid("item_id").notNull(),
   licenseKeysEnabled: boolean("license_keys_enabled").notNull().default(false),
@@ -94,9 +91,7 @@ export const digitalProductSettingsTable = pgTable("digital_product_settings", {
   check("digital_product_settings_max_downloads_range", sql`${t.maxDownloads} IS NULL OR (${t.maxDownloads} >= 1 AND ${t.maxDownloads} <= 100000)`),
 ]);
 
-export const insertDigitalProductSettingsSchema = createInsertSchema(digitalProductSettingsTable);
-export type InsertDigitalProductSettings = z.infer<typeof insertDigitalProductSettingsSchema>;
-export type DigitalProductSettings = typeof digitalProductSettingsTable.$inferSelect;
+const insertDigitalProductSettingsSchema = createInsertSchema(digitalProductSettingsTable);
 
 /** Issued license keys (migration 0234, Wave 4 #35). Exactly one row
     per purchased item: UNIQUE (sale_id, item_kind, item_id) is the
@@ -107,7 +102,7 @@ export type DigitalProductSettings = typeof digitalProductSettingsTable.$inferSe
     AES-256-GCM ciphertext (buyer-library display); key_suffix is the
     final group, safe for the seller's masked list. Download counting
     lives HERE, not on download_links: a fresh link never resets it. */
-export const digitalLicenseKeysTable = pgTable("digital_license_keys", {
+const digitalLicenseKeysTable = pgTable("digital_license_keys", {
   id:            uuid("id").primaryKey().defaultRandom(),
   saleId:        uuid("sale_id").notNull().references(() => digitalSalesTable.id, { onDelete: "cascade" }),
   profileId:     uuid("profile_id").notNull(),
@@ -135,9 +130,7 @@ export const digitalLicenseKeysTable = pgTable("digital_license_keys", {
   check("digital_license_keys_max_downloads_range", sql`${t.maxDownloads} IS NULL OR (${t.maxDownloads} >= 1 AND ${t.maxDownloads} <= 100000)`),
 ]);
 
-export const insertDigitalLicenseKeySchema = createInsertSchema(digitalLicenseKeysTable).omit({ id: true, createdAt: true });
-export type InsertDigitalLicenseKey = z.infer<typeof insertDigitalLicenseKeySchema>;
-export type DigitalLicenseKey = typeof digitalLicenseKeysTable.$inferSelect;
+const insertDigitalLicenseKeySchema = createInsertSchema(digitalLicenseKeysTable).omit({ id: true, createdAt: true });
 
 export const dmcaReportsTable = pgTable("dmca_reports", {
   id:              uuid("id").primaryKey().defaultRandom(),
@@ -152,6 +145,5 @@ export const dmcaReportsTable = pgTable("dmca_reports", {
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertDmcaReportSchema = createInsertSchema(dmcaReportsTable).omit({ id: true, createdAt: true, status: true });
-export type InsertDmcaReport = z.infer<typeof insertDmcaReportSchema>;
+const insertDmcaReportSchema = createInsertSchema(dmcaReportsTable).omit({ id: true, createdAt: true, status: true });
 export type DmcaReport = typeof dmcaReportsTable.$inferSelect;

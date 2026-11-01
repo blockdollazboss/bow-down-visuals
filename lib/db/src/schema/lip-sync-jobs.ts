@@ -75,4 +75,3 @@ export const lipSyncJobsTable = pgTable("lip_sync_jobs", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type LipSyncJobRow = typeof lipSyncJobsTable.$inferSelect;

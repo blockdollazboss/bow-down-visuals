@@ -11,4 +11,3 @@ export const projectDraftsTable = pgTable("project_drafts", {
   unique("project_drafts_user_workflow_uniq").on(t.user_id, t.workflow_type),
 ]);
 
-export type ProjectDraftRow = typeof projectDraftsTable.$inferSelect;

@@ -76,6 +76,4 @@ export const insertDjCrateSchema = createInsertSchema(djCratesTable).omit({
 });
 export const selectDjCrateSchema = createSelectSchema(djCratesTable);
 
-export type SongDjAnalysis = typeof songDjAnalysisTable.$inferSelect;
 export type DjCrate = typeof djCratesTable.$inferSelect;
-export type DjCrateItem = typeof djCrateItemsTable.$inferSelect;

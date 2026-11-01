@@ -7,7 +7,7 @@ import { z } from "zod/v4";
    "pending_fulfillment" until a real fulfillment integration reports
    otherwise. No charge is taken at reservation time. */
 
-export const jewelryOrdersTable = pgTable("jewelry_orders", {
+const jewelryOrdersTable = pgTable("jewelry_orders", {
   id:              uuid("id").primaryKey().defaultRandom(),
   userId:          text("user_id").notNull(),
   productKey:      text("product_key").notNull(),
@@ -30,12 +30,11 @@ export const jewelryOrdersTable = pgTable("jewelry_orders", {
   updatedAt:       timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertJewelryOrderSchema = createInsertSchema(jewelryOrdersTable).omit({
+const insertJewelryOrderSchema = createInsertSchema(jewelryOrdersTable).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
-export type InsertJewelryOrder = z.infer<typeof insertJewelryOrderSchema>;
 export type JewelryOrder = typeof jewelryOrdersTable.$inferSelect;
 
 /* Jewelry catalog: key, label, price, blurb, size options. Backend-validated. */
@@ -70,7 +69,6 @@ export const JEWELRY_PRODUCTS = [
   },
 ] as const;
 
-export type JewelryProductKey = (typeof JEWELRY_PRODUCTS)[number]["key"];
 
 export function jewelryProductByKey(key: string) {
   return JEWELRY_PRODUCTS.find((p) => p.key === key);
@@ -82,7 +80,6 @@ export const JEWELRY_FINISHES = [
   { key: "gold-18k", label: "18K Solid Gold" },
 ] as const;
 
-export type JewelryFinishKey = (typeof JEWELRY_FINISHES)[number]["key"];
 
 export function jewelryFinishByKey(key: string) {
   return JEWELRY_FINISHES.find((f) => f.key === key);

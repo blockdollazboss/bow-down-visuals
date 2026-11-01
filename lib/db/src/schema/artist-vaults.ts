@@ -60,7 +60,7 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   team_id: uuid("team_id"),
 });
 
-export const insertArtistVaultSchema = createInsertSchema(artistVaultsTable).omit({
+const insertArtistVaultSchema = createInsertSchema(artistVaultsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
@@ -69,5 +69,3 @@ export const insertArtistVaultSchema = createInsertSchema(artistVaultsTable).omi
 
 export const selectArtistVaultSchema = createSelectSchema(artistVaultsTable);
 
-export type ArtistVaultRow = typeof artistVaultsTable.$inferSelect;
-export type InsertArtistVault = z.infer<typeof insertArtistVaultSchema>;

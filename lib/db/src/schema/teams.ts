@@ -46,16 +46,12 @@ export const teamMembersTable = pgTable("team_members", {
   joinedAt:  timestamp("joined_at", { withTimezone: true }),
 });
 
-export const insertTeamSchema = createInsertSchema(teamsTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertTeam = z.infer<typeof insertTeamSchema>;
+const insertTeamSchema = createInsertSchema(teamsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type Team = typeof teamsTable.$inferSelect;
 
-export const insertTeamMemberSchema = createInsertSchema(teamMembersTable).omit({ id: true, invitedAt: true });
-export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
+const insertTeamMemberSchema = createInsertSchema(teamMembersTable).omit({ id: true, invitedAt: true });
 export type TeamMember = typeof teamMembersTable.$inferSelect;
 
-export const TEAM_ROLES = ["owner", "admin", "member"] as const;
-export type TeamRole = (typeof TEAM_ROLES)[number];
+const TEAM_ROLES = ["owner", "admin", "member"] as const;
 
-export const TEAM_STATUSES = ["invited", "active"] as const;
-export type TeamStatus = (typeof TEAM_STATUSES)[number];
+const TEAM_STATUSES = ["invited", "active"] as const;

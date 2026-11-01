@@ -159,10 +159,9 @@ export const storeProductsTable = pgTable("store_products", {
   index("store_products_profile_active_idx").on(t.profileId, t.isActive),
 ]);
 
-export const insertStoreProductSchema = createInsertSchema(storeProductsTable).omit({
+const insertStoreProductSchema = createInsertSchema(storeProductsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertStoreProduct = z.infer<typeof insertStoreProductSchema>;
 export type StoreProduct = typeof storeProductsTable.$inferSelect;
 
 export const storeOrdersTable = pgTable("store_orders", {
@@ -235,11 +234,9 @@ export const storeUpsellOffersTable = pgTable("store_upsell_offers", {
     sql`${t.status} IN ('pending', 'accepted', 'declined', 'failed')`),
 ]);
 
-export const insertStoreOrderSchema = createInsertSchema(storeOrdersTable).omit({ id: true, createdAt: true });
-export type InsertStoreOrder = z.infer<typeof insertStoreOrderSchema>;
-export type StoreOrder = typeof storeOrdersTable.$inferSelect;
+const insertStoreOrderSchema = createInsertSchema(storeOrdersTable).omit({ id: true, createdAt: true });
 
-export const discountCodesTable = pgTable("discount_codes", {
+const discountCodesTable = pgTable("discount_codes", {
   id:         uuid("id").primaryKey().defaultRandom(),
   profileId:  uuid("profile_id").notNull().references(() => creatorProfilesTable.id, { onDelete: "cascade" }),
   code:       text("code").notNull(),
@@ -256,11 +253,9 @@ export const discountCodesTable = pgTable("discount_codes", {
   index("discount_codes_profile_idx").on(t.profileId),
 ]);
 
-export const insertDiscountCodeSchema = createInsertSchema(discountCodesTable).omit({ id: true, createdAt: true, usedCount: true });
-export type InsertDiscountCode = z.infer<typeof insertDiscountCodeSchema>;
-export type DiscountCode = typeof discountCodesTable.$inferSelect;
+const insertDiscountCodeSchema = createInsertSchema(discountCodesTable).omit({ id: true, createdAt: true, usedCount: true });
 
-export const storeDeliveryTokensTable = pgTable("store_delivery_tokens", {
+const storeDeliveryTokensTable = pgTable("store_delivery_tokens", {
   token:     text("token").primaryKey(),
   orderId:   uuid("order_id").notNull().references(() => storeOrdersTable.id, { onDelete: "cascade" }),
   fileUrl:   text("file_url").notNull(),
@@ -271,4 +266,3 @@ export const storeDeliveryTokensTable = pgTable("store_delivery_tokens", {
   index("store_delivery_tokens_order_idx").on(t.orderId),
 ]);
 
-export type StoreDeliveryToken = typeof storeDeliveryTokensTable.$inferSelect;

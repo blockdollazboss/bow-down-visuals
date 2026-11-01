@@ -35,7 +35,7 @@ import { sql } from "drizzle-orm";
  *     returns to the buyer IN FULL.
  */
 
-export const FEATURE_VERSE_ORDER_STATUSES = [
+const FEATURE_VERSE_ORDER_STATUSES = [
   "terms_proposed",
   "signed",
   "escrow_held",
@@ -46,13 +46,10 @@ export const FEATURE_VERSE_ORDER_STATUSES = [
   "declined",
   "expired_unaccepted",
 ] as const;
-export type FeatureVerseOrderStatus = (typeof FEATURE_VERSE_ORDER_STATUSES)[number];
 
-export const FEATURE_VERSE_ESCROW_STATUSES = ["none", "held", "released", "refunded"] as const;
-export type FeatureVerseEscrowStatus = (typeof FEATURE_VERSE_ESCROW_STATUSES)[number];
+const FEATURE_VERSE_ESCROW_STATUSES = ["none", "held", "released", "refunded"] as const;
 
-export const FEATURE_VERSE_LEDGER_KINDS = ["hold", "release", "refund"] as const;
-export type FeatureVerseLedgerKind = (typeof FEATURE_VERSE_LEDGER_KINDS)[number];
+const FEATURE_VERSE_LEDGER_KINDS = ["hold", "release", "refund"] as const;
 
 /** One written split row, as validated by the publishing-splits rail. */
 export interface FeatureVerseSplit {

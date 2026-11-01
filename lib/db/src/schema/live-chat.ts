@@ -58,4 +58,3 @@ export const liveChatMutesTable = pgTable(
 );
 
 export type LiveChatMessage = typeof liveChatMessagesTable.$inferSelect;
-export type LiveChatMute = typeof liveChatMutesTable.$inferSelect;

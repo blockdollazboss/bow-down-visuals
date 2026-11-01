@@ -24,7 +24,7 @@ export interface PackBible {
  *  lens / lighting / emotion keys as Scene Studio's scene.look
  *  (lib/scene-look.ts on both sides of the wire; keys validated server-side
  *  by normalizeLookPicks, never trusted raw). */
-export interface PackLookPicks {
+interface PackLookPicks {
   genre?: string;
   era?: string;
   lens?: string;
@@ -147,4 +147,3 @@ export const insertPreproductionPackSchema = createInsertSchema(preproductionPac
 
 export const selectPreproductionPackSchema = createSelectSchema(preproductionPacksTable);
 
-export type PreproductionPack = typeof preproductionPacksTable.$inferSelect;

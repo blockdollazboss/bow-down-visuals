@@ -29,7 +29,7 @@ import { pgTable, text, integer, timestamp, jsonb, index } from "drizzle-orm/pg-
  *     announcement the palace heard, so the record of what was
  *     said survives the season.
  */
-export const courtSeasonSettlementsTable = pgTable(
+const courtSeasonSettlementsTable = pgTable(
   "court_season_settlements",
   {
     seasonKey: text("season_key").primaryKey(),
@@ -46,7 +46,6 @@ export const courtSeasonSettlementsTable = pgTable(
 );
 
 export type CourtSeasonSettlement = typeof courtSeasonSettlementsTable.$inferSelect;
-export type NewCourtSeasonSettlement = typeof courtSeasonSettlementsTable.$inferInsert;
 
 /** One frozen placement on a settled season's marks wall. */
 export interface CourtSeasonStanding {

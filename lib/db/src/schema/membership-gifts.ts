@@ -26,7 +26,7 @@ import { creatorProfilesTable } from "./creator-platform";
  * subscription — the effective tier is the higher of the two, so a
  * gift can never downgrade anyone.
  */
-export const membershipGiftsTable = pgTable(
+const membershipGiftsTable = pgTable(
   "membership_gifts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -58,4 +58,3 @@ export const membershipGiftsTable = pgTable(
   ],
 );
 
-export type MembershipGift = typeof membershipGiftsTable.$inferSelect;

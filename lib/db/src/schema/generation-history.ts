@@ -21,4 +21,3 @@ export const generationHistoryTable = pgTable("generation_history", {
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type GenerationHistory = typeof generationHistoryTable.$inferSelect;

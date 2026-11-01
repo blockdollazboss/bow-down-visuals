@@ -29,7 +29,6 @@ import { z } from "zod/v4";
  */
 
 export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile", "fan_art"] as const;
-export type ContentReportTargetType = (typeof CONTENT_REPORT_TARGET_TYPES)[number];
 
 /** The fixed reason vocabulary — free text belongs in `note`. The
  *  frontend mirrors this list (lib/reports.ts) and the route tests
@@ -47,7 +46,6 @@ export const CONTENT_REPORT_REASONS = [
 export type ContentReportReason = (typeof CONTENT_REPORT_REASONS)[number];
 
 export const CONTENT_REPORT_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
-export type ContentReportStatus = (typeof CONTENT_REPORT_STATUSES)[number];
 
 /** Statuses that make a report "open" for duplicate purposes: one
  *  open report per (reporter, target) — the partial unique index in
@@ -79,6 +77,6 @@ export const contentReportsTable = pgTable("content_reports", {
     .where(sql`${t.status} IN ('new', 'reviewing')`),
 ]);
 
-export const insertContentReportSchema = createInsertSchema(contentReportsTable).omit({ id: true, createdAt: true, status: true });
+const insertContentReportSchema = createInsertSchema(contentReportsTable).omit({ id: true, createdAt: true, status: true });
 export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
 export type ContentReport = typeof contentReportsTable.$inferSelect;

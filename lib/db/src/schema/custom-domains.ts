@@ -25,8 +25,7 @@ export const customDomainsTable = pgTable("custom_domains", {
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertCustomDomainSchema = createInsertSchema(customDomainsTable).omit({
+const insertCustomDomainSchema = createInsertSchema(customDomainsTable).omit({
   id: true, verificationToken: true, verifiedAt: true, createdAt: true,
 });
-export type InsertCustomDomain = z.infer<typeof insertCustomDomainSchema>;
 export type CustomDomain = typeof customDomainsTable.$inferSelect;

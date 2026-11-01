@@ -34,7 +34,7 @@ export const MOVE_HOME_STEP_KEYS = [
 
 export type MoveHomeStepKey = (typeof MOVE_HOME_STEP_KEYS)[number];
 
-export type MoveHomeStepStatus = "pending" | "drafted" | "approved" | "skipped";
+type MoveHomeStepStatus = "pending" | "drafted" | "approved" | "skipped";
 
 export interface MoveHomeStepState {
   status: MoveHomeStepStatus;
@@ -65,7 +65,7 @@ export interface MoveHomeAnswers {
   starterProductTitle?: string;
 }
 
-export interface MoveHomeProfileDraft {
+interface MoveHomeProfileDraft {
   slug: string;
   displayName: string;
   vertical: string;
@@ -75,7 +75,7 @@ export interface MoveHomeProfileDraft {
   updatesExisting: boolean;
 }
 
-export interface MoveHomeStoreProductDraft {
+interface MoveHomeStoreProductDraft {
   kind: "download" | "digital";
   title: string;
   description: string;
@@ -86,11 +86,11 @@ export interface MoveHomeStoreProductDraft {
   suggestedPrice: boolean;
 }
 
-export interface MoveHomeStoreDraft {
+interface MoveHomeStoreDraft {
   products: MoveHomeStoreProductDraft[];
 }
 
-export interface MoveHomePressKitDraft {
+interface MoveHomePressKitDraft {
   handle: string;
   artistName: string;
   tagline: string;
@@ -103,7 +103,7 @@ export interface MoveHomePressKitDraft {
   topTracks: Array<{ title: string; url: string }>;
 }
 
-export interface MoveHomeEmailDraft {
+interface MoveHomeEmailDraft {
   name: string;
   handle: string;
   description: string;
@@ -126,7 +126,7 @@ export interface MoveHomeLaunchPostDraft {
   mediaType: "video" | "image";
 }
 
-export interface MoveHomeLaunchDraft {
+interface MoveHomeLaunchDraft {
   posts: MoveHomeLaunchPostDraft[];
 }
 
@@ -155,4 +155,3 @@ export const moveHomeProgressTable = pgTable("move_home_progress", {
 });
 
 export type MoveHomeProgress = typeof moveHomeProgressTable.$inferSelect;
-export type NewMoveHomeProgress = typeof moveHomeProgressTable.$inferInsert;

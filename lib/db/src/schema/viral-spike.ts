@@ -20,7 +20,6 @@ export const viralSpikePrefsTable = pgTable("viral_spike_prefs", {
   enabled:   boolean("enabled").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type ViralSpikePrefs = typeof viralSpikePrefsTable.$inferSelect;
 
 export const viralSpikeSnapshotsTable = pgTable(
   "viral_spike_snapshots",
@@ -38,7 +37,6 @@ export const viralSpikeSnapshotsTable = pgTable(
     index("viral_spike_snapshots_content_idx").on(t.userId, t.contentKind, t.contentId, t.recordedAt),
   ],
 );
-export type ViralSpikeSnapshot = typeof viralSpikeSnapshotsTable.$inferSelect;
 
 export const viralSpikeAlertsTable = pgTable(
   "viral_spike_alerts",
@@ -61,4 +59,3 @@ export const viralSpikeAlertsTable = pgTable(
     index("viral_spike_alerts_content_idx").on(t.userId, t.contentKind, t.contentId, t.detectedAt),
   ],
 );
-export type ViralSpikeAlert = typeof viralSpikeAlertsTable.$inferSelect;

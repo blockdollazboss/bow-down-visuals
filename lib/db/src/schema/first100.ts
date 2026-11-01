@@ -43,9 +43,7 @@ export const first100StateTable = pgTable("first100_state", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertFirst100StateSchema = createInsertSchema(first100StateTable).omit({
+const insertFirst100StateSchema = createInsertSchema(first100StateTable).omit({
   createdAt: true,
   updatedAt: true,
 });
-export type InsertFirst100State = z.infer<typeof insertFirst100StateSchema>;
-export type First100State = typeof first100StateTable.$inferSelect;

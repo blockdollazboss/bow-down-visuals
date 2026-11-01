@@ -35,7 +35,6 @@ export const liveDestinationKeysTable = pgTable(
     index("live_destination_keys_profile_idx").on(t.profile_id),
   ],
 );
-export type LiveDestinationKey = typeof liveDestinationKeysTable.$inferSelect;
 
 /* ── #1b RTMP ingest keys (migration 0194) ──────────────────────────
    The mirror image of destination keys: a personal key an external
@@ -134,7 +133,6 @@ export const liveRaidsTable = pgTable(
     index("live_raids_target_idx").on(t.target_stream_id, t.created_at),
   ],
 );
-export type LiveRaid = typeof liveRaidsTable.$inferSelect;
 
 /* ── #5 Stream-linked drops ─────────────────────────────────────────────
    Watch progress is accrued server-side from heartbeat deltas (the
@@ -153,7 +151,6 @@ export const streamWatchProgressTable = pgTable(
   },
   (t) => [uniqueIndex("stream_watch_progress_user_stream_uidx").on(t.user_id, t.stream_id)],
 );
-export type StreamWatchProgress = typeof streamWatchProgressTable.$inferSelect;
 
 export const streamDropAwardsTable = pgTable(
   "stream_drop_awards",
@@ -172,7 +169,6 @@ export const streamDropAwardsTable = pgTable(
     index("stream_drop_awards_week_idx").on(t.week_start),
   ],
 );
-export type StreamDropAward = typeof streamDropAwardsTable.$inferSelect;
 
 /* ── #6 Per-channel loyalty ───────────────────────────────────────────── */
 export const loyaltySettingsTable = pgTable("loyalty_settings", {
@@ -204,7 +200,6 @@ export const loyaltyBalancesTable = pgTable(
   },
   (t) => [primaryKey({ columns: [t.user_id, t.profile_id] })],
 );
-export type LoyaltyBalance = typeof loyaltyBalancesTable.$inferSelect;
 
 export const loyaltyRedemptionsTable = pgTable(
   "loyalty_redemptions",
@@ -228,7 +223,6 @@ export const loyaltyRedemptionsTable = pgTable(
     index("loyalty_redemptions_user_idx").on(t.user_id),
   ],
 );
-export type LoyaltyRedemption = typeof loyaltyRedemptionsTable.$inferSelect;
 
 /* ── #7 Close-friends circles ───────────────────────────────────────────
    Membership is by user (the viewer's auth id), enforced at READ time
@@ -249,7 +243,6 @@ export const closeFriendsTable = pgTable(
     index("close_friends_owner_profile_idx").on(t.owner_profile_id),
   ],
 );
-export type CloseFriend = typeof closeFriendsTable.$inferSelect;
 
 /* ── #8 Broadcast channels (one-to-many) ──────────────────────────────── */
 export const broadcastChannelsTable = pgTable(
@@ -265,7 +258,6 @@ export const broadcastChannelsTable = pgTable(
   },
   (t) => [index("broadcast_channels_owner_idx").on(t.owner_user_id)],
 );
-export type BroadcastChannel = typeof broadcastChannelsTable.$inferSelect;
 
 export const broadcastMembersTable = pgTable(
   "broadcast_members",
@@ -279,7 +271,6 @@ export const broadcastMembersTable = pgTable(
     index("broadcast_members_user_idx").on(t.user_id),
   ],
 );
-export type BroadcastMember = typeof broadcastMembersTable.$inferSelect;
 
 export const broadcastPostsTable = pgTable(
   "broadcast_posts",
@@ -291,4 +282,3 @@ export const broadcastPostsTable = pgTable(
   },
   (t) => [index("broadcast_posts_channel_created_idx").on(t.channel_id, t.created_at)],
 );
-export type BroadcastPost = typeof broadcastPostsTable.$inferSelect;

@@ -18,7 +18,6 @@ export interface InvoiceLineItem {
 }
 
 export const INVOICE_STATUSES = ["unpaid", "paid"] as const;
-export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 export const invoicesTable = pgTable("invoices", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -39,6 +38,5 @@ export const invoicesTable = pgTable("invoices", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertInvoiceSchema = createInsertSchema(invoicesTable).omit({ id: true, createdAt: true });
-export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+const insertInvoiceSchema = createInsertSchema(invoicesTable).omit({ id: true, createdAt: true });
 export type Invoice = typeof invoicesTable.$inferSelect;

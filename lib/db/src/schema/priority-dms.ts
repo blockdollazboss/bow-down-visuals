@@ -25,7 +25,7 @@ import { conversationsTable, messagesTable } from "./community";
  * row carries a deterministic idempotency key derived from the row id.
  */
 
-export const PRIORITY_DM_STATUSES = [
+const PRIORITY_DM_STATUSES = [
   "held",              // charged, delivered, waiting for a creator reply
   "replied",           // creator replied in window — escrow paid to creator
   "refunded_expired",  // window closed unanswered — fan refunded in full
@@ -51,7 +51,6 @@ export const priorityDmSettingsTable = pgTable("priority_dm_settings", {
 });
 
 export const insertPriorityDmSettingsSchema = createInsertSchema(priorityDmSettingsTable);
-export type PriorityDmSettings = typeof priorityDmSettingsTable.$inferSelect;
 
 export const priorityDmsTable = pgTable("priority_dms", {
   id:             uuid("id").primaryKey().defaultRandom(),
@@ -79,6 +78,4 @@ export const priorityDmsTable = pgTable("priority_dms", {
   index("priority_dms_conversation_idx").on(t.conversationId),
 ]);
 
-export const insertPriorityDmSchema = createInsertSchema(priorityDmsTable).omit({ id: true, createdAt: true });
-export type InsertPriorityDm = z.infer<typeof insertPriorityDmSchema>;
-export type PriorityDm = typeof priorityDmsTable.$inferSelect;
+const insertPriorityDmSchema = createInsertSchema(priorityDmsTable).omit({ id: true, createdAt: true });

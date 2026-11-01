@@ -41,11 +41,9 @@ import { sql } from "drizzle-orm";
  * that a report-back is still owed. No deadline is invented here.
  */
 
-export const GRANT_ROUND_RESULT_STATUSES = ["pending", "winner", "tie", "no_candidates"] as const;
-export type GrantRoundResultStatus = (typeof GRANT_ROUND_RESULT_STATUSES)[number];
+const GRANT_ROUND_RESULT_STATUSES = ["pending", "winner", "tie", "no_candidates"] as const;
 
-export const GRANT_PAY_STATUSES = ["none", "paid"] as const;
-export type GrantPayStatus = (typeof GRANT_PAY_STATUSES)[number];
+const GRANT_PAY_STATUSES = ["none", "paid"] as const;
 
 export const communityGrantRoundsTable = pgTable("community_grant_rounds", {
   id:                  uuid("id").primaryKey().defaultRandom(),

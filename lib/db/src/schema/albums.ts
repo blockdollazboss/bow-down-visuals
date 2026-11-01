@@ -9,7 +9,6 @@ import { songsTable } from "./songs";
    free; publishing the shareable album page costs Visual Bucs. */
 
 export const ALBUM_TYPES = ["album", "ep"] as const;
-export const ALBUM_STATUSES = ["draft", "published"] as const;
 
 export const albumsTable = pgTable("albums", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -37,7 +36,7 @@ export const albumTracksTable = pgTable("album_tracks", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertAlbumSchema = createInsertSchema(albumsTable).omit({
+const insertAlbumSchema = createInsertSchema(albumsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
@@ -45,6 +44,3 @@ export const insertAlbumSchema = createInsertSchema(albumsTable).omit({
 
 export const selectAlbumSchema = createSelectSchema(albumsTable);
 
-export type AlbumRow = typeof albumsTable.$inferSelect;
-export type InsertAlbum = z.infer<typeof insertAlbumSchema>;
-export type AlbumTrackRow = typeof albumTracksTable.$inferSelect;

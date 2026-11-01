@@ -35,21 +35,19 @@ export const teamSeatsTable = pgTable("team_seats", {
   revokedAt:  timestamp("revoked_at", { withTimezone: true }),
 });
 
-export const insertTeamSeatSchema = createInsertSchema(teamSeatsTable).omit({
+const insertTeamSeatSchema = createInsertSchema(teamSeatsTable).omit({
   id: true,
   invitedAt: true,
 });
-export type InsertTeamSeat = z.infer<typeof insertTeamSeatSchema>;
 export type TeamSeat = typeof teamSeatsTable.$inferSelect;
 
 export const TEAM_SEAT_ROLES = ["owner", "manager", "collaborator", "viewer"] as const;
-export type TeamSeatRole = (typeof TEAM_SEAT_ROLES)[number];
+type TeamSeatRole = (typeof TEAM_SEAT_ROLES)[number];
 
 export const TEAM_SEAT_STATUSES = ["invited", "active", "revoked"] as const;
-export type TeamSeatStatus = (typeof TEAM_SEAT_STATUSES)[number];
 
 /** Capability flags used across the app (splits ledger, money tracker, releases). */
-export interface TeamSeatPermissions {
+interface TeamSeatPermissions {
   /** Generate AI + spend the account's credits */
   canGenerate: boolean;
   /** Publish releases */
@@ -62,7 +60,7 @@ export interface TeamSeatPermissions {
   canManageTeam: boolean;
 }
 
-export const TEAM_SEAT_PERMISSIONS: Record<TeamSeatRole, TeamSeatPermissions> = {
+const TEAM_SEAT_PERMISSIONS: Record<TeamSeatRole, TeamSeatPermissions> = {
   owner: {
     canGenerate: true,
     canPublish: true,

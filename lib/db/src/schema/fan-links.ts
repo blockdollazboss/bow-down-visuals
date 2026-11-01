@@ -35,11 +35,10 @@ export const fanLinksTable = pgTable(
   ],
 );
 
-export const insertFanLinkSchema = createInsertSchema(fanLinksTable).omit({
+const insertFanLinkSchema = createInsertSchema(fanLinksTable).omit({
   id: true,
   created_at: true,
 });
-export type InsertFanLink = z.infer<typeof insertFanLinkSchema>;
 export type FanLink = typeof fanLinksTable.$inferSelect;
 
 /* One row per PROVEN touch: a click on the redirect, an arrival (a play
@@ -65,4 +64,3 @@ export const fanLinkEventsTable = pgTable(
   ],
 );
 
-export type FanLinkEvent = typeof fanLinkEventsTable.$inferSelect;

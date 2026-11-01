@@ -61,20 +61,18 @@ export const evergreenSettingsTable = pgTable(
   (t) => [uniqueIndex("evergreen_settings_user_uidx").on(t.user_id)],
 );
 
-export type EvergreenSettingsRow = typeof evergreenSettingsTable.$inferSelect;
 
 /* One proposed resurfacing of one already-posted scheduled post.
    Born `pending_approval`; the creator's approve turns it into a free
    scheduled-post DRAFT (status recorded here as `approved` with the
    draft's id) — the creator still presses Schedule in the Scheduler
    themselves, on the scheduler's normal rail. Nothing here can post. */
-export const EVERGREEN_PROPOSAL_STATUSES = [
+const EVERGREEN_PROPOSAL_STATUSES = [
   "pending_approval",
   "approved",
   "rejected",
   "expired",
 ] as const;
-export type EvergreenProposalStatus = (typeof EVERGREEN_PROPOSAL_STATUSES)[number];
 
 export const evergreenProposalsTable = pgTable(
   "evergreen_proposals",
@@ -100,7 +98,6 @@ export const evergreenProposalsTable = pgTable(
   ],
 );
 
-export type EvergreenProposalRow = typeof evergreenProposalsTable.$inferSelect;
 
 /* ── #49 Top-supporter recognition: DEDUPED AT JOIN (stack200/join-next) ──
    rem-wave4850 carried a lib-only #49 rider with its own supporter_board_*

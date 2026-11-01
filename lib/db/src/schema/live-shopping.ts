@@ -103,32 +103,24 @@ export const liveShopAlertsTable = pgTable(
   (t) => [index("live_shop_alerts_stream_id_idx").on(t.stream_id)],
 );
 
-export const insertLiveShopProductSchema = createInsertSchema(liveShopProductsTable).omit({
+const insertLiveShopProductSchema = createInsertSchema(liveShopProductsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertLiveShopProduct = z.infer<typeof insertLiveShopProductSchema>;
-export type LiveShopProduct = typeof liveShopProductsTable.$inferSelect;
 
-export const insertLiveShopStreamSchema = createInsertSchema(liveShopStreamsTable).omit({
+const insertLiveShopStreamSchema = createInsertSchema(liveShopStreamsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertLiveShopStream = z.infer<typeof insertLiveShopStreamSchema>;
-export type LiveShopStream = typeof liveShopStreamsTable.$inferSelect;
 
-export const insertLiveShopSaleSchema = createInsertSchema(liveShopSalesTable).omit({
+const insertLiveShopSaleSchema = createInsertSchema(liveShopSalesTable).omit({
   id: true,
   created_at: true,
 });
-export type InsertLiveShopSale = z.infer<typeof insertLiveShopSaleSchema>;
-export type LiveShopSale = typeof liveShopSalesTable.$inferSelect;
 
-export const insertLiveShopAlertSchema = createInsertSchema(liveShopAlertsTable).omit({
+const insertLiveShopAlertSchema = createInsertSchema(liveShopAlertsTable).omit({
   id: true,
   created_at: true,
 });
-export type InsertLiveShopAlert = z.infer<typeof insertLiveShopAlertSchema>;
-export type LiveShopAlert = typeof liveShopAlertsTable.$inferSelect;

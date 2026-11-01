@@ -47,4 +47,3 @@ export const exportJobsTable = pgTable("export_jobs", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type ExportJobRow = typeof exportJobsTable.$inferSelect;

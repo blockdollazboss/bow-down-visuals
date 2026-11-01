@@ -18,12 +18,10 @@ export const loadingScreenInquiriesTable = pgTable("loading_screen_inquiries", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertLoadingScreenInquirySchema = createInsertSchema(loadingScreenInquiriesTable).omit({
+const insertLoadingScreenInquirySchema = createInsertSchema(loadingScreenInquiriesTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertLoadingScreenInquiry = z.infer<typeof insertLoadingScreenInquirySchema>;
-export type LoadingScreenInquiry = typeof loadingScreenInquiriesTable.$inferSelect;
 
 /* Public offer details — shared by the loader promo and the inquiry modal. */
 export const LOADING_SCREEN_OFFER = {

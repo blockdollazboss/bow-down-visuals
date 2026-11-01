@@ -27,14 +27,12 @@ import { z } from "zod/v4";
    the operator's scheduled peace-keeping duties write when they
    fire on their own watch. It exists ONLY on operator_actions —
    pending confirmations are a member protocol and never carry it. */
-export const OPERATOR_CHANNELS = ["chat_text", "voice", "admin_command", "automatic"] as const;
+const OPERATOR_CHANNELS = ["chat_text", "voice", "admin_command", "automatic"] as const;
 export type OperatorChannel = (typeof OPERATOR_CHANNELS)[number];
 
-export const OPERATOR_ACTION_RESULTS = ["done", "refused", "failed"] as const;
-export type OperatorActionResult = (typeof OPERATOR_ACTION_RESULTS)[number];
+const OPERATOR_ACTION_RESULTS = ["done", "refused", "failed"] as const;
 
-export const OPERATOR_PENDING_STATUSES = ["pending", "consumed", "expired", "cancelled"] as const;
-export type OperatorPendingStatus = (typeof OPERATOR_PENDING_STATUSES)[number];
+const OPERATOR_PENDING_STATUSES = ["pending", "consumed", "expired", "cancelled"] as const;
 
 export const operatorActionsTable = pgTable("operator_actions", {
   id:             uuid("id").primaryKey().defaultRandom(),
@@ -77,10 +75,9 @@ export const operatorPendingActionsTable = pgTable("operator_pending_actions", {
   index("operator_pending_actions_user_idx").on(t.userId, t.status, t.createdAt),
 ]);
 
-export const insertOperatorActionSchema = createInsertSchema(operatorActionsTable).omit({ id: true, createdAt: true });
+const insertOperatorActionSchema = createInsertSchema(operatorActionsTable).omit({ id: true, createdAt: true });
 export type InsertOperatorAction = z.infer<typeof insertOperatorActionSchema>;
 export type OperatorAction = typeof operatorActionsTable.$inferSelect;
 
-export const insertOperatorPendingActionSchema = createInsertSchema(operatorPendingActionsTable).omit({ id: true, createdAt: true, consumedAt: true });
-export type InsertOperatorPendingAction = z.infer<typeof insertOperatorPendingActionSchema>;
+const insertOperatorPendingActionSchema = createInsertSchema(operatorPendingActionsTable).omit({ id: true, createdAt: true, consumedAt: true });
 export type OperatorPendingAction = typeof operatorPendingActionsTable.$inferSelect;

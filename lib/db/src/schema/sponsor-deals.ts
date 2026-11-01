@@ -45,11 +45,10 @@ export const sponsorDealsTable = pgTable("sponsor_deals", {
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertSponsorDealSchema = createInsertSchema(sponsorDealsTable).omit({ id: true, createdAt: true });
-export type InsertSponsorDeal = z.infer<typeof insertSponsorDealSchema>;
+const insertSponsorDealSchema = createInsertSchema(sponsorDealsTable).omit({ id: true, createdAt: true });
 export type SponsorDeal = typeof sponsorDealsTable.$inferSelect;
 
-export const sponsorApplicationsTable = pgTable("sponsor_applications", {
+const sponsorApplicationsTable = pgTable("sponsor_applications", {
   id:        uuid("id").primaryKey().defaultRandom(),
   dealId:    uuid("deal_id").notNull().references(() => sponsorDealsTable.id, { onDelete: "cascade" }),
   userId:    text("user_id").notNull(),
@@ -68,14 +67,12 @@ export const sponsorApplicationsTable = pgTable("sponsor_applications", {
   uniqueIndex("sponsor_applications_deal_user_ux").on(t.dealId, t.userId),
 ]);
 
-export const insertSponsorApplicationSchema = createInsertSchema(sponsorApplicationsTable).omit({ id: true, createdAt: true });
-export type InsertSponsorApplication = z.infer<typeof insertSponsorApplicationSchema>;
-export type SponsorApplication = typeof sponsorApplicationsTable.$inferSelect;
+const insertSponsorApplicationSchema = createInsertSchema(sponsorApplicationsTable).omit({ id: true, createdAt: true });
 
 /* v2 — payout ledger: one row per released deal.
  * gross = what the brand funded, fee = the Bow Down Visuals cut (15%),
  * net = the creator's payout. */
-export const sponsorPayoutsTable = pgTable("sponsor_payouts", {
+const sponsorPayoutsTable = pgTable("sponsor_payouts", {
   id:            uuid("id").primaryKey().defaultRandom(),
   dealId:        uuid("deal_id").notNull().references(() => sponsorDealsTable.id, { onDelete: "cascade" }).unique(),
   creatorUserId: text("creator_user_id").notNull(),
@@ -93,4 +90,3 @@ export const sponsorPayoutsTable = pgTable("sponsor_payouts", {
   createdAt:     timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type SponsorPayout = typeof sponsorPayoutsTable.$inferSelect;

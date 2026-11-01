@@ -7,31 +7,12 @@ import { z } from "zod/v4";
    amount_cents is always positive; entry_type ("income"|"expense") gives the
    sign. Pure UI + DB — no credits charged for any operation. */
 
-export const MONEY_ENTRY_TYPES = ["income", "expense"] as const;
+const MONEY_ENTRY_TYPES = ["income", "expense"] as const;
 export type MoneyEntryType = (typeof MONEY_ENTRY_TYPES)[number];
 
 /** Income categories (canonical values stored in DB; labels localized). */
-export const MONEY_INCOME_CATEGORIES = [
-  "sponsor_deals",
-  "merch_sales",
-  "streaming_royalties",
-  "ad_revenue",
-  "subscriptions",
-  "affiliate",
-  "invoice_payout",
-  "other_income",
-] as const;
 
 /** Expense categories (canonical values stored in DB; labels localized). */
-export const MONEY_EXPENSE_CATEGORIES = [
-  "equipment",
-  "software",
-  "ads",
-  "travel",
-  "contractors",
-  "production",
-  "other_expense",
-] as const;
 
 export const moneyEntriesTable = pgTable("money_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -50,7 +31,7 @@ export const moneyEntriesTable = pgTable("money_entries", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertMoneyEntrySchema = createInsertSchema(moneyEntriesTable)
+const insertMoneyEntrySchema = createInsertSchema(moneyEntriesTable)
   .omit({ id: true, created_at: true, updated_at: true })
   .extend({
     entry_type: z.enum(MONEY_ENTRY_TYPES),
@@ -64,5 +45,4 @@ export const insertMoneyEntrySchema = createInsertSchema(moneyEntriesTable)
 
 export const selectMoneyEntrySchema = createSelectSchema(moneyEntriesTable);
 
-export type InsertMoneyEntry = z.infer<typeof insertMoneyEntrySchema>;
 export type MoneyEntry = typeof moneyEntriesTable.$inferSelect;

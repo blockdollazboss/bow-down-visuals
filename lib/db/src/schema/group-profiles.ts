@@ -50,8 +50,7 @@ export const groupProfilesTable = pgTable("group_profiles", {
   index("group_profiles_published_idx").on(t.isPublished),
 ]);
 
-export const insertGroupProfileSchema = createInsertSchema(groupProfilesTable).omit({
+const insertGroupProfileSchema = createInsertSchema(groupProfilesTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertGroupProfile = z.infer<typeof insertGroupProfileSchema>;
 export type GroupProfile = typeof groupProfilesTable.$inferSelect;

@@ -40,14 +40,14 @@ import { z } from "zod/v4";
 export const SALE_SPLIT_SURFACES = ["store_product", "shop_product"] as const;
 export type SaleSplitSurface = (typeof SALE_SPLIT_SURFACES)[number];
 
-export const SALE_SPLIT_KINDS = ["store_order", "shop_event"] as const;
+const SALE_SPLIT_KINDS = ["store_order", "shop_event"] as const;
 export type SaleSplitKind = (typeof SALE_SPLIT_KINDS)[number];
 
-export const SALE_SPLIT_ROLES = ["owner", "co_seller"] as const;
-export type SaleSplitRole = (typeof SALE_SPLIT_ROLES)[number];
+const SALE_SPLIT_ROLES = ["owner", "co_seller"] as const;
+type SaleSplitRole = (typeof SALE_SPLIT_ROLES)[number];
 
-export const SALE_SPLIT_STATUSES = ["earned", "reversed"] as const;
-export type SaleSplitStatus = (typeof SALE_SPLIT_STATUSES)[number];
+const SALE_SPLIT_STATUSES = ["earned", "reversed"] as const;
+type SaleSplitStatus = (typeof SALE_SPLIT_STATUSES)[number];
 
 /** One seller's share of a product, as stored on the product row. */
 export interface ProductSplit {
@@ -55,7 +55,7 @@ export interface ProductSplit {
   sharePct: number;
 }
 
-export const saleSplitEntriesTable = pgTable("sale_split_entries", {
+const saleSplitEntriesTable = pgTable("sale_split_entries", {
   id:               uuid("id").primaryKey().defaultRandom(),
   saleKind:         text("sale_kind").notNull().$type<SaleSplitKind>(),
   saleId:           uuid("sale_id").notNull(),
@@ -87,8 +87,6 @@ export const saleSplitEntriesTable = pgTable("sale_split_entries", {
   index("sale_split_entries_sale_idx").on(t.saleKind, t.saleId),
 ]);
 
-export const insertSaleSplitEntrySchema = createInsertSchema(saleSplitEntriesTable).omit({
+const insertSaleSplitEntrySchema = createInsertSchema(saleSplitEntriesTable).omit({
   id: true, createdAt: true,
 });
-export type InsertSaleSplitEntry = z.infer<typeof insertSaleSplitEntrySchema>;
-export type SaleSplitEntry = typeof saleSplitEntriesTable.$inferSelect;

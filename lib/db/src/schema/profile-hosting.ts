@@ -37,5 +37,3 @@ export const creatorHostingTable = pgTable(
   ],
 );
 
-export type CreatorHosting = typeof creatorHostingTable.$inferSelect;
-export type NewCreatorHosting = typeof creatorHostingTable.$inferInsert;

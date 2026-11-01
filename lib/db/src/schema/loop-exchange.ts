@@ -41,14 +41,14 @@ import { z } from "zod/v4";
    probe-first and answer 503, and reads degrade to empty — nothing
    is faked. */
 
-export const LOOP_EXCHANGE_LOOP_STATUSES = ["open", "paused", "closed"] as const;
-export type LoopExchangeLoopStatus = (typeof LOOP_EXCHANGE_LOOP_STATUSES)[number];
+const LOOP_EXCHANGE_LOOP_STATUSES = ["open", "paused", "closed"] as const;
+type LoopExchangeLoopStatus = (typeof LOOP_EXCHANGE_LOOP_STATUSES)[number];
 
-export const LOOP_EXCHANGE_BUILD_STATUSES = ["pending_terms", "agreed", "declined"] as const;
-export type LoopExchangeBuildStatus = (typeof LOOP_EXCHANGE_BUILD_STATUSES)[number];
+const LOOP_EXCHANGE_BUILD_STATUSES = ["pending_terms", "agreed", "declined"] as const;
+type LoopExchangeBuildStatus = (typeof LOOP_EXCHANGE_BUILD_STATUSES)[number];
 
-export const LOOP_EXCHANGE_ROLES = ["loop_poster", "builder", "collaborator"] as const;
-export type LoopExchangeRole = (typeof LOOP_EXCHANGE_ROLES)[number];
+const LOOP_EXCHANGE_ROLES = ["loop_poster", "builder", "collaborator"] as const;
+type LoopExchangeRole = (typeof LOOP_EXCHANGE_ROLES)[number];
 
 export const loopExchangeLoopsTable = pgTable("loop_exchange_loops", {
   id:               uuid("id").primaryKey().defaultRandom(),
@@ -138,26 +138,20 @@ export const loopExchangeSplitLedgerTable = pgTable("loop_exchange_split_ledger"
   index("loop_exchange_split_ledger_loop_idx").on(t.loopId, t.createdAt),
 ]);
 
-export const insertLoopExchangeLoopSchema = createInsertSchema(loopExchangeLoopsTable).omit({
+const insertLoopExchangeLoopSchema = createInsertSchema(loopExchangeLoopsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertLoopExchangeLoop = z.infer<typeof insertLoopExchangeLoopSchema>;
 export type LoopExchangeLoop = typeof loopExchangeLoopsTable.$inferSelect;
 
-export const insertLoopExchangeBuildSchema = createInsertSchema(loopExchangeBuildsTable).omit({
+const insertLoopExchangeBuildSchema = createInsertSchema(loopExchangeBuildsTable).omit({
   id: true, createdAt: true, updatedAt: true, agreedAt: true,
 });
-export type InsertLoopExchangeBuild = z.infer<typeof insertLoopExchangeBuildSchema>;
 export type LoopExchangeBuild = typeof loopExchangeBuildsTable.$inferSelect;
 
-export const insertLoopExchangeSaleSchema = createInsertSchema(loopExchangeSalesTable).omit({
+const insertLoopExchangeSaleSchema = createInsertSchema(loopExchangeSalesTable).omit({
   id: true, createdAt: true,
 });
-export type InsertLoopExchangeSale = z.infer<typeof insertLoopExchangeSaleSchema>;
-export type LoopExchangeSale = typeof loopExchangeSalesTable.$inferSelect;
 
-export const insertLoopExchangeSplitLedgerSchema = createInsertSchema(loopExchangeSplitLedgerTable).omit({
+const insertLoopExchangeSplitLedgerSchema = createInsertSchema(loopExchangeSplitLedgerTable).omit({
   id: true, createdAt: true,
 });
-export type InsertLoopExchangeSplitLedger = z.infer<typeof insertLoopExchangeSplitLedgerSchema>;
-export type LoopExchangeSplitLedger = typeof loopExchangeSplitLedgerTable.$inferSelect;

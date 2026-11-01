@@ -48,13 +48,12 @@ export const apiWebhooksTable = pgTable(
   ],
 );
 
-export const insertApiWebhookSchema = createInsertSchema(apiWebhooksTable).omit({
+const insertApiWebhookSchema = createInsertSchema(apiWebhooksTable).omit({
   id: true,
   createdAt: true,
   disabledAt: true,
   consecutiveFailures: true,
 });
-export type InsertApiWebhook = z.infer<typeof insertApiWebhookSchema>;
 export type ApiWebhook = typeof apiWebhooksTable.$inferSelect;
 
 /* One row per delivery ATTEMPT (not per event): the delivery-history view
@@ -87,9 +86,7 @@ export const apiWebhookDeliveriesTable = pgTable(
   ],
 );
 
-export const insertApiWebhookDeliverySchema = createInsertSchema(apiWebhookDeliveriesTable).omit({
+const insertApiWebhookDeliverySchema = createInsertSchema(apiWebhookDeliveriesTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertApiWebhookDelivery = z.infer<typeof insertApiWebhookDeliverySchema>;
-export type ApiWebhookDelivery = typeof apiWebhookDeliveriesTable.$inferSelect;

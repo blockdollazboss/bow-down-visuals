@@ -42,10 +42,10 @@ import { storeProductsTable } from "./storefront";
  *    claim order (stripe_session_id = 'gift:{id}', UNIQUE).
  */
 
-export const PRODUCT_GIFT_STATUSES = ["scheduled", "awaiting_claim", "claimed"] as const;
-export type ProductGiftStatus = (typeof PRODUCT_GIFT_STATUSES)[number];
+const PRODUCT_GIFT_STATUSES = ["scheduled", "awaiting_claim", "claimed"] as const;
+type ProductGiftStatus = (typeof PRODUCT_GIFT_STATUSES)[number];
 
-export const productGiftsTable = pgTable("product_gifts", {
+const productGiftsTable = pgTable("product_gifts", {
   id:               uuid("id").primaryKey().defaultRandom(),
   productId:        uuid("product_id").references(() => storeProductsTable.id, { onDelete: "set null" }),
   profileId:        uuid("profile_id").notNull().references(() => creatorProfilesTable.id, { onDelete: "cascade" }),
@@ -94,19 +94,17 @@ export const productGiftsTable = pgTable("product_gifts", {
   index("product_gifts_status_delivery_idx").on(t.status, t.deliveryAt),
 ]);
 
-export const insertProductGiftSchema = createInsertSchema(productGiftsTable).omit({
+const insertProductGiftSchema = createInsertSchema(productGiftsTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertProductGift = z.infer<typeof insertProductGiftSchema>;
-export type ProductGift = typeof productGiftsTable.$inferSelect;
 
-export const PRODUCT_GIFT_LEDGER_KINDS = ["charge", "claim_settle", "resend"] as const;
-export type ProductGiftLedgerKind = (typeof PRODUCT_GIFT_LEDGER_KINDS)[number];
+const PRODUCT_GIFT_LEDGER_KINDS = ["charge", "claim_settle", "resend"] as const;
+type ProductGiftLedgerKind = (typeof PRODUCT_GIFT_LEDGER_KINDS)[number];
 
 /** Append-only audit for gift money/notification movements. `charge`
  *  and `claim_settle` each land exactly once per gift; `resend` rows
  *  record notification re-sends (amount 0, no money moves). */
-export const productGiftLedgerTable = pgTable("product_gift_ledger", {
+const productGiftLedgerTable = pgTable("product_gift_ledger", {
   id:             uuid("id").primaryKey().defaultRandom(),
   giftId:         uuid("gift_id").notNull().references(() => productGiftsTable.id, { onDelete: "cascade" }),
   kind:           text("kind").notNull().$type<ProductGiftLedgerKind>(),
@@ -120,4 +118,3 @@ export const productGiftLedgerTable = pgTable("product_gift_ledger", {
   index("product_gift_ledger_gift_idx").on(t.giftId),
 ]);
 
-export type ProductGiftLedgerEntry = typeof productGiftLedgerTable.$inferSelect;

@@ -41,18 +41,17 @@ import { z } from "zod/v4";
      pattern); the claim is released when session creation fails and
      consumed exactly once when the sale records. */
 
-export const PRODUCT_OFFER_ITEM_KINDS = ["store_product", "shop_product"] as const;
+const PRODUCT_OFFER_ITEM_KINDS = ["store_product", "shop_product"] as const;
 export type ProductOfferItemKind = (typeof PRODUCT_OFFER_ITEM_KINDS)[number];
 
-export const PRODUCT_OFFER_STATUSES = [
+const PRODUCT_OFFER_STATUSES = [
   "pending", "countered", "accepted", "declined", "withdrawn", "expired", "consumed",
 ] as const;
 export type ProductOfferStatus = (typeof PRODUCT_OFFER_STATUSES)[number];
 
 /** Statuses in which the negotiation (or its accepted price) is live. */
-export const OPEN_PRODUCT_OFFER_STATUSES: ProductOfferStatus[] = ["pending", "countered", "accepted"];
 
-export const productOffersTable = pgTable("product_offers", {
+const productOffersTable = pgTable("product_offers", {
   id:                 uuid("id").primaryKey().defaultRandom(),
   buyerUserId:        uuid("buyer_user_id").notNull(),
   sellerUserId:       uuid("seller_user_id").notNull(),
@@ -99,8 +98,7 @@ export const productOffersTable = pgTable("product_offers", {
   index("product_offers_item_idx").on(t.itemKind, t.itemId),
 ]);
 
-export const insertProductOfferSchema = createInsertSchema(productOffersTable).omit({
+const insertProductOfferSchema = createInsertSchema(productOffersTable).omit({
   id: true, createdAt: true, updatedAt: true,
 });
-export type InsertProductOffer = z.infer<typeof insertProductOfferSchema>;
 export type ProductOffer = typeof productOffersTable.$inferSelect;

@@ -20,7 +20,7 @@ import { pgTable, uuid, text, timestamp, jsonb } from "drizzle-orm/pg-core";
  * Boot recovery re-drives rows left in `running` (see routes/lip-sync.ts);
  * terminal rows are swept after a retention TTL.
  */
-export const lipSyncRunsTable = pgTable("lip_sync_runs", {
+const lipSyncRunsTable = pgTable("lip_sync_runs", {
   id: uuid("id").primaryKey(),
   user_id: uuid("user_id").notNull(),
   project_id: uuid("project_id").notNull(),
@@ -35,4 +35,3 @@ export const lipSyncRunsTable = pgTable("lip_sync_runs", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type LipSyncRunRow = typeof lipSyncRunsTable.$inferSelect;

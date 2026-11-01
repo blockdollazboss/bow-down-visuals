@@ -20,24 +20,11 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 export const SAMPLE_USE_KINDS = ["loop", "interpolation", "one_shot", "replay", "other"] as const;
 export type SampleUseKind = (typeof SAMPLE_USE_KINDS)[number];
 
-export const SAMPLE_USE_LABEL: Record<SampleUseKind, string> = {
-  loop: "Loop — a piece of the source repeats through the track",
-  interpolation: "Interpolation — the melody/lyric was re-performed, not the recording itself",
-  one_shot: "One-shot — a short hit or sound used once or a few times",
-  replay: "Replay — a section of the source plays as-is",
-  other: "Something else",
-};
 
 /** Creator-stated clearance. NEVER platform-verified. */
 export const SAMPLE_CLEARANCE_STATUSES = ["licensed", "public_domain_or_original", "not_cleared", "unsure"] as const;
 export type SampleClearanceStatus = (typeof SAMPLE_CLEARANCE_STATUSES)[number];
 
-export const SAMPLE_CLEARANCE_LABEL: Record<SampleClearanceStatus, string> = {
-  licensed: "I have a license or clearance for this sample",
-  public_domain_or_original: "The source is public domain, or it is my own original recording",
-  not_cleared: "I do not have a license or clearance for this sample",
-  unsure: "I'm not sure whether this sample is cleared",
-};
 
 export const sampleDeclarationsTable = pgTable(
   "sample_declarations",
@@ -72,4 +59,3 @@ export const insertSampleDeclarationSchema = createInsertSchema(sampleDeclaratio
 });
 export const selectSampleDeclarationSchema = createSelectSchema(sampleDeclarationsTable);
 
-export type SampleDeclaration = typeof sampleDeclarationsTable.$inferSelect;

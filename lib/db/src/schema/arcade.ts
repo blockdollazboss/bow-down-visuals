@@ -17,4 +17,3 @@ export const arcadeScoresTable = pgTable("arcade_scores", {
   index("arcade_scores_game_score_idx").on(t.game, t.score),
   index("arcade_scores_user_game_idx").on(t.userId, t.game),
 ]);
-export type ArcadeScore = typeof arcadeScoresTable.$inferSelect;

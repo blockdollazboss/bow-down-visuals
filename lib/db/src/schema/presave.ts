@@ -29,8 +29,6 @@ export const presaveSharesTable = pgTable("presave_shares", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type PresaveFollow = typeof presaveFollowsTable.$inferSelect;
-export type PresaveShare = typeof presaveSharesTable.$inferSelect;
 
 /* Release-day fan notifications (wave 3 #15, migration 0186).
    presave_release_deliveries: the delivery ledger for the "one email
@@ -45,10 +43,9 @@ export type PresaveShare = typeof presaveSharesTable.$inferSelect;
      failed  → the send attempt failed (last_error recorded); a later
                sweep may retry while attempts < the cap.
      dead    → attempts exhausted; terminal, never retried. */
-export const PRESAVE_DELIVERY_STATUSES = ["pending", "sent", "failed", "dead"] as const;
-export type PresaveDeliveryStatus = (typeof PRESAVE_DELIVERY_STATUSES)[number];
+const PRESAVE_DELIVERY_STATUSES = ["pending", "sent", "failed", "dead"] as const;
 
-export const presaveReleaseDeliveriesTable = pgTable("presave_release_deliveries", {
+const presaveReleaseDeliveriesTable = pgTable("presave_release_deliveries", {
   id: uuid("id").primaryKey().defaultRandom(),
   releaseId: uuid("release_id")
     .notNull()
@@ -99,4 +96,3 @@ export const releaseLinkClicksTable = pgTable("release_link_clicks", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type ReleaseLinkClick = typeof releaseLinkClicksTable.$inferSelect;

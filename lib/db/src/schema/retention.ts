@@ -9,7 +9,6 @@ export const creationStreaksTable = pgTable("creation_streaks", {
   milestonesClaimed: integer("milestones_claimed").array().notNull().default([]),
   updatedAt:         timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type CreationStreak = typeof creationStreaksTable.$inferSelect;
 
 /** Surprise Visual Bucs drops. Unclaimed drops expire after 48h. */
 export const sharkDropsTable = pgTable("shark_drops", {
@@ -54,7 +53,6 @@ export const dailyQuestProgressTable = pgTable("daily_quest_progress", {
   claimedAt: timestamp("claimed_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.userId, t.questKey, t.dayDate] })]);
-export type DailyQuestProgress = typeof dailyQuestProgressTable.$inferSelect;
 
 /** Which creator levels were already celebrated (fires once per level-up). */
 export const levelCelebrationsTable = pgTable("level_celebrations", {
@@ -62,7 +60,6 @@ export const levelCelebrationsTable = pgTable("level_celebrations", {
   level:        integer("level").notNull(),
   celebratedAt: timestamp("celebrated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.userId, t.level] })]);
-export type LevelCelebration = typeof levelCelebrationsTable.$inferSelect;
 
 /** Share-to-earn viral loop: one row per share action (native / X / WhatsApp /
  * copy link) posted via POST /api/shares. Feeds the "Viral Sharer" weekly
@@ -76,7 +73,6 @@ export const shareEventsTable = pgTable("share_events", {
   createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 // Indexes (user_id, created_at) live in migration 0117.
-export type ShareEvent = typeof shareEventsTable.$inferSelect;
 
 /** User-facing on/off for every retention system. */
 export const retentionPrefsTable = pgTable("retention_prefs", {
@@ -96,7 +92,6 @@ export const retentionPrefsTable = pgTable("retention_prefs", {
   fomoFeedEnabled:          boolean("fomo_feed_enabled").notNull().default(true),
   updatedAt:                timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type RetentionPrefs = typeof retentionPrefsTable.$inferSelect;
 
 /** Last-seen tracking for "while you were away" digests. */
 export const userActivityTable = pgTable("user_activity", {
@@ -104,7 +99,6 @@ export const userActivityTable = pgTable("user_activity", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:  timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type UserActivity = typeof userActivityTable.$inferSelect;
 
 /** Daily Drop catalogue archives (STACK-20 R2 item #18, migration
  *  0161). The drop catalogue itself is code — DAILY_DROPS in the
@@ -119,7 +113,6 @@ export const dailyDropArchivesTable = pgTable("daily_drop_archives", {
   dropKey:    text("drop_key").notNull(),
   archivedAt: timestamp("archived_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.userId, t.dropKey] })]);
-export type DailyDropArchive = typeof dailyDropArchivesTable.$inferSelect;
 
 /** Per-claim records for the two retention awards that used to keep
  *  no row (migration 0165, closing the Treasury ledger's documented
@@ -148,4 +141,3 @@ export const retentionClaimRecordsTable = pgTable("retention_claim_records", {
   uniqueIndex("retention_claim_records_user_kind_ref_uidx").on(t.userId, t.kind, t.refKey),
   index("retention_claim_records_user_created_idx").on(t.userId, t.createdAt),
 ]);
-export type RetentionClaimRecord = typeof retentionClaimRecordsTable.$inferSelect;

@@ -13,7 +13,7 @@ import { pgTable, uuid, text, integer, timestamp, jsonb } from "drizzle-orm/pg-c
  * packager advances, and jobs left queued/active by a dead process are
  * re-queued on boot (the persisted userId is everything a re-run needs).
  */
-export const vaultJobsTable = pgTable("vault_jobs", {
+const vaultJobsTable = pgTable("vault_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
   user_id: uuid("user_id").notNull(),
   /** queued | active | done | failed */
@@ -32,4 +32,3 @@ export const vaultJobsTable = pgTable("vault_jobs", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type VaultJobRow = typeof vaultJobsTable.$inferSelect;

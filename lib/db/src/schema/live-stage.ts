@@ -53,10 +53,9 @@ export const creatorLivePrefsTable = pgTable("creator_live_prefs", {
     .default(sql`'[]'::jsonb`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
-export type CreatorLivePrefs = typeof creatorLivePrefsTable.$inferSelect;
 
-export const HIGHLIGHT_PROPOSAL_STATUSES = ["proposed", "approved", "dismissed", "posted"] as const;
-export type HighlightProposalStatus = (typeof HIGHLIGHT_PROPOSAL_STATUSES)[number];
+const HIGHLIGHT_PROPOSAL_STATUSES = ["proposed", "approved", "dismissed", "posted"] as const;
+type HighlightProposalStatus = (typeof HIGHLIGHT_PROPOSAL_STATUSES)[number];
 
 export const streamHighlightProposalsTable = pgTable(
   "stream_highlight_proposals",
@@ -110,4 +109,3 @@ export const liveStageManagerStateTable = pgTable("live_stage_manager_state", {
   pinned_until: timestamp("pinned_until", { withTimezone: true }),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
-export type LiveStageManagerState = typeof liveStageManagerStateTable.$inferSelect;

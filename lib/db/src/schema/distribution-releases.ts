@@ -65,4 +65,3 @@ export const distributionReleasesTable = pgTable("distribution_releases", {
     .default({}),
 });
 
-export type DistributionReleaseRow = typeof distributionReleasesTable.$inferSelect;

@@ -31,7 +31,7 @@ import { pgTable, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
  * GET /api/crowns (routes/the-crowns). Crowns are honor, not
  * money: no VB moves anywhere in this feature.
  */
-export const houseCrownYearsTable = pgTable("house_crown_years", {
+const houseCrownYearsTable = pgTable("house_crown_years", {
   year: integer("year").primaryKey(),
   crownKey: text("crown_key").notNull(),
   name: text("name").notNull(),
@@ -43,7 +43,6 @@ export const houseCrownYearsTable = pgTable("house_crown_years", {
 });
 
 export type HouseCrownYear = typeof houseCrownYearsTable.$inferSelect;
-export type NewHouseCrownYear = typeof houseCrownYearsTable.$inferInsert;
 
 /** One frozen placement inside a decided category. */
 export interface CrownCategoryStanding {

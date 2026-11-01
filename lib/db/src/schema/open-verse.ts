@@ -54,7 +54,7 @@ export interface OpenVerseSplitTerm {
   sharePct: number;
 }
 
-export const openVersePostsTable = pgTable(
+const openVersePostsTable = pgTable(
   "open_verse_posts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -87,7 +87,7 @@ export const openVersePostsTable = pgTable(
   ],
 );
 
-export const openVerseSubmissionsTable = pgTable(
+const openVerseSubmissionsTable = pgTable(
   "open_verse_submissions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -119,7 +119,7 @@ export const openVerseSubmissionsTable = pgTable(
    make a retried pick resolve to the same row — never a second split
    agreement, never a second payment record. Amounts are PERCENTAGES
    of the track's future Visual Bucs earnings (test mode); no cash. */
-export const openVerseSplitLedgerTable = pgTable(
+const openVerseSplitLedgerTable = pgTable(
   "open_verse_split_ledger",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -143,20 +143,17 @@ export const openVerseSplitLedgerTable = pgTable(
   ],
 );
 
-export const insertOpenVersePostSchema = createInsertSchema(openVersePostsTable).omit({
+const insertOpenVersePostSchema = createInsertSchema(openVersePostsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertOpenVersePost = z.infer<typeof insertOpenVersePostSchema>;
 export type OpenVersePost = typeof openVersePostsTable.$inferSelect;
 
-export const insertOpenVerseSubmissionSchema = createInsertSchema(openVerseSubmissionsTable).omit({
+const insertOpenVerseSubmissionSchema = createInsertSchema(openVerseSubmissionsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
 });
-export type InsertOpenVerseSubmission = z.infer<typeof insertOpenVerseSubmissionSchema>;
 export type OpenVerseSubmission = typeof openVerseSubmissionsTable.$inferSelect;
 
-export type OpenVerseSplitLedgerRow = typeof openVerseSplitLedgerTable.$inferSelect;

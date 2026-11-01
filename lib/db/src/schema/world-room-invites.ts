@@ -57,9 +57,8 @@ export const worldRoomInvitesTable = pgTable("world_room_invites", {
     .where(sql`${t.status} = 'pending'`),
 ]);
 
-export const insertWorldRoomInviteSchema = createInsertSchema(worldRoomInvitesTable).omit({
+const insertWorldRoomInviteSchema = createInsertSchema(worldRoomInvitesTable).omit({
   id: true,
   createdAt: true,
 });
-export type InsertWorldRoomInvite = z.infer<typeof insertWorldRoomInviteSchema>;
 export type WorldRoomInvite = typeof worldRoomInvitesTable.$inferSelect;

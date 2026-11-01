@@ -28,7 +28,7 @@ import { emailListsTable } from "./email-lists";
 export const KEYWORD_AUTOMATION_SURFACES = ["post", "media", "wall", "live"] as const;
 export type KeywordAutomationSurface = (typeof KEYWORD_AUTOMATION_SURFACES)[number];
 
-export const KEYWORD_AUTOMATION_EVENT_OUTCOMES = [
+const KEYWORD_AUTOMATION_EVENT_OUTCOMES = [
   "sent",
   "captured",
   "already_on_list",
@@ -36,7 +36,7 @@ export const KEYWORD_AUTOMATION_EVENT_OUTCOMES = [
   "blocked",
   "failed",
 ] as const;
-export type KeywordAutomationEventOutcome = (typeof KEYWORD_AUTOMATION_EVENT_OUTCOMES)[number];
+type KeywordAutomationEventOutcome = (typeof KEYWORD_AUTOMATION_EVENT_OUTCOMES)[number];
 
 export const keywordAutomationRulesTable = pgTable("keyword_automation_rules", {
   id:            uuid("id").primaryKey().defaultRandom(),
@@ -86,12 +86,11 @@ export const keywordAutomationEventsTable = pgTable("keyword_automation_events",
     .where(sql`${t.outcome} = 'sent'`),
 ]);
 
-export type KeywordAutomationEvent = typeof keywordAutomationEventsTable.$inferSelect;
 
-export const KEYWORD_AUTOMATION_CAPTURE_STATUSES = ["pending", "captured", "expired"] as const;
-export type KeywordAutomationCaptureStatus = (typeof KEYWORD_AUTOMATION_CAPTURE_STATUSES)[number];
+const KEYWORD_AUTOMATION_CAPTURE_STATUSES = ["pending", "captured", "expired"] as const;
+type KeywordAutomationCaptureStatus = (typeof KEYWORD_AUTOMATION_CAPTURE_STATUSES)[number];
 
-export const keywordAutomationCapturesTable = pgTable("keyword_automation_captures", {
+const keywordAutomationCapturesTable = pgTable("keyword_automation_captures", {
   id:             uuid("id").primaryKey().defaultRandom(),
   ruleId:         uuid("rule_id").notNull().references(() => keywordAutomationRulesTable.id, { onDelete: "cascade" }),
   creatorUserId:  uuid("creator_user_id").notNull(),
@@ -108,4 +107,3 @@ export const keywordAutomationCapturesTable = pgTable("keyword_automation_captur
   index("keyword_automation_captures_fan_idx").on(t.fanUserId, t.status),
 ]);
 
-export type KeywordAutomationCapture = typeof keywordAutomationCapturesTable.$inferSelect;

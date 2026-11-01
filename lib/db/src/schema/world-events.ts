@@ -46,19 +46,14 @@ import { sql } from "drizzle-orm";
  *   scheduled → live → done, with cancelled reachable from scheduled
  *   or live (host or admin). The tick is the only writer of live/done.
  */
-export const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "contest", "office_hours"] as const;
+const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "contest", "office_hours"] as const;
 export type WorldEventKind = (typeof WORLD_EVENT_KINDS)[number];
 
-export const WORLD_EVENT_STATUSES = ["scheduled", "live", "done", "cancelled"] as const;
+const WORLD_EVENT_STATUSES = ["scheduled", "live", "done", "cancelled"] as const;
 export type WorldEventStatus = (typeof WORLD_EVENT_STATUSES)[number];
 
 /** Per-kind booking payload (validated + sanitized at the route). */
-export type WorldEventPayload =
-  | { contentRef: string } // stage_show: "live" | "video:<uuid>" | "replay:<uuid>"
-  | { trackIds: string[]; playlistId?: string | null } // listening_party
-  | { amountVb: number; claimCap: number } // drop
-  | { theme: string } // contest: the theme works are entered under
-  | { note?: string }; // office_hours: an optional agenda line
+ // office_hours: an optional agenda line
 
 export const worldEventsTable = pgTable(
   "world_events",
@@ -94,4 +89,3 @@ export const worldEventsTable = pgTable(
 );
 
 export type WorldEvent = typeof worldEventsTable.$inferSelect;
-export type NewWorldEvent = typeof worldEventsTable.$inferInsert;

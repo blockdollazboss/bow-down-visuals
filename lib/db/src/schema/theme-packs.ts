@@ -19,7 +19,7 @@ import {
  * from creator_subscriptions, so a lapse ends Elite access while rows
  * here (outright purchases) keep their packs.
  */
-export const themePackPurchasesTable = pgTable(
+const themePackPurchasesTable = pgTable(
   "theme_pack_purchases",
   {
     userId: text("user_id").notNull(),
@@ -30,7 +30,6 @@ export const themePackPurchasesTable = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.packId] })],
 );
 
-export type ThemePackPurchase = typeof themePackPurchasesTable.$inferSelect;
 
 /**
  * Buyer customizations (migration 0243, Stack-200 UPGRADES item 39 —
@@ -40,7 +39,7 @@ export type ThemePackPurchase = typeof themePackPurchasesTable.$inferSelect;
  * that component's buyer choices (art source, accent, cursor, sound
  * additions, branded flag, …) as validated by the kit rail.
  */
-export const themePackCustomizationsTable = pgTable(
+const themePackCustomizationsTable = pgTable(
   "theme_pack_customizations",
   {
     userId: text("user_id").notNull(),
@@ -53,7 +52,6 @@ export const themePackCustomizationsTable = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.packId, t.component, t.device] })],
 );
 
-export type ThemePackCustomization = typeof themePackCustomizationsTable.$inferSelect;
 
 /**
  * Creator-made packs (migration 0243). A creator designs a pack from
@@ -64,7 +62,7 @@ export type ThemePackCustomization = typeof themePackCustomizationsTable.$inferS
  * lands in theme_pack_purchases with pack_id = 'creator:<id>' — the
  * same exactly-once anchor as house premium packs.
  */
-export const creatorThemePacksTable = pgTable(
+const creatorThemePacksTable = pgTable(
   "creator_theme_packs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -83,4 +81,3 @@ export const creatorThemePacksTable = pgTable(
   ],
 );
 
-export type CreatorThemePack = typeof creatorThemePacksTable.$inferSelect;

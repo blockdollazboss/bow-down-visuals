@@ -34,11 +34,11 @@ import { z } from "zod/v4";
 export const PRODUCT_REVIEW_PRODUCT_TYPES = ["store_product", "shop_product"] as const;
 export type ProductReviewProductType = (typeof PRODUCT_REVIEW_PRODUCT_TYPES)[number];
 
-export const PRODUCT_REVIEW_PURCHASE_SOURCES = ["store_orders", "shop_events"] as const;
-export type ProductReviewPurchaseSource = (typeof PRODUCT_REVIEW_PURCHASE_SOURCES)[number];
+const PRODUCT_REVIEW_PURCHASE_SOURCES = ["store_orders", "shop_events"] as const;
+type ProductReviewPurchaseSource = (typeof PRODUCT_REVIEW_PURCHASE_SOURCES)[number];
 
-export const PRODUCT_REVIEW_MODERATION_STATUSES = ["visible", "hidden_pending_review"] as const;
-export type ProductReviewModerationStatus = (typeof PRODUCT_REVIEW_MODERATION_STATUSES)[number];
+const PRODUCT_REVIEW_MODERATION_STATUSES = ["visible", "hidden_pending_review"] as const;
+type ProductReviewModerationStatus = (typeof PRODUCT_REVIEW_MODERATION_STATUSES)[number];
 
 /** Why a seller may flag a review for platform moderation. Mirrors the
  *  reason-category vocabulary of content reports / post removals
@@ -56,7 +56,7 @@ export const PRODUCT_REVIEW_FLAG_REASONS = [
 ] as const;
 export type ProductReviewFlagReason = (typeof PRODUCT_REVIEW_FLAG_REASONS)[number];
 
-export const productReviewsTable = pgTable("product_reviews", {
+const productReviewsTable = pgTable("product_reviews", {
   id: uuid("id").primaryKey().defaultRandom(),
   productType: text("product_type").notNull().$type<ProductReviewProductType>(),
   productId: uuid("product_id").notNull(),
@@ -101,7 +101,7 @@ export const productReviewsTable = pgTable("product_reviews", {
   index("product_reviews_buyer_idx").on(t.buyerUserId, t.createdAt),
 ]);
 
-export const insertProductReviewSchema = createInsertSchema(productReviewsTable).omit({
+const insertProductReviewSchema = createInsertSchema(productReviewsTable).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -109,4 +109,3 @@ export const insertProductReviewSchema = createInsertSchema(productReviewsTable)
 export const selectProductReviewSchema = createSelectSchema(productReviewsTable);
 
 export type ProductReview = typeof productReviewsTable.$inferSelect;
-export type InsertProductReview = z.infer<typeof insertProductReviewSchema>;

@@ -67,8 +67,8 @@ export const TUTORIAL_CATEGORIES = [
 export type TutorialCategory = (typeof TUTORIAL_CATEGORIES)[number];
 
 /** The V3 access ladder, reserved. V1 writes 'free' only. */
-export const TUTORIAL_ACCESS_LEVELS = ["free", "followers", "members", "paid"] as const;
-export type TutorialAccess = (typeof TUTORIAL_ACCESS_LEVELS)[number];
+const TUTORIAL_ACCESS_LEVELS = ["free", "followers", "members", "paid"] as const;
+type TutorialAccess = (typeof TUTORIAL_ACCESS_LEVELS)[number];
 
 export const tutorialSeriesTable = pgTable("tutorial_series", {
   id:           uuid("id").primaryKey().defaultRandom(),
@@ -92,8 +92,7 @@ export const tutorialSeriesTable = pgTable("tutorial_series", {
   index("tutorial_series_profile_idx").on(t.profileId),
 ]);
 
-export const insertTutorialSeriesSchema = createInsertSchema(tutorialSeriesTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertTutorialSeries = z.infer<typeof insertTutorialSeriesSchema>;
+const insertTutorialSeriesSchema = createInsertSchema(tutorialSeriesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type TutorialSeries = typeof tutorialSeriesTable.$inferSelect;
 
 export const tutorialsTable = pgTable("tutorials", {
@@ -134,8 +133,7 @@ export const tutorialsTable = pgTable("tutorials", {
   index("tutorials_profile_idx").on(t.profileId),
 ]);
 
-export const insertTutorialSchema = createInsertSchema(tutorialsTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertTutorial = z.infer<typeof insertTutorialSchema>;
+const insertTutorialSchema = createInsertSchema(tutorialsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type Tutorial = typeof tutorialsTable.$inferSelect;
 
 export const tutorialChaptersTable = pgTable("tutorial_chapters", {
@@ -153,8 +151,7 @@ export const tutorialChaptersTable = pgTable("tutorial_chapters", {
   uniqueIndex("tutorial_chapters_position_unique").on(t.tutorialId, t.position),
 ]);
 
-export const insertTutorialChapterSchema = createInsertSchema(tutorialChaptersTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertTutorialChapter = z.infer<typeof insertTutorialChapterSchema>;
+const insertTutorialChapterSchema = createInsertSchema(tutorialChaptersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type TutorialChapter = typeof tutorialChaptersTable.$inferSelect;
 
 export const tutorialResourcesTable = pgTable("tutorial_resources", {
@@ -172,11 +169,10 @@ export const tutorialResourcesTable = pgTable("tutorial_resources", {
   index("tutorial_resources_tutorial_idx").on(t.tutorialId),
 ]);
 
-export const insertTutorialResourceSchema = createInsertSchema(tutorialResourcesTable).omit({ id: true, createdAt: true });
-export type InsertTutorialResource = z.infer<typeof insertTutorialResourceSchema>;
+const insertTutorialResourceSchema = createInsertSchema(tutorialResourcesTable).omit({ id: true, createdAt: true });
 export type TutorialResource = typeof tutorialResourcesTable.$inferSelect;
 
-export const TUTORIAL_PROGRESS_STATUSES = ["started", "in_progress", "completed"] as const;
+const TUTORIAL_PROGRESS_STATUSES = ["started", "in_progress", "completed"] as const;
 export type TutorialProgressStatus = (typeof TUTORIAL_PROGRESS_STATUSES)[number];
 
 export const tutorialProgressTable = pgTable("tutorial_progress", {
@@ -198,6 +194,5 @@ export const tutorialProgressTable = pgTable("tutorial_progress", {
   uniqueIndex("tutorial_progress_user_tutorial_unique").on(t.userId, t.tutorialId),
 ]);
 
-export const insertTutorialProgressSchema = createInsertSchema(tutorialProgressTable).omit({ id: true, startedAt: true, updatedAt: true });
-export type InsertTutorialProgress = z.infer<typeof insertTutorialProgressSchema>;
+const insertTutorialProgressSchema = createInsertSchema(tutorialProgressTable).omit({ id: true, startedAt: true, updatedAt: true });
 export type TutorialProgress = typeof tutorialProgressTable.$inferSelect;

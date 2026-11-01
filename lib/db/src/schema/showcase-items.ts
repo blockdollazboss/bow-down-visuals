@@ -25,7 +25,7 @@ export const showcaseLikesTable = pgTable("showcase_likes", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertShowcaseItemSchema = createInsertSchema(showcaseItemsTable).omit({
+const insertShowcaseItemSchema = createInsertSchema(showcaseItemsTable).omit({
   id: true,
   likes: true,
   views: true,
@@ -34,5 +34,3 @@ export const insertShowcaseItemSchema = createInsertSchema(showcaseItemsTable).o
 
 export const selectShowcaseItemSchema = createSelectSchema(showcaseItemsTable);
 
-export type ShowcaseItemRow = typeof showcaseItemsTable.$inferSelect;
-export type InsertShowcaseItem = z.infer<typeof insertShowcaseItemSchema>;
