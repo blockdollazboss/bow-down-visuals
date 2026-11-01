@@ -2396,7 +2396,9 @@ export function LipSyncSection({
                       updateClipEdit(selectedScene.id, {
                         lipSyncUrl:            resultUrl,
                         lipSyncStatus:         "done",
-                        lipSyncProvider:       ce?.lipSyncProvider ?? "sync.so",
+                        /* Preserve the result's recorded provenance (canonicalized);
+                           unrecorded stays null — never a fabricated route. */
+                        lipSyncProvider:       resolveLipSyncProvenance(ce?.lipSyncProvider),
                         lipSyncCreatedAt:      ce?.lipSyncCreatedAt ?? new Date().toISOString(),
                         lipSyncError:          null,
                         lipSyncTimingMismatch: false,
