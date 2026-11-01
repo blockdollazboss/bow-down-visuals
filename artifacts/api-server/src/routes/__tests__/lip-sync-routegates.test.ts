@@ -42,3 +42,16 @@ describe("LatentSync switch — gates fail closed before charging", () => {
     expect(lipSyncSrc).toMatch(/provider: getLipSyncProviderName\(\)/);
   });
 });
+
+describe("Owner's ruling (2026-10-26) — run-all rides the same switch as the single-clip rail", () => {
+  it("the run-all orchestrator stamps each scene sub-job with the effective provider", () => {
+    const runAllStart = lipSyncSrc.indexOf("async function processRunAll");
+    const runAllEnd = lipSyncSrc.indexOf('router.post("/lip-sync/run-all"');
+    const runAll = lipSyncSrc.slice(runAllStart, runAllEnd);
+    // Same stamp as POST /lip-sync/preview: whatever the switch resolves
+    // (LatentSync by default; sync-3 only when explicitly selected) is
+    // what every scene of a run is created for — run-all can never drift
+    // onto a different route than the single-clip path.
+    expect(runAll).toMatch(/provider: getLipSyncProviderName\(\)/);
+  });
+});

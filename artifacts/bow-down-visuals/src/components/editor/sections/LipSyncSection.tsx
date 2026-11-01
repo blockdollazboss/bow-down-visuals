@@ -2144,9 +2144,9 @@ export function LipSyncSection({
                 />
                 <p className="mt-2 text-[10px] leading-relaxed text-white/35">
                   How expressive the mouth performance is. Your choice is
-                  sent to the lip-sync provider with every job — the
-                  current sync-3 model sets expression automatically, and
-                  this dial takes effect on the lipsync-2 model.
+                  recorded with every job — the current model sets
+                  expression automatically, and this dial takes effect on
+                  the lipsync-2 model.
                 </p>
               </div>
               <div className="space-y-1 divide-y divide-white/5">
@@ -2154,14 +2154,14 @@ export function LipSyncSection({
                   value={ls.preserveFaceIdentity}
                   onChange={v => updateLipSync({ preserveFaceIdentity: v })}
                   label="Preserve Face Identity"
-                  sub="Always on — sync-3 preserves the original face by design; the provider offers no off switch"
+                  sub="Always on — the model preserves the original face by design; the provider offers no off switch"
                 />
                 <div className="pt-1">
                   <Toggle
                     value={ls.preserveArtistLook}
                     onChange={v => updateLipSync({ preserveArtistLook: v })}
                     label="Preserve Artist Look"
-                    sub="Always on — sync-3 keeps the artist's style, skin tone, and expression automatically"
+                    sub="Always on — the model keeps the artist's style, skin tone, and expression automatically"
                   />
                 </div>
               </div>
@@ -4058,7 +4058,9 @@ class StillProcessingError extends Error {
 
 interface LipSyncResult {
   url:      string;
-  provider: string;
+  /** The route the job actually ran on, as the server recorded it —
+   *  null when the job carries no recorded route (never guessed). */
+  provider: string | null;
   /** Migration-0230 result metadata from the job poll (may be absent). */
   resultMeta?: LipSyncResultMeta | null;
 }
@@ -4181,7 +4183,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
 
     if (job.status === "done") {
       if (!job.url) throw new Error("Lip sync job completed but returned no URL.");
-      return { url: job.url, provider: job.provider ?? "sync", resultMeta: job.resultMeta ?? null };
+      return { url: job.url, provider: job.provider ?? null, resultMeta: job.resultMeta ?? null };
     }
     if (job.status === "failed") {
       throw new Error(apiErrorMessage(job, "Lip sync job failed."));

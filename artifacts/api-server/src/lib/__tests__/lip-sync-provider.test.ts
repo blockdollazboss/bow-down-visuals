@@ -3,11 +3,17 @@
  *
  * Owner's verdict (2026-10-24): LatentSync via WaveSpeed is the DEFAULT
  * lip-sync route; the direct Sync.so route stays as the premium upsell
- * behind the same switch. Resolution rules pinned here:
+ * behind the same switch. Owner's ruling (2026-10-26) hardened the
+ * default: sync-3 is PREMIUM-ONLY, never the default. Resolution rules
+ * pinned here:
  *  - an explicit LIP_SYNC_PROVIDER wins over key detection;
  *  - unset → latentsync when the WaveSpeed key is configured;
- *  - unset → sync when only the Sync.so key exists (legacy deploys keep
- *    working until the WaveSpeed key lands);
+ *  - unset → null when only the Sync.so key exists: the Sync.so key
+ *    alone NEVER promotes the premium route to the default (the old
+ *    fallback did exactly that — one missing WaveSpeed key silently
+ *    flipped every job to sync-3 at several times the per-second
+ *    cost). Routes fail closed with 503 until a route is explicitly
+ *    selected or the WaveSpeed key lands;
  *  - an unrecognized explicit value fails closed (null), never a silent
  *    route nobody chose.
  */
@@ -93,9 +99,19 @@ describe("getLipSyncProviderName — route selection", () => {
     expect(getLipSyncProviderName()).toBe("latentsync");
   });
 
-  it("unset falls back to sync when only the Sync.so key exists", () => {
+  it("unset with only the Sync.so key resolves to null — the premium route never serves by default (owner's ruling, 2026-10-26)", () => {
+    process.env["SYNC_LABS_API_KEY"] = "sync-key";
+    expect(getLipSyncProviderName()).toBeNull();
+    // …and the fail-closed chain holds: the resolved route is not
+    // configured, so the routes answer 503 before any charge.
+    expect(isLipSyncProviderConfigured(getLipSyncProviderName())).toBe(false);
+  });
+
+  it("the premium route is still reachable by explicit selection with only its key present", () => {
+    process.env["LIP_SYNC_PROVIDER"] = "sync";
     process.env["SYNC_LABS_API_KEY"] = "sync-key";
     expect(getLipSyncProviderName()).toBe("sync");
+    expect(isLipSyncProviderConfigured(getLipSyncProviderName())).toBe(true);
   });
 
   it("unset with no keys resolves to null (nothing connected)", () => {

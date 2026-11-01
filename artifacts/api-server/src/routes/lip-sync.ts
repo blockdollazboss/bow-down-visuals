@@ -90,7 +90,11 @@ function toClientLipSyncJob(job: LipSyncJob) {
   return {
     status,
     url: job.resultUrl ?? undefined,
-    provider: job.params.provider ?? "sync",
+    /* The job's OWN recorded route — never a guessed default. A job
+       with no stored provider reports null: naming "sync" here (the
+       old fallthrough) stamped the premium route onto jobs that never
+       ran on it (owner's ruling, 2026-10-26). */
+    provider: normalizeLipSyncProvider(job.params.provider) ?? null,
     /* Provider result metadata (0230): includes input/output dimensions
        and resolutionReduced when the finishing path probed them — the
        client can state a smaller-than-submitted result plainly. */
@@ -124,7 +128,7 @@ router.get("/lip-sync/status", (_req, res) => {
       ? "WaveSpeed API key missing. Add WAVESPEED_API_KEY in the server environment."
       : providerName === "sync"
         ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in the server environment."
-        : "Lip Sync provider not connected. Add WAVESPEED_API_KEY (default route) or LIP_SYNC_API_KEY in the server environment.";
+        : "Lip Sync provider not connected. Add WAVESPEED_API_KEY for the default Lip Sync route in the server environment. (The premium Sync route never serves by default — it is selected explicitly with LIP_SYNC_PROVIDER=sync.)";
 
   res.json({
     connected,
@@ -134,7 +138,15 @@ router.get("/lip-sync/status", (_req, res) => {
     mode: connected ? "real" : "mock",
     missingKeyMessage,
     providerLimitSec: PROVIDER_LIMIT_SEC,
-    model: providerName === "latentsync" ? getLatentSyncModel() : SYNC_LABS_MODEL,
+    /* The model of the EFFECTIVE route only — when nothing is connected
+       there is no acting model; naming sync-3 here (the old fallthrough)
+       told every reader the premium model was the default. */
+    model:
+      providerName === "latentsync"
+        ? getLatentSyncModel()
+        : providerName === "sync"
+          ? SYNC_LABS_MODEL
+          : null,
     /* Per-route readiness, so the effective default is never a surprise:
        the default route is LatentSync whenever its key is configured. */
     latentsyncConfigured: isLipSyncProviderConfigured("latentsync"),
@@ -527,7 +539,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
           ? "WaveSpeed API key missing. Add WAVESPEED_API_KEY in the server environment."
           : provider === "sync"
             ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in the server environment."
-            : "Lip Sync provider not connected. Add WAVESPEED_API_KEY (default route) or LIP_SYNC_API_KEY in the server environment.";
+            : "Lip Sync provider not connected. Add WAVESPEED_API_KEY for the default Lip Sync route in the server environment. (The premium Sync route never serves by default — it is selected explicitly with LIP_SYNC_PROVIDER=sync.)";
       res.status(503).json({ error: msg, code: "provider_not_connected" });
       return;
     }
