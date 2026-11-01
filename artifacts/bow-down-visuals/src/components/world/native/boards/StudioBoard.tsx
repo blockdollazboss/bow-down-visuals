@@ -43,6 +43,7 @@ import { parseWeeklyContest, type WeeklyContest } from "@/lib/world/games-lobby"
 import { normalizeContests } from "@/lib/world/contests";
 import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-quests";
 import { CreatorProfileCreateCard } from "@/components/world/native/CreatorProfileCreate";
+import { AlbumsDesk } from "@/components/world/native/AlbumsDesk";
 
 /* ─── StudioBoard — My Studio as a palace board (NATIVE-PLAN §3.1) ───
    The Create Wing's studio door, rebuilt in-world: your projects
@@ -527,6 +528,11 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
             </div>
           </NativeCard>
         ) : null}
+
+        {/* Albums & EPs (stack1100 parity): album building — draft,
+            tracklist, publish — on the /api/albums rails, in the
+            room with the rest of your work. */}
+        <AlbumsDesk isLight={isLight} />
       </div>
 
       {/* The projects board, with its deeper tabs */}

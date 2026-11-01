@@ -15,6 +15,7 @@ import { PayoutDesk } from "@/components/world/native/PayoutDesk";
 import { MoneyActionsDesk } from "@/components/world/native/MoneyActionsDesk";
 import { CatalogExportDesk } from "@/components/world/native/CatalogExportDesk";
 import { SuccessionDesk } from "@/components/world/native/SuccessionDesk";
+import { ReferralsDesk } from "@/components/world/native/ReferralsDesk";
 import { PlansDesk } from "@/components/world/native/PlansDesk";
 import { TipJarDesk } from "@/components/world/native/TipJarDesk";
 import { ledgerPage } from "@/lib/world/money-desks-2";
@@ -491,6 +492,12 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 contact on the /api/legacy/* rails, the Settings
                 panels' own forms promoted in-world. */}
             <SuccessionDesk isLight={isLight} />
+
+            {/* Referrals (stack1100 parity): your code, your people,
+                your promoter climb and the monthly contest, on the
+                /api/referrals rails — the growth engine sits with
+                the money it earns. */}
+            <ReferralsDesk isLight={isLight} />
           </>
         )
       ) : ledgerFailed ? (
