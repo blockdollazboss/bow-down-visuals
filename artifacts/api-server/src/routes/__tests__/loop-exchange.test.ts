@@ -109,6 +109,7 @@ CREATE TABLE credit_usage (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL, action text NOT NULL, credits_used integer NOT NULL,
   project_id uuid, team_id uuid, idempotency_key text,
+  bonus_credits_used integer, bonus_expires_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX credit_usage_idempotency_ux ON credit_usage (idempotency_key);

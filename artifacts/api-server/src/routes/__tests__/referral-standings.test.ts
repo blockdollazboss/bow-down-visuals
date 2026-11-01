@@ -166,6 +166,23 @@ function periodOf(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+/* JOIN NOTE (stack1100 join): this suite seeds referrals 1–5 days
+   before "now" and asserts CURRENT-MONTH standings — so on the 1st of
+   a month every seed fell into the previous month and the monthly
+   assertions failed on ANY tree (proven: the pristine stack1000 base
+   fails this suite identically on 2026-11-01). The clock is frozen to
+   a mid-month instant (Date only — timers stay real for the HTTP
+   server) so the seeds sit inside both the calendar month and the
+   rolling week on every run date. Assertions are unchanged. */
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
   const s = h.state;
   const now = Date.now();
