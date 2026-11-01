@@ -13,6 +13,52 @@ import {
 import { and, desc, eq, or } from "drizzle-orm";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { isUniqueViolation, pgErrorText } from "../lib/pg-errors";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
+
+/* ── Feature Verse fan-out (fan-out truth, stack1100 Y3) ───────────────
+   The whole order lifecycle ran silently: the creator never learned
+   an order landed or the escrow funded, the buyer never learned the
+   feature was delivered or their held fee refunded. Each tell below
+   fires through the one event door (money category — VB escrow is a
+   money landing) at the point the transition lands; the handlers'
+   idempotent-replay early returns and already-signed checks keep
+   every tell exactly-once for sequential repeats. */
+type FeatureVerseEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _featureVerseEventNotifier: FeatureVerseEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setFeatureVerseEventNotifier(fn: FeatureVerseEventNotifier | null): void {
+  _featureVerseEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildFeatureVerseEvent(input: {
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+}): UserEventInput {
+  return {
+    userId: input.userId,
+    category: "money",
+    kind: input.kind,
+    title: input.title,
+    body: input.body,
+    link: "/collabs",
+  };
+}
+
+/** Fire one order tell. Best-effort: never throws into a money path. */
+async function tellFeatureVerseParty(input: {
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+}): Promise<void> {
+  try {
+    await _featureVerseEventNotifier(buildFeatureVerseEvent(input));
+  } catch (err) {
+    logger.warn({ err, userId: input.userId, kind: input.kind }, "[feature-verse] lifecycle tell failed (transition stands)");
+  }
+}
 
 function isUnique(err: unknown): boolean {
   return isUniqueViolation(err) || /duplicate key|unique constraint/i.test(pgErrorText(err));
@@ -194,8 +240,22 @@ async function refundHeldFee(row: OrderRow, nextStatus: string): Promise<OrderRo
  *  so the "held fee ⇒ full refund" rule holds even if that changes. */
 async function settleExpiry(row: OrderRow): Promise<OrderRow> {
   if (!isExpired(row)) return row;
-  if (refundOwed(row)) return refundHeldFee(row, "expired_unaccepted");
-  return saveOrder(row.id, { status: "expired_unaccepted" });
+  const settled = refundOwed(row)
+    ? await refundHeldFee(row, "expired_unaccepted")
+    : await saveOrder(row.id, { status: "expired_unaccepted" });
+  /* The window closing is a system event, not either party's action —
+     both sides hear it (whoever's request tripped the lazy settle
+     also gets the honest error response). No fee can be held before
+     both signatures, so the copy never names a refund here. */
+  for (const userId of [row.buyerUserId, row.creatorUserId]) {
+    await tellFeatureVerseParty({
+      userId,
+      kind: "feature_order_expired",
+      title: "Feature order expired",
+      body: "The signing window closed — this feature order expired before both parties signed. No fee was taken.",
+    });
+  }
+  return settled;
 }
 
 function participantOr404(row: OrderRow | null, userId: string): row is OrderRow {
@@ -373,6 +433,14 @@ router.post("/feature-verse/orders", requireAuth, publicApiLimiter, async (req, 
         idempotencyKey: d.idempotencyKey,
       })
       .returning();
+    /* The order landed (the idempotent replay above returns before
+       this) — the creator hears about it now. */
+    await tellFeatureVerseParty({
+      userId: listing.creatorUserId,
+      kind: "feature_order_created",
+      title: "New feature order",
+      body: `A buyer ordered your feature for ${listing.priceVb} VB. Review the written terms and sign to get started.`,
+    });
     res.status(201).json({ order: orderDTO(row!, req.userId!) });
   } catch (err) {
     if (isUnique(err)) {
@@ -514,8 +582,19 @@ router.post("/feature-verse/orders/:id/sign", requireAuth, publicApiLimiter, asy
       ? { buyerSignedAt: now }
       : { creatorSignedAt: now };
     const next = { ...row, ...patch };
-    if (bothSigned(next)) patch.status = "signed";
+    const completes = bothSigned(next);
+    if (completes) patch.status = "signed";
     const saved = await saveOrder(id, patch);
+    /* This signature just landed (a repeat sign returns above) — the
+       counterparty hears it, with the next step named truthfully. */
+    await tellFeatureVerseParty({
+      userId: isBuyer ? row.creatorUserId : row.buyerUserId,
+      kind: "feature_order_signed",
+      title: completes ? "Both parties signed" : "Terms signed",
+      body: completes
+        ? "Both signatures are in on the feature order. The buyer can now fund the escrow."
+        : `${isBuyer ? "The buyer" : "The creator"} signed the feature order terms — your signature is the one still needed.`,
+    });
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] sign failed");
@@ -543,6 +622,12 @@ router.post("/feature-verse/orders/:id/decline", requireAuth, publicApiLimiter, 
     }
     /* No fee exists to refund: funding is gated on both signatures. */
     const saved = await saveOrder(id, { status: "declined" });
+    await tellFeatureVerseParty({
+      userId: row.buyerUserId,
+      kind: "feature_order_declined",
+      title: "Feature order declined",
+      body: "The creator declined this feature order. No fee was taken.",
+    });
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] decline failed");
@@ -595,6 +680,14 @@ router.post("/feature-verse/orders/:id/fund", requireAuth, publicApiLimiter, asy
       throw err;
     }
     const saved = await saveOrder(id, { status: "escrow_held", escrowStatus: "held", escrowHeldAt: new Date() });
+    /* The hold just landed (the replay at the top returns first) —
+       the creator can start work against real held VB. */
+    await tellFeatureVerseParty({
+      userId: row.creatorUserId,
+      kind: "feature_escrow_funded",
+      title: "Escrow funded",
+      body: `The buyer funded the escrow — ${row.priceVb} VB is held for your feature. Deliver when ready.`,
+    });
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] fund failed");
@@ -640,6 +733,12 @@ router.post("/feature-verse/orders/:id/deliver", requireAuth, publicApiLimiter, 
       deliveryUrl: parsed.data.deliveryUrl ?? null,
       deliveredAt: new Date(),
     });
+    await tellFeatureVerseParty({
+      userId: row!.buyerUserId,
+      kind: "feature_delivered",
+      title: "Feature delivered",
+      body: "The creator delivered your feature. Listen, then confirm to release the escrow — or dispute if something's wrong.",
+    });
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] deliver failed");
@@ -673,6 +772,14 @@ router.post("/feature-verse/orders/:id/confirm", requireAuth, publicApiLimiter, 
       await refundCredits(row!.creatorUserId, row!.priceVb, { action: "Feature Verse — escrow release" });
     }
     const saved = await saveOrder(id, { status: "released", escrowStatus: "released", releasedAt: new Date() });
+    /* The release landed (the replay at the top returns first) — the
+       full held amount moved to the creator, no fee split on this rail. */
+    await tellFeatureVerseParty({
+      userId: row!.creatorUserId,
+      kind: "feature_escrow_released",
+      title: "Escrow released",
+      body: `The buyer confirmed delivery — ${row!.priceVb} VB was released to you.`,
+    });
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] confirm/release failed");
@@ -709,6 +816,12 @@ router.post("/feature-verse/orders/:id/dispute", requireAuth, publicApiLimiter, 
       disputeReason: parsed.data.reason,
       disputedAt: new Date(),
     });
+    await tellFeatureVerseParty({
+      userId: row!.creatorUserId,
+      kind: "feature_disputed",
+      title: "Feature delivery disputed",
+      body: `The buyer disputed the delivered feature: "${parsed.data.reason}" The ${row!.priceVb} VB stays held in escrow while it's sorted out.`,
+    });
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] dispute failed");
@@ -734,6 +847,24 @@ router.post("/feature-verse/orders/:id/refund", requireAuth, publicApiLimiter, a
       return;
     }
     const saved = await refundHeldFee(row!, "refunded");
+    /* The held fee went back to the buyer in full — the party who
+       didn't pull this lever hears it (the replay at the top returns
+       first, so this fires once). */
+    if (row!.creatorUserId === req.userId) {
+      await tellFeatureVerseParty({
+        userId: row!.buyerUserId,
+        kind: "feature_escrow_refunded",
+        title: "Escrow refunded",
+        body: `The creator closed this feature order — your held ${row!.priceVb} VB was refunded in full.`,
+      });
+    } else {
+      await tellFeatureVerseParty({
+        userId: row!.creatorUserId,
+        kind: "feature_escrow_refunded",
+        title: "Feature order refunded",
+        body: `The buyer took the full refund on this feature order — the held ${row!.priceVb} VB went back to them and the order is closed.`,
+      });
+    }
     res.json({ order: orderDTO(saved, req.userId!) });
   } catch (err) {
     fail(res, err, "[feature-verse] refund failed");
