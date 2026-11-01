@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { requireAdmin } from "./admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { incrementNfcTapCount } from "../lib/nfc-tap";
 import { nfcCardStyleByKey } from "@workspace/db";
 import { generateNfcQrSvg, nfcProfileUrl } from "../lib/nfc-qr";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -194,12 +195,15 @@ router.get("/nfc-cards/profile/:slug", async (req: Request, res: Response) => {
     res.status(404).json({ ok: false, error: "Card not found" });
     return;
   }
-  // Best-effort tap count (analytics only — not money).
-  supabase
-    .from("nfc_profiles")
-    .update({ tap_count: (profile.tap_count ?? 0) + 1, updated_at: new Date().toISOString() })
-    .eq("slug", param(req, "slug"))
-    .then(() => undefined, () => undefined);
+  // Best-effort tap count (analytics only — not money). Atomic via the
+  // increment_nfc_tap RPC: the old read-then-write below this handler's
+  // SELECT lost concurrent taps (two taps read the same count, both
+  // wrote count + 1). Fire-and-forget exactly as before — the response
+  // still carries the profile as read, and a failed count never fails
+  // the tap. See incrementNfcTapCount in lib/nfc-tap.
+  void incrementNfcTapCount(param(req, "slug"), profile.tap_count ?? 0).catch(
+    () => undefined,
+  );
   res.json({
     ok: true,
     profile: {
