@@ -3,8 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
-import { OutOfCreditsError, canUseCredits, CreditsDisabledError, refundCredits } from "./credits";
-import { getSupabaseAdmin } from "./supabase-admin";
+import { canUseCredits, CreditsDisabledError, refundCredits, deductCreditsDetailed, type CreditPoolSplit } from "./credits";
 
 /**
  * Durable async export job store.
@@ -58,6 +57,11 @@ export interface ExportJob {
   result?: Record<string, unknown> | null;
   error?: ExportJobError | null;
   creditsCharged: boolean;
+  /** Temporary-first split of the standing reserve/charge (migration
+   *  0306): how much came out of the temporary pool, and that pool's
+   *  expiry at deduction time. Null when no split is recorded. */
+  creditsFromBonus: number | null;
+  creditsBonusExpiresAt: string | null;
   attempts: number;
   createdAt: number;
   updatedAt: number;
@@ -80,7 +84,7 @@ function db() {
   return drizzle(getPool());
 }
 
-const JOB_COLUMNS = sql`id, user_id, project_id, state, stage, progress, params, result, error, credits_charged, attempts, created_at, updated_at`;
+const JOB_COLUMNS = sql`id, user_id, project_id, state, stage, progress, params, result, error, credits_charged, credits_from_bonus, credits_bonus_expires_at, attempts, created_at, updated_at`;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (v == null) return null;
@@ -107,6 +111,14 @@ function toExportJob(row: Record<string, unknown>): ExportJob {
     result: asRecord(row["result"]),
     error: asRecord(row["error"]) as ExportJobError | null,
     creditsCharged: row["credits_charged"] === true,
+    creditsFromBonus:
+      row["credits_from_bonus"] == null ? null : Number(row["credits_from_bonus"]),
+    creditsBonusExpiresAt:
+      row["credits_bonus_expires_at"] == null
+        ? null
+        : row["credits_bonus_expires_at"] instanceof Date
+          ? (row["credits_bonus_expires_at"] as Date).toISOString()
+          : String(row["credits_bonus_expires_at"]),
     attempts: Number(row["attempts"] ?? 0),
     createdAt: new Date(row["created_at"] as string).getTime(),
     updatedAt: new Date(row["updated_at"] as string).getTime(),
@@ -167,20 +179,46 @@ export async function updateJobStage(id: string, stage: string): Promise<void> {
 }
 
 /**
+ * Record a deduction's pool split on the job row (migration 0306), so
+ * the settle ledger write and any later release — possibly in a
+ * different process after a restart — restore the same pools the
+ * deduction drew from. Best-effort by design: the deduction already
+ * landed, and a missing split only degrades a future refund to the
+ * historical all-permanent restore, never to a wrong amount.
+ */
+async function recordJobChargeSplit(jobId: string, split: CreditPoolSplit): Promise<void> {
+  await db()
+    .execute(sql`
+      UPDATE export_jobs
+      SET credits_from_bonus = ${split.fromBonus},
+          credits_bonus_expires_at = ${split.bonusExpiresAt},
+          updated_at = now()
+      WHERE id = ${jobId}
+    `)
+    .catch((err) =>
+      logger.error({ err, jobId }, "[export-jobs] failed to record the charge pool split — a later release will restore to permanent credits"),
+    );
+}
+
+/**
  * Exactly-once credit charge for a successful render.
  *
  * The credits_charged flag flip in the export_jobs row is the idempotency
  * gate: only the worker that flips it false→true proceeds to deduct, so a
  * boot-recovery re-run of the same job can never double-charge.
  *
- * The deduction itself targets Supabase `profiles` — the table the auth
- * middleware reads, the UI displays, and every other charge path writes.
- * (The Render Postgres behind DATABASE_URL has no profiles table; the old
- * code deducted there and every export died with
- * `relation "profiles" does not exist`.)
+ * The deduction itself is the house deduction (deductCreditsDetailed):
+ * it targets Supabase `profiles` — the table the auth middleware reads,
+ * the UI displays, and every other charge path writes — and it spends
+ * the temporary pool FIRST (temporary-first spend order, stack1100 Z1;
+ * the rail's former private deduction read only the permanent column,
+ * which is the exact Gate #5 defect: a clean export debited permanent
+ * 87,195 → 86,795 while 300 temporary Bucs sat untouched). The pool
+ * split is recorded on the job row with the charge.
  *
- * Throws OutOfCreditsError when the balance is insufficient (the render
- * itself already succeeded; the caller decides how to report that).
+ * Throws OutOfCreditsError when the spendable balance is insufficient
+ * (the render itself already succeeded; the caller decides how to
+ * report that).
  */
 export async function chargeCreditsForJob(
   jobId: string,
@@ -203,31 +241,9 @@ export async function chargeCreditsForJob(
   if (flag.rows.length === 0) {
     return { charged: false, creditsAfter: -1 };
   }
-  // Fresh balance read — never deduct from a stale value.
-  const admin = getSupabaseAdmin();
-  const { data: profile, error: readErr } = await admin
-    .from("profiles")
-    .select("credits")
-    .eq("id", userId)
-    .single();
-  if (readErr) {
-    logger.warn({ jobId, userId, err: readErr.message }, "[export] credit deduction: failed to read profile");
-    throw new OutOfCreditsError();
-  }
-  const current = (profile as { credits?: number } | null)?.credits ?? 0;
-  if (current < cost) {
-    throw new OutOfCreditsError();
-  }
-  const creditsAfter = current - cost;
-  const { error: updateErr } = await admin
-    .from("profiles")
-    .update({ credits: creditsAfter })
-    .eq("id", userId);
-  if (updateErr) {
-    logger.error({ jobId, userId, err: updateErr.message }, "[export] credit deduction write failed");
-    throw updateErr;
-  }
-  return { charged: true, creditsAfter };
+  const { balance, split } = await deductCreditsDetailed(userId, cost);
+  await recordJobChargeSplit(jobId, split);
+  return { charged: true, creditsAfter: balance };
 }
 
 /**
@@ -273,31 +289,13 @@ export async function reserveCreditsForJob(
     return { reserved: false, creditsAfter: -1 };
   }
   try {
-    // Fresh balance read — never hold against a stale value.
-    const admin = getSupabaseAdmin();
-    const { data: profile, error: readErr } = await admin
-      .from("profiles")
-      .select("credits")
-      .eq("id", userId)
-      .single();
-    if (readErr) {
-      logger.warn({ jobId, userId, err: readErr.message }, "[export] credit reservation: failed to read profile");
-      throw new OutOfCreditsError();
-    }
-    const current = (profile as { credits?: number } | null)?.credits ?? 0;
-    if (current < cost) {
-      throw new OutOfCreditsError();
-    }
-    const creditsAfter = current - cost;
-    const { error: updateErr } = await admin
-      .from("profiles")
-      .update({ credits: creditsAfter })
-      .eq("id", userId);
-    if (updateErr) {
-      logger.error({ jobId, userId, err: updateErr.message }, "[export] credit reservation write failed");
-      throw updateErr;
-    }
-    return { reserved: true, creditsAfter };
+    // The hold is the house deduction (temporary pool first — see
+    // chargeCreditsForJob): the affordability check and the debit both
+    // run against the spendable balance, never the permanent column
+    // alone. The split is recorded on the job row with the hold.
+    const { balance, split } = await deductCreditsDetailed(userId, cost);
+    await recordJobChargeSplit(jobId, split);
+    return { reserved: true, creditsAfter: balance };
   } catch (err) {
     // The hold never landed — roll the flag back so the row stays honest
     // and a later attempt can reserve again.
@@ -313,13 +311,45 @@ export async function reserveCreditsForJob(
  * for the same job (a cancel lands while the render is finishing); the
  * flip is the exactly-once gate — only the winner refunds.
  */
-export async function claimChargeRelease(id: string): Promise<boolean> {
+/**
+ * The claim, with the standing charge's recorded pool split: the row
+ * the winner gets back carries credits_from_bonus /
+ * credits_bonus_expires_at (migration 0306), so the release restores
+ * the same pools the reserve/charge drew from — even when the release
+ * runs in a different process than the deduction. A null split means
+ * no split was recorded (a legacy job, or a zero-bonus charge).
+ */
+async function claimChargeReleaseWithSplit(
+  id: string,
+): Promise<{ claimed: boolean; split: CreditPoolSplit | null }> {
   const res = await db().execute(sql`
     UPDATE export_jobs SET credits_charged = false, updated_at = now()
     WHERE id = ${id} AND credits_charged = true
-    RETURNING id
+    RETURNING id, credits_from_bonus, credits_bonus_expires_at
   `);
-  return res.rows.length > 0;
+  const row = res.rows[0] as
+    | { credits_from_bonus?: number | null; credits_bonus_expires_at?: unknown }
+    | undefined;
+  if (!row) return { claimed: false, split: null };
+  if (row.credits_from_bonus == null) return { claimed: true, split: null };
+  const rawExpiry = row.credits_bonus_expires_at;
+  return {
+    claimed: true,
+    split: {
+      fromBonus: Number(row.credits_from_bonus),
+      fromRegular: 0,
+      bonusExpiresAt:
+        rawExpiry == null
+          ? null
+          : rawExpiry instanceof Date
+            ? rawExpiry.toISOString()
+            : String(rawExpiry),
+    },
+  };
+}
+
+export async function claimChargeRelease(id: string): Promise<boolean> {
+  return (await claimChargeReleaseWithSplit(id)).claimed;
 }
 
 /**
@@ -341,10 +371,21 @@ export async function releaseJobReservation(
   cost: number,
   action: string,
 ): Promise<void> {
-  const claimed = await claimChargeRelease(jobId);
+  const { claimed, split } = await claimChargeReleaseWithSplit(jobId);
   if (!claimed) return;
   try {
-    await refundCredits(userId, cost, { action });
+    /* Temporary-first: the refund restores the pools the claim row
+       recorded (refundCredits applies the expiry rule — an expired
+       pool diverts its portion to permanent). No recorded split →
+       refundCredits' own ledger pairing / permanent fallback. The
+       split's fromRegular is completed by refundCredits from the
+       refund amount, so only the recorded bonus portion is passed. */
+    await refundCredits(
+      userId,
+      cost,
+      { action },
+      split ? { split: { ...split, fromRegular: Math.max(0, cost - split.fromBonus) } } : undefined,
+    );
   } catch (err) {
     await db()
       .execute(sql`
