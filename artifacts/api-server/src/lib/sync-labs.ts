@@ -53,12 +53,18 @@ export function isLipSyncServerKeyFound(): boolean {
 
 /* ── Provider switch ─────────────────────────────────────────────────────
    Two routes sit behind LIP_SYNC_PROVIDER (owner's verdict, 2026-10-24,
-   judged twice against timed lyrics):
+   judged twice against timed lyrics; owner's ruling, 2026-10-26):
 
    - "latentsync" — LatentSync via WaveSpeed. The DEFAULT route: it is
      what new jobs use whenever its key is configured.
-   - "sync" — the direct Sync.so route. Kept as the premium upsell;
-     select it explicitly with LIP_SYNC_PROVIDER=sync.
+   - "sync" — the direct Sync.so route (sync-3). PREMIUM-ONLY: it is
+     reached only by explicit selection (LIP_SYNC_PROVIDER=sync), never
+     by default and never by key-detection fallback. An earlier
+     resolution fell back to "sync" when only the Sync.so key existed —
+     that made the premium model the site-wide default whenever the
+     WaveSpeed key was absent, at several times the per-second cost;
+     the fallback is removed. With no explicit selection and no
+     WaveSpeed key, the switch resolves to null.
 
    An explicit value wins over key detection. An UNRECOGNIZED explicit
    value resolves to null (fail closed — the routes answer 503
@@ -88,14 +94,15 @@ export function normalizeLipSyncProvider(
 
 /**
  * Effective provider name: explicit LIP_SYNC_PROVIDER wins; otherwise
- * LatentSync when the WaveSpeed key is configured, else Sync.so when its
- * key exists, else null (nothing connected).
+ * LatentSync when the WaveSpeed key is configured, else null (nothing
+ * connected). The Sync.so key alone NEVER promotes the premium route
+ * to the default — sync-3 serves a job only when it was explicitly
+ * selected (owner's ruling, 2026-10-26).
  */
 export function getLipSyncProviderName(): LipSyncProviderId | null {
   const explicit = (process.env["LIP_SYNC_PROVIDER"] ?? "").toLowerCase().trim();
   if (explicit) return normalizeLipSyncProvider(explicit);
   if (getWaveSpeedApiKey()) return "latentsync";
-  if (isLipSyncServerKeyFound()) return "sync";
   return null;
 }
 
