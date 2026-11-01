@@ -1,43 +1,42 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download, X } from "lucide-react";
+import { usePwaInstall } from "@/lib/extension-promo";
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-/* PWA install prompt - shows when the browser fires beforeinstallprompt */
+/* PWA install prompt — rides the ONE shared install state
+   (lib/extension-promo's usePwaInstall). The module-level capture owns
+   the deferred beforeinstallprompt, so this card can never hold a
+   spent copy of the event: a deferred prompt can only be prompted
+   once, and when another surface (the /app page) got there first, a
+   private copy's prompt() rejects — the old card leaked that as an
+   unhandled rejection and stayed on screen with a dead Install
+   button. Now any prompt attempt resolves through the shared hook,
+   the shared state clears, and the card goes with it.
+   Dismissal keeps its standing behaviour (remembered in
+   localStorage); how long any promo dismissal should be remembered
+   is the owner's open call, not this card's to change. */
 export function PWAInstallPrompt() {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (localStorage.getItem("bdv-pwa-dismissed")) {
-      setDismissed(true);
-      return;
+  const { canInstall, promptInstall } = usePwaInstall();
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try {
+      return !!localStorage.getItem("bdv-pwa-dismissed");
+    } catch {
+      return false;
     }
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  });
 
-  if (!deferred || dismissed) return null;
+  if (!canInstall || dismissed) return null;
 
   const install = async () => {
-    if (!deferred) return;
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    if (outcome === "accepted") {
-      setDeferred(null);
-    }
+    await promptInstall();
   };
 
   const dismiss = () => {
     setDismissed(true);
-    localStorage.setItem("bdv-pwa-dismissed", "1");
+    try {
+      localStorage.setItem("bdv-pwa-dismissed", "1");
+    } catch {
+      /* private mode — hiding for this view is enough */
+    }
   };
 
   return (
