@@ -624,6 +624,21 @@ describe("tutorials — official seed (the production pack's pilot)", () => {
     expect(found.map((t: any) => t.slug)).toContain("make-your-first-song");
   });
 
+  it("multi-word search is token-AND across title and chapters (search truth, Y5)", async () => {
+    const houseUser = randomUUID();
+    await makeProfile(houseUser, "thy-cheat-code", { official: true, name: "Thy Cheat Code" });
+    // "song" lives in the title, "lyrics" only in a chapter title —
+    // the old whole-string substring could never match this query.
+    const res = await call(null, "GET", "/api/tutorials?q=song%20lyrics");
+    const found = res.json.catalog.series.flatMap((s: any) => s.tutorials);
+    expect(found.map((t: any) => t.slug)).toContain("make-your-first-song");
+    // A word the tutorial doesn't carry anywhere excludes it.
+    const miss = await call(null, "GET", "/api/tutorials?q=song%20zzz");
+    const missFound = miss.json.catalog.series.flatMap((s: any) => s.tutorials);
+    expect(missFound).toHaveLength(0);
+    expect(miss.json.catalog.standalone).toHaveLength(0);
+  });
+
   it("without an official profile the seed stays silent — nothing is fabricated", async () => {
     const res = await call(null, "GET", "/api/tutorials");
     expect(res.status).toBe(200);

@@ -56,6 +56,7 @@
  * sees their own fans only — there is no cross-creator read path.
  */
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { matchesSearchText } from "./search-match";
 import {
   db,
   creatorProfilesTable,
@@ -463,15 +464,16 @@ export function queryFanGraph(
   fans: FanRecord[],
   q: FanGraphQuery,
 ): { fans: FanRecord[]; total: number; page: number; pageSize: number } {
-  const needle = (q.search ?? "").trim().toLowerCase();
-  const filtered = needle
-    ? fans.filter((f) =>
-        [f.displayName ?? "", f.email ?? "", f.profileSlug ?? "", ...f.emails]
-          .join("\n")
-          .toLowerCase()
-          .includes(needle),
-      )
-    : [...fans];
+  /* Token-AND search (lib/search-match): the old form matched the
+     whole query as one substring, so "kai gmail" — a name word plus
+     an email word — could never find the fan. Every token must now
+     appear somewhere across name/email/slug/addresses, folded. */
+  const filtered = fans.filter((f) =>
+    matchesSearchText(
+      [f.displayName ?? "", f.email ?? "", f.profileSlug ?? "", ...f.emails].join("\n"),
+      q.search ?? "",
+    ),
+  );
 
   const byName = (a: FanRecord, b: FanRecord) =>
     (a.displayName ?? a.email ?? a.id).localeCompare(b.displayName ?? b.email ?? b.id);
