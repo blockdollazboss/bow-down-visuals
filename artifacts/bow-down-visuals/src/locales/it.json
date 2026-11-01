@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "Storni di pagamento",
-        "description": "Ogni rimborso e chargeback che il motore degli storni ha recuperato, più gli addebiti messi da parte perché una persona li storni a mano.",
+        "description": "Ogni rimborso e chargeback che il motore degli storni ha recuperato, più gli addebiti messi da parte per una decisione di una persona.",
         "empty": "Ancora nessuno storno — niente è stato rimborsato o contestato.",
         "emptyFilter": "Niente in questa vista.",
         "loadErrorTitle": "Impossibile caricare gli storni di pagamento.",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "Venditore stornato",
         "member": "Membro",
         "session": "Sessione",
-        "footerNote": "Sola lettura — il motore degli storni scrive queste righe dai webhook di Stripe. Un addebito in Revisione manuale non è ancora stato stornato: va ancora stornato a mano, e niente in questo pannello può chiuderlo.",
+        "footerNote": "Il motore degli storni scrive queste righe dai webhook di Stripe e mette un addebito in Revisione manuale quando una persona deve decidere. Completare esegue lo storno del motore stesso per quell'addebito; archiviare chiude la revisione senza muovere denaro. Ogni decisione viene registrata con chi l'ha presa e la sua nota.",
         "filterAll": "Tutti",
         "age": "{{value}}{{unit}}",
         "ageMinute": "min",
         "ageHour": "h",
         "ageDay": "g",
+        "completeAction": "Completa lo storno",
+        "dismissAction": "Archivia revisione",
+        "confirmComplete": "Completare lo storno dell'addebito di {{charge}} ({{refunded}} rimborsati)? Il motore annulla il diritto e ogni pagamento al venditore per questo addebito.",
+        "confirmDismiss": "Archiviare la revisione dell'addebito di {{charge}} ({{refunded}} rimborsati)? Niente viene stornato e nessun denaro si muove — questo addebito tiene ciò che ha.",
+        "noteLabel": "Nota",
+        "notePlaceholder": "Perché stai decidendo questo?",
+        "noteRequired": "Un'archiviazione richiede una nota che ne spieghi il motivo.",
+        "confirmButton": "Conferma",
+        "cancelButton": "Annulla",
+        "resolvedComplete": "Storno completato",
+        "resolvedDismiss": "Revisione archiviata",
+        "resolvedBy": "di {{email}}",
+        "conflict": "Questo addebito è già stato risolto — l'elenco è stato aggiornato con la decisione registrata.",
+        "resolveError": "Non è andato a buon fine — l'addebito è ancora da parte. Riprova.",
         "status": {
           "needsManualReview": "Serve revisione manuale",
           "processing": "In lavorazione",
           "completed": "Completato",
-          "partialShortfall": "Parziale — con ammanco"
+          "partialShortfall": "Parziale — con ammanco",
+          "dismissed": "Archiviato"
         }
       },
       "operatorActions": {

@@ -66,14 +66,19 @@ export function shortId(id: string | null): string | null {
    listPaymentReversals projection). Statuses are the reversal
    engine's own literals (lib/payment-reversals.ts): a row starts at
    'processing', lands at 'completed' or 'partial_shortfall', or is
-   parked at 'needs_manual_review'. The rail is READ-ONLY — there is
-   no decide/resolve endpoint; the bench must never invent one. */
+   parked at 'needs_manual_review'. A parked row is resolved through
+   the rail's own verb (POST /admin/payment-reversals/:id/resolve —
+   stack1100 Y2): 'complete' runs the engine's completion path and
+   the row lands at 'completed'; 'dismiss' lands it at 'dismissed'
+   with no money moved. Either way the decision rides the row as
+   `resolution` (who, when, which way, the note). */
 
 export const REVERSAL_STATUSES = [
   "needs_manual_review",
   "processing",
   "completed",
   "partial_shortfall",
+  "dismissed",
 ] as const;
 export type ReversalStatus = (typeof REVERSAL_STATUSES)[number];
 
@@ -83,8 +88,18 @@ export const REVERSAL_FILTERS: ReversalFilter[] = [
   "needs_manual_review",
   "completed",
   "partial_shortfall",
+  "dismissed",
   "processing",
 ];
+
+/** The human decision on a resolved row (payment_reversal_resolutions
+    via the rail's projection). */
+export interface ReversalResolution {
+  decision: string;
+  adminEmail: string | null;
+  note: string;
+  resolvedAt: string | null;
+}
 
 export interface PaymentReversalRow {
   id: string;
@@ -107,6 +122,8 @@ export interface PaymentReversalRow {
   status: string;
   /** details.manualReason — why the engine parked the row. */
   manualReason: string | null;
+  /** The recorded human decision, once the row has been resolved. */
+  resolution: ReversalResolution | null;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -128,6 +145,17 @@ function parseReversalRow(v: unknown): PaymentReversalRow | null {
       manualReason = null;
     }
   }
+  let resolution: ReversalResolution | null = null;
+  const rawResolution = v["resolution"];
+  if (rawResolution !== undefined && rawResolution !== null) {
+    if (!isRecord(rawResolution)) return null;
+    resolution = {
+      decision: strOr(rawResolution["decision"], ""),
+      adminEmail: str(rawResolution["adminEmail"]),
+      note: strOr(rawResolution["note"], ""),
+      resolvedAt: str(rawResolution["resolvedAt"]),
+    };
+  }
   return {
     id,
     stripeEventId: str(v["stripeEventId"]),
@@ -148,6 +176,7 @@ function parseReversalRow(v: unknown): PaymentReversalRow | null {
     shortfallCredits: numOr(v["shortfallCredits"], 0),
     status,
     manualReason,
+    resolution,
     createdAt,
     updatedAt: str(v["updatedAt"]),
   };

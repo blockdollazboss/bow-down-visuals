@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "Reversos de pago",
-        "description": "Cada reembolso y contracargo que el motor de reversos ha recuperado, además de los cargos apartados para que una persona los revierta a mano.",
+        "description": "Cada reembolso y contracargo que el motor de reversos ha recuperado, además de los cargos apartados para que una persona decida.",
         "empty": "Aún no hay reversos: no se ha reembolsado ni disputado nada.",
         "emptyFilter": "Nada en esta vista.",
         "loadErrorTitle": "No se pudieron cargar los reversos de pago.",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "Vendedor revertido",
         "member": "Miembro",
         "session": "Sesión",
-        "footerNote": "Solo lectura: el motor de reversos escribe estas filas desde los webhooks de Stripe. Un cargo apartado en Revisión manual aún no ha sido revertido: todavía hay que revertirlo a mano, y nada en este panel puede cerrarlo.",
+        "footerNote": "El motor de reversos escribe estas filas desde los webhooks de Stripe, y aparta un cargo en Revisión manual cuando una persona tiene que decidir. Completar ejecuta el reverso propio del motor para ese cargo; descartar cierra la revisión sin mover dinero. Cada decisión queda registrada con quién la tomó y su nota.",
         "filterAll": "Todo",
         "age": "{{value}}{{unit}}",
         "ageMinute": "min",
         "ageHour": "h",
         "ageDay": "d",
+        "completeAction": "Completar el reverso",
+        "dismissAction": "Descartar revisión",
+        "confirmComplete": "¿Completar el reverso del cargo de {{charge}} ({{refunded}} reembolsados)? El motor deshace el derecho y cualquier pago al vendedor de este cargo.",
+        "confirmDismiss": "¿Descartar la revisión del cargo de {{charge}} ({{refunded}} reembolsados)? Nada se revierte y no se mueve dinero: este cargo conserva lo que tiene.",
+        "noteLabel": "Nota",
+        "notePlaceholder": "¿Por qué decides esto?",
+        "noteRequired": "Un descarte necesita una nota que diga por qué.",
+        "confirmButton": "Confirmar",
+        "cancelButton": "Cancelar",
+        "resolvedComplete": "Reverso completado",
+        "resolvedDismiss": "Revisión descartada",
+        "resolvedBy": "por {{email}}",
+        "conflict": "Este cargo ya fue resuelto: la lista se actualizó con la decisión registrada.",
+        "resolveError": "Eso no se pudo hacer: el cargo sigue apartado. Inténtalo de nuevo.",
         "status": {
           "needsManualReview": "Necesita revisión manual",
           "processing": "Procesando",
           "completed": "Completado",
-          "partialShortfall": "Parcial — con faltante"
+          "partialShortfall": "Parcial — con faltante",
+          "dismissed": "Descartado"
         }
       },
       "operatorActions": {

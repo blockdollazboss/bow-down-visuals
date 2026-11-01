@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "결제 반전",
-        "description": "반전 엔진이 회수한 모든 환불과 차지백, 그리고 사람이 직접 반전하도록 보류된 청구.",
+        "description": "반전 엔진이 회수한 모든 환불과 차지백, 그리고 사람이 결정하도록 보류된 청구.",
         "empty": "아직 반전이 없습니다 — 환불이나 이의 제기가 없습니다.",
         "emptyFilter": "이 보기에 아무것도 없습니다.",
         "loadErrorTitle": "결제 반전을 불러오지 못했습니다.",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "판매자 반전됨",
         "member": "회원",
         "session": "세션",
-        "footerNote": "읽기 전용 — 반전 엔진이 Stripe 웹훅에서 이 행들을 기록합니다. 수동 검토로 보류된 청구는 아직 반전되지 않았습니다. 여전히 직접 반전해야 하며, 이 벤치에서는 닫을 수 없습니다.",
+        "footerNote": "반전 엔진은 Stripe 웹훅에서 이 행들을 기록하고, 사람이 결정해야 할 청구를 수동 검토로 보류합니다. 완료하면 해당 청구에 대해 엔진 자체의 반전이 실행되고, 기각하면 돈을 움직이지 않고 검토가 닫힙니다. 모든 결정은 결정한 사람과 메모와 함께 기록됩니다.",
         "filterAll": "전체",
         "age": "{{value}}{{unit}}",
         "ageMinute": "분",
         "ageHour": "시간",
         "ageDay": "일",
+        "completeAction": "반전 완료",
+        "dismissAction": "검토 기각",
+        "confirmComplete": "{{charge}} 청구({{refunded}} 환불됨)의 반전을 완료할까요? 엔진이 이 청구의 권한과 판매자 지급을 되돌립니다.",
+        "confirmDismiss": "{{charge}} 청구({{refunded}} 환불됨)의 검토를 기각할까요? 아무것도 반전되지 않고 돈도 움직이지 않습니다 — 이 청구는 현재 상태를 유지합니다.",
+        "noteLabel": "메모",
+        "notePlaceholder": "왜 이렇게 결정하시나요?",
+        "noteRequired": "기각에는 이유를 적은 메모가 필요합니다.",
+        "confirmButton": "확인",
+        "cancelButton": "취소",
+        "resolvedComplete": "반전 완료됨",
+        "resolvedDismiss": "검토 기각됨",
+        "resolvedBy": "{{email}} 님이 처리",
+        "conflict": "이 청구는 이미 해결되었습니다 — 목록이 기록된 결정으로 새로고침되었습니다.",
+        "resolveError": "처리되지 않았습니다 — 청구는 여전히 보류 중입니다. 다시 시도하세요.",
         "status": {
           "needsManualReview": "수동 검토 필요",
           "processing": "처리 중",
           "completed": "완료",
-          "partialShortfall": "부분 — 부족분 있음"
+          "partialShortfall": "부분 — 부족분 있음",
+          "dismissed": "기각됨"
         }
       },
       "operatorActions": {

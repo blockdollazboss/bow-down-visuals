@@ -7,9 +7,9 @@
  * the studio-gear relay queue. These pins hold the benches that close
  * F1 to the rails' real shapes:
  *  - all three dock into /admin beside the existing benches;
- *  - reversals + operator benches are READ-ONLY (no write verb is
- *    even expressible in their sources — the reversal rail has no
- *    decide endpoint and the bench must never invent one);
+ *  - the operator bench is READ-ONLY; the reversals bench carries
+ *    exactly one write — the reversal rail's own resolve verb
+ *    (stack1100 Y2), behind a confirm that names the row's amounts;
  *  - the gear bench relays in the rail's own shapes (proof/send with
  *    { proofUrl, proofNote }, status with { status }) against the
  *    ADMIN endpoints only, and keeps the rail's ship gate;
@@ -49,15 +49,22 @@ describe("admin benches — docked into /admin", () => {
   });
 });
 
-describe("admin benches — payment reversals bench is the rail's read shape, read-only", () => {
+describe("admin benches — payment reversals bench is the rail's shape + its resolve verb", () => {
   it("reads GET /api/admin/payment-reversals through the strict parser", () => {
     expect(reversals).toContain('fetch("/api/admin/payment-reversals"');
     expect(reversals).toContain("parsePaymentReversals");
   });
 
-  it("contains no write verb at all — the rail has no decide endpoint to call", () => {
-    expect(reversals).not.toContain("method:");
-    expect(reversals).not.toMatch(/method:\s*"(POST|PATCH|PUT|DELETE)"/);
+  it("carries exactly one write — the rail's own resolve verb, behind its confirm", () => {
+    expect(reversals).toContain("fetch(`/api/admin/payment-reversals/${row.id}/resolve`");
+    expect(reversals.match(/method:\s*"(POST|PATCH|PUT|DELETE)"/g)).toHaveLength(1);
+    expect(reversals).toContain('method: "POST"');
+    /* the confirm names the row's real amounts, and the recorded
+       decision renders back on the row */
+    expect(reversals).toContain('data-testid="reversal-resolve-confirm"');
+    expect(reversals).toContain('t("admin.reversals.confirmComplete"');
+    expect(reversals).toContain('t("admin.reversals.confirmDismiss"');
+    expect(reversals).toContain("r.resolution");
   });
 
   it("separates the load error from the empty queue, and surfaces the parked rows", () => {

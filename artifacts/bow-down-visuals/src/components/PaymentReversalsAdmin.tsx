@@ -1,6 +1,6 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Loader2, RotateCcw, Undo2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RotateCcw, Undo2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   ageParts,
@@ -15,22 +15,24 @@ import {
 } from "@/lib/admin-benches";
 
 /* ─── Admin: Payment Reversals — the manual money-review queue ─────────
-   The read bench for GET /api/admin/payment-reversals (stack1000 P1's
+   The bench for GET /api/admin/payment-reversals (stack1000 P1's
    reversal engine trail; W6 finding F1: the rail had no frontend
-   consumer, so the owner could not see the queue at all). The rail is
-   READ-ONLY by design — rows are written by the webhook's reversal
-   engine from rail results, and there is NO decide/resolve endpoint:
-   a charge parked at 'needs_manual_review' still has to be reversed
-   by hand. This bench therefore renders the queue with everything a
-   reviewer needs to work it in Stripe (charge, amounts, parties, age,
-   the engine's own reason) and offers no button that pretends to
-   close a row. */
+   consumer, so the owner could not see the queue at all). Rows are
+   written by the webhook's reversal engine from rail results. A row
+   parked at 'needs_manual_review' is resolved HERE, through the
+   rail's own verb (POST /api/admin/payment-reversals/:id/resolve —
+   stack1100 Y2): 'complete' runs the engine's own completion path
+   for the row, 'dismiss' closes the review with no money moved and
+   requires a note. Both go through a confirm step that names the
+   charge and refunded amounts from the row itself, and the recorded
+   decision (who, when, which way, the note) renders on the row. */
 
 const STATUS_CLS: Record<string, string> = {
   needs_manual_review: "border-red-400/40 bg-red-400/10 text-red-300",
   processing: "border-sky-400/40 bg-sky-400/10 text-sky-300",
   completed: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
   partial_shortfall: "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#e8c86a]",
+  dismissed: "border-white/20 bg-white/5 text-white/50",
 };
 
 const STATUS_KEY: Record<string, string> = {
@@ -38,6 +40,7 @@ const STATUS_KEY: Record<string, string> = {
   processing: "admin.reversals.status.processing",
   completed: "admin.reversals.status.completed",
   partial_shortfall: "admin.reversals.status.partialShortfall",
+  dismissed: "admin.reversals.status.dismissed",
 };
 
 const FILTER_KEY: Record<ReversalFilter, string> = {
@@ -45,8 +48,11 @@ const FILTER_KEY: Record<ReversalFilter, string> = {
   needs_manual_review: "admin.reversals.status.needsManualReview",
   completed: "admin.reversals.status.completed",
   partial_shortfall: "admin.reversals.status.partialShortfall",
+  dismissed: "admin.reversals.status.dismissed",
   processing: "admin.reversals.status.processing",
 };
+
+type ResolveDecision = "complete" | "dismiss";
 
 export function PaymentReversalsAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
   const isLight = useIsLightTheme();
@@ -58,6 +64,52 @@ export function PaymentReversalsAdmin({ authHeaders }: { authHeaders: () => Prom
      the empty state renders only for a successful load with no rows. */
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  /* The resolve flow: which parked row's confirm is open, which way
+     it will go, the admin's note, and its own busy/error state (an
+     action failure never masquerades as a load state). */
+  const [confirmFor, setConfirmFor] = useState<string | null>(null);
+  const [decision, setDecision] = useState<ResolveDecision>("complete");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const openConfirm = (rowId: string, d: ResolveDecision) => {
+    setConfirmFor(rowId);
+    setDecision(d);
+    setNote("");
+    setActionError(null);
+  };
+
+  const submitResolve = async (row: PaymentReversalRow) => {
+    if (decision === "dismiss" && note.trim().length === 0) {
+      setActionError(t("admin.reversals.noteRequired"));
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/payment-reversals/${row.id}/resolve`, {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, note: note.trim() }),
+      });
+      if (res.ok) {
+        setConfirmFor(null);
+        await load();
+      } else if (res.status === 409) {
+        /* Someone (or the engine) resolved it first — reload so the
+           recorded decision is what the bench shows. */
+        setActionError(t("admin.reversals.conflict"));
+        await load();
+      } else {
+        setActionError(t("admin.reversals.resolveError"));
+      }
+    } catch {
+      setActionError(t("admin.reversals.resolveError"));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,6 +230,27 @@ export function PaymentReversalsAdmin({ authHeaders }: { authHeaders: () => Prom
                     </p>
                   )}
 
+                  {r.resolution && (
+                    <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/60">
+                      <span className="font-semibold text-white/80">
+                        {r.resolution.decision === "dismiss"
+                          ? t("admin.reversals.resolvedDismiss")
+                          : t("admin.reversals.resolvedComplete")}
+                      </span>
+                      {r.resolution.adminEmail && (
+                        <span> · {t("admin.reversals.resolvedBy", { email: r.resolution.adminEmail })}</span>
+                      )}
+                      {r.resolution.resolvedAt && (
+                        <span> · {new Date(r.resolution.resolvedAt).toLocaleString()}</span>
+                      )}
+                      {r.resolution.note && (
+                        <p className="mt-1 text-white/50">
+                          {t("admin.reversals.noteLabel")}: {r.resolution.note}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/60">
                     <span>
                       {t("admin.reversals.charge")} <span className="text-white/90 font-semibold">{formatUsdCents(r.chargeAmountCents)}</span>
@@ -236,6 +309,77 @@ export function PaymentReversalsAdmin({ authHeaders }: { authHeaders: () => Prom
                     <span>{new Date(r.createdAt).toLocaleString()}</span>
                     {ageLabel(r.createdAt) && <span>{ageLabel(r.createdAt)}</span>}
                   </div>
+
+                  {r.status === "needs_manual_review" && confirmFor !== r.id && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openConfirm(r.id, "complete")}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-400/20"
+                      >
+                        <Check className="h-3.5 w-3.5" /> {t("admin.reversals.completeAction")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openConfirm(r.id, "dismiss")}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 hover:text-white"
+                      >
+                        <X className="h-3.5 w-3.5" /> {t("admin.reversals.dismissAction")}
+                      </button>
+                    </div>
+                  )}
+
+                  {r.status === "needs_manual_review" && confirmFor === r.id && (
+                    <div
+                      className={`mt-3 rounded-lg border p-3 ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/30 bg-black/40"}`}
+                      data-testid="reversal-resolve-confirm"
+                    >
+                      <p className={`text-sm font-semibold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+                        {decision === "complete"
+                          ? t("admin.reversals.confirmComplete", {
+                              charge: formatUsdCents(r.chargeAmountCents),
+                              refunded: formatUsdCents(r.refundedCentsSeen),
+                            })
+                          : t("admin.reversals.confirmDismiss", {
+                              charge: formatUsdCents(r.chargeAmountCents),
+                              refunded: formatUsdCents(r.refundedCentsSeen),
+                            })}
+                      </p>
+                      <label
+                        className={`mt-2 block text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}
+                      >
+                        {t("admin.reversals.noteLabel")}
+                        <textarea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          placeholder={t("admin.reversals.notePlaceholder")}
+                          rows={2}
+                          maxLength={1000}
+                          className="mt-1 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30"
+                        />
+                      </label>
+                      {actionError && <p className="mt-2 text-xs font-semibold text-red-300">{actionError}</p>}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void submitResolve(r)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-bold text-black hover:brightness-110 disabled:opacity-50"
+                        >
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          {t("admin.reversals.confirmButton")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setConfirmFor(null)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold text-white/60 hover:text-white disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5" /> {t("admin.reversals.cancelButton")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

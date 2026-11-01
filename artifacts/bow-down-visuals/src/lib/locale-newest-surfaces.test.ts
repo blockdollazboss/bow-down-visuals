@@ -280,7 +280,7 @@ const leafText = (v: unknown): string =>
 const MAY_BE_EMPTY = new Set(["socialProof.headlinePrefix"]);
 
 describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
-  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill, plus the Stack-200 Community Grants nav key, plus the payfix billing-cancel settings.billing fill, plus the Stack-200 export failure-UX fill, plus the orphan-wave viral-spike kit settings fill, plus the Stack-200 upg-promo #161 Second Life fill and the Stack-200 upg-promo #178 Trend Radar fill, plus the Stack-200 Vault settings.vault fill, plus the Join #2 fills (settings.billing, settings.groupDigest, settings.viralSpike, settings.secondLife, settings.socialX, trends.radar, and the export failure-UX videoExport keys), plus the stack400 lane-3 export-toggle proFinishing fill, plus the stack600 tier-change settings.billing change fill, minus the stack800 lane-3 dead-key removal, plus the stack800 lane-4 billing loadError fill, plus the stack1000 error-truth-2 playlistPitch/press-kit loadError fill, plus the stack1100 admin-benches fill (4745 keys)", () => {
+  it("the required set is the size the joined Stack-20 tree derives, plus the Stack-21 older-namespace fill, the Stack-22 wave8 fill, the Stack-23 wave9 fill, the Stack-23 plural split, the Stack-24 podcast fill, the Stack-24 outreach fill, the Stack-24 press-kit fill, the Stack-24 admin fill, the Stack-24 analyticsHub fill, the Stack-24 contentIntelligence fill, the Stack-24 hubSpine fill, the Stack-24 captionSuite fill, the Stack-26 world lock-cards fill, the Wallpapers & Themes desk fill, the King's Set starter-pack fill, the Stack-29 One Fan Graph fill, the Stack-29 podcast RSS publish fill, plus the Stack-100 #3 provenance fill, the Stack-100 #3 editor opening-hook fill and the Stack-100 #3 more-provenance aiUnknown key, plus the Stack-100 #3 appPage fill and the fan-graph phase 2 Fan Segments fill, plus the Stack-200 findability nav.contracts key, plus the Stack-200 signature-sounds settings.sounds fill, plus the Stack-29 app-install fill, plus the Stack-200 Pitch & Fix fill, plus the Stack-200 Community Grants nav key, plus the payfix billing-cancel settings.billing fill, plus the Stack-200 export failure-UX fill, plus the orphan-wave viral-spike kit settings fill, plus the Stack-200 upg-promo #161 Second Life fill and the Stack-200 upg-promo #178 Trend Radar fill, plus the Stack-200 Vault settings.vault fill, plus the Join #2 fills (settings.billing, settings.groupDigest, settings.viralSpike, settings.secondLife, settings.socialX, trends.radar, and the export failure-UX videoExport keys), plus the stack400 lane-3 export-toggle proFinishing fill, plus the stack600 tier-change settings.billing change fill, minus the stack800 lane-3 dead-key removal, plus the stack800 lane-4 billing loadError fill, plus the stack1000 error-truth-2 playlistPitch/press-kit loadError fill, plus the stack1100 admin-benches fill (4745 keys), plus the stack1100 reversals-resolve fill (4760 keys)", () => {
     /* The plural split: Stack-23 lane 2 split the 12 {{plural}} keys in
        videoEditor/catalogImport/liveGuests/playlist into six CLDR
        plural-suffixed keys each (−12 base + 72 suffixed = +60). */
@@ -373,8 +373,12 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        Plus the stack1100 admin-benches fill: +94 keys —
        admin.reversals (29) / admin.operatorActions (19) /
        admin.gearQueue (46), the three benches Lane X1 docked onto
-       the F1 rails, in all ten catalogs = 4745. */
-    expect(REQUIRED.length).toBe(4745);
+       the F1 rails, in all ten catalogs = 4745.
+       Plus the stack1100 reversals-resolve fill: +15 keys —
+       admin.reversals resolve controls + the dismissed status
+       (Lane Y2's verb on the same rail), in all ten catalogs
+       = 4760. */
+    expect(REQUIRED.length).toBe(4760);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
@@ -831,6 +835,7 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "removal.reasons.spam",
     "reversals.age",
     "reversals.ageHour",
+    "reversals.noteLabel",
     "reversals.session",
     "tiers.tier3",
     "users.credits",
@@ -889,17 +894,20 @@ describe("admin — full parity, no untranslated English residue, single-brace t
   const singleTokens = (s: string): string[] =>
     [...s.replace(/\{\{[^}]+\}\}/g, "").matchAll(/\{[^{}]+\}/g)].map((m) => m[0]).sort();
 
-  it("the admin namespace is 301 leaves in en and every catalog carries all of them", () => {
+  it("the admin namespace is 316 leaves in en and every catalog carries all of them", () => {
     /* 189 + 18 Stack-200 Pitch & Fix bench keys (admin.pitchFix:
        queue/moderation/status + reward pool line + duplicate
        marking) in all ten catalogs = 207.
        + 94 stack1100 admin-benches keys (admin.reversals 29 +
        admin.operatorActions 19 + admin.gearQueue 46 — Lane X1's
-       three F1 benches) in all ten catalogs = 301. */
-    expect(ADMIN_KEYS.length).toBe(301);
+       three F1 benches) in all ten catalogs = 301.
+       + 15 stack1100 reversals-resolve keys (admin.reversals
+       resolve controls + status.dismissed — Lane Y2) in all ten
+       catalogs = 316. */
+    expect(ADMIN_KEYS.length).toBe(316);
     for (const locale of ALL) {
       const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("admin.")).length;
-      expect(count, `${locale} admin leaf count`).toBe(301);
+      expect(count, `${locale} admin leaf count`).toBe(316);
     }
   });
 

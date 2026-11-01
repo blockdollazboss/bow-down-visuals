@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "Estornos de pagamento",
-        "description": "Cada reembolso e chargeback que o motor de estornos recuperou, além das cobranças separadas para uma pessoa estornar manualmente.",
+        "description": "Cada reembolso e chargeback que o motor de estornos recuperou, além das cobranças separadas para uma decisão de uma pessoa.",
         "empty": "Nenhum estorno ainda — nada foi reembolsado nem contestado.",
         "emptyFilter": "Nada nesta vista.",
         "loadErrorTitle": "Não foi possível carregar os estornos de pagamento.",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "Vendedor estornado",
         "member": "Membro",
         "session": "Sessão",
-        "footerNote": "Somente leitura — o motor de estornos escreve estas linhas a partir dos webhooks da Stripe. Uma cobrança separada em Revisão manual ainda não foi estornada: ela ainda precisa ser estornada manualmente, e nada neste painel pode encerrá-la.",
+        "footerNote": "O motor de estornos escreve estas linhas a partir dos webhooks da Stripe e separa uma cobrança em Revisão manual quando uma pessoa precisa decidir. Concluir executa o estorno do próprio motor para essa cobrança; dispensar fecha a revisão sem mover dinheiro. Cada decisão fica registrada com quem a tomou e a sua nota.",
         "filterAll": "Tudo",
         "age": "{{value}}{{unit}}",
         "ageMinute": "min",
         "ageHour": "h",
         "ageDay": "d",
+        "completeAction": "Concluir o estorno",
+        "dismissAction": "Dispensar revisão",
+        "confirmComplete": "Concluir o estorno da cobrança de {{charge}} ({{refunded}} reembolsados)? O motor desfaz o direito e qualquer pagamento ao vendedor desta cobrança.",
+        "confirmDismiss": "Dispensar a revisão da cobrança de {{charge}} ({{refunded}} reembolsados)? Nada é estornado e nenhum dinheiro se move — esta cobrança mantém o que tem.",
+        "noteLabel": "Nota",
+        "notePlaceholder": "Por que você está decidindo isso?",
+        "noteRequired": "Uma dispensa precisa de uma nota dizendo o porquê.",
+        "confirmButton": "Confirmar",
+        "cancelButton": "Cancelar",
+        "resolvedComplete": "Estorno concluído",
+        "resolvedDismiss": "Revisão dispensada",
+        "resolvedBy": "por {{email}}",
+        "conflict": "Esta cobrança já foi resolvida — a lista foi atualizada com a decisão registrada.",
+        "resolveError": "Isso não foi concluído — a cobrança continua separada. Tente de novo.",
         "status": {
           "needsManualReview": "Precisa de revisão manual",
           "processing": "Processando",
           "completed": "Concluído",
-          "partialShortfall": "Parcial — com falta"
+          "partialShortfall": "Parcial — com falta",
+          "dismissed": "Dispensado"
         }
       },
       "operatorActions": {
