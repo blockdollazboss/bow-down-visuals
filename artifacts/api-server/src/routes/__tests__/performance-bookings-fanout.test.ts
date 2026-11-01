@@ -155,13 +155,14 @@ async function createBooking() {
 }
 
 describe("buildPerformanceEvent", () => {
-  it("builds a money event, link only when given", () => {
-    expect(buildPerformanceEvent({ userId: "u", kind: "k", title: "t", body: "b" })).toEqual({
+  it("builds a money event with the booking deep link", () => {
+    expect(buildPerformanceEvent({ userId: "u", kind: "k", title: "t", body: "b", link: "/artist/x?booking=1" })).toEqual({
       userId: "u",
       category: "money",
       kind: "k",
       title: "t",
       body: "b",
+      link: "/artist/x?booking=1",
     });
   });
 });

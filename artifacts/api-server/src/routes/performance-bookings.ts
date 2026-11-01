@@ -43,7 +43,7 @@ export function buildPerformanceEvent(input: {
   kind: string;
   title: string;
   body: string;
-  link?: string;
+  link: string;
 }): UserEventInput {
   return {
     userId: input.userId,
@@ -51,7 +51,7 @@ export function buildPerformanceEvent(input: {
     kind: input.kind,
     title: input.title,
     body: input.body,
-    ...(input.link ? { link: input.link } : {}),
+    link: input.link,
   };
 }
 
@@ -61,7 +61,7 @@ export async function tellBookingParty(input: {
   kind: string;
   title: string;
   body: string;
-  link?: string;
+  link: string;
 }): Promise<void> {
   try {
     await _performanceEventNotifier(buildPerformanceEvent(input));
@@ -71,16 +71,18 @@ export async function tellBookingParty(input: {
 }
 
 /** The artist-page deep link for a booking (both parties manage the
- *  booking in the Book the Artist section of that page). */
-async function bookingLink(row: BookingRow): Promise<string | undefined> {
+ *  booking in the Book the Artist section of that page). Falls back
+ *  to the home path when the slug can't be resolved — the bell
+ *  carries the news either way. */
+async function bookingLink(row: BookingRow): Promise<string> {
   try {
     const r = await db.execute(sql`
       SELECT slug FROM creator_profiles WHERE id = ${row.profile_id} LIMIT 1
     `);
     const slug = (r.rows[0] as { slug?: string } | undefined)?.slug;
-    return slug ? `/artist/${slug}?booking=${row.id}` : undefined;
+    return slug ? `/artist/${slug}?booking=${row.id}` : "/";
   } catch {
-    return undefined;
+    return "/";
   }
 }
 
@@ -391,7 +393,7 @@ router.post("/performance-bookings", requireAuth, publicApiLimiter, async (req, 
       kind: "performance_booking_proposed",
       title: "New booking request",
       body: `${d.promoterName} wants to book you for "${d.eventTitle}" — fee ${moneyCents(d.feeCents)}. Review the terms and answer.`,
-      link: row ? await bookingLink(row) : undefined,
+      link: row ? await bookingLink(row) : "/",
     });
     res.status(201).json({ booking: toBookingDto(row!, req.userId!) });
   } catch (err) {
