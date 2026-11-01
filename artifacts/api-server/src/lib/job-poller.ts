@@ -21,6 +21,55 @@ import {
   createJobNotification,
   notifyTerminalExportJobs,
 } from "./job-notifications";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
+
+/* ── Lip-sync outcome fan-out (fan-out truth, stack1100 Y3) ────────────
+   A lip-sync job's terminal outcome used to be recorded ONLY as a
+   job_notifications row — a queue whose sole consumer is the owner's
+   chat relay — so the member who paid for the job never got a bell or
+   a device ping when it finished or failed, while export jobs (the
+   sibling paid-work rail) land both through the door. The outcome now
+   rides the door on the same exactly-once gate: createJobNotification
+   returns true only for the call whose row actually landed, and only
+   that call fires the event (money category — paid work, like exports). */
+type LipSyncEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _lipSyncEventNotifier: LipSyncEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setLipSyncEventNotifier(fn: LipSyncEventNotifier | null): void {
+  _lipSyncEventNotifier = fn ?? notifyUserEvent;
+}
+
+export async function recordLipSyncOutcome(
+  job: LipSyncJob,
+  status: "completed" | "failed",
+  title: string,
+  message: string,
+  videoUrl?: string,
+): Promise<void> {
+  const landed = await createJobNotification({
+    jobType: "lip_sync",
+    jobId: job.id,
+    userId: job.userId,
+    projectId: job.projectId,
+    status,
+    title,
+    message,
+    videoUrl,
+  });
+  if (!landed) return;
+  try {
+    await _lipSyncEventNotifier({
+      userId: job.userId,
+      category: "money",
+      kind: status === "completed" ? "lip_sync_done" : "lip_sync_failed",
+      title,
+      body: message,
+      link: job.projectId ? `/video-editor?project=${job.projectId}` : "/my-projects?tab=history",
+    });
+  } catch (err) {
+    logger.warn({ err, jobId: job.id }, "[job-poller] lip-sync outcome event failed (non-fatal)");
+  }
+}
 import { notifyDueBookingReminders } from "./booking-reminders";
 import {
   MAX_SUBMIT_DEFERRALS,
@@ -264,15 +313,7 @@ async function runSubmitWorker(
   const provider: LipSyncProviderId = providerArg ?? resolveJobProvider(job);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
-    await createJobNotification({
-      jobType: "lip_sync",
-      jobId: job.id,
-      userId: job.userId,
-      projectId: job.projectId,
-      status: "failed",
-      title: "Lip sync failed",
-      message: truncate(message, 500),
-    });
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
   };
 
   try {
@@ -334,18 +375,10 @@ async function runSubmitWorker(
         return;
       }
       if (deferred.failed) {
-        await createJobNotification({
-          jobType: "lip_sync",
-          jobId: job.id,
-          userId: job.userId,
-          projectId: job.projectId,
-          status: "failed",
-          title: "Lip sync failed",
-          message: truncate(
-            "Sync.so stayed at its plan concurrency limit for about a day, so this job was never submitted. Try again later or upgrade the Sync.so plan.",
-            500,
-          ),
-        });
+        await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(
+          "Sync.so stayed at its plan concurrency limit for about a day, so this job was never submitted. Try again later or upgrade the Sync.so plan.",
+          500,
+        ));
         logger.error(
           { jobId: job.id, deferrals: deferred.deferrals },
           "[job-poller] submit deferred past the limit; marked failed",
@@ -372,15 +405,7 @@ async function runSubmitWorker(
     const attempts = await requeueSubmitJob(job.id, MAX_SUBMIT_ATTEMPTS).catch(() => MAX_SUBMIT_ATTEMPTS);
     if (attempts >= MAX_SUBMIT_ATTEMPTS) {
       // requeueSubmitJob already marked it failed; notify once.
-      await createJobNotification({
-        jobType: "lip_sync",
-        jobId: job.id,
-        userId: job.userId,
-        projectId: job.projectId,
-        status: "failed",
-        title: "Lip sync failed",
-        message: truncate(message, 500),
-      });
+      await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
       logger.error({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed permanently");
     } else {
       logger.warn({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed; re-queued");
@@ -430,18 +455,10 @@ async function handleWaveSpeedSubmitError(
       return;
     }
     if (deferred.failed) {
-      await createJobNotification({
-        jobType: "lip_sync",
-        jobId: job.id,
-        userId: job.userId,
-        projectId: job.projectId,
-        status: "failed",
-        title: "Lip sync failed",
-        message: truncate(
-          "WaveSpeed stayed busy for about a day, so this job was never submitted. Try again later.",
-          500,
-        ),
-      });
+      await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(
+        "WaveSpeed stayed busy for about a day, so this job was never submitted. Try again later.",
+        500,
+      ));
       logger.error(
         { jobId: job.id, deferrals: deferred.deferrals },
         "[job-poller] WaveSpeed submit deferred past the limit; marked failed",
@@ -496,15 +513,7 @@ async function pollOneJob(
   const display = providerDisplayName(provider);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
-    await createJobNotification({
-      jobType: "lip_sync",
-      jobId: job.id,
-      userId: job.userId,
-      projectId: job.projectId,
-      status: "failed",
-      title: "Lip sync failed",
-      message: truncate(message, 500),
-    });
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
   };
 
   let remote: { status: string; outputUrl?: string; error?: string };
@@ -628,16 +637,13 @@ async function pollOneJob(
       resMeta.resolutionReduced === true
         ? ` Note: the finished video is ${resMeta.outputWidth}×${resMeta.outputHeight} — smaller than the ${resMeta.inputWidth}×${resMeta.inputHeight} clip that was sent.`
         : "";
-    await createJobNotification({
-      jobType: "lip_sync",
-      jobId: job.id,
-      userId: job.userId,
-      projectId: job.projectId,
-      status: "completed",
-      title: "Lip sync ready",
-      message: `Your lip-synced scene is ready${durationSec > 0 ? ` (${durationSec.toFixed(1)}s)` : ""}.${resolutionNote}`,
-      videoUrl: storedVideoUrl,
-    });
+    await recordLipSyncOutcome(
+      job,
+      "completed",
+      "Lip sync ready",
+      `Your lip-synced scene is ready${durationSec > 0 ? ` (${durationSec.toFixed(1)}s)` : ""}.${resolutionNote}`,
+      storedVideoUrl,
+    );
     logger.info({ jobId: job.id }, "[job-poller] lip-sync completed");
     return;
   }

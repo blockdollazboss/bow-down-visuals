@@ -16,6 +16,100 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
+import { sendEmail, emailShell, emailButton, escapeHtml } from "../../lib/email";
+
+/* ── Shoutout fan-out (fan-out truth, stack1100 Y3) ────────────────────
+   Nobody was told anything: the creator never learned a request was
+   paid (or that a free request landed), and the fan — a guest with no
+   account, reachable ONLY by email — never learned their shoutout was
+   delivered or declined. Creator tells ride the one event door
+   (money category); fan tells are email, the only channel a guest
+   has. Both fire on the landed transition only.
+   TRUTH RULE for the decline email: a creator can decline a PAID
+   request and this rail fires no refund (the 'refunded' status is
+   system-only via the clawback engine), so the decline copy must
+   never promise money back — flagged in the lane report. */
+type ShoutoutEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _shoutoutEventNotifier: ShoutoutEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setShoutoutEventNotifier(fn: ShoutoutEventNotifier | null): void {
+  _shoutoutEventNotifier = fn ?? notifyUserEvent;
+}
+
+async function tellShoutoutCreator(input: { userId: string; kind: string; title: string; body: string }): Promise<void> {
+  try {
+    await _shoutoutEventNotifier({
+      userId: input.userId,
+      category: "money",
+      kind: input.kind,
+      title: input.title,
+      body: input.body,
+      link: "/shoutouts",
+    });
+  } catch (err) {
+    logger.warn({ err, userId: input.userId, kind: input.kind }, "[shoutouts] creator tell failed (request stands)");
+  }
+}
+
+export interface ShoutoutFanEmail {
+  to: string;
+  subject: string;
+  html: string;
+}
+
+type ShoutoutFanMailer = (email: ShoutoutFanEmail) => Promise<unknown>;
+let _shoutoutFanMailer: ShoutoutFanMailer = async (email) => {
+  await sendEmail(email);
+};
+/** Test seam — never used outside tests. */
+export function __setShoutoutFanMailer(fn: ShoutoutFanMailer | null): void {
+  _shoutoutFanMailer = fn ?? (async (email) => {
+    await sendEmail(email);
+  });
+}
+
+async function mailShoutoutFan(email: ShoutoutFanEmail): Promise<void> {
+  try {
+    await _shoutoutFanMailer(email);
+  } catch (err) {
+    logger.warn({ err, subject: email.subject }, "[shoutouts] fan email failed (request stands)");
+  }
+}
+
+export function buildShoutoutDeliveredEmail(input: {
+  fanName: string;
+  fanEmail: string;
+  creatorName: string;
+  occasion: string;
+  deliveryUrl: string;
+}): ShoutoutFanEmail {
+  const html = emailShell(
+    "Your shoutout is ready",
+    `<p style="margin:0 0 12px;">Hi ${escapeHtml(input.fanName)} — your shoutout from <strong>${escapeHtml(input.creatorName)}</strong> (${escapeHtml(input.occasion)}) is recorded and ready to watch.</p>
+${emailButton(input.deliveryUrl, "Watch your shoutout")}
+<p style="margin:0 0 16px;font-size:14px;">Save that link — it's your copy of the video.</p>`,
+  );
+  return { to: input.fanEmail, subject: "Your shoutout video is ready", html };
+}
+
+export function buildShoutoutDeclinedEmail(input: {
+  fanName: string;
+  fanEmail: string;
+  creatorName: string;
+  occasion: string;
+}): ShoutoutFanEmail {
+  const html = emailShell(
+    "About your shoutout request",
+    `<p style="margin:0 0 12px;">Hi ${escapeHtml(input.fanName)} — ${escapeHtml(input.creatorName)} couldn't take your shoutout request (${escapeHtml(input.occasion)}) this time, so it was declined.</p>
+<p style="margin:0 0 16px;font-size:14px;">Thanks for thinking of them. Plenty of other creators on Bow Down Visuals would love to record one for you.</p>`,
+  );
+  return { to: input.fanEmail, subject: "About your shoutout request", html };
+}
+
+function usd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 const router = Router();
 
@@ -281,6 +375,17 @@ router.post("/shoutouts/requests", publicApiLimiter, async (req, res) => {
       price_cents: creator[0]!.price_cents,
     })
     .returning();
+  /* A FREE request is actionable the moment it lands — the creator
+     hears about it now. A priced request tells at the paid flip
+     (checkout verify below), when it's actually a sale. */
+  if ((request?.price_cents ?? 0) === 0) {
+    await tellShoutoutCreator({
+      userId: request!.creator_user_id,
+      kind: "shoutout_request",
+      title: "New shoutout request",
+      body: `${fanName} requested a free shoutout (${occasion}). Accept it from your shoutout requests.`,
+    });
+  }
   res.status(201).json({
     request: await toRequestJson(request!),
     /* Priced requests can be paid immediately via the checkout
@@ -390,6 +495,16 @@ router.post("/shoutouts/requests/:id/checkout/verify", publicApiLimiter, async (
       ),
     )
     .returning();
+  /* The paid flip landed (a racing verify gets no row back) — the
+     creator hears the sale now, naming what the fan paid. */
+  if (updated) {
+    await tellShoutoutCreator({
+      userId: request.creator_user_id,
+      kind: "shoutout_paid",
+      title: "New paid shoutout",
+      body: `${request.fan_name} paid ${usd(request.price_cents)} for a shoutout (${request.occasion}). It's in your requests — record it when ready.`,
+    });
+  }
   res.json({ status: updated?.status ?? "accepted", paid: true });
 });
 
@@ -457,6 +572,38 @@ router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (re
     })
     .where(eq(shoutoutRequestsTable.id, rows[0]!.id))
     .returning();
+  /* The fan is a guest — email is their only channel. A status that
+     actually CHANGED to delivered/declined tells them, once (a
+     same-status PATCH, e.g. just fixing the delivery URL, doesn't
+     re-mail). The delivered mail only goes out with a watchable
+     link: the refreshed URL from the same read model the dashboard
+     plays. */
+  if (updated && status !== current && updated.fan_email) {
+    const [settings] = await db
+      .select()
+      .from(shoutoutSettingsTable)
+      .where(eq(shoutoutSettingsTable.user_id, rows[0]!.creator_user_id));
+    const creatorName = settings?.display_name ?? "Your creator";
+    if (status === "delivered") {
+      const refreshed = updated.delivery_url ? await refreshSupabaseStorageUrl(updated.delivery_url) : "";
+      if (refreshed) {
+        await mailShoutoutFan(buildShoutoutDeliveredEmail({
+          fanName: updated.fan_name,
+          fanEmail: updated.fan_email,
+          creatorName,
+          occasion: updated.occasion,
+          deliveryUrl: refreshed,
+        }));
+      }
+    } else if (status === "declined") {
+      await mailShoutoutFan(buildShoutoutDeclinedEmail({
+        fanName: updated.fan_name,
+        fanEmail: updated.fan_email,
+        creatorName,
+        occasion: updated.occasion,
+      }));
+    }
+  }
   res.json({ request: await toRequestJson(updated!) });
 });
 

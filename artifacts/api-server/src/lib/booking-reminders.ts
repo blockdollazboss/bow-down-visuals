@@ -55,6 +55,7 @@ import {
   withBookingState,
   type BookingRecord,
 } from "./booking-note";
+import { notifyBookingEvent } from "./booking-notify";
 
 /** The buyer is reminded this long before the slot start. */
 export const BOOKING_REMINDER_LEAD_MS = 24 * 3600_000;
@@ -171,6 +172,8 @@ async function remindOne(
   const orderId = String(row["id"]);
   const buyerUserId = String(row["buyer_user_id"]);
   const productTitle = String(row["product_title"] ?? "Service");
+  const reminderTitle = `Reminder: ${productTitle}`;
+  const reminderMessage = `Your session "${productTitle}" is coming up — ${buyerReminderWhen(rec)}.`;
   const reminded: BookingRecord = { ...rec, rm: now.toISOString() };
   const claimedNote = withBookingState(note, reminded);
 
@@ -189,8 +192,8 @@ async function remindOne(
     const ins = await run.execute(sql`
       INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
       VALUES (${BOOKING_REMINDER_JOB_TYPE}, ${orderId}, ${buyerUserId}, 'completed',
-              ${`Reminder: ${productTitle}`},
-              ${`Your session "${productTitle}" is coming up — ${buyerReminderWhen(rec)}.`})
+              ${reminderTitle},
+              ${reminderMessage})
       ON CONFLICT DO NOTHING
       RETURNING id
     `);
@@ -205,6 +208,18 @@ async function remindOne(
     : await claimAndNotify(runner);
   if (created) {
     logger.info({ orderId }, "[booking-reminders] buyer reminder recorded");
+    /* Fan-out truth (stack1100 Y3): the job_notifications row alone
+       reached only the owner's chat relay — the BUYER, the person the
+       reminder exists for, never got a bell or a ping. Fire the door
+       now that the claim has committed (exactly-once rides the claim:
+       a stamped booking is never re-claimed). */
+    await notifyBookingEvent({
+      userId: buyerUserId,
+      kind: BOOKING_REMINDER_JOB_TYPE,
+      title: reminderTitle,
+      body: reminderMessage,
+      link: "/store/purchases",
+    });
   }
   return created;
 }
