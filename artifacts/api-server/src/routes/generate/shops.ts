@@ -2165,22 +2165,30 @@ router.get("/storefronts/:id/analytics", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Shop not found." });
     return;
   }
+  /* Conditional SUM(CASE…) instead of aggregate FILTER: identical
+     results on Postgres, and the pg-mem harness executes it faithfully
+     (its FILTER handling miscounts) — which is what lets the
+     dashboard-vs-analytics truth suite run this real route. */
   const totals = await db.execute(sql`
     SELECT
-      COUNT(*) FILTER (WHERE event_type = 'view')::int AS views,
-      COUNT(*) FILTER (WHERE event_type = 'sale')::int AS sales,
-      COALESCE(SUM(amount_cents) FILTER (WHERE event_type = 'sale'), 0)::int AS gross_cents,
-      COALESCE(SUM(platform_fee_cents) FILTER (WHERE event_type = 'sale'), 0)::int AS platform_fee_cents
+      COALESCE(SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END), 0)::int AS views,
+      COALESCE(SUM(CASE WHEN event_type = 'sale' THEN 1 ELSE 0 END), 0)::int AS sales,
+      COALESCE(SUM(CASE WHEN event_type = 'sale' THEN amount_cents ELSE 0 END), 0)::int AS gross_cents,
+      COALESCE(SUM(CASE WHEN event_type = 'sale' THEN platform_fee_cents ELSE 0 END), 0)::int AS platform_fee_cents
     FROM shop_events
     WHERE shop_id = ${shop.id}
   `);
+  /* GROUP BY the expression, not the ordinal: identical on Postgres,
+     and the pg-mem harness can execute it (ordinal GROUP BY over a
+     function expression is beyond it) — which is what lets the
+     dashboard-vs-analytics truth suite run this real route. */
   const daily = await db.execute(sql`
     SELECT DATE_TRUNC('day', created_at)::date AS day,
            COUNT(*)::int AS views
     FROM shop_events
     WHERE shop_id = ${shop.id} AND event_type = 'view'
       AND created_at > NOW() - INTERVAL '30 days'
-    GROUP BY 1
+    GROUP BY DATE_TRUNC('day', created_at)::date
     ORDER BY 1 ASC
   `);
   const sales = await db.execute(sql`
