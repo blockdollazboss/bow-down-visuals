@@ -1,4 +1,5 @@
 import { apiErrorMessage } from "../../lib/api-error";
+import { matchesQuery } from "../../lib/search-match";
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2, FileSignature, Handshake, Loader2, PenLine, Undo2, XCircle,
@@ -200,7 +201,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
     const q = partnerQuery.trim().toLowerCase();
     if (!q) return partners.slice(0, 8);
     return partners
-      .filter((p) => p.displayName.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q))
+      .filter((p) => matchesQuery(p.displayName, partnerQuery) || matchesQuery(p.slug, partnerQuery))
       .slice(0, 8);
   }, [partners, partnerQuery]);
 

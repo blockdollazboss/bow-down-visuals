@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db, creatorProfilesTable, followsTable, royalCourtTable, ROYAL_COURT_MAX_MEMBERS } from "@workspace/db";
-import { eq, asc, desc, inArray, ilike, or } from "drizzle-orm";
+import { eq, asc, desc, inArray, and, sql } from "drizzle-orm";
+import { matchesSearchText, searchTextCondition } from "../lib/search-match";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
@@ -152,15 +153,31 @@ router.get("/creator-profiles/me/court-candidates", requireAuth, publicApiLimite
 
     let profiles: ProfileRow[];
     if (q) {
-      const like = `%${q.replace(/[%_]/g, "")}%`;
+      /* Token-AND search (lib/search-match) with the public rule IN
+         the WHERE (search truth, Stack1100 Y5): the old form matched
+         the whole query as one phrase and filtered isPublic in JS
+         AFTER limit(40) — private profiles ate window slots, so a
+         search could return a short list while public matches sat
+         beyond the cut. The JS filters below stay as the same rule
+         re-applied, so the contract holds under any read path. */
       profiles = await db
         .select()
         .from(creatorProfilesTable)
-        .where(or(ilike(creatorProfilesTable.displayName, like), ilike(creatorProfilesTable.slug, like)))
+        .where(
+          and(
+            searchTextCondition(
+              [sql`${creatorProfilesTable.displayName}`, sql`${creatorProfilesTable.slug}`],
+              q,
+            ),
+            eq(creatorProfilesTable.isPublic, true),
+          ),
+        )
         .orderBy(desc(creatorProfilesTable.followerCount))
         .limit(40);
       /* Search only surfaces profiles visitors can actually open. */
-      profiles = profiles.filter((p) => p.isPublic);
+      profiles = profiles
+        .filter((p) => p.isPublic)
+        .filter((p) => matchesSearchText([p.displayName, p.slug].join("\n"), q));
     } else {
       if (followingIds.size === 0) {
         res.json({ candidates: [] });

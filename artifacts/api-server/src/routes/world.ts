@@ -19,7 +19,7 @@
  * reel. Nothing is ever labeled "live" that isn't.
  */
 import { Router } from "express";
-import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import {
   db,
   artistVaultsTable,
@@ -45,6 +45,7 @@ import {
 } from "../lib/world-room-dressing";
 import { buildWorldVoiceConfig } from "../lib/world-voice-config";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { matchesSearchText, searchTextCondition } from "../lib/search-match";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { playbackUrlsFromWhip } from "../lib/cloudflare-stream";
@@ -1651,15 +1652,18 @@ router.get("/world/room-invites/candidates", requireAuth, async (req, res) => {
       ne(creatorProfilesTable.userId, callerUserId),
     ];
     if (q) {
-      const needle = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+      /* Token-AND over name/slug (lib/search-match): the old needle
+         matched the whole query as one phrase, so "king shark" only
+         found a profile literally named that. Visibility (public,
+         never the caller) already rides this same WHERE. */
       conds.push(
-        or(
-          ilike(creatorProfilesTable.displayName, needle),
-          ilike(creatorProfilesTable.slug, needle),
+        searchTextCondition(
+          [sql`${creatorProfilesTable.displayName}`, sql`${creatorProfilesTable.slug}`],
+          q,
         )!,
       );
     }
-    const rows = await db
+    let rows = await db
       .select({
         userId: creatorProfilesTable.userId,
         slug: creatorProfilesTable.slug,
@@ -1670,6 +1674,12 @@ router.get("/world/room-invites/candidates", requireAuth, async (req, res) => {
       .where(and(...conds))
       .orderBy(desc(creatorProfilesTable.followerCount))
       .limit(ROOM_INVITE_CANDIDATE_LIMIT);
+    if (q) {
+      /* The same shared rule re-applied in JS (the SQL predicate owns
+         the window above) — the picker's contract holds under any
+         read path. */
+      rows = rows.filter((r) => matchesSearchText([r.displayName, r.slug].join("\n"), q));
+    }
     res.json(
       await refreshSupabaseStorageUrlsDeep({
         members: rows.map((r) => ({

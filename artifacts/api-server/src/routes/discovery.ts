@@ -22,6 +22,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { fanOutToFollowers } from "../lib/notify-fanout";
+import { searchTextCondition } from "../lib/search-match";
 import {
   discoveryAffinityScore,
   discoveryEventTotal,
@@ -543,7 +544,11 @@ router.get("/brands", publicApiLimiter, asyncHandler(async (req, res) => {
 
 /* ─── Search ──────────────────────────────────────────────────────────────
    GET /search?q=&type=all|creator|track|video|playlist&vertical=&genre=&limit=
-   Fast ILIKE scans with sane per-type limits; vertical + genre chips. */
+   Token-AND text scans (lib/search-match: every meaningful word of the
+   query must appear in the row's fields, accent-folded) with sane
+   per-type limits; vertical + genre chips. Visibility is the browse
+   rule and lives in the WHERE: public profiles only, published media
+   only, public playlists only. */
 
 const SearchQuery = z.object({
   q: z.string().trim().min(1).max(80),
@@ -560,22 +565,23 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
     return;
   }
   const q = parsed.data;
-  const like = `%${q.q.replace(/[%_]/g, "")}%`;
   const per = clampLimit(q.limit, 8, 20);
   const vf = verticalFilter(q.vertical);
   const gf = q.genre ? sql`AND genre ILIKE ${q.genre}` : null;
   const out: Record<string, unknown> = { q: q.q };
 
   if (q.type === "all" || q.type === "creator") {
+    const text = searchTextCondition([sql`p.display_name`, sql`p.slug`], q.q) ?? sql`TRUE`;
     out.creators = (await db.execute(sql`
       SELECT p.id, ${PROFILE_COLS}${EARNINGS_COLS}, p.bio
       FROM creator_profiles p
       WHERE p.is_public ${vf ?? sql``}
-        AND (p.display_name ILIKE ${like} OR p.slug ILIKE ${like})
+        AND ${text}
       ORDER BY p.follower_count DESC
       LIMIT ${per}`)).rows;
   }
   if (q.type === "all" || q.type === "track") {
+    const text = searchTextCondition([sql`t.title`, sql`t.genre`], q.q) ?? sql`TRUE`;
     out.tracks = (await db.execute(sql`
       SELECT t.id, t.profile_id, t.title, t.genre, t.artwork_url,
              t.play_count, t.like_count, t.duration_sec,
@@ -583,11 +589,12 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
       FROM profile_tracks t
       JOIN creator_profiles p ON p.id = t.profile_id
       WHERE t.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
-        AND (t.title ILIKE ${like} OR t.genre ILIKE ${like})
+        AND ${text}
       ORDER BY t.play_count DESC
       LIMIT ${per}`)).rows;
   }
   if (q.type === "all" || q.type === "video") {
+    const text = searchTextCondition([sql`v.title`, sql`v.genre`], q.q) ?? sql`TRUE`;
     out.videos = (await db.execute(sql`
       SELECT v.id, v.profile_id, v.title, v.genre, v.thumbnail_url,
              v.view_count, v.like_count, v.duration_sec,
@@ -595,18 +602,19 @@ router.get("/search", publicApiLimiter, asyncHandler(async (req, res) => {
       FROM profile_videos v
       JOIN creator_profiles p ON p.id = v.profile_id
       WHERE v.is_published AND p.is_public ${vf ?? sql``} ${gf ?? sql``}
-        AND v.title ILIKE ${like}
+        AND ${text}
       ORDER BY v.view_count DESC
       LIMIT ${per}`)).rows;
   }
   if (q.type === "all" || q.type === "playlist") {
+    const text = searchTextCondition([sql`pl.title`, sql`pl.description`], q.q) ?? sql`TRUE`;
     out.playlists = (await db.execute(sql`
       SELECT pl.id, pl.title, pl.description, pl.cover_url,
              ${PROFILE_COLS}, pl.follower_count
       FROM playlists pl
       JOIN creator_profiles p ON p.id = pl.owner_profile_id
       WHERE pl.is_public AND p.is_public ${vf ?? sql``}
-        AND pl.title ILIKE ${like}
+        AND ${text}
       ORDER BY pl.follower_count DESC
       LIMIT ${per}`)).rows;
   }

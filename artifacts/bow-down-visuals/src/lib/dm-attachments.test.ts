@@ -124,6 +124,14 @@ describe("search — words and work titles both count", () => {
     expect(dmMessageHit({ body: "hi", attachment_name: null }, "loop")).toBe(false);
   });
 
+  it("multi-word search is token-AND across body and title (search truth, Y5)", () => {
+    // "mix" is in the body, "midnight" only in the attachment title —
+    // the old whole-string includes() could never match this query.
+    expect(dmMessageHit(msg, "mix midnight")).toBe(true);
+    expect(dmMessageHit(msg, "midnight mix")).toBe(true);
+    expect(dmMessageHit(msg, "mix cover")).toBe(false);
+  });
+
   it("conversation search covers name, slug, last words, and last work title", () => {
     const conv = {
       other: { profile: { displayName: "King Shark", slug: "shark-king" } },

@@ -17,6 +17,8 @@
    attachment is never silently dropped, and search says what it
    covers. */
 
+import { matchesQuery } from "./search-match";
+
 export const DM_ATTACHMENT_UPLOAD_PATH = "/api/dm/attachments/upload";
 
 /* The thread fetch (GET /api/dm/:id/messages) defaults to the latest
@@ -131,7 +133,7 @@ export function dmMessageHit(
 ): boolean {
   const q = dmNormalizeQuery(query);
   if (!q) return true;
-  return dmHaystack([m.body, m.attachment_name]).includes(q);
+  return matchesQuery(dmHaystack([m.body, m.attachment_name]), query);
 }
 
 /** Search the conversation list: the creator's name, their slug, the
@@ -145,10 +147,13 @@ export function dmConversationHit(
 ): boolean {
   const q = dmNormalizeQuery(query);
   if (!q) return true;
-  return dmHaystack([
-    c.other.profile?.displayName, c.other.profile?.slug,
-    c.last_message?.body, c.last_message?.attachment_name,
-  ]).includes(q);
+  return matchesQuery(
+    dmHaystack([
+      c.other.profile?.displayName, c.other.profile?.slug,
+      c.last_message?.body, c.last_message?.attachment_name,
+    ]),
+    query,
+  );
 }
 
 /** Split a message body around every case-insensitive match so the

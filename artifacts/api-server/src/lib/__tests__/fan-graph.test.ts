@@ -245,6 +245,16 @@ describe("queryFanGraph — search, sort, paginate", () => {
     expect(queryFanGraph(fans, { search: "nobody" }).total).toBe(0);
   });
 
+  it("multi-word search is token-AND across fields, any order (search truth, Y5)", () => {
+    // Word order doesn't matter and words may split across fields —
+    // the old whole-string substring matched neither of these.
+    expect(queryFanGraph(fans, { search: "lovelace ada" }).total).toBe(1);
+    expect(queryFanGraph(fans, { search: "bea example" }).total).toBe(1);
+    // Words split across two DIFFERENT fans match nobody.
+    expect(queryFanGraph(fans, { search: "ada bea" }).total).toBe(0);
+    expect(queryFanGraph(fans, { search: "ada nobody" }).total).toBe(0);
+  });
+
   it("sorts by spend (USD first, then VB), by recency, and by name", () => {
     const bySpent = queryFanGraph(fans, { sort: "spent", pageSize: 100 }).fans;
     expect(bySpent[0]!.id).toBe("e:bea@example.com"); // 5200

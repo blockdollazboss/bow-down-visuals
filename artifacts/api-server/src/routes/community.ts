@@ -29,6 +29,7 @@ import {
 import { eq, and, or, desc, asc, sql, ne, gt, gte, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { canGroupAction, canAssignRole, normalizeGroupRole, GROUP_ROLE_RANK } from "../lib/group-roles";
+import { matchesSearchText, searchTextCondition } from "../lib/search-match";
 import { isUndefinedColumn } from "../lib/pg-errors";
 import {
   orderFanTiers, evaluateTierGate, buildTierGateKnock,
@@ -588,10 +589,32 @@ router.get("/groups", async (req, res) => {
     const q = typeof req.query["q"] === "string" ? req.query["q"].trim() : "";
     const mine = typeof req.query["mine"] === "string" ? req.query["mine"] : "";
     const member = typeof req.query["member"] === "string" ? req.query["member"] : "";
-    let rows = await db.select().from(groupsTable).orderBy(desc(groupsTable.memberCount)).limit(100);
+    /* Search text is a WHERE predicate, not a post-filter (search
+       truth, Stack1100 Y5): the old form fetched the 100 biggest
+       groups and substring-matched the whole query inside that
+       window, so a small group could never be found by search at
+       all, and "drum circle" matched only the exact phrase. Now
+       lib/search-match's token-AND condition runs in the query —
+       every word must hit name, slug or description, accent-folded —
+       and the 100 cap applies to matches. The member/mine/visibility
+       composition below is untouched. */
+    const textCond = q
+      ? searchTextCondition(
+          [sql`${groupsTable.name}`, sql`${groupsTable.slug}`, sql`${groupsTable.description}`],
+          q,
+        )
+      : undefined;
+    let rows = await db
+      .select()
+      .from(groupsTable)
+      .where(textCond)
+      .orderBy(desc(groupsTable.memberCount))
+      .limit(100);
     if (q) {
-      const needle = q.toLowerCase();
-      rows = rows.filter((g) => g.name.toLowerCase().includes(needle) || g.slug.includes(needle) || g.description.toLowerCase().includes(needle));
+      /* The same shared rule applied again in JS: the SQL predicate
+         owns the window, this re-check keeps the handler's contract
+         independent of which layer a given read path honours. */
+      rows = rows.filter((g) => matchesSearchText([g.name, g.slug, g.description].join("\n"), q));
     }
     if (member) {
       const memRows = await db.select({ groupId: groupMembersTable.groupId })

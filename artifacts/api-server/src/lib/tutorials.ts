@@ -24,6 +24,7 @@
  *    as its videos are produced.
  */
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { matchesSearchText } from "./search-match";
 import {
   db,
   tutorialsTable,
@@ -494,13 +495,15 @@ export async function listCatalog(opts: {
 
   let cards = await cardDtos(rows);
 
-  const q = (opts.q ?? "").trim().toLowerCase();
+  const q = (opts.q ?? "").trim();
   if (q) {
-    cards = cards.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q) ||
-        c.chapterTitles.some((t) => t.toLowerCase().includes(q)),
+    /* Token-AND (lib/search-match): the search box invites phrases
+       like "make a song" / "get paid", which the old whole-string
+       substring could only match as an exact contiguous phrase.
+       Every meaningful token must now appear across the title,
+       description or chapter titles, accent-folded. */
+    cards = cards.filter((c) =>
+      matchesSearchText([c.title, c.description, ...c.chapterTitles].join("\n"), q),
     );
   }
 

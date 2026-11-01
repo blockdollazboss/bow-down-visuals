@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
-import { db, beatsTable, beatLicensesTable, beatLicenseTemplatesTable } from "@workspace/db";
+import { db, beatsTable, beatLicensesTable, beatLicenseTemplatesTable, creatorProfilesTable } from "@workspace/db";
+import { effectiveSearchTokens, searchTextCondition } from "../../lib/search-match";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
@@ -180,6 +181,10 @@ router.get("/beats", async (req, res) => {
   }
   const f = parsed.data;
 
+  /* The try opens before the conditions are built: search resolves
+     producer ids with its own reads, and a failure there belongs on
+     this route's JSON 500 like every other browse failure. */
+  try {
   const conditions = [];
   if (f.genre) conditions.push(ilike(beatsTable.genre, f.genre));
   if (f.mood) {
@@ -190,15 +195,40 @@ router.get("/beats", async (req, res) => {
   if (f.maxBpm !== undefined) conditions.push(lte(beatsTable.bpm, f.maxBpm));
   if (f.key) conditions.push(ilike(beatsTable.musical_key, f.key));
   if (f.search) {
-    conditions.push(
-      or(
-        ilike(beatsTable.title, `%${f.search}%`),
-        ilike(beatsTable.description, `%${f.search}%`),
-      ),
-    );
+    /* Token-AND search (lib/search-match): every meaningful word of
+       the query must hit the beat's own text — title, description,
+       genre, musical key, mood tags — OR its producer's display name.
+       Producer ids are resolved per token (the two-query shape
+       attachLicenseTemplates already uses), so "dark shark" finds a
+       dark beat by a producer named Shark, and no token can be
+       satisfied by the wrong side alone. The old form matched the
+       whole string against title/description only: "dark trap" found
+       nothing, and producer names were unsearchable. */
+    const fields = [
+      sql`${beatsTable.title}`,
+      sql`${beatsTable.description}`,
+      sql`${beatsTable.genre}`,
+      sql`${beatsTable.musical_key}`,
+      sql`array_to_string(${beatsTable.mood_tags}, ' ')`,
+    ];
+    const perToken = [];
+    for (const tok of effectiveSearchTokens(f.search)) {
+      const fieldGroup = searchTextCondition(fields, tok);
+      if (!fieldGroup) continue;
+      const producers = await db
+        .select({ userId: creatorProfilesTable.userId })
+        .from(creatorProfilesTable)
+        .where(searchTextCondition([sql`${creatorProfilesTable.displayName}`], tok)!)
+        .limit(200);
+      perToken.push(
+        producers.length
+          ? or(fieldGroup, inArray(beatsTable.user_id, producers.map((p) => p.userId)))
+          : fieldGroup,
+      );
+    }
+    if (perToken.length) conditions.push(and(...perToken));
   }
 
-  try {
     const rows = await db
       .select()
       .from(beatsTable)
