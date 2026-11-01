@@ -24,6 +24,16 @@ export interface CreditUsageRecord {
   teamId?: string | null;
   /** Idempotency key for duplicate-suppression (P0-23). */
   idempotencyKey?: string | null;
+  /**
+   * Temporary-first spend order (migration 0306): how much of this
+   * charge came out of the temporary (bonus) pool. Refund rows carry
+   * the negative of the amount restored INTO the pool. Omitted/null
+   * when no bonus split exists or none is known — the column stays
+   * NULL and refund pairing simply never reads the row.
+   */
+  bonusCreditsUsed?: number | null;
+  /** The temporary pool's expiry at the moment of the charge. */
+  bonusExpiresAt?: string | null;
 }
 
 /**
@@ -289,6 +299,8 @@ export async function recordCreditUsage(record: CreditUsageRecord): Promise<void
       action:      record.action,
       creditsUsed: record.creditsUsed,
       projectId:   record.projectId ?? null,
+      bonusCreditsUsed: record.bonusCreditsUsed ?? null,
+      bonusExpiresAt: record.bonusExpiresAt ? new Date(record.bonusExpiresAt) : null,
     });
   } catch (err) {
     logger.warn({ err, ...record }, "recordCreditUsage: failed to insert (non-fatal)");
@@ -314,6 +326,8 @@ export async function recordCreditUsageStrict(record: CreditUsageRecord): Promis
         projectId:   record.projectId ?? null,
         teamId:      record.teamId ?? null,
         idempotencyKey: record.idempotencyKey ?? null,
+        bonusCreditsUsed: record.bonusCreditsUsed ?? null,
+        bonusExpiresAt: record.bonusExpiresAt ? new Date(record.bonusExpiresAt) : null,
       });
       return;
     } catch (err) {
