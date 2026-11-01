@@ -13,6 +13,9 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 import { NfcOrdersAdmin } from "@/components/NfcOrdersAdmin";
 import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
+import { PaymentReversalsAdmin } from "@/components/PaymentReversalsAdmin";
+import { OperatorActionsAdmin } from "@/components/OperatorActionsAdmin";
+import { StudioGearQueueAdmin } from "@/components/StudioGearQueueAdmin";
 import { REPORT_REASON_LABELS, type ReportReason } from "@/lib/reports";
 import { REMOVAL_REASONS, parseContentId } from "@/lib/content-removal";
 
@@ -2084,6 +2087,9 @@ export default function AdminPage() {
           <UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} />
           <NfcOrdersAdmin authHeaders={authHeaders} />
           <JewelryOrdersAdmin authHeaders={authHeaders} />
+          <PaymentReversalsAdmin authHeaders={authHeaders} />
+          <OperatorActionsAdmin authHeaders={authHeaders} />
+          <StudioGearQueueAdmin authHeaders={authHeaders} />
         </>
       )}
     </div>

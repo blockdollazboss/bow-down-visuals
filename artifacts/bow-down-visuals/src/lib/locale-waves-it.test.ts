@@ -751,6 +751,8 @@ const W7_LEGIT: string[] = [
   "admin.removal.liveLabel",
   "admin.removal.reasons.spam",
   "admin.reports.target.post",
+  "admin.reversals.age",
+  "admin.reversals.ageHour",
   "admin.tiers.tier3",
   "admin.users.credits",
   "analyticsHub.fields.engagementRate",
