@@ -376,7 +376,7 @@ export default function BroadcastStudio() {
   const [liveSince, setLiveSince] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [viewerCount, setViewerCount] = useState(0);
-  const [recordNote, setRecordNote] = useState<"saved" | "failed" | null>(null);
+  const [recordNote, setRecordNote] = useState<"saved" | "failed" | "saving" | null>(null);
   const [recordWarning, setRecordWarning] = useState<string | null>(null);
   const [discordReady, setDiscordReady] = useState(false);
   const [announcedLive, setAnnouncedLive] = useState(false);
@@ -1101,7 +1101,10 @@ export default function BroadcastStudio() {
       // The stage kept this recording: the replay registers on the
       // stream once the server finishes saving it. Watch for the fact
       // (vod_url, or the site destination's recorded vod_state) —
-      // never guess either way.
+      // never guess either way. If the watch window runs out first
+      // (a long stream's master takes a while to upload), say THAT
+      // honestly instead of going silent: the save is still running
+      // on the server and lands in the creator's clips on its own.
       void (async () => {
         for (let i = 0; i < 10; i++) {
           await new Promise((r) => setTimeout(r, 3000));
@@ -1128,6 +1131,7 @@ export default function BroadcastStudio() {
             /* keep watching */
           }
         }
+        setRecordNote("saving");
       })();
     }
 
@@ -2085,6 +2089,11 @@ export default function BroadcastStudio() {
             <AlertTriangle className="h-4 w-4" /> The stream ended fine, but the recording didn't save.
           </p>
         )}
+        {recordNote === "saving" && (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-amber-500" data-testid="record-note-saving">
+            <Loader2 className="h-4 w-4 animate-spin" /> Still saving on the server — the replay lands in your clips when it's ready. You don't need to keep this page open.
+          </p>
+        )}
         {recordWarning && <p className="mt-2 text-xs text-amber-500">{recordWarning}</p>}
         {discordReady && (phase === "live" || recordNote !== null) && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -2094,7 +2103,7 @@ export default function BroadcastStudio() {
                 Announce to Discord
               </Button>
             )}
-            {phase !== "live" && recordNote !== null && !announcedEnd && (
+            {phase !== "live" && (recordNote === "saved" || recordNote === "failed") && !announcedEnd && (
               <Button onClick={() => announce("ended")} disabled={announcing} variant="outline" className="gap-2 border-amber-400/30 text-amber-300" data-testid="btn-announce-ended">
                 {announcing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Megaphone className="h-4 w-4" />}
                 Post the wrap-up to Discord

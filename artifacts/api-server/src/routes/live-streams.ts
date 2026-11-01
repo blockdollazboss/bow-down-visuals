@@ -144,31 +144,66 @@ const VIEWER_TTL_MS = 45_000;
 /* ── Viewer presence (in-memory; the API runs as a single instance) ──────
    The watch page heartbeats every ~15s with a random session id. Counts
    are real presence, pruned lazily on read; the peak is persisted to the
-   row when it grows. Exported for tests. */
-const viewersByStream = new Map<string, Map<string, number>>();
+   row when it grows. Exported for tests.
+
+   Count integrity (W4): a session id is client-chosen and the
+   heartbeat is unauthenticated, so without a bound one script could
+   mint "viewers" forever — and the inflated figure would persist as
+   the stream's peak and feed its summary. Presence therefore counts
+   at most MAX_COUNTED_SESSIONS_PER_IP distinct sessions per source
+   IP per stream: far above any real household's tabs, far below a
+   minting script's output. Sessions recorded without an IP (internal
+   callers, tests) always count. */
+export const MAX_COUNTED_SESSIONS_PER_IP = 8;
+
+interface ViewerPresence {
+  seenAt: number;
+  ip: string | null;
+}
+
+const viewersByStream = new Map<string, Map<string, ViewerPresence>>();
 
 /* Throttle for persisted viewer samples (summary averages). */
 const VIEWER_SAMPLE_MS = 20_000;
 const lastViewerSampleAt = new Map<string, number>();
 
-export function touchViewer(streamId: string, sessionId: string, now: number = Date.now()): number {
+export function touchViewer(
+  streamId: string,
+  sessionId: string,
+  now: number = Date.now(),
+  ip: string | null = null,
+): number {
   let sessions = viewersByStream.get(streamId);
   if (!sessions) {
     sessions = new Map();
     viewersByStream.set(streamId, sessions);
   }
-  sessions.set(sessionId, now);
+  sessions.set(sessionId, { seenAt: now, ip });
   return countViewers(streamId, now);
 }
 
 export function countViewers(streamId: string, now: number = Date.now()): number {
   const sessions = viewersByStream.get(streamId);
   if (!sessions) return 0;
-  for (const [sessionId, seenAt] of sessions) {
-    if (now - seenAt > VIEWER_TTL_MS) sessions.delete(sessionId);
+  for (const [sessionId, presence] of sessions) {
+    if (now - presence.seenAt > VIEWER_TTL_MS) sessions.delete(sessionId);
   }
-  if (sessions.size === 0) viewersByStream.delete(streamId);
-  return sessions.size;
+  if (sessions.size === 0) {
+    viewersByStream.delete(streamId);
+    return 0;
+  }
+  const perIp = new Map<string, number>();
+  let count = 0;
+  for (const presence of sessions.values()) {
+    if (!presence.ip) {
+      count += 1;
+      continue;
+    }
+    const n = (perIp.get(presence.ip) ?? 0) + 1;
+    perIp.set(presence.ip, n);
+    if (n <= MAX_COUNTED_SESSIONS_PER_IP) count += 1;
+  }
+  return count;
 }
 
 export function clearViewers(streamId: string): void {
@@ -347,6 +382,11 @@ export interface LiveStreamDto {
    *  (external encoder). Everything else about the stream — chat,
    *  playback, fan-out — is identical either way. */
   source: string;
+  /** Which stage carries the stream: 'own-server' | 'cloudflare-stream'.
+   *  Public surfaces need it for honest replay copy — an own-server
+   *  replay is saved by the server after the end, a provider replay
+   *  arrives from the broadcaster's own recording (or doesn't). */
+  provider: string;
   started_at: string | null;
   ended_at: string | null;
   viewer_count: number;
@@ -432,11 +472,21 @@ export function toStreamDto(
           hls_url: `/api/live-streams/${row.id}/hls/playlist.m3u8${ticketed && acc.playbackToken ? `?t=${acc.playbackToken}` : ""}`,
         }
       : playbackUrlsFromWhip(row.whip_url);
+  /* The door covers EVERY copy of the replay URL: the site
+     destination carries the same URL the stream row does (written
+     by registerStreamVod), so a non-entitled DTO must scrub it
+     there too — before W4 the destination copy leaked the paid
+     replay to anyone who fetched the DTO. vod_state stays: that a
+     replay EXISTS is a door fact, like the price. */
+  const destinations = normalizeDestinations(row.destinations).map((d) =>
+    ticketed && !acc.entitled ? { ...d, vod_url: null } : d,
+  );
   return {
     id: row.id,
     title: row.title,
     status: row.status,
     source: row.ingest_source ?? "camera",
+    provider: row.provider,
     started_at: iso(row.started_at),
     ended_at: iso(row.ended_at),
     viewer_count: isLive ? Math.max(liveViewerCount ?? 0, 0) : 0,
@@ -445,7 +495,7 @@ export function toStreamDto(
     // ticketed stream's recording stays behind the same door (the
     // Paid Series precedent: purchased content stays gated).
     vod_url: ticketed && !acc.entitled ? null : (row.vod_url ?? null),
-    destinations: normalizeDestinations(row.destinations),
+    destinations,
     creator: toCreatorDto(profile),
     playback: isLive && (urls.whep_url || urls.hls_url) ? urls : null,
     ticket: acc.door,
@@ -585,18 +635,43 @@ async function endStreamRow(row: LiveStream, finalViewerCount: number): Promise<
   return updated[0] ?? { ...row, status: "ended", ended_at: now };
 }
 
+/* An own-server row whose engine session is GONE is just as dead as
+   a 12h row: sessions live only in this process's memory, so a
+   restart the boot pass hasn't run for yet, or a stall close-out
+   whose row update failed, leaves the same corpse — publicly "live",
+   ingest answering 409 forever. A real session begins synchronously
+   inside create/publish, so absence past a short grace is never a
+   mid-start state. */
+const SESSION_ABSENT_GRACE_MS = 120_000;
+
+function ownServerSessionGone(row: LiveStream, nowMs: number): boolean {
+  if (row.provider !== "own-server") return false;
+  if (hasSession(row.id)) return false;
+  const started =
+    row.started_at instanceof Date ? row.started_at.getTime() : Date.parse(String(row.started_at));
+  return Number.isFinite(started) && nowMs - started > SESSION_ABSENT_GRACE_MS;
+}
+
 /** A "live" row older than MAX_LIVE_MS is a zombie (tab closed, WHIP long
- *  gone). End it lazily wherever it's read so the rail never lies. */
+ *  gone) — and so is an own-server row whose ingest session is gone.
+ *  End either lazily wherever it's read so the rail never lies. */
 async function reconcileStale(row: LiveStream): Promise<LiveStream> {
   if (row.status !== "live") return row;
   const started = row.started_at instanceof Date ? row.started_at.getTime() : Date.parse(String(row.started_at));
-  if (!Number.isFinite(started) || Date.now() - started <= MAX_LIVE_MS) return row;
+  const tooOld = Number.isFinite(started) && Date.now() - started > MAX_LIVE_MS;
+  const sessionGone = ownServerSessionGone(row, Date.now());
+  if (!tooOld && !sessionGone) return row;
   clearViewers(row.id);
   const ended = await endStreamRow(row, 0);
   /* Ending a stream ALWAYS closes out its destinations (stops the
      fan-out relays, marks them ended) — the stale paths used to skip
      this, leaving relays running against a dead stream (Flag S-3). */
   await closeOutDestinations(row.id).catch(() => undefined);
+  /* A session-gone row can still hold media on disk (the stall
+     handler ends the engine session even when its own row update
+     failed): finalize it, so the partial show becomes the replay —
+     or an honest not_saved — instead of silence. */
+  if (sessionGone) void finalizeOwnServerStream(row);
   return ended;
 }
 
@@ -619,6 +694,59 @@ async function sweepStaleLive(): Promise<void> {
     await expireQueuedRequests(s.id).catch(() => undefined);
     /* D3: same bypass, same duty — clear the now-playing row. */
     await clearNowPlaying(s.id).catch(() => undefined);
+  }
+}
+
+/* ── Boot recovery ────────────────────────────────────────────────────────
+   Own-server ingest sessions live only in the process's memory, so
+   EVERY own-server row still marked "live" when a fresh process
+   boots is a stream the previous process left behind (deploy,
+   watchdog restart, crash): publicly live, its ingest dead, its
+   broadcaster blocked by ALREADY_LIVE, for up to the 12h lazy
+   reconcile. End them all at boot with the full close-out — and run
+   the finalize, so a master that reached the disk still becomes the
+   replay (or an honest not_saved) instead of vanishing with the
+   session directory. A second pass finishes the VOD outcome for
+   rows that ended cleanly but whose finalize died with the process
+   mid-upload: ended, no replay, no outcome recorded. Cloudflare
+   rows are NOT touched — their sessions live at the provider and
+   survive our restart. Wired in index.ts with the other recoveries. */
+export async function recoverInterruptedLiveStreams(): Promise<void> {
+  const liveRows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(eq(liveStreamsTable.status, "live"))
+    .limit(100);
+  for (const row of liveRows) {
+    if (row.provider !== "own-server" || hasSession(row.id)) continue;
+    try {
+      await endStreamRow(row, 0);
+      clearViewers(row.id);
+      await closeOutDestinations(row.id).catch(() => undefined);
+      await finalizeOwnServerStream(row);
+      logger.info(
+        { streamId: row.id },
+        "live-streams recovery: ended a live row orphaned by the previous process",
+      );
+    } catch (err) {
+      logger.error({ err, streamId: row.id }, "live-streams recovery: orphan close-out failed");
+    }
+  }
+  const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+  const endedRows = await db
+    .select()
+    .from(liveStreamsTable)
+    .where(eq(liveStreamsTable.status, "ended"))
+    .orderBy(desc(liveStreamsTable.ended_at))
+    .limit(200);
+  for (const row of endedRows) {
+    if (row.provider !== "own-server" || row.vod_url) continue;
+    if (!row.ended_at || new Date(row.ended_at).getTime() < cutoffMs) continue;
+    const site = normalizeDestinations(row.destinations).find((d) => d.platform === "site");
+    if (!site || site.vod_state !== null) continue;
+    await finalizeOwnServerStream(row).catch((err) =>
+      logger.error({ err, streamId: row.id }, "live-streams recovery: orphaned VOD finalize failed"),
+    );
   }
 }
 
@@ -787,7 +915,19 @@ async function startRtmpIngestStream(input: {
       })
       .returning();
     const row = inserted[0]!;
-    const begun = beginSession(row.id);
+    /* Same atomicity rule as the browser create: a begin that
+       throws must not strand a live row with no session behind it. */
+    let begun: ReturnType<typeof beginSession>;
+    try {
+      begun = beginSession(row.id);
+    } catch (err) {
+      await endStreamRow(row, 0).catch(() => undefined);
+      logger.error(
+        { err, streamId: row.id },
+        "live-streams: RTMP engine session failed to start — stream ended before it began",
+      );
+      return { ok: false, message: "The stage couldn't start this stream." };
+    }
     if (!begun.ok) {
       // Lost the capacity race between the check and the insert.
       await endStreamRow(row, 0).catch(() => undefined);
@@ -1035,7 +1175,26 @@ router.post("/live-streams", requireAuth, async (req: Request, res: Response) =>
           })
           .returning();
         const row = inserted[0]!;
-        const begun = beginSession(row.id);
+        /* The row is live from this insert; the engine session is
+           what makes it real. A begin that THROWS (e.g. the session
+           directory can't be created) must not strand a live row
+           with nothing behind it — end the row and answer honestly,
+           exactly like the capacity race below. */
+        let begun: ReturnType<typeof beginSession>;
+        try {
+          begun = beginSession(row.id);
+        } catch (err) {
+          await endStreamRow(row, 0).catch(() => undefined);
+          logger.error(
+            { err, streamId: row.id },
+            "live-streams create: engine session failed to start — stream ended before it began",
+          );
+          res.status(503).json({
+            error: "The stage couldn't start your stream — nothing went live. Give it a moment and try again.",
+            code: "SESSION_START_FAILED",
+          });
+          return;
+        }
         if (!begun.ok) {
           // Lost the capacity race between the check and the insert.
           await endStreamRow(row, 0).catch(() => undefined);
@@ -1644,7 +1803,10 @@ router.post("/live-streams/:id/heartbeat", publicApiLimiter, async (req: Request
         return;
       }
     }
-    const count = touchViewer(row.id, parsed.data.session_id);
+    /* The caller's IP rides along so the count can bound how many
+       distinct sessions one address may mint (see the presence map);
+       app.ts sets trust proxy, so req.ip is the real client. */
+    const count = touchViewer(row.id, parsed.data.session_id, Date.now(), req.ip ?? null);
     /* Stage Manager (#166): viewer milestones sting off the fresh
        count — fire-and-forget, a heartbeat never waits on it. */
     stageManagerViewerFollowUp(row, count);

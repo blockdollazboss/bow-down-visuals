@@ -501,6 +501,23 @@ describe("viewer heartbeats", () => {
     const missing = await call("POST", "/live-streams/nope/heartbeat", { session_id: "viewer-session-1" });
     expect(missing.status).toBe(404);
   });
+
+  /* W4: every heartbeat in this harness arrives from one address —
+     minting session ids from it must hit the per-IP counted cap,
+     and the persisted peak must stop there too (before the fix the
+     peak absorbed every minted id). */
+  it("one address cannot mint the count — or the persisted peak — past the cap", async () => {
+    const { json: created } = await goLive();
+    const id = created.stream.id;
+    let last = 0;
+    for (let i = 0; i < 12; i++) {
+      const beat = await call("POST", `/live-streams/${id}/heartbeat`, { session_id: `minted-session-${i}` });
+      expect(beat.status).toBe(200);
+      last = beat.json.viewer_count;
+    }
+    expect(last).toBe(8);
+    expect(h.state.streams.get(id)!["peak_viewers"]).toBe(8);
+  });
 });
 
 describe("viewer tracker (unit)", () => {
@@ -512,6 +529,30 @@ describe("viewer tracker (unit)", () => {
     // 46s after "a" last beat (TTL 45s) but only 36s after "b".
     expect(countViewers("s1", t0 + 46_000)).toBe(1);
     expect(countViewers("never-seen", t0)).toBe(0);
+  });
+
+  /* W4: session ids are client-chosen and the heartbeat is public —
+     one address minting ids must not mint "viewers" (the figure
+     persists as the stream's peak). Per-IP counted sessions cap at
+     MAX_COUNTED_SESSIONS_PER_IP; distinct addresses and ip-less
+     internal touches are unaffected. */
+  it("caps how many sessions one IP can mint into the count", () => {
+    const t0 = 2_000_000;
+    for (let i = 0; i < 12; i++) touchViewer("cap1", `minted-${i}`, t0, "203.0.113.9");
+    expect(countViewers("cap1", t0)).toBe(8);
+    // A second address gets its own allowance.
+    for (let i = 0; i < 3; i++) touchViewer("cap1", `other-${i}`, t0, "198.51.100.2");
+    expect(countViewers("cap1", t0)).toBe(11);
+    // Ip-less touches (internal callers) always count.
+    touchViewer("cap1", "internal-1", t0);
+    expect(countViewers("cap1", t0)).toBe(12);
+    // The cap is per stream, not global.
+    for (let i = 0; i < 12; i++) touchViewer("cap2", `minted-${i}`, t0, "203.0.113.9");
+    expect(countViewers("cap2", t0)).toBe(8);
+    // Expired minted sessions free their slots for real viewers.
+    const t1 = t0 + 46_000;
+    touchViewer("cap1", "fresh-real", t1, "203.0.113.9");
+    expect(countViewers("cap1", t1)).toBe(1);
   });
 });
 

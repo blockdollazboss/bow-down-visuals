@@ -17,6 +17,7 @@ import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { recoverInterruptedVaultJobsBoot } from "./lib/vault-runner";
 import { recoverInterruptedLipSyncRuns } from "./routes/lip-sync";
 import { recoverInterruptedMultiRatioJobs } from "./routes/generate/export-multi-ratio";
+import { recoverInterruptedLiveStreams } from "./routes/live-streams";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startClipChargeSweeper } from "./lib/clip-charge-obligations";
@@ -108,6 +109,13 @@ const server = app.listen(port, (err) => {
   );
   recoverInterruptedMultiRatioJobs().catch((recoveryErr) =>
     logger.error({ recoveryErr }, "Multi-ratio job recovery failed"),
+  );
+
+  // W4: own-server live rows orphaned by the previous process (their
+  // ingest sessions lived only in its memory) are ended with the full
+  // close-out, and VOD outcomes that died mid-finalize are finished.
+  recoverInterruptedLiveStreams().catch((recoveryErr) =>
+    logger.error({ recoveryErr }, "Live stream recovery failed"),
   );
 
   // Sweep Instagram publish attempts orphaned by a previous process
