@@ -61,6 +61,35 @@ describe("#65 beats station contracts", () => {
     expect(panel).toContain('case "beats-desk"');
     expect(panel).toContain("<BeatsDesk");
   });
+
+  /* Stack1100 world-beats parity (X4's licensing-truth outcomes):
+     the sell form carries the page's Preview + Stems slots wired to
+     the listing form state the payload builder reads; an
+     exclusive-sold beat disables the buy button outright (the page's
+     modal does the same); and the buyer library renders the beat
+     title + the delivery links from the licenses/mine rows, with a
+     named failure state instead of a silent swallow. */
+  it("sell form carries the page's preview + stems slots (X4 parity)", () => {
+    expect(beats).toContain('aria-label="Preview URL (optional)"');
+    expect(beats).toContain("listingForm.previewUrl");
+    expect(beats).toContain("setL({ previewUrl: e.target.value })");
+    expect(beats).toContain('aria-label="Stems URL (optional)"');
+    expect(beats).toContain("listingForm.stemsUrl");
+    expect(beats).toContain("setL({ stemsUrl: e.target.value })");
+    expect(beats).toContain("without one, the full track plays as the preview");
+  });
+
+  it("an exclusive-sold beat closes the license box and the library delivers (X4 C1/C5)", () => {
+    expect(beats).toContain("disabled={licensing || beat.exclusiveSold}");
+    expect(beats).toContain("beat.exclusiveSold &&");
+    expect(beats).toContain("lic.beatTitle ?? lic.terms?.name");
+    expect(beats).toContain('data-testid="world-beats-license-download"');
+    expect(beats).toContain('data-testid="world-beats-license-download-stems"');
+    expect(beats).toContain("lic.downloadUrl");
+    expect(beats).toContain("lic.stemsUrl");
+    expect(beats).toContain('data-testid="world-beats-licenses-retry"');
+    expect(beats).toContain("setLicensesFailed(true)");
+  });
 });
 
 describe("#66 tip contracts", () => {

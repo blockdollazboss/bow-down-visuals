@@ -118,9 +118,23 @@ describe("#65 beats station logic", () => {
     expect(offers.every((o) => !o.soldOut)).toBe(true);
     const sold = parseBeat({ ...beatWire, exclusive_sold: true })!;
     expect(beatTierOffers(sold)[2]!.soldOut).toBe(true);
-    expect(beatTemplateOffer(sold, sold.licenseTemplates[0]!).soldOut).toBe(false);
     const exclTpl = { ...sold.licenseTemplates[0]!, isExclusive: true };
     expect(beatTemplateOffer(sold, exclTpl).soldOut).toBe(true);
+  });
+
+  /* Stack1100 X4 (C1) superseded the old sold-out rule above: an
+     exclusive sale closes the WHOLE market — the server 409s every
+     offer on a sold beat and the offers rail marks every offer
+     unavailable — so the non-exclusive template pin that used to
+     read soldOut=false now reads true, and every tier does too.
+     The pre-X4 pin is replaced, not relaxed: the exclusive tier
+     assertions above still hold under the wider rule. */
+  it("an exclusive sale closes the whole market — every offer sold out (X4 C1)", () => {
+    const sold = parseBeat({ ...beatWire, exclusive_sold: true })!;
+    expect(beatTierOffers(sold).every((o) => o.soldOut)).toBe(true);
+    expect(beatTemplateOffer(sold, sold.licenseTemplates[0]!).soldOut).toBe(true);
+    const open = parseBeat(beatWire)!;
+    expect(beatTemplateOffer(open, open.licenseTemplates[0]!).soldOut).toBe(false);
   });
 
   it("license payload names exactly one offer — the page's body", () => {
@@ -150,6 +164,8 @@ describe("#65 beats station logic", () => {
     expect(buildBeatListingPayload(form)).toEqual({
       title: "New Beat",
       audioUrl: "https://cdn.example/new.mp3",
+      previewUrl: undefined,
+      stemsUrl: undefined,
       genre: "hip-hop",
       bpm: undefined,
       musicalKey: undefined,
@@ -161,6 +177,24 @@ describe("#65 beats station logic", () => {
     });
     form.basicPrice = "-5";
     expect(buildBeatListingPayload(form)).toBeNull();
+  });
+
+  /* The page's preview + stems slots ride the payload in the page's
+     own shape (stack1100 X4): trimmed, and present whenever the
+     seller filled them — the fields the marketplace needs so a
+     form-listed beat's public preview is not silently the master
+     and a stems license can actually deliver stems. */
+  it("sell payload carries preview + stems URLs exactly as the page sends them (X4)", () => {
+    const form = emptyBeatListingForm();
+    form.title = "New Beat";
+    form.audioUrl = "https://cdn.example/new.mp3";
+    form.previewUrl = "  https://cdn.example/preview.mp3  ";
+    form.stemsUrl = "https://cdn.example/stems.zip";
+    const payload = buildBeatListingPayload(form)!;
+    expect(payload["previewUrl"]).toBe("https://cdn.example/preview.mp3");
+    expect(payload["stemsUrl"]).toBe("https://cdn.example/stems.zip");
+    form.previewUrl = "   ";
+    expect(buildBeatListingPayload(form)["previewUrl"]).toBeUndefined();
   });
 
   it("dashboard parses beats, snake_case sales and gross/net stats", () => {
@@ -183,6 +217,38 @@ describe("#65 beats station logic", () => {
     expect(mine).toHaveLength(1);
     expect(mine[0]!.status).toBe("completed");
     expect(parseMyLicenses({})).toEqual([]);
+  });
+
+  /* Stack1100 X4 (C5): licenses/mine rows name their beat and carry
+     the delivery URLs on completed licenses — the buyer library
+     renders both, so the parser must carry them through verbatim
+     (and read null where the rail sends none, e.g. a pending row
+     or a dashboard sales row, which has no buyer entitlement). */
+  it("buyer licenses carry the beat title + delivery URLs the rail hands over (X4 C5)", () => {
+    const mine = parseMyLicenses({
+      licenses: [
+        {
+          id: "l2", tier: "exclusive", terms: null, priceCents: 49999, status: "completed", createdAt: "2026-01-04",
+          beatTitle: "Midnight Trap", downloadUrl: "https://cdn.example/master.mp3", stemsUrl: "https://cdn.example/stems.zip",
+        },
+        {
+          id: "l3", tier: "basic", terms: null, priceCents: 2999, status: "pending_payment", createdAt: "2026-01-05",
+          beatTitle: "Other Beat", downloadUrl: null, stemsUrl: null,
+        },
+      ],
+    });
+    expect(mine[0]).toMatchObject({
+      beatTitle: "Midnight Trap",
+      downloadUrl: "https://cdn.example/master.mp3",
+      stemsUrl: "https://cdn.example/stems.zip",
+    });
+    expect(mine[1]).toMatchObject({ beatTitle: "Other Beat", downloadUrl: null, stemsUrl: null });
+    const dash = parseBeatDashboard({
+      beats: [],
+      sales: [{ id: "s9", tier: "basic", terms_snapshot: null, price_cents: 2999, status: "completed", created_at: "2026-01-06" }],
+      stats: null,
+    });
+    expect(dash.sales[0]).toMatchObject({ beatTitle: null, downloadUrl: null, stemsUrl: null });
   });
 
   it("template form round-trips through the page's payload shape", () => {
