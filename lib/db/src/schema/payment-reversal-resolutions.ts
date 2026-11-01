@@ -5,7 +5,7 @@ import { paymentReversalsTable } from "./payment-reversals";
 
 /**
  * Payment reversal resolutions — the human's decision on a parked
- * reversal row (migration 0306, stack1100 Lane Y2).
+ * reversal row (migration 0308, stack1100 Lane Y2).
  *
  * The reversal engine (api-server lib/payment-reversals.ts) parks
  * charges it must not reverse on its own at 'needs_manual_review'.

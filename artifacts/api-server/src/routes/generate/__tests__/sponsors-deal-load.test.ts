@@ -28,7 +28,7 @@
  * routers:
  *   Suite 1 reproduces the gate failure (post/list fine, detail/dashboard
  *   500) on the un-healed shape.
- *   Suite 2 applies migration 0306 (the fix) to the same shape and proves
+ *   Suite 2 applies migration 0307 (the fix) to the same shape and proves
  *   poster-loads, creator-loads + apply, poster-only application review,
  *   accept, and dashboard-loads all work, with escrow internals still
  *   hidden from non-participants.
@@ -130,9 +130,9 @@ CREATE TABLE sponsor_payouts (
   UNIQUE (deal_id)
 );`;
 
-const MIGRATION_0306 = readFileSync(
+const MIGRATION_0307 = readFileSync(
   fileURLToPath(
-    new URL("../../../../../../lib/db/migrations/0306_sponsor_applications_escrow_columns.sql", import.meta.url),
+    new URL("../../../../../../lib/db/migrations/0307_sponsor_applications_escrow_columns.sql", import.meta.url),
   ),
   "utf8",
 );
@@ -162,7 +162,7 @@ afterAll(async () => {
 function freshDb(heal: boolean) {
   const { db, mem } = createTestDb();
   mem.public.none(PROD_SHAPE_DDL);
-  if (heal) mem.public.none(MIGRATION_0306);
+  if (heal) mem.public.none(MIGRATION_0307);
   testState.db = db;
   testState.mem = mem;
   testState.userId = BRAND;
@@ -234,7 +234,7 @@ describe("Gate #5 reproduction — production-shaped schema, before the heal", (
   });
 });
 
-describe("after migration 0306 heals sponsor_applications", () => {
+describe("after migration 0307 heals sponsor_applications", () => {
   beforeEach(() => freshDb(true));
 
   it("poster loads the deal detail", async () => {

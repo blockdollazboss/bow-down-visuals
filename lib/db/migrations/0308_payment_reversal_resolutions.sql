@@ -1,4 +1,4 @@
--- 0304: Payment reversal resolutions — the human's decision on a
+-- 0308: Payment reversal resolutions — the human's decision on a
 -- parked reversal row (stack1100 Lane Y2).
 --
 -- The reversal engine (migration 0183) parks charges it must not

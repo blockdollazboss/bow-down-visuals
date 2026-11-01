@@ -105,7 +105,7 @@ CREATE TABLE payment_reversals (
 );
 CREATE UNIQUE INDEX payment_reversals_charge_ux ON payment_reversals (stripe_charge_id);
 -- The production table FKs reversal_id to payment_reversals(id) ON
--- DELETE CASCADE (migration 0306 + the drizzle schema). pg-mem
+-- DELETE CASCADE (migration 0308 + the drizzle schema). pg-mem
 -- cannot match an ON CONFLICT target on an FK column (verified
 -- against pg-mem 3.0.14), so the harness drops the REFERENCES --
 -- the verb's exactly-once semantics ride the UNIQUE index below,
