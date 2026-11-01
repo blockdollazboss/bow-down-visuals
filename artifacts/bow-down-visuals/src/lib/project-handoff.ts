@@ -7,7 +7,7 @@
    (linkage audit DE-10). These builders make the carry explicit and
    testable: audio the desk is holding MUST land in inputData. */
 
-export type ProjectInputData = Record<string, unknown>;
+type ProjectInputData = Record<string, unknown>;
 
 /** A URL worth persisting: blob: URLs die with the page session (the hub
  *  tray drops them on reload for the same reason), so a project saved

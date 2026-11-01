@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Info, Film } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
-export const EDIT_PLAN_NOTE =
+const EDIT_PLAN_NOTE =
   "Trims, transitions, effects, captions and overlays are saved as an edit plan — they're applied when final rendering is enabled, not burned into clips yet.";
 
 export function PlanNote({ text = EDIT_PLAN_NOTE }: { text?: string }) {

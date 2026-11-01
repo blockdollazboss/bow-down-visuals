@@ -25,7 +25,7 @@ import { useHubProject } from "@/lib/hub-project";
    (?audioUrl= intake) · Lyric video · Cover art · Add to album · share.
    Harmonies are written to the hub project as song/stems assets. */
 
-export interface HarmonySource {
+interface HarmonySource {
   /** Library song id — becomes the harmony mix's parent_song_id. */
   songId?: string;
   title: string;

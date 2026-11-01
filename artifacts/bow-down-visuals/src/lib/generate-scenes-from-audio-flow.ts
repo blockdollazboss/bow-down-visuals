@@ -14,7 +14,7 @@ import type { SongStructure } from "@/lib/song-structure";
 import type { SceneData } from "@/lib/scene-parser";
 import type { FetchImpl } from "@/hooks/use-confirmed-api";
 
-export interface RunAudioSceneFlowParams {
+interface RunAudioSceneFlowParams {
   lyrics: string;
   audioUrl: string;
   audioFile: File | null;
@@ -27,7 +27,7 @@ export interface RunAudioSceneFlowParams {
   segment?: { start: number; end: number } | null;
 }
 
-export interface RunAudioSceneFlowResult {
+interface RunAudioSceneFlowResult {
   songStructure: SongStructure;
   scenes: SceneData[];
 }

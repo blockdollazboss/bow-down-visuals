@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/button";
 
 /* ─── Types ────────────────────────────────────────────────────────── */
 
-export type LockedTimelineClip = {
+type LockedTimelineClip = {
   sceneIdx: number;
   sceneId: string;
   title: string;
@@ -378,7 +378,7 @@ function ClipRepairPanel({
 
 /* ─── Props ─────────────────────────────────────────────────────────── */
 
-export interface StudioEditorSectionProps {
+interface StudioEditorSectionProps {
   scenes: SceneData[];
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;

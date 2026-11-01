@@ -53,13 +53,13 @@ function safeHex(raw: string): string | null {
 
 /* ── shared result vocabulary ───────────────────────────────────────── */
 
-export interface RasterExportOption {
+interface RasterExportOption {
   format: "png";
   label: string;
   note: string;
 }
 
-export interface ExcludedRasterPart {
+interface ExcludedRasterPart {
   name: string;
   /** Stated plainly: it is a picture, and pictures are not vectors. */
   reason: string;
@@ -70,7 +70,7 @@ const LOGO_RASTER_REASON =
 
 /* ── Brand sheet SVG (Branding Kit surface) ─────────────────────────── */
 
-export interface BrandSheetSvgResult {
+interface BrandSheetSvgResult {
   /** The SVG document, or null when the kit holds no visible
    *  vector-expressible content — never an empty or raster-faked file. */
   svg: string | null;
@@ -237,7 +237,7 @@ export function buildBrandSheetSvg(kit: BrandKit): BrandSheetSvgResult {
 
 /* ── Raster-only surfaces (Logo Studio, generated thumbnails) ───────── */
 
-export interface RasterOnlyAssessment {
+interface RasterOnlyAssessment {
   /** Always false — that is the honest answer for a generated picture. */
   vectorAvailable: false;
   /** Why there is no SVG, stated plainly. */

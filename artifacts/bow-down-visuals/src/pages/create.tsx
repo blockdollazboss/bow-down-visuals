@@ -39,7 +39,7 @@ export { CreateRedirect };
    - Inactive panels unmount — exactly like the old separate-page navigations,
      so each wizard's mount logic (draft restore, deep-link intake) runs fresh. */
 
-export type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit" | "cover-motion" | "wallpapers";
+type CreatePanel = "song-video" | "song" | "video" | "hub" | "cartoon" | "coverart" | "dream-collab" | "link-to-hit" | "cover-motion" | "wallpapers";
 
 const PANELS: Array<{ key: CreatePanel; labelKey: string; blurbKey: string; icon: LucideIcon }> = [
   { key: "song-video", labelKey: "songVideo", blurbKey: "songVideoBlurb", icon: Mic2 },

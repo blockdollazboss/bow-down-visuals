@@ -8,7 +8,7 @@
  * A source whose total isn't a real number degrades to the panel's own
  * "couldn't load" rendering (totalCents: null), never a $NaN. */
 
-export interface EarningsStatementSource {
+interface EarningsStatementSource {
   status: string;
   totalCents: number | null;
   count: number;
@@ -54,7 +54,7 @@ export function statementFromPayload(payload: unknown): EarningsStatement | null
  * render these rows, so an in-page statement can never drift from
  * the PDF it sits beside: same lines, same totals, same words. */
 
-export const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string }> = [
+const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string }> = [
   { key: "storeSales", label: "Store sales" },
   { key: "shopSales", label: "Shop sales" },
   { key: "memberships", label: "Memberships" },
@@ -62,7 +62,7 @@ export const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string 
   { key: "royalties", label: "Royalties (recorded)" },
 ];
 
-export interface StatementLineRow {
+interface StatementLineRow {
   key: string;
   label: string;
   status: string;

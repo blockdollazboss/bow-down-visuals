@@ -66,9 +66,9 @@ export const NOT_USED_IN_WORLD = "Not used in the World";
  *  the game's own deadzone (0.18) by a wide margin, the same
  *  discipline panel-nav keeps — a resting thumb's drift must
  *  never light the picture. */
-export const MAP_STICK_LIGHT_THRESHOLD = 0.5;
+const MAP_STICK_LIGHT_THRESHOLD = 0.5;
 
-export type ControllerMapNodeKind = "button" | "stick" | "system";
+type ControllerMapNodeKind = "button" | "stick" | "system";
 
 export interface ControllerMapNode {
   /** Stable id: the PadRole for role buttons, "leftStick" /
@@ -263,7 +263,7 @@ export function litNodeIds(
  * rotated face letters are positions, which the seats carry)
  * without pretending to be product renders. */
 
-export type ControllerMapSpotShape = "circle" | "rect" | "stick" | "dpadCell";
+type ControllerMapSpotShape = "circle" | "rect" | "stick" | "dpadCell";
 
 export interface ControllerMapSpot {
   x: number;
@@ -276,7 +276,7 @@ export interface ControllerMapSpot {
   h?: number;
 }
 
-export interface ControllerMapLayout {
+interface ControllerMapLayout {
   viewBox: string;
   bodyPath: string;
   spots: Readonly<Record<string, ControllerMapSpot>>;

@@ -31,13 +31,13 @@ export interface TranscriptCut {
 
 /** Padding around each deleted word so speech isn't clipped (mirrors the
  *  server's FILLER_PAD_SEC). */
-export const WORD_CUT_PAD_SEC = 0.15;
+const WORD_CUT_PAD_SEC = 0.15;
 /** Cuts closer than this merge (mirrors the server's MERGE_GAP_SEC). */
-export const CUT_MERGE_GAP_SEC = 0.2;
+const CUT_MERGE_GAP_SEC = 0.2;
 
 /** Merge overlapping / near-adjacent cuts, keeping the earliest start.
  *  Mirrors mergeCuts in api-server filler-removal.ts. */
-export function mergeTranscriptCuts(cuts: TranscriptCut[]): TranscriptCut[] {
+function mergeTranscriptCuts(cuts: TranscriptCut[]): TranscriptCut[] {
   const sorted = [...cuts]
     .filter((c) => c.end > c.start)
     .sort((a, b) => a.start - b.start);
@@ -120,7 +120,7 @@ export function editedTimeSaved(cuts: TranscriptCut[], durationSec: number): num
  * chip sits between the word before it and the word after it, so toggling
  * a silence in the text reads exactly where the pause falls.
  */
-export type TranscriptFlowItem =
+type TranscriptFlowItem =
   | { type: "word"; index: number; word: TranscriptWord }
   | { type: "silence"; cut: TranscriptCut };
 
@@ -183,11 +183,11 @@ export function rangeIndices(from: number, to: number): number[] {
 }
 
 /** Minimum run of identical words that reads as a restarted take. */
-export const RETAKE_MIN_WORDS = 3;
+const RETAKE_MIN_WORDS = 3;
 /** A restart begins within this many words of the failed attempt's start. */
-export const RETAKE_MAX_RESTART_GAP = 12;
+const RETAKE_MAX_RESTART_GAP = 12;
 
-export interface RepeatedTake {
+interface RepeatedTake {
   /** First word of the failed attempt. */
   startIndex: number;
   /** Last word of the failed attempt (the word before the restart). */
@@ -259,7 +259,7 @@ export function detectRepeatedTakes(words: TranscriptWord[]): RepeatedTake[] {
   return takes;
 }
 
-export type CutSuggestionKind = "filler" | "silence" | "retake";
+type CutSuggestionKind = "filler" | "silence" | "retake";
 
 export interface CutSuggestion {
   id: string;

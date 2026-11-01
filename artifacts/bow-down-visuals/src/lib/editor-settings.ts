@@ -24,10 +24,10 @@ import { DEFAULT_CAPTION_FONT_ID } from "@/lib/fonts";
 export type VideoFormat = "9:16" | "16:9" | "1:1" | "4:5";
 export type FitMode    = "fill" | "fit" | "blur";
 export type Intensity = "low" | "medium" | "high";
-export type ExportQuality = "draft" | "final";
+type ExportQuality = "draft" | "final";
 export type ExportResolution = "720p" | "1080p" | "4k";
 
-export type AutoEditPresetId =
+type AutoEditPresetId =
   | "drill"
   | "luxury"
   | "rnb"
@@ -35,7 +35,7 @@ export type AutoEditPresetId =
   | "pain"
   | "kids";
 
-export interface AutoEditPreset {
+interface AutoEditPreset {
   id: AutoEditPresetId;
   name: string;
   tagline: string;
@@ -47,68 +47,6 @@ export interface AutoEditPreset {
   accent: string;
 }
 
-export const AUTO_EDIT_PRESETS: AutoEditPreset[] = [
-  {
-    id: "drill",
-    name: "Drill / Street Cut",
-    tagline: "Hard, fast, gritty",
-    description:
-      "Aggressive beat-synced hard cuts, cold color grade, handheld energy. Built for drill and street records.",
-    defaultBeatCut: "high",
-    defaultTransition: "high",
-    accent: "from-slate-500/20 to-blue-500/10",
-  },
-  {
-    id: "luxury",
-    name: "Luxury Rap Visual",
-    tagline: "Rich, smooth, expensive",
-    description:
-      "Slow-burn glides, warm gold grade, slow-mo flexes. Premium high-fashion feel for luxury rap.",
-    defaultBeatCut: "medium",
-    defaultTransition: "low",
-    accent: "from-yellow-500/20 to-amber-600/10",
-  },
-  {
-    id: "rnb",
-    name: "R&B Dream Edit",
-    tagline: "Soft, dreamy, intimate",
-    description:
-      "Crossfades, soft bloom, shallow depth. Gentle pacing that breathes with the vocal.",
-    defaultBeatCut: "low",
-    defaultTransition: "low",
-    accent: "from-pink-500/20 to-purple-500/10",
-  },
-  {
-    id: "club",
-    name: "Club / Party Edit",
-    tagline: "Loud, punchy, hype",
-    description:
-      "Flash cuts, zoom punches, strobe-style transitions locked to the drop. Maximum energy.",
-    defaultBeatCut: "high",
-    defaultTransition: "high",
-    accent: "from-fuchsia-500/20 to-red-500/10",
-  },
-  {
-    id: "pain",
-    name: "Pain / Emotional Visual",
-    tagline: "Raw, slow, cinematic",
-    description:
-      "Long holds, desaturated grade, minimal movement. Lets emotion sit in the frame.",
-    defaultBeatCut: "low",
-    defaultTransition: "low",
-    accent: "from-zinc-500/20 to-slate-700/10",
-  },
-  {
-    id: "kids",
-    name: "Kids / Cartoon Edit",
-    tagline: "Bright, fun, playful",
-    description:
-      "Bouncy cuts, vivid colors, pop transitions and big captions. Built for kids and cartoon music.",
-    defaultBeatCut: "medium",
-    defaultTransition: "medium",
-    accent: "from-sky-400/20 to-emerald-400/10",
-  },
-];
 
 export const VIDEO_FORMATS: { id: VideoFormat; label: string; note: string }[] = [
   { id: "9:16", label: "9:16",  note: "TikTok · Reels · Shorts" },
@@ -147,7 +85,6 @@ export const CAPTION_STYLES = [
   "TikTok Auto",
 ] as const;
 
-export const CAPTION_POSITIONS = ["Top", "Center", "Bottom"] as const;
 
 export type CaptionMode = "auto" | "manual" | "hook" | "best-bar" | "none";
 export type CaptionStylePreset =
@@ -311,7 +248,7 @@ export const AI_EDIT_STYLE_DEFS: {
   { id: "gold-luxury-brand",  name: "Gold Luxury Brand",      description: "Gold accents · slow-mo · premium brand identity",  accent: "from-yellow-400/20 to-amber-500/10 border-yellow-400/30" },
 ];
 
-export interface AiSceneNote {
+interface AiSceneNote {
   sceneIndex: number;
   note: string;
   transition: string;
@@ -350,7 +287,7 @@ export interface AppliedTransition {
   applied: boolean;
 }
 
-export interface AiEditSettings {
+interface AiEditSettings {
   enabled: boolean;
   style: AiEditStylePreset;
   plan: AiEditPlan | null;
@@ -385,14 +322,14 @@ export type IntroCardPreset =
   | "luxury-dark" | "drill-street" | "rnb-smooth"
   | "club-neon"   | "kids-bright"  | "clean-minimal";
 
-export type OutroCtaPreset =
+type OutroCtaPreset =
   | "stream-now" | "follow-for-more" | "new-music-out-now"
   | "watch-full-video" | "created-with-bdv" | "custom";
 
 export type WatermarkPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
-export type WatermarkOpacity  = "low" | "medium" | "high";
-export type WatermarkSize     = "small" | "medium" | "large";
-export type TitleStylePreset  = "clean-white" | "luxury-gold" | "minimal";
+type WatermarkOpacity  = "low" | "medium" | "high";
+type WatermarkSize     = "small" | "medium" | "large";
+type TitleStylePreset  = "clean-white" | "luxury-gold" | "minimal";
 export type CardDuration      = 1 | 2 | 3 | 5;
 
 export const INTRO_STYLE_DEFS: {
@@ -570,7 +507,7 @@ export type OverlayPosition =
   | "center-left" | "center" | "center-right"
   | "bottom-left" | "bottom-center" | "bottom-right";
 
-export type OverlayAnimation = "none" | "fade-in" | "fade-out" | "fade-in-out" | "slide-in" | "pulse";
+type OverlayAnimation = "none" | "fade-in" | "fade-out" | "fade-in-out" | "slide-in" | "pulse";
 
 export interface OverlayItem {
   id: string;
@@ -600,7 +537,7 @@ export interface OverlayItem {
   motionCss?: string;
 }
 
-export interface TransitionItem {
+interface TransitionItem {
   fromSceneId: string;
   toSceneId: string;
   type: string;
@@ -615,7 +552,7 @@ export interface TransitionItem {
 export type LipSyncStrength = "low" | "medium" | "high";
 
 /** Per-clip lip-sync job status. */
-export type LipSyncStatus = "idle" | "processing" | "done" | "failed";
+type LipSyncStatus = "idle" | "processing" | "done" | "failed";
 
 /** Per-clip edit data, keyed by scene id inside EditorSettings.clips. */
 export interface ClipEdit {
@@ -757,7 +694,7 @@ export function keyframeAt(keyframes: Keyframe[], t: number): KeyframeTransform 
 /** Cubic bézier easing solve — mirror of lib/motion-pro.ts cubicBezierY and
  *  the server copy in pro-tools-ffmpeg.ts (all three must agree so preview
  *  and export show the same curve). */
-export function cubicBezierYEased(
+function cubicBezierYEased(
   cp1: { x: number; y: number }, cp2: { x: number; y: number }, x: number,
 ): number {
   const cx = Math.min(1, Math.max(0, x));
@@ -782,7 +719,7 @@ export function cubicBezierYEased(
 }
 
 /** Segment easing: bézier handles when set, legacy smoothstep otherwise. */
-export function easedKeyframeFraction(a: Keyframe, b: Keyframe, f: number): number {
+function easedKeyframeFraction(a: Keyframe, b: Keyframe, f: number): number {
   if (!a.easeOutCp && !b.easeInCp) return f * f * (3 - 2 * f);
   return cubicBezierYEased(a.easeOutCp ?? { x: 0.33, y: 0 }, b.easeInCp ?? { x: 0.67, y: 1 }, Math.min(1, Math.max(0, f)));
 }
@@ -825,7 +762,7 @@ export interface ChromaKeySettings {
 
 export type CropAspect = "16:9" | "9:16" | "1:1" | "4:5" | "free";
 
-export interface CropSettings {
+interface CropSettings {
   enabled: boolean;
   aspect: CropAspect;
   /** Free-crop rect as fractions of the frame (0..1). Used when aspect === "free". */
@@ -1046,7 +983,7 @@ export interface CaptionSettings {
   maxLines: "2" | "3";
 }
 
-export interface AudioSettings {
+interface AudioSettings {
   /** Where the song starts, in seconds. */
   startSec: number;
   volume: number;
@@ -1059,13 +996,13 @@ export type CaptionExportMode = "off" | "overlay" | "burn";
 
 export type ExportRangeMode = "full" | "first-10" | "first-15" | "first-30" | "custom";
 
-export interface ExportRangeSettings {
+interface ExportRangeSettings {
   mode: ExportRangeMode;
   customStartSec: number;
   customEndSec: number;
 }
 
-export interface ExportSettings {
+interface ExportSettings {
   format: VideoFormat;
   resolution: ExportResolution;
   quality: ExportQuality;
@@ -1099,11 +1036,11 @@ export type LoudnessTarget = "demo" | "streaming" | "loud";
 export type ReverbAmount = "none" | "light" | "medium" | "heavy";
 export type AutotuneStyle = "off" | "light" | "modern" | "heavy";
 export type EqTone = "dark" | "balanced" | "bright";
-export type FxLevel = "off" | "low" | "medium" | "high";
+type FxLevel = "off" | "low" | "medium" | "high";
 
 export type MixPresetId = "radio" | "drill" | "rnb" | "club" | "pain" | "kids";
 
-export interface MixPreset {
+interface MixPreset {
   id: MixPresetId;
   name: string;
   tagline: string;
@@ -1387,7 +1324,7 @@ export interface VideoAudioSync {
 }
 
 /** Trims the uploaded song to a sub-window; the timeline re-baselines to this window. */
-export interface SongCropSettings {
+interface SongCropSettings {
   enabled: boolean;
   startSec: number;
   /** 0 = uncropped end (resolved against the real audio duration at usage time). */
@@ -1520,7 +1457,7 @@ export function defaultProductionBible(): ProductionBible {
   };
 }
 
-export function defaultPreProduction(): PreProductionState {
+function defaultPreProduction(): PreProductionState {
   return {
     bible: defaultProductionBible(),
     storyboard: [],
@@ -1639,7 +1576,7 @@ export interface EditorSettings {
 }
 
 /** Global lip-sync settings stored in EditorSettings. */
-export interface LipSyncSettings {
+interface LipSyncSettings {
   enabled: boolean;
   /** Scene id of the currently selected clip for lip sync. */
   selectedSceneId: string | null;
@@ -1666,11 +1603,11 @@ export function defaultColorCorrection(): ColorCorrectionSettings {
   };
 }
 
-export function defaultChromaKey(): ChromaKeySettings {
+function defaultChromaKey(): ChromaKeySettings {
   return { enabled: false, color: "#00ff00", similarity: 30, blend: 20, bgColor: "#000000" };
 }
 
-export function defaultCrop(): CropSettings {
+function defaultCrop(): CropSettings {
   return { enabled: false, aspect: "16:9", x: 0, y: 0, w: 1, h: 1 };
 }
 
@@ -1771,7 +1708,7 @@ export function defaultClipEdit(): ClipEdit {
   };
 }
 
-export function defaultLipSyncSettings(): LipSyncSettings {
+function defaultLipSyncSettings(): LipSyncSettings {
   return {
     enabled: false,
     selectedSceneId: null,
@@ -1968,7 +1905,7 @@ const INTENSITY_VOL: Record<Intensity, number> = { low: 72, medium: 86, high: 10
  * (no network) so "Apply AI Mix Settings" is instant and repeatable. These are
  * preview values only — not final rendered mastering.
  */
-export function suggestMixSettings(
+function suggestMixSettings(
   stems: AudioStem[],
   aiMix: AiMixOptions,
 ): Record<string, { volume: number; pan: number }> {
@@ -2260,7 +2197,7 @@ function sceneStartTimes(scenes: SceneData[]): number[] {
  * Build structured transitions from the AI plan, mapped onto real scenes.
  * Scene 0 is always a "Cut" (nothing transitions INTO the first scene).
  */
-export function buildAppliedTransitions(
+function buildAppliedTransitions(
   plan: AiEditPlan,
   scenes: SceneData[],
 ): AppliedTransition[] {

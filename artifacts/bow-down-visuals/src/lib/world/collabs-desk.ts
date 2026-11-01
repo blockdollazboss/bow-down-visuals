@@ -23,7 +23,7 @@
    (routes/generate/collabs.ts NICHE_LABELS / PLATFORM_LABELS) and
    the page's key lists — same words everywhere. */
 
-export const COLLABS_PROFILES_PATH = "/api/collabs/profiles";
+const COLLABS_PROFILES_PATH = "/api/collabs/profiles";
 export const COLLAB_PROFILE_ME_PATH = "/api/collabs/profile/me";
 export const COLLAB_PROFILE_PATH = "/api/collabs/profile";
 export const COLLAB_MATCH_PATH = "/api/collabs/match";
@@ -73,9 +73,6 @@ export function collabNicheLabel(key: string): string {
   return COLLAB_NICHE_OPTIONS.find((n) => n.key === key)?.label ?? "Other";
 }
 
-export function collabPlatformLabel(key: string): string {
-  return COLLAB_PLATFORM_OPTIONS.find((p) => p.key === key)?.label ?? key;
-}
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
@@ -95,7 +92,7 @@ function strList(v: unknown): string[] {
 
 /* ─── Browse cards ───────────────────────────────────────────────── */
 
-export interface CollabPlatformView {
+interface CollabPlatformView {
   platform: string;
   label: string;
   followers: number;
@@ -152,7 +149,7 @@ export function normalizeCollabProfiles(payload: unknown): CollabProfileCard[] |
 
 /* ─── My profile ─────────────────────────────────────────────────── */
 
-export interface MyCollabProfile {
+interface MyCollabProfile {
   displayName: string;
   niche: string;
   platforms: Array<{ platform: string; followers: number }>;
@@ -250,7 +247,7 @@ export function buildProfileBody(form: CollabProfileForm): Record<string, unknow
 
 /* ─── The match report ───────────────────────────────────────────── */
 
-export interface CollabMatchReport {
+interface CollabMatchReport {
   score: number;
   verdict: string;
   strengths: string[];
@@ -287,7 +284,7 @@ export function parseMatchResult(payload: unknown): CollabMatchResult | null {
 
 /* ─── Requests ───────────────────────────────────────────────────── */
 
-export interface CollabRequestReceived {
+interface CollabRequestReceived {
   id: string;
   message: string;
   status: string;
@@ -299,7 +296,7 @@ export interface CollabRequestReceived {
   lockedReason: string | null;
 }
 
-export interface CollabRequestSent {
+interface CollabRequestSent {
   id: string;
   message: string;
   status: string;

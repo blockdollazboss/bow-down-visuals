@@ -19,7 +19,7 @@
 
 import { composePhotoShootBrief } from "../generate-artist-image";
 
-export interface ScenePack {
+interface ScenePack {
   id: string;
   /** Catalog key for the pack name, e.g. "photoShoot.scenePacks.packs.neonStage.name" */
   nameKey: string;
@@ -113,15 +113,5 @@ export const SCENE_PACKS: ScenePack[] = [
 ];
 
 /** Composes a scene pack into the same brief format as composePhotoShootBrief. */
-export function composeScenePackBrief(pack: ScenePack): string {
-  return composePhotoShootBrief(pack.poseId, pack.outfit, pack.background);
-}
 
 /** Shape expected by the modal's applyShootChange({ poseId, outfit, background }). */
-export function scenePackToShootChange(pack: ScenePack): {
-  poseId: string;
-  outfit: string;
-  background: string;
-} {
-  return { poseId: pack.poseId, outfit: pack.outfit, background: pack.background };
-}

@@ -56,7 +56,7 @@ function sineKeys(amp: number, period: number, phase = 0, offset = 0, n = 8): Eu
 }
 
 /** Idle v2: breath + look-around + a slow weight shift. 4s loop. */
-export function idleClipV2(): THREE.AnimationClip {
+function idleClipV2(): THREE.AnimationClip {
   return new THREE.AnimationClip("idle", 4, [
     quatTrack("spine", sineKeys(-0.022, 4, 0, 0, 4).map((k) => ({ ...k, x: (k.x ?? 0) + 0 }))),
     quatTrack("chest", [
@@ -92,7 +92,7 @@ export function idleClipV2(): THREE.AnimationClip {
 }
 
 /** Bow v2: weight dips into the bow; arms sweep back further. 1.5s. */
-export function bowClipV2(): THREE.AnimationClip {
+function bowClipV2(): THREE.AnimationClip {
   return new THREE.AnimationClip("bow", 1.5, [
     quatTrack("spine", [
       { t: 0, x: 0 },
@@ -140,7 +140,7 @@ export function bowClipV2(): THREE.AnimationClip {
  * thigh.x > 0 swings the leg FORWARD (front is -Z); shin.x < 0 folds the
  * heel back during swing-through; foot cancels most of the sum at plant.
  */
-export function walkClipV2(): THREE.AnimationClip {
+function walkClipV2(): THREE.AnimationClip {
   const T = 0.86;
   const HPI = Math.PI;
   // shin bend: peaks shortly after the thigh passes neutral going forward

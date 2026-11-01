@@ -29,7 +29,7 @@ import { useCallback, useRef, useState } from "react";
  * };
  * ```
  */
-export interface UseUndoRedoOptions {
+interface UseUndoRedoOptions {
   /** Maximum undo steps kept (default 50). */
   maxHistory?: number;
   /**
@@ -39,7 +39,7 @@ export interface UseUndoRedoOptions {
   coalesceMs?: number;
 }
 
-export interface UndoRedoApi<T> {
+interface UndoRedoApi<T> {
   canUndo: boolean;
   canRedo: boolean;
   undoCount: number;

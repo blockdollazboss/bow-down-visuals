@@ -26,7 +26,7 @@ export interface CourseProduct {
   buyUrl: string;
 }
 
-export interface CourseLessonOutline {
+interface CourseLessonOutline {
   id: string;
   title: string;
   position: number;
@@ -37,7 +37,7 @@ export interface CourseLessonOutline {
   durationSec: number | null;
 }
 
-export interface CourseSectionOutline {
+interface CourseSectionOutline {
   id: string;
   title: string;
   position: number;
@@ -102,7 +102,7 @@ export interface CurriculumSectionInput {
   title: string;
   lessons: CurriculumLessonInput[];
 }
-export interface CreatedCurriculum {
+interface CreatedCurriculum {
   sections: Array<{
     id: string;
     title: string;

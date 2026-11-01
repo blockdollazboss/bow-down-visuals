@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export type CreatorTierName = "free" | "pro" | "elite";
 
-export interface CreatorTierState {
+interface CreatorTierState {
   tier: CreatorTierName;
   feePct: string;
   feeBps: number;

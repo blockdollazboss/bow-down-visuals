@@ -9,7 +9,7 @@ import { apiErrorMessage } from "./api-error";
 
 export type SupporterPeriod = "month" | "all";
 
-export interface SupporterBadgeDto {
+interface SupporterBadgeDto {
   tier: "front_row" | "top_supporter";
   label: string;
   rank: number;
@@ -50,7 +50,7 @@ export interface SupporterBoardDto {
   } | null;
 }
 
-export interface SupporterBoardSettingsDto {
+interface SupporterBoardSettingsDto {
   enabled: boolean;
   perksText: string;
   ready: boolean;
@@ -79,7 +79,7 @@ export function supporterBoardBySlugPath(slug: string, period: SupporterPeriod):
    "off" notice on their own profile. An enabled board with nobody on
    it yet shows the honest empty copy — never invented supporters. */
 export type SupporterBoardLoadStatus = "loading" | "ready" | "error";
-export type SupporterBoardView = "loading" | "error" | "hidden" | "off" | "empty" | "ready";
+type SupporterBoardView = "loading" | "error" | "hidden" | "off" | "empty" | "ready";
 
 export function supporterBoardViewState(input: {
   status: SupporterBoardLoadStatus;

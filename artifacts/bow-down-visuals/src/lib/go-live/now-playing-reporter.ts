@@ -39,7 +39,7 @@ export interface ProgramMediaLite {
   playing: boolean;
 }
 
-export interface NowPlayingTrackReport {
+interface NowPlayingTrackReport {
   songId: string;
   title: string;
   artist: string;
@@ -109,7 +109,7 @@ export function resolveProgramTrack(
 
 export const NOW_PLAYING_HEARTBEAT_MS = 30_000;
 
-export interface NowPlayingSenders {
+interface NowPlayingSenders {
   post: (track: NowPlayingTrackReport) => Promise<void>;
   clear: () => Promise<void>;
   now?: () => number;

@@ -1,6 +1,6 @@
 /* NFC business-card line — shared frontend constants + API helpers. */
 
-export interface NfcCardStyle {
+interface NfcCardStyle {
   key: string;
   label: string;
   priceCents: number;

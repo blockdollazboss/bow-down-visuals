@@ -46,7 +46,7 @@ function clampNum(v: unknown, lo: number, hi: number, dflt: number): number {
 
 let uidCounter = 0;
 /** Stable-enough client id for a new step (mirrors arrangementUid's shape). */
-export function stemFxUid(): string {
+function stemFxUid(): string {
   uidCounter += 1;
   return `fx-${Date.now().toString(36)}-${uidCounter.toString(36)}-${Math.random()
     .toString(36)

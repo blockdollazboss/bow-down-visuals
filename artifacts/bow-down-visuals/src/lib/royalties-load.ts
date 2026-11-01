@@ -48,7 +48,7 @@ export interface Payout {
    rejected fetch degrades only its own section. A source that failed
    reports its error alongside a null/empty value; the panel renders a
    real per-section error state for it instead of a fake empty. */
-export interface RoyaltySources {
+interface RoyaltySources {
   summary: SummaryData | null;
   summaryError: string | null;
   platforms: PlatformStatus[];

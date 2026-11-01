@@ -6,7 +6,7 @@
    and a fan in Ohio count down to the same moment and each sees it in
    their own local time. No wall-clock fields are ever parsed by hand. */
 
-export interface DropCountdown {
+interface DropCountdown {
   /** Milliseconds until the drop; <= 0 once the moment has arrived. */
   totalMs: number;
   isLive: boolean;

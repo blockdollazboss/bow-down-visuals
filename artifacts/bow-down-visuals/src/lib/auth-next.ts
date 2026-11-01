@@ -33,7 +33,7 @@ const AUTH_SCREEN_PATHS: ReadonlySet<string> = new Set([
 /** True when a destination (path, optionally with query/hash) is one
  *  of the auth screens — compared on the bare path, trailing slash
  *  tolerated, the same normalization the builder already applies. */
-export function isAuthScreenPath(destination: string): boolean {
+function isAuthScreenPath(destination: string): boolean {
   let path = destination.split(/[?#]/)[0] ?? "";
   if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
   return AUTH_SCREEN_PATHS.has(path);

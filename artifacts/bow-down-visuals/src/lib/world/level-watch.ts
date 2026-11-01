@@ -23,7 +23,7 @@
  *   announced twice for a level already witnessed.
  */
 
-export const WORLD_LEVEL_SEEN_PREFIX = "bdv_world_level_seen_";
+const WORLD_LEVEL_SEEN_PREFIX = "bdv_world_level_seen_";
 
 export function seenLevelKey(userId: string): string {
   return `${WORLD_LEVEL_SEEN_PREFIX}${userId}`;
@@ -57,7 +57,7 @@ export function writeSeenLevel(storage: StorageLike, userId: string, level: numb
   }
 }
 
-export type LevelVerdict =
+type LevelVerdict =
   /** No trustworthy baseline for this level yet: store `level`, announce nothing. */
   | { kind: "baseline"; level: number }
   /** The level rose over the baseline: announce `level`, then store it. */

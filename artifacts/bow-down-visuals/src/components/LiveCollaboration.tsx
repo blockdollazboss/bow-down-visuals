@@ -93,29 +93,6 @@ export function useCollaboration(projectId: string, userName: string) {
 }
 
 /* Floating avatars showing live collaborators */
-export function CollaboratorAvatars({ collaborators }: { collaborators: Collaborator[] }) {
-  if (!collaborators.length) return null;
-
-  return (
-    <div className="fixed top-4 right-4 z-[9000] flex -space-x-2">
-      {collaborators.slice(0, 5).map((c) => (
-        <div
-          key={c.userId}
-          title={c.name}
-          className="h-8 w-8 rounded-full border-2 border-background flex items-center justify-center text-xs font-bold text-white"
-          style={{ backgroundColor: c.color }}
-        >
-          {c.name.charAt(0).toUpperCase()}
-        </div>
-      ))}
-      {collaborators.length > 5 && (
-        <div className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-bold">
-          +{collaborators.length - 5}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* Live cursors of collaborators */
 export function CollaboratorCursors({ collaborators }: { collaborators: Collaborator[] }) {

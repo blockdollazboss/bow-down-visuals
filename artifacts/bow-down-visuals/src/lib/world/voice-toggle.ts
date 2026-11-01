@@ -41,7 +41,7 @@ export type VoiceMode = "off" | "proximity" | "lobby" | "deafen";
  *  speaks them. */
 export const VOICE_MODES: readonly VoiceMode[] = ["off", "proximity", "lobby", "deafen"];
 
-export function isVoiceMode(v: unknown): v is VoiceMode {
+function isVoiceMode(v: unknown): v is VoiceMode {
   return v === "off" || v === "proximity" || v === "lobby" || v === "deafen";
 }
 
@@ -62,7 +62,7 @@ export type VoiceToggleAction =
   | { type: "voice-joined" }
   | { type: "voice-left" };
 
-export type VoiceToggleEffect =
+type VoiceToggleEffect =
   /** Stop the mic tracks + tear down the voice mesh (Off only). */
   | "release-mic"
   /** Tell the room this peer is voice-off (name plates mark it). */

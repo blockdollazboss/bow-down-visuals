@@ -27,7 +27,7 @@ export interface LoopExchangeLoop {
   createdAt: string;
 }
 
-export interface LoopExchangeSplitInput {
+interface LoopExchangeSplitInput {
   userId: string;
   sharePct: number;
 }
@@ -45,7 +45,7 @@ export interface LoopExchangeBuild {
   createdAt: string;
 }
 
-export interface LoopExchangeEarning {
+interface LoopExchangeEarning {
   id: string;
   saleId: string;
   buildId: string;

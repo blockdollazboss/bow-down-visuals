@@ -20,7 +20,7 @@ export function sortSpotlightVaults(vaults: ArtistVault[]): ArtistVault[] {
   });
 }
 
-export interface SpotlightSplit {
+interface SpotlightSplit {
   /** The first three rows — the featured spotlight slots. */
   featured: ArtistVault[];
   /** Everyone else, in spotlight order — the full remaining roster. */

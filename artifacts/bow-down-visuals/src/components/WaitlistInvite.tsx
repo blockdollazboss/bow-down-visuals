@@ -25,7 +25,7 @@ export interface WaitlistPosition {
   milestones: WaitlistMilestone[];
 }
 
-export function buildInviteUrl(code: string): string {
+function buildInviteUrl(code: string): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "https://bowdownvisuals.com";
   return `${origin}/invite/${code}`;
 }
@@ -40,7 +40,7 @@ function milestoneIcon(invites: number) {
 /* ── One-click share kit (copy / X / WhatsApp / SMS / email / native) ────
    No email provider exists — everything is copy-link/share based. Nothing
    here sends anything; the user's own apps do the sending. */
-export function InviteShareKit({ inviteUrl, position }: { inviteUrl: string; position: number }) {
+function InviteShareKit({ inviteUrl, position }: { inviteUrl: string; position: number }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);

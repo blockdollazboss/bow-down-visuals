@@ -71,7 +71,7 @@ export const NICHE_PLATFORMS = [
   { key: "youtube", label: "YouTube" },
   { key: "x", label: "X / Twitter" },
 ] as const;
-export type NichePlatformKey = (typeof NICHE_PLATFORMS)[number]["key"];
+type NichePlatformKey = (typeof NICHE_PLATFORMS)[number]["key"];
 
 /** The validator's platform options — the page never offers "all". */
 export const IDEA_PLATFORMS = [
@@ -88,9 +88,9 @@ export const NICHE_EXPERIENCE_LEVELS = [
   { key: "intermediate", label: "Intermediate (10k–100k)" },
   { key: "advanced", label: "Advanced (100k+)" },
 ] as const;
-export type NicheExperienceKey = (typeof NICHE_EXPERIENCE_LEVELS)[number]["key"];
+type NicheExperienceKey = (typeof NICHE_EXPERIENCE_LEVELS)[number]["key"];
 
-export interface NicheInputs {
+interface NicheInputs {
   niche: string;
   platform: NichePlatformKey;
   experience: NicheExperienceKey;
@@ -140,7 +140,7 @@ export interface NicheAnalysis {
   roadmap30Day: { week: number; focus: string; angles: string[] }[];
 }
 
-export interface NicheGroundedIn {
+interface NicheGroundedIn {
   derivedNiche: string | null;
   songs: number;
   releases: number;
@@ -298,7 +298,7 @@ export function parseIdeaVerdictResponse(data: unknown): IdeaVerdict | null {
 
 /* ═══ 2a. THE MONEY TRACKER (the ledger) ════════════════════════════ */
 
-export type LedgerEntryType = "income" | "expense";
+type LedgerEntryType = "income" | "expense";
 
 /** The page's category lists, keys exactly as the rail stores them. */
 export const LEDGER_INCOME_CATEGORIES = [
@@ -380,7 +380,7 @@ export function ledgerEntriesForMonth(entries: LedgerEntry[], monthKey: string):
   return entries.filter((e) => e.entry_date.startsWith(monthKey));
 }
 
-export interface LedgerStats {
+interface LedgerStats {
   monthIncomeCents: number;
   monthExpenseCents: number;
   monthNetCents: number;

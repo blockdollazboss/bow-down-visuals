@@ -74,7 +74,7 @@ const KIND_SWITCH: Record<SoundKind, keyof SoundPrefs> = {
 };
 
 /** Restrained volumes per role (0–1). */
-export const SOUND_VOLUMES: Record<SoundKind, number> = {
+const SOUND_VOLUMES: Record<SoundKind, number> = {
   notification: 0.45,
   message: 0.4,
   success: 0.5,
@@ -95,7 +95,7 @@ export interface SoundAudioHandle {
   pause(): void;
 }
 
-export interface SoundEngineDeps {
+interface SoundEngineDeps {
   createAudio: (src: string) => SoundAudioHandle;
   now: () => number;
   /** True when the tab is in the background (document.hidden). */
@@ -107,7 +107,7 @@ export interface SoundEngineDeps {
   deviceMuted: () => boolean;
 }
 
-export interface SoundEngine {
+interface SoundEngine {
   play(kind: SoundKind): boolean;
   stop(kind: SoundKind): void;
   stopAll(): void;
@@ -299,7 +299,7 @@ export async function loadSoundPrefsIntoEngine(
    plain notifications, and the engine's own gates + cooldown have
    the final word regardless. */
 
-export interface ArrivalItem {
+interface ArrivalItem {
   id: string;
   kind: string;
   is_read: boolean;

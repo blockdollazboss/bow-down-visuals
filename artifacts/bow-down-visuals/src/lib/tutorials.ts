@@ -8,7 +8,7 @@ import { apiErrorMessage } from "./api-error";
    search) are unit-tested in tutorials.test.ts; components stay
    thin shells over them. */
 
-export type TutorialCategoryKey =
+type TutorialCategoryKey =
   | "start-here"
   | "create"
   | "brand"
@@ -26,14 +26,6 @@ export const TUTORIAL_CATEGORY_LABELS: Record<TutorialCategoryKey, string> = {
 };
 
 /** The operating-flow order the Academy renders shelves in. */
-export const TUTORIAL_CATEGORY_ORDER: TutorialCategoryKey[] = [
-  "start-here",
-  "create",
-  "brand",
-  "promote",
-  "money",
-  "creator",
-];
 
 export interface TutorialCard {
   id: string;
@@ -133,7 +125,7 @@ export interface ProgressBeat {
 
 /* ─── pure helpers ───────────────────────────────────────────────────── */
 
-export type TutorialCardState = "not_started" | TutorialProgressStatus;
+type TutorialCardState = "not_started" | TutorialProgressStatus;
 
 /** A card's progress state: no row yet = not started. */
 export function tutorialCardState(
@@ -175,7 +167,7 @@ export function resumeLabel(
 
 /** Plain-language search over everything the fan can see: titles,
     descriptions, chapter titles, and the creator's name. */
-export function cardMatchesQuery(card: TutorialCard, q: string): boolean {
+function cardMatchesQuery(card: TutorialCard, q: string): boolean {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
   return (
@@ -198,7 +190,7 @@ export function filterCatalog(catalog: TutorialCatalog, q: string): TutorialCata
 
 /** Every card in the catalog, series first — the resume strip and
     counts read from this one flattening. */
-export function allCards(catalog: TutorialCatalog): TutorialCard[] {
+function allCards(catalog: TutorialCatalog): TutorialCard[] {
   return [
     ...catalog.series.flatMap((s) => s.tutorials),
     ...catalog.standalone,

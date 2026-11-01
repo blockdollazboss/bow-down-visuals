@@ -80,7 +80,7 @@ export function voiceSpec(instrument: MidiInstrumentId): VoiceSpec {
 }
 
 /** Schedule one note on any BaseAudioContext (live or offline). */
-export function scheduleSynthNote(
+function scheduleSynthNote(
   ctx: BaseAudioContext,
   dest: AudioNode,
   instrument: MidiInstrumentId,
@@ -152,7 +152,7 @@ export function auditionNote(instrument: MidiInstrumentId, pitch: number, veloci
 
 /* ── Offline bounce: notes → WAV (preview stem + export stem) ─────────── */
 
-export const BOUNCE_SAMPLE_RATE = 44100;
+const BOUNCE_SAMPLE_RATE = 44100;
 
 export async function bounceMidiNotesToWav(
   notes: MidiRollNote[],
@@ -170,7 +170,7 @@ export async function bounceMidiNotesToWav(
 }
 
 /** Encode an AudioBuffer as a 16-bit PCM WAV blob. */
-export function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
   const channels = Math.min(2, buffer.numberOfChannels);
   const frames = buffer.length;
   const bytesPerSample = 2;

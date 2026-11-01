@@ -67,7 +67,7 @@ export function usd(cents: number): string {
    renders its own honest "couldn't load" line — never a fake zero
    (the earnings page's rule, carried in-world). */
 
-export interface EarningsSourceRow {
+interface EarningsSourceRow {
   title: string;
   /** The row's right-aligned fact: a total, or the error marker. */
   meta: string;
@@ -234,7 +234,7 @@ export function statementPath(year: number): string {
 
 /* ─── Read-only status rows: permanence + content-ID claims ────────── */
 
-export interface PermanenceStatus {
+interface PermanenceStatus {
   catalogElection: string | null;
   releases: Array<{ title: string; election: string }>;
 }
@@ -282,7 +282,7 @@ export interface BoardLoadDeps {
   onRetry?: (nextAttempt: number) => void;
 }
 
-export interface BoardLoadOptions {
+interface BoardLoadOptions {
   attempts?: number;
   backoffMs?: readonly number[];
   attemptTimeoutMs?: number;
@@ -386,7 +386,7 @@ export async function loadBoardStatement(
   });
 }
 
-export interface ClaimStatus {
+interface ClaimStatus {
   id: string;
   label: string;
   status: string;

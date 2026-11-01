@@ -8,7 +8,7 @@
    substitutes for it), and the exact no-collection copy every
    publishing-splits surface must carry. */
 
-export interface PublishingWriterSummary {
+interface PublishingWriterSummary {
   name: string;
   profile_id: string | null;
   user_id: string | null;
@@ -60,9 +60,6 @@ export const PUBLISHING_COPY = {
 export const PUBLISHING_SPLITS_PATH = "/api/publishing-splits";
 export const PUBLISHING_SPLITS_MINE_PATH = "/api/publishing-splits/mine";
 
-export function publishingRegistrationPath(id: string): string {
-  return `/api/publishing-splits/${encodeURIComponent(id)}`;
-}
 export function publishingActionPath(id: string, action: "confirm" | "dispute" | "amend"): string {
   return `/api/publishing-splits/${encodeURIComponent(id)}/${action}`;
 }
@@ -127,7 +124,7 @@ export function writerSplitValidationError(
   return null;
 }
 
-export type PublishingViewerAction = "confirm" | "dispute" | "amend" | "sheet";
+type PublishingViewerAction = "confirm" | "dispute" | "amend" | "sheet";
 
 /** Actions the VIEWER may take, mirroring the server machine: a linked
  *  writer whose share is pending or disputed may confirm; pending or

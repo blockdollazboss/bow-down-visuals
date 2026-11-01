@@ -48,7 +48,7 @@ import type { GamepadLike } from "./gamepad";
 
 /** The shape of a panel button table: six standard-mapping
  *  indices, by the job they do in a panel. */
-export interface PanelPadButtons {
+interface PanelPadButtons {
   up: number;
   down: number;
   left: number;
@@ -70,10 +70,10 @@ export const PANEL_PAD_BUTTONS: PanelPadButtons = {
 /** How far the left stick must travel before it speaks a move.
  *  Past the scene's own deadzone (0.18) by a wide margin: a
  *  resting thumb's drift must never wander a panel's selection. */
-export const PANEL_STICK_THRESHOLD = 0.6;
+const PANEL_STICK_THRESHOLD = 0.6;
 
 /** What one poll of a panel-owned pad asks for. */
-export interface PanelPadIntent {
+interface PanelPadIntent {
   /** -1 = selection up/left, +1 = down/right, 0 = no move. */
   move: -1 | 0 | 1;
   /** Edge-triggered: A went down — activate the selection. */
@@ -107,7 +107,7 @@ export const IDLE_PANEL_PAD_EDGES: PanelPadEdges = {
   stickY: 0,
 };
 
-export const IDLE_PANEL_PAD_INTENT: PanelPadIntent = { move: 0, confirm: false, back: false };
+const IDLE_PANEL_PAD_INTENT: PanelPadIntent = { move: 0, confirm: false, back: false };
 
 function pressed(pad: GamepadLike, index: number): boolean {
   return pad.buttons[index]?.pressed === true;

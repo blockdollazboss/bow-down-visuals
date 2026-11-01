@@ -24,7 +24,6 @@ export const FIX_SEVERITIES = ["blocks_me", "annoying", "small"] as const;
 export type FixSeverity = (typeof FIX_SEVERITIES)[number];
 
 export const PITCH_STATUSES = ["reviewing", "approved", "building", "shipped"] as const;
-export const FIX_STATUSES = ["received", "confirmed", "fixing", "fixed"] as const;
 
 export interface PitchFixSubmission {
   id: string;

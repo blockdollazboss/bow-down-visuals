@@ -142,7 +142,7 @@ function initialsOf(name: string): string {
 /** A player's face — the avatar the protocol has always carried, with
  *  an initials medallion as the honest fallback when there's no photo
  *  (or the photo won't load). Never a stock glyph. */
-export function PlayerAvatar({
+function PlayerAvatar({
   player,
   size = "md",
   ring = "",

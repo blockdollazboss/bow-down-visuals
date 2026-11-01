@@ -19,7 +19,7 @@ export interface First100MilestoneState {
   celebrated: boolean;
 }
 
-export interface First100Step {
+interface First100Step {
   key: string;
   title: string;
   blurb: string;

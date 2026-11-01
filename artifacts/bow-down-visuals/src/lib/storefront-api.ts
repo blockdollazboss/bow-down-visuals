@@ -24,7 +24,7 @@ export interface ServiceDetails {
   booking_enabled?: boolean;
 }
 
-export interface ProductLinks {
+interface ProductLinks {
   creatorUrl: string;
   creatorName: string;
   productUrl: string;
@@ -36,7 +36,7 @@ export interface ProductLinks {
    The seller attaches another of their own products; the buyer ticks
    it at checkout. Prices are always the seller-set product price (or a
    seller-set % off it) — the server computes every total. */
-export interface BumpOfferDTO {
+interface BumpOfferDTO {
   productId: string;
   title: string;
   kind: string;
@@ -48,7 +48,7 @@ export interface BumpOfferDTO {
   productUrl: string;
 }
 
-export interface BumpConfigDTO {
+interface BumpConfigDTO {
   bumpProductId: string;
   percentOff: number;
 }
@@ -262,31 +262,8 @@ export const listProducts = (slug: string) =>
 
 /* Removed 2026-10-10: getProduct was dead (zero imports). */
 
-export const validateDiscount = (profileId: string, code: string) =>
-  get<{ valid: boolean; code?: string; percentOff?: number; reason?: string }>(
-    `/discounts/validate?profileId=${encodeURIComponent(profileId)}&code=${encodeURIComponent(code)}`
-  );
 
 /* ── Buyer ──────────────────────────────────────────────────────────── */
-export const checkoutProduct = (
-  token: string,
-  input: { productId: string; quantity?: number; discountCode?: string; includeBump?: boolean; giftCardCode?: string }
-) =>
-  post<{
-    url: string | null; sessionId: string | null; paid?: boolean; paidWithGiftCard?: boolean; orderId?: string;
-    totals: {
-      unitCents: number; quantity: number; lineTotal: number; lineTotalDisplay: string;
-      percentOff: number; discountCode: string | null; giftCardAppliedCents?: number; amountDueCents?: number;
-      /** The ticked add-on, priced server-side; null when not ticked. */
-      bump: {
-        productId: string; title: string; unitCents: number;
-        grossCents: number; gross: string; percentOff: number;
-        feeCents: number; creatorCents: number;
-      } | null;
-      grandTotalCents: number; grandTotal: string;
-      platformFeeCents: number; creatorCents: number;
-    };
-  }>("/checkout", input, token);
 
 /* Removed 2026-10-10: verifyPurchase + myPurchases were dead (zero imports). */
 
@@ -308,7 +285,7 @@ export interface UpsellOfferDTO {
   note: string;
 }
 
-export interface UpsellReceiptLineDTO {
+interface UpsellReceiptLineDTO {
   role: "upsell";
   productId: string | null;
   title: string;
@@ -386,17 +363,13 @@ export const getProductDrop = (token: string, id: string) =>
 
 /** Public: join a product's drop list from its drop page. The email
     also joins the creator's email list server-side (source 'drop'). */
-export const captureProductDrop = (id: string, input: { email: string; name?: string }) =>
-  req<{ ok: boolean; alreadyCaptured: boolean; captureCount: number; dropAt: string | null }>(
-    `/products/${id}/drop/capture`, null, { method: "POST", body: JSON.stringify(input) },
-  );
 
 /* ── Back-in-stock alerts (#37) ────────────────────────────────────────
    The signed-in fan's one-tap wait on a sold-out product. Fires once
    through the notifications rail when stock returns (plus an email
    only when the fan already subscribes to the seller's list), then
    the wait is consumed — re-subscribing is a fresh tap. */
-export interface StockAlertStateDTO {
+interface StockAlertStateDTO {
   subscribed: boolean;
   waitingCount: number;
   soldOut: boolean;
@@ -450,7 +423,7 @@ export const moneyChecklist = (token: string) =>
    rail's per-release fields, at store level). ready=false on a
    pre-migration install: the settings card says so honestly instead
    of pretending a save landed. */
-export interface StorefrontPixelsDto {
+interface StorefrontPixelsDto {
   ready: boolean;
   pixels: { metaPixelId: string | null; tiktokPixelId: string | null; googleTagId: string | null };
 }
@@ -477,7 +450,7 @@ export const emailPromoteHook = (token: string, productId?: string) =>
    orders / fan list as Shopify-format CSV files. Preview first: every
    row comes back as create / update / image / reject-with-reason before
    anything is saved. */
-export interface ShopifyImportRowDTO {
+interface ShopifyImportRowDTO {
   row: number;
   handle: string;
   sku: string | null;
@@ -573,10 +546,6 @@ async function giftReq<T>(path: string, token: string | null, init?: RequestInit
   return data as T;
 }
 
-export const giftCardCheckout = (
-  token: string,
-  input: { productId: string; amountCents: number; recipientEmail: string; recipientName?: string; message?: string }
-) => giftReq<{ url: string; sessionId: string; amountCents: number; amount: string }>("/checkout", token, { method: "POST", body: JSON.stringify(input) });
 
 export const giftCardBalance = (code: string) =>
   giftReq<{

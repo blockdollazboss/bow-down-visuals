@@ -8,7 +8,7 @@
    KEEP IN SYNC with artifacts/api-server/src/lib/llc-state-fees.ts
    (the backend copy feeds the AI plan generator). */
 
-export interface LlcStateInfo {
+interface LlcStateInfo {
   /** 2-letter code */
   code: string;
   name: string;

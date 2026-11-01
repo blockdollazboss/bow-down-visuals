@@ -20,7 +20,7 @@ export interface GuestSignalData {
   candidate?: unknown;
 }
 
-export interface GuestRtcDescription {
+interface GuestRtcDescription {
   type: string;
   sdp?: string;
 }
@@ -37,7 +37,7 @@ export interface GuestPeerConnectionLike {
   onicecandidate: ((ev: { candidate: unknown }) => void) | null;
 }
 
-export interface GuestMeshDeps {
+interface GuestMeshDeps {
   sendSignal(to: string, data: GuestSignalData): void;
   createPeerConnection(): GuestPeerConnectionLike;
   /** A peer's media stream arrived (first track). */

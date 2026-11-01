@@ -27,7 +27,7 @@ import { useHubProject } from "@/lib/hub-project";
      → Send to Mix & Master (deep link with ?audioUrl=)
      → Download        (polished MP3) */
 
-export interface VocalPolishSource {
+interface VocalPolishSource {
   /** Must be a real URL (not blob:) — the server downloads it for processing. */
   audioUrl: string;
   title: string;

@@ -128,7 +128,7 @@ export function canCashOut(status: ConnectStatusDto | null): boolean {
 }
 
 /** Which of the dashboard card's three states the desk is in. */
-export type PayoutDeskState = "connect" | "finish-setup" | "ready";
+type PayoutDeskState = "connect" | "finish-setup" | "ready";
 export function payoutDeskState(status: ConnectStatusDto): PayoutDeskState {
   if (!status.connected) return "connect";
   if (!status.payoutsEnabled) return "finish-setup";
@@ -201,12 +201,12 @@ export function tierFormFromDto(tier: MembershipTierDto): TierFormState {
  * $0–$999.99, description ≤500, perks ≤20 of 1–140 chars, annual
  * discount an integer 0–90. The form gates mirror them so a doomed
  * save is refused in the form, in the stand's plain words. */
-export const TIER_NAME_MAX = 60;
-export const TIER_PRICE_MAX = 999.99;
-export const TIER_DESCRIPTION_MAX = 500;
+const TIER_NAME_MAX = 60;
+const TIER_PRICE_MAX = 999.99;
+const TIER_DESCRIPTION_MAX = 500;
 export const TIER_PERKS_MAX = 20;
-export const TIER_PERK_MAX = 140;
-export const TIER_ANNUAL_DISCOUNT_MAX = 90;
+const TIER_PERK_MAX = 140;
+const TIER_ANNUAL_DISCOUNT_MAX = 90;
 
 export function tierFormProblem(form: TierFormState): string | null {
   if (!form.name.trim()) return "Give the tier a name first.";
@@ -414,7 +414,7 @@ export function removeMemberRow(list: RosterMemberDto[], id: string): RosterMemb
 /* The manual add's own limits (memberAddSchema): a real tier of
  *  the caller's, a label of 1–120 chars. The body rides the
  *  page's exact shape — status defaults to active on the rail. */
-export const MEMBER_LABEL_MAX = 120;
+const MEMBER_LABEL_MAX = 120;
 export function memberAddProblem(tierId: string, fanLabel: string): string | null {
   if (!tierId) return "Pick the tier this member belongs to first.";
   if (!fanLabel.trim()) return "Give the member a label — their name or email, as you track them.";
@@ -566,7 +566,7 @@ export function parseRoomCatalog(payload: unknown): RoomStoreItem[] {
  *    (single product, quantity honored);
  *  - null: a kind no rail here sells — the card keeps the honest
  *    website door instead of a button that can't complete. */
-export type RoomItemRail = "market" | "store" | "storefront" | null;
+type RoomItemRail = "market" | "store" | "storefront" | null;
 export function roomItemRail(item: RoomStoreItem): RoomItemRail {
   if (item.kind === "product" && item.productKind === "shop") return "market";
   if (item.kind === "track" || item.kind === "video") return "store";

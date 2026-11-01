@@ -31,9 +31,9 @@ import type { BillingStateView } from "./billing-display";
 import { signalWithTimeout } from "./social-api";
 import { settleWithin } from "./auth-signin";
 
-export const BILLING_LOAD_ATTEMPTS = 3;
-export const BILLING_LOAD_BACKOFF_MS: readonly number[] = [600, 1500];
-export const BILLING_ATTEMPT_TIMEOUT_MS = 10_000;
+const BILLING_LOAD_ATTEMPTS = 3;
+const BILLING_LOAD_BACKOFF_MS: readonly number[] = [600, 1500];
+const BILLING_ATTEMPT_TIMEOUT_MS = 10_000;
 
 export type BillingLoadFailureKind = "unauthorized" | "gated" | "server" | "unreachable";
 
@@ -63,7 +63,7 @@ export interface BillingLoadDeps {
   isCancelled?: () => boolean;
 }
 
-export interface BillingLoadOptions {
+interface BillingLoadOptions {
   attempts?: number;
   backoffMs?: readonly number[];
   attemptTimeoutMs?: number;

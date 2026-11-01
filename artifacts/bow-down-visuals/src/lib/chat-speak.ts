@@ -123,7 +123,7 @@ export function newChatSpeakKey(): string {
     .slice(2, 12)}`;
 }
 
-export interface ChatSpeakResult {
+interface ChatSpeakResult {
   audioPlayUrl: string;
   creditsUsed: number;
   creditsRemaining: number;

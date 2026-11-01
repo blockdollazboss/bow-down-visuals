@@ -52,7 +52,7 @@ interface CatalogOverlay {
   size: "sm" | "md" | "lg";
   color: "white" | "gold";
 }
-export interface CatalogTemplate {
+interface CatalogTemplate {
   key: string;
   name: string;
   tagline: string;

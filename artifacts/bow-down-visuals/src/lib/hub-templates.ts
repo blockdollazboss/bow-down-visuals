@@ -14,7 +14,7 @@ import type { HubProjectType } from "./hub-project";
    brief (the concept) plus preloaded settings for the steps that matter, so a
    new project opens already pointing somewhere instead of at a blank page. */
 
-export interface TemplatePreload {
+interface TemplatePreload {
   /** Workflow step key this hint belongs to. */
   step: string;
   /** The preloaded starter — shown in the guide on that step. */
@@ -34,7 +34,7 @@ export interface HubTemplate {
   preload: TemplatePreload[];
 }
 
-export const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
+const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
   song: [
     {
       key: "trap-banger", name: "Trap Banger", blurb: "Dark, hard-hitting trap built for the club and the car.", icon: Flame,

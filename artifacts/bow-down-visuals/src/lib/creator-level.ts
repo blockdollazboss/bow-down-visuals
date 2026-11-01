@@ -53,13 +53,13 @@ export const STAR_TAGLINES = [
   "Every knob, every setting.",
 ] as const;
 
-export interface CreatorLevelInfo {
+interface CreatorLevelInfo {
   stars: StarLevel;
   rank: (typeof STAR_RANKS)[number];
   tagline: (typeof STAR_TAGLINES)[number];
 }
 
-export const CREATOR_LEVELS: CreatorLevelInfo[] = ([1, 2, 3, 4, 5, 6] as const).map(
+const CREATOR_LEVELS: CreatorLevelInfo[] = ([1, 2, 3, 4, 5, 6] as const).map(
   (stars) => ({
     stars,
     rank: STAR_RANKS[stars - 1],

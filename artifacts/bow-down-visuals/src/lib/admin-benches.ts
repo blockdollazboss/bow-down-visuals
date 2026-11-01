@@ -80,7 +80,7 @@ export const REVERSAL_STATUSES = [
   "partial_shortfall",
   "dismissed",
 ] as const;
-export type ReversalStatus = (typeof REVERSAL_STATUSES)[number];
+type ReversalStatus = (typeof REVERSAL_STATUSES)[number];
 
 export type ReversalFilter = "all" | ReversalStatus;
 export const REVERSAL_FILTERS: ReversalFilter[] = [
@@ -94,7 +94,7 @@ export const REVERSAL_FILTERS: ReversalFilter[] = [
 
 /** The human decision on a resolved row (payment_reversal_resolutions
     via the rail's projection). */
-export interface ReversalResolution {
+interface ReversalResolution {
   decision: string;
   adminEmail: string | null;
   note: string;
@@ -212,8 +212,8 @@ export function countNeedsManualReview(rows: PaymentReversalRow[]): number {
    executor's own literals: "done" | "refused" | "failed". Read-only
    audit surface — no controls, ever. */
 
-export const OPERATOR_RESULTS = ["done", "refused", "failed"] as const;
-export type OperatorResult = (typeof OPERATOR_RESULTS)[number];
+const OPERATOR_RESULTS = ["done", "refused", "failed"] as const;
+type OperatorResult = (typeof OPERATOR_RESULTS)[number];
 export type OperatorResultFilter = "all" | OperatorResult;
 export const OPERATOR_RESULT_FILTERS: OperatorResultFilter[] = [
   "all",
@@ -238,7 +238,7 @@ export interface OperatorActionRow {
   createdAt: string;
 }
 
-export interface OperatorActionsRead {
+interface OperatorActionsRead {
   dailyChargedCap: number;
   handsEnabled: boolean;
   actions: OperatorActionRow[];
@@ -297,7 +297,7 @@ export function filterOperatorActions(
    only along ORDER_TRANSITIONS; shipping additionally requires paid
    AND a settled proof — the route's defense-in-depth gate). */
 
-export interface GearAdminItem {
+interface GearAdminItem {
   product: string;
   variant: string;
   option: string;
@@ -329,7 +329,7 @@ export interface GearAdminOrder {
   };
 }
 
-export interface GearAdminRead {
+interface GearAdminRead {
   testMode: boolean;
   orders: GearAdminOrder[];
 }
@@ -429,7 +429,7 @@ export function gearProofSendAvailable(order: GearAdminOrder): boolean {
   return canTransitionProof(order.proofStatus as StudioGearProofStatus, "sent");
 }
 
-export const GEAR_FULFILLMENT_STATUSES = ["shipped", "delivered", "canceled"] as const;
+const GEAR_FULFILLMENT_STATUSES = ["shipped", "delivered", "canceled"] as const;
 export type GearFulfillmentStatus = (typeof GEAR_FULFILLMENT_STATUSES)[number];
 
 /** Fulfillment moves the rail would accept from this order's status. */

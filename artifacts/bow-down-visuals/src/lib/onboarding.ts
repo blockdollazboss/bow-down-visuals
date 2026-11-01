@@ -50,13 +50,13 @@ export function requestOnboardingTour(): void {
 
 /* ── steps ───────────────────────────────────────────────────────────── */
 
-export interface TourCta {
+interface TourCta {
   label: string;
   /** Optional route the CTA navigates to before the tour dismisses. */
   href?: string;
 }
 
-export interface TourStep {
+interface TourStep {
   id: string;
   title: string;
   body: string;
@@ -123,7 +123,7 @@ export interface Viewport {
   height: number;
 }
 
-export type TooltipAnchor = "below" | "above" | "center" | "sheet";
+type TooltipAnchor = "below" | "above" | "center" | "sheet";
 
 export interface TooltipPlacement {
   top: number;

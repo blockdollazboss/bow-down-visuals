@@ -75,7 +75,7 @@ export function canRenderVideoAudioSource(
   return false;
 }
 
-export interface ExportStemPayload {
+interface ExportStemPayload {
   id: string;
   name: string;
   type: string;
@@ -100,7 +100,7 @@ export interface ExportStemPayload {
   duck?: { sourceStemIds: string[]; amount: number; sensitivity: number };
 }
 
-export interface MasterBusPayload {
+interface MasterBusPayload {
   volume: number;
   compression: number;
   stereoWidth: number;
@@ -112,7 +112,7 @@ export interface MasterBusPayload {
   fadeOut: boolean;
 }
 
-export interface AudioExportRequest {
+interface AudioExportRequest {
   exportType: AudioExportType;
   stems: ExportStemPayload[];
   masterVolume: number;
@@ -123,7 +123,7 @@ export interface AudioExportRequest {
   aiDisclosure?: boolean;
 }
 
-export interface AudioExportResponse {
+interface AudioExportResponse {
   url: string;
   format: "mp3" | "wav";
   kind: AudioExportKind;

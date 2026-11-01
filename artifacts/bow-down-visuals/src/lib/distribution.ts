@@ -28,7 +28,6 @@ export function platformLabel(key: string): string {
     after which the aggregator delivery job moves each platform's status
     through queued → pending → delivered → live. */
 export const DISTRIBUTION_STATUSES = ["draft", "packaged"] as const;
-export type DistributionStatus = (typeof DISTRIBUTION_STATUSES)[number];
 
 export function isPackaged(status: string): boolean {
   return status === "packaged";
@@ -56,8 +55,8 @@ export function tierLabel(type: string): string {
 /* ── Per-platform delivery statuses ─────────────────────────────────────
    Progression: queued → pending → delivered → live. "failed" is terminal.
    The UI only ever shows a status the API returned — never invents one. */
-export const PLATFORM_STATUSES = ["queued", "pending", "delivered", "live", "failed"] as const;
-export type PlatformStatusValue = (typeof PLATFORM_STATUSES)[number];
+const PLATFORM_STATUSES = ["queued", "pending", "delivered", "live", "failed"] as const;
+type PlatformStatusValue = (typeof PLATFORM_STATUSES)[number];
 
 export interface PlatformStatusEntry {
   platform: string;
@@ -159,7 +158,7 @@ export function vaultPrefill(
    renders the server's checklist verbatim, so both steps of the flow
    now speak one language. */
 
-export const RELEASE_TRACK_RANGES: Record<DistributionTier, [number, number]> = {
+const RELEASE_TRACK_RANGES: Record<DistributionTier, [number, number]> = {
   single: [1, 1],
   ep: [2, 6],
   album: [7, 30],

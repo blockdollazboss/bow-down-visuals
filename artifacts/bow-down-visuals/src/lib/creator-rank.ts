@@ -8,7 +8,7 @@
  * the rank DTO shape and the grandfather rule for control exposure.
  */
 
-export type StarLevelLike = 1 | 2 | 3 | 4 | 5 | 6;
+type StarLevelLike = 1 | 2 | 3 | 4 | 5 | 6;
 
 /** The earned-rank DTO returned by GET /api/retention/rank — mirrors
  *  the server's RankResult in lib/creator-rank.ts (API side). */

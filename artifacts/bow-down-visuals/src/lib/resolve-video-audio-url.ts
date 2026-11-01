@@ -12,7 +12,7 @@ export const VIDEO_AUDIO_SOURCE_LABELS: Record<VideoAudioSource, string> = {
   none: "No Audio",
 };
 
-export interface VideoAudioResolution {
+interface VideoAudioResolution {
   /** The URL that both preview and export should use. */
   url: string | null;
   /** The source the user selected. */

@@ -45,7 +45,6 @@ export const EVENT_KIND_OPTIONS = [
   { key: "other", label: "Other" },
 ] as const;
 
-export type EventKindKey = (typeof EVENT_KIND_OPTIONS)[number]["key"];
 
 export function eventKindLabel(kind: string): string {
   return EVENT_KIND_OPTIONS.find((k) => k.key === kind)?.label ?? "Event";

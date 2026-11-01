@@ -66,7 +66,7 @@ export function createEmberField(count: number, seedKey: string): EmberParticle[
   return out;
 }
 
-export interface EmberOffset {
+interface EmberOffset {
   x: number;
   y: number;
   z: number;
@@ -108,7 +108,7 @@ export function lanternGlowScale(base: number, tSec: number, phase: number): num
  * their strength INCREASES as the rung's real lights decrease
  * (the low rung leans on them hardest). The stage needs none —
  * its spots are real lights on every rung. */
-export type FakePoolKind = "lamp" | "brazier";
+type FakePoolKind = "lamp" | "brazier";
 
 export const FAKE_POOL: Record<FakePoolKind, { radius: number }> = {
   lamp: { radius: 1.15 },

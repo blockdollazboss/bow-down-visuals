@@ -43,7 +43,7 @@ import { formatLyricTime, parseLyricTime, type LyricVideoLine } from "@/lib/lyri
    Apple Music etc. needs a distribution partner; this tool does not
    deliver lyrics to any platform. */
 
-export interface LrcExportSource {
+interface LrcExportSource {
   /** Must be a real URL (not blob:) — the server downloads it for AI align. */
   audioUrl: string;
   title: string;

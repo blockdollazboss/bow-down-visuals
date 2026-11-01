@@ -120,7 +120,7 @@ export type WorldStatus =
   | "door-locked";
 
 /** The room this client stands in, as the server named it. */
-export interface PalaceRoomInfo {
+interface PalaceRoomInfo {
   id: string;
   name: string;
 }
@@ -216,7 +216,7 @@ export interface WorldJukeboxState {
 
 /** A song just STARTED on the Music Hall jukebox (THE-GAME §5(a)'s
  *  first-play moment): the track and its creator, from server data. */
-export interface WorldNowPlayingMoment {
+interface WorldNowPlayingMoment {
   entryId: string;
   trackId: string;
   title: string;
@@ -238,7 +238,7 @@ export type WorldMoment =
  *  lib/world-palace): a herald is a headline, not a speech. */
 export const HERALD_MAX_CHARS = 140;
 
-export const ANNOUNCE_KINDS = ["herald", "drop", "show", "levelup", "king"] as const;
+const ANNOUNCE_KINDS = ["herald", "drop", "show", "levelup", "king"] as const;
 export type PalaceAnnounceKind = (typeof ANNOUNCE_KINDS)[number];
 
 /** A palace-wide announcement (Ring 3, THE-GAME §5(b)): the palace
@@ -307,7 +307,7 @@ export interface WorldSocketLike {
   onerror: (() => void) | null;
 }
 
-export interface WorldClientDeps {
+interface WorldClientDeps {
   /** Session access token for the handshake (null = guest visit). */
   getAccessToken: () => Promise<string | null>;
   /** Build the socket URL for this token (null token = no query param). */
@@ -328,7 +328,7 @@ export interface WorldSayEvent {
   body: string;
 }
 
-export type VoiceNotice = "full" | "denied-guest" | "denied-host";
+type VoiceNotice = "full" | "denied-guest" | "denied-host";
 
 const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
 
@@ -374,7 +374,7 @@ const MOVE_SEND_INTERVAL_MS = 100; // ~10/s, matching the server throttle
  * fetch fails the attempt exactly like a hung handshake. */
 export const WORLD_CONNECT_MAX_ATTEMPTS = 3;
 /** The pause before attempt 2 and attempt 3, respectively. */
-export const WORLD_CONNECT_BACKOFF_MS: readonly number[] = [1_000, 2_000];
+const WORLD_CONNECT_BACKOFF_MS: readonly number[] = [1_000, 2_000];
 /** The welcome window for every attempt of a RE-connect sequence
  *  (a session was established before): fail fast, the host is
  *  awake and a hang is a hang. */

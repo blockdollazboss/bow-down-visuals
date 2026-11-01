@@ -85,7 +85,7 @@ export function guardVariantForKey(key: string): GuardVariant {
 export const DEFAULT_FIGURE_HEIGHT = 1.92;
 
 export type DefaultArtState = "pending" | "ready" | "failed";
-export type FigureKind = "portrait" | "default" | "capsule";
+type FigureKind = "portrait" | "default" | "capsule";
 
 export function figureKindFor(hasCharacter: boolean, defaultArt: DefaultArtState): FigureKind {
   if (hasCharacter) return "portrait";

@@ -18,7 +18,7 @@ export interface VaultJobView {
   error?: string;
 }
 
-export type VaultPhase = "idle" | "working" | "ready" | "failed";
+type VaultPhase = "idle" | "working" | "ready" | "failed";
 
 export function vaultPhaseOf(view: VaultJobView | null): VaultPhase {
   if (!view) return "idle";

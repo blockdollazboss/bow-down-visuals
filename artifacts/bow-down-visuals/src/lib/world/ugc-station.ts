@@ -32,8 +32,8 @@ import {
   type UgcStyleKey,
 } from "@/lib/ugc-ads";
 
-export type UgcProductSource = "shop" | "upload";
-export type UgcFaceMode = "persona" | "photo" | "none";
+type UgcProductSource = "shop" | "upload";
+type UgcFaceMode = "persona" | "photo" | "none";
 
 export interface UgcMakerState {
   productSource: UgcProductSource;

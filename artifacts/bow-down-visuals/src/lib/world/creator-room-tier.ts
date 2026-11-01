@@ -25,7 +25,7 @@ export const CREATOR_TIER_TRIMS: readonly string[] = [
   "#f5d778", // ★6 — radiant gold
 ] as const;
 
-export interface CreatorRoomTierDressing {
+interface CreatorRoomTierDressing {
   /** 0-based tier index (stars − 1, clamped to the ladder). */
   tierIndex: number;
   trimHex: string;

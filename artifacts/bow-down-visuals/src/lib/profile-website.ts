@@ -36,7 +36,7 @@ export interface SpotlightPin {
 }
 
 export type SpotlightLoadStatus = "loading" | "ready" | "error";
-export type SpotlightView = "loading" | "hidden" | "error" | "owner-empty" | "pin";
+type SpotlightView = "loading" | "hidden" | "error" | "owner-empty" | "pin";
 
 /** Section render decision: a pin shows for everyone; no pin hides the
     section for visitors but invites the OWNER to pin ("Pin a track or
@@ -113,7 +113,7 @@ export async function fetchMyPinnableItems(slug: string): Promise<PinnableItem[]
 
 /* ── Fan collections ───────────────────────────────────────────────────── */
 
-export interface CollectionItem {
+interface CollectionItem {
   kind: "track" | "video" | "product";
   itemId: string;
   title: string;
@@ -184,7 +184,7 @@ export function normalizeFanCollection(payload: unknown): FanCollection | null {
 }
 
 export type CollectionLoadStatus = "loading" | "ready" | "error" | "not-found";
-export type CollectionView = "loading" | "error" | "not-found" | "private" | "empty" | "items";
+type CollectionView = "loading" | "error" | "not-found" | "private" | "empty" | "items";
 
 /** Page render decision: private is an honest state of its own — never
     confused with empty (nothing bought) or missing (no such fan). */
@@ -528,7 +528,7 @@ export async function fetchMyThemeSettings(): Promise<ProfileThemeSettingsDto> {
   return json<ProfileThemeSettingsDto>(res);
 }
 
-export interface ThemeSettingsPatch {
+interface ThemeSettingsPatch {
   colorway?: string;
   headingFont?: string;
   bodyFont?: string;
@@ -656,7 +656,7 @@ export function normalizeStoreCatalog(payload: unknown): StoreCatalogDto | null 
 }
 
 export type StoreLoadStatus = "loading" | "ready" | "error";
-export type StoreView = "loading" | "error" | "hidden" | "owner-empty" | "items";
+type StoreView = "loading" | "error" | "hidden" | "owner-empty" | "items";
 
 /** Store render decision — the house honesty rules: a failed load is an
     error state (never a fake-empty store); an empty store hides from
@@ -706,7 +706,7 @@ export interface PublicMembershipsDto {
 }
 
 export type MembershipsLoadStatus = "loading" | "ready" | "error";
-export type MembershipsView = "loading" | "error" | "hidden" | "owner-empty" | "tiers";
+type MembershipsView = "loading" | "error" | "hidden" | "owner-empty" | "tiers";
 
 /** Memberships render decision — same honesty rules as the store: an
     error is an error, no tiers hides the block for visitors, and the
@@ -778,12 +778,12 @@ export interface FanArtPieceDto {
   artistAvatarUrl: string | null;
 }
 
-export interface FanArtWallDto {
+interface FanArtWallDto {
   profile: { slug: string; displayName: string };
   pieces: FanArtPieceDto[];
 }
 
-export interface FanArtQueueDto extends FanArtWallDto {
+interface FanArtQueueDto extends FanArtWallDto {
   pendingCount: number;
 }
 
@@ -839,7 +839,7 @@ export function normalizeFanArtWall(payload: unknown): FanArtWallDto | null {
 }
 
 export type FanArtLoadStatus = "loading" | "ready" | "error";
-export type FanArtWallView = "loading" | "error" | "hidden" | "owner-empty" | "wall";
+type FanArtWallView = "loading" | "error" | "hidden" | "owner-empty" | "wall";
 
 /** Wall render decision — the house honesty rules: a failed load is an
     error state (never a fake-empty wall); an empty wall hides from

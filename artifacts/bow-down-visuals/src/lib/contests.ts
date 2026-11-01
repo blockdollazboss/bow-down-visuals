@@ -3,7 +3,7 @@
    catalog (mirrors the server's ENTRY_METHODS) and formatters for the
    provably-fair draw audit log. No network, no credits — unit-tested. */
 
-export interface EntryMethodInfo {
+interface EntryMethodInfo {
   key: string;
   label: string;
   blurb: string;
@@ -16,14 +16,6 @@ export const ENTRY_METHOD_CATALOG: EntryMethodInfo[] = [
   { key: "purchase", label: "Purchase", blurb: "Entrants buy merch / music to enter" },
 ];
 
-export interface DrawAuditView {
-  algorithm?: string;
-  seed?: string;
-  entryCount?: number;
-  winnerIndex?: number;
-  drawnAt?: string;
-  drawnBy?: string;
-}
 
 /**
  * Shortens a 64-char draw seed for display, e.g. "a3f9…c21d".

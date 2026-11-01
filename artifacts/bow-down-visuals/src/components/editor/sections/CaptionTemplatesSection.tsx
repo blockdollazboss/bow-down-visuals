@@ -47,7 +47,7 @@ import { Button } from "@/components/ui/button";
  * setSettings, like CaptionsSection / TimelineTemplatesSection).
  */
 
-export type CaptionWordFx =
+type CaptionWordFx =
   | "bounce-words"
   | "typewriter-words"
   | "highlight-box"
@@ -57,14 +57,14 @@ export type CaptionWordFx =
   | "slide-words"
   | "pop-words";
 
-export interface CaptionTemplateBase {
+interface CaptionTemplateBase {
   stylePreset: CaptionStylePreset;
   animation: CaptionAnimation;
   position: string;
   fontSize: string;
 }
 
-export interface CaptionTemplateDef {
+interface CaptionTemplateDef {
   id: string;
   /** i18n: captionTemplates.tpl.<id>.name */
   nameKey: string;
@@ -76,7 +76,7 @@ export interface CaptionTemplateDef {
   accent: string;
 }
 
-export const CAPTION_TEMPLATE_DEFS: CaptionTemplateDef[] = [
+const CAPTION_TEMPLATE_DEFS: CaptionTemplateDef[] = [
   {
     id: "bounce-words",
     nameKey: "captionTemplates.tpl.bounce-words.name",

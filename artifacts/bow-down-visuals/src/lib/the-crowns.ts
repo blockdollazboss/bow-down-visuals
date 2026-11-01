@@ -17,7 +17,7 @@ export interface CrownCategory {
   metricLabel: string;
 }
 
-export interface CrownLeader {
+interface CrownLeader {
   userId: string;
   displayName: string;
   slug: string;
@@ -25,11 +25,11 @@ export interface CrownLeader {
   points: number;
 }
 
-export interface CrownCategoryLeaders extends CrownCategory {
+interface CrownCategoryLeaders extends CrownCategory {
   leaders: CrownLeader[];
 }
 
-export interface CrownStanding {
+interface CrownStanding {
   place: number;
   userId: string;
   displayName: string;
@@ -55,7 +55,7 @@ export interface CrownAward {
   standings: CrownStanding[];
 }
 
-export interface CrownYear {
+interface CrownYear {
   year: number;
   crownKey: string;
   name: string;
@@ -66,7 +66,7 @@ export interface CrownYear {
   heraldText: string;
 }
 
-export interface CrownsCurrent {
+interface CrownsCurrent {
   year: number;
   crownKey: string;
   name: string;

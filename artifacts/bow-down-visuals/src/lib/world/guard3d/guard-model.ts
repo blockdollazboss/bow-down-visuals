@@ -98,7 +98,7 @@ function xform(geo: THREE.BufferGeometry, px: number, py: number, pz: number, rx
   return geo;
 }
 
-export interface GuardModel {
+interface GuardModel {
   group: THREE.Group;
   rig: RigBones;
   skeleton: THREE.Skeleton;

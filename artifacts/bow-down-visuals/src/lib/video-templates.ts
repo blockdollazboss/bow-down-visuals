@@ -31,7 +31,7 @@ export type TemplateIconName =
   | "music" | "megaphone" | "mic" | "video"
   | "smartphone" | "images" | "sparkles" | "layout";
 
-export interface VideoTemplate {
+interface VideoTemplate {
   id: VideoTemplateId;
   name: string;
   tagline: string;
@@ -229,14 +229,5 @@ function filterOrAll<T>(subset: T[], all: readonly T[]): T[] {
 
 /* Removed 2026-10-10: templateCaptionPresets was dead (zero imports). */
 
-export function templateEffects(t: VideoTemplate, all: readonly string[]): string[] {
-  return filterOrAll(t.effects, all);
-}
 
-export function templateTransitions(t: VideoTemplate, all: readonly string[]): string[] {
-  return filterOrAll(t.transitions, all);
-}
 
-export function templateColorGrades(t: VideoTemplate, all: readonly string[]): string[] {
-  return filterOrAll(t.colorGrades, all);
-}

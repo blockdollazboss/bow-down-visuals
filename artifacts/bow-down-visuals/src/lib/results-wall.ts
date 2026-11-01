@@ -58,7 +58,7 @@ export interface ResultsWallPrefsWire {
   lastScannedAt: string | null;
 }
 
-export interface MyResultsEvent {
+interface MyResultsEvent {
   id: string;
   kind: ResultsWallKind;
   threshold: number;
@@ -158,7 +158,7 @@ export function visibleKinds(hiddenKinds: readonly string[]): ResultsWallKind[] 
    `example: true` is part of the shape so the UI cannot present it as a
    real result; the numbers below illustrate the FORMAT of a milestone
    card and are never mixed into the real event list. */
-export interface ExampleWallEvent extends WallEventWire {
+interface ExampleWallEvent extends WallEventWire {
   example: true;
 }
 

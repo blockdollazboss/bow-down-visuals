@@ -15,12 +15,12 @@ export interface SceneCityEntry {
   show_count: number;
 }
 
-export interface SceneCreator extends CreatorLite {
+interface SceneCreator extends CreatorLite {
   profile_id: string;
   declared_city: string | null;
 }
 
-export interface SceneShow {
+interface SceneShow {
   id: string;
   city: string;
   venue: string;

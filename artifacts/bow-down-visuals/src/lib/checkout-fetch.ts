@@ -53,7 +53,7 @@ export function checkoutFailureCopy(err: unknown): string {
   return "Couldn't reach the checkout server — nothing was charged. Give it a moment and try again.";
 }
 
-export interface JsonPostResult {
+interface JsonPostResult {
   ok: boolean;
   status: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

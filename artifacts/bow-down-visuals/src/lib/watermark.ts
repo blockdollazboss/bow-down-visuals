@@ -15,5 +15,3 @@ export function getDefaultWatermarkUrl(isLight: boolean): string {
 }
 
 /** Server-side filenames (relative to artifacts/bow-down-visuals/public/). */
-export const WATERMARK_FILE_LIGHT = "bdv-watermark-light.png";
-export const WATERMARK_FILE_DARK = "bdv-watermark.webp";

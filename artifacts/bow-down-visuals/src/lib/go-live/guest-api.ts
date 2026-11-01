@@ -41,7 +41,7 @@ export interface BackstageMessageDto {
   created_at: string | null;
 }
 
-export interface HostCardDto {
+interface HostCardDto {
   display_name: string;
   slug: string | null;
   avatar_url: string | null;

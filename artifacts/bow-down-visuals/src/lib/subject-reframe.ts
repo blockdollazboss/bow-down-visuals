@@ -13,7 +13,7 @@ export const SUBJECT_REFRAME_ENDPOINT = "/api/auto-reframe";
 
 export type SubjectReframeAspect = "16:9" | "9:16" | "1:1" | "4:5";
 
-export interface SubjectReframeAspectSpec {
+interface SubjectReframeAspectSpec {
   key: SubjectReframeAspect;
   /** Output canvas — mirrors OUTPUT_SIZE in routes/generate/auto-reframe.ts. */
   width: number;
@@ -50,7 +50,7 @@ export function buildSubjectReframeBody(
   return { videoUrl, aspect, trackSubject: true };
 }
 
-export interface SubjectReframeInfo {
+interface SubjectReframeInfo {
   mode: "subject-tracked" | "centre-crop";
   /** Server reason code when mode is "centre-crop"; null when tracked. */
   reason: string | null;

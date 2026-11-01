@@ -186,7 +186,7 @@ export const HEIGHTS_WALKWAY = {
  * the door panel are solid; the canopy rides above the walker's
  * head (its posts are). */
 
-export interface HeightsFront {
+interface HeightsFront {
   /** The front's centre. */
   x: number;
   z: number;
@@ -217,7 +217,7 @@ export const FRONT_KIT = {
 } as const;
 
 /** One front's post positions. */
-export function frontPosts(front: HeightsFront): Array<{ x: number; z: number }> {
+function frontPosts(front: HeightsFront): Array<{ x: number; z: number }> {
   return [
     { x: front.x - FRONT_KIT.postDx, z: front.z - FRONT_KIT.postDz },
     { x: front.x + FRONT_KIT.postDx, z: front.z - FRONT_KIT.postDz },
@@ -231,7 +231,7 @@ export const HEIGHTS_FRONT_POSTS: ReadonlyArray<{ x: number; z: number }> =
 
 /** One front's door panel, as a box (on the front's back line,
  *  between its back posts). */
-export function frontDoor(front: HeightsFront): GroundsBox {
+function frontDoor(front: HeightsFront): GroundsBox {
   return {
     cx: front.x, cy: FRONT_KIT.doorH / 2, cz: front.z - FRONT_KIT.doorBackOff,
     w: FRONT_KIT.doorW, h: FRONT_KIT.doorH, d: FRONT_KIT.doorD,

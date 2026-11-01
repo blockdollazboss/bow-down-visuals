@@ -1,6 +1,6 @@
 /* Pure helpers for the Thumbnail A/B Tester page — kept here so they're unit-testable. */
 
-export type ScoreBand = "high" | "medium" | "low";
+type ScoreBand = "high" | "medium" | "low";
 
 /** Map a 0-100 score to a band for color coding. */
 export function scoreBand(value: number): ScoreBand {

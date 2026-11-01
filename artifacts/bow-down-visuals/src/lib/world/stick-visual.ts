@@ -176,7 +176,7 @@ export function stickVisualPositions(state: StickVisualState): {
 
 /** One theme's treatment for the drawing — complete CSS values,
  *  applied verbatim by the scene. */
-export interface StickVisualStyle {
+interface StickVisualStyle {
   ringBorder: string;
   ringBackground: string;
   ringBoxShadow: string;

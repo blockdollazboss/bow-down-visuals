@@ -25,7 +25,7 @@ export function referralLink(origin: string, code: string): string {
   return `${origin}/?ref=${code}`;
 }
 
-export interface ReferralPerson {
+interface ReferralPerson {
   joinedAt: string;
   creditsEarned: number;
   shareExpiresAt: string | null;
@@ -33,13 +33,13 @@ export interface ReferralPerson {
   active: boolean;
 }
 
-export interface PromoterTierInfo {
+interface PromoterTierInfo {
   stars: number;
   title: string;
   ratePct: number;
 }
 
-export interface NextTierInfo extends PromoterTierInfo {
+interface NextTierInfo extends PromoterTierInfo {
   minReferrals: number;
   milestoneBonus: number;
 }

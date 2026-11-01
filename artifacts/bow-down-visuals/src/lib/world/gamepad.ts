@@ -64,7 +64,7 @@ import {
 } from "./bindings";
 import { padVerbIndices, type ControllerProfile } from "./controller-profile";
 
-export const GAMEPAD_DEADZONE = 0.18;
+const GAMEPAD_DEADZONE = 0.18;
 
 export interface GamepadLike {
   axes: readonly number[];
@@ -170,7 +170,7 @@ export interface GamepadIntent {
   action: WorldActionId | null;
 }
 
-export const IDLE_GAMEPAD_INTENT: GamepadIntent = {
+const IDLE_GAMEPAD_INTENT: GamepadIntent = {
   moveX: 0,
   moveY: 0,
   lookX: 0,

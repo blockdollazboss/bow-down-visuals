@@ -119,7 +119,7 @@ const KIND_LABELS: Record<string, string> = {
   video: "Video",
 };
 
-export function shelfKindLabel(itemKind: string): string {
+function shelfKindLabel(itemKind: string): string {
   return KIND_LABELS[itemKind] ?? itemKind;
 }
 

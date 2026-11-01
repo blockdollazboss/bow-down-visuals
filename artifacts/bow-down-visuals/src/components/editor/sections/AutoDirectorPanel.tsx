@@ -29,7 +29,7 @@ export interface PlanScene {
   negativePrompt: string;
 }
 
-export interface DirectorPlan {
+interface DirectorPlan {
   treatment: string;
   colorPalette: string[];
   visualStyle: string;

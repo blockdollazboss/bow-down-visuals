@@ -57,7 +57,7 @@ export function faceModelUrls(): string[] {
   return [FACE_MODEL_LOCAL_URL, FACE_MODEL_ORIGIN_URL, FACE_MODEL_REMOTE_URL];
 }
 
-export type FaceEngineErrorCode = "LOAD_FAILED" | "UNSUPPORTED";
+type FaceEngineErrorCode = "LOAD_FAILED" | "UNSUPPORTED";
 
 export class FaceEngineError extends Error {
   code: FaceEngineErrorCode;
@@ -79,7 +79,7 @@ export interface FaceResultLike {
   facialTransformationMatrixes?: Array<{ rows: number; columns: number; data: ArrayLike<number> }>;
 }
 
-export interface FaceLandmarkerLike {
+interface FaceLandmarkerLike {
   detectForVideo(source: unknown, timestamp: number): FaceResultLike;
   close(): void;
 }
@@ -140,7 +140,7 @@ function loadVisionModule(importModule: ImportModuleFn): Promise<{ mod: VisionMo
 
 /** Detection input cap: landmarks don't need a big frame, and the cap
  *  holds detection to a few ms on modest hardware. */
-export const FACE_FEED_MAX_WIDTH = 384;
+const FACE_FEED_MAX_WIDTH = 384;
 
 export class FaceDriveEngine {
   private _landmarker: FaceLandmarkerLike | null = null;

@@ -134,14 +134,14 @@ function emptySceneDefaults(): Omit<SceneData, "id" | "sceneNumber" | "timestamp
   };
 }
 
-export interface GenerateScenesFromAudioParams {
+interface GenerateScenesFromAudioParams {
   audioUrl: string;
   /** Best-known duration of the song in seconds; falls back to detected beat range or 180s. */
   durationSec: number | null;
   songStructure: SongStructure;
 }
 
-export interface GenerateScenesFromAudioResult {
+interface GenerateScenesFromAudioResult {
   scenes: SceneData[];
   beatGrid: BeatGrid | null;
 }

@@ -40,7 +40,7 @@ export interface FcpxmlClipInput {
   hasSpeedRamp: boolean;
 }
 
-export interface FcpxmlAudioInput {
+interface FcpxmlAudioInput {
   name: string;
   src: string;
   /** Known song duration (seconds), or null when the editor doesn't know. */

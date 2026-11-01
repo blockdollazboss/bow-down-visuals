@@ -407,7 +407,7 @@ function synthBass(ctx: BaseAudioContext, midi: number, t: number, dest: AudioNo
   o2.start(t); o2.stop(t + dur + 0.05);
 }
 
-export const midiToNoteName = (midi: number): string => {
+const midiToNoteName = (midi: number): string => {
   const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 };

@@ -31,7 +31,7 @@ export { creatorRoomId };
 
 /* ─── Wire shapes (mirrors of the server DTOs) ────────────────────── */
 
-export interface CreatorRoomTheme {
+interface CreatorRoomTheme {
   primary: string;
   accent: string;
   background: string;
@@ -83,7 +83,7 @@ export interface CreatorRoomSummary {
   evolution: CreatorRoomEvolution | null;
 }
 
-export interface CreatorRoomTrack {
+interface CreatorRoomTrack {
   id: string;
   title: string;
   audioUrl: string;
@@ -94,7 +94,7 @@ export interface CreatorRoomTrack {
   commentCount: number;
 }
 
-export interface CreatorRoomVideo {
+interface CreatorRoomVideo {
   id: string;
   title: string;
   videoUrl: string;
@@ -103,7 +103,7 @@ export interface CreatorRoomVideo {
   viewCount: number;
 }
 
-export interface CreatorRoomFrontRowMember {
+interface CreatorRoomFrontRowMember {
   position: number;
   profileId: string;
   slug: string;
@@ -343,11 +343,11 @@ export function parseCreatorRoomDetail(payload: unknown): CreatorRoomDetail | nu
 
 /* ─── Endpoints ───────────────────────────────────────────────────── */
 
-export function creatorRoomsDirectoryPath(): string {
+function creatorRoomsDirectoryPath(): string {
   return "/api/world/creator-rooms";
 }
 
-export function creatorRoomDetailPath(slug: string): string {
+function creatorRoomDetailPath(slug: string): string {
   return `/api/world/creator-rooms/${encodeURIComponent(slug)}`;
 }
 
@@ -376,7 +376,7 @@ export async function fetchCreatorRoomDetail(
   }
 }
 
-export function creatorRoomDressingPath(slug: string): string {
+function creatorRoomDressingPath(slug: string): string {
   return `${creatorRoomDetailPath(slug)}/dressing`;
 }
 

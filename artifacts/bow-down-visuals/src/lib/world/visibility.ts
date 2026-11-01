@@ -49,7 +49,7 @@ export const ARCH = { planeZ: 12.2, spanMin: -2.2, spanMax: 2.2, centerX: 0 } as
  *  Boardwalk (item 35) and Creator Heights (item 36) are
  *  outdoor like the plaza they open off — same sky, same fog
  *  law, same sun. */
-export type WorldArea = "hall" | "indoor" | "plaza" | "creator";
+type WorldArea = "hall" | "indoor" | "plaza" | "creator";
 
 export function areaForRoom(roomId: string): WorldArea {
   if (roomId === HALL_ROOM_ID) return "hall";
@@ -67,7 +67,7 @@ export function areaForRoom(roomId: string): WorldArea {
 /* ── Angle helpers ──────────────────────────────────────────────── */
 
 /** Smallest absolute difference between two headings (radians). */
-export function angleDelta(a: number, b: number): number {
+function angleDelta(a: number, b: number): number {
   let d = (b - a) % (Math.PI * 2);
   if (d > Math.PI) d -= Math.PI * 2;
   if (d < -Math.PI) d += Math.PI * 2;
@@ -79,7 +79,7 @@ export function angleDelta(a: number, b: number): number {
  *  as atan2(dx, dz) flipped so it composes with angleDelta against
  *  a camera yaw of the same convention hall-scene uses for figures
  *  (atan2(dx, dz) from the viewer to the subject). */
-export function headingTo(fromX: number, fromZ: number, toX: number, toZ: number): number {
+function headingTo(fromX: number, fromZ: number, toX: number, toZ: number): number {
   return Math.atan2(toX - fromX, toZ - fromZ);
 }
 
@@ -126,9 +126,9 @@ export function pointInViewCone(
 
 /** Minimum camera z (south of the arch plane) before hall culling
  *  is even considered — inside the portal apron, never cull. */
-export const HALL_CULL_MIN_Z = ARCH.planeZ + 3.5;
+const HALL_CULL_MIN_Z = ARCH.planeZ + 3.5;
 /** Minimum camera z-depth inside the hall before plaza culling. */
-export const PLAZA_CULL_MAX_Z = ARCH.planeZ - 3.5;
+const PLAZA_CULL_MAX_Z = ARCH.planeZ - 3.5;
 
 export function hallInteriorCulled(camX: number, camZ: number, camYaw: number, area: WorldArea): boolean {
   if (area !== "plaza" && area !== "creator") return false;
@@ -160,7 +160,7 @@ export function plazaDressingCulled(camX: number, camZ: number, camYaw: number, 
  * `zone` is returned alongside the verdict so the scene (and the
  * tests) can see WHY.
  */
-export type ReflectorZone = "hall" | "glimpse" | "away";
+type ReflectorZone = "hall" | "glimpse" | "away";
 
 export function reflectorZone(camX: number, camZ: number, area: WorldArea): ReflectorZone {
   if (area === "hall") return "hall";
@@ -178,7 +178,7 @@ export function reflectorZone(camX: number, camZ: number, area: WorldArea): Refl
   return "away";
 }
 
-export interface ReflectorGateInput {
+interface ReflectorGateInput {
   camX: number;
   camZ: number;
   camYaw: number;

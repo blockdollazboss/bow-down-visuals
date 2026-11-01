@@ -14,7 +14,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
    + Oct 28). Docked in the Library like every buyer surface — never a
    standalone page. */
 
-export interface ShopPurchase {
+interface ShopPurchase {
   /* The API's field name (GET /api/shops/my-purchases sends
      saleId: sale_event_id, the name the whole shops module uses).
      This interface once declared the id under a different name, so

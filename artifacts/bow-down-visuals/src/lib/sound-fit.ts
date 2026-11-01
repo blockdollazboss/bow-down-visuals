@@ -5,9 +5,9 @@
    what the API returns and build the requests — they never compute or
    invent a key, BPM, or score on the client. */
 
-export interface SoundFitSourceBeat { kind: "beat"; id: string }
-export interface SoundFitSourceSong { kind: "song"; id: string }
-export interface SoundFitSourceCustom {
+interface SoundFitSourceBeat { kind: "beat"; id: string }
+interface SoundFitSourceSong { kind: "song"; id: string }
+interface SoundFitSourceCustom {
   kind: "custom";
   title?: string;
   bpm: number;
@@ -42,7 +42,7 @@ export interface SoundFitItem {
   };
 }
 
-export interface SoundFitCoverage {
+interface SoundFitCoverage {
   total: number;
   analysed: number;
   unanalysed: number;

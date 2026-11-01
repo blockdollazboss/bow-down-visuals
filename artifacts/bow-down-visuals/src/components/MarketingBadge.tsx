@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
  * - kicker:  uppercase micro-label for section eyebrows
  * - exclusive: gradient purple/gold — "Exclusive" / "Top Tier" VIP/MVP callout
  */
-export type MarketingBadgeVariant = "popular" | "soon" | "free" | "muted" | "kicker" | "exclusive";
+type MarketingBadgeVariant = "popular" | "soon" | "free" | "muted" | "kicker" | "exclusive";
 
 const VARIANT_CLASSES: Record<MarketingBadgeVariant, string> = {
   popular:

@@ -27,7 +27,7 @@ export interface ArtistVaultPayload {
  * some or all of these fields, or have them in an unexpected shape. Every field is optional and
  * this function never throws; it simply omits whatever isn't present or isn't a string.
  */
-export interface DerivedProjectContext {
+interface DerivedProjectContext {
   videoStyle?: string;
   platform?: string;
   artistVault: ArtistVaultPayload | null;
@@ -177,7 +177,7 @@ export function sceneSeedPrompt(scene: SceneData): string {
  * Prompts shorter than this are treated as "weak" — either missing entirely or a short/
  * generic seed value (e.g. raw section notes) rather than a Runway-ready cinematic paragraph.
  */
-export const WEAK_PROMPT_MIN_LENGTH = 50;
+const WEAK_PROMPT_MIN_LENGTH = 50;
 
 /** True when a scene's AI Video Prompt is empty or too short/generic to be worth generating from as-is. */
 export function isWeakPrompt(scene: Pick<SceneData, "aiVideoPrompt">): boolean {

@@ -25,7 +25,7 @@
 import type { MasterSettings } from "@/lib/editor-settings";
 
 /** Same defaults as the editor's Music Studio master bus. */
-export function defaultArrangementMaster(): MasterSettings {
+function defaultArrangementMaster(): MasterSettings {
   return {
     volume: 100,
     limiter: true,
@@ -109,7 +109,7 @@ export function moveFxStep(chain: FxStep[], stepId: string, toIndex: number): Fx
 
 /* ─── Automation ───────────────────────────────────────────────────────── */
 
-export interface AutomationPoint {
+interface AutomationPoint {
   /** Timeline seconds. */
   time: number;
   value: number;
@@ -130,7 +130,7 @@ const clampN = (v: number, lo: number, hi: number) =>
   Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo;
 
 /** Sorted, de-duplicated copy of a breakpoint lane. */
-export function sortPoints(points: AutomationPoint[] | undefined): AutomationPoint[] {
+function sortPoints(points: AutomationPoint[] | undefined): AutomationPoint[] {
   if (!points) return [];
   const byTime = new Map<number, number>();
   for (const p of points) {
@@ -364,7 +364,7 @@ export function notesInRange(notes: MidiRollNote[], from: number, to: number): M
 
 /* ─── Tracks & arrangement ─────────────────────────────────────────────── */
 
-export interface TrackDucking {
+interface TrackDucking {
   /** Track id this track ducks against (normally the vocal lane). */
   againstTrackId: string;
   /** House-simple duck amount 0–100. */
@@ -483,7 +483,7 @@ export function trackSegments(
  * passes the bounce URLs in `midiBounceUrls`, so the server render stays
  * a pure audio graph and preview/export use the identical synth. */
 
-export interface ArrangementExportStem {
+interface ArrangementExportStem {
   id: string;
   name: string;
   type: string;
@@ -602,7 +602,7 @@ export function cleanAutomation(auto: TrackAutomation): TrackAutomation {
 
 /* ─── Persistence (house pattern: localStorage + /api/drafts) ──────────── */
 
-export const ARRANGEMENT_WORKFLOW = "audio-arrangement";
+const ARRANGEMENT_WORKFLOW = "audio-arrangement";
 const ARRANGEMENT_LOCAL_KEY = "bdv-audio-arrangement-v1";
 
 export function saveLocalArrangement(a: Arrangement): void {

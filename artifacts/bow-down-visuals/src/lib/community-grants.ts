@@ -6,9 +6,9 @@
    recorded on the round, read from the API every time. */
 
 export type GrantPhase = "upcoming" | "submissions" | "between" | "voting" | "closed";
-export type GrantResultStatus = "pending" | "winner" | "tie" | "no_candidates";
+type GrantResultStatus = "pending" | "winner" | "tie" | "no_candidates";
 
-export interface GrantRound {
+interface GrantRound {
   id: string;
   monthKey: string;
   /** Admin-entered pool size in Visual Bucs — from the API, never local. */
@@ -26,7 +26,7 @@ export interface GrantRound {
   createdAt: string;
 }
 
-export interface GrantCandidate {
+interface GrantCandidate {
   id: string;
   roundId: string;
   creatorUserId: string;

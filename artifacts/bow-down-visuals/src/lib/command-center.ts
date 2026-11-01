@@ -34,12 +34,12 @@ export type CommandPanelKey = (typeof COMMAND_PANEL_KEYS)[number];
 
 /* ── Payload types (mirror routes/command.ts) ─────────────────────── */
 
-export interface AudienceStat {
+interface AudienceStat {
   total: number;
   new7: number;
 }
 
-export interface OffPlatformRow {
+interface OffPlatformRow {
   platform: string;
   username: string | null;
   followers: number | null;
@@ -54,7 +54,7 @@ export interface AudiencePayload {
   partial: boolean;
 }
 
-export interface RevenueRail {
+interface RevenueRail {
   totalCents: number | null;
   count: number | null;
 }
@@ -82,7 +82,7 @@ export interface ContentPayload {
   partial: boolean;
 }
 
-export interface ActionItem {
+interface ActionItem {
   key: "unreadMessages" | "pastDueMembers" | "shoutoutsToDeliver";
   count: number;
   href: string;
@@ -221,7 +221,7 @@ export function shapeActions(raw: unknown): ActionsPayload {
    clicking through to the real surface (or copying the draft). There
    is deliberately NO function here that executes a move. */
 
-export const BRIEF_MOVE_HREFS: Record<BriefMoveKind, string> = {
+const BRIEF_MOVE_HREFS: Record<BriefMoveKind, string> = {
   post: "/scheduler",
   winback: "/memberships",
   reply: "/messages",
@@ -268,7 +268,7 @@ export function briefApproveTarget(brief: BriefPayload): string {
    right now. The failure state is reserved for a response that never
    arrives (the digest itself couldn't be built server-side). */
 
-export interface BriefDigestPayload {
+interface BriefDigestPayload {
   audience: AudiencePayload | null;
   revenue: RevenuePayload | null;
   content: ContentPayload | null;

@@ -51,30 +51,3 @@ export function optOutAndroidPromo(): void {
 }
 
 /** Reactive: true when the Android promo should show to this visitor. */
-export function useAndroidPromoVisible(): boolean {
-  const [visible, setVisible] = useState(
-    () =>
-      isAndroidDevice() &&
-      !hasDownloadedAndroidApp() &&
-      !hasOptedOutAndroidPromo()
-  );
-  useEffect(() => {
-    const hide = () => setVisible(false);
-    window.addEventListener("bdv-android-downloaded", hide);
-    window.addEventListener("bdv-android-promo-optout", hide);
-    const onStorage = (e: StorageEvent) => {
-      if (
-        (e.key === DOWNLOADED_KEY || e.key === OPTOUT_KEY) &&
-        e.newValue === "1"
-      )
-        hide();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener("bdv-android-downloaded", hide);
-      window.removeEventListener("bdv-android-promo-optout", hide);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
-  return visible;
-}

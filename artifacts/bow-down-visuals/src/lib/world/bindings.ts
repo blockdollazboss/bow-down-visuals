@@ -26,7 +26,7 @@ export type WorldRole = "guest" | "member" | "admin";
 
 export type ActionPageId = "perform" | "social";
 
-export interface ActionPageDef {
+interface ActionPageDef {
   id: ActionPageId;
   label: string;
   /** The page's actions in SLOT order (see PAD_SLOTS): index i of

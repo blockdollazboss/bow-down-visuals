@@ -249,7 +249,7 @@ export const BOARDWALK_DECK_PLANKS: readonly GroundsBox[] =
  * waterfront wares. The posts and the workbench are solid; the
  * canopy rides above the walker's head (its posts are). */
 
-export type BoardwalkStall = RowStall;
+type BoardwalkStall = RowStall;
 
 export const BOARDWALK_STALLS: readonly BoardwalkStall[] = [
   { x: -8.0, z: 41.3, side: 1 },

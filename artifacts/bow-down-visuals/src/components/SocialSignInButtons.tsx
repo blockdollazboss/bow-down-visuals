@@ -3,7 +3,7 @@ import { GoogleGMark } from "./GoogleSignInButton";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 
 /** Facebook "f" mark (inline SVG). Uses currentColor to match theme. */
-export function FacebookMark({ className = "h-5 w-5" }: { className?: string }) {
+function FacebookMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
       <path
@@ -27,7 +27,7 @@ export function XMark({ className = "h-5 w-5" }: { className?: string }) {
 }
 
 /** Apple mark (inline SVG). */
-export function AppleMark({ className = "h-5 w-5" }: { className?: string }) {
+function AppleMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
       <path

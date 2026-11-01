@@ -96,7 +96,7 @@ export function dropClaimInFlight(drop: WorldDropState, book: DropClaimBook): bo
  *  - "claimed": this chest already paid me.
  *  - "out":     every claim stands taken; the chest is empty.
  *  - "open":    claims stand and I haven't taken mine. */
-export type DropClaimView = "guest" | "claimed" | "out" | "open";
+type DropClaimView = "guest" | "claimed" | "out" | "open";
 
 export function dropClaimView(
   drop: WorldDropState,

@@ -63,7 +63,7 @@ export type ChatVoiceErrorKind =
   | "transcription-failed"
   | "unauthenticated";
 
-export interface ChatVoiceHandlers {
+interface ChatVoiceHandlers {
   onState?: (state: ChatVoiceState) => void;
   /** The full text heard so far (final chunks + current interim).
    *  Browser transport only — the server transport delivers its
@@ -98,13 +98,13 @@ export const CHAT_VOICE_TRANSCRIBE_CREDITS = 0;
  *  server route enforces its own byte cap), so a song file can never
  *  ride the free chat rail. The server route mirrors this figure. */
 export const CHAT_VOICE_MAX_UTTERANCE_SEC = 30;
-export const CHAT_VOICE_MAX_DURATION_MS = CHAT_VOICE_MAX_UTTERANCE_SEC * 1000;
+const CHAT_VOICE_MAX_DURATION_MS = CHAT_VOICE_MAX_UTTERANCE_SEC * 1000;
 
 /* ─── Minimal structural typing for the Web Speech API ─────────────────
    Mirrors the shape VoiceDirectedEditsSection already types locally;
    kept structural so tests can inject a fake constructor. */
 
-export interface ChatVoiceRecognitionResult {
+interface ChatVoiceRecognitionResult {
   isFinal: boolean;
   [index: number]: { transcript: string } | undefined;
   length: number;
@@ -144,21 +144,18 @@ export function getChatVoiceRecognitionCtor(): ChatVoiceRecognitionCtor | null {
 }
 
 /** True when the free browser recognizer exists — the default path. */
-export function isBrowserChatVoiceSupported(): boolean {
-  return getChatVoiceRecognitionCtor() !== null;
-}
 
 /* ─── Minimal structural typing for the recording fallback ───────────── */
 
-export interface ChatVoiceMediaTrack {
+interface ChatVoiceMediaTrack {
   stop: () => void;
 }
 
-export interface ChatVoiceMediaStream {
+interface ChatVoiceMediaStream {
   getTracks: () => ChatVoiceMediaTrack[];
 }
 
-export interface ChatVoiceRecorder {
+interface ChatVoiceRecorder {
   mimeType: string;
   state: string;
   ondataavailable: ((event: { data: Blob }) => void) | null;
@@ -168,7 +165,7 @@ export interface ChatVoiceRecorder {
   stop: () => void;
 }
 
-export interface ChatVoiceRecorderCtor {
+interface ChatVoiceRecorderCtor {
   new (
     stream: ChatVoiceMediaStream,
     options?: { mimeType?: string },
@@ -176,7 +173,7 @@ export interface ChatVoiceRecorderCtor {
   isTypeSupported?: (mimeType: string) => boolean;
 }
 
-export type ChatVoiceGetUserMedia = (constraints: {
+type ChatVoiceGetUserMedia = (constraints: {
   audio: boolean;
 }) => Promise<ChatVoiceMediaStream>;
 
@@ -189,7 +186,7 @@ export type ChatVoiceTranscribeFetch = (
   init?: RequestInit,
 ) => Promise<Response | null>;
 
-export function getChatVoiceRecorderCtor(): ChatVoiceRecorderCtor | null {
+function getChatVoiceRecorderCtor(): ChatVoiceRecorderCtor | null {
   if (typeof window === "undefined") return null;
   const w = window as unknown as Record<string, unknown>;
   return (w["MediaRecorder"] as ChatVoiceRecorderCtor | undefined) ?? null;
@@ -256,14 +253,14 @@ export function mapChatVoiceError(error: string): ChatVoiceErrorKind {
 /** Map a getUserMedia rejection onto the honest failure kinds:
  *  a permission refusal is `denied`; anything else (no device, device
  *  busy, constraints) is a recording failure. */
-export function mapChatVoiceCaptureError(err: unknown): ChatVoiceErrorKind {
+function mapChatVoiceCaptureError(err: unknown): ChatVoiceErrorKind {
   const name = (err as { name?: unknown } | null)?.name;
   if (name === "NotAllowedError" || name === "SecurityError") return "denied";
   return "recording-failed";
 }
 
 /** Map the fallback endpoint's HTTP status onto the honest kinds. */
-export function mapChatVoiceTranscribeStatus(status: number): ChatVoiceErrorKind {
+function mapChatVoiceTranscribeStatus(status: number): ChatVoiceErrorKind {
   if (status === 401 || status === 403) return "unauthenticated";
   return "transcription-failed";
 }
@@ -311,7 +308,7 @@ export function chatVoiceNote(
 
 /* ─── Session options ────────────────────────────────────────────────── */
 
-export interface ChatVoiceServerOptions {
+interface ChatVoiceServerOptions {
   /** Authed fetch for the fallback POST (the button's confirmedFetch
    *  with confirmation skipped — the call is free, per
    *  CHAT_VOICE_TRANSCRIBE_CREDITS). */
@@ -322,7 +319,7 @@ export interface ChatVoiceServerOptions {
   maxDurationMs?: number;
 }
 
-export interface ChatVoiceSessionOptions {
+interface ChatVoiceSessionOptions {
   lang?: string;
   /** Test seam: inject a recognizer constructor (or null for unsupported). */
   ctor?: ChatVoiceRecognitionCtor | null;
@@ -448,7 +445,7 @@ const CHAT_VOICE_MIME_CANDIDATES = [
   "audio/ogg",
 ];
 
-export function pickChatVoiceRecorderMime(
+function pickChatVoiceRecorderMime(
   ctor: ChatVoiceRecorderCtor,
 ): string | undefined {
   if (typeof ctor.isTypeSupported !== "function") return undefined;

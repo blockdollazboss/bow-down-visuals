@@ -45,7 +45,7 @@ import { SpeechLevelTracker, rmsFromTimeDomain } from "./lips";
 import { buildIceServers, type IceServerConfig } from "./voice-ice";
 import { getWorldVolume, subscribeWorldVolume, worldVolumeGain } from "./volume";
 
-export const VOICE_FULL_HEAR_DISTANCE = 2; // metres: full volume inside this
+const VOICE_FULL_HEAR_DISTANCE = 2; // metres: full volume inside this
 export const VOICE_MAX_DISTANCE = 16; // metres: silence beyond this
 
 /** Proximity volume curve: 1 up close, smooth fade to 0 at max range. */
@@ -113,7 +113,7 @@ export function mapRtcConnectionState(raw: string | undefined | null): VoicePeer
   return "connecting";
 }
 
-export interface VoiceConnectionSummary {
+interface VoiceConnectionSummary {
   total: number;
   connected: number;
   connecting: number;
@@ -218,7 +218,7 @@ export interface VoiceSink {
   getLevel?: () => number;
 }
 
-export interface VoiceMeshDeps {
+interface VoiceMeshDeps {
   sendSignal(to: string, data: VoiceSignalData): void;
   createPeerConnection(): RtcPeerConnectionLike;
   createSink(peerId: string, stream: unknown): VoiceSink;

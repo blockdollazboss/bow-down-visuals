@@ -24,7 +24,7 @@
 export type WorldActionId =
   | "bow" | "wave" | "cheer" | "clap" | "dance" | "spin" | "sit"
   | "point" | "beckon" | "salute" | "laugh" | "shrug" | "highfive" | "kneel";
-export type WorldActionKind = "once" | "toggle";
+type WorldActionKind = "once" | "toggle";
 
 export interface WorldActionDef {
   id: WorldActionId;
@@ -71,7 +71,7 @@ export function actionClearedByMove(id: WorldActionId | null): boolean {
   return ACTION_BY_ID.get(id)?.kind === "toggle";
 }
 
-export interface ActionPose {
+interface ActionPose {
   /** Forward lean (radians, figure-local rotation.x). */
   tiltX: number;
   /** Side sway (radians, figure-local rotation.z). */

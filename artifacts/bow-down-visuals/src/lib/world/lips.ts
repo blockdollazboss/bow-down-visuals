@@ -32,10 +32,10 @@ export interface MouthBox {
  *  generous speech reads clearly at hall distance without clowning. */
 export const MOUTH_OPEN_HEIGHT_RATIO = 0.36;
 
-export const MOUTH_LEFT_CORNER = 61;
-export const MOUTH_RIGHT_CORNER = 291;
-export const LIP_UPPER_INNER = 13;
-export const LIP_LOWER_INNER = 14;
+const MOUTH_LEFT_CORNER = 61;
+const MOUTH_RIGHT_CORNER = 291;
+const LIP_UPPER_INNER = 13;
+const LIP_LOWER_INNER = 14;
 
 /** Locate the mouth from a detected face's landmarks. Returns null
  *  when the landmarks can't support an honest mouth (missing points,

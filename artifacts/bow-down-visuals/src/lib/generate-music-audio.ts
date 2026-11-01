@@ -22,7 +22,7 @@ export interface GenerateMusicAudioRequest {
   variants?: number;
 }
 
-export interface MusicVariant {
+interface MusicVariant {
   url: string;
   storagePath: string;
   label: string;
@@ -31,7 +31,7 @@ export interface MusicVariant {
   songId?: string;
 }
 
-export interface GenerateMusicAudioResponse {
+interface GenerateMusicAudioResponse {
   url: string;
   storagePath: string;
   variants: MusicVariant[];

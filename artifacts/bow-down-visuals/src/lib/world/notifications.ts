@@ -57,7 +57,7 @@ export function markReadBody(ids?: string[]): Record<string, unknown> {
   return ids && ids.length ? { ids } : {};
 }
 
-export type NotificationTarget =
+type NotificationTarget =
   | { kind: "group"; slug: string; stationId: "community-hall" }
   | { kind: "station"; stationId: "post-office" }
   | { kind: "website"; href: string }

@@ -20,7 +20,7 @@ import { moduleByKey, type DeskKey } from "@/lib/desks";
    between desks goes through the hub project itself (addAsset →
    ProjectFlowBar) — handoffs are for "take THIS asset THERE now". */
 
-export interface HandoffIntent {
+interface HandoffIntent {
   id: string;
   /** Asset kinds this intent can carry. */
   kinds: HubAssetKind[];
@@ -55,7 +55,7 @@ export function intentsForKind(kind: HubAssetKind): HandoffIntent[] {
   return HANDOFF_INTENTS.filter((i) => i.kinds.includes(kind));
 }
 
-export interface AssetHandoff {
+interface AssetHandoff {
   id: string;
   intentId: string;
   asset: {

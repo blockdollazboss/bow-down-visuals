@@ -17,7 +17,7 @@ import type { WorldMoment } from "./world-client";
  */
 export const QUEST_CLAIMED_EVENT = "bdv:quest-claimed";
 
-export interface QuestClaimedDetail {
+interface QuestClaimedDetail {
   questKey: string;
   reward: number;
 }

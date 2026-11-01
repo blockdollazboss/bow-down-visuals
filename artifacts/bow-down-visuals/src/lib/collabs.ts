@@ -12,10 +12,6 @@ export function scoreColor(score: number): string {
   return "text-red-400";
 }
 
-export interface ProposalTemplate {
-  name: string;
-  body: string;
-}
 
 /** Fill a proposal template's placeholders for a given target + sender. */
 export function fillProposalTemplate(

@@ -3,7 +3,7 @@
 
 export type CalendarPlatformKey = "tiktok" | "youtube" | "instagram";
 
-export interface CalendarDayShape {
+interface CalendarDayShape {
   date: string; // YYYY-MM-DD
   post: boolean;
 }

@@ -46,7 +46,7 @@ export interface CollabMatchResponse {
    through the broker: an open suggestion the viewer hasn't answered can
    be marked; once they've answered, the ball is with the other side (or
    the pair is connected) and no further action is offered. */
-export type SuggestionAction = "answer" | "waiting" | "connected" | "none";
+type SuggestionAction = "answer" | "waiting" | "connected" | "none";
 
 export function suggestionAction(s: Pick<CollabSuggestion, "status" | "myStatus">): SuggestionAction {
   if (s.status === "connected") return "connected";
@@ -100,7 +100,7 @@ export interface FanLinksMineResponse {
   links: FanLink[];
 }
 
-export interface FanLinkForMe extends Omit<FanLink, "path"> {
+interface FanLinkForMe extends Omit<FanLink, "path"> {
   fanDisplayName: string;
 }
 
@@ -172,7 +172,7 @@ export function hourAxisLabel(hour: number): string {
   return `${pad(hour)}:00`;
 }
 
-export const PLAY_SOURCE_LABELS: Record<string, string> = {
+const PLAY_SOURCE_LABELS: Record<string, string> = {
   profile: "Creator profile",
   feed: "Feed",
   charts: "Charts",

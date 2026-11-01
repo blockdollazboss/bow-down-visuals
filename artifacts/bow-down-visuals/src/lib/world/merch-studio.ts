@@ -38,7 +38,7 @@
 
 /* ─── Catalog mirrors (the rail's pricing module, word for word) ── */
 
-export interface MerchProduct {
+interface MerchProduct {
   key: string;
   label: string;
   blurb: string;
@@ -52,7 +52,7 @@ export const MERCH_PRODUCTS: MerchProduct[] = [
   { key: "poster", label: "Poster", blurb: "18″×24″ matte print.", baseCostCents: 800 },
 ];
 
-export interface MerchStyle {
+interface MerchStyle {
   key: string;
   label: string;
   blurb: string;
@@ -187,7 +187,7 @@ export interface MerchStoreDesign {
   createdAt: string;
 }
 
-export interface MerchStore {
+interface MerchStore {
   designs: MerchStoreDesign[];
   commissionPct: number | null;
   paymentsLive: boolean;
@@ -246,7 +246,7 @@ export function buildMerchPatchPayload(patch: {
   return out;
 }
 
-export interface MerchOrderIntent {
+interface MerchOrderIntent {
   status: string;
   message: string;
   paymentsLive: boolean;
@@ -279,7 +279,7 @@ export interface MerchConcept {
   why: string;
 }
 
-export interface MerchLaunchPost {
+interface MerchLaunchPost {
   dayOffset: number;
   title: string;
   caption: string;
@@ -395,4 +395,3 @@ export function parseMerchDropPlans(data: unknown): MerchSavedPlan[] | null {
 }
 
 /** The bench's transfer target — the website's Merch tab. */
-export const MERCH_BENCH_PATH = "/branding-kit?tab=shop&subtab=merch";

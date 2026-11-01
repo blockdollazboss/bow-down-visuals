@@ -35,7 +35,7 @@
  * registered in main.tsx), so those cards give the real install steps.
  */
 
-export interface AppDownload {
+interface AppDownload {
   /** Where the button points. Cross-origin release asset or same-origin path. */
   url: string;
   /** Version exactly as the artifact's own metadata reports it. */

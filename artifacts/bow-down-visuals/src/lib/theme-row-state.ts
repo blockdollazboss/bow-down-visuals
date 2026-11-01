@@ -30,10 +30,10 @@
 import type { ThemeAvailability } from "./theme-probe";
 
 /** Which body the row renders — exactly one, always. */
-export type ThemeRowCard = "controls" | "retry";
+type ThemeRowCard = "controls" | "retry";
 
 /** The header's single optional suffix — never two at once. */
-export type ThemeRowSuffix = "couldnt-load" | "couldnt-play" | null;
+type ThemeRowSuffix = "couldnt-load" | "couldnt-play" | null;
 
 export interface ThemeRowView {
   card: ThemeRowCard;
@@ -42,7 +42,7 @@ export interface ThemeRowView {
   playHelp: boolean;
 }
 
-export interface ThemeRowInput {
+interface ThemeRowInput {
   status: ThemeAvailability;
   /** The last user-initiated play() attempt was rejected. */
   playFailed: boolean;

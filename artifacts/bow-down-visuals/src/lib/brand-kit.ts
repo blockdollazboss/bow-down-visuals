@@ -37,7 +37,7 @@ export interface BrandKit {
   updatedAt: string | null;
 }
 
-export interface BrandKitPatch {
+interface BrandKitPatch {
   brandName?: string;
   logoUrl?: string | null;
   selectedTagline?: string | null;
@@ -54,7 +54,7 @@ export interface BrandKitPatch {
  *  resolve by (apply-to-theme, the UGC snapshot's primary color). */
 export const BRAND_KIT_COLOR_ROLES = ["primary", "secondary", "accent", "neutral", "background"] as const;
 
-export interface GenerateBrandKitResult {
+interface GenerateBrandKitResult {
   /** Raw generated kit, as the endpoint has always returned it. */
   kit: {
     colors: BrandKitColor[];
@@ -139,7 +139,7 @@ export async function generateBrandKit(
   };
 }
 
-export interface SaveLogoToBrandKitResult {
+interface SaveLogoToBrandKitResult {
   brandKit: BrandKit;
   /** The URL actually stored — the permanent storage URL. When the
    *  source was an external/temp URL the server re-hosts it first

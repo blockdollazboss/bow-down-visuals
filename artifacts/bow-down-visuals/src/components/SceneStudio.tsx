@@ -243,7 +243,7 @@ const IDENTITY_EXPRESSION_LABELS: Record<string, string> = {
   surprised: "surprised",
 };
 
-/* ─── Inline Runway clip generator ─────────────────────────── */export interface RunwayGeneratorProps {
+/* ─── Inline Runway clip generator ─────────────────────────── */interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
   artistVault?: ArtistVault | null;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-export type DockPosition = "left" | "right" | "top" | "bottom";
+type DockPosition = "left" | "right" | "top" | "bottom";
 
 const STORAGE_KEY = "sidebar-dock-position";
 const DRAG_THRESHOLD = 6;

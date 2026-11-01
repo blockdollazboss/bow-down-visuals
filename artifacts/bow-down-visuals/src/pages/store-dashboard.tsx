@@ -581,7 +581,7 @@ function AffiliateCell({ p, getToken, onChanged }: { p: StoreProductDTO; getToke
    derives the owner's share so the list always totals 100, and saving
    rides the same PATCH /storefront/products/:id as the rest of the
    row. The server re-validates the whole list on save. */
-export function splitsErrorText(reason: SplitsDraftError): string {
+function splitsErrorText(reason: SplitsDraftError): string {
   switch (reason) {
     case "owner-crowded-out":
       return "Your co-sellers' shares add up to 100% or more — leave a share for yourself.";

@@ -17,7 +17,7 @@ export type PerformanceBookingStatus =
 export type PerformanceEscrowStatus =
   | "unfunded" | "funding" | "funded" | "released" | "refunded";
 
-export interface PerformanceBookingTermsDto {
+interface PerformanceBookingTermsDto {
   performance: string;
   setLengthMin?: number | null;
   productionNotes?: string | null;
@@ -212,9 +212,9 @@ export const ESCROW_STATUS_LABEL: Record<PerformanceEscrowStatus, string> = {
   refunded: "Refunded to the promoter",
 };
 
-export type BookingActionId = "accept" | "decline" | "fund" | "complete" | "release" | "cancel";
+type BookingActionId = "accept" | "decline" | "fund" | "complete" | "release" | "cancel";
 
-export interface BookingAction {
+interface BookingAction {
   id: BookingActionId;
   label: string;
 }

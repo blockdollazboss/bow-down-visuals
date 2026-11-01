@@ -5,7 +5,7 @@
  * WHO a character is at a glance.
  */
 
-export interface CharacterTheme {
+interface CharacterTheme {
   id: string;
   name: string;
   vibe: string;

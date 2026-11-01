@@ -34,7 +34,7 @@ export type BackdropSelection =
 export const DEFAULT_BACKDROP_SELECTION: BackdropSelection = { kind: "builtin", id: "stage" };
 
 /** The source a selection resolves to: what BackgroundChanger.setImage eats. */
-export type BackdropSource = string | File | null;
+type BackdropSource = string | File | null;
 
 /**
  * Resolve a selection to the compositor's backdrop source.
@@ -80,7 +80,7 @@ export function greenScreenCueVisible(mode: BackgroundMode): boolean {
    branding surfaces cap image picks at 5 MB (BgStudio,
    BrandingSection, ExportSection). Same rules here, same style of
    message — one law for every image pick on the site. */
-export const BACKDROP_UPLOAD_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+const BACKDROP_UPLOAD_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export const BACKDROP_UPLOAD_ACCEPT = BACKDROP_UPLOAD_TYPES.join(",");
 export const BACKDROP_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 

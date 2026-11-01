@@ -13,8 +13,8 @@ export interface ProxyRowLike {
   status: "pending" | "generating" | "ready" | "failed";
 }
 
-export const PROXY_BADGE = "Viewing: Proxy — preview only";
-export const ORIGINAL_BADGE = "Viewing: Original — full-res";
+const PROXY_BADGE = "Viewing: Proxy — preview only";
+const ORIGINAL_BADGE = "Viewing: Original — full-res";
 export const EXPORT_HONESTY_LINE = "Export always renders from the full-res originals — never from a proxy.";
 
 /** The URL the preview player should use for one clip, plus the badge

@@ -148,7 +148,7 @@ export interface GlbFigure {
   meshCount: number;
 }
 
-export interface GlbFigureOpts {
+interface GlbFigureOpts {
   /** Scale so total height equals this (statues arrive in a unit box). */
   targetHeight?: number | null;
   /** Rotate around Y before skinning (statue front detection fix). */

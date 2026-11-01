@@ -70,7 +70,7 @@ export function developIsIdentity(d: DevelopSettings): boolean {
 }
 
 /** A recipe is exactly the syncable/presettable unit: develop state. */
-export interface PhotoRecipe {
+interface PhotoRecipe {
   develop: DevelopSettings;
 }
 
@@ -86,9 +86,8 @@ export interface LayerTransform {
   opacity: number; // 0..1
 }
 
-export const DEFAULT_TRANSFORM: LayerTransform = { x: 0, y: 0, width: 0, height: 0, rotationDeg: 0, opacity: 1 };
 
-export interface PhotoLayerBase {
+interface PhotoLayerBase {
   id: string;
   name: string;
   visible: boolean;
@@ -113,7 +112,7 @@ export interface TextLayer extends PhotoLayerBase {
   align: "left" | "center" | "right";
   bold: boolean;
 }
-export interface ShapeLayer extends PhotoLayerBase {
+interface ShapeLayer extends PhotoLayerBase {
   kind: "shape";
   shape: "rect" | "ellipse";
   fill: string;
@@ -129,7 +128,7 @@ export interface PhotoCanvasDoc {
 }
 
 let seq = 0;
-export function newLayerId(prefix = "layer"): string {
+function newLayerId(prefix = "layer"): string {
   seq += 1;
   return `${prefix}-${Date.now().toString(36)}-${seq.toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
@@ -240,7 +239,7 @@ export function fontStackFor(fontId: string): string {
 }
 
 /* ── Flatten plan + canvas renderer (WYSIWYG core) ──────────────────── */
-export type FlattenOp =
+type FlattenOp =
   | { op: "background"; color: string }
   | { op: "image"; layerId: string; src: string; transform: LayerTransform; develop: DevelopSettings }
   | { op: "text"; layerId: string; text: string; fontStack: string; fontSize: number; bold: boolean; color: string; strokeColor: string | null; strokeWidth: number; shadowColor: string | null; shadowBlur: number; shadowOffsetY: number; align: TextLayer["align"]; transform: LayerTransform }
@@ -353,14 +352,6 @@ export function drawFlattenPlan(
 }
 
 /* ── Presets (same recipe format batch look-sync uses) ──────────────── */
-export interface PhotoPreset {
-  id: string;
-  name: string;
-  recipe: PhotoRecipe;
-  isPublic: boolean;
-  shareSlug: string | null;
-  storeProductId: string | null;
-}
 
 export function serializeDoc(doc: PhotoCanvasDoc): string {
   return JSON.stringify(doc);

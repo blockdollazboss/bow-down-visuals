@@ -20,7 +20,7 @@ export interface MineStreamRow {
   ticket_price_vb?: number | null;
 }
 
-export interface LastStreamSetup {
+interface LastStreamSetup {
   title: string;
   /** The last show's ticket price in Visual Bucs, or null when the
    *  last show was free (ticket door stays off). */

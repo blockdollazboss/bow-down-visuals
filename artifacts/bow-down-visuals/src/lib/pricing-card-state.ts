@@ -33,7 +33,7 @@
 
 import type { CreatorTierId } from "./pricing-plans";
 
-export type PricingCardCtaKind = "start-free" | "your-plan" | "none" | "go";
+type PricingCardCtaKind = "start-free" | "your-plan" | "none" | "go";
 
 export function pricingCardCta(
   planTier: CreatorTierId,

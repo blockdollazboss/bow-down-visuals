@@ -102,13 +102,13 @@ export interface WorldGroup {
   is_public: boolean;
 }
 
-export interface GroupProfileCard {
+interface GroupProfileCard {
   slug: string;
   displayName: string;
   avatarUrl: string | null;
 }
 
-export interface GroupMemberRow {
+interface GroupMemberRow {
   user_id: string;
   role: string;
   profile: GroupProfileCard | null;
@@ -403,7 +403,7 @@ export function normalizeForumThreadDetail(
    string alone — except membership, where viewer_role IS the rail's
    answer on the detail/feed reads) ──────────────────────────────── */
 
-export type GroupMembershipAction = "owner" | "leave" | "join" | "sign-in";
+type GroupMembershipAction = "owner" | "leave" | "join" | "sign-in";
 
 export function groupMembershipAction(viewerRole: string | null, isGuest: boolean): GroupMembershipAction {
   if (isGuest) return "sign-in";

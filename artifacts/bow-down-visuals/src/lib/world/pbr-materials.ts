@@ -69,7 +69,6 @@ export const LAWN_METRES_PER_TILE = 3;
 /** One tile of the ashlar stone source (façade + grounds edging,
  *  Stage C items 1/8): block courses at ~3 m per tile, integral
  *  repeats wherever the surface size allows. */
-export const STONE_METRES_PER_TILE = 3;
 
 /** Texture repeat for a surface `widthM` × `heightM` metres, given
  *  the world size one texture tile represents. Texel density is
@@ -98,7 +97,7 @@ function wrapIndex(i: number, n: number): number {
 }
 
 /** Luminance per pixel (Rec. 709), 0..1. */
-export function luminanceOf(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {
+function luminanceOf(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {
   const out = new Float32Array(width * height);
   for (let i = 0; i < width * height; i++) {
     const o = i * 4;
@@ -110,7 +109,7 @@ export function luminanceOf(rgba: Uint8ClampedArray, width: number, height: numb
 /** Separable box blur with wrapped edges (the field is a torus —
  *  a blur that fell off the edge would paint a seam into every
  *  derived map). */
-export function boxBlurWrapped(src: Float32Array, width: number, height: number, radius: number): Float32Array {
+function boxBlurWrapped(src: Float32Array, width: number, height: number, radius: number): Float32Array {
   const r = Math.max(1, Math.floor(radius));
   const tmp = new Float32Array(src.length);
   const out = new Float32Array(src.length);
@@ -204,7 +203,7 @@ export type PbrKind =
    * lawn grass (fully matte, soft relief) and ashlar stone. */
   | "paving" | "lawn" | "stone";
 
-export interface PbrKindParams {
+interface PbrKindParams {
   /** Roughness of the polished field (encoded into the map). */
   baseRoughness: number;
   /** Extra roughness inside the veins / pattern recesses. */
@@ -328,7 +327,7 @@ export function normalFromHeight(heightField: Float32Array, width: number, heigh
 /** Roughness map (grayscale RGBA): the polished field at the kind's
  *  base roughness, veins rougher by the boost, plus a whisper of
  *  variation from the broad luminance so no two tiles polish alike. */
-export function roughnessFromHeightAndColour(
+function roughnessFromHeightAndColour(
   rgba: Uint8ClampedArray,
   heightField: Float32Array,
   width: number,
@@ -357,7 +356,7 @@ export function roughnessFromHeightAndColour(
 /** AO approximation baked from the heightfield: a pixel recessed
  *  below its neighbourhood (a vein, a brocade groove) catches less
  *  ambient light. Broad blur, soft floor — shading, not dirt. */
-export function aoFromHeight(heightField: Float32Array, width: number, height: number, params: PbrKindParams): Uint8ClampedArray {
+function aoFromHeight(heightField: Float32Array, width: number, height: number, params: PbrKindParams): Uint8ClampedArray {
   const local = boxBlurWrapped(heightField, width, height, Math.max(3, Math.round(width / 12)));
   const out = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < width * height; i++) {
@@ -370,7 +369,7 @@ export function aoFromHeight(heightField: Float32Array, width: number, height: n
   return out;
 }
 
-export interface DerivedPbrMaps {
+interface DerivedPbrMaps {
   /** The tileable colour pixels every map below was derived from. */
   color: Uint8ClampedArray;
   normal: Uint8ClampedArray;
@@ -413,7 +412,7 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-export type GoldVariant = "bright" | "dark";
+type GoldVariant = "bright" | "dark";
 
 export const GOLD_ROUGHNESS_RANGE: Record<GoldVariant, { min: number; max: number }> = {
   bright: { min: 0.14, max: 0.34 },
@@ -529,7 +528,7 @@ export function rippleNormalTexture(): THREE.DataTexture {
  * derivation cap (512² ordinary, 1024² hero kinds) — the maps
  * repeat, they don't need the colour map's full resolution. */
 
-export interface DerivedPbrTextures {
+interface DerivedPbrTextures {
   normalMap: THREE.DataTexture;
   roughnessMap: THREE.DataTexture;
   aoMap: THREE.DataTexture;
@@ -630,7 +629,7 @@ export function brushedGoldTextures(
  *  (1600², texture-manifest.md) — no upscale anywhere. */
 export const DERIVATION_MAX_PX = 512;
 export const HERO_DERIVATION_MAX_PX = 1024;
-export const HERO_PBR_KINDS: ReadonlySet<PbrKind> = new Set(["paving", "stone"]);
+const HERO_PBR_KINDS: ReadonlySet<PbrKind> = new Set(["paving", "stone"]);
 
 export function derivationMaxPxFor(kind: PbrKind): number {
   return HERO_PBR_KINDS.has(kind) ? HERO_DERIVATION_MAX_PX : DERIVATION_MAX_PX;

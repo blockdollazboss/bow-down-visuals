@@ -18,13 +18,13 @@
 
 export const EXPORT_CLEAN_COST = 400;
 
-export interface ExportBrandingWatermarkInput {
+interface ExportBrandingWatermarkInput {
   enabled?: unknown;
   customLogoUrl?: unknown;
   bdvWatermark?: unknown;
 }
 
-export interface ExportWatermarkInput {
+interface ExportWatermarkInput {
   /** The export's watermark request (one-click addWatermark, or the
    *  Quality panel's watermark toggle). */
   addWatermark?: boolean;
@@ -65,7 +65,7 @@ export function predictClientExportWatermarked(input: ExportWatermarkInput): boo
   return !input.isSubscriber;
 }
 
-export interface ExportPrice {
+interface ExportPrice {
   /** True when the finished render will carry a watermark. */
   branded: boolean;
   /** The price the rail will reserve/settle: 0 branded, 400 clean. */

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { micReadout, type ControllerCommand, type ControllerState } from "@/lib/stream-controller";
 
-export interface StreamDeckProps {
+interface StreamDeckProps {
   /** Confirmed studio state; null = no studio state yet. */
   state: ControllerState | null;
   /** Commands can actually be delivered right now. */

@@ -21,7 +21,7 @@ const FADE_IN_SEC = 1.5;
 const FADE_OUT_SEC = 2.5;
 
 /** Mirrors the server's ExportStemEffects / frontend StemEffects shape. */
-export interface EngineStemEffects {
+interface EngineStemEffects {
   eq: string;
   reverb: string;
   delay: string;
@@ -35,13 +35,13 @@ export interface EngineStemEffects {
 
 /* ── Stack 6: parametric FX + automation shapes (mirror lib/arrangement.ts
  *    and the server render in api-server lib/audioExport.ts). ─────────── */
-export interface EngineFxBand {
+interface EngineFxBand {
   freq: number;
   gain: number;
   q: number;
 }
 
-export interface EngineFxStep {
+interface EngineFxStep {
   type: "eq" | "compressor" | "saturation" | "reverb" | "delay";
   enabled: boolean;
   bands?: EngineFxBand[];
@@ -55,12 +55,12 @@ export interface EngineFxStep {
   feedback?: number;
 }
 
-export interface EngineAutomationPoint {
+interface EngineAutomationPoint {
   time: number;
   value: number;
 }
 
-export interface EngineAutomation {
+interface EngineAutomation {
   volume?: EngineAutomationPoint[];
   pan?: EngineAutomationPoint[];
   reverbMix?: EngineAutomationPoint[];

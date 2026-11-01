@@ -36,7 +36,7 @@ const PRICE_BREAKDOWN_WITH_TIME = `${PRICE_SENTENCES}; video clips cost ${fmtVb(
 
 /* ─── Types ─── */
 
-export type HelpPage =
+type HelpPage =
   | "dashboard"
   | "artist-vault"
   | "video-editor"

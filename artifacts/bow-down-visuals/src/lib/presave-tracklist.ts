@@ -12,7 +12,7 @@ export interface PresaveTracklistEntry {
   durationSeconds: number | null;
 }
 
-export interface PresaveTracklistRow extends PresaveTracklistEntry {
+interface PresaveTracklistRow extends PresaveTracklistEntry {
   /** "3:07" when a duration is known, null when it is not — the page
       renders nothing rather than inventing a length. */
   durationLabel: string | null;

@@ -58,7 +58,7 @@ export const EMPTY_SUMMARY: ProductReviewSummary = {
  *  fractional average (3.3) and rounds to the nearest half-step fill:
  *  slots are "full" | "half" | "empty". For an integer review rating
  *  every slot is full or empty. */
-export type StarSlot = "full" | "half" | "empty";
+type StarSlot = "full" | "half" | "empty";
 export function starsFor(value: number | null): StarSlot[] {
   if (value == null || !Number.isFinite(value)) return ["empty", "empty", "empty", "empty", "empty"];
   const v = Math.min(5, Math.max(0, value));

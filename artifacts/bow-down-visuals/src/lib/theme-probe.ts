@@ -29,7 +29,7 @@ export interface ThemeProbeSnapshot {
   checking: boolean;
 }
 
-export interface ThemeProbeOptions {
+interface ThemeProbeOptions {
   /** Resolves true when the track is reachable. Rejections count as unreachable. */
   head: () => Promise<boolean>;
   onChange: (snap: ThemeProbeSnapshot) => void;
@@ -41,7 +41,7 @@ export interface ThemeProbeOptions {
   clearTimeoutFn?: (handle: unknown) => void;
 }
 
-export const THEME_PROBE_BACKOFF_MS: readonly number[] = [
+const THEME_PROBE_BACKOFF_MS: readonly number[] = [
   2_000, 5_000, 10_000, 20_000, 30_000,
 ];
 

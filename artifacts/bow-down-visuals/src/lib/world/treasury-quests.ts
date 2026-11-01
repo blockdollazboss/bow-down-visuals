@@ -137,7 +137,7 @@ export interface TreasuryHistoryEntry {
   at: string;
 }
 
-export interface TreasuryHistoryQuest {
+interface TreasuryHistoryQuest {
   key: string;
   target: number;
   reward: number;
@@ -168,7 +168,7 @@ export interface TreasuryHistoryWeek {
   daily: TreasuryHistoryDailyRow[];
 }
 
-export interface TreasuryCatalogQuest {
+interface TreasuryCatalogQuest {
   key: string;
   /** The server def's own display name — the renderer's fallback
    *  when a quest key has no locale title here. */
@@ -489,7 +489,7 @@ export function normalizeLeaderboard(raw: unknown): Leaderboard | null {
    listed false): their marks are theirs to read; the board is
    the public part. */
 
-export interface QuestMarksRow {
+interface QuestMarksRow {
   rank: number;
   name: string;
   marks: number;

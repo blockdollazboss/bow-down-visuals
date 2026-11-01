@@ -52,7 +52,7 @@ export const WIDGET_DIMS: Record<EmbedWidgetKind, Record<EmbedSizeKey, { w: numb
   playlist: { phone: { w: 320, h: 430 }, tablet: { w: 420, h: 470 }, desktop: { w: 520, h: 520 } },
 };
 
-export interface WidgetTarget {
+interface WidgetTarget {
   /** profile/latest/live → the creator's profile slug; tips → the tip
    *  page's real handle; product → the product id; track/video/
    *  playlist → the item's own id. */

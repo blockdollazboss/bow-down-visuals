@@ -25,7 +25,7 @@ import type { AudioBenchId, AudioBenchResult } from "./audio-benches";
 
 export type ABSide = "before" | "after";
 
-export interface ABAvailability {
+interface ABAvailability {
   before: boolean;
   after: boolean;
 }

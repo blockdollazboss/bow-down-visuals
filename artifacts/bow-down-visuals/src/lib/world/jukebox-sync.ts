@@ -11,7 +11,7 @@
  */
 import type { WorldJukeboxState } from "./world-client";
 
-export interface JukeboxPlaybackNow {
+interface JukeboxPlaybackNow {
   /** The track's playable URL (server-derived; never client-made). */
   url: string;
   playing: boolean;
@@ -45,7 +45,7 @@ export function jukeboxPlaybackNow(
  *  before it is pulled back into step (seconds). Deliberately
  *  loose: a room of listeners within a breath of each other is the
  *  promise, frame-perfect sync is not. */
-export const JUKEBOX_DRIFT_TOLERANCE_SEC = 2.0;
+const JUKEBOX_DRIFT_TOLERANCE_SEC = 2.0;
 
 /** Whether the local element needs a corrective seek. */
 export function jukeboxNeedsSeek(

@@ -74,7 +74,7 @@ export function eulerFromMatrix(data: ArrayLike<number>): { yaw: number; pitch: 
 
 /** Radians → normalised drive units. The caps are the comfortable
  *  head range a streamer actually uses; beyond them we clamp. */
-export const POSE_CAPS = { yaw: 0.65, pitch: 0.5, roll: 0.55 } as const;
+const POSE_CAPS = { yaw: 0.65, pitch: 0.5, roll: 0.55 } as const;
 
 export function poseToDrive(e: { yaw: number; pitch: number; roll: number }): {
   yaw: number;
@@ -90,12 +90,12 @@ export function poseToDrive(e: { yaw: number; pitch: number; roll: number }): {
 
 /* ── Blendshapes → drive ──────────────────────────────────────────────── */
 
-export interface BlendshapeCategory {
+interface BlendshapeCategory {
   categoryName: string;
   score: number;
 }
 
-export function blendshapeScore(categories: BlendshapeCategory[] | undefined, name: string): number {
+function blendshapeScore(categories: BlendshapeCategory[] | undefined, name: string): number {
   if (!categories) return 0;
   for (const c of categories) {
     if (c.categoryName === name) return clamp01(c.score);
@@ -297,10 +297,10 @@ export function idleDriveAt(tSec: number, blink: number): DriveValues {
 
 /* ── The drive ladder ─────────────────────────────────────────────────── */
 
-export type AvatarDriveMode = "face" | "voice" | "idle";
+type AvatarDriveMode = "face" | "voice" | "idle";
 export type AvatarDriveRequest = AvatarDriveMode;
 
-export interface DriveCapabilities {
+interface DriveCapabilities {
   /** Face tracking engine loaded and producing results. */
   faceReady: boolean;
   /** A microphone analyser is available to read levels from. */

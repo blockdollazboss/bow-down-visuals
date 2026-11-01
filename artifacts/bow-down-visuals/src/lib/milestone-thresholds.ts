@@ -35,7 +35,7 @@ export const VERTICAL_META: Record<
 
 /* Mirror of the server's AWARD_STEPS — for per-row brag buttons without a
    round-trip. */
-export const STREAMS_LADDER: Array<{ at: number; tier: string; tierLabel: string }> = [
+const STREAMS_LADDER: Array<{ at: number; tier: string; tierLabel: string }> = [
   { at: 1_000, tier: "bronze", tierLabel: "Bronze" },
   { at: 10_000, tier: "silver", tierLabel: "Silver" },
   { at: 100_000, tier: "gold", tierLabel: "Gold" },
@@ -43,7 +43,7 @@ export const STREAMS_LADDER: Array<{ at: number; tier: string; tierLabel: string
   { at: 10_000_000, tier: "diamond", tierLabel: "Diamond" },
 ];
 
-export function highestStreamStep(streams: number): (typeof STREAMS_LADDER)[number] | null {
+function highestStreamStep(streams: number): (typeof STREAMS_LADDER)[number] | null {
   let hit: (typeof STREAMS_LADDER)[number] | null = null;
   for (const step of STREAMS_LADDER) {
     if (streams >= step.at) hit = step;

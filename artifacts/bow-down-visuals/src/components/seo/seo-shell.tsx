@@ -24,7 +24,7 @@ const SITE = "https://bowdownvisuals.com";
 
 /* ── Template resolution: real entries from the template libraries ── */
 
-export type TemplateKind = "thumbnail" | "hook" | "caption" | "video";
+type TemplateKind = "thumbnail" | "hook" | "caption" | "video";
 
 interface ResolvedTemplate {
   key: string;
@@ -48,7 +48,7 @@ const VIDEO_MAP = new Map<string, VideoTemplateMeta>(
   VIDEO_TEMPLATE_METAS.map((t) => [t.key, t]),
 );
 
-export function resolveTemplates(
+function resolveTemplates(
   kind: TemplateKind,
   slugs: string[],
 ): ResolvedTemplate[] {
@@ -105,7 +105,7 @@ export function resolveTemplates(
 
 /* ── Breadcrumb ── */
 
-export function SeoBreadcrumb({
+function SeoBreadcrumb({
   trail,
 }: {
   trail: { label: string; href?: string }[];

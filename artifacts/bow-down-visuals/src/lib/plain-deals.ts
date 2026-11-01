@@ -92,7 +92,7 @@ export function plainDealStateLabel(state: string): string {
   }
 }
 
-export type PlainDealViewerAction = "sign" | "decline" | "withdraw" | "amend";
+type PlainDealViewerAction = "sign" | "decline" | "withdraw" | "amend";
 
 /** The actions the viewer may take on a deal right now — mirrors the
  *  server machine: the invited side signs or declines a live draft;

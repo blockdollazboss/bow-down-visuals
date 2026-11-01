@@ -169,7 +169,7 @@ export function facadeWindowFrameBars(win: { x: number; y: number }): ExteriorBo
   ];
 }
 
-export interface FacadeWindowStyle {
+interface FacadeWindowStyle {
   /** Glass base colour. */
   color: number;
   /** Emissive colour — the lit-window warmth. */
@@ -249,8 +249,8 @@ export const BANNER = {
  *  east room blocks and the Creator Room block the same way. All
  *  of it stands at 6.5 m+, far above walk height — no walk rect
  *  ever meets it. */
-export const ROOF_SLAB_Y = 6.72;
-export const ROOF_SLAB_H = 0.36;
+const ROOF_SLAB_Y = 6.72;
+const ROOF_SLAB_H = 0.36;
 export const ROOF_SLABS: readonly ExteriorBox[] = [
   { cx: 0, cy: ROOF_SLAB_Y, cz: -3.0, w: 29.4, h: ROOF_SLAB_H, d: 31.4 }, // the hall block
   { cx: -21.3, cy: ROOF_SLAB_Y, cz: -3.0, w: 14.6, h: ROOF_SLAB_H, d: 31.4 }, // west rooms

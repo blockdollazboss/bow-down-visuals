@@ -53,7 +53,7 @@ export function touchSprintAfter(_held: boolean, action: TouchSprintAction): boo
 /** The three sprint inputs of one frame, as their families report
  *  them: Shift (either) on the keys, the pad's hurry intent, and
  *  the touch Sprint hold. */
-export interface SprintInputs {
+interface SprintInputs {
   keyboard: boolean;
   gamepad: boolean;
   touch: boolean;

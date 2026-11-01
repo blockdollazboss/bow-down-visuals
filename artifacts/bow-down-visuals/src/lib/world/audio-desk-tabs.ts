@@ -39,7 +39,7 @@ export function isAudioDeskTabId(value: unknown): value is AudioDeskTabId {
    falls back to the site's standard set, exactly as the website tab
    treats its catalog (progressive enhancement, never a hard gate). */
 
-export interface SamplePackCatalogType {
+interface SamplePackCatalogType {
   key: string;
   label: string;
   origin: "synthesized" | "ai-generated";
@@ -88,7 +88,7 @@ export function parseSamplePackCatalog(payload: unknown): SamplePackCatalog | nu
    types rides ONLY when the member picked some (an absent list is
    the server's "the full set" signal; an empty array is not). */
 
-export interface SamplePackBuild {
+interface SamplePackBuild {
   genre: string;
   bpm: number;
   musicalKey: string;

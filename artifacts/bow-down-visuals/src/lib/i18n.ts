@@ -55,7 +55,7 @@ const loadedLocales = new Set<string>(["en"]);
  * Fetch a locale's catalog chunk (once) and register it with i18next.
  * Resolves true when the locale's strings are ready to render.
  */
-export async function ensureLocaleLoaded(lng: string): Promise<boolean> {
+async function ensureLocaleLoaded(lng: string): Promise<boolean> {
   const base = lng.split("-")[0];
   if (loadedLocales.has(base)) return true;
   const loader = localeLoaders[base];

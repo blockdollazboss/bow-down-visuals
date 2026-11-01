@@ -5,7 +5,7 @@ export type ProductKey = "tshirt" | "hoodie" | "mug" | "snapback" | "poster" | "
 export type BrandStyle = "luxury-gold" | "streetwear" | "minimal" | "bold";
 export type ColorKey = "black" | "gold" | "white";
 
-export interface CatalogProduct {
+interface CatalogProduct {
   key: ProductKey;
   label: string;
   priceCents: number;

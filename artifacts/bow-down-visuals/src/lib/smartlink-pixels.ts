@@ -30,7 +30,7 @@ export function isValidPixelId(kind: PixelKind, value: string): boolean {
   return v === "" || PIXEL_ID_PATTERNS[kind].test(v);
 }
 
-export interface ArmedPixel {
+interface ArmedPixel {
   kind: PixelKind;
   id: string;
 }

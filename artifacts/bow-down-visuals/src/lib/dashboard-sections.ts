@@ -32,7 +32,7 @@
 
 /* ── Generic core ─────────────────────────────────────────────────── */
 
-export type SectionStatus = "loading" | "ok" | "failed";
+type SectionStatus = "loading" | "ok" | "failed";
 
 export type SectionStates<K extends string> = Record<K, SectionStatus>;
 
@@ -118,7 +118,7 @@ export const DASHBOARD_SECTION_KEYS: readonly DashboardSectionKey[] = [
   "streak",
 ];
 
-export type DashboardSectionStatus = SectionStatus;
+type DashboardSectionStatus = SectionStatus;
 
 export type DashboardSectionStates = SectionStates<DashboardSectionKey>;
 

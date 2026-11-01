@@ -50,7 +50,7 @@ export const SWITCH_TO_WEBSITE_LABEL = "Switch to the website";
  *  simple way out, not any station's deep link. */
 export const WEBSITE_HOME_PATH = "/";
 
-export type StationPanelResolution =
+type StationPanelResolution =
   | { type: "guest-pitch"; station: PalaceStation }
   | {
       type: "native";

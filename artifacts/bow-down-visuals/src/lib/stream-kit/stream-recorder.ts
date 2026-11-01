@@ -43,7 +43,7 @@ interface OpfsRoot {
 }
 
 /** OPFS-backed sink: chunks stream to a private file, not RAM. */
-export class OpfsChunkSink implements ChunkSink {
+class OpfsChunkSink implements ChunkSink {
   private _handle: FileSystemFileHandle | null = null;
   private _writable: FileSystemWritableFileStream | null = null;
   private _root: OpfsRoot | null = null;
@@ -102,7 +102,7 @@ export class OpfsChunkSink implements ChunkSink {
 }
 
 /** House mime preference order (same as the editor's screen recorder). */
-export const RECORDER_MIME_CANDIDATES = [
+const RECORDER_MIME_CANDIDATES = [
   "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8,opus",
   "video/webm",
@@ -122,7 +122,7 @@ export function pickRecorderMimeType(
   return "";
 }
 
-export interface StreamRecorderDeps {
+interface StreamRecorderDeps {
   /** Injected MediaRecorder implementation (tests). */
   mediaRecorderImpl?: typeof MediaRecorder;
   /** Force a sink (tests); default: OPFS when available, else memory. */

@@ -16,7 +16,7 @@
      decrementUnread— badge − 1, never below zero.
      markAllItemsRead — flip everything (mark-all's local half). */
 
-export interface ReadStateItem {
+interface ReadStateItem {
   id: string;
   is_read: boolean;
 }

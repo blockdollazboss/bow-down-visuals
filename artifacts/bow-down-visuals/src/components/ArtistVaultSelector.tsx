@@ -43,7 +43,7 @@ export interface ArtistVault {
 
 export type SubjectType = "singer" | "rapper" | "influencer" | "actor" | "actress" | "character" | "gamer" | "streamer" | "podcaster";
 
-export type VaultContext = "music" | "video" | "movie" | "series" | "promo" | "thumbnail";
+type VaultContext = "music" | "video" | "movie" | "series" | "promo" | "thumbnail";
 
 export function normalizeSubjectType(value: string | null | undefined): SubjectType {
   const v = (value ?? "").trim().toLowerCase();

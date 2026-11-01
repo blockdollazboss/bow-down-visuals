@@ -93,7 +93,7 @@ export interface UgcBrief {
   updatedAt: string;
 }
 
-export interface UgcBriefPage {
+interface UgcBriefPage {
   briefs: UgcBrief[];
   limit: number | null;
   hasMore: boolean;

@@ -22,12 +22,12 @@
 import { isPublicPath, resolveRouteRedirect } from "./public-routes";
 import { loginPathWithNext } from "./auth-next";
 
-export type GateVerdict =
+type GateVerdict =
   | { kind: "loading" }
   | { kind: "redirect"; to: string }
   | { kind: "children" };
 
-export interface GateSession {
+interface GateSession {
   user: unknown;
   loading: boolean;
 }

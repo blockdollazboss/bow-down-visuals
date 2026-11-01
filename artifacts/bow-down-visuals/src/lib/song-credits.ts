@@ -16,7 +16,7 @@
    - a song with no credits shows the honest empty line, never an
      invented name. */
 
-export interface SongCreditShare {
+interface SongCreditShare {
   source: "publishing" | "master" | "co_release";
   pct: number;
   frozen?: boolean;
@@ -50,7 +50,7 @@ export interface PublicSongCredits {
 
 export const SONG_CREDITS_EMPTY = "No credits recorded yet.";
 
-export const SHARE_SOURCE_LABELS: Record<SongCreditShare["source"], string> = {
+const SHARE_SOURCE_LABELS: Record<SongCreditShare["source"], string> = {
   publishing: "publishing",
   master: "master",
   co_release: "co-release",

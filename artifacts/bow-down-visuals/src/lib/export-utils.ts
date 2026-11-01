@@ -3,7 +3,7 @@ import jsPDF from "jspdf";
 const BRAND  = "BOW DOWN VISUALS";
 const SLOGAN = "Create the Song. Create the Video. Promote the Release.";
 
-export interface ExportMeta {
+interface ExportMeta {
   projectType:  string;
   artistName?:  string | null;
   songTitle?:   string | null;

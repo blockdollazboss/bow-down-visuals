@@ -41,7 +41,7 @@ export type TransportState = "idle" | "connecting" | "live" | "stopping" | "fail
    a fake toggle. Fan-out (RTMP relays to other platforms) slots in as
    additional destination handlers behind this same interface; the
    studio UI and the kit modules won't change when it lands. */
-export interface StreamDestination {
+interface StreamDestination {
   platform: string;
   label: string;
   status: "active" | "pending" | "off";
@@ -74,7 +74,7 @@ export const SITE_DESTINATION: StreamDestination = {
  *  - TikTok keeps no public archive; the replay in the creator's own
  *    library here is the record of the stream.
  */
-export interface DestinationPlatformInfo {
+interface DestinationPlatformInfo {
   platform: string;
   label: string;
   recordingNote: string;
@@ -113,7 +113,7 @@ export const DESTINATION_PLATFORMS: DestinationPlatformInfo[] = [
  *  the ticket price in Visual Bucs and an optional seat cap. Absent
  *  (or a zero price) means a free stream — the create call simply
  *  doesn't carry the fields. */
-export interface StreamTicketSetup {
+interface StreamTicketSetup {
   priceVb: number;
   capacity?: number | null;
   /** Creator Classes (#153): run this ticketed show as a class — the
@@ -161,7 +161,7 @@ export class TransportError extends Error {
 type FetchImpl = typeof fetch;
 type PeerConnectionImpl = typeof RTCPeerConnection;
 
-export interface WhipDeps {
+interface WhipDeps {
   fetchImpl?: FetchImpl;
   peerConnectionImpl?: PeerConnectionImpl;
   /** How long to wait for ICE gathering before sending the offer (ms). */
@@ -432,7 +432,7 @@ export function pickIngestMimeType(
   return "";
 }
 
-export interface OwnServerDeps {
+interface OwnServerDeps {
   fetchImpl?: FetchImpl;
   mediaRecorderImpl?: typeof MediaRecorder;
   isTypeSupported?: (mime: string) => boolean;
@@ -774,7 +774,7 @@ export function summarizeRtcStats(
    caller's business; this throws a TransportError on failure so the watch
    page can fall back to the HLS URL honestly. */
 
-export interface WhepDeps {
+interface WhepDeps {
   fetchImpl?: FetchImpl;
   peerConnectionImpl?: PeerConnectionImpl;
   iceGatherTimeoutMs?: number;

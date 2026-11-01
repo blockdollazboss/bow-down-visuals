@@ -10,7 +10,7 @@
  */
 import { getCreatorFont } from "./creator-fonts";
 
-export const FONT_FAVORITES_STORAGE_KEY = "bdv:creator-font-favorites:v1";
+const FONT_FAVORITES_STORAGE_KEY = "bdv:creator-font-favorites:v1";
 
 /** Parse a stored favorites payload; unknown/garbage ids are dropped. */
 export function parseFontFavorites(raw: string | null | undefined): string[] {
@@ -32,7 +32,7 @@ export function parseFontFavorites(raw: string | null | undefined): string[] {
   }
 }
 
-export function loadFontFavorites(): string[] {
+function loadFontFavorites(): string[] {
   if (typeof localStorage === "undefined") return [];
   try {
     return parseFontFavorites(localStorage.getItem(FONT_FAVORITES_STORAGE_KEY));
@@ -41,7 +41,7 @@ export function loadFontFavorites(): string[] {
   }
 }
 
-export function saveFontFavorites(ids: string[]): void {
+function saveFontFavorites(ids: string[]): void {
   if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(FONT_FAVORITES_STORAGE_KEY, JSON.stringify(ids));

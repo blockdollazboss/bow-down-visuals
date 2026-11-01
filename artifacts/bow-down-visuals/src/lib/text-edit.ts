@@ -13,7 +13,7 @@
 
 import type { CaptionLine } from "@/lib/editor-settings";
 
-export interface TextSegment {
+interface TextSegment {
   sceneId: string;
   index: number;
   startSec: number;
@@ -24,7 +24,7 @@ export interface TextSegment {
 }
 
 /** Scene windows from cumulative durations (even split when unknown). */
-export function sceneWindows<T extends { id: string }>(
+function sceneWindows<T extends { id: string }>(
   scenes: T[],
   durations: Map<string, number> | Record<string, number>,
   fallbackEach = 5,

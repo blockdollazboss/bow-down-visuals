@@ -86,7 +86,7 @@ export interface TimelinePlayerHandle {
   setPlaybackRate: (rate: number) => void;
 }
 
-export interface TimelinePreviewPlayerProps {
+interface TimelinePreviewPlayerProps {
   scenes: SceneData[];
   captionLines: CaptionLine[];
   audioUrl?: string | null;

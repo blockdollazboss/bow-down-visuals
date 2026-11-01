@@ -72,12 +72,10 @@ export function jukeboxPickId(trackId: string): string {
   return trackId.startsWith("track:") ? trackId : `track:${trackId}`;
 }
 
-export const PORTRAIT_PLAY_SEAM =
-  "Play rides the room jukebox (onJukeboxAdd with a track:<id> pick) — the only playback hand-off wired into StationPanel today; the sibling Shelf player's personal-play hand-off is the follow-on seam.";
 
 /* ─── Card view model ─────────────────────────────────────────────── */
 
-export interface PortraitTrack {
+interface PortraitTrack {
   id: string;
   title: string;
   artworkUrl: string | null;

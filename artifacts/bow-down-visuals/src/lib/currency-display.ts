@@ -29,7 +29,7 @@ export const SUPPORTED_CURRENCIES: CurrencyCode[] = [
 /** Currency implied by each of the site's 10 locale settings.
     The flags in SUPPORTED_LANGUAGES pin the region: es → Spain (EUR),
     pt → Brazil (BRL), ar → Saudi Arabia (SAR), hi → India (INR). */
-export const LOCALE_CURRENCY: Record<string, CurrencyCode> = {
+const LOCALE_CURRENCY: Record<string, CurrencyCode> = {
   en: "USD",
   es: "EUR",
   fr: "EUR",
@@ -43,7 +43,7 @@ export const LOCALE_CURRENCY: Record<string, CurrencyCode> = {
 };
 
 /** BCP-47 tag used for Intl number formatting per site locale. */
-export const LOCALE_BCP47: Record<string, string> = {
+const LOCALE_BCP47: Record<string, string> = {
   en: "en-US",
   es: "es-ES",
   fr: "fr-FR",
@@ -56,7 +56,7 @@ export const LOCALE_BCP47: Record<string, string> = {
   ko: "ko-KR",
 };
 
-export function bcp47ForLocale(locale: string | null | undefined): string {
+function bcp47ForLocale(locale: string | null | undefined): string {
   const base = (locale ?? "en").split("-")[0]!.toLowerCase();
   return LOCALE_BCP47[base] ?? "en-US";
 }
@@ -84,10 +84,10 @@ export const FALLBACK_RATES_USD: Record<CurrencyCode, number> = {
   AUD: 1.52,
 };
 
-export const RATES_SOURCE = "static-fallback" as const;
+const RATES_SOURCE = "static-fallback" as const;
 export const RATES_LABEL = "approximate static snapshot — not a live exchange rate";
 
-export interface RatesResult {
+interface RatesResult {
   rates: Record<CurrencyCode, number>;
   source: typeof RATES_SOURCE;
   approximate: true;
@@ -122,7 +122,7 @@ export function roundForDisplay(value: number, currency: CurrencyCode): number {
 /* ─── Conversion (USD amounts only — VB is refused) ──────────────────────*/
 const NON_FIAT_CODES = new Set(["VB", "VBUCS", "VISUALBUCS", "VISUAL_BUCS", "XVB", "CREDITS"]);
 
-export function isSupportedCurrency(code: string): code is CurrencyCode {
+function isSupportedCurrency(code: string): code is CurrencyCode {
   return (SUPPORTED_CURRENCIES as string[]).includes(code.toUpperCase());
 }
 
@@ -166,7 +166,7 @@ export function formatUsd(usd: number, locale?: string): string {
 }
 
 /* ─── Preference (Settings → one display choice, stored locally) ────────*/
-export const CURRENCY_PREF_KEY = "bdv-currency-display";
+const CURRENCY_PREF_KEY = "bdv-currency-display";
 export const CURRENCY_PREF_EVENT = "bdv-currency-display-changed";
 
 /** "auto" = follow the locale setting; a code pins that currency;

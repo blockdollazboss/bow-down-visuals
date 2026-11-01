@@ -48,7 +48,7 @@ export interface MasterPlayerFitInput {
   minimized: boolean;
 }
 
-export interface MasterPlayerFit {
+interface MasterPlayerFit {
   /** Rendered video width in px. */
   width: number;
   /** Rendered video height in px (width / aspect). */

@@ -29,7 +29,7 @@ import {
 
 export type CommercePixels = SmartlinkPixels;
 
-export interface CommercePurchase {
+interface CommercePurchase {
   /** The recorded order id (or checkout session id) — the event's
    *  dedupe key: one order can fire Purchase at most once per load. */
   orderId: string;

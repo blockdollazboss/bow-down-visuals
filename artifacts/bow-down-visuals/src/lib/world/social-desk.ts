@@ -77,7 +77,7 @@ import type { FeedPost } from "@/lib/social-api";
 
 /* ─── DM wire shapes (pages/messages.tsx, mirrored exactly) ──────── */
 
-export interface DmProfileCard {
+interface DmProfileCard {
   slug: string;
   displayName: string;
   avatarUrl: string | null;
@@ -139,7 +139,7 @@ export function dmSendPath(conversationId: string): string {
   return `/api/dm/${encodeURIComponent(conversationId)}/send`;
 }
 
-export type DmRequestAction = "accept" | "decline" | "block";
+type DmRequestAction = "accept" | "decline" | "block";
 
 export function dmRequestActionPath(conversationId: string, action: DmRequestAction): string {
   return `/api/dm/${encodeURIComponent(conversationId)}/${action}`;
@@ -180,7 +180,7 @@ export function normalizeDmDraft(payload: unknown): DmDraft | null {
  *  "skip" — the server already holds exactly this text; "clear" —
  *  the composer went blank over a saved draft, so retire it (a PUT
  *  with an empty body); "save" — new words to persist. */
-export type DmDraftSaveDecision = "skip" | "clear" | "save";
+type DmDraftSaveDecision = "skip" | "clear" | "save";
 export function dmDraftSaveDecision(text: string, savedText: string): DmDraftSaveDecision {
   if (text === savedText) return "skip";
   return text.trim().length === 0 ? "clear" : "save";
@@ -272,7 +272,7 @@ function dmHaystack(parts: readonly (string | null | undefined)[]): string {
 }
 
 /** Search inside the open thread: words and work titles both count. */
-export function dmMessageMatches(m: DmMessage, query: string): boolean {
+function dmMessageMatches(m: DmMessage, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return dmHaystack([m.body, m.attachment_name]).includes(q);
@@ -418,7 +418,6 @@ export function postReplyDraftPath(postId: string): string {
 }
 
 /** The reply route's own cap, and the composer's (replySchema). */
-export const REPLY_DRAFT_MAX = 500;
 
 export interface PostReplyDraft {
   body: string;
@@ -450,7 +449,7 @@ export function normalizePostReplyDraft(payload: unknown): PostReplyDraft | null
  *  tone (or the composer is blank over nothing saved); "clear" — the
  *  composer went blank over a saved draft, so retire it (a PUT with
  *  an empty body); "save" — new words, or the same words retuned. */
-export type PostReplyDraftSaveDecision = "skip" | "clear" | "save";
+type PostReplyDraftSaveDecision = "skip" | "clear" | "save";
 export function postReplyDraftSaveDecision(
   text: string,
   tone: ReplyDraftTone,
@@ -519,7 +518,7 @@ export function pinTopicReady(topic: string): boolean {
 
 /** A post body can be pinned to the board only inside the posts
  *  route's own limits (1–500 chars, createPostSchema). */
-export const POST_BODY_MAX = 500;
+const POST_BODY_MAX = 500;
 export function postBodyReady(body: string): boolean {
   const n = body.trim().length;
   return n >= 1 && n <= POST_BODY_MAX;
@@ -632,7 +631,7 @@ export function threadReactAllowed(isGuest: boolean): boolean {
 
 export const FEED_PAGE_SIZE = 20;
 
-export type FeedMode = "chrono" | "foryou";
+type FeedMode = "chrono" | "foryou";
 export type FeedView = FeedMode | "drops";
 
 export const FEED_VIEWS: { key: FeedView; label: string }[] = [
@@ -727,7 +726,7 @@ export function postIsOwn(
   return !!myProfileId && post.profile_id === myProfileId;
 }
 
-export interface PollLike {
+interface PollLike {
   options: Array<{ id: string; option_text: string; vote_count: number }>;
   viewer_option_id: string | null;
 }
@@ -774,11 +773,11 @@ export function discoverySearchPath(query: string, type: DiscoverySearchType): s
   return `/api/discovery/search?${params.toString()}`;
 }
 
-export interface SearchCreatorHit {
+interface SearchCreatorHit {
   id: string; slug: string; display_name: string;
   avatar_url: string | null; vertical?: string; follower_count?: number;
 }
-export interface SearchWorkHit {
+interface SearchWorkHit {
   id: string; title: string; slug?: string; display_name?: string;
 }
 export interface DiscoverySearchResults {
@@ -820,7 +819,6 @@ export const ADMIN_CONTENT_REMOVED_PATH = "/api/admin/content/removed";
 /** The two queues share one workflow vocabulary (the server's
  *  CONTENT_REPORT_STATUSES / DMCA_REPORT_STATUSES — identical). */
 export const REPORT_STATUSES = ["new", "reviewing", "actioned", "dismissed"] as const;
-export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export type AdminQueueKind = "reports" | "dmca-reports";
 

@@ -137,7 +137,7 @@ export function PasskeyLoginButton({ onSuccess }: { onSuccess: () => void }) {
 }
 
 /* Register a passkey for the logged-in user. Requires a Supabase JWT. */
-export function PasskeyRegisterButton({ userId, email }: { userId: string; email: string }) {
+function PasskeyRegisterButton({ userId, email }: { userId: string; email: string }) {
   const { getAccessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -233,7 +233,7 @@ export function PasskeyRegisterButton({ userId, email }: { userId: string; email
   );
 }
 
-export interface PasskeyInfo {
+interface PasskeyInfo {
   credential_id: string;
   device_name: string | null;
   created_at: string;

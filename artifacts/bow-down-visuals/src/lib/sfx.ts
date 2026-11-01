@@ -7,7 +7,7 @@
      samples here; decoding MP3 bytes into samples happens in the page via
      the Web Audio API (needs a real AudioContext). */
 
-export const SFX_LIBRARY_KEY = "bdv-sfx-library";
+const SFX_LIBRARY_KEY = "bdv-sfx-library";
 export const SFX_LIBRARY_LIMIT = 50;
 
 export interface SfxItem {

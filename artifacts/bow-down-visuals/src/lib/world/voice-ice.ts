@@ -87,7 +87,7 @@ export function sanitizeTurnServer(raw: unknown): IceServerConfig | null {
 
 /** The shape the config endpoint serves (and tests feed directly):
  *  `{ turnServers?: unknown[] }` — everything else is ignored. */
-export interface VoiceIceConfig {
+interface VoiceIceConfig {
   turnServers?: unknown;
 }
 

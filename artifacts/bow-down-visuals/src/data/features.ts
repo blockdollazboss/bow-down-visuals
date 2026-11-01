@@ -18,7 +18,7 @@ import type { LucideIcon } from "lucide-react";
 
 export type FeatureCategory = "create" | "branding" | "promote" | "social" | "business" | "studio";
 
-export interface FeatureCategoryMeta {
+interface FeatureCategoryMeta {
   key: FeatureCategory;
   label: string;
   blurb: string;
@@ -33,7 +33,7 @@ export const FEATURE_CATEGORIES: FeatureCategoryMeta[] = [
   { key: "studio", label: "My Studio", blurb: "Your projects, vault & library" },
 ];
 
-export interface SiteFeature {
+interface SiteFeature {
   /** Stable machine key — also used by /promote's feature picker. */
   key: string;
   name: string;

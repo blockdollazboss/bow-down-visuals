@@ -38,7 +38,7 @@ import { Button } from "@/components/ui/button";
    in each cell, choose the audio mix, one tap renders — the server composes
    the grid with ffmpeg (xstack/overlay) and the panel polls to completion. */
 
-export interface SplitScreenLayout {
+interface SplitScreenLayout {
   key: string;
   name: string;
   cells: number;

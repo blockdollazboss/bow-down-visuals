@@ -505,8 +505,6 @@ export const BRAND_OUTREACH_AUDIENCE_SIZES = [
   { key: "250k-plus", label: "250K+ followers" },
 ] as const;
 
-export type BrandOutreachAudienceSize =
-  (typeof BRAND_OUTREACH_AUDIENCE_SIZES)[number]["key"];
 
 /** Deal types by their finder key; the payload carries the LABEL —
  *  the page sends the deal's display type and the route reads it
@@ -519,7 +517,6 @@ export const BRAND_OUTREACH_DEAL_TYPES = [
   { key: "usage-licensing", label: "Usage Licensing" },
 ] as const;
 
-export type BrandOutreachDealType = (typeof BRAND_OUTREACH_DEAL_TYPES)[number]["key"];
 
 /** The page's platform presets (the finder/outreach shared list). */
 export const BRAND_OUTREACH_PLATFORMS = ["TikTok", "Instagram", "YouTube", "Twitch", "X"] as const;
@@ -527,7 +524,7 @@ export const BRAND_OUTREACH_PLATFORMS = ["TikTok", "Instagram", "YouTube", "Twit
 /** The page's own opening selection. */
 export const BRAND_OUTREACH_DEFAULT_PLATFORMS: string[] = ["TikTok", "Instagram"];
 
-export interface BrandOutreachInput {
+interface BrandOutreachInput {
   brand: string;
   /** A BRAND_OUTREACH_DEAL_TYPES key, or "" for no specific type. */
   dealTypeKey: string;
@@ -624,7 +621,7 @@ export function brandOutreachErrorMessage(payload: unknown, status: number): str
    product link / deadline. Anything else returns null — the form
    refuses rather than sending the walker into a 400. */
 
-export interface UgcBriefInput {
+interface UgcBriefInput {
   productName: string;
   productUrl: string;
   details: string;

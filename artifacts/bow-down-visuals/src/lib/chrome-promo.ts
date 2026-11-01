@@ -20,7 +20,7 @@ export function isChromeMobile(): boolean {
   return isAndroid && isChrome && !isFork && !isIOSChrome;
 }
 
-export function hasInstalledChromeApp(): boolean {
+function hasInstalledChromeApp(): boolean {
   try {
     return localStorage.getItem(INSTALLED_KEY) === "1";
   } catch {
@@ -37,7 +37,7 @@ export function markChromeInstalled(): void {
   }
 }
 
-export function hasOptedOutChromePromo(): boolean {
+function hasOptedOutChromePromo(): boolean {
   try {
     return localStorage.getItem(OPTOUT_KEY) === "1";
   } catch {
@@ -45,40 +45,5 @@ export function hasOptedOutChromePromo(): boolean {
   }
 }
 
-export function optOutChromePromo(): void {
-  try {
-    localStorage.setItem(OPTOUT_KEY, "1");
-    window.dispatchEvent(new Event("bdv-chrome-promo-optout"));
-  } catch {
-    /* private mode */
-  }
-}
 
 /** Reactive: true when the Chrome promo should show to this visitor. */
-export function useChromePromoVisible(): boolean {
-  const [visible, setVisible] = useState(
-    () =>
-      isChromeMobile() &&
-      !hasInstalledChromeApp() &&
-      !hasOptedOutChromePromo()
-  );
-  useEffect(() => {
-    const hide = () => setVisible(false);
-    window.addEventListener("bdv-chrome-installed", hide);
-    window.addEventListener("bdv-chrome-promo-optout", hide);
-    const onStorage = (e: StorageEvent) => {
-      if (
-        (e.key === INSTALLED_KEY || e.key === OPTOUT_KEY) &&
-        e.newValue === "1"
-      )
-        hide();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener("bdv-chrome-installed", hide);
-      window.removeEventListener("bdv-chrome-promo-optout", hide);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
-  return visible;
-}

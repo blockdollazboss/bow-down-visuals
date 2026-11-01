@@ -82,7 +82,7 @@ export interface FigureLoopDef {
   stillWhileSpeaking: boolean;
 }
 
-export const GUARD_LOOP_PATHS: Record<GuardVariant, { video: string; poster: string }> = {
+const GUARD_LOOP_PATHS: Record<GuardVariant, { video: string; poster: string }> = {
   male: {
     video: "/world/loops/palace-guard-male-idle-loop.mp4",
     poster: "/world/loops/palace-guard-male-idle-poster.png",
@@ -129,7 +129,7 @@ export function loopForGuardVariant(variant: GuardVariant): FigureLoopDef {
  *  identity and the living asset the server resolved from it.
  *  Nothing else — in particular NOT the name, which is display
  *  text, user-editable, and no kind of key. */
-export interface LoopCharacterRef {
+interface LoopCharacterRef {
   id: string;
   loopUrl?: string | null;
 }
@@ -225,7 +225,7 @@ export function loopSuspendedForSpeech(def: FigureLoopDef, speaking: boolean): b
 /** Hard cap on simultaneously decoding loop videos. */
 export const MAX_LIVE_LOOPS = 6;
 
-export interface LoopCandidate {
+interface LoopCandidate {
   /** The rig's identity (peer id, or the self marker). */
   key: string;
   /** Distance from the camera, meters. */

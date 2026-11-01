@@ -98,7 +98,7 @@ function strOrNull(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
 
-export function normalizePanel(raw: unknown): StoryboardPanelDTO | null {
+function normalizePanel(raw: unknown): StoryboardPanelDTO | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const id = str(r["id"]);

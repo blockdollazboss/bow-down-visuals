@@ -11,7 +11,7 @@ import type { ContextMenuItem } from "../components/editor/ClipContextMenu";
 import type { Stage } from "./stream-kit/stage";
 import type { Scene, SceneSource } from "./stream-kit/scenes";
 
-export interface SceneMenuActions {
+interface SceneMenuActions {
   /** Take the scene straight to Program (the studio's cut handler). */
   onTake: (sceneId: string) => void;
   /** Start the panel's inline rename for this scene. */
@@ -65,7 +65,7 @@ export function buildSceneContextItems(
   ];
 }
 
-export interface SourceMenuActions {
+interface SourceMenuActions {
   onSelect: (id: string | null) => void;
   /** Rename through the surface's own editor (panel field / prompt). */
   onRename: (source: SceneSource) => void;

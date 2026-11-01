@@ -21,13 +21,13 @@
  *               not_saved. Only now may a page say "no recording".
  */
 
-export interface ReplayFacts {
+interface ReplayFacts {
   vod_url: string | null;
   provider: string | null;
   destinations?: Array<{ platform: string; vod_state: string | null }> | null;
 }
 
-export type ReplayState =
+type ReplayState =
   | { kind: "available"; url: string }
   | { kind: "saving" }
   | { kind: "pending" }

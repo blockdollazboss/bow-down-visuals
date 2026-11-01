@@ -79,7 +79,7 @@ function buildMashupLrc(title: string, a: string, b: string, styleLabel: string,
   return lines.map(([t, text]) => `${fmtLrcTime(t)}${text}`).join("\n");
 }
 
-export interface SongMashupProps {
+interface SongMashupProps {
   preselectA?: string | null;
   preselectB?: string | null;
 }

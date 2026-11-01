@@ -19,9 +19,9 @@ export interface SourceErr {
   totalCents: null;
   count: null;
 }
-export type EarningsSource = SourceOk | SourceErr;
+type EarningsSource = SourceOk | SourceErr;
 
-export interface EarningsTips {
+interface EarningsTips {
   status: "ok" | "error";
   streamTipsVb: number | null;
   streamTipCount: number | null;
@@ -34,7 +34,7 @@ export interface EarningsTips {
     same source: shares I paid my co-sellers out of my sales, and my
     earnings as a co-seller on other creators' products. They default
     to 0 when an older payload doesn't carry them. */
-export interface StoreSalesBreakdown {
+interface StoreSalesBreakdown {
   profileStoreCents: number;
   shopSalesCents: number;
   /* Digital-store sales (payfix store-dashboards): absent on older
@@ -49,7 +49,7 @@ export interface StoreSalesBreakdown {
 /** Beat-license income (payfix store-dashboards): previously visible
     only on the Producer Dashboard; now a first-class Earnings source
     with the 15% commission split shown. */
-export type BeatsSource =
+type BeatsSource =
   | (SourceOk & { grossCents: number; commissionCents: number })
   | (SourceErr & { grossCents: null; commissionCents: null });
 
@@ -130,7 +130,7 @@ export interface EarningsLoadDeps {
   onRetry?: (nextAttempt: number) => void;
 }
 
-export interface EarningsLoadOptions {
+interface EarningsLoadOptions {
   attempts?: number;
   backoffMs?: readonly number[];
   attemptTimeoutMs?: number;

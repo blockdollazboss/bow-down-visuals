@@ -23,7 +23,7 @@ export type BattleStatus =
   | "pending" | "accepted" | "declined" | "cancelled"
   | "live" | "completed" | "voided";
 
-export interface BattleCard {
+interface BattleCard {
   user_id: string;
   profile_id: string;
   display_name: string;
@@ -87,9 +87,6 @@ export const LIVE_BATTLES_CROWN_PATH = "/api/live-battles/crown";
 export function liveBattleByStreamPath(streamId: string): string {
   return `/api/live-battles/by-stream/${encodeURIComponent(streamId)}`;
 }
-export function liveBattlePath(id: string): string {
-  return `/api/live-battles/${encodeURIComponent(id)}`;
-}
 export function liveBattleTallyPath(id: string): string {
   return `/api/live-battles/${encodeURIComponent(id)}/tally`;
 }
@@ -152,7 +149,7 @@ export function battleRoundAt(
   return Math.floor((t - start) / (battle.round_seconds * 1000)) + 1;
 }
 
-export type BattleViewerAction = "accept" | "decline" | "cancel" | "start" | "finalize";
+type BattleViewerAction = "accept" | "decline" | "cancel" | "start" | "finalize";
 
 /** Actions the VIEWER may take on a battle, mirroring the service:
  *  the opponent answers a pending challenge; the challenger cancels
@@ -180,7 +177,7 @@ export function battleViewerActions(
   return actions;
 }
 
-export interface VoteEligibility {
+interface VoteEligibility {
   canVote: boolean;
   reason: string | null;
 }

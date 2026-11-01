@@ -35,20 +35,6 @@ const FEATURE_PROMOS = [
   { title: "4K Masterpiece Exports", desc: "Crystal-clear 4K quality on every export." },
 ];
 
-export function useWittyLine(intervalMs = 2200): string {
-  const { t } = useTranslation();
-  const [idx, setIdx] = useState(0);
-  const lines = (t("delight.loaderLines", { returnObjects: true, defaultValue: FALLBACK_LINES }) as unknown as string[]) || FALLBACK_LINES;
-  const safe = Array.isArray(lines) && lines.length > 0 ? lines : FALLBACK_LINES;
-
-  useEffect(() => {
-    if (safe.length <= 1) return;
-    const id = window.setInterval(() => setIdx((i) => (i + 1) % safe.length), intervalMs);
-    return () => window.clearInterval(id);
-  }, [safe.length, intervalMs]);
-
-  return safe[idx % safe.length] ?? FALLBACK_LINES[0]!;
-}
 
 export default function WittyLoader({ message, onComplete }: { message?: string; onComplete?: () => void }) {
   const { t } = useTranslation();
@@ -427,7 +413,7 @@ const FALLBACK_GENERATING = [
   "Almost worthy of the crown…",
 ];
 
-export function useGeneratingLine(intervalMs = 3000): string {
+function useGeneratingLine(intervalMs = 3000): string {
   const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
   const lines = (t("delight.generatingLines", { returnObjects: true, defaultValue: FALLBACK_GENERATING }) as unknown as string[]) || FALLBACK_GENERATING;

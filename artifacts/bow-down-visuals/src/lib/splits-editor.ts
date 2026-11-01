@@ -65,7 +65,7 @@ export function ownerSharePct(drafts: SplitCoSellerDraft[]): number {
   return (10000 - coSellerTotalHundredths(drafts)) / 100;
 }
 
-export type SplitsDraftValidation =
+type SplitsDraftValidation =
   | { ok: true }
   | { ok: false; reason: SplitsDraftError };
 

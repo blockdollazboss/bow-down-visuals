@@ -24,7 +24,7 @@ export function modeGateForTab(
   return isSimple && !simpleVisibleTabs.includes(tab) ? "advanced" : null;
 }
 
-export type MusicStudioMode = "auto" | "manual" | "lipsync";
+type MusicStudioMode = "auto" | "manual" | "lipsync";
 
 /**
  * The mode Music Studio actually renders. Simple (Turbo) renders the

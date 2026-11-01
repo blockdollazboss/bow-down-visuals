@@ -693,7 +693,7 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
  *  /world?party=CODE landing, already verified against the server's
  *  own room snapshot by the page. `room` is null when the table
  *  closed before the walker arrived — the summons says so. */
-export interface PartyInviteProp {
+interface PartyInviteProp {
   code: string;
   room: PartyOpenRoom | null;
 }

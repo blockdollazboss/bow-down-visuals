@@ -7,7 +7,7 @@ import type { HubAsset, HubAssetKind } from "./hub-project";
    Every downstream tool (Video Studio, Thumbnail Maker, Promo Clips, Hook
    Studio, Scheduler) reads this — no re-typing. */
 
-export interface SongPackage {
+interface SongPackage {
   concept: string;
   bestTitle: string;
   lyrics: string;
@@ -153,7 +153,7 @@ export function findSongLyricsScript(
   );
 }
 
-export interface SongPickPrefill {
+interface SongPickPrefill {
   title?: string;
   genre?: string;
   lyrics?: string;
@@ -177,7 +177,7 @@ export function songPickPrefill(assets: HubAsset[], song: HubAsset): SongPickPre
   return prefill;
 }
 
-export interface CoverArtSeed {
+interface CoverArtSeed {
   title?: string;
   artist?: string;
   genre?: string;

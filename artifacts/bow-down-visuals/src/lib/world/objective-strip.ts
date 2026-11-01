@@ -61,7 +61,7 @@ function str(v: unknown): string | null {
 
 /* ─── QUEST slot: /api/retention/quests ──────────────────────────── */
 
-export interface QuestStatusRow {
+interface QuestStatusRow {
   key: string;
   target: number;
   reward: number;
@@ -176,7 +176,7 @@ export function normalizeDailyQuestsStatus(raw: unknown): DailyQuestsStatusShape
   };
 }
 
-export type NextObjective =
+type NextObjective =
   /** Finished, unclaimed: the next thing is the claim (in the Treasury). */
   | {
       kind: "claimable";
@@ -326,7 +326,7 @@ export function normalizeStreakStatus(raw: unknown): StreakStatusShape | null {
   };
 }
 
-export type NextStreakStep =
+type NextStreakStep =
   /** A milestone the streak has reached but not claimed: its VB waits in the Treasury. */
   | { kind: "claimable"; milestone: StreakMilestoneShape; currentStreak: number }
   /** The next milestone ahead, and how many creation days remain. */
@@ -427,7 +427,7 @@ export function mergeSlates(...slates: PalaceSlateEvent[][]): PalaceSlateEvent[]
   return [...byId.values()];
 }
 
-export type PalaceSlot =
+type PalaceSlot =
   | { kind: "live"; event: PalaceSlateEvent }
   | { kind: "next"; event: PalaceSlateEvent }
   | { kind: "none" };
@@ -492,7 +492,7 @@ export function formatEventTime(iso: string): string {
 
 /* ─── KINGDOM BOARD: standings shaping ───────────────────────────── */
 
-export interface KingdomStandings {
+interface KingdomStandings {
   /** The weekly creation leaderboard's top rows (at most 5). */
   top: { rank: number; name: string; creations: number; exports: number; score: number; isYou: boolean }[];
   /** The viewer's own rank — ONLY when the rail reports one. */

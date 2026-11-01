@@ -2,7 +2,7 @@
    Pure functions used by clip surfaces (e.g. /repurpose). Kept in lib/
    so they are unit-testable without rendering a page. */
 
-export interface ClipHighlightLike {
+interface ClipHighlightLike {
   id: string;
   startSec: number;
   endSec: number;

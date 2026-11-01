@@ -21,7 +21,7 @@ import { formatDuration, type StreamTrack, type StreamVideo } from "@/lib/stream
    submitted, failed with a generic "didn't pass the vibe check", and
    the actual rule never reached the creator. Mirror it here so the
    form states the rule and refuses exactly what the server refuses. */
-export const PROFILE_SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+const PROFILE_SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 export const PROFILE_SLUG_RULE =
   "Slug must be 3-40 chars: lowercase letters, numbers, hyphens; no leading/trailing hyphen.";
 
@@ -194,7 +194,7 @@ export const THEME_PRESETS: ThemePreset[] = [
 ];
 
 /* ─── Per-vertical starter templates ─── */
-export interface StarterTemplate {
+interface StarterTemplate {
   vertical: VerticalId;
   sections: ProfileSection[];
   themeId: string;
@@ -327,12 +327,12 @@ export const SECTION_TYPE_LABELS: Record<SectionType, string> = {
 };
 
 /* ─── Optional extension fields (read defensively) ─── */
-export interface StreamSlot {
+interface StreamSlot {
   day: string;
   time: string;
   label?: string;
 }
-export interface StreamInfo {
+interface StreamInfo {
   isLive?: boolean;
   liveUrl?: string;
   platform?: string;
@@ -347,13 +347,13 @@ export interface MediaKit {
   rates?: { label: string; price: string }[];
   contactEmail?: string;
 }
-export interface SeriesEpisode {
+interface SeriesEpisode {
   id: string;
   title: string;
   thumbnailUrl?: string;
   duration?: string;
 }
-export interface SeriesSeason {
+interface SeriesSeason {
   season: number | string;
   title?: string;
   episodes: SeriesEpisode[];

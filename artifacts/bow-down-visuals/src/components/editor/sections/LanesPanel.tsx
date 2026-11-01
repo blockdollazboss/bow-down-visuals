@@ -16,7 +16,7 @@ import { EditorCard } from "@/components/editor/controls";
  * captions.lines) in the same update, so every existing consumer (preview,
  * export) sees the same truth the lanes show. */
 
-export function ensureLanes(settings: EditorSettings): TimelineLanes {
+function ensureLanes(settings: EditorSettings): TimelineLanes {
   return resolveLanes({
     lanes: settings.lanes,
     overlayItems: settings.overlayItems,
@@ -25,7 +25,7 @@ export function ensureLanes(settings: EditorSettings): TimelineLanes {
 }
 
 /** Write lanes + their legacy projections back into settings atomically. */
-export function commitLanes(settings: EditorSettings, lanes: TimelineLanes): EditorSettings {
+function commitLanes(settings: EditorSettings, lanes: TimelineLanes): EditorSettings {
   return {
     ...settings,
     lanes,

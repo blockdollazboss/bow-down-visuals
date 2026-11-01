@@ -26,7 +26,7 @@ export interface HubAsset {
   createdAt: number;
 }
 
-export interface HubProject {
+interface HubProject {
   id: string;
   name: string;
   type: HubProjectType;
@@ -41,7 +41,7 @@ export interface HubProject {
   attribution: boolean;
 }
 
-export type HubSyncStatus = "local" | "syncing" | "synced" | "error";
+type HubSyncStatus = "local" | "syncing" | "synced" | "error";
 
 interface HubProjectContextValue {
   project: HubProject;

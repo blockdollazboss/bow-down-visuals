@@ -18,7 +18,7 @@
  *    MIN/MAX bounds — no timeline, no snapping; the pointer's
  *    clamp+round, shared verbatim with the handle's arrow keys. */
 
-export type DockSnapFn = (t: number) => number;
+type DockSnapFn = (t: number) => number;
 
 /** Trim a clip's content edge. maxTrim = 45% of the clip's duration. */
 export function trimDragValue(

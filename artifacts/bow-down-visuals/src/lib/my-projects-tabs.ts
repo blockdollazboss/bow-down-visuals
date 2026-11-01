@@ -20,7 +20,7 @@ export const MY_PROJECTS_TABS = [
 
 export type MyProjectsTab = (typeof MY_PROJECTS_TABS)[number];
 
-export const DEFAULT_MY_PROJECTS_TAB: MyProjectsTab = "projects";
+const DEFAULT_MY_PROJECTS_TAB: MyProjectsTab = "projects";
 
 export function isMyProjectsTab(value: string | null | undefined): value is MyProjectsTab {
   return (

@@ -26,7 +26,7 @@
 export const FEEDBACK_PROMPT_CAP_MS = 7 * 24 * 60 * 60 * 1000;
 export const FEEDBACK_PROMPT_CHANCE = 0.25;
 
-export const QUALIFYING_MOMENTS = ["export_finished", "creation_succeeded", "session_milestone"] as const;
+const QUALIFYING_MOMENTS = ["export_finished", "creation_succeeded", "session_milestone"] as const;
 export type QualifyingMoment = (typeof QUALIFYING_MOMENTS)[number];
 
 export const FEEDBACK_MOMENT_EVENT = "bdv:qualifying-moment";
@@ -44,7 +44,7 @@ export function notifyQualifyingMoment(moment: QualifyingMoment): void {
 /** Route prefixes where a prompt must NEVER appear: creation flows,
  *  the editor, live/streaming surfaces, calls, and checkout/money
  *  confirmation surfaces. */
-export const SUPPRESSED_ROUTE_PREFIXES = [
+const SUPPRESSED_ROUTE_PREFIXES = [
   "/create",
   "/video-editor",
   "/audio-studio",
@@ -58,7 +58,7 @@ export const SUPPRESSED_ROUTE_PREFIXES = [
   "/world", // in-World sessions are a live surface
 ] as const;
 
-export interface FeedbackContext {
+interface FeedbackContext {
   /** Explicit busy flags a surface can raise (in a call, mid-render…). */
   inCreationFlow?: boolean;
   inCall?: boolean;
@@ -85,7 +85,7 @@ export interface FeedbackDecisionInput {
   roll: number;
 }
 
-export type FeedbackDecisionReason =
+type FeedbackDecisionReason =
   | "show"
   | "not_qualifying"
   | "disabled"

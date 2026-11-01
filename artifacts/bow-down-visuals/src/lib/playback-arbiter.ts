@@ -94,7 +94,7 @@ export function usePlaybackArbiter(): PlaybackArbiter | null {
  * the header back into a stem audition driven by the mix engine (whose
  * own transport also lives in the Manual DAW's PreviewTransport). */
 
-export interface HeaderTransportState {
+interface HeaderTransportState {
   source: "master" | "mix";
   isPlaying: boolean;
   /** Seconds — from the selected engine's clock, never a blend. */

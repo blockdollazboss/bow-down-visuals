@@ -23,7 +23,7 @@ import { AttributionToggle } from "@/components/AttributionToggle";
    Virality: every result card carries the creator's referral share link and
    the project's "Made with Bow Down Visuals" credit line (when enabled). */
 
-export type HandoffId =
+type HandoffId =
   | "karaoke"
   | "audiogram"
   | "loop"
@@ -52,7 +52,7 @@ const HANDOFFS: Record<HandoffId, HandoffMeta> = {
   "social-kit":     { icon: Palette,                endpoint: "/api/social-kit",      costKey: "socialKit",      resultKind: "image", resultMedia: "image" },
 };
 
-export interface AssetHandoffsProps {
+interface AssetHandoffsProps {
   /** The source asset the handoff runs on. */
   asset: HubAsset;
   /** Which orphaned tools to offer, in display order. */

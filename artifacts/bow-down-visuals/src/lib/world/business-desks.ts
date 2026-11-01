@@ -45,7 +45,6 @@ export const LOGO_MODELS = [
   { key: "premium", label: "Premium", costVisualBucs: 200 },
   { key: "standard", label: "Standard", costVisualBucs: 100 },
 ] as const;
-export type LogoModelKey = (typeof LOGO_MODELS)[number]["key"];
 
 export function logoModelCost(model: string): number {
   return LOGO_MODELS.find((m) => m.key === model)?.costVisualBucs ?? 200;
@@ -60,18 +59,15 @@ export const LOGO_STYLES = [
 ] as const;
 export type LogoStyleKey = (typeof LOGO_STYLES)[number]["key"];
 
-export const INTRO_DURATION_SEC = 5;
 export const INTRO_COST_VISUAL_BUCS = 750;
 export const INTRO_TYPES = [
   { key: "intro", label: "Intro" },
   { key: "outro", label: "Outro" },
 ] as const;
-export type IntroTypeKey = (typeof INTRO_TYPES)[number]["key"];
 
 export const PRESS_KIT_GENERATE_COST_VISUAL_BUCS = 300;
 export const PRESS_KIT_BIO_REFRESH_COST_VISUAL_BUCS = 100;
 export const PRESS_KIT_TONES = ["professional", "bold", "playful", "luxury"] as const;
-export type PressKitTone = (typeof PRESS_KIT_TONES)[number];
 
 export const PROMO_GENERATOR_COST_VISUAL_BUCS = 100;
 export const PROMO_CARDS_COST_VISUAL_BUCS = 100;
@@ -85,7 +81,7 @@ export const HEADSHOT_COST_VISUAL_BUCS = 100;
    poll; GET /:taskId → { status, url?, error? } until the status
    settles. These interpreters are the one reading of that wire. */
 
-export interface JobStart {
+interface JobStart {
   taskId: string | null;
   url: string | null;
   creditsRemaining: number | null;
@@ -110,7 +106,7 @@ export function parseJobStart(data: unknown): JobStart {
   };
 }
 
-export type JobPollOutcome =
+type JobPollOutcome =
   | { kind: "succeeded"; url: string | null; creditsRemaining: number | null }
   | { kind: "failed"; error: string | null }
   | { kind: "pending" };
@@ -207,7 +203,6 @@ export const HEADSHOT_FLOWS = [
   { key: "preset", label: "Style presets" },
   { key: "manual", label: "Manual prompt" },
 ] as const;
-export type HeadshotFlowKey = (typeof HEADSHOT_FLOWS)[number]["key"];
 
 /** Style presets — keys exactly as the route's schema names them. */
 export const HEADSHOT_PRESETS = [
@@ -216,14 +211,12 @@ export const HEADSHOT_PRESETS = [
   { key: "street", label: "Street" },
   { key: "luxury", label: "Luxury" },
 ] as const;
-export type HeadshotPresetKey = (typeof HEADSHOT_PRESETS)[number]["key"];
 
 /** Engines — the page's own labels; the keys are the wire values. */
 export const HEADSHOT_MODELS = [
   { key: "nano-banana-2.1", label: "Turbo Render" },
   { key: "ideogram-4.0", label: "Portrait Render" },
 ] as const;
-export type HeadshotModelKey = (typeof HEADSHOT_MODELS)[number]["key"];
 
 /** The page's generate gate: manual mode needs words first;
  *  Turbo Mode and the presets are ready as they stand. */
@@ -252,8 +245,8 @@ export function buildHeadshotPayload(input: {
   return out;
 }
 
-export type HeadshotFailureKind = "credits" | "provider" | "failed";
-export interface HeadshotFailure {
+type HeadshotFailureKind = "credits" | "provider" | "failed";
+interface HeadshotFailure {
   kind: HeadshotFailureKind;
   message: string | null;
 }
@@ -300,7 +293,6 @@ export const STREAM_PACK_THEMES = [
   { key: "violet-noir", label: "Violet Noir" },
   { key: "arctic-frost", label: "Arctic Frost" },
 ] as const;
-export type StreamPackThemeKey = (typeof STREAM_PACK_THEMES)[number]["key"];
 
 /** Assets — keys, labels and groups exactly as the server catalog
  *  names them (the page groups its picker by these same groups). */
@@ -318,7 +310,6 @@ export const STREAM_PACK_ASSETS = [
   { key: "screen-brb", label: "Be Right Back Screen", group: "Screens" },
   { key: "screen-ending", label: "Stream Ending Screen", group: "Screens" },
 ] as const;
-export type StreamPackAssetKey = (typeof STREAM_PACK_ASSETS)[number]["key"];
 
 /** The page's generate gate: a channel name is required (the route
  *  400s without one — the graphic is branded with it). */
@@ -340,7 +331,7 @@ export function buildStreamPackGeneratePayload(input: {
   };
 }
 
-export type StreamPackGenerateOutcome =
+type StreamPackGenerateOutcome =
   | { kind: "succeeded"; url: string; label: string | null }
   | { kind: "credits"; message: string | null }
   | { kind: "failed"; message: string | null };
@@ -403,7 +394,7 @@ export function brandKitDraftFromKit(kit: BrandKit): BrandKitEditDraft {
   };
 }
 
-export const BRAND_KIT_HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const BRAND_KIT_HEX_RE = /^#[0-9a-fA-F]{6}$/;
 export const BRAND_KIT_MAX_BIO_LINES = 8;
 export const BRAND_KIT_MAX_PRESS_FACTS = 16;
 export const BRAND_KIT_MAX_FONT_PAIRINGS = 3;
@@ -816,9 +807,9 @@ export const BIO_SOCIAL_FIELDS = [
   { key: "discord", label: "Discord" },
 ] as const;
 
-export type BioSocialKey = (typeof BIO_SOCIAL_FIELDS)[number]["key"];
+type BioSocialKey = (typeof BIO_SOCIAL_FIELDS)[number]["key"];
 
-export interface BioLinkDraft {
+interface BioLinkDraft {
   title: string;
   url: string;
   icon: string;
@@ -924,7 +915,7 @@ export function isBioAllowedUrl(v: string): boolean {
   return /^(https?:\/\/|mailto:|tel:)/i.test(v);
 }
 
-export const BIO_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const BIO_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** The desk's refusal, in words, or null when the draft can save.
  *  Mirrors bioSaveSchema: a display name, a well-formed slug when
@@ -1062,7 +1053,7 @@ export const PROMO_CARD_STYLES = [
   { key: "milestone", label: "Milestone" },
 ] as const;
 
-export const PROMO_CARD_SIZES = ["1:1", "9:16", "16:9"] as const;
+const PROMO_CARD_SIZES = ["1:1", "9:16", "16:9"] as const;
 
 export interface PromoCardItem {
   /** History record id once the server has recorded the card; null
@@ -1126,7 +1117,7 @@ export function parsePromoCards(data: unknown): { cards: PromoCardItem[]; sugges
    DTO from rowToRelease); GET /api/catalog-vault/status →
    { vaults: [{ releaseId, status, vaultedAt }] }. */
 
-export interface ReleaseSummary {
+interface ReleaseSummary {
   id: string;
   title: string;
   artistName: string;
@@ -1184,7 +1175,7 @@ export function parseVaultedCount(data: unknown): number {
    cancel, Stack-100 #45) owns its own shaping in
    lib/world/scheduler-desk.ts. */
 
-export interface UpcomingPost {
+interface UpcomingPost {
   id: string;
   caption: string;
   platforms: string[];
@@ -1253,7 +1244,7 @@ export const COACH_PLATFORMS = [
   { key: "tiktok", label: "TikTok" },
   { key: "instagram", label: "Instagram" },
 ] as const;
-export type CoachPlatformKey = (typeof COACH_PLATFORMS)[number]["key"];
+type CoachPlatformKey = (typeof COACH_PLATFORMS)[number]["key"];
 
 export interface CoachInputs {
   niche: string;
@@ -1301,7 +1292,7 @@ export interface CoachMoneySnapshot {
   monthLabel: string;
 }
 
-export interface MoneyEntryLike {
+interface MoneyEntryLike {
   entry_type: string;
   category: string;
   amount_cents: number;
@@ -1394,7 +1385,7 @@ export function buildCoachPayload(
   };
 }
 
-export interface CoachEligibilityItem {
+interface CoachEligibilityItem {
   platform: string;
   program: string;
   threshold: string;
@@ -1451,7 +1442,7 @@ export function parseCoachTodayAction(data: unknown): CoachTodayAction | null {
    it to a full native desk on the owner's word. This lane owns
    most of the program's backlog; the list is meant to be thorough. */
 
-export interface BusinessFollowOn {
+interface BusinessFollowOn {
   id: string;
   title: string;
   desk: "branding-kit" | "press-kit" | "promote" | "release" | "scheduler" | "coach";

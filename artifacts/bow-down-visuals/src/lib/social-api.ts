@@ -95,7 +95,7 @@ export interface PollData {
 /** One author side of a co-post (Stack-100 #3, #24) — the DTO shape of
  *  api-server's coAuthorSummaries. The full typed contract lives in
  *  lib/co-posts.ts; this structural twin keeps FeedPost self-contained. */
-export interface CoAuthorSide {
+interface CoAuthorSide {
   profile_id: string;
   user_id: string;
   role: string;
@@ -250,7 +250,7 @@ export function profileHref(author: SocialAuthor | null | undefined): string {
    init.signal always still applies and aborts the request itself. */
 export const API_FETCH_TIMEOUT_MS = 15_000;
 
-export interface ApiFetchOptions {
+interface ApiFetchOptions {
   /** Milliseconds before a stalled request aborts. `null`/`0` = no
    *  timeout (the documented opt-out for long legitimate calls). */
   timeoutMs?: number | null;

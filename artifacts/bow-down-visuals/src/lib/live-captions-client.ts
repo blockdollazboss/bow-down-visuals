@@ -51,13 +51,13 @@ export interface CaptionLine {
   createdAt: number;
 }
 
-export interface CaptionTrackSettings {
+interface CaptionTrackSettings {
   streamId: string;
   enabled: boolean;
   sourceLanguage: string;
 }
 
-export interface CaptionLanguagesPayload {
+interface CaptionLanguagesPayload {
   languages: CaptionLanguageOption[];
   sourceLanguages: CaptionLanguageOption[];
   pricing: { charged: boolean; status: string; note: string };
@@ -74,7 +74,7 @@ export interface CaptionSocketLike {
 
 export type TimerHandle = ReturnType<typeof setTimeout> | number;
 
-export interface FetchJsonResult {
+interface FetchJsonResult {
   status: number;
   json: any;
 }
@@ -95,13 +95,13 @@ export interface LiveCaptionsDeps {
 
 /* ── Viewer preference (their controls, their machine) ──────────────── */
 
-export interface CaptionPref {
+interface CaptionPref {
   on: boolean;
   language: string;
 }
 
 const PREF_KEY = "bdv.liveCaptions.pref.v1";
-export const CAPTION_SOURCE_DEFAULT = "en";
+const CAPTION_SOURCE_DEFAULT = "en";
 
 export function loadCaptionPref(storage: { getItem(k: string): string | null } | null): CaptionPref {
   try {
@@ -134,7 +134,7 @@ export function saveCaptionPref(
    Pure: what the caption bar should say for a given situation. The
    bar never shows a line the speaker didn't say, and never pretends
    captions exist when the track is off or the door is closed. */
-export type CaptionBarState =
+type CaptionBarState =
   | "off" // viewer hasn't turned captions on
   | "track-off" // viewer on, streamer hasn't opened the track
   | "ticket-locked" // ticketed stream, this viewer has no entry
@@ -158,7 +158,7 @@ export function captionBarState(args: {
 const POLL_MS = 2500;
 const RECONNECT_MS = [2000, 5000, 10000];
 /** Lines kept for the overlay's short scrollback. */
-export const MAX_KEPT_LINES = 30;
+const MAX_KEPT_LINES = 30;
 
 export class LiveCaptionsViewerClient {
   /** The streamer's switch, from the server (null = not loaded yet). */
@@ -539,7 +539,7 @@ export async function postCaptionSegment(
    results are shown locally as a preview only — never posted, so a
    caption a viewer reads is a line the speaker actually said. */
 
-export type SpeechSourceState = "idle" | "listening" | "unsupported" | "blocked" | "error";
+type SpeechSourceState = "idle" | "listening" | "unsupported" | "blocked" | "error";
 
 export class SpeechCaptionSource {
   state: SpeechSourceState = "idle";

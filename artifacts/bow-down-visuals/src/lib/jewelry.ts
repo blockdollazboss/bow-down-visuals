@@ -1,6 +1,6 @@
 /* Custom jewelry line — shared frontend constants. */
 
-export interface JewelryProduct {
+interface JewelryProduct {
   key: string;
   label: string;
   priceCents: number;
@@ -49,7 +49,7 @@ export const JEWELRY_PRODUCTS: JewelryProduct[] = [
   },
 ];
 
-export interface JewelryFinish {
+interface JewelryFinish {
   key: string;
   label: string;
   swatch: string;

@@ -12,10 +12,10 @@
 import type { MidiRollNote } from "@/lib/arrangement";
 
 /** The roll's visible pitch range (mirrors PianoRoll's row bounds). */
-export const ROLL_LOW_PITCH = 36; // C2
-export const ROLL_HIGH_PITCH = 84; // C6
+const ROLL_LOW_PITCH = 36; // C2
+const ROLL_HIGH_PITCH = 84; // C6
 
-export type NoteKeyAction =
+type NoteKeyAction =
   | { type: "move"; start: number; pitch: number }
   | { type: "resize"; duration: number }
   | { type: "delete" }

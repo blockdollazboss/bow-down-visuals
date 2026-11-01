@@ -8,13 +8,13 @@
    (visible: false) shows no game record at all. Aggregates only —
    scores and wins are status, never currency. */
 
-export interface ArcadeGameStatDto {
+interface ArcadeGameStatDto {
   game: string;
   best: number | null;
   plays: number;
 }
 
-export interface PartyGameStatDto {
+interface PartyGameStatDto {
   game: string;
   matches: number;
   wins: number;
@@ -29,7 +29,7 @@ export interface ProfileGameStatsDto {
   party: { games: PartyGameStatDto[]; totalMatches: number };
 }
 
-export interface GameCard {
+interface GameCard {
   key: string;
   title: string;
   href: string;
@@ -38,12 +38,12 @@ export interface GameCard {
   detail: string;
 }
 
-export const ARCADE_GAME_TITLES: Record<string, string> = {
+const ARCADE_GAME_TITLES: Record<string, string> = {
   runner: "Shark King Endless Runner",
   skeet: "Royal Skeet",
 };
 
-export const PARTY_GAME_TITLES: Record<string, string> = {
+const PARTY_GAME_TITLES: Record<string, string> = {
   trivia: "Party Trivia",
   duel: "Court Battle",
 };

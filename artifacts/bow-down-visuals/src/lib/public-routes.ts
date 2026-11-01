@@ -167,7 +167,7 @@ export function isPublicPath(pathname: string): boolean {
 /* (audit §4.3).                                                       */
 /* ------------------------------------------------------------------ */
 
-export type RouteDisposition = "public" | "locked" | "redirect";
+type RouteDisposition = "public" | "locked" | "redirect";
 
 export interface RouteMatrixEntry {
   path: string;

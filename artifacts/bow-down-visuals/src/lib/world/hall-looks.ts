@@ -206,7 +206,7 @@ export function hallLookFor(theme: HallTheme): HallLook {
  * hall keeps the look's exact values; the dark look is
  * untouched in every area (its outdoor rig is moonlight, tuned
  * separately on Oct 24). */
-export interface AreaWash {
+interface AreaWash {
   ambientIntensity: number;
   hemisphereIntensity: number;
   /** The directional's intensity for this area, or null where

@@ -6,7 +6,7 @@ export interface SongSection {
   notes?: string;
 }
 
-export interface SongPromoClip {
+interface SongPromoClip {
   section: string;
   startTime?: string;
   endTime?: string;

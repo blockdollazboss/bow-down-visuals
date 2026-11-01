@@ -71,7 +71,7 @@ export function parseCreatorRoomOfficeHours(raw: unknown): CreatorRoomOfficeHour
  *  null when the row isn't an office-hours booking. Mine rows carry
  *  done/cancelled history too — the caller decides which statuses
  *  to show; the parser only insists the row is well-formed. */
-export function parseOfficeHoursEvent(raw: unknown): (OfficeHoursSession & { status: string }) | null {
+function parseOfficeHoursEvent(raw: unknown): (OfficeHoursSession & { status: string }) | null {
   if (!isRecord(raw)) return null;
   if (raw["kind"] !== "office_hours") return null;
   const id = str(raw["id"]);
@@ -121,7 +121,7 @@ export function currentOrNextSession(
 
 /* ─── The marker ──────────────────────────────────────────────────── */
 
-export interface OfficeHoursMarker {
+interface OfficeHoursMarker {
   /** True while the clock is inside the booked window. */
   inSession: boolean;
   headline: string;
@@ -194,11 +194,11 @@ export function officeHoursSessionWhen(
  *  is the authority — these only keep the form honest before it
  *  asks): 5 minutes to 4 hours, at most 30 days out. */
 export const OFFICE_HOURS_DURATIONS_MIN = [30, 60, 90, 120] as const;
-export const OFFICE_HOURS_MIN_DURATION_MIN = 5;
-export const OFFICE_HOURS_MAX_DURATION_MIN = 240;
-export const OFFICE_HOURS_MAX_AHEAD_MS = 30 * 24 * 3600_000;
+const OFFICE_HOURS_MIN_DURATION_MIN = 5;
+const OFFICE_HOURS_MAX_DURATION_MIN = 240;
+const OFFICE_HOURS_MAX_AHEAD_MS = 30 * 24 * 3600_000;
 
-export interface OfficeHoursForm {
+interface OfficeHoursForm {
   title: string;
   note: string;
   /** A datetime-local value ("YYYY-MM-DDTHH:mm"), read as local time. */
@@ -206,7 +206,7 @@ export interface OfficeHoursForm {
   durationMin: number;
 }
 
-export type BookingBuild =
+type BookingBuild =
   | {
       ok: true;
       body: {

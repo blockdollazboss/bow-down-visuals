@@ -60,7 +60,7 @@ async function analyzedPeaks(src: string): Promise<number[] | null> {
   }
 }
 
-export function getPeaks(cacheKey: string, src?: string): Promise<number[]> {
+function getPeaks(cacheKey: string, src?: string): Promise<number[]> {
   const hit = PEAK_CACHE.get(cacheKey);
   if (hit) return Promise.resolve(hit);
   if (!src) {

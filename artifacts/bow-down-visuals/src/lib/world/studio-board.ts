@@ -287,7 +287,7 @@ export function historyStatusWord(row: Pick<StudioHistoryRow, "saveStatus" | "re
    {show:true} payload carries lines, and every line below is
    built from the payload's own fields, verbatim counts. */
 
-export type StudioDigestState = "off" | "first-visit" | "recent" | "ready";
+type StudioDigestState = "off" | "first-visit" | "recent" | "ready";
 
 export interface StudioDigest {
   state: StudioDigestState;
@@ -437,7 +437,7 @@ export function summarizeContests(
    it's waiting, and the trending look the dashboard offers
    unconditionally. At most three moves, in that order. */
 
-export interface StudioNextMove {
+interface StudioNextMove {
   kind: "finish" | "sponsor" | "daily" | "trend";
   title: string;
   sub: string;

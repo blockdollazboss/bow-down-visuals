@@ -8,7 +8,7 @@
 
 import { stashAssetHandoff, takeAssetHandoff } from "@/lib/asset-handoff";
 
-export interface BeatHandoff {
+interface BeatHandoff {
   id: string;
   blob: Blob;
   url: string;

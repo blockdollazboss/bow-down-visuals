@@ -2,7 +2,7 @@
    Style presets, aspect ratios, and pricing tiers for /cover-art.
    Keep the keys in sync with the API (coverArtSchema in cover-art.ts). */
 
-export interface CoverArtStyle {
+interface CoverArtStyle {
   key: string;
   label: string;
   blurb: string;
@@ -43,7 +43,7 @@ export const COVER_ART_STYLES: CoverArtStyle[] = [
   },
 ];
 
-export interface CoverArtRatio {
+interface CoverArtRatio {
   key: string;
   label: string;
   blurb: string;
@@ -57,7 +57,7 @@ export const COVER_ART_RATIOS: CoverArtRatio[] = [
   { key: "9:16", label: "Story 9:16", blurb: "Stories & Shorts", css: "9 / 16" },
 ];
 
-export interface CoverArtTier {
+interface CoverArtTier {
   key: "standard" | "premium";
   label: string;
   credits: number;

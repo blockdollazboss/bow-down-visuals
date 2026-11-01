@@ -18,7 +18,7 @@
  * into spotlight_inquiries) are untouched.
  */
 
-export type InquiryKind = "spotlight" | "loading-screen";
+type InquiryKind = "spotlight" | "loading-screen";
 
 let current: InquiryKind | null = null;
 const listeners = new Set<() => void>();

@@ -97,7 +97,7 @@ export const CTA_PLATFORMS = ["tiktok", "instagram", "youtube", "twitter", "face
 export type CtaPlatform = (typeof CTA_PLATFORMS)[number];
 
 export const CTA_PLACEMENTS = ["opener", "mid-roll", "closer", "pinned-comment"] as const;
-export type CtaPlacement = (typeof CTA_PLACEMENTS)[number];
+type CtaPlacement = (typeof CTA_PLACEMENTS)[number];
 
 /** The price a mode's run shows (and the confirmation charges). */
 export function hookDeskModeCost(mode: HookDeskMode): number {
@@ -230,7 +230,7 @@ export function captionsOfResponse(raw: unknown): CaptionResult | null {
   };
 }
 
-export interface PreflightCheck {
+interface PreflightCheck {
   label: string;
   score: number;
   fix: string;
@@ -306,7 +306,7 @@ export function ctasOfResponse(raw: unknown): CtaResult[] | null {
 
 /* ─── Templates — the site's own libraries prefill the desk ──────── */
 
-export interface HookTemplatePrefill {
+interface HookTemplatePrefill {
   videoType: HookVideoType;
   topic: string;
 }
@@ -320,7 +320,7 @@ export function hookTemplatePrefill(slug: string): HookTemplatePrefill | null {
   return { videoType: tpl.videoType, topic: tpl.topic };
 }
 
-export interface CaptionPackPrefill {
+interface CaptionPackPrefill {
   topic: string;
   platform: CaptionPlatform;
   tone: string;

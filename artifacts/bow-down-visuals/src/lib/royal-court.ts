@@ -51,7 +51,7 @@ export async function fetchPublicCourt(slug: string): Promise<CourtMember[]> {
   return Array.isArray(data.court) ? data.court : [];
 }
 
-export async function fetchMyCourt(): Promise<CourtMember[]> {
+async function fetchMyCourt(): Promise<CourtMember[]> {
   const res = await fetch("/api/creator-profiles/me/court");
   const data = await json<{ court: CourtMember[] }>(res);
   return Array.isArray(data.court) ? data.court : [];
@@ -73,7 +73,7 @@ export async function saveMyCourt(memberProfileIds: string[]): Promise<CourtMemb
    Promise.all'd both into one catch and threw the Court away); a
    Court failure is reported on its own channel so the picker can
    keep its honest load-error state for the Court itself. */
-export interface CourtPickerSources {
+interface CourtPickerSources {
   court: CourtMember[] | null;
   courtError: unknown;
   candidates: CourtCandidate[] | null;
@@ -106,7 +106,7 @@ export async function fetchCourtCandidates(query?: string): Promise<CourtCandida
    invitation. A failed load is its own honest state with a retry, for
    both — never silently dressed up as "empty". */
 export type CourtLoadStatus = "loading" | "error" | "ready";
-export type CourtView = "loading" | "error" | "hidden" | "owner-empty" | "cards";
+type CourtView = "loading" | "error" | "hidden" | "owner-empty" | "cards";
 
 export function courtViewState(input: {
   status: CourtLoadStatus;

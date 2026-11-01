@@ -85,7 +85,7 @@ export const ACCOUNT_DELETE_HANDOFF_PATH = "/settings";
 
 export const ACCOUNT_EXPORT_FILENAME = "bow-down-visuals-export.json";
 
-export interface RetentionPrefDef {
+interface RetentionPrefDef {
   key: string;
   label: string;
   blurb: string;
@@ -103,7 +103,7 @@ export const RETENTION_PREF_DEFS: RetentionPrefDef[] = [
   { key: "fomo_feed_enabled", label: "FOMO feed", blurb: "The trending-now feed nudges." },
 ];
 
-export interface DelightPrefDef {
+interface DelightPrefDef {
   key: string;
   label: string;
   blurb: string;
@@ -180,8 +180,8 @@ export function giveawayAnnouncePath(id: string): string {
  *  route's own header. */
 export const GIVEAWAY_ANNOUNCE_COST_VB = 100;
 
-export const GIVEAWAY_ENTRY_METHODS = ["follow", "comment", "share", "purchase"] as const;
-export const GIVEAWAY_STATUSES = ["draft", "active", "ended"] as const;
+const GIVEAWAY_ENTRY_METHODS = ["follow", "comment", "share", "purchase"] as const;
+const GIVEAWAY_STATUSES = ["draft", "active", "ended"] as const;
 
 export interface GiveawayContest {
   id: string;
@@ -207,7 +207,7 @@ function strOrNull(v: unknown): string | null {
   return typeof v === "string" && v ? v : null;
 }
 
-export function normalizeGiveawayContest(row: unknown): GiveawayContest | null {
+function normalizeGiveawayContest(row: unknown): GiveawayContest | null {
   if (!row || typeof row !== "object") return null;
   const r = row as Record<string, unknown>;
   if (typeof r["id"] !== "string" || !r["id"]) return null;
@@ -238,7 +238,7 @@ export function normalizeGiveawayContests(payload: unknown): GiveawayContest[] {
   return rows.map(normalizeGiveawayContest).filter((c): c is GiveawayContest => c !== null);
 }
 
-export interface GiveawayEntry {
+interface GiveawayEntry {
   id: string;
   handle: string;
   email: string | null;
@@ -350,8 +350,8 @@ export type JackpotDirection = (typeof JACKPOT_DIRECTIONS)[number];
 
 /** Sequence bounds — SequenceSchema's 4–10, shared by player
  *  attempts and admin event codes. */
-export const JACKPOT_SEQUENCE_MIN = 4;
-export const JACKPOT_SEQUENCE_MAX = 10;
+const JACKPOT_SEQUENCE_MIN = 4;
+const JACKPOT_SEQUENCE_MAX = 10;
 
 export function jackpotSequenceReady(seq: readonly string[]): boolean {
   return (
@@ -363,8 +363,8 @@ export function jackpotSequenceReady(seq: readonly string[]): boolean {
 
 /** The admin page's own prize bounds (admin.tsx's create form):
  *  100 to 1,000,000 Visual Bucs. */
-export const JACKPOT_PRIZE_MIN_VB = 100;
-export const JACKPOT_PRIZE_MAX_VB = 1_000_000;
+const JACKPOT_PRIZE_MIN_VB = 100;
+const JACKPOT_PRIZE_MAX_VB = 1_000_000;
 
 export function jackpotPrizeReady(prize: number): boolean {
   return Number.isInteger(prize) && prize >= JACKPOT_PRIZE_MIN_VB && prize <= JACKPOT_PRIZE_MAX_VB;
@@ -401,7 +401,7 @@ export function normalizeJackpotStatus(payload: unknown): JackpotStatus {
   };
 }
 
-export interface JackpotAttemptOutcome {
+interface JackpotAttemptOutcome {
   correct: boolean;
   claimed: boolean;
   triesLeft: number | null;

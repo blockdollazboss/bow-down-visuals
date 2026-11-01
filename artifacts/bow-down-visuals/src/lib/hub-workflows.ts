@@ -34,7 +34,7 @@ export interface WorkflowStep {
   skipLabel?: string;
 }
 
-export type HubFamily = "create" | "launch" | "grow" | "monetize" | "learn" | "business";
+type HubFamily = "create" | "launch" | "grow" | "monetize" | "learn" | "business";
 
 export const FAMILIES: { key: HubFamily; label: string; blurb: string }[] = [
   { key: "create", label: "Create", blurb: "Make the thing" },
@@ -45,7 +45,7 @@ export const FAMILIES: { key: HubFamily; label: string; blurb: string }[] = [
   { key: "business", label: "Business", blurb: "Handle the paperwork" },
 ];
 
-export interface ProjectWorkflow {
+interface ProjectWorkflow {
   type: HubProjectType;
   family: HubFamily;
   title: string;

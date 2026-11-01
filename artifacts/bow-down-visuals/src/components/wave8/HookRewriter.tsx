@@ -13,7 +13,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    via onUseAsTopic; "Send to Scheduler" stashes the hook in localStorage
    (wave8_scheduler_draft) for the Scheduler page to pick up. */
 
-export interface HookVariant {
+interface HookVariant {
   hook: string;
   angle: string;
   whyItWorks: string;

@@ -15,9 +15,9 @@ import { apiErrorMessage } from "./api-error";
 export type CommentStatus = "public" | "held" | "hidden";
 export type CommentHoldMode = "off" | "all" | "first_time";
 export type CommentControlAction = "pin" | "unpin" | "hide" | "unhide" | "approve" | "reject";
-export type CommentSurface = "wall" | "media";
+type CommentSurface = "wall" | "media";
 
-export interface ControlledComment {
+interface ControlledComment {
   id: string;
   body: string;
   status?: CommentStatus;

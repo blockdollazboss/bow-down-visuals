@@ -62,7 +62,7 @@ export interface LoyaltyState {
   myRedemptions: Array<{ id: string; perkKind: string; perkLabel: string; pointsCost: number; status: string; createdAt: string | null }>;
 }
 
-export type GetToken = () => Promise<string | null>;
+type GetToken = () => Promise<string | null>;
 
 export const reachApi = {
   listDestinations: (t: GetToken) => apiJson<{ destinations: SavedDestination[] }>(t, "/api/reach/destinations"),

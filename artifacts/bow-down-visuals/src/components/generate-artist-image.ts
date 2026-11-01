@@ -6,7 +6,7 @@
 export type ArtistImageModel = "gen4_image" | "gen4_image_turbo" | "gpt-image-2.5-sunburst" | "nano-banana-2.1" | "ideogram-4.0";
 export type ArtistImageRatio = "1080:1920" | "1080:1080" | "1920:1080";
 
-export interface ArtistProfileFormLike {
+interface ArtistProfileFormLike {
   visualStyle: string;
   artistType: string;
   hair: string;
@@ -54,7 +54,7 @@ export function buildArtistImagePrompt(v: ArtistProfileFormLike): string {
 
 /* ── Photo Shoot mode: identity-locked outfit/pose/backdrop variations ── */
 
-export interface ShootPose { id: string; label: string; fragment: string }
+interface ShootPose { id: string; label: string; fragment: string }
 export interface ShootPreset { label: string; text: string }
 
 export const SHOOT_POSES: ShootPose[] = [

@@ -85,12 +85,12 @@ export function isMissedForViewer(entry: CallHistoryEntry, viewerUserId: string)
 
 /* ── Thread merge: calls interleave with messages by time ──────────── */
 
-export interface ThreadMessageLike {
+interface ThreadMessageLike {
   id: string;
   created_at: string;
 }
 
-export type ThreadItem<M extends ThreadMessageLike> =
+type ThreadItem<M extends ThreadMessageLike> =
   | { kind: "message"; at: number; message: M }
   | { kind: "call"; at: number; call: CallHistoryEntry };
 
@@ -221,7 +221,7 @@ export const CALL_PING_FRAME = JSON.stringify({ type: "call.ping" });
 
 /* ── Camera facing (flip) ──────────────────────────────────────────── */
 
-export type FacingMode = "user" | "environment";
+type FacingMode = "user" | "environment";
 
 export function nextFacingMode(current: FacingMode): FacingMode {
   return current === "user" ? "environment" : "user";
@@ -270,7 +270,7 @@ export interface PeerConnectionLike {
   ontrack: ((e: { streams: MediaStreamLike[] }) => void) | null;
 }
 
-export interface VideoCallPeerDeps {
+interface VideoCallPeerDeps {
   createPeerConnection: (ice: IceConfig) => PeerConnectionLike;
   getUserMedia: (constraints: { audio: boolean; video: { facingMode: FacingMode } | boolean }) => Promise<MediaStreamLike>;
   sendSignal: (data: SignalData) => void;

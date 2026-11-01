@@ -880,7 +880,7 @@ function LightLeaksEffect({ opacity, protectCaptions, isPlaying }: { opacity: nu
 }
 
 /* ══════════════════ Animated Waveform ═════════════════════════════════════ */
-export type WavePosition = "bottom-safe" | "bottom" | "top" | "hidden";
+type WavePosition = "bottom-safe" | "bottom" | "top" | "hidden";
 
 function WaveformEffect({
   opacity,
@@ -1044,7 +1044,7 @@ function WatermarkEffect({
 }
 
 /* ══════════════════ Root ══════════════════════════════════════════════════ */
-export interface ActiveOverlayEffectsProps {
+interface ActiveOverlayEffectsProps {
   activeOverlays: string[];
   intensity: IntensityMap;
   testActive: boolean;

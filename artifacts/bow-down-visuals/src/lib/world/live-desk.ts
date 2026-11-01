@@ -110,7 +110,7 @@ export const INVITE_EXPIRY_OPTIONS = [
   { minutes: 10080, label: "7 days" },
 ] as const;
 
-export interface GuestRosterRow {
+interface GuestRosterRow {
   id: string;
   displayName: string;
   state: string;
@@ -176,7 +176,7 @@ export function guestStorageKey(inviteToken: string): string {
 }
 
 /** The join door's name rule (live-guests.ts): 1–40 characters. */
-export const GUEST_NAME_MAX = 40;
+const GUEST_NAME_MAX = 40;
 export function guestNameReady(name: string): boolean {
   const n = name.trim().length;
   return n >= 1 && n <= GUEST_NAME_MAX;
@@ -218,7 +218,7 @@ export interface ScheduledStreamRow {
   vodUrl: string | null;
 }
 
-export interface ScheduledStreamsView {
+interface ScheduledStreamsView {
   upcoming: ScheduledStreamRow[];
   recent: ScheduledStreamRow[];
 }
@@ -294,7 +294,7 @@ export function toLocalInputValue(iso: string | null): string {
 
 export const CONTROLLER_WS_PATH = "/api/live/controller/ws";
 
-export interface ControllerDeskView {
+interface ControllerDeskView {
   started: boolean;
   socketUp: boolean;
   stageConnected: boolean;
@@ -415,8 +415,8 @@ export function normalizeFinishedClips(raw: unknown): FinishedClipOption[] {
   return out;
 }
 
-export const PREMIERE_DURATION_MIN = 10;
-export const PREMIERE_DURATION_MAX = 14400;
+const PREMIERE_DURATION_MIN = 10;
+const PREMIERE_DURATION_MAX = 14400;
 
 /** premiereCreateSchema + the route's future-start rule, mirrored:
  *  a picked clip, a 1–200 title, a whole duration in range, and a

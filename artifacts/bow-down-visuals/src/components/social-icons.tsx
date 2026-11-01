@@ -35,8 +35,3 @@ export function YouTubeIcon({ className }: IconProps) {  return (
 export const SOCIAL_HANDLE = "@bowdownvisuals";
 
 /** Upload/share destinations. Instagram has no web upload intent, so it opens the app homepage. */
-export const SOCIAL_SHARE_TARGETS = [
-  { label: "Instagram", href: "https://www.instagram.com/", Icon: InstagramIcon },
-  { label: "TikTok", href: "https://www.tiktok.com/upload", Icon: TikTokIcon },
-  { label: "YouTube", href: "https://www.youtube.com/upload", Icon: YouTubeIcon },
-];

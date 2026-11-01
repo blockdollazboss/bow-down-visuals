@@ -11,7 +11,7 @@
  * post arrives both as the POST response and as a room broadcast.
  */
 
-export interface ChatAuthor {
+interface ChatAuthor {
   displayName: string;
   avatarUrl: string | null;
   slug: string | null;
@@ -36,12 +36,12 @@ export interface ChatMessage {
   externalId?: string | null;
 }
 
-export interface ChatPin {
+interface ChatPin {
   message: ChatMessage;
   pinnedUntil: string;
 }
 
-export interface ChatPage {
+interface ChatPage {
   streamId: string;
   streamStatus: "live" | "ended";
   streamTitle: string;
@@ -69,7 +69,7 @@ export interface ChatPage {
 
 /** A live alert event from the room (tip / follow) — the studio's
  *  Program overlay queues these. */
-export interface LiveAlertEvent {
+interface LiveAlertEvent {
   kind: "tip" | "follow";
   title: string;
   body: string;
@@ -106,13 +106,13 @@ export interface LiveChatDeps {
   clearTimeoutFn?: (id: TimerHandle) => void;
 }
 
-export type ChatLoadState = "loading" | "ready" | "error";
-export type ChatDelivery = "ws" | "polling";
+type ChatLoadState = "loading" | "ready" | "error";
+type ChatDelivery = "ws" | "polling";
 
 const POLL_MS = 2500;
 const RECONNECT_MS = [2000, 5000, 10000];
 
-export interface ComposerState {
+interface ComposerState {
   enabled: boolean;
   /** Why the composer is disabled, in house voice (null when enabled). */
   note: string | null;

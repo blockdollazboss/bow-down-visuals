@@ -31,7 +31,7 @@ import {
   subscribeFontFavorites,
 } from "@/lib/font-favorites";
 
-export interface CreatorFontPickerProps {
+interface CreatorFontPickerProps {
   /** Current font — creator-font id or canonical family name. */
   value?: string | null;
   onChange: (font: CreatorFont) => void;

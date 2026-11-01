@@ -19,7 +19,7 @@ import { EditorCard, Chip } from "@/components/editor/controls";
  * and animated film grain.
  * Lives INSIDE the Effects tab — no new sidebar item, no new page. */
 
-export const CINEMATIC_FX_PRICE = 150;
+const CINEMATIC_FX_PRICE = 150;
 
 const FX_OPTIONS: {
   name: string;

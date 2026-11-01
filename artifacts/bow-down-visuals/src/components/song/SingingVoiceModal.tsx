@@ -30,7 +30,7 @@ import { useHubProject } from "@/lib/hub-project";
      → Use in song     (hub asset — becomes the song the chain sees)
      → Download        (converted MP3) */
 
-export interface SingingVoiceSource {
+interface SingingVoiceSource {
   /** Must be a real URL (not blob:) — the server sends it to the provider. */
   audioUrl: string;
   title: string;

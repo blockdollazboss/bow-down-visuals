@@ -18,7 +18,7 @@
 export type PartyGame = "trivia" | "duel";
 export type PartyCategory = "music" | "creator" | "general";
 export type PartyPhase = "lobby" | "pick" | "question" | "reveal" | "podium" | "ended";
-export type PartyStatus =
+type PartyStatus =
   | "connecting"
   | "inside"
   | "full"
@@ -39,7 +39,7 @@ export interface PartyPlayer {
   roundsWon: number;
 }
 
-export interface PartyQuestionView {
+interface PartyQuestionView {
   index: number;
   total: number;
   category: PartyCategory;
@@ -56,14 +56,14 @@ export interface PartyAnswerResult {
   elapsedMs: number | null;
 }
 
-export interface PartyReveal {
+interface PartyReveal {
   answer: number;
   results: PartyAnswerResult[];
   roundWinnerPeerId: string | null;
   standings: PartyPlayer[];
 }
 
-export interface PartyPodium {
+interface PartyPodium {
   standings: PartyPlayer[];
   winnerPeerIds: string[];
   draw: boolean;
@@ -79,7 +79,7 @@ export interface PartySocketLike {
   onerror: (() => void) | null;
 }
 
-export interface PartyClientDeps {
+interface PartyClientDeps {
   /** Session access token for the handshake (null = signed out). */
   getAccessToken: () => Promise<string | null>;
   /** Build the socket URL for this token + room code. */

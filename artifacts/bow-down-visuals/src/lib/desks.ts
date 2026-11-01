@@ -37,7 +37,7 @@ export const SUITE_NAME = "Visual Vibes";
 
 export type DeskKey = "hub" | "video" | "audio" | "photo" | "generate";
 
-export interface DeskModule {
+interface DeskModule {
   /** Stable module key — used in URLs/state, never rename casually. */
   key: string;
   desk: DeskKey;
@@ -51,7 +51,7 @@ export interface DeskModule {
   producesKinds: HubAssetKind[];
 }
 
-export interface DeskDefinition {
+interface DeskDefinition {
   key: DeskKey;
   /** House name for the desk. */
   name: string;

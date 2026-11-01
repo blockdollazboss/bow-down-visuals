@@ -71,7 +71,7 @@
 import { setCursorChoice, type CursorId } from "@/lib/cursor-settings";
 
 export type ThemePackMode = "light" | "dark";
-export type ThemePackTier = "included" | "premium";
+type ThemePackTier = "included" | "premium";
 
 /** Core token set — one entry per CSS custom property of the house
     theme blocks in index.css, camelCase for the `--kebab-case` var. */
@@ -956,7 +956,7 @@ export function parseHsl(hsl: string): { h: number; s: number; l: number } | nul
   return { h: Number(m[1]), s: Number(m[2]), l: Number(m[3]) };
 }
 
-export function hslToRgb(hsl: string): { r: number; g: number; b: number } | null {
+function hslToRgb(hsl: string): { r: number; g: number; b: number } | null {
   const p = parseHsl(hsl);
   if (!p) return null;
   const s = p.s / 100;
@@ -1000,10 +1000,10 @@ export function contrastRatio(a: string, b: string): number | null {
 
 /* ─── Persistence + application ───────────────────────────────────────── */
 
-export const THEME_PACK_STORAGE_KEY = "bdv-theme-pack";
-export const THEME_MODE_STORAGE_KEY = "bdv-theme";
+const THEME_PACK_STORAGE_KEY = "bdv-theme-pack";
+const THEME_MODE_STORAGE_KEY = "bdv-theme";
 export const THEME_PACK_EVENT = "bdv-theme-pack-changed";
-export const THEME_PACK_ATTRIBUTE = "data-theme-pack";
+const THEME_PACK_ATTRIBUTE = "data-theme-pack";
 
 function storageGet(key: string): string | null {
   try {
@@ -1027,7 +1027,7 @@ export function getThemeMode(): ThemePackMode {
   return storageGet(THEME_MODE_STORAGE_KEY) === "light" ? "light" : "dark";
 }
 
-export function getSavedThemePackId(): string | null {
+function getSavedThemePackId(): string | null {
   const raw = storageGet(THEME_PACK_STORAGE_KEY);
   return themePackById(raw) ? raw : null;
 }

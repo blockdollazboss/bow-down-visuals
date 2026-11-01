@@ -37,7 +37,7 @@
 
 import type { StreakMilestoneShape, StreakStatusShape } from "./objective-strip";
 
-export const WORLD_STREAK_SEEN_PREFIX = "bdv_world_streak_seen_";
+const WORLD_STREAK_SEEN_PREFIX = "bdv_world_streak_seen_";
 
 export function seenStreakKey(userId: string): string {
   return `${WORLD_STREAK_SEEN_PREFIX}${userId}`;

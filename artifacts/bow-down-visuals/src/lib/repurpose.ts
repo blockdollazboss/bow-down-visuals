@@ -11,7 +11,7 @@ export function formatRepurposeTimestamp(sec: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export interface RepurposeCaptionLike {
+interface RepurposeCaptionLike {
   caption: string;
   hashtags: string[];
 }
@@ -27,7 +27,7 @@ export function buildCaptionsExport(captions: RepurposeCaptionLike[]): string {
     .join("\n\n");
 }
 
-export interface PlatformDescriptionsLike {
+interface PlatformDescriptionsLike {
   tiktok: string;
   reels: string;
   shorts: string;

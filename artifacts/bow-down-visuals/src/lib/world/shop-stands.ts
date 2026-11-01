@@ -73,7 +73,7 @@ export interface PublicProductDto {
   image_url: string | null;
 }
 
-export interface DetailedCartLine extends CartLine {
+interface DetailedCartLine extends CartLine {
   product: PublicProductDto;
 }
 
@@ -117,7 +117,7 @@ export interface MarketSaleReceipt {
 
 /** One line of a confirmed Marketplace order — the reward moment's
  *  raw material: the acquired item, named from server truth. */
-export interface MarketOrderLine {
+interface MarketOrderLine {
   saleId: string;
   productId: string | null;
   productName: string | null;
@@ -131,7 +131,7 @@ export interface MarketOrderLine {
  *  GET /api/storefronts/checkout/status report it. Only "paid" may
  *  ever render as paid — pending and expired stay labelled as what
  *  they are, and anything unrecognized reads as pending, never paid. */
-export type MarketOrderStatus = "paid" | "pending_payment" | "expired";
+type MarketOrderStatus = "paid" | "pending_payment" | "expired";
 
 export interface MarketOrder {
   status: MarketOrderStatus;
@@ -346,7 +346,7 @@ export interface BrandingDesignResult {
   creditsRemaining?: number;
 }
 
-export interface BrandingDesignForm {
+interface BrandingDesignForm {
   brandName: string;
   niche: string;
   style: BrandStyle;
@@ -588,7 +588,7 @@ export function parseMembershipPending(raw: string | null): MembershipPendingChe
  *    told to finish at the hosted page and check again;
  *  - "dead": anything else (a stale/forged/other-kind session) —
  *    the marker drops; nothing about a membership is claimed. */
-export type MembershipVerifyState = "confirmed" | "pending" | "dead";
+type MembershipVerifyState = "confirmed" | "pending" | "dead";
 export function membershipVerifyState(status: number, payload: unknown): MembershipVerifyState {
   if (status === 200 && payload && typeof payload === "object" && (payload as { success?: unknown }).success === true) {
     return "confirmed";
@@ -922,7 +922,7 @@ export function savedShopDto(payload: unknown): { mine: MineShopDto; pub: Public
 
 export const SHOP_HANDLE_MIN = 3;
 export const SHOP_HANDLE_MAX = 30;
-export const SHOP_HANDLE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SHOP_HANDLE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export interface ShopCreateFormState {
   name: string;
@@ -985,7 +985,7 @@ export function buildShopDescriptionPayload(input: {
    sales, exactly as the page keeps them: a pending order is not
    a sale until the payment confirms. */
 
-export interface ShopSaleRow {
+interface ShopSaleRow {
   id: string;
   product_name: string | null;
   amount_cents: number;
@@ -996,7 +996,7 @@ export interface ShopSaleRow {
   paid_at: string | null;
 }
 
-export interface ShopPendingSaleRow {
+interface ShopPendingSaleRow {
   id: string;
   product_name: string | null;
   amount_cents: number;
@@ -1140,7 +1140,7 @@ export function maxDailyViews(a: ShopAnalytics): number {
    picture at all: parse returns null and the stand says the
    picture wouldn't open, with a retry. */
 
-export interface SellerEarningsSource {
+interface SellerEarningsSource {
   status: "ok" | "error";
   /** Null when the source errored — an errored source is never a 0. */
   totalCents: number | null;
@@ -1220,7 +1220,7 @@ export function parseSellerEarnings(payload: unknown): SellerEarnings | null {
  *  label and count-noun are the stand's words; the numbers are the
  *  endpoint's. An errored source rides with null numbers and the
  *  row renders as "couldn't be read", never as $0. */
-export interface SellerEarningsRow {
+interface SellerEarningsRow {
   key: "store" | "memberships" | "deals";
   label: string;
   noun: string;

@@ -24,7 +24,7 @@ import {
  * since the join — this lane's deliberate copy was deduped away
  * there, per its note.
  */
-export interface NowPlayingFeed {
+interface NowPlayingFeed {
   nowPlaying: NowPlayingData | null;
   /** A ticking clock (ms) so the card's progress can advance. */
   nowMs: number;

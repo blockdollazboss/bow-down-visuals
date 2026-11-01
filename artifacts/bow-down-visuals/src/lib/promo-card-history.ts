@@ -28,7 +28,7 @@ export interface PromoCardHistoryItem {
   createdAt: string;
 }
 
-export interface PromoCardHistoryPage {
+interface PromoCardHistoryPage {
   cards: PromoCardHistoryItem[];
   /** The page bound the server applied (null when it didn't say). */
   limit: number | null;

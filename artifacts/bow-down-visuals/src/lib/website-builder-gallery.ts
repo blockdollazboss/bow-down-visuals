@@ -6,7 +6,7 @@
    remix seeding, and starter-brief extraction — so it can be unit-tested
    without rendering the page. */
 
-export interface GalleryTemplateBrief {
+interface GalleryTemplateBrief {
   description: string;
   style: string;
   colorScheme: string;
@@ -26,7 +26,7 @@ export interface GalleryTemplate {
 
 /** Template keys the builder page can hold as its active template:
     the gallery ids (generate/edit accept them server-side too). */
-export const GALLERY_TEMPLATE_KEYS = [
+const GALLERY_TEMPLATE_KEYS = [
   "artist-site",
   "podcast-home",
   "streamer-hub",

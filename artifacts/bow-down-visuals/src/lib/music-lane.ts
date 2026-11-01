@@ -12,7 +12,7 @@ import { apiErrorMessage } from "./api-error";
    (workflow "music-lane") debounced for cross-session restore. Sessions are
    scoped to a project id so one project's lane never leaks into another. */
 
-export interface LanePersonaSettings {
+interface LanePersonaSettings {
   /** Style text (Custom-mode style field / Simple-mode prompt). */
   stylePrompt?: string;
   /** "male" | "female" | "auto" — the lane's vocal direction. */
@@ -124,8 +124,8 @@ export interface LaneSession {
   timestamp: number;
 }
 
-export const LANE_DRAFT_KEY = "bdv_draft_music_lane";
-export const LANE_WORKFLOW = "music-lane";
+const LANE_DRAFT_KEY = "bdv_draft_music_lane";
+const LANE_WORKFLOW = "music-lane";
 const LANE_DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function loadLocalLaneSession(projectId: string | null): LaneSession | null {

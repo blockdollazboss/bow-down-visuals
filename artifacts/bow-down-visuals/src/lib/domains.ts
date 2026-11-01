@@ -37,7 +37,7 @@ export function isMainAppHost(hostname: string): boolean {
 
 /* ── Types (mirror GET /api/domains/*) ─────────────────────────────────────── */
 
-export type DomainStatus = "pending" | "verifying" | "active" | "failed";
+type DomainStatus = "pending" | "verifying" | "active" | "failed";
 
 export interface CustomDomain {
   id: string;
@@ -50,7 +50,7 @@ export interface CustomDomain {
   verification_token?: string;
 }
 
-export interface DnsRecordInstruction {
+interface DnsRecordInstruction {
   type: string;
   host: string;
   target?: string;
@@ -89,7 +89,7 @@ export interface VerifyResult {
   message: string;
 }
 
-export interface ResolveResult {
+interface ResolveResult {
   slug: string | null;
   source: "custom" | "subdomain" | "main" | null;
 }

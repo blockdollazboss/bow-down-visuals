@@ -55,9 +55,9 @@ export type AudioBenchId =
  *  vocal benches work on library songs' URLs, as their modals do),
  *  typed TEXT (podcast / voiceover scripts), a hum FILE (two-step),
  *  or the arrangement DRAFT rail. */
-export type AudioBenchInput = "file" | "stem-files" | "url" | "text" | "hum" | "draft";
+type AudioBenchInput = "file" | "stem-files" | "url" | "text" | "hum" | "draft";
 
-export interface AudioBenchDef {
+interface AudioBenchDef {
   id: AudioBenchId;
   label: string;
   input: AudioBenchInput;
@@ -233,7 +233,6 @@ export function masterFields(input: {
   return f;
 }
 export const MASTER_FILE_FIELD = "audio";
-export const MASTER_REFERENCE_FIELD = "reference";
 
 /** QuickMasterPanel: audio + preset (+ sourceSongId). */
 export function quickMasterFields(input: {
@@ -424,8 +423,8 @@ export function harmonyDefaultMode(probe: HarmonyModesProbe | null): "classic" |
    FREE: the split was paid for; the remix charges nothing. Each
    level is 0–2 (0 = muted, 1 = unity, 2 = double). */
 
-export const STEM_REMIX_MIN_LEVEL = 0;
-export const STEM_REMIX_MAX_LEVEL = 2;
+const STEM_REMIX_MIN_LEVEL = 0;
+const STEM_REMIX_MAX_LEVEL = 2;
 
 /** A stem's key from the stems bench's result label ("Stem —
  *  vocals" → "vocals"). Labels in any other shape carry no key. */

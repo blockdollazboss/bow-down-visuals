@@ -45,12 +45,12 @@ import { visionBundleUrls, visionWasmBases } from "./avatar-face-engine";
 import type { EngineMatte, MattingEngine } from "./rvm-engine";
 
 export const TASKS_MODEL_FILE = "selfie_segmenter.tflite";
-export const TASKS_LOCAL_BASE = mediaUrl("engines/tasks-segmenter");
+const TASKS_LOCAL_BASE = mediaUrl("engines/tasks-segmenter");
 /* The shipped same-origin copy (public/engines/tasks-segmenter) —
    the fallback immediately after the R2 media bucket and before
    the canonical remote, so a bucket outage never makes the load
    depend on a third party. */
-export const TASKS_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/tasks-segmenter`;
+const TASKS_ORIGIN_BASE = `${import.meta.env.BASE_URL}engines/tasks-segmenter`;
 export const TASKS_MODEL_REMOTE_URL =
   "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite";
 
@@ -71,7 +71,7 @@ export function tasksModelUrls(): string[] {
  * the failure lands in the changer's governance (failure counter,
  * then the park) instead.
  */
-export const TASKS_FRAME_TIMEOUT_MS = 5_000;
+const TASKS_FRAME_TIMEOUT_MS = 5_000;
 
 export class TasksSegmenterError extends Error {
   code: "LOAD_FAILED" | "INFERENCE_FAILED";
@@ -103,7 +103,7 @@ export const TASKS_MAX_STEP = TASKS_STEPS.length - 1;
 /* ------------------------------------------------- structural API types */
 
 /** The slice of MPMask the engine reads. */
-export interface TasksMaskLike {
+interface TasksMaskLike {
   width: number;
   height: number;
   getAsFloat32Array(): Float32Array;
@@ -111,7 +111,7 @@ export interface TasksMaskLike {
 }
 
 /** The slice of ImageSegmenterResult the engine reads. */
-export interface TasksSegmenterResultLike {
+interface TasksSegmenterResultLike {
   confidenceMasks?: TasksMaskLike[];
   categoryMask?: TasksMaskLike;
 }
@@ -120,7 +120,7 @@ export interface TasksSegmenterResultLike {
  *  runtime, segmentForVideo delivers through the callback; some
  *  builds also return the result — the engine settles on
  *  whichever arrives first and ignores the other. */
-export interface ImageSegmenterLike {
+interface ImageSegmenterLike {
   segmentForVideo(
     source: unknown,
     timestamp: number,
@@ -130,7 +130,7 @@ export interface ImageSegmenterLike {
 }
 
 /** The slice of the tasks-vision module the engine imports. */
-export interface VisionSegmenterModuleLike {
+interface VisionSegmenterModuleLike {
   FilesetResolver: {
     forVisionTasks(wasmPath: string): Promise<unknown>;
   };
@@ -151,7 +151,7 @@ const defaultImportModule: ImportModuleFn = async (url: string) => {
   return mod as VisionSegmenterModuleLike;
 };
 
-export interface TasksSegmenterEngineOptions {
+interface TasksSegmenterEngineOptions {
   /** Import the tasks-vision bundle. Default: the vendored-first
    *  chain (tasks-segmenter-engine.test.ts injects a fake). */
   importModule?: ImportModuleFn;

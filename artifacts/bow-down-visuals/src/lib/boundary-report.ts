@@ -46,7 +46,7 @@ export const BOUNDARY_REPORT_PATH = "/api/client-errors";
 /** sessionStorage key for the one-shot chunk auto-reload guard. */
 export const CHUNK_RELOAD_FLAG = "bdv.route-boundary.chunk-reload";
 
-export interface BoundaryTripReport {
+interface BoundaryTripReport {
   /** Route path only — never the query string or hash. */
   route: string;
   errorName: string;
@@ -133,7 +133,7 @@ export function buildBoundaryReport(
   };
 }
 
-export interface BoundaryReportTransport {
+interface BoundaryReportTransport {
   /** navigator.sendBeacon — returns false when the browser refuses. */
   sendBeacon?: (url: string, body: Blob) => boolean;
   /** fetch fallback (keepalive so the report survives an unload). */

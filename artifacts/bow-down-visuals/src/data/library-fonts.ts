@@ -70,11 +70,4 @@ export const LIBRARY_FONTS: LibraryFont[] = [
 export const LIBRARY_FONT_COUNT = LIBRARY_FONTS.length;
 
 /** Build the Google Fonts CSS API URL for the full catalog. */
-export function libraryFontsUrl(): string {
-  const families = LIBRARY_FONTS.map((f) => `family=${f.apiName}:wght@${f.weights}`).join("&");
-  return `https://fonts.googleapis.com/css2?${families}&display=swap`;
-}
 
-export function getLibraryFontsByCategory(category: LibraryFontCategory): LibraryFont[] {
-  return LIBRARY_FONTS.filter((f) => f.category === category);
-}

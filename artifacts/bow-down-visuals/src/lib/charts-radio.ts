@@ -46,7 +46,7 @@ const num = (v: unknown): number | null =>
 
 /** Normalize one raw rotation row; null when it can't honestly play
  *  (no audio URL / no id / no title — never paper over a gap). */
-export function normalizeRadioEntry(raw: unknown): RadioEntry | null {
+function normalizeRadioEntry(raw: unknown): RadioEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const trackId = str(r.track_id);

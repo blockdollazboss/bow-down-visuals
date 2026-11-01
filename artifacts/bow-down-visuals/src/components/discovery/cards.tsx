@@ -70,7 +70,7 @@ export interface VideoLite {
   avatar_url?: string | null;
 }
 
-export function rankBadge(i: number) {
+function rankBadge(i: number) {
   const base =
     "flex h-8 w-8 items-center justify-center rounded-full text-sm font-black shrink-0";
   if (i === 0)

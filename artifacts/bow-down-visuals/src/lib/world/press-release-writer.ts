@@ -38,7 +38,6 @@ export const ANNOUNCEMENT_TYPE_OPTIONS = [
   { key: "milestone", label: "Milestone" },
 ] as const;
 
-export type AnnouncementTypeKey = (typeof ANNOUNCEMENT_TYPE_OPTIONS)[number]["key"];
 
 export interface PressReleaseForm {
   announcementType: string;
@@ -161,7 +160,7 @@ export function formatReleaseText(r: GeneratedRelease, artistName: string): stri
 
 /** The saved-kit entry, the panel's own shape (press-kit page type:
  *  { id, headline, body, announcementType, social, createdAt }). */
-export interface PressKitReleaseEntry {
+interface PressKitReleaseEntry {
   id: string;
   headline: string;
   body: string;

@@ -239,7 +239,6 @@ export const CAMERA_EFFECTS = [
   { id: "gold-frame", label: "Gold Frame" },
 ] as const;
 
-export type CameraEffectId = (typeof CAMERA_EFFECTS)[number]["id"];
 
 /** Full-frame ctx.filter grades per camera-effect id (overlays have none). */
 const CAMERA_EFFECT_FILTERS: Record<string, string> = {
@@ -287,7 +286,7 @@ export type BackgroundEngineKind = "pro" | "tasks" | "off";
  *    its inferences failed until it parked for the session (the
  *    failure cap).
  */
-export type EngineFallbackReason = "pro-init-failed" | "pro-stopped" | "tasks-init-failed" | "tasks-stopped";
+type EngineFallbackReason = "pro-init-failed" | "pro-stopped" | "tasks-init-failed" | "tasks-stopped";
 
 /**
  * The engine truth, as adopted — PROBE-BASED, never intent-based:
@@ -326,7 +325,7 @@ export interface EngineStatusDetail {
  * live; at the lightest step the ladder's degrade verdict steps
  * the output canvas down (there is nowhere lighter to go).
  */
-export interface MatteRefinementStep {
+interface MatteRefinementStep {
   /** Width cap when reading the engine's mask (px). */
   maskCap: number;
   /** Temporal-blend weight of the new frame (matte-post emaWeight). */
@@ -407,9 +406,9 @@ export const MAX_CONSECUTIVE_INFERENCE_FAILURES = 30;
 /** How long a freshly-live engine's effect takes to fade in over
  *  the raw picture (ms) when it arrives while the session is
  *  already running. */
-export const ENGINE_FADE_IN_MS = 350;
+const ENGINE_FADE_IN_MS = 350;
 
-export type BackgroundChangerErrorCode = "PERMISSION_DENIED" | "NO_CAMERA" | "CDN_LOAD_FAILED" | "UNSUPPORTED" | "SEGMENTATION_FAILED";
+type BackgroundChangerErrorCode = "PERMISSION_DENIED" | "NO_CAMERA" | "CDN_LOAD_FAILED" | "UNSUPPORTED" | "SEGMENTATION_FAILED";
 
 /** Error with a stable machine-readable `code` for UI handling. */
 export class BackgroundChangerError extends Error {
@@ -423,7 +422,7 @@ export class BackgroundChangerError extends Error {
   }
 }
 
-export interface BackgroundChangerConfig {
+interface BackgroundChangerConfig {
   mode?: BackgroundMode;
   /** Background engine quality (see BackgroundQuality). Default 'auto'. */
   quality?: BackgroundQuality;
@@ -1962,10 +1961,3 @@ export class BackgroundChanger {
  * Convenience wrapper: create a BackgroundChanger, start it, and return
  * { stream, changer, stop }. The stream is a standard MediaStream.
  */
-export async function getProcessedStream(
-  config: BackgroundChangerConfig = {},
-): Promise<{ stream: MediaStream; changer: BackgroundChanger; stop: () => Promise<void> }> {
-  const changer = new BackgroundChanger(config);
-  const { stream } = await changer.start(config.deviceId ?? undefined);
-  return { stream, changer, stop: () => changer.stop() };
-}

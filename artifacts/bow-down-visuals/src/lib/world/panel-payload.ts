@@ -36,7 +36,7 @@ export type PanelPayload =
   | { kind: "caption-pack"; templateSlug: string }
   | { kind: "thumbnail-template"; templateSlug: string };
 
-export type PanelPayloadKind = PanelPayload["kind"];
+type PanelPayloadKind = PanelPayload["kind"];
 
 const PAYLOAD_KINDS: ReadonlySet<string> = new Set([
   "hook-template",

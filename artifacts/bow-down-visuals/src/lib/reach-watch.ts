@@ -87,7 +87,7 @@ export function normalizeLoyaltyState(payload: unknown): LoyaltyState | null {
   };
 }
 
-export interface PendingRedemption {
+interface PendingRedemption {
   id: string;
   perkLabel: string;
   pointsCost: number;

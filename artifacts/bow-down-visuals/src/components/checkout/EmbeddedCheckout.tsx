@@ -47,7 +47,7 @@ export function hasStripePublishableKey(): boolean {
 }
 
 /** Appearance for both themes — light is a designed surface too. */
-export function stripeAppearance(isLight: boolean): StripeElementsOptions["appearance"] {
+function stripeAppearance(isLight: boolean): StripeElementsOptions["appearance"] {
   return isLight
     ? {
         theme: "stripe",

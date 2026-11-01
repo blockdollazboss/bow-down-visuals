@@ -30,7 +30,7 @@ export interface DmcaReportForm {
 }
 
 /** The exact wire shape POST /api/dmca/report accepts — no other fields. */
-export interface DmcaReportPayload {
+interface DmcaReportPayload {
   reporter_name: string;
   reporter_email: string;
   reporter_org?: string;
@@ -40,7 +40,7 @@ export interface DmcaReportPayload {
   agree_under_penalty: string;
 }
 
-export type DmcaPayloadResult =
+type DmcaPayloadResult =
   | { ok: true; payload: DmcaReportPayload }
   | { ok: false; error: string };
 
@@ -130,7 +130,7 @@ export function buildDmcaReportPayload(form: DmcaReportForm): DmcaPayloadResult 
   };
 }
 
-export type DmcaSubmitResult =
+type DmcaSubmitResult =
   | { status: "success"; id: string }
   | { status: "error"; error: string };
 

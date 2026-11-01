@@ -57,7 +57,7 @@ import { guardVariantForKey, houseGuardVariantForId } from "./figure";
 
 /* ── Profile data ─────────────────────────────────────────────────── */
 
-export interface CharacterVoiceEqBand {
+interface CharacterVoiceEqBand {
   type: BiquadFilterType;
   /** Centre (peaking/shelf) frequency, Hz. */
   freqHz: number;
@@ -220,7 +220,7 @@ export function profileFromStored(
   };
 }
 
-export interface CharacterVoiceResolutionInput {
+interface CharacterVoiceResolutionInput {
   /** The presence's character id (self.character.id): a house guard
    *  id for a guard pick, the vault row id for a vault character,
    *  null when there is no pick. */
@@ -263,7 +263,7 @@ export function resolveCharacterVoiceProfile(input: CharacterVoiceResolutionInpu
 
 /* ── Shaping parameters: profile + switch → the graph's orders ────── */
 
-export interface ShapingParams {
+interface ShapingParams {
   /** True = the raw mic passes untouched (switch off, or an
    *  identity profile): the graph runs dry, never silent. */
   bypass: boolean;

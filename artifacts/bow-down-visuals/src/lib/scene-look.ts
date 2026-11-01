@@ -154,7 +154,7 @@ export interface LookClause {
   phrase: string;
 }
 
-export interface SuppressedLookPick {
+interface SuppressedLookPick {
   rail: LookRail;
   key: string;
   reason: "free-text" | "already-in-prompt";

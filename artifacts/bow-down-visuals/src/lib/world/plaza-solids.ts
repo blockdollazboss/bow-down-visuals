@@ -61,7 +61,7 @@ const rectAround = (x: number, z: number, halfX: number, halfZ: number): PalaceR
  * full mane, head up, facing the plaza. Both lions face SOUTH
  * (+z, rotY 0): they watch the court they guard, backs to the
  * façade. The plinth footprint IS the blocked footprint. */
-export interface PlazaLion {
+interface PlazaLion {
   x: number;
   z: number;
   /** Facing: 0 looks south (+z), toward arriving walkers. */
@@ -123,7 +123,7 @@ export const COMPASS_ROSE_BLOCKED: PalaceRect = rectAround(
  * a falling sheet on each face, breathing with the pool's own
  * water entry (the scene shares the fountain fall's material —
  * ONE water model, items 5–7, no second registration). */
-export interface PlazaDam {
+interface PlazaDam {
   x: number;
   z: number;
 }

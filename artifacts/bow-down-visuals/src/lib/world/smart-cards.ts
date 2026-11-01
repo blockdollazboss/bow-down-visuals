@@ -281,4 +281,3 @@ export function buildSmartCardProfilePayload(input: {
 }
 
 /** The stand's transfer target — the line's own page. */
-export const SMART_CARDS_PATH = "/nfc-cards";

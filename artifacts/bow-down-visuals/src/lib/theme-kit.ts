@@ -58,7 +58,7 @@ export const KIT_COMPONENTS = [
   { id: "site-reskin", label: "App / site reskin", devices: ["site"] },
 ] as const;
 
-export type KitComponentId = (typeof KIT_COMPONENTS)[number]["id"];
+type KitComponentId = (typeof KIT_COMPONENTS)[number]["id"];
 export const KIT_COMPONENT_IDS: readonly string[] = KIT_COMPONENTS.map((c) => c.id);
 export const KIT_DEVICES = ["all", "phone", "tablet", "desktop"] as const;
 export type KitDevice = (typeof KIT_DEVICES)[number];
@@ -77,7 +77,7 @@ export const SOUND_LIBRARY_ROLES = [
   "royal-sting",
   "ringtone",
 ] as const;
-export type SoundRole = (typeof SOUND_LIBRARY_ROLES)[number];
+type SoundRole = (typeof SOUND_LIBRARY_ROLES)[number];
 
 /** Library path for a role — the one reference every pack uses.
     Resolved THROUGH the signature-sound-manifest (the single source
@@ -160,7 +160,7 @@ export const SOUND_SET_STAMP_KEY = "bdv-sound-set";
 export const SOUND_SET_STAMP_VALUE = "library:signature-house";
 export const PACK_SOUNDS_APPLIED_EVENT = "bdv-pack-sounds-applied";
 
-export interface SoundPrefsFetchResponse {
+interface SoundPrefsFetchResponse {
   ok: boolean;
   json(): Promise<unknown>;
 }
@@ -170,7 +170,7 @@ export type SoundPrefsFetch = (
   init: { method: string; headers: Record<string, string>; body: string },
 ) => Promise<SoundPrefsFetchResponse>;
 
-export interface PackSoundStampDeps {
+interface PackSoundStampDeps {
   /** Entitlement is the gate: false → no stamp of any kind. Both apply
       surfaces (desk Apply, toggle quick-picker) already gate on it;
       the stamper re-checks so no future caller can stamp a locked pack. */
@@ -181,7 +181,7 @@ export interface PackSoundStampDeps {
   dispatchApplied?: (packId: string) => void;
 }
 
-export interface PackSoundStampResult {
+interface PackSoundStampResult {
   localStamped: boolean;
   accountStamped: boolean;
 }
@@ -330,7 +330,7 @@ export const KIT_WALLPAPER_DEVICES = [
   { id: "tablet", width: 1640, height: 2360 },
   { id: "desktop", width: 1920, height: 1080 },
 ] as const;
-export type KitWallpaperDeviceId = (typeof KIT_WALLPAPER_DEVICES)[number]["id"];
+type KitWallpaperDeviceId = (typeof KIT_WALLPAPER_DEVICES)[number]["id"];
 
 /** Site path of the per-device wallpaper render (clean pack ground,
     crop-to-fill — no logo composited). */
@@ -349,7 +349,7 @@ export function renderWidgetSvg(pack: ThemePack, mode: ThemePackMode): string {
 
 /* ─── Kit manifest ──────────────────────────────────────────────────── */
 
-export interface KitComponentManifest {
+interface KitComponentManifest {
   component: KitComponentId;
   label: string;
   modes: ThemePackMode[];
@@ -364,7 +364,7 @@ export interface KitComponentManifest {
   note?: string;
 }
 
-export interface KitManifest {
+interface KitManifest {
   packId: string;
   packName: string;
   tier: ThemePack["tier"];
@@ -434,7 +434,7 @@ export function allKitManifests(): KitManifest[] {
 
 /* ─── Customization (the capstone — every component, per device) ───── */
 
-export interface ComponentCustomization {
+interface ComponentCustomization {
   /** Swap the art from the approved library only. */
   artSourceId?: string;
   /** Buyer's own uploaded art URL (their media library). */
@@ -511,21 +511,10 @@ export function sanitizeCustomization(
 }
 
 /** The accent a component renders with after customization. */
-export function effectiveAccent(
-  pack: ThemePack,
-  mode: ThemePackMode,
-  mix: PackCustomization | undefined,
-  component: KitComponentId,
-  device: KitDevice = "all",
-): string {
-  const custom = mix?.[component]?.[device]?.accentHex ?? mix?.["accent-color"]?.[device]?.accentHex;
-  if (custom) return custom;
-  return hslToHex(pack.variants[mode]!.tokens.primary) ?? "#f9bc06";
-}
 
 /* ─── GET THIS LOOK — virality deep links ───────────────────────────── */
 
-export interface LookPayload {
+interface LookPayload {
   packId: string;
   mix: PackCustomization;
   creatorPackId?: string;
@@ -563,9 +552,6 @@ export function decodeLook(code: string): LookPayload | null {
   }
 }
 
-export function lookUrl(origin: string, payload: LookPayload): string {
-  return `${origin.replace(/\/$/, "")}/settings?look=${encodeLook(payload)}#theme-packs`;
-}
 
 /* ─── Share cards (subject-led, logo whole) ─────────────────────────── */
 

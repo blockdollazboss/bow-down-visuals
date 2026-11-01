@@ -61,9 +61,9 @@ export function formatDuration(totalSeconds: number): string {
 
 /* LocalStorage key the video editor checks on mount for a voiceover
    handoff (see video-editor.tsx). */
-export const VOICEOVER_HANDOFF_KEY = "bdv_voiceover_handoff";
+const VOICEOVER_HANDOFF_KEY = "bdv_voiceover_handoff";
 
-export interface VoiceoverHandoff {
+interface VoiceoverHandoff {
   audioUrl: string;
   format: "mp3" | "wav";
   wordCount: number;

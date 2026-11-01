@@ -103,7 +103,7 @@ export function displaySharePct(item: Pick<CoReleaseItem, "agreed_shares">, side
   return agreed ? agreed.sharePct : side.share_pct;
 }
 
-export type CoReleaseViewerAction = "accept" | "decline" | "withdraw" | "amend-split";
+type CoReleaseViewerAction = "accept" | "decline" | "withdraw" | "amend-split";
 
 /** Actions the VIEWER may take, mirroring the server machine: a
  *  pending side may accept/decline; an accepted side may withdraw

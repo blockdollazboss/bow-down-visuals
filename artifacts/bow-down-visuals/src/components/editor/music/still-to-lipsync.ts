@@ -76,7 +76,7 @@ type FetchLike = (
   init?: RequestInit,
 ) => Promise<Response | null>;
 
-export interface RunStillToLipSyncInput {
+interface RunStillToLipSyncInput {
   /** Artist still image — must be an https URL the video rail can fetch. */
   imageUrl: string;
   /** The user's song audio — https URL, as the lip-sync rail requires. */

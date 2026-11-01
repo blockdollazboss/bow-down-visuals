@@ -14,7 +14,7 @@ export type CreatorFontCategory =
   | "House" | "Royal Serifs" | "Strong Sans" | "Condensed Poster"
   | "Bold Display" | "Handwritten" | "Scripts" | "Pixel";
 
-export type CreatorFontLicense = "OFL-1.1" | "Apache-2.0";
+type CreatorFontLicense = "OFL-1.1" | "Apache-2.0";
 
 export interface CreatorFont {
   /** Stable id (repo slug). */

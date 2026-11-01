@@ -175,19 +175,8 @@ export const LIBRARY_TEMPLATES: LibraryTemplate[] = [
   ...socialTemplates,
 ];
 
-export const LIBRARY_TEMPLATE_COUNTS: Record<LibraryTemplateCategory, number> = {
-  "Thumbnails": thumbnailTemplates.length,
-  "Carousels": carouselTemplates.length,
-  "Intros & Outros": introTemplates.length,
-  "Social Posts": socialTemplates.length,
-};
 
 export function getLibraryTemplate(slug: string): LibraryTemplate | undefined {
   return LIBRARY_TEMPLATES.find((t) => t.slug === slug);
 }
 
-export function getLibraryTemplatesByCategory(
-  category: LibraryTemplateCategory
-): LibraryTemplate[] {
-  return LIBRARY_TEMPLATES.filter((t) => t.category === category);
-}

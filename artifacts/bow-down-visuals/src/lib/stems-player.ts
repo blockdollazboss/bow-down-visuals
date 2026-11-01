@@ -142,7 +142,7 @@ export interface StemAudioLike {
   removeEventListener?: (type: string, fn: () => void) => void;
 }
 
-export interface StemEngineCallbacks {
+interface StemEngineCallbacks {
   onTime?: (t: number) => void;
   onDuration?: (d: number) => void;
   onEnded?: () => void;

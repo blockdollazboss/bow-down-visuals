@@ -32,7 +32,7 @@
 import type { PalaceDirectoryEntry } from "./world-client";
 
 /** One standing door lock, as GET /api/world/locks serves it. */
-export interface WorldDoorLockDto {
+interface WorldDoorLockDto {
   roomId: string;
   lockedByEmail: string | null;
   createdAt: string;
@@ -141,7 +141,7 @@ async function lockVerb<T>(
   return parsed;
 }
 
-export interface WorldDoorLockResult {
+interface WorldDoorLockResult {
   ok: boolean;
   door: { roomId: string; locked: boolean; createdAt?: string };
   /** The fresh directory after a door verb — the Locked pill's
@@ -149,7 +149,7 @@ export interface WorldDoorLockResult {
   rooms?: PalaceDirectoryEntry[];
 }
 
-export interface WorldPersonLockResult {
+interface WorldPersonLockResult {
   ok: boolean;
   /** The target was standing in the room and is out now. */
   evicted?: boolean;
@@ -198,7 +198,7 @@ export function unlockWorldDoor(
   return lockVerb("/api/world/locks/door/unlock", token, { roomId }, fetchFn);
 }
 
-export interface LockWorldPersonInput {
+interface LockWorldPersonInput {
   roomId: string;
   /** A peer standing in the room (the host-panel roster's key). */
   peerId?: string;

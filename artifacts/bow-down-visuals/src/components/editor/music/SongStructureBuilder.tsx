@@ -9,7 +9,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
-export interface StructureSection {
+interface StructureSection {
   type: string;
   bars: number;
   label?: string;

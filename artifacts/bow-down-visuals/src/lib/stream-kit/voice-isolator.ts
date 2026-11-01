@@ -59,7 +59,7 @@ export function rnnoiseUrls(base: string) {
 const RNNOISE_SAMPLE_RATE = 48000; // RNNoise only understands 48 kHz.
 
 export type NoiseCancellationLevel = "off" | "on" | "max";
-export type MlState = "idle" | "loading" | "active" | "failed" | "unavailable";
+type MlState = "idle" | "loading" | "active" | "failed" | "unavailable";
 
 export interface VoiceIsolatorStatus {
   level: NoiseCancellationLevel;
@@ -70,10 +70,10 @@ export interface VoiceIsolatorStatus {
   message: string;
 }
 
-export type VoiceIsolatorErrorCode = "PERMISSION_DENIED" | "NO_MIC" | "UNSUPPORTED" | "NOT_STARTED";
+type VoiceIsolatorErrorCode = "PERMISSION_DENIED" | "NO_MIC" | "UNSUPPORTED" | "NOT_STARTED";
 
 /** Error with a stable machine-readable `code`, mirroring BackgroundChangerError. */
-export class VoiceIsolatorError extends Error {
+class VoiceIsolatorError extends Error {
   code: VoiceIsolatorErrorCode;
   cause?: unknown;
   constructor(code: VoiceIsolatorErrorCode, message: string, cause?: unknown) {
@@ -101,7 +101,6 @@ export const VOICE_EFFECTS = [
   { id: "megaphone", label: "Megaphone" },
 ] as const;
 
-export type VoiceEffectId = (typeof VOICE_EFFECTS)[number]["id"];
 
 /**
  * The noise gate: a small AudioWorklet processor doing RMS-based downward
@@ -292,7 +291,7 @@ interface RnnoiseModule {
   ) => AudioWorkletNode & { destroy?: () => void };
 }
 
-export interface VoiceIsolatorConfig {
+interface VoiceIsolatorConfig {
   level?: NoiseCancellationLevel;
   input?: MediaStream | MediaStreamTrack;
   gateThresholdDb?: number;

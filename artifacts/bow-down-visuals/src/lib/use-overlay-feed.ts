@@ -23,7 +23,7 @@ import {
  * The display pump lives here too: the head alert shows for
  * ALERT_DISPLAY_MS, then the queue advances.
  */
-export interface OverlayFeed {
+interface OverlayFeed {
   state: OverlayStateData | null;
   currentAlert: OverlayAlertData | null;
   /** Changes per alert — the card keys on it to restart its pop. */

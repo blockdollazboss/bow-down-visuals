@@ -2,7 +2,7 @@
    Pure functions used by the /lyric-video page. Kept in lib/ so they are
    unit-testable without rendering the page. */
 
-export interface LyricVideoLineWord {
+interface LyricVideoLineWord {
   word: string;
   startSec: number;
   endSec: number;

@@ -223,7 +223,7 @@ export function parseBeatList(payload: unknown): BeatDto[] {
  *  offer on an exclusive-sold beat and the offers rail marks every
  *  offer unavailable, so every tier reads sold out here too, not
  *  just the exclusive tier. */
-export interface BeatTierOffer {
+interface BeatTierOffer {
   key: "basic" | "premium" | "exclusive";
   label: string;
   blurb: string;
@@ -311,7 +311,7 @@ export interface BeatSale {
   stemsUrl: string | null;
 }
 
-export function parseBeatSale(raw: unknown): BeatSale | null {
+function parseBeatSale(raw: unknown): BeatSale | null {
   if (!isObj(raw)) return null;
   const id = str(raw["id"]);
   if (!id) return null;
@@ -556,8 +556,8 @@ export function parseMyTemplates(payload: unknown): BeatLicenseTemplate[] {
 /** The tip page's amount bounds — the rail's own schema
  *  (tipIntentSchema: $1–$10,000). Display/gate only; the server
  *  re-validates every send. */
-export const TIP_MIN_DOLLARS = 1;
-export const TIP_MAX_DOLLARS = 10_000;
+const TIP_MIN_DOLLARS = 1;
+const TIP_MAX_DOLLARS = 10_000;
 
 export interface TipPageData {
   handle: string;
@@ -657,7 +657,7 @@ export interface TipSettingsForm {
 }
 
 /** The page's fresh-form default for the suggested amounts. */
-export const TIP_SUGGESTED_DEFAULT = "5, 10, 25";
+const TIP_SUGGESTED_DEFAULT = "5, 10, 25";
 
 export function tipSettingsFormFrom(payload: unknown): TipSettingsForm | null {
   if (!isObj(payload) || !isObj(payload["settings"])) return null;
@@ -1045,7 +1045,7 @@ export interface PlanChangePreview {
 /** Parse a changePreview payload; null when any pinned number is
  *  missing or mistyped — a change the desk cannot price honestly
  *  is never offered for confirmation. */
-export function parsePlanChangePreview(
+function parsePlanChangePreview(
   payload: unknown,
   toPlanNameFallback?: string,
 ): PlanChangePreview | null {
@@ -1191,9 +1191,9 @@ export function planChangeOutcome(
 /* ─── 70 · The full credit-history ledger, paginated ─────────────── */
 
 /** Rows per ledger page at the history desk. */
-export const LEDGER_PAGE_SIZE = 20;
+const LEDGER_PAGE_SIZE = 20;
 
-export interface LedgerPage {
+interface LedgerPage {
   rows: LedgerEntry[];
   page: number;
   pageCount: number;

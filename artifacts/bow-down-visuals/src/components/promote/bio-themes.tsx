@@ -27,7 +27,7 @@ export interface BioPageData {
   referralCode?: string | null;
 }
 
-export interface BioTheme {
+interface BioTheme {
   key: string;
   labelKey: string;
   blurbKey: string;

@@ -33,11 +33,11 @@ export const CONTROLLER_COMMANDS = [
 
 export type ControllerCommand = (typeof CONTROLLER_COMMANDS)[number];
 
-export function isControllerCommand(v: unknown): v is ControllerCommand {
+function isControllerCommand(v: unknown): v is ControllerCommand {
   return typeof v === "string" && (CONTROLLER_COMMANDS as readonly string[]).includes(v);
 }
 
-export interface ControllerScene {
+interface ControllerScene {
   id: string;
   name: string;
 }
@@ -67,7 +67,7 @@ export interface ControllerState {
   liveSince: number | null;
 }
 
-export interface ControllerPresence {
+interface ControllerPresence {
   stageConnected: boolean;
   stageCount: number;
 }
@@ -91,7 +91,7 @@ export interface ControllerClientDeps {
   now?: () => number;
 }
 
-export const ACK_TIMEOUT_MS = 3000;
+const ACK_TIMEOUT_MS = 3000;
 const RECONNECT_MS = [1500, 4000, 8000];
 /** A socket that hasn't opened within this window is a stalled
     handshake: retire it by hand (it may never fire onclose) and climb

@@ -28,7 +28,7 @@ export const WIDGET_KIND_LABELS: Record<WidgetKind, string> = {
   "goal-bar": "Tip goal bar",
 };
 
-export interface ChromaSettings {
+interface ChromaSettings {
   /** Key color as #rrggbb. */
   color: string;
   /** 0..1 — distance below which pixels are fully transparent. */
@@ -37,7 +37,7 @@ export interface ChromaSettings {
   smoothness: number;
 }
 
-export interface TextSettings {
+interface TextSettings {
   content: string;
   /** px at the 720p reference height; scaled to the canvas at draw. */
   fontSize: number;
@@ -292,7 +292,7 @@ export function moveSource(scene: Scene, sourceId: string, dir: 1 | -1): Scene {
 
 /* ── Fit math ───────────────────────────────────────────────────────────── */
 
-export interface FitRects {
+interface FitRects {
   sx: number;
   sy: number;
   sw: number;

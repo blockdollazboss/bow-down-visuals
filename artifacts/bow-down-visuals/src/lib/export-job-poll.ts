@@ -8,7 +8,7 @@
  * ({ url, ... }); rejects with an Error carrying .code / .exportStatus /
  * .stderrTail / .ffmpegExitCode so existing export error handling keeps working.
  */
-export interface ExportJobPollResult {
+interface ExportJobPollResult {
   url: string;
   [key: string]: unknown;
 }
@@ -28,7 +28,7 @@ export { MAX_CONSECUTIVE_POLL_FAILURES };
 
 class TransientPollError extends Error {}
 
-export interface ExportJobFailure extends Error {
+interface ExportJobFailure extends Error {
   code?: string;
   exportStatus?: unknown;
   stderrTail?: string[];
@@ -113,7 +113,7 @@ export const EXPORT_POLL_UNKNOWN_STATUS_CODE = "unknown_status";
 export const STATUS_CHECK_OUTAGE_WINDOW_MS = 90 * 1000;
 
 /** Successes in a row required to declare a status-check outage over. */
-export const POLL_RECOVERY_SUCCESSES = 2;
+const POLL_RECOVERY_SUCCESSES = 2;
 
 /** Statuses that mean "still working" — anything else in a 200 payload
  *  that is not done/failed is unrecognisable and terminal for the

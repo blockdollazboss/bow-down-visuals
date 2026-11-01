@@ -44,7 +44,7 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
 
 export type ReportTargetType = "post" | "comment" | "profile" | "fan_art";
 
-export interface FiledReport {
+interface FiledReport {
   id: string;
   reporterUserId: string;
   targetType: string;
@@ -57,14 +57,14 @@ export interface FiledReport {
   createdAt: string;
 }
 
-export interface SubmitReportInput {
+interface SubmitReportInput {
   targetType: ReportTargetType;
   targetId: string;
   reason: ReportReason;
   note?: string;
 }
 
-export interface SubmitReportResult {
+interface SubmitReportResult {
   report: FiledReport;
   /** True when the member already had an OPEN report on this target:
    *  the server returned that row instead of queueing a second one. */

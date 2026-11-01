@@ -43,7 +43,7 @@ export function hudIdleDue(lastActivityAt: number, now: number, idleMs: number =
 /** The structural shape hud text-entry detection reads — the
  *  hook and the page's menu watcher both hand it DOM elements;
  *  tests hand it plain objects. */
-export interface TextEntryLike {
+interface TextEntryLike {
   tagName?: string;
   type?: string;
   isContentEditable?: boolean;

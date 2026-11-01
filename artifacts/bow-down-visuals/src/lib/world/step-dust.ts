@@ -29,13 +29,13 @@ export const STEP_DUST_CAPACITY = 240;
 /** A puff's whole life (s): a breath, not a weather system. */
 export const STEP_DUST_LIFE_S = 0.55;
 /** How fast a puff rises (m/s) — it lifts off the heel, barely. */
-export const STEP_DUST_RISE = 0.1;
+const STEP_DUST_RISE = 0.1;
 /** The puff's warm dust tint at birth (additive — black = gone). */
 export const STEP_DUST_TINT = { r: 1.0, g: 0.93, b: 0.78 };
 /** Birth brightness: a footstep should whisper, never flash. */
 export const STEP_DUST_BRIGHTNESS = 0.5;
 
-export interface StepPuff {
+interface StepPuff {
   alive: boolean;
   x: number;
   y: number;

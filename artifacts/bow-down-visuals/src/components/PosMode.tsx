@@ -24,7 +24,7 @@ import { QRCodeImage } from "@/components/QRCode";
    readers are Stripe Terminal hardware — a partnership step this
    version does not include — and the copy below says so plainly. */
 
-export interface PosProduct {
+interface PosProduct {
   id: string;
   name: string;
   price_cents: number;

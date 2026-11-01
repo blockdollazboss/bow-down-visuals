@@ -11,7 +11,7 @@ export interface TimedLyricLine {
   startSec: number;
 }
 
-export interface LrcMeta {
+interface LrcMeta {
   title?: string;
   artist?: string;
   album?: string;
@@ -26,7 +26,6 @@ export interface LrcMeta {
 export const LRC_AI_ALIGN_ENDPOINT = "/api/lyric-video/align";
 export const LRC_AI_ALIGN_CREDITS = 200;
 /** Manual tap-to-sync costs nothing — no AI runs. */
-export const LRC_TAP_MODE_CREDITS = 0;
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -95,7 +94,7 @@ export function buildLrc(lines: TimedLyricLine[], meta: LrcMeta = {}): string {
   return [...head, ...body].join("\n") + "\n";
 }
 
-export interface LrcValidation {
+interface LrcValidation {
   ok: boolean;
   errors: string[];
   timedLineCount: number;

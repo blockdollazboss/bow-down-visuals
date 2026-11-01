@@ -29,7 +29,7 @@ import { AlertTriangle, RotateCcw } from "lucide-react";
  * hook wrapper (translation + theme) the page imports.
  */
 
-export interface SettingsCardBoundaryCoreProps {
+interface SettingsCardBoundaryCoreProps {
   /** Stable slug for the card ("sounds", "theme-packs", …) — used in
    *  the console tag and the fallback's test id. */
   name: string;
@@ -40,7 +40,7 @@ export interface SettingsCardBoundaryCoreProps {
   children: ReactNode;
 }
 
-export interface SettingsCardBoundaryState {
+interface SettingsCardBoundaryState {
   error: Error | null;
   /** Bumped on retry so the failed card remounts from scratch instead
    *  of re-rendering whatever internal state threw. */

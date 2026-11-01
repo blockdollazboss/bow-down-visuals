@@ -32,7 +32,7 @@ function fetchStats(): Promise<PublicStats | null> {
   return statsPromise;
 }
 
-export function usePublicStats(): PublicStats | null {
+function usePublicStats(): PublicStats | null {
   const [stats, setStats] = useState<PublicStats | null>(null);
   useEffect(() => {
     let live = true;

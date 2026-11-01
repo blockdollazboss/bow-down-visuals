@@ -81,7 +81,7 @@ export type PadRole =
   | "dpadLeft"
   | "dpadRight";
 
-export interface PadButtonLabel {
+interface PadButtonLabel {
   /** The name copy speaks: "Cross", "A", "bottom button". */
   word: string;
   /** The drawn shape, where the family has one (PlayStation's
@@ -323,7 +323,7 @@ export function padButtonIndex(profile: ControllerProfile, role: PadRole): numbe
  *  bindings.ts jobs restated as roles. `slots` is in
  *  bindings.PAD_SLOTS order (D-pad ↑ → ↓ ←, left face, back,
  *  right bumper) — the action pages read by position. */
-export interface PadVerbIndices {
+interface PadVerbIndices {
   jump: number;
   voiceBack: number;
   viewToggle: number;

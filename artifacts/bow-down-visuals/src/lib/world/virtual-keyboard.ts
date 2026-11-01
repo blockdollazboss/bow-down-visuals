@@ -40,7 +40,7 @@
 
 export type VirtualKeyboardLayer = "letters" | "symbols";
 
-export type VirtualKeyKind =
+type VirtualKeyKind =
   | "char"
   | "space"
   | "backspace"
@@ -142,7 +142,7 @@ export function flattenVirtualKeys(rows: VirtualKey[][]): VirtualKey[] {
  * the default a browser applies). Kept structural so the
  * classification is testable without a DOM.
  */
-export interface VirtualKeyboardFieldShape {
+interface VirtualKeyboardFieldShape {
   tagName: string;
   type?: string;
   disabled?: boolean;
@@ -154,7 +154,7 @@ export interface VirtualKeyboardFieldShape {
  *  carry their own controls (steppers, pickers, toggles) that
  *  panel navigation already reaches, and letters poured into
  *  them through a value setter are swallowed by the browser. */
-export const VIRTUAL_KEYBOARD_INPUT_TYPES: ReadonlySet<string> = new Set([
+const VIRTUAL_KEYBOARD_INPUT_TYPES: ReadonlySet<string> = new Set([
   "text",
   "search",
   "email",
@@ -269,7 +269,7 @@ export function computeFieldEdit(
 /* ── Writing through the field's real value path ───────── */
 
 /** The slice of a field element the commit touches. */
-export interface FieldElementLike {
+interface FieldElementLike {
   value: string;
   selectionStart: number | null;
   selectionEnd: number | null;

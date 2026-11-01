@@ -46,9 +46,9 @@ interface SponsorReadResponse {
 
 /* LocalStorage handoff the /voiceover page reads on mount to prefill the
    script box (see voiceover.tsx). */
-export const SPONSOR_READ_HANDOFF_KEY = "bdv_sponsor_read_handoff";
+const SPONSOR_READ_HANDOFF_KEY = "bdv_sponsor_read_handoff";
 
-export interface SponsorReadHandoff {
+interface SponsorReadHandoff {
   script: string;
   brandName: string;
   createdAt: number;

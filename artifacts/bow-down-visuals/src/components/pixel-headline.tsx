@@ -93,7 +93,7 @@ const SPRITES: Record<string, string[]> = {
   ],
 };
 
-export type SpriteName = keyof typeof SPRITES;
+type SpriteName = keyof typeof SPRITES;
 
 export function PixelSprite({
   name,

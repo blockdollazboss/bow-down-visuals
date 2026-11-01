@@ -9,7 +9,7 @@
  * spendableBalance in artifacts/api-server/src/lib/credits.ts exactly:
  * an expired bonus pool counts as zero.
  */
-export interface BalanceProfile {
+interface BalanceProfile {
   credits?: number | null;
   bonus_credits?: number | null;
   bonus_credits_expires_at?: string | null;

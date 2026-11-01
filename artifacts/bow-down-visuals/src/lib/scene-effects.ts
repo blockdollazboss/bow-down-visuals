@@ -37,7 +37,7 @@ export interface EffectRecipesPayload {
   moveKeywords: MoveKeywordRule[];
 }
 
-export const CAMERA_MOVE_LABELS_CLIENT: Record<string, string> = {
+const CAMERA_MOVE_LABELS_CLIENT: Record<string, string> = {
   "dolly-in": "a dolly-in (camera pushing closer)",
   orbit: "an orbiting camera",
   "crane-up": "a crane-up",
@@ -115,7 +115,7 @@ export function effectNeedsLabel(needs: EffectNeeds): string | null {
 
 /** Read the creator's tracked trends (Trend Predictor watchlist, the
  *  exact localStorage the Trends page writes) as matcher signals. */
-export interface TrackedTrendSignal {
+interface TrackedTrendSignal {
   trend: string;
   confidence: number;
   timeframe?: string;

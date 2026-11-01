@@ -503,7 +503,7 @@ function drawSource(
 
 /* ── The program Stage ──────────────────────────────────────────────────── */
 
-export type TransitionKind = "cut" | "fade";
+type TransitionKind = "cut" | "fade";
 
 export class Stage {
   canvas: HTMLCanvasElement;

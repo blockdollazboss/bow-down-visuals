@@ -48,7 +48,7 @@ export function shortSoundEditorHref(soundId: string): string {
   return `/video-editor?tab=repurpose&sound=short:${encodeURIComponent(soundId)}`;
 }
 
-export interface ShortPostInput {
+interface ShortPostInput {
   profileId: string;
   title: string;
   videoUrl: string;

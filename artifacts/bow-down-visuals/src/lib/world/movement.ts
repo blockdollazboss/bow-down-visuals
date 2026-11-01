@@ -30,12 +30,12 @@
 export const MOVER_WALK_SPEED = 3.4;
 /** Acceleration limits (m/s²): starting is gentler than stopping,
  *  the way legs actually work. */
-export const MOVER_ACCEL = 14;
-export const MOVER_DECEL = 20;
+const MOVER_ACCEL = 14;
+const MOVER_DECEL = 20;
 /** Floor distance of one full stride cycle (two steps). Tuned
  *  (item 44): 1.5 → 1.6 m — a slightly longer stride cycle slows
  *  the bob's rhythm at the same pace, grounded rather than busy. */
-export const STRIDE_CYCLE_M = 1.6;
+const STRIDE_CYCLE_M = 1.6;
 /** Peak bob height (m) at full walk pace. Tuned (item 44):
  *  0.032 → 0.026 — the bob should read in the feet, not swim in
  *  the view; the first-person camera rides a gentled share of it. */
@@ -104,7 +104,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 
 /** Height-follow rate (1/s): at 60 fps a 0.36 m step is ~90%
  *  ridden within a quarter second — a step, felt as a step. */
-export const HEIGHT_EASE_RATE = 10;
+const HEIGHT_EASE_RATE = 10;
 
 /** Ease a figure's height toward the ground under it. Snaps the
  *  last millimetre so a standing figure rests exactly on its
@@ -255,10 +255,10 @@ export const JUMP_MAX_JUMPS = 2;
 /** Grace after the ground falls away (a step-down the height
  *  ease is still riding): a press inside it is still the FIRST
  *  jump — the press the player swears they made on the ledge. */
-export const JUMP_COYOTE_S = 0.1;
+const JUMP_COYOTE_S = 0.1;
 /** A press slightly BEFORE landing is held this long and fires
  *  on the landing frame instead of dying mid-air. */
-export const JUMP_BUFFER_S = 0.12;
+const JUMP_BUFFER_S = 0.12;
 
 export interface VerticalState {
   /** Height above the caller's ground-follow (m) — the offset

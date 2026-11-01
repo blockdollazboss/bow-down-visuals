@@ -34,7 +34,7 @@ import { Link } from "wouter";
  * no creator profile gets the profile door, not a silent gap.
  */
 
-export interface ConnectStatusRead {
+interface ConnectStatusRead {
   connected: boolean;
   accountId: string | null;
   onboarded: boolean;

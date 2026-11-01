@@ -26,7 +26,7 @@ export interface CourtSeasonStanding {
   title: string;
 }
 
-export interface CourtSeasonCurrent {
+interface CourtSeasonCurrent {
   seasonKey: string;
   ordinal: number;
   name: string;
@@ -37,7 +37,7 @@ export interface CourtSeasonCurrent {
   standings: CourtSeasonStanding[];
 }
 
-export interface CourtSeasonSettled {
+interface CourtSeasonSettled {
   seasonKey: string;
   ordinal: number;
   name: string;

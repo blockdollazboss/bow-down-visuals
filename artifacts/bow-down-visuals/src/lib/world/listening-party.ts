@@ -29,11 +29,11 @@ export const PARTY_QUEUE_MAX = 20;
 /** Duration presets the form offers, in minutes. */
 export const PARTY_DURATION_PRESETS_MIN = [30, 60, 90, 120] as const;
 
-export const PARTY_MIN_DURATION_MIN = 5;
-export const PARTY_MAX_DURATION_MIN = 4 * 60;
-export const PARTY_MAX_AHEAD_MS = 30 * 24 * 3600_000;
+const PARTY_MIN_DURATION_MIN = 5;
+const PARTY_MAX_DURATION_MIN = 4 * 60;
+const PARTY_MAX_AHEAD_MS = 30 * 24 * 3600_000;
 /** The server forgives a start up to one min-duration in the past. */
-export const PARTY_START_GRACE_MS = 5 * 60_000;
+const PARTY_START_GRACE_MS = 5 * 60_000;
 
 const CATALOG_TRACK_ID = /^track:[0-9a-f-]{36}$/i;
 const BARE_TRACK_UUID = /^[0-9a-f-]{36}$/i;
@@ -49,7 +49,7 @@ export interface PartyQueueItem {
 
 /* ── The queue fold ─────────────────────────────────────────────── */
 
-export type ToggleResult =
+type ToggleResult =
   | { queue: PartyQueueItem[]; outcome: "added" | "removed" }
   | { queue: PartyQueueItem[]; outcome: "full" };
 
@@ -77,7 +77,7 @@ export function movePartyQueueItem(queue: PartyQueueItem[], index: number, dir: 
 
 /* ── The request builder ────────────────────────────────────────── */
 
-export interface ListeningPartyDraft {
+interface ListeningPartyDraft {
   title: string;
   startsAtMs: number;
   durationMin: number;
@@ -85,7 +85,7 @@ export interface ListeningPartyDraft {
   playlistId?: string | null;
 }
 
-export interface ListeningPartyBody {
+interface ListeningPartyBody {
   kind: "listening_party";
   roomId: string;
   title: string;
@@ -94,7 +94,7 @@ export interface ListeningPartyBody {
   payload: { trackIds: string[]; playlistId: string | null };
 }
 
-export type BuildResult = { ok: true; body: ListeningPartyBody } | { ok: false; error: string };
+type BuildResult = { ok: true; body: ListeningPartyBody } | { ok: false; error: string };
 
 /** Validate a draft against the server's booking rules and shape
  *  the POST body. `nowMs` is injected so the window math is pure. */

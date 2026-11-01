@@ -30,7 +30,7 @@ import {
 } from "./figure";
 
 export type FixtureBodyId = "guard-male" | "guard-female" | "king";
-export type FixtureArea = "hall" | "plaza";
+type FixtureArea = "hall" | "plaza";
 
 export interface FixtureBodyDef {
   id: FixtureBodyId;
@@ -76,7 +76,7 @@ export const FIXTURE_BODIES: Readonly<Record<FixtureBodyId, FixtureBodyDef>> = {
   },
 };
 
-export type FixtureFallback =
+type FixtureFallback =
   | { kind: "matte"; src: string }
   | { kind: "portrait"; src: string }
   | { kind: "capsule"; color: number };
@@ -116,8 +116,8 @@ export function fixtureFallbackFor(body: FixtureBodyId): FixtureFallback {
  *  post: his 3D body stands 2.35 m; the portrait panel on its easel
  *  (base 0.5 m, panel ≤1.5 m) tops out at 2.0 m — present, not
  *  pretending to his full stature. */
-export const FIXTURE_PORTRAIT_MAX_W = 1.7;
-export const FIXTURE_PORTRAIT_MAX_H = 1.5;
+const FIXTURE_PORTRAIT_MAX_W = 1.7;
+const FIXTURE_PORTRAIT_MAX_H = 1.5;
 
 /** Fit an aspect (w/h) into the portrait panel box. A degenerate
  *  aspect falls back to the panel's own box aspect. */
@@ -269,12 +269,12 @@ export function fixtureBodyLoadOrder(
     .map(([body]) => body);
 }
 
-export interface BoundsLike {
+interface BoundsLike {
   min: { x: number; y: number; z: number };
   max: { x: number; y: number; z: number };
 }
 
-export interface FixtureNormalization {
+interface FixtureNormalization {
   /** Uniform scale that makes the body's raw height the target. */
   scale: number;
   /** Inner-group offset (applied INSIDE the scale): centres X/Z on
@@ -336,7 +336,7 @@ export function fixtureSway(id: string, nowMs: number): { rotY: number; rotZ: nu
  *  metallicRoughnessTexture lands SPLIT across metalnessMap +
  *  roughnessMap (three has no metallicRoughnessMap property; the
  *  alias stays honoured for plain material-shaped inputs). */
-export interface BodyMaterialLike {
+interface BodyMaterialLike {
   map?: unknown;
   metalnessMap?: unknown;
   roughnessMap?: unknown;
@@ -410,11 +410,11 @@ export function bodyTexturesLanded(
    EMBEDDED images (a bufferView, no uri) are repairable this way —
    their bytes are already in hand inside the parsed file. */
 
-export interface GlbTextureRefLike {
+interface GlbTextureRefLike {
   index?: number;
 }
 
-export interface GlbMaterialLike {
+interface GlbMaterialLike {
   pbrMetallicRoughness?: {
     baseColorTexture?: GlbTextureRefLike;
     metallicRoughnessTexture?: GlbTextureRefLike;
@@ -424,12 +424,12 @@ export interface GlbMaterialLike {
   occlusionTexture?: GlbTextureRefLike;
 }
 
-export interface GlbTextureDefLike {
+interface GlbTextureDefLike {
   source?: number;
   sampler?: number;
 }
 
-export interface GlbImageLike {
+interface GlbImageLike {
   bufferView?: number;
   mimeType?: string;
   uri?: string;
@@ -452,7 +452,7 @@ export interface GlbJsonLike {
 }
 
 /** A three.js material texture slot a repair step can fill. */
-export type FixtureTextureSlot =
+type FixtureTextureSlot =
   | "map"
   | "metalnessMap"
   | "roughnessMap"
@@ -606,7 +606,7 @@ export async function attemptLoadPlan<T>(
  */
 export const FIXTURE_ATTEMPT_TIMEOUT_MS = 60_000;
 
-export interface FixtureTimerDeps {
+interface FixtureTimerDeps {
   setTimer: (fn: () => void, ms: number) => unknown;
   clearTimer: (handle: unknown) => void;
 }
@@ -735,7 +735,7 @@ export class FixtureBeaconLedger {
   }
 }
 
-export interface FixtureHealLoopDeps {
+interface FixtureHealLoopDeps {
   /** Run one heal attempt (the full load plan). Resolves true when
    *  the body landed. Must not reject. */
   attempt: () => Promise<boolean>;
@@ -866,7 +866,7 @@ export class FixtureHealLoop {
  *  their vertex colour × this factor, nothing else touched. */
 export const GUARD_GRAFT_TINT = 0.1;
 
-export interface GuardGraftTarget {
+interface GuardGraftTarget {
   /** glTF mesh name of the grafted part (what three names the
    *  parsed Mesh — GLTFLoader names it after the mesh def). */
   meshName: string;

@@ -87,7 +87,7 @@ export function coBylineNames(authors: CoAuthorSummary[]): string[] {
   return standingAuthors(authors).map((a) => a.display_name ?? "Creator");
 }
 
-export type CoPostViewerAction = "accept" | "decline" | "withdraw";
+type CoPostViewerAction = "accept" | "decline" | "withdraw";
 
 /** Which actions the VIEWER may take on a co-post, mirroring the
  *  server machine: a pending side may accept/decline; an accepted side
@@ -102,7 +102,3 @@ export function coPostViewerActions(item: Pick<CoPostItem, "viewer_side" | "co_p
 
 /** The partner to pre-select when arriving from an accepted collab:
  *  the OTHER side of the item, as a user id the create form accepts. */
-export function otherAuthorUserId(item: Pick<CoPostItem, "authors" | "viewer_side">, viewerProfileId: string): string | null {
-  const other = item.authors.find((a) => a.profile_id !== viewerProfileId);
-  return other?.user_id ?? null;
-}

@@ -86,7 +86,7 @@ export function refreshVaultAvatarSettings(
 }
 
 /** The stage surface the studio-load refresh needs (Stage satisfies it). */
-export interface VaultAvatarStageLike {
+interface VaultAvatarStageLike {
   scenes: Scene[];
   updateSource(sceneId: string, sourceId: string, patch: Partial<SceneSource>): void;
 }

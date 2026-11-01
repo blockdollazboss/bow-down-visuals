@@ -50,7 +50,7 @@ const EXPENSE_CATEGORIES = [
   "contractors", "production", "other_expense",
 ] as const;
 
-export interface MoneySnapshot {
+interface MoneySnapshot {
   monthIncomeCents: number;
   monthExpenseCents: number;
   monthNetCents: number;

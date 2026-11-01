@@ -52,9 +52,9 @@
 export type QualityTier = "high" | "medium" | "low";
 export type QualityPreference = "auto" | QualityTier;
 
-export const QUALITY_TIERS: readonly QualityTier[] = ["high", "medium", "low"] as const;
+const QUALITY_TIERS: readonly QualityTier[] = ["high", "medium", "low"] as const;
 
-export interface QualityRung {
+interface QualityRung {
   tier: QualityTier;
   /** Renderer pixel-ratio cap (stage-3 phone rungs, unchanged). */
   pixelRatio: number;

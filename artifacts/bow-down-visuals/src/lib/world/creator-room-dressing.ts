@@ -119,7 +119,7 @@ export function roomDressingStyleWords(variant: RoomDressingVariant): string {
   return `${PALETTE_WORDS[variant.palette]} · ${TRIM_WORDS[variant.trimStyle]} · ${BANNER_WORDS[variant.bannerStyle]}`;
 }
 
-export interface RoomDressingOption {
+interface RoomDressingOption {
   variant: RoomDressingVariant;
   locked: boolean;
   /** Why it stands locked; null when it can be worn. */
@@ -149,7 +149,7 @@ export function roomDressingOptions(gateStars: number): RoomDressingOption[] {
  *  style. The classic tuple — the Phase 5 rendering, worn by
  *  every unpicked room and by any room whose dressing resolved
  *  null. */
-export interface RoomDressingSceneParams {
+interface RoomDressingSceneParams {
   palette: RoomDressingPalette;
   trimStyle: RoomDressingTrimStyle;
   bannerStyle: RoomDressingBannerStyle;

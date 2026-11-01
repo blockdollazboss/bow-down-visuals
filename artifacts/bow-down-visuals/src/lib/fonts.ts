@@ -9,9 +9,9 @@
  * `family` must match the font's canonical family name exactly so
  * fontconfig on the server resolves the same face the browser shows.
  */
-export type FontVibe = "Street" | "Luxury" | "Modern" | "Playful";
+type FontVibe = "Street" | "Luxury" | "Modern" | "Playful";
 
-export interface CaptionFont {
+interface CaptionFont {
   /** Stable id stored in caption settings. */
   id: string;
   /** Canonical family name (CSS + fontconfig). */

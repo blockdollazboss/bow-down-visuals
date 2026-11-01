@@ -66,12 +66,12 @@ function clamp01(n: number): number {
 /** A level is a whole percent, 0–100. Garbage in (NaN, a string, a
  *  negative) sanitizes to a sane value rather than poisoning the
  *  store: non-numbers fall back to full, numbers clamp + round. */
-export function sanitizeWorldVolumeLevel(raw: unknown): number {
+function sanitizeWorldVolumeLevel(raw: unknown): number {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return DEFAULT_WORLD_VOLUME.level;
   return Math.min(100, Math.max(0, Math.round(raw)));
 }
 
-export function sanitizeWorldVolume(raw: unknown): WorldVolume {
+function sanitizeWorldVolume(raw: unknown): WorldVolume {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_WORLD_VOLUME };
   const r = raw as { level?: unknown; muted?: unknown };
   return {
@@ -206,7 +206,7 @@ export interface WorldMediaElementLike {
   dataset?: Record<string, string | undefined>;
 }
 
-export interface WorldMediaChoke {
+interface WorldMediaChoke {
   /** Capture the element's base (first sight) and apply the
    *  master. Re-registering a known element keeps its base and
    *  simply re-applies — safe to call on every play. */
@@ -225,7 +225,7 @@ export interface WorldMediaChoke {
   dispose(): void;
 }
 
-export interface WorldMediaChokeDeps {
+interface WorldMediaChokeDeps {
   getVolume?: () => WorldVolume;
   subscribe?: (fn: (v: WorldVolume) => void) => () => void;
 }

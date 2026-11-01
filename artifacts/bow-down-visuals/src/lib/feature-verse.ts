@@ -66,7 +66,7 @@ export const FEATURE_VERSE_ORDERS_PATH = "/api/feature-verse/orders";
 export function featureVerseListingByCreatorPath(userId: string): string {
   return `/api/feature-verse/listings/by-creator/${encodeURIComponent(userId)}`;
 }
-export function featureVerseOrderPath(id: string): string {
+function featureVerseOrderPath(id: string): string {
   return `/api/feature-verse/orders/${encodeURIComponent(id)}`;
 }
 export function featureVerseActionPath(

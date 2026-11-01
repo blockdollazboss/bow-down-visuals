@@ -44,9 +44,9 @@ export interface BillingStateView {
   canChangePlan?: boolean;
 }
 
-export type BillingDateKind = "renews" | "ends" | "ended" | null;
+type BillingDateKind = "renews" | "ends" | "ended" | null;
 
-export interface BillingDisplay {
+interface BillingDisplay {
   status: BillingStatus;
   /** i18n suffix under settings.billing.status.* */
   statusKey: BillingStatus;

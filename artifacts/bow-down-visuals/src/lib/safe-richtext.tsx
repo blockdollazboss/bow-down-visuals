@@ -29,7 +29,7 @@ function inlineFormat(escaped: string): string {
 }
 
 /** Render safe rich text to sanitized HTML. */
-export function renderRichText(source: string): string {
+function renderRichText(source: string): string {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: string[] = [];
   let list: string[] = [];

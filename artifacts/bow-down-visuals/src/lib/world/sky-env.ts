@@ -34,7 +34,7 @@
 import * as THREE from "three";
 import type { HallLook } from "./hall-looks";
 
-export interface SkyPalette {
+interface SkyPalette {
   /** Zenith colour (linear-ish RGB, values may exceed 1 for the sun). */
   top: THREE.Color;
   /** Horizon colour — the band reflections lean on most. */
@@ -276,7 +276,7 @@ export const SKY_DOME_FRAGMENT_SHADER = /* glsl */ `
  *  fogged dome would read as a wall of flat colour at the fog
  *  distance. (ShaderMaterial ignores scene.fog unless built with
  *  fog support — this one is not.) */
-export function buildSkyDomeMesh(palette: SkyPalette, radius: number): THREE.Mesh {
+function buildSkyDomeMesh(palette: SkyPalette, radius: number): THREE.Mesh {
   return new THREE.Mesh(
     new THREE.SphereGeometry(radius, 32, 16),
     new THREE.ShaderMaterial({

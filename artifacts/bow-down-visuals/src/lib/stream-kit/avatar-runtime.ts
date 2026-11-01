@@ -49,7 +49,7 @@ export interface FaceEngineLike {
   dispose(): Promise<void>;
 }
 
-export interface AvatarDirectorDeps {
+interface AvatarDirectorDeps {
   /** The raw camera element — TRACKING ONLY, never composited. */
   video: () => HTMLVideoElement | null;
   /** The mic channel's analyser, when the mixer/kit has one. */
@@ -63,15 +63,15 @@ export interface AvatarDirectorDeps {
 }
 
 /** Avatar canvases are square; the stage letterboxes them by fit. */
-export const AVATAR_CANVAS_SIZE = 720;
+const AVATAR_CANVAS_SIZE = 720;
 /** Detection cadence: ~30 Hz against a 60 fps render loop. */
-export const FACE_DETECT_INTERVAL_MS = 33;
+const FACE_DETECT_INTERVAL_MS = 33;
 /** A face sample older than this no longer counts as "producing". */
-export const FACE_FRESH_MS = 1500;
+const FACE_FRESH_MS = 1500;
 /** A source not drawn for this long releases the render loop. */
-export const AVATAR_STALE_MS = 400;
+const AVATAR_STALE_MS = 400;
 /** After an engine load failure, wait this long before retrying. */
-export const ENGINE_RETRY_MS = 20_000;
+const ENGINE_RETRY_MS = 20_000;
 
 export interface AvatarStatus {
   requested: AvatarDriveRequest;

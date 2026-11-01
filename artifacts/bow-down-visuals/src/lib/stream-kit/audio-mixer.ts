@@ -14,7 +14,7 @@
  * changes) — setInputStream is cheap and idempotent.
  */
 
-export interface MixerInputState {
+interface MixerInputState {
   volume: number; // 0..1
   muted: boolean;
 }
@@ -29,7 +29,7 @@ interface Channel {
   muted: boolean;
 }
 
-export type AudioContextFactory = () => AudioContext;
+type AudioContextFactory = () => AudioContext;
 
 export class AudioMixer {
   ctx: AudioContext;

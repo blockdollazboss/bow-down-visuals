@@ -111,7 +111,7 @@ export function movePostToDate(scheduledAtISO: string, targetDate: string): stri
  *               so the user hears about it without a round trip.
  *  - "invalid": no scheduled time to move, or an unparseable target.
  */
-export type ReschedulePlan =
+type ReschedulePlan =
   | { kind: "move"; scheduledAt: string }
   | { kind: "noop" }
   | { kind: "past" }

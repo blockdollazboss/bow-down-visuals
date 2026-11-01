@@ -423,7 +423,7 @@ export const PLAZA_BRAZIERS: Array<{ x: number; z: number }> = [
   { x: 3.4, z: 19.7 },
 ];
 
-export interface PlazaGate {
+interface PlazaGate {
   name: string;
   x: number;
   z: number;
@@ -874,7 +874,7 @@ export const PALACE_LAYOUT: Record<string, PalaceRoomLayout> = {
   },
 };
 
-export interface PalaceDoor {
+interface PalaceDoor {
   /** The room on the other side of the hall wall (the destination
    *  the hall-side name plate announces). */
   roomId: string;
@@ -1158,7 +1158,7 @@ export function registerCreatorRoomLayout(slug: string, displayName?: string): P
 }
 
 /** The registered creator room's layout, when the id is its. */
-export function creatorRoomLayout(roomId: string): PalaceRoomLayout | null {
+function creatorRoomLayout(roomId: string): PalaceRoomLayout | null {
   return dynamicRoom && dynamicRoom.id === roomId ? dynamicRoom : null;
 }
 
@@ -1290,7 +1290,7 @@ export function clampToRoom(roomId: string, x: number, z: number): { x: number; 
   return best!;
 }
 
-export interface PalaceMoveResult {
+interface PalaceMoveResult {
   x: number;
   z: number;
   room: string;
@@ -1360,11 +1360,11 @@ export interface CrossingRecord {
 
 /** How long after a crossing a reversal at the same doorway is a
  *  flap, not a journey (ms). */
-export const ROOM_FLAP_WINDOW_MS = 3000;
+const ROOM_FLAP_WINDOW_MS = 3000;
 /** How close to the crossing point a reversal must be to count as
  *  standing on the edge (m) — a reversal farther away is a genuine
  *  walk back through the door and fires at once. */
-export const ROOM_FLAP_RADIUS_M = 1.5;
+const ROOM_FLAP_RADIUS_M = 1.5;
 
 /**
  * Room-boundary flap guard. The portal plane is a knife edge: a
@@ -1402,7 +1402,7 @@ export function crossingIsFlap(
  * wall, and low furniture passes under the lens by design. */
 
 /** How far the camera keeps off a prop's footprint (m). */
-export const CAMERA_PROP_MARGIN = 0.3;
+const CAMERA_PROP_MARGIN = 0.3;
 
 export function cameraPointFree(roomId: string, x: number, z: number): boolean {
   const room = palaceRoomLayout(roomId);

@@ -5,7 +5,7 @@
    mirrors its vocabulary: paths, labels, skip-reason wording, and the
    exact honesty copy every evergreen surface must carry. */
 
-export interface EvergreenWindowsDto {
+interface EvergreenWindowsDto {
   days: number[]; // 0 = Sunday … 6 = Saturday
   startHour: number;
   endHour: number;

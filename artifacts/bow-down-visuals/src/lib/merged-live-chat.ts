@@ -36,9 +36,9 @@ import type { ChatMessage } from "./live-chat-client";
 export type ChatSourceId = "site" | "twitch" | "youtube";
 
 /** The external platforms with inert chat seams, in display order. */
-export const EXTERNAL_CHAT_SOURCES: readonly ChatSourceId[] = ["twitch", "youtube"];
+const EXTERNAL_CHAT_SOURCES: readonly ChatSourceId[] = ["twitch", "youtube"];
 
-export interface SourceBadge {
+interface SourceBadge {
   label: string;
   /** Short tag rendered on each message row. */
   short: string;
@@ -82,7 +82,7 @@ export interface MergedChatMessage extends ChatMessage {
  * - "check_failed":      the connection state couldn't be loaded, so
  *                        nothing is claimed either way.
  */
-export type SourceConnectionKind =
+type SourceConnectionKind =
   | "live"
   | "site_idle"
   | "account_connected"

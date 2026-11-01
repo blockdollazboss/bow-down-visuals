@@ -9,7 +9,7 @@ import { Radio, Users, AlertTriangle, RotateCcw, Ticket } from "lucide-react";
    (never a fake-empty). Cards deep-link to the /live/:id watch page and
    the creator's profile. */
 
-export interface LiveRailStream {
+interface LiveRailStream {
   id: string;
   title: string;
   viewer_count: number;

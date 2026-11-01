@@ -16,7 +16,7 @@
 
 export const POST_ASSIST_COST_VISUAL_BUCS = 100;
 export const POST_ASSIST_PATH = "/api/posts/assist";
-export const POST_MAX_CHARS = 500;
+const POST_MAX_CHARS = 500;
 
 export const POST_ASSIST_TONES = [
   { key: "hype", label: "Hype" },

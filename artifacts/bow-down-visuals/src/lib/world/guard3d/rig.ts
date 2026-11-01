@@ -116,7 +116,7 @@ function posTrack(bone: string, keys: Array<{ t: number; y: number }>): THREE.Ve
 }
 
 /** Idle: breath + a slow look around. 4s loop. */
-export function idleClip(): THREE.AnimationClip {
+function idleClip(): THREE.AnimationClip {
   return new THREE.AnimationClip("idle", 4, [
     quatTrack("spine", [
       { t: 0, x: 0 },
@@ -154,7 +154,7 @@ export function idleClip(): THREE.AnimationClip {
 }
 
 /** Bow: the palace greeting — 1.5s, matching actions.ts' duration. */
-export function bowClip(): THREE.AnimationClip {
+function bowClip(): THREE.AnimationClip {
   return new THREE.AnimationClip("bow", 1.5, [
     quatTrack("spine", [
       { t: 0, x: 0 },
@@ -190,7 +190,7 @@ export function bowClip(): THREE.AnimationClip {
 }
 
 /** Walk cycle: arm swing + stride bob + robe sway. ~0.86s loop. */
-export function walkClip(): THREE.AnimationClip {
+function walkClip(): THREE.AnimationClip {
   const swing = 0.5;
   return new THREE.AnimationClip("walk", 0.86, [
     quatTrack("upperArm.L", [

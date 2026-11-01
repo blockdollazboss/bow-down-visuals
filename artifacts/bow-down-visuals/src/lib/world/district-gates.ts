@@ -68,7 +68,7 @@
  * other — the wall is simply the quarter's own.
  */
 
-export type DistrictThresholdKind = "gate" | "marker";
+type DistrictThresholdKind = "gate" | "marker";
 
 /** A gate's own identity (Stack-100 #2 gates round): the shipped
  *  kit stamped all six thresholds from one variation roll — same
@@ -77,7 +77,7 @@ export type DistrictThresholdKind = "gate" | "marker";
  *  open leaves' cloth), its cap variant, how wide its leaves
  *  stand open, and which side the district lies on (so the leaves
  *  open TOWARD the district, never across the passage). */
-export interface GateIdentity {
+interface GateIdentity {
   /** The open leaves' cloth colour — the district's accent. */
   accent: number;
   /** Gate cap + header gold variant. */

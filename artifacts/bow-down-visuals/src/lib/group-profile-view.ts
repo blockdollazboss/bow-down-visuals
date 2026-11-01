@@ -5,12 +5,12 @@
    of truth — every rule here only mirrors it so the form can be honest
    before the server re-validates. */
 
-export interface GroupSplitTerm {
+interface GroupSplitTerm {
   userId: string;
   sharePct: number;
 }
 
-export interface GroupPublicView {
+interface GroupPublicView {
   slug: string;
   displayName: string;
   bio: string;
@@ -36,7 +36,7 @@ export interface GroupMemberCredit {
   sharePct: number | null;
 }
 
-export interface GroupStoreProduct {
+interface GroupStoreProduct {
   id: string;
   kind: string;
   title: string;
@@ -116,7 +116,7 @@ export function canManageGroupProfile(role: string | null | undefined): boolean 
    name: one row per credited member who holds a share, in the API's
    credit order. Members without a share don't appear — the terms are
    what was published, nothing inferred. */
-export interface SplitTermRow {
+interface SplitTermRow {
   userId: string;
   displayName: string;
   role: string;
@@ -151,7 +151,7 @@ export function splitTermRows(
    share is set the shares must total exactly 100 and the owner must
    hold one; a lone owner at 100% is "no written terms" (null), the
    same collapse the API performs. */
-export type SplitTermsBuild =
+type SplitTermsBuild =
   | { ok: true; terms: GroupSplitTerm[] | null }
   | { ok: false; error: string };
 

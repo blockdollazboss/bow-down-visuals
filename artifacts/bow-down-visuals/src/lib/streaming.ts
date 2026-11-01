@@ -81,7 +81,7 @@ export interface StreamVideo {
   locked_series_id?: string | null;
 }
 
-export interface PlaylistItemRef {
+interface PlaylistItemRef {
   kind: MediaKind;
   id: string;
 }
@@ -475,7 +475,7 @@ export async function addItemToPlaylist(
    The assist never writes: applying a draft means the creator calls
    updatePlaylistSettings themselves with the pieces they kept. */
 
-export interface PlaylistSettingsPatch {
+interface PlaylistSettingsPatch {
   title?: string;
   description?: string;
   is_public?: boolean;

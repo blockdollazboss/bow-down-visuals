@@ -95,7 +95,7 @@ const TEXT_SEEDS: TextSeed[] = [
   { slug: "txt-royal-script", name: "Royal Script", blurb: "Flowing luxury script.", cssFilter: "none", gradient: "linear-gradient(135deg,#a16207,#020617)", fontFamily: "'Playfair Display', serif" },
 ];
 
-export interface TextStylePreset extends LibraryPreset { fontFamily: string; }
+interface TextStylePreset extends LibraryPreset { fontFamily: string; }
 
 const textPresets: TextStylePreset[] = TEXT_SEEDS.map((s) => ({
   slug: s.slug,
@@ -146,11 +146,6 @@ export const LIBRARY_PRESETS: LibraryPreset[] = [
 
 export const TEXT_STYLE_PRESETS: TextStylePreset[] = textPresets;
 
-export const LIBRARY_PRESET_COUNTS: Record<LibraryPresetCategory, number> = {
-  "Effects": effectPresets.length,
-  "Text Styles": textPresets.length,
-  "Transitions": transitionPresets.length,
-};
 
 export function getLibraryPreset(slug: string): LibraryPreset | undefined {
   return LIBRARY_PRESETS.find((p) => p.slug === slug);

@@ -33,7 +33,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 const CREDIT_COST = 150;
 const BEATCUT_PLAN_KEY = (projectKey: string) => `wave9b-beatcuts-${projectKey}`;
 
-export interface BeatMarker {
+interface BeatMarker {
   id: string;
   time: number;
   keep: boolean;

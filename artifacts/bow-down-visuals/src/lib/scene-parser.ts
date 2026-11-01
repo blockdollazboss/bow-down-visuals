@@ -321,9 +321,9 @@ function buildScenesFromBlocks(blocks: string[]): SceneData[] {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export type ParseMode = "table" | "timestamp-rows" | "scene-header" | "timestamp-label" | "paragraph" | "none";
+type ParseMode = "table" | "timestamp-rows" | "scene-header" | "timestamp-label" | "paragraph" | "none";
 
-export interface ParseResult {
+interface ParseResult {
   scenes: SceneData[];
   mode: ParseMode;
 }

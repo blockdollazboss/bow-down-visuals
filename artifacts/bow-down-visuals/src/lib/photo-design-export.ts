@@ -83,14 +83,14 @@ function parseCssColor(raw: string): { color: string; opacity: number } {
 
 /* ── SVG export ─────────────────────────────────────────────────────── */
 
-export interface SvgExcludedLayer {
+interface SvgExcludedLayer {
   layerId: string;
   name: string;
   /** Always the same reason, stated plainly: photos are raster. */
   reason: string;
 }
 
-export interface SvgExportResult {
+interface SvgExportResult {
   /** The SVG document, or null when the design has no visible
    *  vector-expressible layer — never an empty or raster-faked file. */
   svg: string | null;
@@ -198,7 +198,7 @@ export function buildSvgExport(doc: PhotoCanvasDoc): SvgExportResult {
 
 /* ── Layer set (transparent PNGs + manifest) ────────────────────────── */
 
-export interface LayerSetLayerEntry {
+interface LayerSetLayerEntry {
   /** 0 = bottom of the stack; layers composite in index order. */
   index: number;
   layerId: string;
@@ -226,7 +226,7 @@ export interface LayerSetLayerEntry {
   };
 }
 
-export interface LayerSetManifest {
+interface LayerSetManifest {
   format: "bow-down-visuals/layer-set";
   version: 1;
   generatedBy: string;
@@ -327,7 +327,7 @@ export function buildLayerSetManifest(
 
 /* ── UI summary ─────────────────────────────────────────────────────── */
 
-export interface DesignExportSummary {
+interface DesignExportSummary {
   totalLayers: number;
   /** Visible text/shape layers — what the SVG will carry. */
   vectorCount: number;

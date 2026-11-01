@@ -43,7 +43,7 @@ export const CALENDAR_RECENT_WINDOW_DAYS = 7;
 /** The look back never renders more rows than the server sends. */
 export const CALENDAR_RECENT_CAP = 20;
 /** The days ahead: today plus the six palace days after it. */
-export const CALENDAR_DAY_WINDOW = 7;
+const CALENDAR_DAY_WINDOW = 7;
 
 /* ── Defensive reading (DTO drift is this repo's #1 bug family) ── */
 
@@ -187,13 +187,13 @@ export function questResetCalendarEvent(nowMs: number): CalendarEvent {
 
 /* ── Grouping ───────────────────────────────────────────────────── */
 
-export interface CalendarDayGroup {
+interface CalendarDayGroup {
   dayKey: string;
   label: string;
   events: CalendarEvent[];
 }
 
-export interface PalaceCalendar {
+interface PalaceCalendar {
   /** Today first, then the coming palace days — only days that
    *  hold a happening stand as groups. */
   days: CalendarDayGroup[];
@@ -280,7 +280,7 @@ export function groupPalaceCalendar(
  *    quest reset opens the slate at the Quest Board.
  *  - "none": a kind this client doesn't know — the row reads
  *    look-only rather than wearing a button that goes nowhere. */
-export type CalendarEventAction =
+type CalendarEventAction =
   | { type: "room"; roomId: string }
   | { type: "station"; stationId: string }
   | { type: "none" };

@@ -159,7 +159,7 @@ export const ATELIERS_LANE = {
  * glazed panel are solid; the canopy rides above the walker's
  * head and is not collision (its posts are). */
 
-export interface AtelierBay {
+interface AtelierBay {
   /** The bay's centre. */
   x: number;
   z: number;
@@ -203,7 +203,7 @@ export const BAY_KIT = {
 } as const;
 
 /** One bay's post positions. */
-export function bayPosts(bay: AtelierBay): Array<{ x: number; z: number }> {
+function bayPosts(bay: AtelierBay): Array<{ x: number; z: number }> {
   return [
     { x: bay.x - BAY_KIT.postDx, z: bay.z - BAY_KIT.postDz },
     { x: bay.x + BAY_KIT.postDx, z: bay.z - BAY_KIT.postDz },
@@ -217,7 +217,7 @@ export const ATELIER_BAY_POSTS: ReadonlyArray<{ x: number; z: number }> =
 
 /** One bay's worktable, as a box (against the back, so the bay's
  *  mouth stays open floor a maker stands in). */
-export function bayTable(bay: AtelierBay): GroundsBox {
+function bayTable(bay: AtelierBay): GroundsBox {
   return {
     cx: bay.x, cy: BAY_KIT.tableH / 2, cz: bay.z - bay.side * BAY_KIT.tableBackOff,
     w: BAY_KIT.tableW, h: BAY_KIT.tableH, d: BAY_KIT.tableD,
@@ -228,7 +228,7 @@ export const ATELIER_BAY_TABLES: readonly GroundsBox[] = ATELIER_BAYS.map(bayTab
 
 /** One bay's glazed studio front, as a box (on the bay's back
  *  line, between its back posts). */
-export function bayPanel(bay: AtelierBay): GroundsBox {
+function bayPanel(bay: AtelierBay): GroundsBox {
   return {
     cx: bay.x, cy: BAY_KIT.panelH / 2, cz: bay.z - bay.side * BAY_KIT.panelBackOff,
     w: BAY_KIT.panelW, h: BAY_KIT.panelH, d: BAY_KIT.panelD,
@@ -368,7 +368,7 @@ export const MANNEQUIN = {
   headY: 1.78,
 } as const;
 
-export interface AtelierMannequin { x: number; z: number; side: 1 | -1 }
+interface AtelierMannequin { x: number; z: number; side: 1 | -1 }
 
 /** One mannequin per bay, in the bay's mouth west of its
  *  worktable — derived from the bays, never hand-placed. */
@@ -378,7 +378,7 @@ export const ATELIER_MANNEQUINS: readonly AtelierMannequin[] = ATELIER_BAYS.map(
   side: bay.side,
 }));
 
-export interface FabricBolt {
+interface FabricBolt {
   x: number;
   z: number;
   /** Bolt length along the table (X). */
@@ -393,7 +393,7 @@ export interface FabricBolt {
 
 /** The cloth palette the bolts cycle through — deep jewel tones
  *  in the Living Night Palace's register. */
-export const FABRIC_BOLT_COLORS: readonly number[] = [
+const FABRIC_BOLT_COLORS: readonly number[] = [
   0x7a1f2b, 0x1f3a6e, 0x2e5d33, 0xb08a3e, 0x5b2a6e, 0x8a4b2a,
 ];
 

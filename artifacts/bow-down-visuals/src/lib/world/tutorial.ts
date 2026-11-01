@@ -9,7 +9,7 @@
  * rather than a guess at what the member should do next.
  */
 
-export interface TutorialStepStatus {
+interface TutorialStepStatus {
   n: number;
   key: string;
   done: boolean;
@@ -23,14 +23,14 @@ export interface TutorialStatus {
   reward: { amountVb: number; claimed: boolean };
 }
 
-export interface TutorialStepDisplay {
+interface TutorialStepDisplay {
   /** The step's short name (strip + panels). */
   name: string;
   /** One line of where-to-go / how-to-finish guidance. */
   guidance: string;
 }
 
-export const TUTORIAL_STEP_DISPLAY: Record<string, TutorialStepDisplay> = {
+const TUTORIAL_STEP_DISPLAY: Record<string, TutorialStepDisplay> = {
   "meet-the-king": {
     name: "Meet the King",
     guidance: "Walk up the hall to the throne, at the far end past the stage.",

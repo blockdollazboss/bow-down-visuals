@@ -119,7 +119,7 @@ export function rvmWorkerUrl(): string {
  * runs raw with the status shown) instead of the pipeline
  * wedging silently.
  */
-export const RVM_FRAME_TIMEOUT_MS = 5_000;
+const RVM_FRAME_TIMEOUT_MS = 5_000;
 
 /** A produced alpha matte: values 0..1, row-major, width*height. */
 export interface EngineMatte {
@@ -196,7 +196,7 @@ export interface RvmWorkerLike {
   terminate(): void;
 }
 
-export interface RvmEngineOptions {
+interface RvmEngineOptions {
   /** Spawn the engine worker. Default: the vendored worker script. */
   createWorker?: () => RvmWorkerLike;
   /** Per-frame answer deadline (ms). Default RVM_FRAME_TIMEOUT_MS. */

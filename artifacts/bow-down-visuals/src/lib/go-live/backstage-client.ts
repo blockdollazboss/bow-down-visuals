@@ -22,7 +22,7 @@ export interface BackstagePeer {
   media: boolean;
 }
 
-export interface BackstageClientEvents {
+interface BackstageClientEvents {
   onPeers?: (peers: BackstagePeer[], me: BackstagePeer | null) => void;
   onChat?: (message: BackstageMessageDto) => void;
   /** A peer's A/V stream arrived; sessionId is null for the host peer. */
@@ -34,7 +34,7 @@ export interface BackstageClientEvents {
   onConnectionChange?: (connected: boolean) => void;
 }
 
-export interface BackstageClientOptions {
+interface BackstageClientOptions {
   streamId: string;
   /** Host door: the member's session access token. */
   token?: string | null;

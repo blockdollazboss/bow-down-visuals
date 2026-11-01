@@ -23,7 +23,7 @@
 
 export type PerfAction = "none" | "step-down" | "step-up" | "degrade";
 
-export interface PerfLadderOptions {
+interface PerfLadderOptions {
   /** Highest internal step index (0-based count - 1). */
   maxStep: number;
   /** EMA above this (ms) counts as slow. Default 46 (~<20fps of

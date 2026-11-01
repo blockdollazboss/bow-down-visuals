@@ -3,7 +3,7 @@ import {
   type AudioStem,
 } from "@/lib/editor-settings";
 
-export interface StemUploadResult {
+interface StemUploadResult {
   url: string;
   storagePath: string;
 }

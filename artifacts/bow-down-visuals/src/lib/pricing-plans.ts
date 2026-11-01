@@ -17,12 +17,12 @@
 
 export type CreatorTierId = "free" | "pro" | "elite";
 
-export interface CreatorPlanFeature {
+interface CreatorPlanFeature {
   label: string;
   detailsUrl: string;
 }
 
-export interface CreatorPlan {
+interface CreatorPlan {
   tier: CreatorTierId;
   name: string;
   tagline: string;

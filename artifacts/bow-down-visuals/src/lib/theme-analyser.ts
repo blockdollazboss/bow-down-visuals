@@ -64,7 +64,7 @@ export function attachThemeAnalyser(audio: HTMLAudioElement): void {
   }
 }
 
-export interface ThemeBeat {
+interface ThemeBeat {
   /** 0..1 — spikes to 1 on each kick, decays fast. Drive lights off this. */
   pulse: number;
   /** Estimated BPM, 0 until confident. */

@@ -33,10 +33,10 @@ import { CommentControlsPanel } from "@/components/comments/CommentControlsPanel
 /* The row shape lives with the profile DTO (lib/artist-profiles):
    fetchPublicProfile normalizes the endpoint's published catalog into
    exactly this shape, so what the blocks render IS the wire contract. */
-export type MediaItem = ProfileMediaItem;
+type MediaItem = ProfileMediaItem;
 
 /* ─── Stories section (Worker 8 mount — 24h stories + highlights) ─────────── */
-export function StoriesSection({ profileId }: { profileId: string }) {
+function StoriesSection({ profileId }: { profileId: string }) {
   const { getAccessToken } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
@@ -330,7 +330,7 @@ export function MediaRowSection({ title, items, kind }: { title: string; items: 
 }
 
 /* ─── Series / seasons / episodes grouping ─── */
-export function SeriesSection({ title, series }: { title: string; series: SeriesEntry[] }) {
+function SeriesSection({ title, series }: { title: string; series: SeriesEntry[] }) {
   const [open, setOpen] = useState<string | null>(series[0]?.id ?? null);
   if (!series.length) return null;
   return (
@@ -379,7 +379,7 @@ export function SeriesSection({ title, series }: { title: string; series: Series
 }
 
 /* ─── Stream schedule + live-now ─── */
-export function ScheduleSection({ title, profile }: { title: string; profile: CreatorProfile }) {
+function ScheduleSection({ title, profile }: { title: string; profile: CreatorProfile }) {
   const info = profile.stream_schedule;
   if (!info) return null;
   const slots = info.schedule ?? [];
@@ -426,7 +426,7 @@ export function ScheduleSection({ title, profile }: { title: string; profile: Cr
 }
 
 /* ─── Media kit — stats, rates, collab CTA ─── */
-export function MediaKitSection({ title, profile }: { title: string; profile: CreatorProfile }) {
+function MediaKitSection({ title, profile }: { title: string; profile: CreatorProfile }) {
   const kit = profile.media_kit;
   if (!kit) return null;
   const stats = [
@@ -545,7 +545,7 @@ export function MerchSection({ title, profile }: { title: string; profile: Creat
 }
 
 /* ─── Events — tour dates link to their event pages; section links to /tour ─── */
-export function EventsSection({ title, profile }: { title: string; profile: CreatorProfile }) {
+function EventsSection({ title, profile }: { title: string; profile: CreatorProfile }) {
   const events = profile.events ?? [];
   const verticalWord = profile.vertical === "music" ? "tour dates" : "dates";
   return (
@@ -604,7 +604,7 @@ export function EventsSection({ title, profile }: { title: string; profile: Crea
 }
 
 /* ─── Social posts feed ─── */
-export function PostsSection({ title, posts }: { title: string; posts: SocialPostItem[] }) {
+function PostsSection({ title, posts }: { title: string; posts: SocialPostItem[] }) {
   if (!posts.length) return null;
   return (
     <Shell title={title}>
@@ -652,7 +652,7 @@ export function PostsSection({ title, posts }: { title: string; posts: SocialPos
    Shell header (MerchSection / EventsSection). It must NOT render a
    second Shell of its own — nested, it duplicated the section title
    as two stacked <h2>s ("My Picks" twice on the public profile). */
-export function LinkCardSection({
+function LinkCardSection({
   blurb, cta, href, icon,
 }: { blurb: string; cta: string; href: string; icon: React.ReactNode }) {
   return (
@@ -874,7 +874,7 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
 }
 
 /* ─── Top creators — the MySpace strip ─── */
-export function TopCreatorsSection({ title, slugs }: { title: string; slugs: string[] }) {
+function TopCreatorsSection({ title, slugs }: { title: string; slugs: string[] }) {
   const [peeks, setPeeks] = useState<Record<string, { display_name: string; avatar_url: string | null }>>({});
   useEffect(() => {
     let cancelled = false;

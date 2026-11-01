@@ -35,7 +35,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 /* ── Per-tool thematic identity. All inside the gold-black luxury family,
    each tool gets a signature accent so its panel feels designed for it. ── */
 
-export type VisualVibesTool =
+type VisualVibesTool =
   | "promo-clips"
   | "lyric-video"
   | "translate"
@@ -111,9 +111,6 @@ const TOOL_THEMES: Record<VisualVibesTool, ToolTheme> = {
   "export":        { accent: "#fbbf24", accentSoft: "rgba(251,191,36,0.14)",   glow1: "rgba(251,191,36,0.20)",  glow2: "rgba(253,224,71,0.10)",   icon: Download },
 };
 
-export function toolTheme(tool: VisualVibesTool): ToolTheme {
-  return TOOL_THEMES[tool];
-}
 
 /** Darken a #rrggbb accent so it stays readable on the ivory light theme.
  *  Only applied to text — glows, borders and tinted backgrounds keep the

@@ -40,7 +40,7 @@ export const SCHEDULER_PLATFORMS: ReadonlyArray<{ key: SchedulerPlatformKey; lab
   { key: "x", label: "X" },
 ];
 
-export function isSchedulerPlatform(v: unknown): v is SchedulerPlatformKey {
+function isSchedulerPlatform(v: unknown): v is SchedulerPlatformKey {
   return v === "instagram" || v === "tiktok" || v === "facebook" || v === "x";
 }
 
@@ -451,7 +451,7 @@ export function parseSchedulerAccountStates(data: unknown): PostingAccountState[
   return postingAccountStates(likes);
 }
 
-export interface SocialConnectPlatform {
+interface SocialConnectPlatform {
   key: SchedulerPlatformKey;
   label: string;
   /** GET → { authUrl } — the OAuth start rail the 2D Settings panel
@@ -498,7 +498,7 @@ export function parseSocialAuthUrl(data: unknown): string | null {
 /** The desk post as the 2D calendar's shape (only the fields the
  *  calendar helpers read are load-bearing; the rest are honest
  *  defaults from this desk's own parse). */
-export function toCalendarShape(p: SchedulerDeskPost): ScheduledPostShape {
+function toCalendarShape(p: SchedulerDeskPost): ScheduledPostShape {
   return {
     id: p.id,
     status: (["draft", "scheduled", "publishing", "posted", "failed", "canceled"].includes(p.status)
@@ -553,7 +553,7 @@ export function calendarToday(nowMs: number): string {
   return toLocalDate(new Date(nowMs));
 }
 
-export type DeskReschedulePlan =
+type DeskReschedulePlan =
   | { kind: "move"; scheduledAt: string }
   | { kind: "noop" }
   | { kind: "past" }

@@ -60,7 +60,7 @@ export const EDITOR_SECTIONS = [
 ] as const;
 
 export type EditorSectionId = (typeof EDITOR_SECTIONS)[number]["id"];
-export type EditorSectionSide = (typeof EDITOR_SECTIONS)[number]["side"];
+type EditorSectionSide = (typeof EDITOR_SECTIONS)[number]["side"];
 
 /** Every editor section id, in rail order. */
 export const EDITOR_SECTION_IDS: EditorSectionId[] = EDITOR_SECTIONS.map((s) => s.id);

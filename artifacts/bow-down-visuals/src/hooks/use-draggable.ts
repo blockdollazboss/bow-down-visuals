@@ -16,7 +16,7 @@ import { collectFormCardRects, pickSafeSnapPoint } from "@/lib/floating-safe-zon
  *     ...
  */
 
-export interface SnapPosition {
+interface SnapPosition {
   x: number; // px from viewport left
   y: number; // px from viewport top
 }
@@ -97,7 +97,7 @@ function savePosition(id: string, pos: SnapPosition) {
   }
 }
 
-export interface UseDraggableOptions {
+interface UseDraggableOptions {
   /** Keep this widget's snap points clear of form cards (floating-safe-zone). */
   keepOffFormCards?: boolean;
 }

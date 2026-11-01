@@ -65,7 +65,7 @@ function strings(v: unknown): string[] {
 
 /* ─── Pricing (GET /api/distribution/pricing) ─────────────────────── */
 
-export interface ReleasePricingTier {
+interface ReleasePricingTier {
   type: string;
   credits: number;
   label: string;
@@ -126,7 +126,7 @@ export interface ReleaseChecklistItem {
   hint: string;
 }
 
-export interface ReleasePlatformStatus {
+interface ReleasePlatformStatus {
   platform: string;
   status: string;
   detail: string | null;
@@ -558,7 +558,7 @@ export function splitInviteReady(split: RoyaltySplit): boolean {
   return !!split.id && !!(split.email ?? "").trim();
 }
 
-export interface SplitInviteResult {
+interface SplitInviteResult {
   recorded: boolean;
   emailSent: boolean;
   note: string | null;
@@ -732,7 +732,7 @@ export interface SmartlinkSettings {
   pixels: SmartlinkPixels;
 }
 
-export function parseSmartlinkSettings(raw: unknown): SmartlinkSettings {
+function parseSmartlinkSettings(raw: unknown): SmartlinkSettings {
   const s = asRecord(raw);
   const linksRaw = asRecord(s["platformLinks"]);
   const platformLinks: Record<string, string> = {};
@@ -787,7 +787,7 @@ export function buildPresaveSettingsPayload(settings: SmartlinkSettings): Record
   };
 }
 
-export interface SmartlinkAnalytics {
+interface SmartlinkAnalytics {
   views: number;
   clicks: number;
   clicksLast7d: number;

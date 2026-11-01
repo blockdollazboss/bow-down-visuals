@@ -51,13 +51,13 @@ export interface HookAnalysis {
   alternativeHooks: string[];
 }
 
-export interface NicheGap {
+interface NicheGap {
   angle: string;
   whyUnderserved: string;
   opportunity: string;
 }
 
-export interface NicheMonetization {
+interface NicheMonetization {
   path: string;
   fitScore: number;
   why: string;
@@ -76,7 +76,7 @@ export interface NicheAnalysis {
   summary: string;
 }
 
-export interface CompetitorOpportunity {
+interface CompetitorOpportunity {
   gap: string;
   howToExploit: string;
 }

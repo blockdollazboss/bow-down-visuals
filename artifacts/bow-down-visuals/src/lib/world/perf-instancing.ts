@@ -28,7 +28,7 @@
  */
 import { PLAZA_PLANTERS } from "./palace-layout";
 
-export interface PlanterSpot {
+interface PlanterSpot {
   x: number;
   z: number;
   alongZ: boolean;
@@ -53,7 +53,7 @@ export const ALL_PLANTER_CROWNS: Array<{ x: number; z: number }> = PLANTER_SPOTS
 
 /* ── Draw-call accounting (by construction) ─────────────────────── */
 
-export interface InstancingCounts {
+interface InstancingCounts {
   naiveMeshes: number;
   instancedDraws: number;
   saved: number;

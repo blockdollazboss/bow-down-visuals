@@ -222,7 +222,7 @@ export const RILL_BENCHES: ReadonlyArray<{ x: number; z: number; alongZ: true }>
  * room for one or two listeners: hedges blocked from this same
  * data, the bench solid beside them. */
 
-export interface GardenNook {
+interface GardenNook {
   /** The nook's centre (the bench stands here, facing the lawn). */
   x: number;
   z: number;
@@ -231,7 +231,7 @@ export interface GardenNook {
   side: 1 | -1;
 }
 
-export const GARDEN_NOOKS: readonly GardenNook[] = [
+const GARDEN_NOOKS: readonly GardenNook[] = [
   { x: -36.7, z: 41.5, side: 1 },
   { x: -36.7, z: 52.5, side: 1 },
   { x: -15.3, z: 41.5, side: -1 },
@@ -241,7 +241,7 @@ export const GARDEN_NOOKS: readonly GardenNook[] = [
 /** One nook's hedge runs, as boxes: a back run along Z on the
  *  district-wall side, two side runs along X reaching toward the
  *  lawn, the mouth between their ends left open. */
-export function nookHedges(nook: GardenNook): GroundsBox[] {
+function nookHedges(nook: GardenNook): GroundsBox[] {
   const backX = nook.x + nook.side * -1.5;
   const sideCx = nook.x + nook.side * -0.1;
   return [

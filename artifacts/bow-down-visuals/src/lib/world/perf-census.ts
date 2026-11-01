@@ -74,9 +74,6 @@ export function sharedGeometry<T extends THREE.BufferGeometry>(key: string, make
 }
 
 /** Test/debug view of the cache's current keys. */
-export function sharedGeometryKeys(): string[] {
-  return [...geometryCache.keys()];
-}
 
 /* ── Instance tint (items 86/88 conversions) ──────────────────────
  * The colour a per-instance material clone WOULD have carried:
@@ -117,14 +114,14 @@ function trisOf(make: () => THREE.BufferGeometry): number {
  * hall-scene.ts now builds as InstancedMeshes; the test pins the
  * scene source to each record's claim. */
 
-export interface KitPart {
+interface KitPart {
   name: string;
   tris: number;
   /** Instances of this part per placement (bench legs ×2, chandelier candles ×8…). */
   perPlacement: number;
 }
 
-export interface KitRecord {
+interface KitRecord {
   item: string;
   kit: string;
   where: string;
@@ -313,7 +310,7 @@ export const KIT_CENSUS: KitRecord[] = [
  * moat joined the animated water system; the windows shade) —
  * draws and triangles are unchanged by it. */
 
-export interface BackdropRecord {
+interface BackdropRecord {
   element: string;
   /** Draw calls this element costs per look build. */
   draws: number;
@@ -381,7 +378,7 @@ export function backdropTotals(): { draws: number; tris: number } {
  * the plaza's visual centre) — the nearest honest viewpoint;
  * every real viewpoint inside a district reads FARTHER. */
 
-export interface BackdropLodRow {
+interface BackdropLodRow {
   anchor: string;
   x: number;
   z: number;
@@ -412,7 +409,7 @@ export function backdropLodEvaluation(): BackdropLodRow[] {
 
 /* ── Parked with evidence ───────────────────────────────────────── */
 
-export interface ParkedRecord {
+interface ParkedRecord {
   item: string;
   subject: string;
   measured: string;
@@ -467,7 +464,7 @@ export const PARKED_WITH_EVIDENCE: ParkedRecord[] = [
  * placement lists; the test pins the after-state by counting
  * sharedGeometry call sites per key in hall-scene.ts. */
 
-export interface GeometrySpecRecord {
+interface GeometrySpecRecord {
   spec: string;
   sites: string;
   constructionsBefore: number;
@@ -489,7 +486,7 @@ export const GEOMETRY_CENSUS: GeometrySpecRecord[] = [
 
 /* ── Totals ─────────────────────────────────────────────────────── */
 
-export interface CensusTotals {
+interface CensusTotals {
   drawsBefore: number;
   drawsAfter: number;
   drawsSaved: number;

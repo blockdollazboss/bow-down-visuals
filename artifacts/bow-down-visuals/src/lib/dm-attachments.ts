@@ -26,7 +26,7 @@ export const DM_ATTACHMENT_UPLOAD_PATH = "/api/dm/attachments/upload";
    covers the loaded window — the search copy says so. */
 export const DM_THREAD_LOADED_COUNT = 50;
 
-export type DmKnownKind = "audio" | "image" | "video";
+type DmKnownKind = "audio" | "image" | "video";
 
 /** The attachment as the page keeps it. `type` stays the raw DTO
  *  string: the three known kinds get players, anything else still
@@ -121,7 +121,7 @@ function dmHaystack(parts: readonly (string | null | undefined)[]): string {
   return parts.filter((p) => typeof p === "string").join(" ").toLowerCase();
 }
 
-export function dmNormalizeQuery(query: string): string {
+function dmNormalizeQuery(query: string): string {
   return query.trim().toLowerCase();
 }
 

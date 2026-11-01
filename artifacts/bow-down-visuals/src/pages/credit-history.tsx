@@ -61,7 +61,7 @@ function describeUsage(u: Usage): { type: string; amount: string; tone: "charge"
  * shows the human label, never the raw code, and a refunded row must
  * not wear the green "completed" badge.
  */
-export function purchaseStatusDisplay(status: string): { label: string; badgeClass: string } {
+function purchaseStatusDisplay(status: string): { label: string; badgeClass: string } {
   if (status === "refunded") {
     return { label: "refunded", badgeClass: "bg-red-500/10 text-red-400 border-red-500/20" };
   }

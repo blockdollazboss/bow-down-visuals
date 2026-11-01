@@ -193,7 +193,7 @@ export function splitSpeedSegment(segments: SpeedSegment[], id: string, t: numbe
 
 /* ── Bézier easing ─────────────────────────────────────────────────────── */
 
-export interface BezierHandles { x: number; y: number }
+interface BezierHandles { x: number; y: number }
 
 /** Cubic bézier easing: given x (time fraction), solve for y. Control
  *  points are (0,0), cp1, cp2, (1,1). Newton iterations + bisection guard. */
@@ -223,7 +223,7 @@ export function cubicBezierY(cp1: BezierHandles, cp2: BezierHandles, x: number):
 }
 
 /** The legacy easing (smoothstep) expressed as bézier handles. */
-export const SMOOTHSTEP_HANDLES: { out: BezierHandles; in: BezierHandles } = {
+const SMOOTHSTEP_HANDLES: { out: BezierHandles; in: BezierHandles } = {
   out: { x: 0.33, y: 0 }, in: { x: 0.67, y: 1 },
 };
 

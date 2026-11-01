@@ -65,7 +65,7 @@ const FAMILY_WORDS: Record<ControllerFamily, string> = {
   generic: "Controller",
 };
 
-export interface WorldSettingsPanelProps {
+interface WorldSettingsPanelProps {
   isLight: boolean;
   /** B1's reactive profile: the pad in hand, its family, and the
    *  names every prompt speaks. Null id = no pad connected. */

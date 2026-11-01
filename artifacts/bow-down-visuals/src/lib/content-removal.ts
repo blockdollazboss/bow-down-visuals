@@ -18,7 +18,7 @@ export const REMOVAL_REASONS = [
   "other",
 ] as const;
 
-export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+type RemovalReason = (typeof REMOVAL_REASONS)[number];
 
 export const REMOVAL_REASON_LABELS: Record<RemovalReason, string> = {
   spam: "Spam",

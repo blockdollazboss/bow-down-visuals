@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
    from the library, and handoff buttons chain to lyric video / cover art /
    album (song library) with a referral-tagged one-click share link. */
 
-export interface SongReworkSource {
+interface SongReworkSource {
   /** songs-table id when the song lives in the library (enables length match + parent link). */
   songId?: string;
   /** Playable audio URL — required for Replace Section. */

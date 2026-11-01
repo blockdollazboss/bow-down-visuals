@@ -5,7 +5,7 @@ import { Disc3, Play, Square } from "lucide-react";
    Side-by-side A/B player: original vs cover. "Play both" starts the two
    tracks together for an honest comparison; Stop halts both. */
 
-export interface CompareTrack {
+interface CompareTrack {
   title: string;
   audioUrl: string;
 }

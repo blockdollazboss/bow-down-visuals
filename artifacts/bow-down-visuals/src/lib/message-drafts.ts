@@ -20,7 +20,7 @@ export function messageDraftPath(conversationId: string): string {
   return `/api/dm/${encodeURIComponent(conversationId)}/draft`;
 }
 
-export interface SavedMessageDraft {
+interface SavedMessageDraft {
   body: string;
   updatedAt: string | null;
 }
@@ -42,7 +42,7 @@ export function normalizeSavedMessageDraft(payload: unknown): SavedMessageDraft 
  *  "skip" — the server already holds exactly this text; "clear" —
  *  the composer went blank over a saved draft, so retire it (a PUT
  *  with an empty body); "save" — new words to persist. */
-export type MessageDraftSaveDecision = "skip" | "clear" | "save";
+type MessageDraftSaveDecision = "skip" | "clear" | "save";
 export function messageDraftSaveDecision(text: string, savedText: string): MessageDraftSaveDecision {
   if (text === savedText) return "skip";
   return text.trim().length === 0 ? "clear" : "save";
@@ -58,7 +58,7 @@ export interface MessageDraftRail {
   clear?: (conversationId: string) => Promise<unknown>;
 }
 
-export interface MessageDraftSyncOptions {
+interface MessageDraftSyncOptions {
   rail: MessageDraftRail;
   /** Called once per thread open, only when a saved draft applies —
    *  i.e. the composer is still untouched since the thread opened. */

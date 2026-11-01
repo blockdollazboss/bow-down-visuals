@@ -27,7 +27,7 @@ import { mediaUrl } from "@/lib/media-cdn";
 
 export type KingArtTheme = "dark" | "light";
 
-export interface KingEmojiDef {
+interface KingEmojiDef {
   /** Shortcode name, e.g. "king-laugh" → typed/rendered as `:king-laugh:`. */
   code: string;
   label: string;
@@ -65,13 +65,7 @@ export const KING_GIFS: readonly KingGifDef[] = [
 const EMOJI_BY_CODE = new Map(KING_EMOJI.map((e) => [e.code, e]));
 const GIF_BY_CODE = new Map(KING_GIFS.map((g) => [g.code, g]));
 
-export function kingEmojiDef(code: string): KingEmojiDef | null {
-  return EMOJI_BY_CODE.get(code) ?? null;
-}
 
-export function kingGifDef(code: string): KingGifDef | null {
-  return GIF_BY_CODE.get(code) ?? null;
-}
 
 /** Public URL for a sticker in the given theme; null for unknown codes. */
 export function kingEmojiUrl(code: string, theme: KingArtTheme): string | null {
@@ -100,7 +94,7 @@ export function kingGifUrl(code: string, theme: KingArtTheme): string | null {
      mindblown → king-wow    stunned, jaw-dropped King; the set's wow. */
 
 export const REACTION_KEYS = ["like", "love", "fire", "clap", "mindblown"] as const;
-export type ReactionKey = (typeof REACTION_KEYS)[number];
+type ReactionKey = (typeof REACTION_KEYS)[number];
 
 export const REACTION_ART: Readonly<Record<ReactionKey, { code: string; label: string }>> = {
   like: { code: "king-crown", label: "Like" },

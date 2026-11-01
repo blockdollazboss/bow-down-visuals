@@ -1,7 +1,6 @@
 /* Pure helpers for the Tour Planner (/tour).
    Kept in a lib module so they are unit-testable without React. */
 
-export const TOUR_DATES_KEY = "bdv-tour-dates";
 export const TOUR_PLAN_KEY = "bdv-tour-plan";
 
 export interface TourDate {
@@ -166,7 +165,7 @@ export function clearTourPlan(
 }
 
 /* Promo checklist items generated per city — static templates, no AI cost. */
-export interface PromoChecklistItem {
+interface PromoChecklistItem {
   id: string;
   label: string;
   detail: string;

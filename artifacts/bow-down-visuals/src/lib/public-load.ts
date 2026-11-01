@@ -11,7 +11,7 @@
    - A 200 whose payload is missing its expected resource is a
      malformed answer, i.e. also a load error — never not-found. */
 
-export type PublicLoadOutcome = "ok" | "not-found" | "error";
+type PublicLoadOutcome = "ok" | "not-found" | "error";
 
 /** Classify a settled public-page fetch.
  *  `status` is the HTTP status (null when the fetch itself rejected —

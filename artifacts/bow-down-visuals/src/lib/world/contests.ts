@@ -19,7 +19,7 @@
 import { MUSIC_HALL_ID, HALL_ROOM_ID } from "./palace-layout";
 
 export type ContestPhase = "announced" | "open" | "judging" | "decided" | "called-off";
-export type ContestWorkKind = "track" | "video";
+type ContestWorkKind = "track" | "video";
 
 export interface WorldContestWinner {
   id: string;

@@ -23,7 +23,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    the grid below renders the week's slots as draggable cards (HTML5
    drag-and-drop), persisted via PATCH on drop. */
 
-export interface CalendarSlot {
+interface CalendarSlot {
   id: string;
   week_start: string;
   day_index: number;

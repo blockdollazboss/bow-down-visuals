@@ -10,7 +10,7 @@
  */
 import type { WidgetKind } from "./scenes";
 
-export interface WidgetTip {
+interface WidgetTip {
   tipperName: string;
   amountVb: number;
   createdAt: string;

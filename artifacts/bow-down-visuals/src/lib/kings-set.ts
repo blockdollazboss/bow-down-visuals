@@ -38,7 +38,7 @@ export function absoluteKingsSetUrl(path: string, origin?: string): string {
   }
 }
 
-export interface KingsSetPiece {
+interface KingsSetPiece {
   id: "plaza" | "throne" | "stage";
   /** i18n leaf under wallpapers.kingset.* naming the piece. */
   titleKey: "plaza" | "throne" | "stage";

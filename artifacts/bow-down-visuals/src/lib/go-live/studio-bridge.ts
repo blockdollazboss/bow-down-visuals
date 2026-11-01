@@ -49,9 +49,6 @@ export function clearStudioMixer(mixer: AudioMixer): void {
   if (handles.mixer === mixer) handles.mixer = null;
 }
 
-export function studioStage(): Stage | null {
-  return handles.stage;
-}
 
 /** Feed a guest's audio into the program mix (their current stream,
  *  or null to silence). Remembered until the mixer exists. */
@@ -62,7 +59,7 @@ export function attachGuestAudio(sessionId: string, stream: MediaStream | null):
   }
 }
 
-export function detachGuestAudio(sessionId: string): void {
+function detachGuestAudio(sessionId: string): void {
   pendingAudio.delete(sessionId);
   handles.mixer?.removeInput(guestMixerInputId(sessionId));
 }

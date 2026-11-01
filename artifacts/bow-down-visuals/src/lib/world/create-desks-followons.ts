@@ -31,7 +31,7 @@
  * below is the honest remainder.
  */
 
-export interface NativeFollowOn {
+interface NativeFollowOn {
   desk: string;
   item: string;
   /** Where it lives today (the page the transfer footer opens). */

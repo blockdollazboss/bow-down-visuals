@@ -166,8 +166,8 @@ export function lawnEdgingRuns(panel: LawnPanel): GroundsBox[] {
  *  system) in a symmetric pattern on each lawn: a ring of six
  *  around the medallion + four at the quarters. Positions are
  *  panel-local; lawnPlantingSpots resolves them to world. */
-export const PARTERRE_RING_R = 2.6;
-export const PARTERRE_SPOTS_LOCAL: ReadonlyArray<{ dx: number; dz: number }> = [
+const PARTERRE_RING_R = 2.6;
+const PARTERRE_SPOTS_LOCAL: ReadonlyArray<{ dx: number; dz: number }> = [
   ...[0, 1, 2, 3, 4, 5].map((i) => {
     const a = (i / 6) * Math.PI * 2;
     return { dx: Math.cos(a) * PARTERRE_RING_R, dz: Math.sin(a) * PARTERRE_RING_R };
@@ -388,7 +388,7 @@ export const BACKDROP = {
 /** Distant palace wings: two long low masses on the skyline,
  *  north-west and north-east beyond the palace itself (seen over
  *  the roofline from the plaza) — silhouettes in the fog. */
-export interface BackdropWing {
+interface BackdropWing {
   cx: number;
   cy: number;
   cz: number;
@@ -468,7 +468,7 @@ export const BACKDROP_GARDENS: ReadonlyArray<{ x: number; z: number; r: number; 
   { x: -16, z: -40, r: 8, h: 3.8 },
 ];
 
-export interface BackdropWindowStyle {
+interface BackdropWindowStyle {
   color: number;
   emissive: number;
   emissiveIntensity: number;

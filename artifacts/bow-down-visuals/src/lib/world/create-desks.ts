@@ -33,7 +33,7 @@ import {
 } from "../../components/generate-artist-image";
 import type { SchedulerPrefill } from "./scheduler-desk";
 
-export type CreateDeskId =
+type CreateDeskId =
   | "song-desk"
   | "video-desk"
   | "song-video-desk"
@@ -103,7 +103,7 @@ export function coverArtCost(tier: "standard" | "premium"): number {
 /** Cover-in-motion — POST /api/cover-in-motion/animate. Not in the
  *  registry; the Create hub panel's badge says "400 VB" and the
  *  server route's MOTION_CREDIT_COST defaults to 400. */
-export const COVER_IN_MOTION_COST_VB = 400;
+const COVER_IN_MOTION_COST_VB = 400;
 
 export function coverInMotionCost(): number {
   return COVER_IN_MOTION_COST_VB;
@@ -123,7 +123,7 @@ export const DEFAULT_ARTIST_IMAGE_MODEL: ArtistImageModel = "gen4_image";
  *  creditsUsed is exactly that sum), and the thumbnail page's own
  *  badge quotes it as "up to 300 Visual Bucs" — so 300 is the price
  *  shown up front: the most the make can cost. */
-export const THUMBNAIL_MAX_COST_VB = 300;
+const THUMBNAIL_MAX_COST_VB = 300;
 
 export function thumbnailDeskCost(): number {
   return THUMBNAIL_MAX_COST_VB;
@@ -151,7 +151,7 @@ export function sfxCost(): number {
 /** Finish my song — POST /api/finish-my-song/complete. Not in the
  *  registry; the Audio Studio panel's badge says "400 VB" and the
  *  server route's FINISH_CREDIT_COST defaults to 400. */
-export const FINISH_MY_SONG_COST_VB = 400;
+const FINISH_MY_SONG_COST_VB = 400;
 
 export function finishMySongCost(): number {
   return FINISH_MY_SONG_COST_VB;
@@ -299,7 +299,7 @@ export function buildSongVideoPayloadAdvanced(
   };
 }
 
-export interface VideoPlanAdvanced {
+interface VideoPlanAdvanced {
   artistName: string;
   songTitle: string;
   genre: string;
@@ -483,7 +483,7 @@ export function buildGeneratedClipSavePayload(input: {
   };
 }
 
-export interface CoverArtAdvanced {
+interface CoverArtAdvanced {
   songTitle: string;
   artistName: string;
   style: string;
@@ -599,7 +599,7 @@ export function buildArtistImagePayload(
   };
 }
 
-export interface ThumbnailAdvanced {
+interface ThumbnailAdvanced {
   artistName: string;
   songTitle: string;
   platform: string;
@@ -641,8 +641,8 @@ export function buildThumbnailPayload(
    clamps (beat.ts: bpm 60–200 into the prompt, length 10–180 s)
    sit inside/behind these, so anything built here is in range
    before it is posted. */
-export const BEAT_BPM_MIN = 60;
-export const BEAT_BPM_MAX = 200;
+const BEAT_BPM_MIN = 60;
+const BEAT_BPM_MAX = 200;
 export const BEAT_BPM_DEFAULT = 140;
 export const BEAT_KEYS = [
   "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -734,7 +734,7 @@ export function buildSfxPayload(
 
 /* ─── Polling — the same status words the pages poll for ─────────── */
 
-export interface TaskPollData {
+interface TaskPollData {
   status?: string;
   url?: string | null;
   outputUrl?: string | null;
@@ -798,7 +798,7 @@ export const THUMBNAIL_DRAFT_WORKFLOW = "thumbnail-studio";
 
 /* ─── The editor seed — POST /api/projects, make-video's shape ───── */
 
-export interface EditorSeedInput {
+interface EditorSeedInput {
   projectType: string;
   title: string;
   artistName?: string;
@@ -882,7 +882,7 @@ export function jukeboxTrackIdOf(candidate: string | null | undefined): string |
  *    the chip shows its face with the reason on it ("publish
  *    first") as a non-interactive span, never a dead click.
  *  The publish landing flips dark → live, and nothing else does. */
-export type JukeboxChipState = "live" | "dark" | "absent";
+type JukeboxChipState = "live" | "dark" | "absent";
 export function jukeboxChipStateOf(args: {
   candidate: string | null | undefined;
   railOffered: boolean;
@@ -934,7 +934,7 @@ export function songDeskTotalCost(): number {
 }
 
 /** One ## section of a song package (the hub-song section shape). */
-export function packageSectionOf(raw: string, header: string): string {
+function packageSectionOf(raw: string, header: string): string {
   const re = new RegExp(`^##\\s*${header}\\s*$`, "im");
   const m = re.exec(raw);
   if (!m || m.index === undefined) return "";
@@ -1113,16 +1113,8 @@ export function publishedTrackIdOfResponse(json: unknown): string | null {
    The step machine below is the desk's honest spine: a step is
    only reachable when the previous step's server truth exists. */
 
-export type StoryboardStep = "intake" | "analysis" | "scenes" | "review" | "clips" | "done";
+type StoryboardStep = "intake" | "analysis" | "scenes" | "review" | "clips" | "done";
 
-export const STORYBOARD_STEPS: readonly StoryboardStep[] = [
-  "intake",
-  "analysis",
-  "scenes",
-  "review",
-  "clips",
-  "done",
-];
 
 /** POST /api/analyze-sections — registry-priced (100). */
 export function analyzeSectionsCost(): number {
@@ -1191,7 +1183,7 @@ export function withSceneClip<T extends { id: string; demoClipUrl: string | null
  *  draftData { formValues, rawResult, scenes, songStructure,
  *  timestamp } — the page's own server-draft shape, so a storyboard
  *  started at the desk reopens on the page and vice versa. */
-export const VIDEO_DRAFT_WORKFLOW = "make-video";
+const VIDEO_DRAFT_WORKFLOW = "make-video";
 
 export function buildStoryboardDraftPayload(input: {
   title: string;
@@ -1622,7 +1614,7 @@ export const THUMBNAIL_BATCH_SIZE = 4;
  *  real generated image at its permanent url — the bench NEVER
  *  fabricates a slot from another slot's image (no re-crops, no
  *  duplicates): what didn't land is a failed slot with no url. */
-export type ThumbnailBenchSlot =
+type ThumbnailBenchSlot =
   | { status: "ready"; url: string; variation: string }
   | { status: "failed"; variation: string };
 
@@ -1846,11 +1838,11 @@ export const QUEST_TITLES: Readonly<Record<string, string>> = {
   "viral-sharer": "Share your work",
 };
 
-export function questTitleOf(key: string): string {
+function questTitleOf(key: string): string {
   return QUEST_TITLES[key] ?? key.replace(/-/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }
 
-export interface QuestAdvance {
+interface QuestAdvance {
   key: string;
   title: string;
   progress: number;

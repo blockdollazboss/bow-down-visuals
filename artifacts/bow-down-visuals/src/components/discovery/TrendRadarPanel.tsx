@@ -9,7 +9,7 @@ import { apiJson } from "@/lib/social-api";
    its measured count and its source, served by GET /api/trend-radar/feed.
    No predictions live here — forecasts stay in the Trend Predictor. */
 
-export interface RadarSignalView {
+interface RadarSignalView {
   kind: "hashtag" | "spike" | "rising_creator" | "sound";
   key: string;
   label: string;

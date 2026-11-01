@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
    adds explicit version labels, notes, and the master promotion concept that
    the library cards don't have. */
 
-export interface SongVersion {
+interface SongVersion {
   id: string;
   song_id: string | null;
   parent_version_id: string | null;

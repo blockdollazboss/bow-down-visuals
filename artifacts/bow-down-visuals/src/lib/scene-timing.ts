@@ -132,7 +132,7 @@ export interface ManualPlacementEdit {
 
 /** SceneTiming extended with gap/overlap info relative to the PREVIOUS clip
  *  in timeline order (not array order — manual positions can reorder clips). */
-export interface ManualSceneTiming extends SceneTiming {
+interface ManualSceneTiming extends SceneTiming {
   /** Seconds of silent/empty timeline before this clip starts (0 if none or if this is first). */
   gapBeforeSec: number;
   /** Seconds this clip's start overlaps the previous clip's end (0 if none or if this is first). */

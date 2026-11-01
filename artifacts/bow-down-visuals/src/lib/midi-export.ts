@@ -6,7 +6,7 @@
  * delta-timed events (tempo meta, note on/off, end of track).
  */
 
-export interface MidiNote {
+interface MidiNote {
   /** MIDI note number (69 = A4 440 Hz). */
   midi: number;
   /** Seconds from the start of the piece. */
@@ -117,7 +117,7 @@ export function buildMidiFile(
  * overlaps and velocities: same SMF format-0 container, one event per
  * note on/off, offs before ons at equal ticks. */
 
-export interface PolyMidiNote extends MidiNote {
+interface PolyMidiNote extends MidiNote {
   /** 0–127 (falls back to the house default when absent). */
   velocity?: number;
 }

@@ -29,7 +29,7 @@ export function parseSchedulerMediaType(v: string | null | undefined): Scheduler
   return v === "image" ? "image" : "video";
 }
 
-export interface SchedulerHandoff {
+interface SchedulerHandoff {
   caption?: string;
   media?: string | null;
   mediaType?: SchedulerMediaType;

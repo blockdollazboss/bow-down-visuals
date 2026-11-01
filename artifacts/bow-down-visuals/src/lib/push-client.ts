@@ -16,7 +16,7 @@ export function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-export type PushSupport =
+type PushSupport =
   | "unsupported" // no serviceWorker / PushManager / Notification in this browser
   | "ready"
   | "denied"; // the user blocked notifications for this site
@@ -36,7 +36,7 @@ export function pushSupport(win: Window = window): PushSupport {
   return "ready";
 }
 
-export interface PushConfigDto {
+interface PushConfigDto {
   configured: boolean;
   publicKey: string | null;
 }
@@ -172,7 +172,7 @@ export async function updatePushPreferences(
    signed-in user with fresh keys; if the subscription was made under
    a different VAPID key, replace it. */
 
-export type PushRepairOutcome =
+type PushRepairOutcome =
   | "unsupported"
   | "no_permission" // not granted — repair never prompts
   | "not_configured" // server has no push keys in this environment

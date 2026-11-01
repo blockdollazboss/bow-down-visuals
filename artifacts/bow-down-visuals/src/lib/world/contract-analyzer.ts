@@ -58,20 +58,20 @@ export function buildAnalyzeBody(
   };
 }
 
-export interface ContractRedFlag {
+interface ContractRedFlag {
   title: string;
   severity: string;
   explanation: string;
   clause: string;
 }
 
-export interface ContractKeyTerm {
+interface ContractKeyTerm {
   term: string;
   value: string;
   assessment: string;
 }
 
-export interface ContractAnalysis {
+interface ContractAnalysis {
   riskScore: number;
   riskLevel: string;
   summary: string;

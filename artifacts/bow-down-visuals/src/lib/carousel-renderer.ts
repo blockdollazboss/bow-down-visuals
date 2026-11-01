@@ -40,7 +40,7 @@ export const CAROUSEL_TEMPLATES: CarouselTemplate[] = [
   { id: "minimal-luxe",   nameKey: "carouselMaker.tplLuxeName", descKey: "carouselMaker.tplLuxeDesc", bgStyle: "paper", accent: "#9c7c1e", numberStyle: "none" },
 ];
 
-export interface CarouselRenderOpts {
+interface CarouselRenderOpts {
   slide: CarouselSlide;
   template: CarouselTemplate;
   slideIndex: number; // 0-based
@@ -300,16 +300,12 @@ export function renderCarouselSlide(opts: CarouselRenderOpts): HTMLCanvasElement
   return canvas;
 }
 
-export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Render failed"))), "image/png"),
   );
 }
 
-export async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<void> {
-  const blob = await canvasToBlob(canvas);
-  downloadBlob(blob, filename);
-}
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -424,7 +420,7 @@ export async function stampPngBlobWithDisclosure(
   }
 }
 
-export type CarouselDownloadDisclosureState = "embedded" | "off" | "stamp_failed";
+type CarouselDownloadDisclosureState = "embedded" | "off" | "stamp_failed";
 
 /** Render → (stamp) → download one slide. Returns the honest disclosure
     state: "off" when no disclosure was requested, "stamp_failed" when the

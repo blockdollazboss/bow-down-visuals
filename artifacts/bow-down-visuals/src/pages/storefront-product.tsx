@@ -31,7 +31,7 @@ import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/c
    Money copy rule: this is REAL MONEY via secure checkout, never
    Visual Bucs. */
 
-export const PRODUCT_KIND_LABELS: Record<string, string> = {
+const PRODUCT_KIND_LABELS: Record<string, string> = {
   download: "Download",
   merch: "Merch",
   digital: "Digital product",

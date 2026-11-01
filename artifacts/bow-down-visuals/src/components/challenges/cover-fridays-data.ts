@@ -21,7 +21,7 @@
  * never a call-site patch, never an undefined receiver.
  */
 
-export interface CoverTheme {
+interface CoverTheme {
   title: string;
   description: string;
   hashtag: string;

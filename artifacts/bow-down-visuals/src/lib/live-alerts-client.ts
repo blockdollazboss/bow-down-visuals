@@ -16,13 +16,13 @@ export interface StreamAlert {
   preview?: boolean;
 }
 
-export const ALERT_SHOW_MS = 4500;
-export const ALERT_GAP_MS = 600;
+const ALERT_SHOW_MS = 4500;
+const ALERT_GAP_MS = 600;
 /** Bursts beyond this drop the OLDEST queued alert — the newest
  *  celebrations are the ones worth showing. */
 export const ALERT_QUEUE_MAX = 8;
 
-export interface AlertQueueDeps {
+interface AlertQueueDeps {
   setTimeoutFn?: (fn: () => void, ms: number) => unknown;
   clearTimeoutFn?: (id: unknown) => void;
 }

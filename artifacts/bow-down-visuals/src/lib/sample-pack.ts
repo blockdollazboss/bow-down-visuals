@@ -1,7 +1,7 @@
 /* ─── Sample Pack Generator — frontend helpers ───────────────────────────────
    Pricing display, pack-size options, origin badges. Pure functions, tested. */
 
-export interface PackSizeOption {
+interface PackSizeOption {
   size: 10 | 25 | 50;
   credits: number;
   label: string;

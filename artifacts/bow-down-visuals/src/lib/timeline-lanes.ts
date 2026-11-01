@@ -19,7 +19,7 @@ import type { CaptionLine, OverlayItem } from "@/lib/editor-settings";
 
 export type LaneKind = "overlay" | "captions" | "adjustment" | "music";
 
-export interface LaneItemBase {
+interface LaneItemBase {
   id: string;
   /** Seconds on the full timeline. */
   startSec: number;
@@ -32,7 +32,7 @@ export interface OverlayLaneItem extends LaneItemBase {
 }
 
 /** A caption block on the caption lane — the full legacy CaptionLine payload. */
-export interface CaptionLaneItem extends LaneItemBase {
+interface CaptionLaneItem extends LaneItemBase {
   line: CaptionLine;
 }
 
@@ -70,7 +70,7 @@ export function newLaneItemId(prefix = "lane"): string {
 const clampTime = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.round(n * 1000) / 1000) : 0);
 
 /** Sanitize one lane item's window: finite, start ≥ 0, end > start (min 0.1s). */
-export function sanitizeWindow<T extends LaneItemBase>(item: T): T {
+function sanitizeWindow<T extends LaneItemBase>(item: T): T {
   const startSec = clampTime(item.startSec);
   const endSec = Math.max(startSec + 0.1, clampTime(item.endSec));
   return { ...item, startSec, endSec };

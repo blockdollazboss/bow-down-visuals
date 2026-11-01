@@ -64,7 +64,7 @@ export function bannerSwayAt(tSec: number, phase: number): { rotX: number; rotZ:
 /** Pollen motes over the grounds at full particle scale; the
  *  ladder's particleScale draws a prefix of the field (the dust
  *  system's own law, buildDust in hall-scene). */
-export const POLLEN_BASE_COUNT = 130;
+const POLLEN_BASE_COUNT = 130;
 
 export function pollenCountForScale(particleScale: number): number {
   return Math.floor(POLLEN_BASE_COUNT * Math.min(1, Math.max(0, particleScale)));
@@ -218,7 +218,7 @@ export const POOL_BLOCKED: PalaceRect = rectAround(POOL.cx, POOL.cz, POOL.w / 2,
  *  fall lands (an expanding ring that fades as it grows). Every
  *  water body in the world — plaza pool, gardens rill + basin,
  *  boardwalk basin, backdrop moat — reads this same model. */
-export interface WaterSurfaceState {
+interface WaterSurfaceState {
   offsetX: number;
   offsetY: number;
   /** Ripple-normal layer offsets: counter-scroll against the
@@ -318,7 +318,7 @@ export function poolWaterTint(theme: "light" | "dark"): { color: number; roughne
  * Every post is solid (its blocked rect below) and every post
  * stands clear of the spine, the stations and the gates. */
 
-export interface PlazaLamp {
+interface PlazaLamp {
   x: number;
   z: number;
 }
@@ -364,7 +364,7 @@ export function lampGlassStyle(theme: "light" | "dark"): { color: number; emissi
  * of open ground, the spur and the gates stay clear, and every
  * piece's blocked rect comes from this same data. */
 
-export interface PlazaBench {
+interface PlazaBench {
   x: number;
   z: number;
   /** True when the bench's length runs along Z (it faces ±X). */
@@ -404,7 +404,7 @@ export const PLAZA_TABLE_SETS: ReadonlyArray<{ x: number; z: number }> = [
   { x: -24.6, z: 26.4 },
 ];
 
-export const TABLE_SET = { tableR: 0.55, blockHalf: 1.0 } as const;
+const TABLE_SET = { tableR: 0.55, blockHalf: 1.0 } as const;
 
 /** Urns (the monument's finial language at plaza scale): pairs
  *  flanking the spawn threshold (item 40's dressing), the board

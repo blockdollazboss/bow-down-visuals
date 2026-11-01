@@ -39,7 +39,7 @@ export function exploreSectionOrEmpty<T>(
   return Array.isArray(items) ? [...items] : [];
 }
 
-export const EXPLORE_SECTION_NAMES = [
+const EXPLORE_SECTION_NAMES = [
   "shorts",
   "creators",
   "posts",

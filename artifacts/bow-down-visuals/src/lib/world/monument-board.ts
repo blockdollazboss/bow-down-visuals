@@ -101,7 +101,7 @@ export function monumentBoardData(input: {
 
 /* ─── The lettered lines ─────────────────────────────────────────── */
 
-export interface MonumentPlateSection {
+interface MonumentPlateSection {
   heading: string;
   lines: string[];
 }

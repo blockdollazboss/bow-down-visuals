@@ -24,7 +24,7 @@ import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls
  * No backend routes were renamed or removed — the panel is the one place
  * users think about captions. */
 
-export interface CaptionSuiteVideo {
+interface CaptionSuiteVideo {
   id: string;
   label: string;
   url: string;
@@ -45,7 +45,7 @@ interface WordTiming {
   end: number;
 }
 
-export interface SuiteLine {
+interface SuiteLine {
   id: string;
   start: number;
   end: number;

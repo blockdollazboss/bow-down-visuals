@@ -15,7 +15,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    charging (300 VB, charge-after-transcript, auto-refund if the kit
    can't be built). */
 
-export const PODCAST_MULTIPLIER_COST = 300;
+const PODCAST_MULTIPLIER_COST = 300;
 
 interface MultiplyShort {
   startSec: number;

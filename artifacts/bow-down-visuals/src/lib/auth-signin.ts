@@ -38,8 +38,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const SIGN_IN_ATTEMPT_TIMEOUT_MS = 15_000;
-export const SIGN_IN_MAX_ATTEMPTS = 2;
-export const SIGN_IN_RETRY_BACKOFF_MS = 800;
+const SIGN_IN_MAX_ATTEMPTS = 2;
+const SIGN_IN_RETRY_BACKOFF_MS = 800;
 
 /** Raised when an attempt does not settle inside its bound. */
 export class SignInTimeoutError extends Error {
@@ -49,21 +49,21 @@ export class SignInTimeoutError extends Error {
   }
 }
 
-export type SignInFailureKind = "credentials" | "transport" | "server";
+type SignInFailureKind = "credentials" | "transport" | "server";
 
-export type SignInOutcome<TUser extends { id: string } = { id: string }> =
+type SignInOutcome<TUser extends { id: string } = { id: string }> =
   | { ok: true; user: TUser | null }
   | { ok: false; error: string; failure: SignInFailureKind };
 
 /** The slice of an auth error this module reads. Supabase's AuthError
  *  carries `name` + `status`; a plain thrown Error carries neither. */
-export interface AuthErrorLike {
+interface AuthErrorLike {
   message: string;
   name?: string;
   status?: number;
 }
 
-export interface PasswordSignInResult<TUser extends { id: string } = { id: string }> {
+interface PasswordSignInResult<TUser extends { id: string } = { id: string }> {
   data: { user: TUser | null };
   error: AuthErrorLike | null;
 }
@@ -73,7 +73,7 @@ export type PasswordSignInFn<TUser extends { id: string } = { id: string }> = (
   password: string,
 ) => Promise<PasswordSignInResult<TUser>>;
 
-export interface SignInDeps<TUser extends { id: string } = { id: string }> {
+interface SignInDeps<TUser extends { id: string } = { id: string }> {
   signIn: PasswordSignInFn<TUser>;
   sleep?: (ms: number) => Promise<void>;
   timeoutMs?: number;

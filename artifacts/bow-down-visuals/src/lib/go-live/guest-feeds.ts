@@ -12,7 +12,7 @@
  * A feed's video element is created here, once per stream, so the
  * backstage tile and the program canvas draw the very same element.
  */
-export interface GuestFeed {
+interface GuestFeed {
   sessionId: string;
   name: string;
   state: "backstage" | "on_stage";

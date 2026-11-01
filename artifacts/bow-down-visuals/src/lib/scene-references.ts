@@ -123,7 +123,7 @@ export function normalizeReferenceSet(raw: unknown): SceneReference[] {
 }
 
 /** One cast candidate for a scene: a vault character with an identity. */
-export interface SceneCastMember {
+interface SceneCastMember {
   /** Vault id — the ONLY safe dedupe key (two characters can share a name). */
   id: string;
   name: string;
@@ -157,7 +157,7 @@ export function mergeSceneCast(opts: {
   return out;
 }
 
-export interface ReferenceSetProposalSources {
+interface ReferenceSetProposalSources {
   /** The lead artist's Artist Vault photo (character). */
   characterPhotoUrl?: string | null;
   characterName?: string | null;
@@ -209,7 +209,7 @@ export function buildProposedReferenceSet(sources: ReferenceSetProposalSources):
   return sortReferenceSet(refs).slice(0, MAX_SCENE_REFERENCES);
 }
 
-export interface SceneReferencePlan {
+interface SceneReferencePlan {
   /** How many of the set this model will receive. */
   submittedCount: number;
   setSize: number;

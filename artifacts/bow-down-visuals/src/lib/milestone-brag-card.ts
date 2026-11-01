@@ -8,7 +8,7 @@
 
 import { tierColor, VERTICAL_META, type MilestoneAchievement } from "./milestone-thresholds";
 
-export interface BragCardOpts {
+interface BragCardOpts {
   achievement: MilestoneAchievement;
   creatorName: string;
   avatarUrl?: string | null;

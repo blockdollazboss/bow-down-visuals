@@ -64,7 +64,7 @@ export function buildMonthWrappedShareText(recap: MonthWrappedRecap): string {
 
 /** The metric rows the card shows, in display order — derived purely
  *  from which keys the server actually sent. */
-export interface MonthWrappedMetric {
+interface MonthWrappedMetric {
   key: "plays" | "newFans" | "sales" | "newReleases";
   value: string;
 }

@@ -23,7 +23,7 @@ import { gateStarsFor, type CreatorRankDto } from "@/lib/creator-rank";
  *   own key (bdv_ui_mode_*) and defaults from gate stars (1–3 Turbo,
  *   4–6 Advanced) until the user picks explicitly.
  */
-export type UserMode = "simple" | "advanced";
+type UserMode = "simple" | "advanced";
 export type StarLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 const ANON_KEY = "bdv_user_mode_anon";

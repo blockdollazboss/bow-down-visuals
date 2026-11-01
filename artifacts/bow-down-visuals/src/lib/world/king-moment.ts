@@ -22,7 +22,7 @@ export function isKingMomentLive(moment: WorldKingMomentState | null, nowMs: num
  *  - "guest":   sign in first — guests witness the moment only.
  *  - "claimed": today's gift is already in hand.
  *  - "open":    the gift can be claimed now. */
-export type KingClaimView = "guest" | "claimed" | "open";
+type KingClaimView = "guest" | "claimed" | "open";
 
 export function kingClaimView(
   moment: WorldKingMomentState,

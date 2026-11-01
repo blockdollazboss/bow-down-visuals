@@ -1,7 +1,7 @@
 import { apiErrorMessage, apiThrowMessage } from "./api-error";
 import type { FetchImpl } from "@/hooks/use-confirmed-api";
 
-export function parseMarkdownSections(text: string): Record<string, string> {
+function parseMarkdownSections(text: string): Record<string, string> {
   const sections: Record<string, string> = {};
   const parts = text.split(/^##\s+/m);
   for (const part of parts) {

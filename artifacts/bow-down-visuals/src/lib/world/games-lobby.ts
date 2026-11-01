@@ -44,7 +44,7 @@ import {
    Both Game Rooms stations carry pattern "games"; the station id
    says which lobby. Anything else under the pattern is not a
    games surface (null — the host falls back to the placeholder). */
-export type GamesSurface = "arcade" | "marble";
+type GamesSurface = "arcade" | "marble";
 
 export function gamesSurfaceForStation(stationId: string): GamesSurface | null {
   if (stationId === "arcade-cabinets") return "arcade";
@@ -54,7 +54,7 @@ export function gamesSurfaceForStation(stationId: string): GamesSurface | null {
 
 /* ─── The Arcade ──────────────────────────────────────────────────── */
 
-export interface ArcadeCabinet {
+interface ArcadeCabinet {
   id: ArcadeGameId;
   title: string;
   tagline: string;
@@ -298,7 +298,7 @@ export type PartyTableHome =
   | { kind: "profile"; slug: string }
   | { kind: "stream"; streamId: string; title: string | null };
 
-export const PLAIN_TABLE_HOME: PartyTableHome = { kind: "plain" };
+const PLAIN_TABLE_HOME: PartyTableHome = { kind: "plain" };
 
 /** The POST /api/party/rooms body for opening a table in-world,
  *  plain or homed (2.25). */
@@ -375,7 +375,7 @@ export function parseCreatedPartyRoom(data: unknown): string | null {
    on the website's own lobby — this is the World's own door, not a
    replacement for it. Codes are the party client's own shape
    (6 chars, its alphabet); an invalid code is no invite at all. */
-export const WORLD_PARTY_INVITE_PARAM = "party";
+const WORLD_PARTY_INVITE_PARAM = "party";
 
 /** The in-world invite path for a table code (null: not a code). */
 export function partyInvitePath(code: string): string | null {
@@ -499,7 +499,7 @@ function winnerStandings(rows: unknown, fallbackChallengeTitle: string): Contest
   return out.sort((a, b) => a.place - b.place);
 }
 
-export interface WeeklyContestPresence {
+interface WeeklyContestPresence {
   weekly: WeeklyContest | null;
   lastWeek: { challengeTitle: string; winners: ContestWinnerStanding[] } | null;
 }

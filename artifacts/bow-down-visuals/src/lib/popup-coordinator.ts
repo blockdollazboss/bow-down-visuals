@@ -33,7 +33,7 @@
    and restraint rules are pinnable in plain tests; the app uses the
    browser-backed singleton below. */
 
-export type PopupClass = "announcement" | "upsell";
+type PopupClass = "announcement" | "upsell";
 
 export interface PopupSpec {
   class: PopupClass;
@@ -41,7 +41,7 @@ export interface PopupSpec {
   priority: number;
 }
 
-export const POPUP_REGISTRY = {
+const POPUP_REGISTRY = {
   /* The member's own news — always first. */
   "away-digest": { class: "announcement", priority: 100 },
   /* The ask — waits for the news, and for a quieter moment. */
@@ -53,7 +53,7 @@ export type PopupId = keyof typeof POPUP_REGISTRY;
 /** An upsell may re-show to the same person at most once per day. */
 export const UPSELL_PERSON_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 /** At most one upsell claims per session, however many are registered. */
-export const UPSELL_SESSION_CAP = 1;
+const UPSELL_SESSION_CAP = 1;
 
 export interface PopupStorage {
   getItem(key: string): string | null;
@@ -93,13 +93,13 @@ function parsePerson(raw: string | null): PersonRecord {
   }
 }
 
-export type PopupDenyReason =
+type PopupDenyReason =
   | "unknown_popup"
   | "shown_this_session"
   | "person_cooldown"
   | "upsell_session_cap";
 
-export type PopupEligibility = { ok: true } | { ok: false; reason: PopupDenyReason };
+type PopupEligibility = { ok: true } | { ok: false; reason: PopupDenyReason };
 
 /** The pure restraint decision — no slot state, no DOM. */
 export function decidePopupEligibility(args: {
@@ -126,7 +126,7 @@ export function decidePopupEligibility(args: {
   return { ok: true };
 }
 
-export interface PopupCoordinator {
+interface PopupCoordinator {
   /**
    * Ask for the slot. Grants immediately (returns true) only when the
    * pop-up is eligible AND the slot is free; when the slot is busy the
