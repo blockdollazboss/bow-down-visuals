@@ -1827,10 +1827,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "store",
     reason: "Feature Verse marketplace rails (listings / orders / confirm / deliver) — buying and selling a featured verse, behind the marketplace surfaces; no page of its own.",
   },
-  "artifacts/api-server/src/routes/studio-gear.ts": {
-    surface: "store",
-    reason: "Studio-gear store rails (catalog / checkout / orders / design-proof flow + admin fulfilment) — the house gear shop; the storefront feature carries the shop pages, not these endpoints.",
-  },
   "artifacts/api-server/src/routes/shopify-bridge.ts": {
     surface: "store",
     reason: "Shopify CSV bridge rails (import preview/commit, export customers/orders/products) — the Sell Everything storefront's migration door; no page of its own.",

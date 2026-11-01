@@ -41,6 +41,16 @@ beforeEach(() => {
   __setLipSyncJobsDb(db);
   __setJobNotificationsDb(db);
   mockSubmit.mockReset();
+  /* JOIN COMPOSITION (stack1100 join, Z3 x this suite): this suite
+     exercises the Sync.so submit path by calling runSubmitWorker
+     directly with a Sync key. Since Z3 (owner's ruling: sync-3 is
+     premium-only, never the default), a job with no stored provider
+     resolves a route ONLY through the operator switch — with no
+     switch set and no WaveSpeed key, the worker correctly refuses to
+     submit anywhere and this suite's jobs would sit at 'submitting'.
+     The suite therefore sets the operator switch to the premium route
+     it simulates, and clears it afterwards. */
+  process.env["LIP_SYNC_PROVIDER"] = "sync";
   __testHooks.__setPrepareSubmitMedia(async () => ({
     segmentUrl: "https://x/seg.mp3",
     providerClipUrl: "https://x/clip.mp4",
@@ -51,6 +61,7 @@ beforeEach(() => {
 afterEach(() => {
   __setLipSyncJobsDb(null);
   __setJobNotificationsDb(null);
+  delete process.env["LIP_SYNC_PROVIDER"];
 });
 
 async function claimedJob(): Promise<LipSyncJob> {

@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f3a50da1f712c66b1e5c85ac0b1c024f8062e2aa",
+  "baseCommit": "ba9521ed9a154f3ce887158e71eafb4a009a7095",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-10-31",
+  "generatedAt": "2026-11-01",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
@@ -22,9 +22,9 @@
     "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 429,
-    "serverEndpoints": 1721,
-    "serverEndpointsVisible": 1045,
-    "serverFilesClassified": 101
+    "serverEndpoints": 1722,
+    "serverEndpointsVisible": 1052,
+    "serverFilesClassified": 100
   },
   "packs": [
     {
@@ -283,6 +283,9 @@
         "/api/admin/dmca-reports",
         "/api/admin/dmca-reports/:param",
         "/api/admin/import-artists",
+        "/api/admin/operator-actions",
+        "/api/admin/payment-reversals",
+        "/api/admin/payment-reversals/:param/resolve",
         "/api/admin/pitch-fix/:param",
         "/api/admin/pitch-fix/queue",
         "/api/admin/plan/set",
@@ -291,6 +294,9 @@
         "/api/admin/spotlight-inquiries",
         "/api/admin/spotlight-inquiries/:param",
         "/api/admin/status",
+        "/api/admin/studio-gear/orders",
+        "/api/admin/studio-gear/orders/:param/proof/send",
+        "/api/admin/studio-gear/orders/:param/status",
         "/api/cheat-code/admin/events",
         "/api/cheat-code/admin/events/:param/:param",
         "/api/credits/claim-trial",
@@ -3969,6 +3975,7 @@
         "/api/beats/license-templates",
         "/api/beats/license-templates/:param",
         "/api/beats/license-templates/mine",
+        "/api/beats/licenses/mine",
         "/api/beats/licenses/verify",
         "/api/beats/mine/dashboard",
         "/api/credits/claim-trial",
@@ -16952,12 +16959,10 @@
       },
       {
         "file": "artifacts/api-server/src/routes/admin.ts",
-        "endpoints": 21,
-        "visible": 14,
+        "endpoints": 22,
+        "visible": 17,
         "unseen": [
           "/api/admin/export-my-artists",
-          "/api/admin/operator-actions",
-          "/api/admin/payment-reversals",
           "/api/admin/remove-duplicate-shark",
           "/api/admin/users/:id/ban",
           "/api/admin/users/:id/unban",
@@ -17723,10 +17728,9 @@
       {
         "file": "artifacts/api-server/src/routes/generate/beats.ts",
         "endpoints": 11,
-        "visible": 9,
+        "visible": 10,
         "unseen": [
-          "/api/beats/:id/offers",
-          "/api/beats/licenses/mine"
+          "/api/beats/:id/offers"
         ]
       },
       {
@@ -20429,21 +20433,14 @@
       {
         "file": "artifacts/api-server/src/routes/studio-gear.ts",
         "endpoints": 8,
-        "visible": 0,
+        "visible": 3,
         "unseen": [
-          "/api/admin/studio-gear/orders",
-          "/api/admin/studio-gear/orders/:id/proof/send",
-          "/api/admin/studio-gear/orders/:id/status",
           "/api/studio-gear/catalog",
           "/api/studio-gear/checkout",
           "/api/studio-gear/orders",
           "/api/studio-gear/orders/:id/proof/approve",
           "/api/studio-gear/orders/:id/proof/request-revision"
-        ],
-        "classification": {
-          "surface": "store",
-          "reason": "Studio-gear store rails (catalog / checkout / orders / design-proof flow + admin fulfilment) — the house gear shop; the storefront feature carries the shop pages, not these endpoints."
-        }
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/supporter-board.ts",
