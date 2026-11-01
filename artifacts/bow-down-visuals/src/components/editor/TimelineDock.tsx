@@ -48,6 +48,7 @@ import {
 import { detectBeatGrid, snapToBeat, type BeatGrid } from "@/lib/beat-grid";
 import { cropDragNext, dockHeightNext, fadeDragValue, loopDragNext, rangeDragNext, trimDragValue } from "@/lib/dock-drag";
 import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
+import { batchIndices, clickSelection, deleteBatch, duplicateBatch } from "@/lib/timeline-batch";
 import { buildSongAudioContextItems } from "@/lib/audio-context-menu";
 import { getAudioPeaks, type AudioPeaks } from "@/lib/audio-peaks";
 import { Shuffle, ListOrdered } from "lucide-react";
@@ -789,6 +790,21 @@ export function TimelineDock({
 
   const isSelected = (i: number) => selectedIdx === i;
 
+  /* ── Clip multi-select (stack1100 X2, hand-ported from the stash WIP):
+        shift+click adds clips to a batch for batch delete/duplicate. The
+        batch stores scene ids (lib/timeline-batch), so splits, reorders,
+        and single-clip ops can never retarget it at the wrong clip. ── */
+  const [multiSelected, setMultiSelected] = useState<ReadonlySet<string>>(new Set());
+
+  const handleClipClick = useCallback((e: React.MouseEvent, i: number) => {
+    e.stopPropagation();
+    const scene = scenes[i];
+    if (!scene) return;
+    const next = clickSelection({ anchorIdx: selectedIdx, multiIds: multiSelected }, i, scene.id, e.shiftKey);
+    setSelectedIdx(next.anchorIdx);
+    setMultiSelected(next.multiIds);
+  }, [scenes, selectedIdx, multiSelected, setSelectedIdx]);
+
   /* ── Right-click context menu for timeline clips ── */
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; sceneIdx: number } | null>(null);
   const [sceneClipboard, setSceneClipboard] = useState<{ scene: SceneData; edit: ClipEdit } | null>(null);
@@ -799,6 +815,9 @@ export function TimelineDock({
     e.preventDefault();
     e.stopPropagation();
     setSelectedIdx(i);
+    /* A right-click starts a fresh single selection — a stale batch must
+       not ride along into the next batch op. */
+    setMultiSelected(new Set());
     setCtxMenu({ x: e.clientX, y: e.clientY, sceneIdx: i });
   }, [setSelectedIdx]);
 
@@ -866,6 +885,60 @@ export function TimelineDock({
     else if (selectedIdx !== null && selectedIdx > idx) setSelectedIdx(selectedIdx - 1);
     toast({ title: "Clip deleted", description: scene.section || `Scene ${idx + 1}` });
   }, [setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, setSelectedIdx, toast, timelineLocked]);
+
+  /* ── Batch delete / duplicate (stack1100 X2): the toolbar buttons and
+        the Delete / Ctrl+D keys act on the whole selection — the anchor
+        plus the shift-clicked batch — through the lib/timeline-batch
+        seam. With no batch they reduce to the single-clip ops above. ── */
+  const batchIdxs = batchIndices(scenes, { anchorIdx: selectedIdx, multiIds: multiSelected });
+
+  const doDeleteBatch = useCallback(() => {
+    if (timelineLocked || !setScenes) return;
+    const idxs = batchIndices(scenes, { anchorIdx: selectedIdx, multiIds: multiSelected });
+    if (idxs.length === 0) return;
+    const out = deleteBatch(scenes, clipEdits, idxs);
+    setScenes(out.scenes);
+    setSettings({ ...settings, clips: out.clips });
+    setSelectedIdx(null);
+    setMultiSelected(new Set());
+    toast({ title: `Deleted ${idxs.length} clip${idxs.length > 1 ? "s" : ""}` });
+  }, [timelineLocked, setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, multiSelected, setSelectedIdx, toast]);
+
+  const doDuplicateBatch = useCallback(() => {
+    if (timelineLocked || !setScenes) return;
+    const idxs = batchIndices(scenes, { anchorIdx: selectedIdx, multiIds: multiSelected });
+    if (idxs.length === 0) return;
+    const out = duplicateBatch(scenes, clipEdits, idxs, genId);
+    setScenes(out.scenes);
+    setSettings({ ...settings, clips: out.clips });
+    setSelectedIdx(out.firstCopyIdx);
+    setMultiSelected(new Set());
+    toast({ title: `Duplicated ${idxs.length} clip${idxs.length > 1 ? "s" : ""}` });
+  }, [timelineLocked, setScenes, scenes, clipEdits, settings, setSettings, selectedIdx, multiSelected, setSelectedIdx, toast]);
+
+  /* ── Keyboard: Delete/Backspace deletes the selection, Ctrl/Cmd+D
+        duplicates it (ignored while typing — same guard as "S"). ── */
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+      const key = e.key.toLowerCase();
+      if ((e.metaKey || e.ctrlKey) && key === "d") {
+        if (selectedIdx == null) return;
+        e.preventDefault();
+        doDuplicateBatch();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedIdx == null) return;
+        e.preventDefault();
+        doDeleteBatch();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [doDeleteBatch, doDuplicateBatch, selectedIdx]);
 
   const copyClip = useCallback((idx: number) => {
     const scene = scenes[idx];
@@ -1296,6 +1369,19 @@ export function TimelineDock({
           <Scissors className="h-3 w-3" /> Split
         </button>
 
+        <button type="button" onClick={doDuplicateBatch} disabled={batchIdxs.length === 0 || !setScenes || timelineLocked}
+          data-testid="timeline-dock-duplicate" title={timelineLocked ? TIMELINE_LOCKED_MESSAGE : "Duplicate selected clip(s) (Ctrl+D)"}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-muted-foreground border border-border hover:text-foreground hover:bg-foreground/5 disabled:opacity-25 disabled:pointer-events-none transition-colors">
+          <Copy className="h-3 w-3" /> Duplicate{batchIdxs.length > 1 ? ` (${batchIdxs.length})` : ""}
+        </button>
+
+        <button type="button" onClick={doDeleteBatch} disabled={batchIdxs.length === 0 || !setScenes || timelineLocked}
+          data-testid="timeline-dock-delete" title={timelineLocked ? TIMELINE_LOCKED_MESSAGE : "Delete selected clip(s) (Delete)"}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors disabled:opacity-25 disabled:pointer-events-none
+            text-red-400/90 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300">
+          <Trash2 className="h-3 w-3" /> Delete{batchIdxs.length > 1 ? ` (${batchIdxs.length})` : ""}
+        </button>
+
         <button type="button" onClick={doFreeze} disabled={!canFreeze}
           data-testid="timeline-dock-freeze" title={t("videoEditor.freezeTitle")}
           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors disabled:opacity-25 disabled:pointer-events-none
@@ -1366,7 +1452,7 @@ export function TimelineDock({
           {timelineLocked
             ? "Timeline locked — playback, selection, and export still work · unlock in the Studio tab to edit"
             : <>{isManual ? "Drag clip anywhere · overlap for auto-transition · " : "Drag clip to reorder · "}
-              drag edges to trim · drag waveform to select export range · S to split</>}
+              drag edges to trim · drag waveform to select export range · S to split · Del to delete · Ctrl+D to duplicate · Shift+click multi-select</>}
         </span>
 
         <div className="flex items-center gap-1">
@@ -1628,6 +1714,7 @@ export function TimelineDock({
                   const widthPct = totalDur > 0 ? (clipDur / totalDur) * 100 : 100 / scenes.length;
                   const color = CLIP_COLORS[i % CLIP_COLORS.length]!;
                   const selected = isSelected(i);
+                  const inBatch = selected || multiSelected.has(scene.id);
                   const active = currentTime >= clipStart && currentTime < clipStart + clipDur;
                   const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);
                   const hasClip = useLipSync || !!scene.demoClipUrl;
@@ -1647,12 +1734,12 @@ export function TimelineDock({
                         onPointerDown={(e) => startMoveDrag(e, scene.id, clipStart)}
                         className="relative h-full rounded flex items-center overflow-hidden select-none mx-px"
                         style={{
-                          background: !hasClip ? "rgba(251,191,36,0.30)" : selected ? `${color}bb` : active ? `${color}99` : `${color}66`,
-                          border: `1px solid ${hasOverlap ? "#f472b6" : !hasClip ? "rgba(251,191,36,0.75)" : selected ? color : active ? color : `${color}66`}`,
-                          boxShadow: selected ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : hasOverlap ? "0 0 0 1px #f472b655" : undefined,
+                          background: !hasClip ? "rgba(251,191,36,0.30)" : inBatch ? `${color}bb` : active ? `${color}99` : `${color}66`,
+                          border: `1px solid ${hasOverlap ? "#f472b6" : !hasClip ? "rgba(251,191,36,0.75)" : inBatch ? color : active ? color : `${color}66`}`,
+                          boxShadow: inBatch ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : hasOverlap ? "0 0 0 1px #f472b655" : undefined,
                           cursor: "grab",
                         }}
-                        onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                        onClick={(e) => handleClipClick(e, i)}
                         onContextMenu={(e) => openClipCtxMenu(e, i)}
                         data-testid={`timeline-dock-clip-${i}`}
                       >
@@ -1713,6 +1800,7 @@ export function TimelineDock({
                       const widthPct = totalDur > 0 ? (clipDur / totalDur) * 100 : 100 / scenes.length;
                       const color = CLIP_COLORS[i % CLIP_COLORS.length]!;
                       const selected = isSelected(i);
+                      const inBatch = selected || multiSelected.has(scene.id);
                       const active = currentTime >= clipStart && currentTime < clipStart + clipDur;
                       const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);
                       const hasClip = useLipSync || !!scene.demoClipUrl;
@@ -1723,13 +1811,13 @@ export function TimelineDock({
                               {...dragHandleProps}
                               className="relative h-full rounded flex items-center overflow-hidden select-none mx-px"
                               style={{
-                                background: !hasClip ? "rgba(251,191,36,0.30)" : selected ? `${color}bb` : active ? `${color}99` : `${color}66`,
-                                border: `1px solid ${!hasClip ? "rgba(251,191,36,0.75)" : selected ? color : active ? color : `${color}66`}`,
-                                boxShadow: selected ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : undefined,
+                                background: !hasClip ? "rgba(251,191,36,0.30)" : inBatch ? `${color}bb` : active ? `${color}99` : `${color}66`,
+                                border: `1px solid ${!hasClip ? "rgba(251,191,36,0.75)" : inBatch ? color : active ? color : `${color}66`}`,
+                                boxShadow: inBatch ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : undefined,
                                 opacity: isDragging ? 0.6 : 1,
                                 cursor: "grab",
                               }}
-                              onClick={(e) => { e.stopPropagation(); setSelectedIdx(selected ? null : i); }}
+                              onClick={(e) => handleClipClick(e, i)}
                               onContextMenu={(e) => openClipCtxMenu(e, i)}
                               data-testid={`timeline-dock-clip-${i}`}
                             >
