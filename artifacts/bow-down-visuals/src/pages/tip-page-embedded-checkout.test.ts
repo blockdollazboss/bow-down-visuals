@@ -48,12 +48,12 @@ describe("public tip page — embedded checkout (TIP-TRUTH)", () => {
     expect(secretBranch).toBeGreaterThan(-1);
     expect(redirectBranch).toBeGreaterThan(-1);
     expect(secretBranch).toBeLessThan(redirectBranch);
-    expect(sendRegion).toContain("setEmbeddedSecret(coJson.clientSecret)");
+    expect(sendRegion).toContain("setEmbeddedSecret(coJson.clientSecret as string)");
   });
 
   it("renders the inline checkout surface with a close control", () => {
     expect(pageRegion).toContain('data-testid="tip-embedded-checkout"');
-    expect(pageRegion).toContain("embeddedSecret={embeddedSecret}");
+    expect(pageRegion).toContain("clientSecret={embeddedSecret}");
     expect(pageRegion).toContain("setEmbeddedSecret(null)");
   });
 
