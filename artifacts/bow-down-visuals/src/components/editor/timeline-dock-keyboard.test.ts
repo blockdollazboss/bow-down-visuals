@@ -6,6 +6,11 @@
  * aria-valued, and keyed into handlers that share lib/dock-drag with the
  * pointer path. The split already had its keyboard path ("S" key) before
  * this lane — pinned here too so it can't silently regress.
+ *
+ * Stack1100 residuals round-up: the 13th slider — the dock-height
+ * resize handle M5 named as its frontier remainder — is wired the same
+ * way (tabIndex + handleResizeKey + the shared dockHeightNext math)
+ * and pinned below.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -21,11 +26,24 @@ describe("TimelineDock keyboard handles — pins", () => {
     }
   });
   it("all twelve editing handle sites are sliders", () => {
-    // 12 = trim ×4 + fade ×2 + crop ×2 + range ×2 + loop ×2. (The dock also
-    // carries a 13th role="slider": the pre-existing dock-height handle —
-    // window chrome, out of this lane's scope, named in the lane report.)
+    // 12 = trim ×4 + fade ×2 + crop ×2 + range ×2 + loop ×2. (The dock's
+    // 13th role="slider" — the dock-height handle — was M5's named
+    // frontier remainder; the stack1100 residuals round-up wired it too,
+    // pinned in the dedicated test below.)
     expect(src.match(/role="slider"/g)?.length).toBeGreaterThanOrEqual(12);
     expect(src.match(/tabIndex=\{0\}/g)?.length).toBeGreaterThanOrEqual(12);
+  });
+  it("the dock-height handle is focusable and keyed into the shared height math", () => {
+    expect(src).toContain('data-testid="timeline-dock-resize-handle"');
+    // The handle itself carries the focus + key wiring (M5's remainder:
+    // it had role/aria but no tabIndex or key path).
+    const handle = src.slice(src.indexOf('data-testid="timeline-dock-resize-handle"') - 400, src.indexOf('data-testid="timeline-dock-resize-handle"') + 800);
+    expect(handle).toContain("tabIndex={0}");
+    expect(handle).toContain("onKeyDown={handleResizeKey}");
+    expect(handle).toContain("pixels tall");
+    // Pointer resize branch + keyboard handler share dockHeightNext.
+    expect(src.match(/dockHeightNext\(/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(src).toContain("const newHeight = dockHeightNext(drag.startHeight, deltaY, TIMELINE_DOCK_MIN_HEIGHT, TIMELINE_DOCK_MAX_HEIGHT)");
   });
   it("every waveform handle family is keyed (testids + handlers)", () => {
     for (const id of ["dock-range-start", "dock-range-end", "dock-loop-start", "dock-loop-end",

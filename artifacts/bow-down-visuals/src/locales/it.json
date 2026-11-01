@@ -5859,6 +5859,8 @@
     "libraryEmpty": "Ancora niente qui — genera qui sopra il tuo primo effetto sonoro.",
     "libraryEmptyDesc": "I tuoi suoni generati vivono qui.",
     "librarySubtitle": "{{count}} suoni · seleziona per esportare un pack",
+    "librarySyncFailed": "Impossibile caricare i tuoi suoni salvati — non è stato possibile raggiungere quelli creati su un altro dispositivo. I tuoi suoni sono al sicuro nel tuo account.",
+    "librarySyncRetry": "Riprova",
     "libraryTitle": "Libreria SFX",
     "packButton": "Pack ({{count}}) · ZIP",
     "promptLabel": "Descrivi il suono",

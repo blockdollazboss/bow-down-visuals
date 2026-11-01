@@ -1770,45 +1770,56 @@ function SfxPanel() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [library, setLibrary] = useState<SfxItem[]>([]);
+  const [librarySyncFailed, setLibrarySyncFailed] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [packing, setPacking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  /* Load the local library, then merge anything the server knows about
-     (e.g. generated on another device). */
+  /* Merge anything the server knows about (e.g. generated on another
+     device) into the local library. The merge failing is NOT "your
+     library is empty": for a signed-in member whose sounds live on
+     the server, a failed merge gets its own failure state + retry
+     instead of the first-run empty claim (Q1's empty-lie pattern,
+     stack1100 residuals round-up). A member WITH local sounds is
+     unaffected — the list on screen is real either way. */
+  const loadServerLibrary = useCallback(async () => {
+    if (!user) return;
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/sfx/library", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("sfx library load failed");
+      const data = (await res.json().catch(() => ({}))) as LibraryResponse;
+      const items = data.items;
+      if (!Array.isArray(items)) throw new Error("sfx library load failed");
+      setLibrary((prev) => {
+        let next = prev;
+        for (const it of items) {
+          if (!next.some((p) => p.id === it.id || p.url === it.url)) {
+            next = saveSfxItem(next, {
+              id: it.id,
+              prompt: it.prompt || t("sfx.soundEffectFallback"),
+              category: "foley",
+              durationSeconds: 0,
+              url: it.url,
+              createdAt: it.createdAt,
+            });
+          }
+        }
+        return next;
+      });
+      setLibrarySyncFailed(false);
+    } catch {
+      setLibrarySyncFailed(true);
+    }
+  }, [user, getAccessToken, t]);
+
+  /* Load the local library, then merge the server's. */
   useEffect(() => {
     setLibrary(loadSfxLibrary());
-    if (!user) return;
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        const res = await fetch("/api/sfx/library", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const data = (await res.json().catch(() => ({}))) as LibraryResponse;
-        if (res.ok && Array.isArray(data.items)) {
-          setLibrary((prev) => {
-            let next = prev;
-            for (const it of data.items!) {
-              if (!next.some((p) => p.id === it.id || p.url === it.url)) {
-                next = saveSfxItem(next, {
-                  id: it.id,
-                  prompt: it.prompt || t("sfx.soundEffectFallback"),
-                  category: "foley",
-                  durationSeconds: 0,
-                  url: it.url,
-                  createdAt: it.createdAt,
-                });
-              }
-            }
-            return next;
-          });
-        }
-      } catch {
-        /* library merge is a nicety — local list still works */
-      }
-    })();
-  }, [user, getAccessToken]);
+    if (user) void loadServerLibrary();
+  }, [user, loadServerLibrary]);
 
   const generate = useCallback(async () => {
     if (loading || !user) return;
@@ -2106,7 +2117,19 @@ function SfxPanel() {
             )}
           </div>
 
-          {library.length === 0 ? (
+          {librarySyncFailed && library.length === 0 ? (
+            <div className="mt-6 rounded-3xl border border-red-500/30 bg-red-500/10 p-10 text-center">
+              <p className="text-sm text-red-300">{t("sfx.librarySyncFailed")}</p>
+              <button
+                type="button"
+                data-testid="btn-retry-sfx-library"
+                onClick={() => void loadServerLibrary()}
+                className="mt-4 rounded-full bg-primary px-5 py-2 text-xs font-black uppercase tracking-widest text-black transition hover:brightness-110"
+              >
+                {t("sfx.librarySyncRetry")}
+              </button>
+            </div>
+          ) : library.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-dashed border-white/15 p-10 text-center text-sm text-white/35">
               {t("sfx.libraryEmpty")}
             </div>

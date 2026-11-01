@@ -5847,6 +5847,8 @@
     "libraryEmpty": "まだ何もありません — 上で最初の効果音を生成してください。",
     "libraryEmptyDesc": "生成したサウンドはここに保存されます。",
     "librarySubtitle": "{{count}}件のサウンド · パックとしてエクスポートするものを選択",
+    "librarySyncFailed": "保存したサウンドを読み込めませんでした — 別のデバイスで作成したサウンドにアクセスできませんでした。サウンドはアカウントに安全に保管されています。",
+    "librarySyncRetry": "もう一度試す",
     "libraryTitle": "SFXライブラリ",
     "packButton": "パック（{{count}}件）· ZIP",
     "promptLabel": "音の説明",
