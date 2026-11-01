@@ -23,7 +23,9 @@ import {
   refundCheckoutSessionPayment,
   checkoutBaseUrl,
   isCheckoutTestMode,
+  type PaymentCheckoutInput,
 } from "../lib/stripe-checkout";
+import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 
 /* Mirror-on-save (2026-10-13 law): live-shop product images are re-hosted
    into permanent storage at save time; the serializer mints a fresh signed
@@ -129,6 +131,12 @@ export const checkoutSchema = z.object({
   product_id: z.string().uuid(),
   stream_id: z.string().uuid().optional(),
   quantity: z.number().int().min(1).max(99).default(1),
+  /* Embedded checkout (owner law 2026-10-26: never leave the site):
+     "embedded" asks createPaymentCheckout for the session's
+     clientSecret so the buy form mounts on the page; absent/"hosted"
+     keeps the hosted-URL shape. Honored only while the
+     EMBEDDED_CHECKOUT kill switch is on. */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
 export const checkoutVerifySchema = z.object({
@@ -643,7 +651,11 @@ router.post(
         (sale) => (sale.stream_id ?? null) === (parsed.data.stream_id ?? null),
       ).length;
       const baseUrl = checkoutBaseUrl(req);
-      const session = await createPaymentCheckout({
+      const embeddedRequested =
+        parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
+      /* Session, metadata, idempotency key and amounts are identical
+         either way — only the presentation differs (mirrors beats). */
+      const checkoutInput: PaymentCheckoutInput = {
         amountCents: totalCents,
         productName: row.name,
         description: "Live shopping purchase",
@@ -673,9 +685,16 @@ router.post(
             completedPurchaseCount,
           },
         },
-      });
+      };
+      const session = embeddedRequested
+        ? await createPaymentCheckout({ ...checkoutInput, uiMode: "embedded" })
+        : await createPaymentCheckout(checkoutInput);
       res.json({
-        url: session.url,
+        /* Embedded sessions have no hosted URL — the clientSecret is
+           what the page mounts (null on the hosted shape). */
+        url: "url" in session ? session.url : null,
+        clientSecret: "clientSecret" in session ? session.clientSecret : null,
+        uiMode: embeddedRequested ? "embedded" : "hosted",
         sessionId: session.sessionId,
         totalCents,
         total: formatPrice(totalCents),

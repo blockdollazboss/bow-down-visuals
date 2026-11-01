@@ -16,6 +16,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
 import { sendEmail, emailShell, emailButton, escapeHtml } from "../../lib/email";
 
@@ -394,11 +395,27 @@ router.post("/shoutouts/requests", publicApiLimiter, async (req, res) => {
   });
 });
 
+/* Embedded checkout (owner law 2026-10-26: never leave the site):
+   "embedded" creates the SAME session in embedded_page ui_mode and
+   answers its clientSecret so the fan pays on the page; absent/
+   "hosted" keeps the hosted-URL shape. Honored only while the
+   EMBEDDED_CHECKOUT kill switch is on. */
+const shoutoutCheckoutSchema = z.object({
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
+});
+
 /* POST /api/shoutouts/requests/:id/checkout — start payment for a
    priced request (public: the request id is the capability, exactly
    like the storefront's session flow). Creates a Checkout session,
-   stores its id on the request, returns the hosted URL. */
+   stores its id on the request, and returns the hosted URL — or,
+   when the fan's page asks for the embedded presentation, the
+   session's clientSecret instead. */
 router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, res) => {
+  const parsed = shoutoutCheckoutSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid checkout." });
+    return;
+  }
   const [request] = await db
     .select()
     .from(shoutoutRequestsTable)
@@ -428,6 +445,13 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
     requestId: request.id,
     priceCents: request.price_cents,
   });
+  const embeddedRequested =
+    parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
+  const successUrl = `${base}/shoutouts?request=${request.id}&session_id={CHECKOUT_SESSION_ID}`;
+  /* Session, metadata, idempotency key and amount are identical
+     either way — only the presentation differs. An embedded session
+     takes a return_url (the same verify-on-return landing) instead
+     of success/cancel URLs. */
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -441,13 +465,30 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
       },
     ],
     metadata: { type: "shoutout_request", requestId: request.id },
-    success_url: `${base}/shoutouts?request=${request.id}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${base}/shoutouts`,
+    ...(embeddedRequested
+      ? { ui_mode: "embedded_page" as const, return_url: successUrl }
+      : { success_url: successUrl, cancel_url: `${base}/shoutouts` }),
   }, { idempotencyKey });
+  if (embeddedRequested && !session.client_secret) {
+    /* An embedded session without a client secret cannot be mounted
+       anywhere — fail like a failed creation (mirrors the house
+       helper) instead of stranding the fan. */
+    res.status(500).json({ error: "Could not start checkout. Try again in a moment." });
+    return;
+  }
   await db
     .update(shoutoutRequestsTable)
     .set({ stripe_session_id: session.id, updated_at: new Date() })
     .where(eq(shoutoutRequestsTable.id, request.id));
+  if (embeddedRequested) {
+    res.json({
+      checkoutUrl: null,
+      clientSecret: session.client_secret,
+      uiMode: "embedded",
+      sessionId: session.id,
+    });
+    return;
+  }
   res.json({ checkoutUrl: session.url });
 });
 
