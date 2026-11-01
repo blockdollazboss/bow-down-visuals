@@ -22,7 +22,13 @@ interface GroupDetail {
   id: string; slug: string; name: string; description: string;
   cover_url: string | null; member_count: number; is_public: boolean;
 }
-interface Member { user_id: string; role: string; joined_at: string; profile: ProfileCard | null }
+interface Member {
+  user_id: string; role: string; joined_at: string; profile: ProfileCard | null;
+  /* Server-computed per-member caps (the ladder, applied by the API):
+     can_remove drives the Remove button; assignable_roles drives the
+     role buttons in GroupOnboarding. The page never re-derives them. */
+  can_remove: boolean; assignable_roles: string[];
+}
 interface Post {
   id: string; body: string; like_count: number; created_at: string;
   author_user_id: string; author: ProfileCard | null; can_delete: boolean;
@@ -777,7 +783,7 @@ export default function GroupDetail() {
                       </p>
                     </div>
                   </div>
-                  {isOwner && m.role !== "owner" && (
+                  {m.can_remove && (
                     <button type="button" onClick={() => removeMember(m.user_id)} data-min-stars="4"
                       className="text-xs text-white/40 hover:text-red-400" title="Remove member">
                       Remove

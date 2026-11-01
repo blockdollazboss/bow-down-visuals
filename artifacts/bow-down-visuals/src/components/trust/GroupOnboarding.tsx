@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
    reviewed with the answers in view, and the role ladder
    (owner > admin > moderator > member) enforced by the API — this
    panel only shows the controls your rung actually has. */
-export function GroupOnboarding({ slug, members }: { slug: string; members: Array<{ user_id: string; role: string }> }) {
+export function GroupOnboarding({ slug, members }: { slug: string; members: Array<{ user_id: string; role: string; assignable_roles?: string[] }> }) {
   const { getAccessToken, user } = useAuth();
   const [myRole, setMyRole] = useState<string | null>(null);
   const [can, setCan] = useState<any>(null);
@@ -104,7 +104,13 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
           {members.filter((m) => m.user_id !== user?.id).map((m) => (
             <div key={m.user_id} className="mt-1.5 flex items-center gap-2 text-sm text-white/80">
               <span className="flex-1">{m.user_id.slice(0, 8)}… — {m.role === "mod" ? "moderator" : m.role}</span>
-              {(["admin", "moderator", "member"] as const).filter((r) => r !== m.role && !(m.role === "mod" && r === "moderator")).map((r) => (
+              {/* Only the role changes the API's ladder will actually
+                  honour for THIS viewer on THIS member ride along in
+                  assignable_roles (computed server-side) — the panel
+                  never offers a change that can only 403 (the owner's
+                  row and peers-or-above carry none). The current role
+                  itself is filtered out as a no-op. */}
+              {(m.assignable_roles ?? []).filter((r) => r !== (m.role === "mod" ? "moderator" : m.role)).map((r) => (
                 <button key={r} type="button" className={ghost} onClick={async () => {
                   try { await call("PATCH", `/api/groups/${slug}/members/${m.user_id}/role`, { role: r }); setMsg(`Role set to ${r}. Reload the page to see it everywhere.`); }
                   catch (e) { setMsg(plainErrorText(e, "Your rung can't make that change.")); }
