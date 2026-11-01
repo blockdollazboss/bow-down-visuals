@@ -197,7 +197,7 @@ export async function recordSubscriptionReceipt(values: {
   stripeCustomerId?: string | null;
   stripeObjectId?: string | null;
   idempotencyKey: string;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     const landed = await db
       .insert(creatorSubscriptionReceiptsTable)
@@ -217,12 +217,16 @@ export async function recordSubscriptionReceipt(values: {
       .returning();
     /* Push wiring #5: only a receipt that LANDS fires the buyer's
        confirmation — a replayed webhook's duplicate insert lands
-       nothing and pings nothing. */
+       nothing and pings nothing. The return value carries the same
+       landing fact to callers with their own one-shot side effects
+       (the checkout welcome email gates on it). */
     if (landed[0]) {
       await maybeNotifyPlanLanded(values);
     }
+    return landed[0] != null;
   } catch (err) {
     logger.warn({ err, kind: values.kind }, "subscription receipt write failed (non-fatal)");
+    return false;
   }
 }
 
@@ -258,7 +262,7 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
     stripeCustomerId: customerId,
     currentPeriodEnd,
   });
-  await recordSubscriptionReceipt({
+  const receiptLanded = await recordSubscriptionReceipt({
     profileId,
     kind: "subscribed",
     tier,
@@ -272,8 +276,14 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
   });
   logger.info({ sessionId: session.id, profileId, tier }, "creator tier activated via webhook");
 
-  /* ── Subscription confirmation email — best-effort, fail-open. The tier is
-     already active; an email failure must never roll that back. ────────── */
+  /* ── Subscription confirmation email — best-effort, fail-open, and
+     exactly-once: it fires only when the receipt above LANDS. Stripe
+     redelivers checkout.session.completed (retries, dashboard resends),
+     and a replay's receipt insert lands nothing — so a replayed webhook
+     sends no second welcome, the same landing gate the buyer's bell
+     confirmation already rides (recordSubscriptionReceipt). The tier is
+     already active either way; an email failure never rolls that back. */
+  if (!receiptLanded) return;
   try {
     const buyerEmail =
       session.customer_details?.email ??

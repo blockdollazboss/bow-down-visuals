@@ -24,19 +24,28 @@ vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   return { ...actual, get db() { return testState.db; } };
 });
-vi.mock("../email", () => ({
-  sendEmail: vi.fn(async () => {}),
-  emailShell: (t: string, b: string) => `${t}${b}`,
-  emailButton: () => "",
-  escapeHtml: (s: string) => s,
-  baseUrlForEmail: () => "http://localhost",
-}));
+vi.mock("../email", async (importOriginal) => {
+  /* Spread the real module (Q2's repair pattern): the closed-object
+     fake hid EMAIL_COLORS, so the checkout welcome email's template
+     build threw inside its fail-open catch and no test could ever
+     observe a send. Only the send rail itself is stubbed. */
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    sendEmail: vi.fn(async () => {}),
+    emailShell: (t: string, b: string) => `${t}${b}`,
+    emailButton: () => "",
+    escapeHtml: (s: string) => s,
+    baseUrlForEmail: () => "http://localhost",
+  };
+});
 
 import {
   handleTierCheckoutCompleted,
   handleTierSubscriptionEvent,
   handleTierInvoicePaid,
 } from "../creator-tier-sync";
+import { sendEmail } from "../email";
 import { createTestDb } from "./test-db";
 import { sql } from "drizzle-orm";
 
@@ -134,6 +143,30 @@ describe("subscription receipt rows", () => {
     const rows = await receipts();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ kind: "subscribed", tier: "pro", amount_cents: 1200 });
+  });
+
+  it("checkout welcome email fires exactly once across a webhook replay", async () => {
+    /* Email-trigger truth (stack1100 Y6): the welcome email rides the
+       receipt's landing gate — a redelivered checkout.session.completed
+       lands no second receipt, so it sends no second welcome. */
+    vi.mocked(sendEmail).mockClear();
+    const session: any = {
+      id: "cs_welcome_1",
+      metadata: { kind: "creator_tier", tier: "pro", user_id: userId, profile_id: profileId },
+      subscription: null,
+      customer: "cus_1",
+      amount_total: 1200,
+      currency: "usd",
+      customer_details: { email: "a@b.c" },
+    };
+    await handleTierCheckoutCompleted(session);
+    await handleTierCheckoutCompleted(session); // webhook replay
+    await handleTierCheckoutCompleted(session); // and again
+    expect(vi.mocked(sendEmail).mock.calls).toHaveLength(1);
+    expect(vi.mocked(sendEmail).mock.calls[0]![0]).toMatchObject({
+      to: "a@b.c",
+      subject: "Welcome to Pro — your subscription is active",
+    });
   });
 
   it("tier change via subscription.updated writes exactly one 'tier_changed' receipt, replay-safe", async () => {
