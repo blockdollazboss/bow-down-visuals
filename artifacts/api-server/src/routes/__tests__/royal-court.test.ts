@@ -426,6 +426,13 @@ describe("GET /api/creator-profiles/me/court-candidates (picker)", () => {
     expect(ids).not.toContain(PRIVATE_MEMBER);
   });
 
+  it("a multi-word query needs every word — 'member one' is not 'member' (search truth, Y5)", async () => {
+    const { status, json } = await call("GET", "/creator-profiles/me/court-candidates?q=member%20one", { user: OWNER_USER });
+    expect(status).toBe(200);
+    const ids = json.candidates.map((c: any) => c.profileId);
+    expect(ids).toEqual([M1]);
+  });
+
   it("requires auth", async () => {
     expect((await call("GET", "/creator-profiles/me/court-candidates")).status).toBe(401);
   });

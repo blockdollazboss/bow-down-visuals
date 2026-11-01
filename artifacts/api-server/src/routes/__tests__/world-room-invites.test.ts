@@ -556,6 +556,16 @@ describe("GET /world/room-invites/candidates", () => {
     expect(res.status).toBe(200);
     expect(res.json.members.map((m: any) => m.userId)).toEqual([USER_MEMBER2]);
   });
+
+  it("a multi-word search needs every word on the same member (search truth, Y5)", async () => {
+    const both = await call("GET", "/world/room-invites/candidates?q=kai%20beats", { user: USER_HOST });
+    expect(both.status).toBe(200);
+    expect(both.json.members.map((m: any) => m.userId)).toEqual([USER_MEMBER]);
+    // Words split across two different members match nobody.
+    const split = await call("GET", "/world/room-invites/candidates?q=kai%20quiet", { user: USER_HOST });
+    expect(split.status).toBe(200);
+    expect(split.json.members).toEqual([]);
+  });
 });
 
 /* ── Accept / decline ────────────────────────────────────────────── */

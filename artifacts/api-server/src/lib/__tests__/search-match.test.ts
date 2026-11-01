@@ -119,7 +119,7 @@ describe("searchTextCondition (SQL shape)", () => {
     expect(text).toContain(" AND ");
     expect(text).toContain(" OR ");
     expect(text).toContain("translate(lower(");
-    expect(text).toContain("ILIKE");
+    expect(text).toContain("ilike");
   });
 
   it("escapes wildcards inside token patterns", () => {

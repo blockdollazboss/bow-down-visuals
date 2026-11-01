@@ -125,7 +125,9 @@ export function searchTextCondition(fields: SQL[], query: string): SQL | undefin
   if (effective.length === 0) return undefined;
   const perToken = effective.map((tok) => {
     const pattern = likeTokenPattern(tok);
-    const ors = fields.map((f) => sql`${foldedField(f)} ILIKE ${pattern}`);
+    /* Lowercase `ilike`, matching drizzle's own rendering of the
+       operator — several house test doubles dispatch on it. */
+    const ors = fields.map((f) => sql`${foldedField(f)} ilike ${pattern}`);
     return sql`(${sql.join(ors, sql` OR `)})`;
   });
   return sql`(${sql.join(perToken, sql` AND `)})`;
