@@ -496,6 +496,19 @@ router.post("/royalties/payouts", requireAuth, publicApiLimiter, async (req, res
   }
   try {
     if (d.id) {
+      /* Read the prior row first: the notice below fires on the
+         TRANSITION into "received", not on any save that happens to
+         carry the status — editing the notes on an already-received
+         payout is not a payout arriving. */
+      const [prior] = await db
+        .select({ status: royaltyPayoutsTable.status })
+        .from(royaltyPayoutsTable)
+        .where(and(eq(royaltyPayoutsTable.id, d.id), eq(royaltyPayoutsTable.user_id, req.userId!)))
+        .limit(1);
+      if (!prior) {
+        res.status(404).json({ error: "Payout not found." });
+        return;
+      }
       const updated = await db
         .update(royaltyPayoutsTable)
         .set({
@@ -515,8 +528,9 @@ router.post("/royalties/payouts", requireAuth, publicApiLimiter, async (req, res
         res.status(404).json({ error: "Payout not found." });
         return;
       }
-      /* ── Payout-received notice — best-effort, fail-open. ─────────────── */
-      if (d.status === "received") {
+      /* ── Payout-received notice — best-effort, fail-open; only when
+         this save is the one that lands the payout in "received". ──── */
+      if (d.status === "received" && prior.status !== "received") {
         void sendPayoutNotice(req.userEmail, {
           distributor: d.distributor,
           amount: d.received_amount ?? d.expected_amount,
