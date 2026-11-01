@@ -129,6 +129,12 @@ export interface OrderLineDTO {
 
 export interface StoreOrderDTO {
   id: string;
+  /** Which sales ledger this row came from: the profile store
+      ("storefront") or a customer shop ("shop"). Both ride the one
+      Orders list so the seller sees one truth (Gate #5 P2-1). */
+  source?: "storefront" | "shop";
+  /** Customer-shop rows: the shop the sale came through. */
+  shopName?: string | null;
   productId: string | null;
   productTitle: string;
   productKind: string;
@@ -170,6 +176,11 @@ export interface MoneyChecklist {
     grossCents: number; feeCents: number; netCents: number;
     gross: string; fee: string; net: string;
     platformFeePct: number;
+    /** The unified pending-payout figure (every payable rail, settled
+        cash-outs subtracted) — the same number the Get Paid card
+        shows. Optional: older responses fall back to net. */
+    pendingPayoutCents?: number;
+    pendingPayout?: string;
     pendingPayoutNote: string;
   };
   checklist: ChecklistItem[];
