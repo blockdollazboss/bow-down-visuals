@@ -31,6 +31,16 @@ export const exportJobsTable = pgTable("export_jobs", {
   error: jsonb("error"),
   /** Idempotency flag: credits are deducted only on the false→true transition. */
   credits_charged: boolean("credits_charged").notNull().default(false),
+  /**
+   * Temporary-first spend order (migration 0306): how much of the
+   * standing reserve/charge came out of the temporary (bonus) pool,
+   * and that pool's expiry at deduction time. Recorded with the
+   * deduction so a release — possibly after a server restart —
+   * restores the same pools. NULL = no split recorded (legacy jobs,
+   * or no charge stands).
+   */
+  credits_from_bonus: integer("credits_from_bonus"),
+  credits_bonus_expires_at: timestamp("credits_bonus_expires_at", { withTimezone: true }),
   /** How many times a worker has claimed this job. Poison jobs stop at 3. */
   attempts: integer("attempts").notNull().default(0),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

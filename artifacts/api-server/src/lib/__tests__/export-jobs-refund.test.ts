@@ -67,11 +67,25 @@ vi.mock("../logger", () => ({
   logger: { info: () => {}, warn: () => {}, error: () => {} },
 }));
 
-vi.mock("../credits", () => ({
-  canUseCredits: async () => true,
-  OutOfCreditsError: class OutOfCreditsError extends Error {},
-  CreditsDisabledError: class CreditsDisabledError extends Error {},
-}));
+vi.mock("../credits", () => {
+  class OutOfCreditsError extends Error {}
+  return {
+    canUseCredits: async () => true,
+    OutOfCreditsError,
+    CreditsDisabledError: class CreditsDisabledError extends Error {},
+    /* The rail now debits through the house deduction (temporary-first
+       order, stack1100 Z1). This fake profile is permanent-only, so the
+       split is all-regular — the flag bookkeeping under test is unchanged. */
+    deductCreditsDetailed: async (_userId: string, cost: number) => {
+      if (h.profileCredits < cost) throw new OutOfCreditsError();
+      h.profileCredits -= cost;
+      return {
+        balance: h.profileCredits,
+        split: { fromBonus: 0, fromRegular: cost, bonusExpiresAt: null },
+      };
+    },
+  };
+});
 
 vi.mock("../supabase-admin", () => ({
   getSupabaseAdmin: () => ({

@@ -246,10 +246,39 @@ export class LedgerWriteError extends Error {
  * is negligible; callers needing strict exactly-once semantics should
  * gate on their own idempotency flag first (see chargeCreditsForJob).
  *
- * Returns the new balance. Throws OutOfCreditsError on missing profile
- * or insufficient balance.
+ * deductCredits returns the new balance; deductCreditsDetailed also
+ * reports the pool split. Both throw OutOfCreditsError on missing
+ * profile or insufficient balance.
  */
-export async function deductCredits(userId: string, cost: number): Promise<number> {
+/**
+ * The pool split of one debit (temporary-first spend order, stack1100
+ * Z1): how much came out of the temporary (bonus) pool and how much out
+ * of permanent credits, plus the temporary pool's expiry at the moment
+ * of the debit. Recorded on the charge's ledger row (migration 0306)
+ * and on the export job row, so a refund restores the SAME pools —
+ * see restoreCreditsSplit for the expiry rule.
+ */
+export interface CreditPoolSplit {
+  fromBonus: number;
+  fromRegular: number;
+  /** ISO expiry of the temporary pool at debit time; null = no expiry. */
+  bonusExpiresAt: string | null;
+}
+
+export interface DeductCreditsResult {
+  /** Spendable balance after the deduction (credits + remaining live bonus). */
+  balance: number;
+  split: CreditPoolSplit;
+}
+
+/**
+ * deductCredits with the pool split surfaced. The deduction itself is
+ * exactly deductCredits' (fresh read, bonus pool first, expired bonus
+ * treated as zero and cleared); this variant also reports which pools
+ * the money physically left, for ledger recording and split-exact
+ * refunds/rollbacks.
+ */
+export async function deductCreditsDetailed(userId: string, cost: number): Promise<DeductCreditsResult> {
   if (!Number.isFinite(cost) || cost <= 0) {
     throw new Error(`deductCredits: invalid cost ${cost}`);
   }
@@ -298,7 +327,98 @@ export async function deductCredits(userId: string, cost: number): Promise<numbe
      same number every display shows. Returning only the credits column
      made rails report a "creditsRemaining" that ignored the bonus pool
      the charge had just spent from. */
-  return creditsAfter + bonusAfter;
+  return {
+    balance: creditsAfter + bonusAfter,
+    split: {
+      fromBonus,
+      fromRegular,
+      bonusExpiresAt: bonusExpired ? null : (typed?.bonus_credits_expires_at ?? null),
+    },
+  };
+}
+
+export async function deductCredits(userId: string, cost: number): Promise<number> {
+  return (await deductCreditsDetailed(userId, cost)).balance;
+}
+
+/**
+ * Restore a refunded/rolled-back debit to the pools it came from.
+ *
+ * THE EXPIRY RULE: the temporary portion goes back into the bonus pool
+ * only while that money can still live there — the pool expiry recorded
+ * at debit time is still in the future (or the pool had no expiry). The
+ * restored pool keeps the LATER of its current live expiry and the
+ * recorded one, so a restore never shortens a live pool. If the
+ * recorded expiry has already passed, the temporary portion is restored
+ * to PERMANENT credits instead: a refund's value never evaporates with
+ * an expired pool. The permanent portion always returns to permanent
+ * credits. A stale expired remainder still sitting in the pool columns
+ * is treated as zero first (the same normalization deductCredits
+ * applies), so a restore never resurrects expired money.
+ *
+ * Returns how much actually landed back in the bonus pool (0 when the
+ * temporary portion diverted to permanent), so the refund's ledger row
+ * records the truth.
+ */
+export async function restoreCreditsSplit(
+  userId: string,
+  split: CreditPoolSplit,
+): Promise<{ restoredToBonus: number }> {
+  const fromBonus = Math.max(0, Math.floor(split.fromBonus || 0));
+  const fromRegular = Math.max(0, Math.floor(split.fromRegular || 0));
+  if (fromBonus <= 0) {
+    if (fromRegular > 0) await addCreditsToProfile(userId, fromRegular);
+    return { restoredToBonus: 0 };
+  }
+  const now = Date.now();
+  const recordedExpiryMs = split.bonusExpiresAt ? new Date(split.bonusExpiresAt).getTime() : null;
+  if (recordedExpiryMs !== null && Number.isFinite(recordedExpiryMs) && recordedExpiryMs <= now) {
+    // The pool this money came from has expired — the refund becomes
+    // permanent rather than vanishing into a dead pool.
+    await addCreditsToProfile(userId, fromBonus + fromRegular);
+    return { restoredToBonus: 0 };
+  }
+  const admin = getSupabaseAdmin();
+  const { data: profile, error: readErr } = await admin
+    .from("profiles")
+    .select("credits, bonus_credits, bonus_credits_expires_at")
+    .eq("id", userId)
+    .single();
+  if (readErr) {
+    logger.error({ userId, err: readErr.message }, "[credits] failed to read profile for split restore");
+    throw readErr;
+  }
+  const typed = profile as { credits?: number; bonus_credits?: number; bonus_credits_expires_at?: string | null } | null;
+  const currentCredits = typed?.credits ?? 0;
+  let currentBonus = typed?.bonus_credits ?? 0;
+  const currentExpiry = typed?.bonus_credits_expires_at ?? null;
+  const currentExpiryMs = currentExpiry ? new Date(currentExpiry).getTime() : null;
+  const currentPoolLive =
+    currentBonus > 0 && (currentExpiryMs === null || (Number.isFinite(currentExpiryMs) && (currentExpiryMs as number) > now));
+  if (!currentPoolLive) currentBonus = 0;
+  // Later expiry wins; a null expiry (never expires) outranks any date.
+  let restoredExpiry: string | null;
+  if (currentBonus <= 0) {
+    restoredExpiry = split.bonusExpiresAt ?? null;
+  } else if (currentExpiry === null || split.bonusExpiresAt == null) {
+    restoredExpiry = null;
+  } else {
+    restoredExpiry =
+      (currentExpiryMs as number) >= (recordedExpiryMs as number) ? currentExpiry : split.bonusExpiresAt;
+  }
+  const { error: updateErr } = await admin
+    .from("profiles")
+    .update({
+      credits: currentCredits + fromRegular,
+      bonus_credits: currentBonus + fromBonus,
+      bonus_credits_expires_at: restoredExpiry,
+    })
+    .eq("id", userId);
+  if (updateErr) {
+    logger.error({ userId, err: updateErr.message }, "[credits] split restore write failed");
+    throw updateErr;
+  }
+  return { restoredToBonus: fromBonus };
 }
 
 export interface ChargeLedgerRecord {
@@ -500,6 +620,10 @@ export async function chargeCredits(
   // personal balance — unless the team's policy allows falling back.
   let teamId: string | null = null;
   let creditsAfter: number;
+  /* The personal deduction's pool split (temporary-first order): null
+     when the charge drew from a team pool (no bonus pool exists there),
+     recorded on the ledger row and used for a split-exact rollback. */
+  let chargeSplit: CreditPoolSplit | null = null;
   const useTeamPool = !opts?.personalOnly;
   const activeTeam = useTeamPool ? await getUserActiveTeam(userId) : null;
   if (activeTeam) {
@@ -516,19 +640,25 @@ export async function chargeCredits(
         if (!allowFallback) throw e;
         logger.warn({ userId, cost, teamId: tid, err: e instanceof Error ? e.message : String(e) }, "[credits] team pool race lost, falling back to personal balance per team policy");
         teamId = null;
-        creditsAfter = await deductCredits(userId, cost);
+        const personal = await deductCreditsDetailed(userId, cost);
+        creditsAfter = personal.balance;
+        chargeSplit = personal.split;
       }
     } else if (allowFallback) {
       // Pool insufficient and team allows it: explicit (logged) personal fallback.
       logger.info({ userId, cost, teamId: tid, poolBalance }, "[credits] team pool insufficient, using personal balance per team policy");
-      creditsAfter = await deductCredits(userId, cost);
+      const personal = await deductCreditsDetailed(userId, cost);
+      creditsAfter = personal.balance;
+      chargeSplit = personal.split;
     } else {
       // Pool insufficient and team forbids personal fallback: fail loudly.
       logger.warn({ userId, cost, teamId: tid, poolBalance }, "[credits] team pool insufficient and personal fallback disabled — rejecting charge");
       throw new OutOfCreditsError();
     }
   } else {
-    creditsAfter = await deductCredits(userId, cost);
+    const personal = await deductCreditsDetailed(userId, cost);
+    creditsAfter = personal.balance;
+    chargeSplit = personal.split;
   }
   const rollback = opts?.rollbackOnLedgerFailure ?? true;
   try {
@@ -539,6 +669,13 @@ export async function chargeCredits(
       projectId: record.projectId ?? null,
       teamId,
       idempotencyKey,
+      /* The split rides the ledger row only when temporary money
+         actually moved — a bonus-less charge's record stays byte-for-
+         byte the historical shape (and its refund needs no pairing:
+         it restores to permanent, which is where the money was). */
+      ...(chargeSplit && chargeSplit.fromBonus > 0
+        ? { bonusCreditsUsed: chargeSplit.fromBonus, bonusExpiresAt: chargeSplit.bonusExpiresAt }
+        : {}),
     });
   } catch (err) {
     if (rollback) {
@@ -551,6 +688,9 @@ export async function chargeCredits(
           await db.update(teamsTable)
             .set({ credits: sql`${teamsTable.credits} + ${cost}`, updatedAt: new Date() })
             .where(eq(teamsTable.id, teamId));
+        } else if (chargeSplit && chargeSplit.fromBonus > 0) {
+          // Restore the exact pools the deduction drew from.
+          await restoreCreditsSplit(userId, chargeSplit);
         } else {
           await addCreditsToProfile(userId, cost);
         }
@@ -613,6 +753,82 @@ export async function voidChargeIdempotencyKey(
 }
 
 /**
+ * Recover a charge's recorded pool split for a refund (temporary-first
+ * spend order, migration 0306).
+ *
+ * Refund actions follow the house convention "<Charge action> —
+ * Refund…" (see refundCredits' doc), so the charge's base action is
+ * the refund action up to the first " — ". Within the (user, base
+ * action, amount) bucket, refunds pair with charges NEWEST-FIRST: the
+ * k prior refund rows in the bucket have consumed the k newest charge
+ * splits, so the next refund takes the next one. Only charge rows that
+ * recorded a split (bonus_credits_used NOT NULL, written since 0306)
+ * pair; anything else — no separator, no recorded split, bucket
+ * exhausted, or ANY read failure — returns null and the refund falls
+ * back to the historical all-permanent restore (the member's total is
+ * always exact; only the pool composition is approximate there).
+ * Fail-open by design, like findExistingCharge: a lagging DB without
+ * the 0306 columns must never block a refund.
+ */
+async function findRefundChargeSplit(
+  userId: string,
+  refundAction: string,
+  amount: number,
+): Promise<CreditPoolSplit | null> {
+  const sep = refundAction.indexOf(" — ");
+  if (sep <= 0) return null;
+  const baseAction = refundAction.slice(0, sep);
+  try {
+    const charges = await db.execute(sql`
+      SELECT bonus_credits_used, bonus_expires_at FROM credit_usage
+      WHERE user_id = ${userId} AND action = ${baseAction}
+        AND credits_used = ${amount} AND bonus_credits_used IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 64
+    `);
+    if (!charges.rows.length) return null;
+    const refunds = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM credit_usage
+      WHERE user_id = ${userId} AND credits_used = ${-amount}
+        AND starts_with(action, ${`${baseAction} — `})
+    `);
+    const consumed = Number((refunds.rows[0] as { n?: number } | undefined)?.n ?? 0);
+    const row = charges.rows[consumed] as
+      | { bonus_credits_used?: number; bonus_expires_at?: unknown }
+      | undefined;
+    if (!row) return null;
+    const fromBonus = Math.max(0, Math.min(Number(row.bonus_credits_used ?? 0), amount));
+    if (fromBonus <= 0) return null;
+    const rawExpiry = row.bonus_expires_at;
+    return {
+      fromBonus,
+      fromRegular: amount - fromBonus,
+      bonusExpiresAt:
+        rawExpiry == null
+          ? null
+          : rawExpiry instanceof Date
+            ? rawExpiry.toISOString()
+            : String(rawExpiry),
+    };
+  } catch (err) {
+    logger.warn(
+      { userId, refundAction, amount, err },
+      "[credits] refund split lookup failed — refunding to permanent credits (fail-open)",
+    );
+    return null;
+  }
+}
+
+export interface RefundCreditsOpts {
+  /**
+   * The pool split of the charge being refunded, when the caller holds
+   * it durably (the export rail records it on the job row). Wins over
+   * the ledger pairing lookup. Null/omitted = look the split up.
+   */
+  split?: CreditPoolSplit | null;
+}
+
+/**
  * Refund `amount` credits with a ledger trace.
  *
  * Writes the refund as a negative-amount credit_usage entry (the existing
@@ -620,22 +836,51 @@ export async function voidChargeIdempotencyKey(
  * credit history reconciles. The balance is restored first; if the ledger
  * write then fails it is logged loudly (the money is already back — this
  * is a reporting gap, not a loss).
+ *
+ * Temporary-first (stack1100 Z1): the refund restores the pools the
+ * original charge drew from — the temporary portion returns to the
+ * bonus pool under restoreCreditsSplit's expiry rule (an expired pool
+ * diverts it to permanent, so the value never evaporates). The split
+ * comes from opts.split when the caller holds it, else from the charge's
+ * ledger row (findRefundChargeSplit); when neither knows a split, the
+ * refund restores to permanent credits exactly as it always has. The
+ * refund's own ledger row records how much actually landed back in the
+ * bonus pool (negative), so the history tells the truth either way.
  */
 export async function refundCredits(
   userId: string,
   amount: number,
   record: ChargeLedgerRecord,
+  opts?: RefundCreditsOpts,
 ): Promise<void> {
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error(`refundCredits: invalid amount ${amount}`);
   }
-  await addCreditsToProfile(userId, amount);
+  const split =
+    opts?.split !== undefined
+      ? opts.split
+      : await findRefundChargeSplit(userId, record.action, amount);
+  let restoredToBonus = 0;
+  if (split && split.fromBonus > 0) {
+    const fromBonus = Math.min(split.fromBonus, amount);
+    const applied = await restoreCreditsSplit(userId, {
+      fromBonus,
+      fromRegular: amount - fromBonus,
+      bonusExpiresAt: split.bonusExpiresAt,
+    });
+    restoredToBonus = applied.restoredToBonus;
+  } else {
+    await addCreditsToProfile(userId, amount);
+  }
   try {
     await recordCreditUsageStrict({
       userId,
       action: record.action,
       creditsUsed: -amount,
       projectId: record.projectId ?? null,
+      /* Recorded only when temporary money actually returned to the
+         pool — otherwise the row keeps its historical shape. */
+      ...(restoredToBonus > 0 ? { bonusCreditsUsed: -restoredToBonus } : {}),
     });
   } catch (err) {
     logger.error(

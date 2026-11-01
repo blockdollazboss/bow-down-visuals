@@ -9,11 +9,11 @@ import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, refreshSupabaseStorageUrl, VIDEO_EXPORTS_BUCKET } from "../../lib/objectStorage";
-import { recordCreditUsageStrict } from "../../lib/payment-record";
+import { recordCreditUsageStrict, type CreditUsageRecord } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport, rehydratePreparedExports } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { OutOfCreditsError, refundCredits } from "../../lib/credits";
+import { OutOfCreditsError, refundCredits, type CreditPoolSplit } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
 import { buildAdjustmentGraph, type AdjustmentExportItem } from "./lane-export";
 import { buildDuckingMixFilter, duckingParamsFromSimple } from "./ducking-filter";
@@ -3594,6 +3594,36 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
       return;
     }
 
+    /* Temporary-first (stack1100 Z1): the settle ledger rows carry the
+       charge's recorded pool split (migration 0306), and the completion-
+       save refund below restores it. The split lives on the job row —
+       recorded by the reserve at job start, or by the fallback charge
+       as it deducts — so it is read back here, fresh for both paths and
+       for recovery re-runs whose in-process state is gone. The read is
+       fully guarded: a missing split only degrades the ledger row to
+       its historical shape, never the money. */
+    const readJobSplit = async (): Promise<CreditPoolSplit | null> => {
+      try {
+        const job = await getExportJob(jobId);
+        if (!job || job.creditsFromBonus == null) return null;
+        return {
+          fromBonus: job.creditsFromBonus,
+          fromRegular: 0,
+          bonusExpiresAt: job.creditsBonusExpiresAt,
+        };
+      } catch {
+        return null;
+      }
+    };
+    const settleSplitFields = async (): Promise<
+      Pick<CreditUsageRecord, "bonusCreditsUsed" | "bonusExpiresAt">
+    > => {
+      const split = await readJobSplit();
+      return split && split.fromBonus > 0
+        ? { bonusCreditsUsed: split.fromBonus, bonusExpiresAt: split.bonusExpiresAt }
+        : {};
+    };
+
     /* ── Settle on success — the render's ACTUAL output decides (A-01) ──
      *  - Branded output → FREE for everyone: release any reservation in
      *    full, record no charge. No path charges the clean price for
@@ -3622,7 +3652,7 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
         // (the reservation) stands, so on failure the gap is logged
         // CRITICAL for manual reconciliation — never silently swallowed.
         try {
-          await recordCreditUsageStrict({ userId: ctx.userId, action: railAction, creditsUsed: railCost, projectId: ctx.body.projectId ?? null });
+          await recordCreditUsageStrict({ userId: ctx.userId, action: railAction, creditsUsed: railCost, projectId: ctx.body.projectId ?? null, ...(await settleSplitFields()) });
         } catch (ledgerErr) {
           ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed for settled reservation — export delivered, charge has no ledger trace");
         }
@@ -3637,7 +3667,7 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
             // deduction stands and the gap is logged CRITICAL for manual
             // reconciliation — never silently swallowed.
             try {
-              await recordCreditUsageStrict({ userId: ctx.userId, action: railAction, creditsUsed: railCost, projectId: ctx.body.projectId ?? null });
+              await recordCreditUsageStrict({ userId: ctx.userId, action: railAction, creditsUsed: railCost, projectId: ctx.body.projectId ?? null, ...(await settleSplitFields()) });
             } catch (ledgerErr) {
               ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed after deduction — export delivered, charge has no ledger trace");
             }
@@ -3667,10 +3697,11 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
            clear the charge flag so a recovery re-run can charge again
            exactly once. */
         try {
+          const saveSplit = await readJobSplit();
           await refundCredits(ctx.userId, exportChargedCost, {
             action: `${exportChargedAction} — Refund (save failed)`,
             projectId: ctx.body.projectId ?? null,
-          });
+          }, saveSplit ? { split: saveSplit } : undefined);
           await clearJobChargeFlag(jobId);
         } catch (refundErr) {
           ctx.log.error({ err: refundErr, jobId }, "[export] CRITICAL: refund failed after completion-save failure — manual reconciliation required");
