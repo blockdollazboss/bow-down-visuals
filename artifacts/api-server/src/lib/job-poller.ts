@@ -60,9 +60,12 @@ import { mirrorExternalMediaUrl } from "./mirrorMedia";
  * Server-owned background poller for lip-sync (and export) jobs.
  *
  * This is what lets the user close the tab: every TICK_MS the poller
- * - claims `queued` lip-sync jobs and submits them to Sync.so
+ * - claims `queued` lip-sync jobs and submits them to the provider each
+ *   job was created for (LatentSync via WaveSpeed by default; Sync.so
+ *   only for explicitly selected premium jobs — see
+ *   resolveJobProvider),
  *   (trim + submit run in fire-and-forget workers, ≤ MAX_SUBMIT_WORKERS),
- * - polls Sync.so for `polling` jobs whose backoff window elapsed,
+ * - polls that provider for `polling` jobs whose backoff window elapsed,
  * - records provider completions, attaches the finished video to the
  *   originating project (exactly once), and raises exactly-once
  *   notifications,
@@ -133,18 +136,21 @@ let prepareSubmitMedia: PrepareSubmitMedia = async (params) => {
    A job runs on the provider recorded in its params at creation (itself
    the effective switch value at that moment) — a job is never silently
    rerouted to the other provider because a key appeared or vanished.
-   Legacy jobs without a stored provider fall back to the current switch
-   value, then to "sync" (the historical default). */
-function resolveJobProvider(job: LipSyncJob): LipSyncProviderId {
-  return (
-    normalizeLipSyncProvider(job.params.provider) ??
-    getLipSyncProviderName() ??
-    "sync"
-  );
+   A job WITHOUT a stored provider falls back to the current switch
+   value — and to NOTHING else. The historical terminal fallback to
+   "sync" is removed (owner's ruling, 2026-10-26: sync-3 is
+   premium-only, never the default): when neither the job nor the
+   switch names a route, the job simply stays queued until a route is
+   explicitly selected or the default route's key is configured —
+   exactly how an unconfigured route's jobs already wait. */
+function resolveJobProvider(job: LipSyncJob): LipSyncProviderId | null {
+  return normalizeLipSyncProvider(job.params.provider) ?? getLipSyncProviderName();
 }
 
-function providerApiKey(provider: LipSyncProviderId): string | null {
-  return provider === "latentsync" ? getWaveSpeedApiKey() : getLipSyncApiKey();
+function providerApiKey(provider: LipSyncProviderId | null): string | null {
+  if (provider === "latentsync") return getWaveSpeedApiKey();
+  if (provider === "sync") return getLipSyncApiKey();
+  return null;
 }
 
 function providerDisplayName(provider: LipSyncProviderId): string {
@@ -261,7 +267,18 @@ async function runSubmitWorker(
   apiKey: string,
   providerArg?: LipSyncProviderId,
 ): Promise<void> {
-  const provider: LipSyncProviderId = providerArg ?? resolveJobProvider(job);
+  const provider = providerArg ?? resolveJobProvider(job);
+  if (!provider) {
+    /* No route selected for this job and none in effect: it must not be
+       submitted anywhere (premium never serves by fallback). The submit
+       phase never claims such a job (its peek gate skips unconfigured
+       routes); this guard covers direct calls only. */
+    logger.warn(
+      { jobId: job.id },
+      "[job-poller] lip-sync submit skipped: no provider resolved for job",
+    );
+    return;
+  }
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
     await createJobNotification({
@@ -492,7 +509,13 @@ async function pollOneJob(
   apiKey: string,
   providerArg?: LipSyncProviderId,
 ): Promise<void> {
-  const provider: LipSyncProviderId = providerArg ?? resolveJobProvider(job);
+  const provider = providerArg ?? resolveJobProvider(job);
+  if (!provider) {
+    /* No route in effect for this job: polling resumes once one is
+       selected/configured (pollDueJobs already skips it — no key can
+       resolve for a null provider). */
+    return;
+  }
   const display = providerDisplayName(provider);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
