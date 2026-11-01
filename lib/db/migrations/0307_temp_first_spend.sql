@@ -1,4 +1,4 @@
--- 0306: Temporary-first spend order (stack1100 Lane Z1 — Gate #5
+-- 0307: Temporary-first spend order (stack1100 Lane Z1 — Gate #5
 -- live finding, Nov 1 2026).
 --
 -- Gate #5 caught the clean-export rail debiting the PERMANENT balance

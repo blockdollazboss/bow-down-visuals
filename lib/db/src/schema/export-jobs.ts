@@ -32,7 +32,7 @@ export const exportJobsTable = pgTable("export_jobs", {
   /** Idempotency flag: credits are deducted only on the false→true transition. */
   credits_charged: boolean("credits_charged").notNull().default(false),
   /**
-   * Temporary-first spend order (migration 0306): how much of the
+   * Temporary-first spend order (migration 0307): how much of the
    * standing reserve/charge came out of the temporary (bonus) pool,
    * and that pool's expiry at deduction time. Recorded with the
    * deduction so a release — possibly after a server restart —
