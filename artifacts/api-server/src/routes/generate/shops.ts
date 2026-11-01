@@ -69,7 +69,7 @@ import {
   SaleSplitError,
   type ProductSplit,
 } from "../../lib/sale-splits";
-import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer, fetchUndeliveredSalesForBuyer } from "../../lib/shop-delivery";
+import { deliverPaidShopLinesSafely, fetchDeliveriesForSaleEvents, fetchDeliveriesForBuyer, fetchUndeliveredSalesForBuyer, backfillDeliveriesForProductSafely } from "../../lib/shop-delivery";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { resolveOptionalSession } from "../../lib/optional-auth";
 import {
@@ -825,7 +825,12 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
    — the Oct 28 gate's file-less "TEST Digital Download") ride along
    marked deliveryMissing with a null downloadUrl, so the buyer's
    library shows the ORDER under their account instead of "Nothing
-   here yet". No download is ever fabricated for them. */
+   here yet". No download is ever fabricated for them.
+   HEALING (stack1100 G5A): the product PATCH backfills delivery
+   rows for past paid sales the moment a listing gains its file
+   (lib/shop-delivery), and below, an undelivered line whose product
+   NOW stands digital with a file is presented as downloadable —
+   the read-time net for any flip-time write that was lost. */
 router.get("/shops/my-purchases", requireAuth, async (req, res) => {
   const [deliveries, undelivered] = await Promise.all([
     fetchDeliveriesForBuyer(req.userId!, req.userEmail ?? null),
@@ -845,17 +850,28 @@ router.get("/shops/my-purchases", requireAuth, async (req, res) => {
       deliveryMissing: false,
       productType: null as string | null,
     })),
-    ...undelivered.map((u) => ({
-      orderId: u.order_id ?? "",
-      saleId: u.sale_event_id,
-      productId: u.product_id,
-      productName: u.product_name,
-      downloadUrl: null as string | null,
-      fileName: null as string | null,
-      deliveredAt: ts(u.paid_at ?? u.created_at),
-      deliveryMissing: true,
-      productType: u.product_type ?? null,
-    })),
+    ...undelivered.map((u) => {
+      /* Read-time net (stack1100 G5A): a paid line with no delivery
+         row whose product NOW stands digital with a file on it is
+         presented as downloadable — the durable heal is the PATCH
+         backfill (lib/shop-delivery), and this covers any sale whose
+         flip-time write was lost. Entitlement is unchanged: the row
+         only exists here because it is THIS buyer's paid sale.
+         A product still carrying no file keeps the honest missing
+         state below — no download is ever fabricated for it. */
+      const healed = u.product_type === "digital" && !!u.deliverable_url;
+      return {
+        orderId: u.order_id ?? "",
+        saleId: u.sale_event_id,
+        productId: u.product_id,
+        productName: u.product_name,
+        downloadUrl: healed ? u.deliverable_url : (null as string | null),
+        fileName: healed ? u.deliverable_name : (null as string | null),
+        deliveredAt: ts(u.paid_at ?? u.created_at),
+        deliveryMissing: !healed,
+        productType: u.product_type ?? null,
+      };
+    }),
   ].sort((a, b) => b.deliveredAt.localeCompare(a.deliveredAt));
   res.json({ purchases });
 });
@@ -1277,6 +1293,16 @@ router.patch("/shops/:id/products/:productId", requireAuth, publicApiLimiter, as
   if (!updatedRow) {
     res.json({ product: updatedRow });
     return;
+  }
+  /* Digital delivery healing (stack1100 G5A — Gate #5 P2-2): when
+     this save leaves the product digital WITH its file, deliver that
+     file to everyone who already PAID for the product while the
+     listing carried nothing to deliver. The flip-time snapshot can
+     never write those rows retroactively on its own — a buyer who
+     paid during the file-less window kept an inert order record
+     forever. Safely discipline: the heal never breaks the save. */
+  if (patchHasDelivery && updatedRow.product_type === "digital" && updatedRow.deliverable_url) {
+    await backfillDeliveriesForProductSafely(String(updatedRow.id));
   }
   if (d.price_cents !== undefined) {
     /* Wave 4 #38: a price write is the drop moment — fans who saved

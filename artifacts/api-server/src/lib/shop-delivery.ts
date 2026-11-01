@@ -141,6 +141,13 @@ export interface UndeliveredSaleRow {
   product_id: string | null;
   product_name: string | null;
   product_type: string | null;
+  /* The product's CURRENT deliverable (stack1100 G5A): when the
+     listing has since been fixed — digital with a file on it — the
+     library read presents the paid line as downloadable (the
+     read-time net under the durable backfill below). Null while the
+     seller has still attached nothing: the honest missing state. */
+  deliverable_url: string | null;
+  deliverable_name: string | null;
   paid_at: string | null;
   created_at: string;
 }
@@ -181,6 +188,7 @@ export async function fetchUndeliveredSalesForBuyer(
     const r = await db.execute(sql`
       SELECT e.id AS sale_event_id, e.checkout_group_id AS order_id, e.product_id,
              p.name AS product_name, p.product_type AS product_type,
+             p.deliverable_url AS deliverable_url, p.deliverable_name AS deliverable_name,
              e.paid_at, e.created_at
       FROM shop_events e
       LEFT JOIN shop_products p ON p.id = e.product_id
@@ -193,6 +201,78 @@ export async function fetchUndeliveredSalesForBuyer(
     return r.rows as unknown as UndeliveredSaleRow[];
   } catch {
     return [];
+  }
+}
+
+/* Buyer-id column probe (migration 0297) — same cached
+   information_schema discipline as the shops router: pre-0297 rows
+   carry no buyer id, and the backfill then keys on email alone. */
+let backfillBuyerColKnown: boolean | null = null;
+async function shopEventsHasBuyerIdForBackfill(): Promise<boolean> {
+  if (backfillBuyerColKnown !== null) return backfillBuyerColKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'shop_events' AND column_name = 'buyer_user_id'
+      LIMIT 1
+    `);
+    backfillBuyerColKnown = r.rows.length > 0;
+  } catch {
+    backfillBuyerColKnown = false;
+  }
+  return backfillBuyerColKnown;
+}
+
+/**
+ * Heal past sales of ONE product (stack1100 lane G5A — Gate #5
+ * finding P2-2). Delivery is a flip-time snapshot: a product sold
+ * while it carried no deliverable (the Gate #5 "TEST Digital
+ * Download" sat at the physical default with no file) could never
+ * gain a delivery row afterwards, so when the seller finally fixed
+ * the listing the buyer STILL had nothing. This finds every PAID
+ * sale line for the product with no delivery row and runs it through
+ * the same writer the flip uses — the writer re-checks the product
+ * is digital with a file and the UNIQUE(sale_event_id) key keeps it
+ * exactly-once. Called from the product PATCH whenever the saved
+ * listing is digital with a deliverable. Returns rows created.
+ * Never throws: a failed heal never breaks the seller's save.
+ */
+export async function backfillDeliveriesForProductSafely(productId: string): Promise<number> {
+  try {
+    const withBuyer = await shopEventsHasBuyerIdForBackfill();
+    const r = await db.execute(sql`
+      SELECT e.id AS sale_event_id, e.shop_id, e.checkout_group_id, e.stripe_session_id,
+             e.buyer_email${withBuyer ? sql`, e.buyer_user_id` : sql``}
+      FROM shop_events e
+      LEFT JOIN shop_deliveries d ON d.sale_event_id = e.id
+      WHERE e.product_id = ${productId} AND e.event_type = 'sale' AND d.id IS NULL
+      ORDER BY e.created_at ASC
+      LIMIT 500
+    `);
+    const lines: DeliveryLineInput[] = (r.rows as Array<Record<string, unknown>>).map((row) => ({
+      saleEventId: String(row["sale_event_id"]),
+      shopId: String(row["shop_id"]),
+      productId,
+      buyerEmail: row["buyer_email"] ? String(row["buyer_email"]) : null,
+      buyerUserId: row["buyer_user_id"] ? String(row["buyer_user_id"]) : null,
+      orderId: row["checkout_group_id"]
+        ? String(row["checkout_group_id"])
+        : row["stripe_session_id"]
+          ? String(row["stripe_session_id"])
+          : String(row["sale_event_id"]),
+    }));
+    if (lines.length === 0) return 0;
+    const created = await deliverPaidShopLinesSafely(lines);
+    if (created > 0) {
+      logger.info({ productId, created }, "[shop-delivery] late-attach backfill delivered past paid sales");
+    }
+    return created;
+  } catch (err) {
+    logger.error(
+      { err, productId },
+      "[shop-delivery] late-attach backfill failed (product save stands; reconcile by product_id)",
+    );
+    return 0;
   }
 }
 
