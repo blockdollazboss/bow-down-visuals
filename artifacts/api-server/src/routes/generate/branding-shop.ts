@@ -37,6 +37,82 @@ import {
   markBrandingOrderPaid,
   confirmBrandingFulfillment,
 } from "../../lib/branding-fulfillment";
+import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
+
+/* ── Branding order fan-out (fan-out truth, stack1100 Y3) ──────────────
+   Printful status flips (shipped / delivered / failed / canceled)
+   updated branding_orders silently — the buyer who paid only learned
+   by polling their orders page. The webhook now tells the buyer
+   through the one event door (money category) when the status
+   actually CHANGES: the flip is a claim (UPDATE … WHERE status <>
+   new), so Printful's duplicate event deliveries stay silent. The
+   buyer-initiated refresh endpoint is deliberately not wired — its
+   response already shows the status to the person who asked.
+   Failed/canceled copy never promises a refund: no refund fires on
+   this rail, so the copy points at support instead. */
+type BrandingEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _brandingEventNotifier: BrandingEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setBrandingEventNotifier(fn: BrandingEventNotifier | null): void {
+  _brandingEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildBrandingOrderEvent(input: {
+  userId: string;
+  status: string;
+  trackingNumber?: string | null;
+}): UserEventInput | null {
+  const base = { userId: input.userId, category: "money" as const, link: "/branding-kit?tab=shop" };
+  switch (input.status) {
+    case "shipped":
+      return {
+        ...base,
+        kind: "branding_order_shipped",
+        title: "Your branding order shipped",
+        body: input.trackingNumber
+          ? `Good news — your order is on its way. Tracking: ${input.trackingNumber}.`
+          : "Good news — your order is on its way.",
+      };
+    case "delivered":
+      return {
+        ...base,
+        kind: "branding_order_delivered",
+        title: "Your branding order was delivered",
+        body: "Your order arrived — enjoy it. Anything wrong with it, support can help from your orders page.",
+      };
+    case "failed":
+      return {
+        ...base,
+        kind: "branding_order_failed",
+        title: "Something went wrong with your branding order",
+        body: "The print provider couldn't fulfill this order. Open your orders for the details — support can help from there.",
+      };
+    case "canceled":
+      return {
+        ...base,
+        kind: "branding_order_canceled",
+        title: "Your branding order was canceled",
+        body: "This order was canceled at the print provider. Open your orders for the details — support can help from there.",
+      };
+    default:
+      return null;
+  }
+}
+
+/** Fire the buyer tell for a landed status flip. Best-effort. */
+export async function tellBrandingBuyer(input: {
+  userId: string;
+  status: string;
+  trackingNumber?: string | null;
+}): Promise<void> {
+  const event = buildBrandingOrderEvent(input);
+  if (!event) return;
+  try {
+    await _brandingEventNotifier(event);
+  } catch (err) {
+    logger.warn({ err, userId: input.userId, status: input.status }, "[branding-shop] order tell failed (status stands)");
+  }
+}
 
 const router = Router();
 
@@ -717,13 +793,30 @@ router.post("/branding-shop/webhooks/printful", async (req, res) => {
   else if (t.includes("cancel")) status = "canceled";
   else if (t.includes("draft") || t.includes("pending")) status = "pending";
 
+  const newStatus = toOrderStatus(status);
+  /* The status flip is a claim: it only lands when the status actually
+     changes, and RETURNING names the buyer. Printful retries and
+     duplicate event deliveries land zero rows and stay silent. */
+  const claimed = await db.execute(sql`
+    UPDATE branding_orders
+    SET status = ${newStatus}
+    WHERE provider_order_id = ${providerOrderId} AND status <> ${newStatus}
+    RETURNING user_id
+  `);
   await db.execute(sql`
     UPDATE branding_orders
-    SET status = ${toOrderStatus(status)},
-        tracking_number = COALESCE(${data?.shipment?.tracking_number ?? null}, tracking_number),
+    SET tracking_number = COALESCE(${data?.shipment?.tracking_number ?? null}, tracking_number),
         tracking_url = COALESCE(${data?.shipment?.tracking_url ?? null}, tracking_url)
     WHERE provider_order_id = ${providerOrderId}
   `);
+  const buyerId = (claimed.rows[0] as { user_id?: string } | undefined)?.user_id;
+  if (buyerId) {
+    await tellBrandingBuyer({
+      userId: buyerId,
+      status: newStatus,
+      trackingNumber: data?.shipment?.tracking_number ?? null,
+    });
+  }
 
   logger.info({ type, providerOrderId, status }, "[branding-shop] Printful webhook processed");
   res.json({ received: true });
