@@ -330,7 +330,7 @@ export const drizzleGroupDigestStore: GroupDigestStore = {
           ),
         ),
       db
-        .select({ body: groupPostsTable.body, likeCount: groupPostsTable.likeCount })
+        .select({ body: groupPostsTable.body })
         .from(groupPostsTable)
         .where(
           and(
@@ -340,7 +340,7 @@ export const drizzleGroupDigestStore: GroupDigestStore = {
             lt(groupPostsTable.createdAt, until),
           ),
         )
-        .orderBy(desc(groupPostsTable.likeCount), desc(groupPostsTable.createdAt))
+        .orderBy(desc(groupPostsTable.createdAt))
         .limit(1),
     ]);
     return {
@@ -348,7 +348,10 @@ export const drizzleGroupDigestStore: GroupDigestStore = {
       newThreads,
       newReplies,
       newMembers: memberRows[0]?.n ?? 0,
-      topPost: topRows[0] ? { body: topRows[0].body, likeCount: topRows[0].likeCount } : null,
+      /* Group posts have no like door (the like_count column was dropped,
+         migration 0310) — the top post is the window's latest, and its
+         likeCount stays the honest 0 it always was in production. */
+      topPost: topRows[0] ? { body: topRows[0].body, likeCount: 0 } : null,
     };
   },
 

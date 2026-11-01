@@ -784,7 +784,9 @@ router.get("/groups/:slug/feed", async (req, res) => {
     const cards = await profileCards(posts.map((p) => p.authorUserId));
     res.json(await refreshSupabaseStorageUrlsDeep({
       posts: posts.map((p) => ({
-        id: p.id, body: p.body, like_count: p.likeCount, created_at: p.createdAt,
+        /* Group posts have no like door; like_count is the honest constant
+           0 it always was (column dropped, migration 0310). */
+        id: p.id, body: p.body, like_count: 0, created_at: p.createdAt,
         author_user_id: p.authorUserId, author: cards[p.authorUserId] ?? null,
         can_delete: req.userId != null && (p.authorUserId === req.userId || canGroupAction(role, "deletePost")),
       })),
@@ -2379,10 +2381,12 @@ router.get("/explore", async (req, res) => {
       .from(groupPostsTable)
       .innerJoin(groupsTable, eq(groupPostsTable.groupId, groupsTable.id))
       .where(eq(groupsTable.isPublic, true))
-      .orderBy(desc(groupPostsTable.likeCount)).limit(10);
+      /* Was ordered by the dead like_count (always 0 = recency in practice);
+         the column is dropped (migration 0310), so recency is explicit. */
+      .orderBy(desc(groupPostsTable.createdAt)).limit(10);
     const postCards = await profileCards(postRows.map((r) => r.post.authorUserId));
     return postRows.map((r) => ({
-      id: r.post.id, body: r.post.body, like_count: r.post.likeCount, created_at: r.post.createdAt,
+      id: r.post.id, body: r.post.body, like_count: 0, created_at: r.post.createdAt,
       group: { slug: r.groupSlug, name: r.groupName },
       author: postCards[r.post.authorUserId] ?? null,
     }));

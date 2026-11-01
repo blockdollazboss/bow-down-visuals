@@ -157,7 +157,6 @@ export const profileVideosTable = pgTable("profile_videos", {
   pwywMinCents:      integer("pwyw_min_cents").notNull().default(0),
   viewCount:         integer("view_count").notNull().default(0),
   likeCount:         integer("like_count").notNull().default(0),
-  repostCount:       integer("repost_count").notNull().default(0),
   commentCount:      integer("comment_count").notNull().default(0),
   isPublished:       boolean("is_published").notNull().default(false),
   /** Shorts mechanics (0091): TikTok-style vertical short flag. */

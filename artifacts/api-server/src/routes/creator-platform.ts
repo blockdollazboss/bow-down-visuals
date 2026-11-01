@@ -192,7 +192,7 @@ const router = Router();
        is_published, created_at)
      profile_videos(profile_id FK CASCADE, title, video_url, thumbnail_url,
        description, genre, tags TEXT[], duration_sec, download_price_cents,
-       view_count, like_count, repost_count, comment_count,
+       view_count, like_count, comment_count,
        is_published, created_at)
      playlists(owner_profile_id FK CASCADE, title, description, cover_url,
        is_public, items JSONB [{kind:'track'|'video', id}], follower_count)
@@ -354,7 +354,7 @@ const COUNTER_COLUMNS: Record<string, string> = {
   "track:play": "play_count", "track:like": "like_count",
   "track:repost": "repost_count", "track:comment": "comment_count",
   "video:play": "view_count", "video:like": "like_count",
-  "video:repost": "repost_count", "video:comment": "comment_count",
+  "video:comment": "comment_count",
 };
 
 async function bumpCounter(
@@ -687,7 +687,10 @@ function enrichVideo(
     download_price_cents: row.downloadPriceCents ?? 0,
     view_count: row.viewCount,
     like_count: row.likeCount,
-    repost_count: row.repostCount,
+    /* Videos have no repost counter (video reposts create shorts/posts;
+       the dead profile_videos.repost_count column is dropped, migration
+       0310) — the wire field stays the honest 0 it always read. */
+    repost_count: 0,
     comment_count: row.commentCount,
     is_published: row.isPublished,
     /* The profile-song pin (wave-2 #10) — see enrichTrack. */

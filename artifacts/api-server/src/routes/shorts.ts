@@ -225,7 +225,9 @@ function shapeShort(r: ShortRow) {
 
 /* ── GET /shorts/feed — the For You page, but they own it ───────────────────
    score = engagement velocity × recency decay × follow boost × BDV boost
-   velocity = (likes×3 + comments×2 + reposts×4 + views×0.1 + 1) / hours_old
+   velocity = (likes×3 + comments×2 + views×0.1 + 1) / hours_old
+   (a reposts×4 term rode here until migration 0310 dropped the dead
+   profile_videos.repost_count column — it was always 0.)
    decay    = 1 / (1 + hours_old/72)          (≈3-day half-life)
    follow   = 2.5× when the viewer follows the creator
    bdv      = 1.5× for official Bow Down creators (home-field advantage)
@@ -243,7 +245,7 @@ router.get("/shorts/feed", feedLimiter, async (req, res) => {
                CASE WHEN cp.slug = ANY(${sql`ARRAY[${sql.join(OFFICIAL_SLUGS.map((s) => sql`${s}`), sql`, `)}]::text[]`}) THEN 1.5 ELSE 1.0 END AS bdv_mult,
                CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS viewer_liked,
                CASE WHEN f.profile_id IS NOT NULL THEN true ELSE false END AS viewer_following,
-               ((pv.like_count * 3.0 + pv.comment_count * 2.0 + pv.repost_count * 4.0 + pv.view_count * 0.1 + 1.0)
+               ((pv.like_count * 3.0 + pv.comment_count * 2.0 + pv.view_count * 0.1 + 1.0)
                  / GREATEST(EXTRACT(EPOCH FROM (now() - pv.created_at)) / 3600.0, 1.0))
                  / (1.0 + EXTRACT(EPOCH FROM (now() - pv.created_at)) / 3600.0 / 72.0) AS base_score,
                (SELECT COUNT(*)::int FROM profile_videos d WHERE d.duet_with = pv.id AND d.is_published = true) AS duet_count,
@@ -377,7 +379,7 @@ router.get("/shorts/:id", feedLimiter, async (req, res) => {
              CASE WHEN cp.slug = ANY(${sql`ARRAY[${sql.join(OFFICIAL_SLUGS.map((s) => sql`${s}`), sql`, `)}]::text[]`}) THEN 1.5 ELSE 1.0 END AS bdv_mult,
              CASE WHEN l.user_id IS NOT NULL THEN true ELSE false END AS viewer_liked,
              CASE WHEN f.profile_id IS NOT NULL THEN true ELSE false END AS viewer_following,
-             ((pv.like_count * 3.0 + pv.comment_count * 2.0 + pv.repost_count * 4.0 + pv.view_count * 0.1 + 1.0)
+             ((pv.like_count * 3.0 + pv.comment_count * 2.0 + pv.view_count * 0.1 + 1.0)
                / GREATEST(EXTRACT(EPOCH FROM (now() - pv.created_at)) / 3600.0, 1.0))
                / (1.0 + EXTRACT(EPOCH FROM (now() - pv.created_at)) / 3600.0 / 72.0) AS base_score,
              (SELECT COUNT(*)::int FROM profile_videos d WHERE d.duet_with = pv.id AND d.is_published = true) AS duet_count,

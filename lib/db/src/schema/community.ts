@@ -70,7 +70,6 @@ export const groupPostsTable = pgTable("group_posts", {
   groupId:      uuid("group_id").notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
   authorUserId: uuid("author_user_id").notNull(),
   body:         text("body").notNull(),
-  likeCount:    integer("like_count").notNull().default(0),
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("group_posts_group_idx").on(t.groupId, t.createdAt),
