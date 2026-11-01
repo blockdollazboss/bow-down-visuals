@@ -11,6 +11,79 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, canUseCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 import { escrowHeldCents } from "../../lib/escrow-held";
+import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
+
+/* ── Sponsor lifecycle fan-out (fan-out truth, stack1100 Y3) ───────────
+   This 1,900-line escrow lifecycle ran with ZERO notifications: a brand
+   never learned a creator applied, a creator never learned they were
+   picked, that escrow funded, or that payment released — every party
+   had to poll the dashboard to discover money-moving state changes.
+   Each tell below fires through the one event door (money category —
+   the settings copy names plan and credit-pack events there; these are
+   the marketplace's money landings), gated on the transition actually
+   LANDING (a RETURNING row / an insert that took), so replays and
+   race-losers stay silent. Seam + pure builder, the house pattern. */
+type SponsorEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _sponsorEventNotifier: SponsorEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setSponsorEventNotifier(fn: SponsorEventNotifier | null): void {
+  _sponsorEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildSponsorEvent(input: {
+  userId: string;
+  dealId: string;
+  kind: string;
+  title: string;
+  body: string;
+}): UserEventInput {
+  return {
+    userId: input.userId,
+    category: "money",
+    kind: input.kind,
+    title: input.title,
+    body: input.body,
+    link: `/sponsors/${input.dealId}`,
+  };
+}
+
+/** Fire one sponsor tell. Best-effort: never throws into a money path. */
+export async function tellSponsorParty(input: {
+  userId: string;
+  dealId: string;
+  kind: string;
+  title: string;
+  body: string;
+}): Promise<void> {
+  try {
+    await _sponsorEventNotifier(buildSponsorEvent(input));
+  } catch (err) {
+    logger.warn({ err, userId: input.userId, kind: input.kind }, "[sponsors] lifecycle tell failed (transition stands)");
+  }
+}
+
+/** The reversal engine un-funds a funded-but-unreleased deal (refund /
+ *  chargeback). The creator working against that escrow is the harmed
+ *  party and was never told — this is the tell, called by
+ *  lib/payment-reversals only after its flip actually lands. */
+export async function notifySponsorEscrowReversed(dealId: string): Promise<void> {
+  try {
+    const rows = await db.execute(sql`
+      SELECT accepted_user_id FROM sponsor_deals WHERE id = ${dealId} LIMIT 1
+    `);
+    const row = rows.rows[0] as { accepted_user_id: string | null } | undefined;
+    if (!row?.accepted_user_id) return;
+    await tellSponsorParty({
+      userId: row.accepted_user_id,
+      dealId,
+      kind: "sponsor_escrow_reversed",
+      title: "Escrow funding reversed",
+      body: "The funding for this sponsor deal was refunded or charged back, so the escrow is empty. Don't deliver against it until the brand funds it again.",
+    });
+  } catch (err) {
+    logger.warn({ err, dealId }, "[sponsors] escrow-reversed tell failed (reversal stands)");
+  }
+}
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Money rules (standing pricing rule: AI/compute burns credits, pure UI is free):
@@ -285,6 +358,15 @@ router.post("/sponsors/deals/:id/apply", requireAuth, publicApiLimiter, async (r
       res.status(409).json({ error: "You've already applied to this deal." });
       return;
     }
+    /* The insert landed — the brand hears about the application
+       (replays die at the conflict above, so this fires once). */
+    await tellSponsorParty({
+      userId: deal.posted_by,
+      dealId,
+      kind: "sponsor_application",
+      title: `New application: ${deal.niche} deal`,
+      body: "A creator just applied with a pitch. Open the deal to review it and pick your creator.",
+    });
     res.json({ success: true, application: result.rows[0] });
   } catch (err) {
     logger.error({ err }, "[sponsors] failed to store application");
@@ -723,7 +805,7 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
   try {
     const appRows = await db.execute(sql`
       SELECT a.id, a.deal_id, a.user_id, a.status, d.posted_by, d.status AS deal_status,
-             d.budget_min, d.budget_max, d.accepted_application_id
+             d.budget_min, d.budget_max, d.accepted_application_id, d.brand_name
       FROM sponsor_applications a
       JOIN sponsor_deals d ON d.id = a.deal_id
       WHERE a.id = ${appId}
@@ -732,7 +814,7 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
     const app = appRows.rows[0] as unknown as {
       id: string; deal_id: string; user_id: string; status: string;
       posted_by: string; deal_status: string; budget_min: number; budget_max: number;
-      accepted_application_id: string | null;
+      accepted_application_id: string | null; brand_name: string;
     } | undefined;
     if (!app) {
       res.status(404).json({ error: "Application not found." });
@@ -748,11 +830,25 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
     }
 
     if (parsed.data.action === "reject") {
-      await db.execute(sql`
+      /* Claim the decision: only a still-pending application flips, so
+         a racing double-review can't tell the creator twice. */
+      const claimed = await db.execute(sql`
         UPDATE sponsor_applications
         SET status = 'rejected', decided_at = NOW()
-        WHERE id = ${appId}
+        WHERE id = ${appId} AND status = 'pending'
+        RETURNING id
       `);
+      if (claimed.rows.length === 0) {
+        res.status(409).json({ error: "This application was already decided." });
+        return;
+      }
+      await tellSponsorParty({
+        userId: app.user_id,
+        dealId: app.deal_id,
+        kind: "sponsor_application_rejected",
+        title: "Application update",
+        body: `${app.brand_name} went a different way on this deal — your application wasn't picked. More deals are posted all the time.`,
+      });
       res.json({ success: true, status: "rejected" });
       return;
     }
@@ -777,15 +873,23 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
       res.status(400).json({ error: `Agreed payout must be within the posted budget ($${app.budget_min.toLocaleString()}–$${app.budget_max.toLocaleString()}).` });
       return;
     }
-    await db.execute(sql`
+    /* Claim the acceptance (same exactly-once discipline as reject):
+       only a still-pending application flips. */
+    const claimed = await db.execute(sql`
       UPDATE sponsor_applications
       SET status = 'accepted', decided_at = NOW()
-      WHERE id = ${appId}
+      WHERE id = ${appId} AND status = 'pending'
+      RETURNING id
     `);
-    await db.execute(sql`
+    if (claimed.rows.length === 0) {
+      res.status(409).json({ error: "This application was already decided." });
+      return;
+    }
+    const autoRejected = await db.execute(sql`
       UPDATE sponsor_applications
       SET status = 'rejected', decided_at = NOW()
       WHERE deal_id = ${app.deal_id} AND id <> ${appId} AND status = 'pending'
+      RETURNING user_id
     `);
     await db.execute(sql`
       UPDATE sponsor_deals
@@ -793,6 +897,24 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
           agreed_amount_cents = ${agreed}
       WHERE id = ${app.deal_id}
     `);
+    await tellSponsorParty({
+      userId: app.user_id,
+      dealId: app.deal_id,
+      kind: "sponsor_application_accepted",
+      title: "Your application was accepted",
+      body: `${app.brand_name} picked you — agreed payout ${pipelineFmtMoney(agreed)}. The brand funds the escrow next; start the work once it's funded.`,
+    });
+    /* The creators who lost the deal to this acceptance were decided
+       too — each hears it exactly once (their rows just flipped). */
+    for (const row of autoRejected.rows as Array<{ user_id: string }>) {
+      await tellSponsorParty({
+        userId: row.user_id,
+        dealId: app.deal_id,
+        kind: "sponsor_application_rejected",
+        title: "Application update",
+        body: `${app.brand_name} picked another creator for this deal — your application wasn't picked. More deals are posted all the time.`,
+      });
+    }
     res.json({ success: true, status: "accepted", agreedAmountCents: agreed });
   } catch (err) {
     logger.error({ err }, "[sponsors] failed to review application");
@@ -947,14 +1069,34 @@ export async function markEscrowFunded(dealId: string, sessionId: string, paymen
   if (deal.escrow_status !== "funding" && deal.escrow_status !== "unfunded") {
     return { ok: false, reason: `bad-state:${deal.escrow_status}` };
   }
-  await db.execute(sql`
+  /* The flip claims the from-states: concurrent webhook + poller +
+     verify calls for the same funding land it exactly once, and only
+     the lander tells the creator (fan-out truth, stack1100 Y3). */
+  const flipped = await db.execute(sql`
     UPDATE sponsor_deals
     SET escrow_status = 'funded', status = 'funded',
         stripe_session_id = ${sessionId},
         stripe_payment_intent_id = ${paymentIntentId}
-    WHERE id = ${dealId}
+    WHERE id = ${dealId} AND escrow_status IN ('funding', 'unfunded')
+    RETURNING id
   `);
+  if (flipped.rows.length === 0) {
+    const now = await findDeal(dealId);
+    if (now?.escrow_status === "funded") return { ok: true, reason: "already-funded" };
+    return { ok: false, reason: `bad-state:${now?.escrow_status ?? "gone"}` };
+  }
   logger.info({ dealId, sessionId }, "[sponsors] escrow funded");
+  if (deal.accepted_user_id) {
+    await tellSponsorParty({
+      userId: deal.accepted_user_id,
+      dealId,
+      kind: "sponsor_escrow_funded",
+      title: "Escrow funded",
+      body: deal.agreed_amount_cents
+        ? `The brand funded the escrow (${pipelineFmtMoney(deal.agreed_amount_cents)}). You can start the work now.`
+        : "The brand funded the escrow. You can start the work now.",
+    });
+  }
   return { ok: true };
 }
 
@@ -1054,7 +1196,22 @@ router.post("/sponsors/deals/:id/complete", requireAuth, publicApiLimiter, async
       res.status(409).json({ error: "Work must be started before it can be marked complete." });
       return;
     }
-    await db.execute(sql`UPDATE sponsor_deals SET status = 'completed' WHERE id = ${dealId}`);
+    const flipped = await db.execute(sql`
+      UPDATE sponsor_deals SET status = 'completed'
+      WHERE id = ${dealId} AND status = 'in_progress'
+      RETURNING id
+    `);
+    if (flipped.rows.length === 0) {
+      res.status(409).json({ error: "Work must be started before it can be marked complete." });
+      return;
+    }
+    await tellSponsorParty({
+      userId: deal.posted_by,
+      dealId,
+      kind: "sponsor_deal_completed",
+      title: "Work marked complete",
+      body: "Your creator marked the work complete. Review it and release payment when you're happy.",
+    });
     res.json({ success: true, status: "completed" });
   } catch (err) {
     logger.error({ err }, "[sponsors] failed to complete deal");
@@ -1157,6 +1314,18 @@ router.post("/sponsors/deals/:id/release", requireAuth, publicApiLimiter, async 
       { dealId, gross, releaseGross, refundedCents: held.refundedCents, feeCents, netCents },
       "[sponsors] escrow released — platform fee collected",
     );
+    /* The flip landed — the creator hears the money moved, naming the
+       NET that actually released (never the stale agreed figure when
+       part of the escrow was refunded first — L4 truth rule). */
+    await tellSponsorParty({
+      userId: deal.accepted_user_id,
+      dealId,
+      kind: "sponsor_payment_released",
+      title: "Payment released",
+      body: held.refundedCents > 0
+        ? `You were paid ${pipelineFmtMoney(netCents)} for this sponsor deal. (${pipelineFmtMoney(held.refundedCents)} of the funded escrow was refunded to the brand before release, so the release split what was still held.)`
+        : `You were paid ${pipelineFmtMoney(netCents)} for this sponsor deal.`,
+    });
     res.json({
       success: true,
       status: "paid",
@@ -1323,6 +1492,15 @@ router.post("/sponsors/creator/:slug", requireAuth, publicApiLimiter, async (req
       INSERT INTO sponsor_applications (id, deal_id, user_id, pitch, portfolio_url, status, decided_at)
       VALUES (${applicationId}, ${dealId}, ${creatorUserId}, ${description}, ${null}, 'accepted', NOW())
     `);
+    /* The deal exists and is aimed at this creator — they hear about
+       it now, not when they happen to open the dashboard. */
+    await tellSponsorParty({
+      userId: creatorUserId,
+      dealId,
+      kind: "sponsor_direct",
+      title: "New direct sponsorship",
+      body: `${brandName} sponsored you directly for ${pipelineFmtMoney(amountCents)}. They fund the escrow next — start the work once it's funded.`,
+    });
     const deal = await findDeal(dealId);
     res.json({
       deal: deal ? toFullDealDto(deal, 1, null) : null,

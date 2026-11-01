@@ -807,6 +807,17 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
         WHERE id = ${dealId} AND escrow_status = 'funded'
         RETURNING id
       `);
+      if (s.rows.length > 0) {
+        /* The flip landed — the creator working against that escrow
+           hears it emptied (fan-out truth, stack1100 Y3). Guarded:
+           a tell failure never fails the reversal itself. */
+        try {
+          const { notifySponsorEscrowReversed } = await import("../routes/generate/sponsors");
+          await notifySponsorEscrowReversed(dealId);
+        } catch (err) {
+          logger.error({ err, dealId }, "[reversals] sponsor escrow-reversed tell failed (reversal stands)");
+        }
+      }
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
     }
     case "performance_booking": {
