@@ -5,6 +5,7 @@ import { db, beatsTable, beatLicensesTable, beatLicenseTemplatesTable } from "@w
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
+import { shouldCountView, viewKey } from "../../lib/view-counting";
 import { chargeCredits as chargeCreditsAtomic, refundCredits } from "../../lib/credits";
 import {
   BEAT_LICENSE_FORMATS,
@@ -225,13 +226,18 @@ router.get("/beats/:id", async (req, res) => {
       res.status(404).json({ error: "Beat not found" });
       return;
     }
-    // Best-effort play bump — never fails the read.
-    try {
-      await db.update(beatsTable)
-        .set({ plays: sql`${beatsTable.plays} + 1` })
-        .where(eq(beatsTable.id, id));
-    } catch { /* ignore */ }
-    const [withTemplates] = await attachLicenseTemplates([await presentBeatPublic({ ...beat, plays: beat.plays + 1 })]);
+    // Best-effort play bump — never fails the read. Deduped per
+    // viewer+item (lib/view-counting): a refresh storm can't mint
+    // plays, and the echoed count only claims the +1 when it landed.
+    const countIt = shouldCountView(viewKey("beat", id, req.ip));
+    if (countIt) {
+      try {
+        await db.update(beatsTable)
+          .set({ plays: sql`${beatsTable.plays} + 1` })
+          .where(eq(beatsTable.id, id));
+      } catch { /* ignore */ }
+    }
+    const [withTemplates] = await attachLicenseTemplates([await presentBeatPublic({ ...beat, plays: beat.plays + (countIt ? 1 : 0) })]);
     res.json({ beat: withTemplates });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch beat";

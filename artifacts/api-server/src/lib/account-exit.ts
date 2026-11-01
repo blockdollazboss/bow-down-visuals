@@ -32,7 +32,7 @@
  *     ledgers, payouts, the credit ledger) are NOT erased: they are the
  *     counterparty's records too, and the Settings copy says so.
  */
-import { and, eq, gt, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import {
   db,
   albumsTable,
@@ -58,6 +58,7 @@ import {
   hubProjectsTable,
   performanceBookingsTable,
   playlistFollowsTable,
+  playlistsTable,
   projectDraftsTable,
   shopProductsTable,
   songDjAnalysisTable,
@@ -337,14 +338,38 @@ export async function eraseAccountData(userId: string): Promise<void> {
       .where(eq(shopProductsTable.user_id, userId));
     await tx.delete(bioPagesTable).where(eq(bioPagesTable.userId, userId));
 
-    /* Follows BY this member (follows TO their profile cascade with it). */
-    await tx.delete(followsTable).where(eq(followsTable.followerUserId, userId));
+    /* Follows BY this member (follows TO their profile cascade with it).
+     * Counter truth (stack1100 X5): the rows leave, so the followed
+     * profiles' follower_count leaves with them — one decrement per
+     * LANDED delete, the same landed-row gate the unfollow door runs.
+     * Without it, every profile this member ever followed kept a ghost
+     * follower in its count forever. */
+    const leftFollows = await tx
+      .delete(followsTable)
+      .where(eq(followsTable.followerUserId, userId))
+      .returning({ profileId: followsTable.profileId });
+    for (const row of leftFollows) {
+      await tx
+        .update(creatorProfilesTable)
+        .set({ followerCount: sql`GREATEST(${creatorProfilesTable.followerCount} - 1, 0)` })
+        .where(eq(creatorProfilesTable.id, row.profileId));
+    }
 
     /* Playlist follows BY this member (migration 0303's rows, composed
      * at the stack1000 join — M3's table post-dates this erasure set.
      * Follows of the member's OWN playlists cascade with those playlists
-     * when the profile goes below.) */
-    await tx.delete(playlistFollowsTable).where(eq(playlistFollowsTable.userId, userId));
+     * when the profile goes below.) Same counter law as above for
+     * playlists.follower_count. */
+    const leftPlaylistFollows = await tx
+      .delete(playlistFollowsTable)
+      .where(eq(playlistFollowsTable.userId, userId))
+      .returning({ playlistId: playlistFollowsTable.playlistId });
+    for (const row of leftPlaylistFollows) {
+      await tx
+        .update(playlistsTable)
+        .set({ followerCount: sql`GREATEST(${playlistsTable.followerCount} - 1, 0)` })
+        .where(eq(playlistsTable.id, row.playlistId));
+    }
 
     /* The public creator identity — last, so its cascades take the
      * whole public surface (posts, stories, playlists, store, tracks,

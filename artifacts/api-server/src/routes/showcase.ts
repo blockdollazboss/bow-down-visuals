@@ -5,6 +5,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, showcaseItemsTable, showcaseLikesTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
+import { shouldCountView, viewKey } from "../lib/view-counting";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
 /* Mirror-on-save (2026-10-13 law): published media is re-hosted into
@@ -129,12 +130,17 @@ router.get("/showcase/:slug", async (req, res) => {
       res.status(404).json({ error: "Showcase item not found." });
       return;
     }
-    // Fire-and-forget view count — never block the read.
-    db.update(showcaseItemsTable)
-      .set({ views: sql`${showcaseItemsTable.views} + 1` })
-      .where(eq(showcaseItemsTable.id, item.id))
-      .catch(() => {});
-    res.json({ item: await refreshSupabaseStorageUrlsDeep({ ...item, views: item.views + 1 }) });
+    // Fire-and-forget view count — never block the read. Deduped per
+    // viewer+item (lib/view-counting); the echoed count only claims
+    // the +1 when it landed.
+    const countIt = shouldCountView(viewKey("showcase", item.id, req.ip));
+    if (countIt) {
+      db.update(showcaseItemsTable)
+        .set({ views: sql`${showcaseItemsTable.views} + 1` })
+        .where(eq(showcaseItemsTable.id, item.id))
+        .catch(() => {});
+    }
+    res.json({ item: await refreshSupabaseStorageUrlsDeep({ ...item, views: item.views + (countIt ? 1 : 0) }) });
   } catch (err) {
     req.log.error({ err }, "[showcase] detail failed");
     res.status(500).json({ error: "Could not load showcase item." });

@@ -98,7 +98,17 @@ const clampLimit = (v: unknown, def = 20, max = 50): number => {
   return Math.max(1, Math.min(max, Math.floor(n)));
 };
 
-/* Plays can legitimately burst (a listening session); 120/min/IP. */
+/* Plays: this middleware is only the coarse flood guard. The real
+   bound — ONE counted play per source per media item per minute and
+   10 per rolling day, the house bound both play doors share — is the
+   claim in lib/play-counting, enforced in the handler below so an
+   uncounted play still answers 200 with counted:false (the play
+   itself always plays) instead of dying here as a 429. Composed at
+   the stack1100 join from X5's per-media-bound conviction (this door
+   once allowed 120 counted plays a minute from one address on one
+   track — 120× the house bound — and play counts feed the charts)
+   and X3's claim-gated counted contract; radio and autoplay
+   sequences are unaffected: each next track is a new claim key. */
 const playLimiter = rateLimit({
   windowMs: 60_000,
   limit: 120,
@@ -934,6 +944,13 @@ router.post("/play", playLimiter, optionalAuth, asyncHandler(async (req, res) =>
     return;
   }
   const { kind, mediaId } = parsed.data;
+  /* Composed at the stack1100 join (X3 x X5): the media is resolved
+     first and an uncounted play writes NOTHING — no play_events row
+     for missing or unpublished media (X5's conviction: the row and
+     the counters move together or not at all) — while the counting
+     itself rides the shared claim: published-only, never a self-play,
+     one counted play per source per media per minute and 10 per
+     rolling day (X3's conviction), reported honestly as counted. */
   const table = kind === "track" ? sql`profile_tracks` : sql`profile_videos`;
   const mediaRows = (await db.execute(sql`
     SELECT profile_id, is_published FROM ${table}

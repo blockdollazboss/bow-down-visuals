@@ -21,6 +21,7 @@ import { db, albumsTable, albumTracksTable, songsTable } from "@workspace/db";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { shouldCountView, viewKey } from "../lib/view-counting";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
@@ -185,11 +186,14 @@ router.get("/albums/public/:slug", async (req, res) => {
       return;
     }
     const detail = await albumDetail(album.id);
-    // Fire-and-forget view count — never block the read.
-    db.update(albumsTable)
-      .set({ views: sql`${albumsTable.views} + 1` })
-      .where(eq(albumsTable.id, album.id))
-      .catch(() => {});
+    // Fire-and-forget view count — never block the read. Deduped per
+    // viewer+item (lib/view-counting) so refreshes can't mint views.
+    if (shouldCountView(viewKey("album", album.id, req.ip))) {
+      db.update(albumsTable)
+        .set({ views: sql`${albumsTable.views} + 1` })
+        .where(eq(albumsTable.id, album.id))
+        .catch(() => {});
+    }
     // Owner's referral code (read-only; never created here) so share links
     // carry ?ref=CODE and new signups credit the album owner.
     let referralCode: string | null = null;

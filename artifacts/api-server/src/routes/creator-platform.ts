@@ -1854,7 +1854,16 @@ router.delete("/creator-profiles/:id/unfollow", requireAuth, async (req, res) =>
         .set({ followerCount: sql`GREATEST(${creatorProfilesTable.followerCount} - 1, 0)`, updatedAt: new Date() })
         .where(eq(creatorProfilesTable.id, profile.id));
     }
-    res.json({ followed: false, follower_count: Math.max((profile.followerCount ?? 1) - 1, 0) });
+    /* Counter truth (stack1100 X5): the RESPONSE count rides the
+       landed delete, exactly like the stored count — a replayed or
+       never-followed unfollow used to report one less than the truth
+       (it decremented unconditionally), so the client painted a
+       follower vanishing who was never there. The follow door's
+       response already gates on its landed insert the same way. */
+    res.json({
+      followed: false,
+      follower_count: Math.max((profile.followerCount ?? 0) - (deleted.length > 0 ? 1 : 0), 0),
+    });
   } catch (err) {
     req.log.error({ err }, "unfollow error");
     res.status(500).json({ error: "The unfollow didn't stick. Try again." });
@@ -2238,6 +2247,13 @@ router.post("/media/:kind/:id/play", playLimiter, optionalAuth, async (req, res)
       res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
       return;
     }
+    /* Composed at the stack1100 join (X3 x X5): an unpublished
+       upload never counts (X5's conviction — the owner's own preview
+       is not an audience play: no row, no bump, and the shared tail
+       below still answers the standing count), and a published play
+       counts only through the shared claim — never a self-play, one
+       counted play per source per media per minute and 10 per
+       rolling day (X3's conviction). */
     let counted = false;
     if (media.isPublished) {
       const owner = await getProfileById(media.profileId);
