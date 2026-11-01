@@ -84,7 +84,6 @@ async function planStoryMoments(lyrics: string, count: number, style: string): P
     ],
     response_format: { type: "json_object" },
     max_completion_tokens: 2000,
-    temperature: 0.7,
   });
 
   const raw = completion.choices[0]?.message?.content ?? "{}";

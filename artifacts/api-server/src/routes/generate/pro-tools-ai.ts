@@ -22,7 +22,7 @@ import { logger } from "../../lib/logger";
  * How it works:
  *  1. The frontend captures the current clip frame as a JPEG data URL and
  *     optionally a text description of the desired look ("warm cinematic").
- *  2. The vision-capable text model (getTextModel(), default gpt-6-sol)
+ *  2. The vision-capable text model (getTextModel(), default gpt-6.1-sol)
  *     analyzes the frame and returns optimal -100..100 slider values.
  *  3. If the model rejects the image input (no vision support), we retry
  *     text-only from the `look` description so the feature still works.
@@ -152,7 +152,6 @@ router.post("/pro-tools/auto-grade", requireAuth, publicApiLimiter, async (req, 
           ],
           response_format: { type: "json_object" },
           max_completion_tokens: 400,
-          temperature: 0.4,
         });
         raw = completion.choices[0]?.message?.content ?? null;
         usedVision = true;
@@ -177,7 +176,6 @@ router.post("/pro-tools/auto-grade", requireAuth, publicApiLimiter, async (req, 
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 400,
-        temperature: 0.4,
       });
       raw = completion.choices[0]?.message?.content ?? null;
     }

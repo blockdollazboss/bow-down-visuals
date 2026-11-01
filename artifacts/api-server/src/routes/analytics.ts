@@ -573,7 +573,6 @@ router.post(
       const completion = await getOpenAI().chat.completions.create({
         model: getTextModel(),
         response_format: { type: "json_object" },
-        temperature: 0.5,
         max_completion_tokens: 1200,
         messages: [
           {
@@ -652,7 +651,6 @@ router.post(
       const completion = await getOpenAI().chat.completions.create({
         model: getTextModel(),
         response_format: { type: "json_object" },
-        temperature: 0.7,
         max_completion_tokens: 1200,
         messages: [
           {

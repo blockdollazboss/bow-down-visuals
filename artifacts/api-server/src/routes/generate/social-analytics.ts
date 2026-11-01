@@ -54,7 +54,7 @@ interface TrendingTopic {
   suggestedAngle: string;
 }
 
-async function callJsonModel(prompt: string, temperature = 0.7): Promise<string> {
+async function callJsonModel(prompt: string): Promise<string> {
   const model = getTextModel();
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -66,7 +66,6 @@ async function callJsonModel(prompt: string, temperature = 0.7): Promise<string>
       model,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature,
     }),
     signal: AbortSignal.timeout(120_000),
   });
@@ -133,7 +132,7 @@ router.post("/analyze-post", requireAuth, async (req, res) => {
       `  "ctaRating": <1-10 score of the call to action>\n` +
       `}`;
 
-    const content = await callJsonModel(prompt, 0.7);
+    const content = await callJsonModel(prompt);
     const analysis = JSON.parse(content) as PostAnalysis;
 
     res.json({
@@ -186,7 +185,7 @@ router.get("/trending-topics", requireAuth, async (req, res) => {
       `Return ONLY valid JSON in this shape:\n` +
       `{"topics": [{"topic": "<trend name>", "blurb": "<1 sentence on why it's trending>", "momentum": "rising|peaking|emerging", "suggestedAngle": "<concrete video/post idea>"}]}`;
 
-    const content = await callJsonModel(prompt, 0.8);
+    const content = await callJsonModel(prompt);
     const parsedContent = JSON.parse(content) as { topics?: TrendingTopic[] };
     const topics = (parsedContent.topics ?? [])
       .filter((t) => t && typeof t.topic === "string" && t.topic.trim().length > 0)

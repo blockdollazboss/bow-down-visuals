@@ -109,7 +109,7 @@ const CAUSE_CATEGORIES = [
   "tangent",
 ];
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -209,7 +209,6 @@ router.post("/retention-doctor", requireAuth, publicApiLimiter, async (req, res)
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1400,
-      temperature: 0.6,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

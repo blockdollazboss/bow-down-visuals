@@ -55,7 +55,6 @@ router.post("/improve-style", requireAuth, freeAiLimiter, async (req, res) => {
         { role: "user", content: `Rough style description:\n${style}` },
       ],
       max_completion_tokens: 300,
-      temperature: 0.7,
     });
 
     const improvedStyle = completion.choices[0]?.message?.content?.trim() || style;

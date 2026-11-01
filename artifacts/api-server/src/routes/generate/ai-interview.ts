@@ -140,7 +140,6 @@ router.post("/ai-interview/questions", requireAuth, publicApiLimiter, async (req
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1000,
-      temperature: 0.8,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -212,7 +211,6 @@ router.post("/ai-interview/package", requireAuth, publicApiLimiter, async (req, 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 2000,
-      temperature: 0.7,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

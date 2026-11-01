@@ -983,7 +983,6 @@ router.post(
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 300,
-        temperature: 0.8,
       });
       const raw = completion.choices[0]?.message?.content ?? "{}";
       let description = "";

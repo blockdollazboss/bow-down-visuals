@@ -219,7 +219,6 @@ router.post("/wave9c/direct/edit", requireAuth, publicApiLimiter, async (req, re
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1200,
-      temperature: 0.4,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

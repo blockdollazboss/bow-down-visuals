@@ -121,7 +121,6 @@ router.post("/video-titles", requireAuth, async (req, res) => {
         model,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.8,
       }),
       signal: AbortSignal.timeout(120_000),
     });

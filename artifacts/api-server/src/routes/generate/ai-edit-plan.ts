@@ -215,7 +215,6 @@ router.post("/generate/ai-edit-plan", requireAuth, freeAiLimiter, async (req, re
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7,
       max_completion_tokens: 1800,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";

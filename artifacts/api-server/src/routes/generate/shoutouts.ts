@@ -556,7 +556,6 @@ router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 400,
-      temperature: 0.6,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

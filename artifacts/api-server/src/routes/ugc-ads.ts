@@ -375,7 +375,6 @@ router.post("/ugc-ads/script", requireAuth, publicApiLimiter, freeAiLimiter, asy
       model: getTextModel(),
       response_format: { type: "json_object" },
       max_completion_tokens: 700,
-      temperature: 0.8,
       messages: [
         {
           role: "system",

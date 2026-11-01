@@ -573,7 +573,6 @@ router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
         },
       ],
       max_completion_tokens: 400,
-      temperature: 0.6,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

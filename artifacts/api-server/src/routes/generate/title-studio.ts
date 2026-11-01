@@ -136,7 +136,7 @@ export function parseTitleStudioResponse(raw: string): TitleStudioResult | null 
   return { titles, description, tags, note };
 }
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -196,7 +196,6 @@ router.post("/title-studio", requireAuth, publicApiLimiter, async (req, res) => 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1600,
-      temperature: 0.85,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

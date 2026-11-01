@@ -157,7 +157,6 @@ export function buildArtDirectionRequest(input: CoverArtInput) {
     ],
     response_format: { type: "json_object" as const },
     max_completion_tokens: 800,
-    temperature: 0.8,
   };
 }
 

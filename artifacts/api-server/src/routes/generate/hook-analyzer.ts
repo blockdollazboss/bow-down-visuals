@@ -39,7 +39,7 @@ interface HookAnalysis {
   alternativeHooks: string[];
 }
 
-async function callJsonModel(prompt: string, temperature = 0.7): Promise<string> {
+async function callJsonModel(prompt: string): Promise<string> {
   const model = getTextModel();
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -51,7 +51,6 @@ async function callJsonModel(prompt: string, temperature = 0.7): Promise<string>
       model,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature,
     }),
     signal: AbortSignal.timeout(120_000),
   });
@@ -145,7 +144,7 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
       `  "alternativeHooks": ["<alt hook 1>", "<alt hook 2>"]\n` +
       `}`;
 
-    const content = await callJsonModel(prompt, 0.7);
+    const content = await callJsonModel(prompt);
     const analysis = JSON.parse(content) as HookAnalysis;
 
     const strArr = (v: unknown, max: number, len: number): string[] =>

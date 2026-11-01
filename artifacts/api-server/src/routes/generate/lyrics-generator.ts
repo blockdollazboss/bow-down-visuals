@@ -77,7 +77,6 @@ router.post("/generate-lyrics", requireAuth, async (req, res) => {
         },
       ],
       max_completion_tokens: 2000,
-      temperature: 0.9,
     });
 
     const lyrics = completion.choices[0]?.message?.content?.trim();

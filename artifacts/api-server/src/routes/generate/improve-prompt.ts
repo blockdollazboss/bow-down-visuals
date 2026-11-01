@@ -140,7 +140,6 @@ router.post("/improve-prompt", requireAuth, freeAiLimiter, async (req, res) => {
         { role: "user", content: userParts.join("\n\n") },
       ],
       max_completion_tokens: 500,
-      temperature: 0.7,
     });
 
     const improvedPrompt = completion.choices[0]?.message?.content?.trim() || prompt;

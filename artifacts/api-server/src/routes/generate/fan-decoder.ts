@@ -153,7 +153,6 @@ router.post("/fan-decoder/decode", requireAuth, publicApiLimiter, async (req, re
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 2000,
-      temperature: 0.6,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

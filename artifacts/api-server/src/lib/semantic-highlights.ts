@@ -154,7 +154,6 @@ export async function detectSemanticHighlights(
         messages: messages as Array<{ role: "system" | "user"; content: string }>,
         response_format: { type: "json_object" },
         max_completion_tokens: 2000,
-        temperature: 0.6,
       });
       return completion.choices[0]?.message?.content ?? "{}";
     });

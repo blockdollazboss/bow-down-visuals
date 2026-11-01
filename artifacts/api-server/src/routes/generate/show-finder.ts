@@ -141,7 +141,7 @@ async function refund(userId: string, cost: number, action: string) {
   }
 }
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -171,7 +171,6 @@ router.post("/show-finder", requireAuth, publicApiLimiter, async (req, res) => {
       model: getTextModel(),
       max_completion_tokens: 2500,
       response_format: { type: "json_object" },
-      temperature: 0.5,
       messages: [
         {
           role: "system",
@@ -263,7 +262,6 @@ router.post("/show-finder/pitch", requireAuth, publicApiLimiter, async (req, res
       model: getTextModel(),
       max_completion_tokens: 1200,
       response_format: { type: "json_object" },
-      temperature: 0.6,
       messages: [
         {
           role: "system",

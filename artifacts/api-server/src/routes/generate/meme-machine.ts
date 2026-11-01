@@ -103,7 +103,6 @@ router.post("/meme-machine/captions", requireAuth, publicApiLimiter, async (req,
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 800,
-      temperature: 0.95,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

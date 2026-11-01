@@ -294,7 +294,6 @@ router.post("/branding-shop/design", requireAuth, publicApiLimiter, async (req, 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1200,
-      temperature: 0.8,
     });
 
     const brief = parseBrief(completion.choices[0]?.message?.content ?? "{}", products);

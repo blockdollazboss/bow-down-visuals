@@ -20,11 +20,17 @@ export function getOpenAI(): OpenAI {
 }
 
 /* Default OpenAI text model for every prompt-generation route — env-overridable.
-   gpt-6-sol is the current price/performance pick ($2 input / $10 output per 1M
-   tokens). Override with OPENAI_TEXT_MODEL (e.g. gpt-6-astra for flagship,
-   gpt-6-luna for the cheapest tier). */
+   gpt-6.1-sol is the current price/performance pick ($2 input / $10 output per 1M
+   tokens, cached input $0.10; released 2026-09-29 as the successor to gpt-6-sol
+   at the same price). Override with OPENAI_TEXT_MODEL (e.g. gpt-6-astra for
+   flagship, gpt-6-luna for the cheapest tier).
+   PARAM RULES for the GPT-6.1 Sol family (OpenAI migration guide): sampling
+   params are NOT supported — never send temperature, top_p, top_logprobs or
+   logprobs; reasoning_effort "none"/"minimal" are invalid (low..max only);
+   tool calling requires the Responses API (Chat Completions works only for
+   tool-free requests). Call sites must follow these rules or the API 400s. */
 export function getTextModel(): string {
-  return process.env["OPENAI_TEXT_MODEL"] || "gpt-6-sol";
+  return process.env["OPENAI_TEXT_MODEL"] || "gpt-6.1-sol";
 }
 
 /* Plain-transcription model — for call sites that consume ONLY the

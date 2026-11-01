@@ -183,7 +183,6 @@ router.post("/setlist/flow", requireAuth, publicApiLimiter, async (req, res) => 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1500,
-      temperature: 0.7,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

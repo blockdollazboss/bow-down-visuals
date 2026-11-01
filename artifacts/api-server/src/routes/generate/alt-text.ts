@@ -115,7 +115,6 @@ router.post("/generate/alt-text", requireAuth, freeAiLimiter, async (req, res) =
         },
       ],
       max_completion_tokens: 220,
-      temperature: 0.3,
     });
 
     const altText = parseAltTextResponse(completion.choices[0]?.message?.content);

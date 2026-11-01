@@ -194,7 +194,6 @@ router.post("/community/moderate", requireAuth, publicApiLimiter, async (req, re
         { role: "user", content: formatComments(comments) },
       ],
       max_completion_tokens: 2000,
-      temperature: 0.2,
     });
     const raw = completion.choices[0]?.message?.content?.trim() ?? "[]";
     const flags = parseModerationJson(raw, comments.length);
@@ -251,7 +250,6 @@ router.post("/community/reply-draft", requireAuth, publicApiLimiter, async (req,
         { role: "user", content: formatComments(comments) },
       ],
       max_completion_tokens: 1500,
-      temperature: 0.7,
     });
     const raw = (completion.choices[0]?.message?.content ?? "[]").replace(/```json|```/g, "").trim();
     let drafts: { index: number; reply: string }[] = [];
@@ -320,7 +318,6 @@ router.post("/community/sentiment", requireAuth, publicApiLimiter, async (req, r
         { role: "user", content: formatComments(comments) },
       ],
       max_completion_tokens: 1500,
-      temperature: 0.3,
     });
     const raw = (completion.choices[0]?.message?.content ?? "{}").replace(/```json|```/g, "").trim();
     let report: Record<string, unknown> | null = null;
@@ -383,7 +380,6 @@ router.post("/community/superfans", requireAuth, publicApiLimiter, async (req, r
         { role: "user", content: formatComments(comments) },
       ],
       max_completion_tokens: 1200,
-      temperature: 0.3,
     });
     const raw = (completion.choices[0]?.message?.content ?? "{}").replace(/```json|```/g, "").trim();
     let superfans: { author: string; score: number; why: string; commentCount: number }[] = [];

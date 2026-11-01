@@ -82,7 +82,6 @@ async function callJsonModel(prompt: string, maxTokens = 1500): Promise<string> 
       model,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.7,
       max_completion_tokens: maxTokens,
     }),
     signal: AbortSignal.timeout(120_000),

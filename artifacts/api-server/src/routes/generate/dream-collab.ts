@@ -134,7 +134,6 @@ router.post("/dream-collab/concept", requireAuth, publicApiLimiter, async (req, 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 3000,
-      temperature: 0.85,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

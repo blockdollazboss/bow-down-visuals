@@ -1695,7 +1695,6 @@ router.post("/shops/ai/shop-description", requireAuth, publicApiLimiter, async (
       response_format: { type: "json_object" },
       /* GPT-6 rejects max_tokens — max_completion_tokens is the correct param. */
       max_completion_tokens: 400,
-      temperature: 0.8,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let description = "";
@@ -1773,7 +1772,6 @@ router.post("/shops/ai/product-description", requireAuth, publicApiLimiter, asyn
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 500,
-      temperature: 0.8,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let description = "";

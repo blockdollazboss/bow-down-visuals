@@ -154,7 +154,6 @@ export async function detectTimedChapters(
     model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
-    temperature: 0.4,
   }, { signal: AbortSignal.timeout(120_000) });
 
   const content = completion.choices?.[0]?.message?.content ?? "";
@@ -190,7 +189,6 @@ async function detectUntimedChapters(
     model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
-    temperature: 0.4,
   }, { signal: AbortSignal.timeout(120_000) });
 
   const content = completion.choices?.[0]?.message?.content ?? "";
@@ -256,7 +254,6 @@ export async function generateSummaryFromTranscript(
         `\n\nTranscript:\n${trimmed}` +
         `\n\nReturn ONLY the summary text.`,
     }],
-    temperature: 0.4,
   }, { signal: AbortSignal.timeout(60_000) });
   const text = completion.choices?.[0]?.message?.content ?? "";
   return text.trim().slice(0, 600);

@@ -334,7 +334,6 @@ router.post("/analyze-niche", requireAuth, async (req, res) => {
         model,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.6,
       }),
       signal: AbortSignal.timeout(180_000),
     });

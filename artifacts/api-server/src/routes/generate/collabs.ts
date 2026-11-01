@@ -361,7 +361,6 @@ router.post("/collabs/match", requireAuth, publicApiLimiter, async (req, res) =>
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 800,
-      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

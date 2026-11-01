@@ -789,7 +789,6 @@ router.post("/email-list/newsletter", requireAuth, publicApiLimiter, async (req,
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1500,
-      temperature: 0.8,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

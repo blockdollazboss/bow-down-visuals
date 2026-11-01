@@ -197,7 +197,6 @@ router.post("/wave9a/structure/generate", requireAuth, publicApiLimiter, async (
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1800,
-      temperature: 0.7,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -281,7 +280,6 @@ router.post("/wave9a/lyrics/timing", requireAuth, publicApiLimiter, async (req, 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 2400,
-      temperature: 0.4,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

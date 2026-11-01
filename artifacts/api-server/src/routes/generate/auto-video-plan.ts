@@ -275,7 +275,6 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
       response_format: { type: "json_object" },
-      temperature: 0.8,
       max_completion_tokens: 6000,
       messages: [
         { role: "system", content: DIRECTOR_SYSTEM_PROMPT },

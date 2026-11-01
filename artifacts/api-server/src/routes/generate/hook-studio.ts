@@ -57,7 +57,7 @@ const captionsSchema = z.object({
 
 const hookStudioSchema = z.discriminatedUnion("mode", [hooksSchema, preflightSchema, captionsSchema]);
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -141,7 +141,6 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 600,
-        temperature: 0.9,
       });
 
       const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -194,7 +193,6 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 800,
-        temperature: 0.8,
       });
 
       const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -273,7 +271,6 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1200,
-      temperature: 0.4,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
