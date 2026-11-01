@@ -404,6 +404,10 @@ describe("email capture", () => {
     expect(subs).toHaveLength(1);
     expect(subs[0]!.unsubscribed_at).toBeNull();
     expect(subs[0]!.source).toBe("keyword_automation");
+    /* The subscribe door queues the welcome sequence for NEW
+       subscribers only — a re-activation must not queue it either
+       (email-trigger truth, stack1100 Y6). */
+    expect(welcome.calls).toHaveLength(0);
   });
 
   it("no pending capture = an emailed DM is just a DM", async () => {

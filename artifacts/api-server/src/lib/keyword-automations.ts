@@ -523,9 +523,18 @@ export async function handleDmEmailCapture(input: DmCaptureInput): Promise<void>
           unsubscribed_at: null, subscribed_at: new Date(),
         });
       }
-      await queueWelcomeSequence(list, subscriber).catch((err) =>
-        logger.error({ err, listId: list.id }, "[keyword-automations] welcome sequence queue failed"),
-      );
+      /* The welcome sequence queues for a genuinely NEW subscriber
+         only — the public subscribe door's exact behavior. A
+         re-activated address already holds its sequence rows from
+         its first subscription (the (subscriber, step) unique makes
+         re-queueing a no-op for them), and steps it never had belong
+         to the first subscription it never took them under, not to
+         this one. */
+      if (!existing) {
+        await queueWelcomeSequence(list, subscriber).catch((err) =>
+          logger.error({ err, listId: list.id }, "[keyword-automations] welcome sequence queue failed"),
+        );
+      }
       outcome = "captured";
     }
 
