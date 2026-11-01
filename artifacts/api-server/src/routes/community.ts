@@ -7,6 +7,7 @@ import { db } from "@workspace/db";
 import {
   groupsTable,
   groupMembersTable,
+  groupJoinQuestionsTable,
   groupPostsTable,
   groupForumChannelsTable,
   groupForumThreadsTable,
@@ -27,7 +28,7 @@ import {
 } from "@workspace/db";
 import { eq, and, or, desc, asc, sql, ne, gt, gte, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { canGroupAction, normalizeGroupRole } from "../lib/group-roles";
+import { canGroupAction, canAssignRole, normalizeGroupRole, GROUP_ROLE_RANK } from "../lib/group-roles";
 import { isUndefinedColumn } from "../lib/pg-errors";
 import {
   orderFanTiers, evaluateTierGate, buildTierGateKnock,
@@ -82,8 +83,8 @@ function param(req: Request, name: string): string {
        POST   /groups/:slug/leave           (auth)
        GET    /groups/:slug/feed            group posts (auth for private)
        POST   /groups/:slug/posts           (auth; member only)
-       DELETE /groups/:slug/posts/:postId   (auth; owner/mod or post author)
-       DELETE /groups/:slug/members/:userId (auth; owner only)
+       DELETE /groups/:slug/posts/:postId   (auth; moderator+ on the ladder, or post author)
+       DELETE /groups/:slug/members/:userId (auth; admin+ on the ladder, target strictly below the actor)
      Group forums (0185 — channels inside the group, threads inside a
      channel, replies inside a thread; the group's own visibility and
      role ladder govern every path):
@@ -452,6 +453,17 @@ async function membershipRole(groupId: string, userId: string | undefined): Prom
   return rows[0]?.role ?? null;
 }
 
+/** Ladder rank of a stored role value; an unparseable legacy value
+ *  ranks below everyone (it can be moderated/removed, never act). */
+function roleRank(v: unknown): number {
+  const n = normalizeGroupRole(v);
+  return n ? GROUP_ROLE_RANK[n] : 0;
+}
+
+/** The roles a role edit may land on (ownership never moves through
+ *  a role edit — see canAssignRole). */
+const ASSIGNABLE_ROLES = ["admin", "moderator", "member"] as const;
+
 async function getMyProfile(userId: string) {
   const rows = await db.select().from(creatorProfilesTable)
     .where(eq(creatorProfilesTable.userId, userId)).limit(1);
@@ -641,6 +653,16 @@ router.get("/groups/:slug", async (req, res) => {
       members: memberRows.map((m) => ({
         user_id: m.userId, role: m.role, joined_at: m.joinedAt,
         profile: cards[m.userId] ?? null,
+        /* Per-member caps, computed from the ladder server-side so
+           clients render exactly the controls the removal / role
+           routes will honour — never a button that can only 403.
+           can_remove mirrors DELETE /groups/:slug/members/:userId
+           (admin+ and the target strictly below the viewer's rung);
+           assignable_roles mirrors canAssignRole for the role PATCH. */
+        can_remove: req.userId != null && m.userId !== req.userId
+          && canGroupAction(viewerRole, "removeMember")
+          && roleRank(m.role) < roleRank(viewerRole),
+        assignable_roles: ASSIGNABLE_ROLES.filter((cand) => canAssignRole(viewerRole, m.role, cand)),
       })),
       viewer_role: viewerRole,
     }));
@@ -660,6 +682,19 @@ router.post("/groups/:slug/join", requireAuth, async (req, res) => {
     const userId = req.userId!;
     const existing = await membershipRole(group.id, userId);
     if (existing) { res.status(409).json({ error: "You're already in this crew." }); return; }
+    /* Join questions are the group's approval gate: when admins have
+       set them, membership only lands through an approved join
+       request (routes/trust.ts) — a direct join must not walk around
+       the gate the onboarding panel promises ("the admins read your
+       answers when they decide"). */
+    const questions = await db.select({ id: groupJoinQuestionsTable.id })
+      .from(groupJoinQuestionsTable)
+      .where(eq(groupJoinQuestionsTable.group_id, group.id))
+      .limit(1);
+    if (questions.length > 0) {
+      res.status(409).json({ error: "This group asks a few questions before you join — send a join request from the group page and the admins will review your answers." });
+      return;
+    }
     await db.insert(groupMembersTable).values({ groupId: group.id, userId, role: "member" });
     await db.update(groupsTable)
       .set({ memberCount: sql`${groupsTable.memberCount} + 1` })
@@ -695,7 +730,7 @@ router.post("/groups/:slug/leave", requireAuth, async (req, res) => {
     const role = await membershipRole(group.id, userId);
     if (!role) { res.status(404).json({ error: "You're not in this group." }); return; }
     if (role === "owner") {
-      res.status(400).json({ error: "Owners can't ghost their own crew — hand off ownership first." });
+      res.status(400).json({ error: "Owners can't ghost their own crew — ownership can't be handed off yet, so the group stays with you." });
       return;
     }
     await db.delete(groupMembersTable)
@@ -728,7 +763,7 @@ router.get("/groups/:slug/feed", async (req, res) => {
       posts: posts.map((p) => ({
         id: p.id, body: p.body, like_count: p.likeCount, created_at: p.createdAt,
         author_user_id: p.authorUserId, author: cards[p.authorUserId] ?? null,
-        can_delete: req.userId != null && (role === "owner" || role === "mod" || p.authorUserId === req.userId),
+        can_delete: req.userId != null && (p.authorUserId === req.userId || canGroupAction(role, "deletePost")),
       })),
       viewer_role: role,
     }));
@@ -758,7 +793,9 @@ router.post("/groups/:slug/posts", requireAuth, async (req, res) => {
   }
 });
 
-/** Delete a group post: owner, mod, or the post's author. */
+/** Delete a group post: moderator+ on the ladder (the deletePost
+ *  rung — the ladder normalizes the legacy "mod" value and the
+ *  canonical "moderator" alike), or the post's author. */
 router.delete("/groups/:slug/posts/:postId", requireAuth, async (req, res) => {
   try {
     const group = await getGroupBySlug(param(req, "slug"));
@@ -769,7 +806,7 @@ router.delete("/groups/:slug/posts/:postId", requireAuth, async (req, res) => {
       .where(and(eq(groupPostsTable.id, param(req, "postId")), eq(groupPostsTable.groupId, group.id))).limit(1);
     const post = rows[0];
     if (!post) { res.status(404).json({ error: "Post not found." }); return; }
-    if (role !== "owner" && role !== "mod" && post.authorUserId !== userId) {
+    if (post.authorUserId !== userId && !canGroupAction(role, "deletePost")) {
       res.status(403).json({ error: "Only the crew leads or the author can remove this." });
       return;
     }
@@ -781,18 +818,26 @@ router.delete("/groups/:slug/posts/:postId", requireAuth, async (req, res) => {
   }
 });
 
-/** Owner moderation: remove a member (can't remove self). */
+/** Ladder moderation: remove a member. The ladder's removeMember
+ *  rung is admin+ (the my-role caps advertise exactly that); the
+ *  target must sit strictly below the actor's own rung — the same
+ *  rule role edits follow (canAssignRole) — so nobody removes the
+ *  owner and an admin cannot remove a peer admin. Can't remove self. */
 router.delete("/groups/:slug/members/:userId", requireAuth, async (req, res) => {
   try {
     const group = await getGroupBySlug(param(req, "slug"));
     if (!group) { res.status(404).json({ error: "Group not found." }); return; }
     const userId = req.userId!;
     const role = await membershipRole(group.id, userId);
-    if (role !== "owner") { res.status(403).json({ error: "Only the group owner can remove members." }); return; }
+    if (!canGroupAction(role, "removeMember")) { res.status(403).json({ error: "Only the crew's admins and owner can remove members." }); return; }
     const target = z.string().uuid().parse(param(req, "userId"));
-    if (target === userId) { res.status(400).json({ error: "You can't remove yourself — transfer the group instead." }); return; }
+    if (target === userId) { res.status(400).json({ error: "You can't remove yourself." }); return; }
     const targetRole = await membershipRole(group.id, target);
     if (!targetRole) { res.status(404).json({ error: "They're not in this group." }); return; }
+    if (!(roleRank(targetRole) < roleRank(role))) {
+      res.status(403).json({ error: "You can't remove someone at or above your own rung on the ladder." });
+      return;
+    }
     await db.delete(groupMembersTable)
       .where(and(eq(groupMembersTable.groupId, group.id), eq(groupMembersTable.userId, target)));
     await db.update(groupsTable)
