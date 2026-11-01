@@ -418,7 +418,7 @@ function WebhooksSettings({
       </div>
       <p className={`mt-1 text-xs ${sub}`}>
         We POST a signed JSON event to your endpoint when a sale, follow, or membership happens for you — and only for you.
-        Failed deliveries retry 5 times (30s, 5 min, 30 min, 2 hrs); an endpoint that keeps failing is switched off automatically.
+        Failed deliveries are attempted up to 5 times in total — first right away, then again after 30s, 5 min, 30 min and 2 hrs. An endpoint that keeps failing is switched off automatically.
       </p>
 
       {unavailable ? (

@@ -5,6 +5,7 @@ import {
   type ResolvedApiKey,
 } from "../lib/api-keys";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { spendableBalance } from "../lib/credits";
 import { logger } from "../lib/logger";
 
 declare global {
@@ -31,10 +32,22 @@ async function loadBalance(userId: string): Promise<number> {
   try {
     const { data } = await getSupabaseAdmin()
       .from("profiles")
-      .select("credits")
+      .select("credits, bonus_credits, bonus_credits_expires_at")
       .eq("id", userId)
       .maybeSingle();
-    return (data as { credits?: number } | null)?.credits ?? 0;
+    /* THE spendable balance — the same composition requireAuth attaches
+       for session requests and chargeCredits spends (bonus pool first):
+       profiles.credits PLUS the live bonus pool. Reading `credits` alone
+       understated every key-authed balance while a temporary bonus was
+       live: /v1/balance disagreed with the site's own readout, and the
+       bio pre-check 402'd members the charge rail would have served. */
+    return spendableBalance(
+      data as {
+        credits?: number | null;
+        bonus_credits?: number | null;
+        bonus_credits_expires_at?: string | null;
+      } | null,
+    );
   } catch {
     return 0;
   }
