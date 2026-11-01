@@ -2,9 +2,10 @@ import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
-  BadgeDollarSign, Check, Disc3, Download, Loader2, LogIn, Pause, Pencil, Play, Plus, Search, Trash2, X,
+  BadgeDollarSign, Check, Disc3, Download, Loader2, LogIn, Pause, Pencil, Play, Plus, Search, Sparkles, Trash2, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import {
   NativeCard, NativeEmptyState, NativeErrorState, NativeLoadingState,
@@ -13,10 +14,16 @@ import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/Crea
 import { BEAT_LICENSE_FORMATS, describeTermsInline, templateTerms, type BeatLicenseTemplate } from "@/lib/beat-license-terms";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import {
+  BEAT_AI_TAGS_COST_VB,
+  BEAT_AI_TAGS_FEATURE,
   BEATS_COMMISSION_LINE,
   BEATS_PAYMENT_NOTE,
   BEATS_PAGE_SIZE,
   apiErrorLine,
+  beatAiTagApplyPayload,
+  beatAiTagsOutcome,
+  beatAiTagsPath,
+  beatPatchPath,
   beatCheckoutSessionId,
   beatCheckoutUrl,
   beatLicensePath,
@@ -38,6 +45,7 @@ import {
   parseMyLicenses,
   parseMyTemplates,
   beatVerifyConfirmed,
+  type BeatAiTagSuggestion,
   type BeatDashboard,
   type BeatDto,
   type BeatFilters,
@@ -74,12 +82,25 @@ import { BEAT_GENRES } from "@/lib/world/money-desks-2";
    regardless); and the buyer library names each beat and renders
    the Download / Download stems links the licenses/mine rail hands
    completed licenses, with a failed load shown as a failure (with
-   Retry), never as an empty library. */
+   Retry), never as an empty library.
+   Stack1200 parity (the Y1 lane's one named gap): the dashboard's
+   "Your beats" rows now carry the 2D BeatRow's AI-tags affordance —
+   POST /api/beats/:id/ai-tags (the server's charged rail: 100
+   Visual Bucs, charge-before-generate, refunded on failure) through
+   the World's spend confirmation at the same pinned price, the
+   suggested genre + mood tags shown on the row, and Apply riding
+   the page's exact PATCH /api/beats/:id { genre, moodTags }. Where
+   the page swallows failures silently, the desk names them in
+   place (the World's honest-failure law); where the page's button
+   label still says "1cr", the desk names the rail's true 100 Buc
+   charge. The rows read only the owner's own dashboard payload —
+   no guest or public presentation is touched. */
 
 type BeatsTab = "browse" | "sell" | "dashboard";
 
 export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
   const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<BeatsTab>("browse");
 
   /* ── Browse ── */
@@ -298,6 +319,87 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   }, [isGuest]);
 
   useEffect(() => { if (tab === "dashboard") void loadDashboard(); }, [tab, loadDashboard]);
+
+  /* ── AI tags on the owner's rows (the 2D BeatRow affordance) ──
+     Per-beat state, exactly like the page's per-row BeatRow: one
+     beat's suggestion, spinner and errors never touch another
+     row's. The busy beat blocks only itself. */
+  const [tagSuggestions, setTagSuggestions] = useState<Record<string, BeatAiTagSuggestion>>({});
+  const [tagBusyId, setTagBusyId] = useState<string | null>(null);
+  const [tagApplyingId, setTagApplyingId] = useState<string | null>(null);
+  const [tagErrors, setTagErrors] = useState<Record<string, string>>({});
+  const [tagCreditsId, setTagCreditsId] = useState<string | null>(null);
+
+  const suggestTags = async (beat: BeatDto) => {
+    if (tagBusyId) return;
+    setTagBusyId(beat.id);
+    setTagErrors((m) => ({ ...m, [beat.id]: "" }));
+    if (tagCreditsId === beat.id) setTagCreditsId(null);
+    try {
+      const res = await confirmedFetch(beatAiTagsPath(beat.id), {
+        method: "POST",
+        headers: { ...(await authHeaders()) },
+        overrideCost: BEAT_AI_TAGS_COST_VB,
+        overrideFeature: BEAT_AI_TAGS_FEATURE,
+      });
+      if (!res) return; // declined the confirmation — nothing charged
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const outcome = beatAiTagsOutcome({ status: res.status, data }, beat.genre);
+      if (outcome.kind === "credits") {
+        setTagCreditsId(beat.id);
+      } else if (outcome.kind === "error") {
+        setTagErrors((m) => ({ ...m, [beat.id]: outcome.message }));
+      } else {
+        setTagSuggestions((m) => ({ ...m, [beat.id]: outcome.suggestion }));
+      }
+    } catch {
+      setTagErrors((m) => ({ ...m, [beat.id]: "The tag suggester couldn't run — try again." }));
+    } finally {
+      setTagBusyId(null);
+    }
+  };
+
+  const applyTags = async (beat: BeatDto) => {
+    const suggestion = tagSuggestions[beat.id];
+    if (!suggestion || tagApplyingId) return;
+    setTagApplyingId(beat.id);
+    setTagErrors((m) => ({ ...m, [beat.id]: "" }));
+    try {
+      const res = await fetch(beatPatchPath(beat.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(beatAiTagApplyPayload(suggestion)),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Those tags couldn't be applied — try again."));
+      setTagSuggestions((m) => {
+        const next = { ...m };
+        delete next[beat.id];
+        return next;
+      });
+      /* The page refreshes its dashboard after applying (BeatRow's
+         onRefresh) — the desk reloads its own the same way, so the
+         row re-reads with the applied genre + tags. */
+      await loadDashboard();
+    } catch (e) {
+      /* The page ignores an Apply failure silently; the desk names
+         it on the row and KEEPS the suggestion, so the paid-for
+         tags are never lost to a failed save. */
+      setTagErrors((m) => ({ ...m, [beat.id]: plainErrorText(e, "Those tags couldn't be applied — try again.") }));
+    } finally {
+      setTagApplyingId(null);
+    }
+  };
+
+  const dismissTags = (beatId: string) => {
+    setTagSuggestions((m) => {
+      const next = { ...m };
+      delete next[beatId];
+      return next;
+    });
+    setTagErrors((m) => ({ ...m, [beatId]: "" }));
+    if (tagCreditsId === beatId) setTagCreditsId(null);
+  };
 
   const saveTemplate = async () => {
     if (!tplForm || tplSaving) return;
@@ -586,12 +688,56 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           <NativeCard isLight={isLight} title="Your beats">
             {dashboard.beats.length === 0 ? (
               <p className={`text-xs ${muted}`}>No beats listed yet — the Sell tab puts your first one up, free.</p>
-            ) : dashboard.beats.map((b) => (
-              <p key={b.id} className={`flex items-baseline justify-between gap-2 border-b py-1.5 text-xs last:border-0 ${isLight ? "border-[#7A5A12]/15 text-[#2a1e07]" : "border-white/10 text-white/80"}`}>
-                <span className="font-bold">{b.title}</span>
-                <span className={muted}>{b.genre} · {b.plays.toLocaleString("en-US")} plays</span>
-              </p>
-            ))}
+            ) : dashboard.beats.map((b) => {
+              const suggestion = tagSuggestions[b.id];
+              const tagError = tagErrors[b.id];
+              return (
+                <div key={b.id} className={`border-b py-1.5 text-xs last:border-0 ${isLight ? "border-[#7A5A12]/15 text-[#2a1e07]" : "border-white/10 text-white/80"}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{b.title}</span>
+                      <span className={`block ${muted}`}>
+                        {b.genre}{b.moodTags.length ? ` · ${b.moodTags.map((t) => `#${t}`).join(" ")}` : ""} · {b.plays.toLocaleString("en-US")} plays
+                      </span>
+                    </span>
+                    <button type="button" data-testid="world-beats-ai-tags" onClick={() => void suggestTags(b)} disabled={tagBusyId === b.id}
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition disabled:opacity-50 bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#92600a]" : "border-yellow-500/40 text-yellow-200"}`}>
+                      {tagBusyId === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      AI tags · {BEAT_AI_TAGS_COST_VB} Bucs
+                    </button>
+                  </div>
+                  {tagCreditsId === b.id && (
+                    <p className={`mt-1.5 text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-yellow-200/90"}`}>
+                      Not enough Visual Bucs for AI tags — it costs {BEAT_AI_TAGS_COST_VB}. Top up at the Treasury; nothing was charged.
+                    </p>
+                  )}
+                  {tagError && <p className="mt-1.5 text-[11px] font-semibold text-red-400">{tagError}</p>}
+                  {suggestion && (
+                    <div data-testid="world-beats-ai-tags-suggestion" className={`mt-2 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-yellow-500/25 bg-yellow-500/5"}`}>
+                      <p className={`text-[11px] ${muted}`}>AI suggests: <span className={`font-bold ${isLight ? "text-[#92600a]" : "text-yellow-200"}`}>{suggestion.genre}</span></p>
+                      {suggestion.moodTags.length > 0 && (
+                        <p className="mt-1.5 flex flex-wrap gap-1">
+                          {suggestion.moodTags.map((t) => (
+                            <span key={t} className={`rounded-full border px-2 py-0.5 text-[11px] ${isLight ? "border-[#7A5A12]/25 text-[#6B5B36]" : "border-white/10 text-white/60"}`}>#{t}</span>
+                          ))}
+                        </p>
+                      )}
+                      <p className="mt-2 flex flex-wrap gap-1.5">
+                        <button type="button" data-testid="world-beats-ai-tags-apply" onClick={() => void applyTags(b)} disabled={tagApplyingId === b.id}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
+                          {tagApplyingId === b.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          Apply to beat
+                        </button>
+                        <button type="button" data-testid="world-beats-ai-tags-dismiss" onClick={() => dismissTags(b.id)}
+                          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+                          <X className="h-3 w-3" /> Keep mine
+                        </button>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </NativeCard>
           <NativeCard isLight={isLight} title="Sales">
             {dashboard.sales.length === 0 ? (
