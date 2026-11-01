@@ -24,6 +24,7 @@ import {
   BOOKING_REMINDER_JOB_TYPE,
   BOOKING_REMINDER_LEAD_MS,
 } from "../booking-reminders";
+import { __setBookingEventNotifier } from "../booking-notify";
 import {
   encodeBookingNote,
   decodeBookingNote,
@@ -243,5 +244,32 @@ describe("booking-reminders sweep", () => {
     /* A malformed rm invalidates the record rather than crashing. */
     const bad = { ...plain, rm: "not-a-date" } as unknown as BookingRecord;
     expect(decodeBookingNote(encodeBookingNote(bad))).toBeNull();
+  });
+});
+
+describe("buyer reminder fan-out (stack1100 Y3)", () => {
+  it("a landed reminder also fires the door event to the buyer — exactly once across sweeps", async () => {
+    const events: Array<Record<string, unknown>> = [];
+    __setBookingEventNotifier(async (input) => {
+      events.push(input as unknown as Record<string, unknown>);
+    });
+    try {
+      await seedBooking({ record: rec(NOW.getTime() + 12 * 3600_000) });
+      expect(await sweep()).toBe(1);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        userId: BUYER,
+        category: "money",
+        kind: BOOKING_REMINDER_JOB_TYPE,
+        title: "Reminder: 1:1 Coaching Call",
+        link: "/store/purchases",
+      });
+      expect(String(events[0]!["body"])).toContain("1:1 Coaching Call");
+      /* Second sweep: the claim is stamped, so no re-fire. */
+      expect(await sweep()).toBe(0);
+      expect(events).toHaveLength(1);
+    } finally {
+      __setBookingEventNotifier(null);
+    }
   });
 });

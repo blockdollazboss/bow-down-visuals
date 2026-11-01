@@ -168,6 +168,7 @@ import {
 } from "../lib/gift-cards";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { emitNewSaleWebhook } from "../lib/api-webhooks";
+import { notifyBookingEvent } from "../lib/booking-notify";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
 /* Make-an-offer (Wave 4 #43): an accepted offer's agreed price can
@@ -711,13 +712,27 @@ async function creatorUserId(run: SqlRunner, profileId: string): Promise<string 
  *  the legacy service flow uses). */
 async function notifyBookingParty(
   run: SqlRunner,
-  args: { userId: string; jobType: string; jobId: string; title: string; message: string },
+  args: { userId: string; jobType: string; jobId: string; title: string; message: string; link: string },
 ): Promise<void> {
-  await run.execute(sql`
+  const landed = await run.execute(sql`
     INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
     VALUES (${args.jobType}, ${args.jobId}, ${args.userId}, 'completed', ${args.title}, ${args.message})
     ON CONFLICT DO NOTHING
+    RETURNING id
   `);
+  /* Fan-out truth (stack1100 Y3): the row above is the exactly-once
+     claim + ops record — its only consumer used to be the owner's
+     chat relay, so the booking party was never actually told. When
+     the claim lands, the party gets the bell + device ping too. */
+  if (landed.rows.length > 0) {
+    await notifyBookingEvent({
+      userId: args.userId,
+      kind: args.jobType,
+      title: args.title,
+      body: args.message,
+      link: args.link,
+    });
+  }
 }
 
 /* ── Link graph: every product response carries its web of links ─────── */
@@ -1354,6 +1369,7 @@ router.post("/storefront/product/:id/office-hours/book", requireAuth, publicApiL
         jobId: hold.orderId,
         title: `Office Hours booked: ${p.title}`,
         message: `A ${priceVb} VB Office Hours session was booked — ${bookingHumanLine(confirmed)}. It happens as a video call in your Messages.`,
+        link: "/store/dashboard",
       }).catch(() => undefined);
     }
     logger.info({ orderId: hold.orderId, productId: id, priceVb }, "[storefront] office hours booked");
@@ -3076,6 +3092,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
             jobId: orderId,
             title: `New booking: ${bp?.title ?? "Service"}`,
             message: `Someone just booked "${bp?.title ?? "your service"}" (${money(amountCents)}) — ${bookingHumanLine(confirmed)}.`,
+            link: "/store/dashboard",
           });
           /* Hold-expiry edge: the payment completed after the hold lapsed
              and another confirmed booking now overlaps. The paid booking
@@ -3093,6 +3110,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
               jobId: `${orderId}:conflict`,
               title: `Booking clash: ${bp?.title ?? "Service"}`,
               message: `Two paid bookings overlap at ${bookingHumanLine(confirmed)} — one paid after its hold expired. Reach out to one buyer to move their slot.`,
+              link: "/store/dashboard",
             });
           }
         }
@@ -3290,20 +3308,33 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           } else {
             fulfillmentNote = "Booking request received — the creator confirms your slot from their dashboard.";
           }
-          /* Notify the creator through the exactly-once job-notifications
-             relay (UNIQUE(job_type, job_id) = order id → never double-pings). */
+          /* Notify the creator: the job-notifications row is the
+             exactly-once claim (UNIQUE(job_type, job_id) = order id);
+             when it lands, the creator ALSO gets the bell + device ping
+             through the event door (fan-out truth, stack1100 Y3 — the
+             relay queue alone never reached the creator). */
           const creatorUser = await db.execute(sql`
             SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
           `);
           const crow = creatorUser.rows[0] as Record<string, unknown> | undefined;
           if (crow?.["user_id"]) {
-            await db.execute(sql`
+            const landed = await db.execute(sql`
               INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
               VALUES ('storefront_service_booking', ${orderId}, ${String(crow["user_id"])},
                       'completed', ${`New booking: ${productTitle}`},
                       ${notifyMessage})
               ON CONFLICT DO NOTHING
+              RETURNING id
             `);
+            if (landed.rows.length > 0) {
+              await notifyBookingEvent({
+                userId: String(crow["user_id"]),
+                kind: "storefront_service_booking",
+                title: `New booking: ${productTitle}`,
+                body: notifyMessage,
+                link: "/store/dashboard",
+              });
+            }
           }
         } else if (kind === "merch") {
           /* MERCH BOUNDARY: physical fulfillment lives in the existing merch
@@ -3344,13 +3375,25 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
             `);
             const crow = creatorUser.rows[0] as Record<string, unknown> | undefined;
             if (crow?.["user_id"]) {
-              await db.execute(sql`
+              const bumpTitleText = `New booking (add-on): ${bumpTitle}`;
+              const bumpBody = `Someone just booked your add-on "${bumpTitle}" (${money(splits.bump.grossCents)}) alongside "${productTitle}". Confirm their slot from your store dashboard.`;
+              const landed = await db.execute(sql`
                 INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
                 VALUES ('storefront_service_booking', ${`${orderId}:bump`}, ${String(crow["user_id"])},
-                        'completed', ${`New booking (add-on): ${bumpTitle}`},
-                        ${`Someone just booked your add-on "${bumpTitle}" (${money(splits.bump.grossCents)}) alongside "${productTitle}". Confirm their slot from your store dashboard.`})
+                        'completed', ${bumpTitleText},
+                        ${bumpBody})
                 ON CONFLICT DO NOTHING
+                RETURNING id
               `);
+              if (landed.rows.length > 0) {
+                await notifyBookingEvent({
+                  userId: String(crow["user_id"]),
+                  kind: "storefront_service_booking",
+                  title: bumpTitleText,
+                  body: bumpBody,
+                  link: "/store/dashboard",
+                });
+              }
             }
           } else if (bumpKind === "merch") {
             fulfillmentNote += ` Add-on "${bumpTitle}" received — fulfilled through the creator's merch/print pipeline.`;
@@ -3910,13 +3953,25 @@ router.post("/storefront/orders/:id/upsell/accept", requireAuth, publicApiLimite
         `);
         const crow = creatorUser.rows[0] as Record<string, unknown> | undefined;
         if (crow?.["user_id"]) {
-          await db.execute(sql`
+          const upsellTitleText = `New booking (post-purchase add-on): ${String(offer.upsell_title)}`;
+          const upsellBody = `Someone just added your "${String(offer.upsell_title)}" (${money(Number(offer.amount_cents))}) right after their purchase. Confirm their slot from your store dashboard.`;
+          const landed = await db.execute(sql`
             INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
             VALUES ('storefront_service_booking', ${upsellOrderId}, ${String(crow["user_id"])},
-                    'completed', ${`New booking (post-purchase add-on): ${String(offer.upsell_title)}`},
-                    ${`Someone just added your "${String(offer.upsell_title)}" (${money(Number(offer.amount_cents))}) right after their purchase. Confirm their slot from your store dashboard.`})
+                    'completed', ${upsellTitleText},
+                    ${upsellBody})
             ON CONFLICT DO NOTHING
+            RETURNING id
           `);
+          if (landed.rows.length > 0) {
+            await notifyBookingEvent({
+              userId: String(crow["user_id"]),
+              kind: "storefront_service_booking",
+              title: upsellTitleText,
+              body: upsellBody,
+              link: "/store/dashboard",
+            });
+          }
         }
       } else if (kind === "merch") {
         note = "Add-on order received — the creator fulfills it through their merch/print pipeline.";
@@ -4443,15 +4498,27 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
         ? encodeBookingNote(claimedBooking)
         : "Booking request received — the creator confirms your slot from their dashboard.";
       if (creatorUserId) {
-        await db.execute(sql`
+        const freeTitleText = `New booking: ${p.title}`;
+        const freeBody = claimedBooking
+          ? `Someone just booked "${p.title}" (free) — ${bookingHumanLine(claimedBooking)}.`
+          : `Someone just claimed "${p.title}" (free). Confirm their slot from your store dashboard.`;
+        const landed = await db.execute(sql`
           INSERT INTO job_notifications (job_type, job_id, user_id, status, title, message)
           VALUES ('storefront_service_booking', ${orderId}, ${creatorUserId},
-                  'completed', ${`New booking: ${p.title}`},
-                  ${claimedBooking
-                    ? `Someone just booked "${p.title}" (free) — ${bookingHumanLine(claimedBooking)}.`
-                    : `Someone just claimed "${p.title}" (free). Confirm their slot from your store dashboard.`})
+                  'completed', ${freeTitleText},
+                  ${freeBody})
           ON CONFLICT DO NOTHING
+          RETURNING id
         `);
+        if (landed.rows.length > 0) {
+          await notifyBookingEvent({
+            userId: creatorUserId,
+            kind: "storefront_service_booking",
+            title: freeTitleText,
+            body: freeBody,
+            link: "/store/dashboard",
+          });
+        }
       }
     } else if (kind === "merch") {
       /* MERCH BOUNDARY: physical fulfillment lives in the merch system. */
@@ -5278,6 +5345,7 @@ router.post("/storefront/orders/:id/booking-cancel", requireAuth, publicApiLimit
         message: isBuyer
           ? `Your buyer cancelled "${String(row["product_title"] ?? "the session")}" — ${bookingHumanLine(rec)}.${refundState === "refunded" ? " They were refunded in full." : ""}`
           : `The creator cancelled "${String(row["product_title"] ?? "the session")}" — ${bookingHumanLine(rec)}.${refundState === "refunded" ? " You were refunded in full." : refundState === "refund_failed" ? " The refund could not be processed automatically — contact support." : ""}`,
+        link: isBuyer ? "/store/dashboard" : "/store/purchases",
       });
     }
     logger.info({ orderId: id, by: isBuyer ? "buyer" : "creator", refundState }, "[storefront] booking cancelled");
