@@ -2,7 +2,7 @@ import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
-  BadgeDollarSign, Check, Disc3, Loader2, LogIn, Pause, Pencil, Play, Plus, Search, Trash2, X,
+  BadgeDollarSign, Check, Disc3, Download, Loader2, LogIn, Pause, Pencil, Play, Plus, Search, Trash2, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
@@ -66,7 +66,15 @@ import { BEAT_GENRES } from "@/lib/world/money-desks-2";
    commission line is the page's own subtitle, shown where the page
    shows it. Guests browse and preview (the browse rail is public);
    licensing, selling and the dashboard are members' business and
-   meet the sign-in pitch instead of a dead button. */
+   meet the sign-in pitch instead of a dead button.
+   Stack1100 parity (X4's licensing-truth outcomes, applied here):
+   the sell form carries the page's Preview URL + Stems URL slots;
+   an exclusive sale closes the whole market in the license box
+   (every offer sold out, the buy button disabled — the server 409s
+   regardless); and the buyer library names each beat and renders
+   the Download / Download stems links the licenses/mine rail hands
+   completed licenses, with a failed load shown as a failure (with
+   Retry), never as an empty library. */
 
 type BeatsTab = "browse" | "sell" | "dashboard";
 
@@ -123,15 +131,21 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
      the payment form mounts in the panel below the buy button. */
   const [licenseSecret, setLicenseSecret] = useState<string | null>(null);
   const [myLicenses, setMyLicenses] = useState<BeatSale[] | null>(null);
+  /* A failed library load is a FAILED load, never an empty library —
+     the verify note sends buyers here ("find it in your licenses
+     below"), so a silent swallow would leave a paid buyer staring at
+     nothing with no explanation (stack1100 X4, C5 pattern). */
+  const [licensesFailed, setLicensesFailed] = useState(false);
   const pendingSessionRef = useRef<string | null>(null);
 
   const loadMyLicenses = useCallback(async () => {
     if (isGuest) return;
     try {
       const res = await fetch("/api/beats/licenses/mine", { headers: await authHeaders() });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("licenses");
       setMyLicenses(parseMyLicenses(await res.json()));
-    } catch { /* the library is a quiet extra — browse never depends on it */ }
+      setLicensesFailed(false);
+    } catch { setLicensesFailed(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest]);
 
@@ -172,6 +186,13 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
 
   const reserveLicense = async () => {
     if (!licenseBeat || licensing) return;
+    /* An exclusive-sold beat is off the market (stack1100 X4, C1) —
+       the buy button is disabled in this state; this guard is the
+       second lock, and the server 409s the POST regardless. */
+    if (licenseBeat.exclusiveSold) {
+      setLicenseError("This beat's exclusive has sold — it's off the market.");
+      return;
+    }
     setLicensing(true);
     setLicenseNote(null);
     setLicenseError(null);
@@ -398,6 +419,9 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                   </div>
                   {licenseBeat?.id === beat.id && !isGuest && (
                     <div className="mt-3 space-y-2" data-testid="world-beats-license-box">
+                      {beat.exclusiveSold && (
+                        <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-yellow-200/90"}`}>This beat&rsquo;s exclusive has sold — it&rsquo;s off the market.</p>
+                      )}
                       {beatTierOffers(beat).map((offer) => (
                         <button key={offer.key} type="button" disabled={offer.soldOut} onClick={() => setOfferKey(offer.key)}
                           className={`w-full rounded-xl border p-3 text-left transition disabled:opacity-40 ${offerKey === offer.key ? "border-[#d4af37] bg-[#d4af37]/10" : isLight ? "border-[#7A5A12]/25" : "border-white/10"}`}>
@@ -429,10 +453,10 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                       <p className={`rounded-xl border border-yellow-500/25 bg-yellow-500/[0.06] p-3 text-[11px] ${isLight ? "text-[#92600a]" : "text-yellow-200/80"}`}>{BEATS_PAYMENT_NOTE}</p>
                       {licenseNote && <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{licenseNote}</p>}
                       {licenseError && <p className="text-xs font-semibold text-red-400">{licenseError}</p>}
-                      <button type="button" data-testid="world-beats-license-buy" onClick={() => void reserveLicense()} disabled={licensing}
+                      <button type="button" data-testid="world-beats-license-buy" onClick={() => void reserveLicense()} disabled={licensing || beat.exclusiveSold}
                         className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                         {licensing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeDollarSign className="h-3.5 w-3.5" />}
-                        {licensing ? "Reserving…" : "License this beat"}
+                        {licensing ? "Reserving…" : beat.exclusiveSold ? "Sold — off the market" : "License this beat"}
                       </button>
                       {licenseSecret && (
                         <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-beats-embedded-checkout">
@@ -454,15 +478,40 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
             </div>
           )}
 
-          {!isGuest && myLicenses !== null && myLicenses.length > 0 && (
+          {!isGuest && licensesFailed && (
             <NativeCard isLight={isLight} title="Your licenses">
-              <div className="space-y-1.5">
+              <p className={`text-xs ${muted}`}>Couldn&rsquo;t load your licenses.</p>
+              <button type="button" data-testid="world-beats-licenses-retry" onClick={() => void loadMyLicenses()} className={`mt-2 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}>
+                Retry
+              </button>
+            </NativeCard>
+          )}
+
+          {!isGuest && !licensesFailed && myLicenses !== null && myLicenses.length > 0 && (
+            <NativeCard isLight={isLight} title="Your licenses">
+              <div className="space-y-2">
                 {myLicenses.map((lic) => (
-                  <p key={lic.id} className={`flex flex-wrap items-baseline justify-between gap-2 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
-                    <span className="font-bold capitalize">{lic.terms?.name ?? `${lic.tier} license`}</span>
-                    <span className={muted}>{moneyCents(lic.priceCents)} · {beatSaleStatusLabel(lic.status)}</span>
-                    {lic.terms && <span className={`block w-full text-[11px] ${muted}`}>{describeTermsInline(lic.terms)}</span>}
-                  </p>
+                  <div key={lic.id} className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
+                    <p className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-bold">{lic.beatTitle ?? lic.terms?.name ?? `${lic.tier} license`}</span>
+                      <span className={muted}>{moneyCents(lic.priceCents)} · {beatSaleStatusLabel(lic.status)}</span>
+                    </p>
+                    {lic.terms && <p className={`text-[11px] ${muted}`}>{describeTermsInline(lic.terms)}</p>}
+                    {(lic.downloadUrl || lic.stemsUrl) && (
+                      <p className="mt-1 flex flex-wrap gap-1.5">
+                        {lic.downloadUrl && (
+                          <a href={lic.downloadUrl} download data-testid="world-beats-license-download" className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-[11px] font-bold text-black transition hover:scale-105 bdv-touch-target">
+                            <Download className="h-3 w-3" /> Download
+                          </a>
+                        )}
+                        {lic.stemsUrl && (
+                          <a href={lic.stemsUrl} download data-testid="world-beats-license-download-stems" className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-[#d4af37]/50 text-[#e8c86a]"}`}>
+                            <Download className="h-3 w-3" /> Download stems
+                          </a>
+                        )}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             </NativeCard>
@@ -475,6 +524,19 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           <div className="grid gap-2 sm:grid-cols-2">
             <input aria-label="Beat title" value={listingForm.title} onChange={(e) => setL({ title: e.target.value })} placeholder="Title" className={inputCls} />
             <input aria-label="Audio URL" value={listingForm.audioUrl} onChange={(e) => setL({ audioUrl: e.target.value })} placeholder="Audio URL" className={inputCls} />
+            {/* Preview + stems slots (stack1100 X4 parity): the page's
+                form sends both — without a preview the marketplace
+                plays the full master as the "preview", and without
+                stems no stems license can ever deliver. Labels and
+                hints are the page's own words (en.json beats.*). */}
+            <span>
+              <input aria-label="Preview URL (optional)" value={listingForm.previewUrl} onChange={(e) => setL({ previewUrl: e.target.value })} placeholder="Preview URL (optional) — https://…" className={inputCls} />
+              <span className={`mt-1 block text-[11px] ${muted}`}>A short or tagged clip protects your master — without one, the full track plays as the preview.</span>
+            </span>
+            <span>
+              <input aria-label="Stems URL (optional)" value={listingForm.stemsUrl} onChange={(e) => setL({ stemsUrl: e.target.value })} placeholder="Stems URL (optional) — https://…" className={inputCls} />
+              <span className={`mt-1 block text-[11px] ${muted}`}>A link to the separate track stems (ZIP). Exclusive and stems licenses promise the buyer the stems — buyers get this link when they buy one of those licenses.</span>
+            </span>
             <select aria-label="Genre" value={listingForm.genre} onChange={(e) => setL({ genre: e.target.value })} className={inputCls}>
               {BEAT_GENRES.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>

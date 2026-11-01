@@ -218,7 +218,11 @@ export function parseBeatList(payload: unknown): BeatDto[] {
 /** The three fixed tiers, in the page's order, with the page's own
  *  blurbs (en.json beats.tier*Blurb) and terms lines rendered from
  *  the shared terms mirror — display only; the server snapshots the
- *  binding terms at purchase. */
+ *  binding terms at purchase. Sold-out rule (stack1100 X4, C1): an
+ *  exclusive sale closes the WHOLE market — the server 409s every
+ *  offer on an exclusive-sold beat and the offers rail marks every
+ *  offer unavailable, so every tier reads sold out here too, not
+ *  just the exclusive tier. */
 export interface BeatTierOffer {
   key: "basic" | "premium" | "exclusive";
   label: string;
@@ -237,13 +241,15 @@ export function beatTierOffers(beat: BeatDto): BeatTierOffer[] {
   return tiers.map((t) => ({
     ...t,
     termsLine: describeTermsInline(defaultTermsForTier(t.key)),
-    soldOut: t.key === "exclusive" && beat.exclusiveSold,
+    soldOut: beat.exclusiveSold,
   }));
 }
 
-/** A custom template as a license offer — sold out under the same
- *  exclusive rule the page applies (an exclusive template can't
- *  sell once the beat's exclusive is gone). */
+/** A custom template as a license offer — under the same whole-market
+ *  rule as the tiers (stack1100 X4, C1): once the beat's exclusive
+ *  has sold, NO template sells either, exclusive or not — the page's
+ *  modal disables every template on a sold beat and the server 409s
+ *  the POST. */
 export function beatTemplateOffer(beat: BeatDto, tpl: BeatLicenseTemplate): {
   id: string; name: string; priceCents: number; termsLine: string; soldOut: boolean;
 } {
@@ -252,7 +258,7 @@ export function beatTemplateOffer(beat: BeatDto, tpl: BeatLicenseTemplate): {
     name: tpl.name,
     priceCents: tpl.priceCents,
     termsLine: describeTermsInline(templateTerms(tpl)),
-    soldOut: tpl.isExclusive && beat.exclusiveSold,
+    soldOut: beat.exclusiveSold,
   };
 }
 
@@ -295,6 +301,14 @@ export interface BeatSale {
   priceCents: number;
   status: string;
   createdAt: string | null;
+  /** Buyer-library fields (licenses/mine rows only, stack1100 X4):
+   *  every row names its beat, and the delivery URLs ride completed
+   *  licenses only — the server leaves them null otherwise, so a
+   *  non-null value here IS the entitlement. Dashboard sales rows
+   *  carry none of these and parse null. */
+  beatTitle: string | null;
+  downloadUrl: string | null;
+  stemsUrl: string | null;
 }
 
 export function parseBeatSale(raw: unknown): BeatSale | null {
@@ -309,6 +323,9 @@ export function parseBeatSale(raw: unknown): BeatSale | null {
     priceCents: num(raw["priceCents"]) ?? num(raw["price_cents"]) ?? 0,
     status: str(raw["status"]) ?? "",
     createdAt: str(raw["createdAt"]) ?? str(raw["created_at"]),
+    beatTitle: str(raw["beatTitle"]),
+    downloadUrl: str(raw["downloadUrl"]),
+    stemsUrl: str(raw["stemsUrl"]),
   };
 }
 
@@ -363,6 +380,13 @@ export function beatSaleStatusLabel(status: string): string {
 export interface BeatListingForm {
   title: string;
   audioUrl: string;
+  /** Optional preview + stems slots (stack1100 X4) — the page's form
+   *  sends both; without a preview the public browse plays the full
+   *  master as the "preview", and without stems no stems license can
+   *  ever deliver. Blank = omitted from the payload, exactly as the
+   *  page omits them. */
+  previewUrl: string;
+  stemsUrl: string;
   genre: string;
   bpm: string;
   musicalKey: string;
@@ -378,6 +402,8 @@ export function emptyBeatListingForm(): BeatListingForm {
   return {
     title: "",
     audioUrl: "",
+    previewUrl: "",
+    stemsUrl: "",
     genre: "hip-hop",
     bpm: "",
     musicalKey: "",
@@ -398,12 +424,16 @@ export function beatListingProblem(form: BeatListingForm): string | null {
   return null;
 }
 
-/** POST /api/beats — the page's exact body (listing is free). */
+/** POST /api/beats — the page's exact body (listing is free),
+ *  preview/stems included in the page's position and shape
+ *  (trimmed, blank → undefined → omitted from the JSON). */
 export function buildBeatListingPayload(form: BeatListingForm): Record<string, unknown> | null {
   if (beatListingProblem(form)) return null;
   return {
     title: form.title.trim(),
     audioUrl: form.audioUrl.trim(),
+    previewUrl: form.previewUrl.trim() || undefined,
+    stemsUrl: form.stemsUrl.trim() || undefined,
     genre: form.genre,
     bpm: form.bpm ? Number(form.bpm) : undefined,
     musicalKey: form.musicalKey.trim() || undefined,
