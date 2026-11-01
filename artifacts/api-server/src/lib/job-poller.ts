@@ -247,7 +247,7 @@ async function submitDueJobs(): Promise<void> {
   for (const candidate of candidates) {
     if (workers >= MAX_SUBMIT_WORKERS) break;
     const provider = resolveJobProvider(candidate);
-    if (!isLipSyncProviderConfigured(provider)) continue;
+    if (!provider || !isLipSyncProviderConfigured(provider)) continue;
     const apiKey = providerApiKey(provider);
     if (!apiKey) continue;
     const job = await claimJobForSubmit(candidate.id);
@@ -491,6 +491,7 @@ async function pollDueJobs(): Promise<void> {
   const jobs = await getJobsDueForPoll(POLL_BATCH);
   for (const job of jobs) {
     const provider = resolveJobProvider(job);
+    if (!provider) continue; // no route in effect for this job — polling resumes once one is selected
     const apiKey = providerApiKey(provider);
     if (!apiKey) continue; // polling resumes once that job's route is configured
     try {

@@ -90,7 +90,11 @@ function toClientLipSyncJob(job: LipSyncJob) {
   return {
     status,
     url: job.resultUrl ?? undefined,
-    provider: job.params.provider ?? "sync",
+    /* The job's OWN recorded route — never a guessed default. A job
+       with no stored provider reports null: naming "sync" here (the
+       old fallthrough) stamped the premium route onto jobs that never
+       ran on it (owner's ruling, 2026-10-26). */
+    provider: normalizeLipSyncProvider(job.params.provider) ?? null,
     /* Provider result metadata (0230): includes input/output dimensions
        and resolutionReduced when the finishing path probed them — the
        client can state a smaller-than-submitted result plainly. */
