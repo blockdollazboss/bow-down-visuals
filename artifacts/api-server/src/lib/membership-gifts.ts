@@ -30,6 +30,25 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { TIER_PLANS, meetsTier, type CreatorTier } from "./platform-fees";
+import { pushIfCategoryEnabled, type PushCategory } from "./push-events";
+
+/* ── Recipient ping (fan-out truth, stack1100 Y3) ──────────────────────
+   The bell below is written with this lib's raw-SQL discipline, so the
+   device ping rides the door's push-only gate instead of the full
+   notifyUserEvent (whose bell insert uses the query builder pg-mem
+   can't run): the ping fires only when the recipient's "money" push
+   category is on — a paid plan entitlement landing is a money event,
+   the same channel plan_* events ride. Seam for tests, house pattern. */
+type GiftPushGate = (
+  userId: string,
+  category: PushCategory,
+  payload: { title: string; body: string; link: string; kind: string },
+) => Promise<unknown>;
+let _giftPushGate: GiftPushGate = pushIfCategoryEnabled;
+/** Test seam — never used outside tests. */
+export function __setMembershipGiftPushGate(fn: GiftPushGate | null): void {
+  _giftPushGate = fn ?? pushIfCategoryEnabled;
+}
 
 export type GiftTier = Exclude<CreatorTier, "free">;
 
@@ -265,18 +284,32 @@ export async function fulfillGiftMembership(
 
   /* Recipient notification — only the claim winner writes it, so a
      replay can never double-notify. Best-effort: the entitlement row
-     above is already durable; a notification failure must not un-grant. */
+     above is already durable; a notification failure must not un-grant.
+     The bell lands first; the device ping follows through the push
+     gate (money category) with the identical copy — before this, the
+     recipient's plan changed with no ping and no email, so a member
+     who never opened the bell never learned they had been gifted. */
   try {
     const gifter = await gifterLabel(input.senderUserId);
     const tierName = giftTierName(input.tier);
     const queued = periodStart.getTime() > now.getTime();
+    const title = `${gifter.split(" (")[0]} gifted you ${tierName}`;
+    const body = `${gifter} gifted you ${input.months} month${input.months === 1 ? "" : "s"} of ${tierName} on Bow Down Visuals — ${queued ? `it starts ${periodStart.toISOString().slice(0, 10)} (queued behind your current gift, so no time is lost) and runs` : "it is active now and runs"} until ${periodEnd.toISOString().slice(0, 10)}. ${GIFT_NO_RENEW_COPY}`;
     await db.execute(sql`
       INSERT INTO notifications (id, user_id, kind, title, body, link)
       VALUES (${randomUUID()}, ${input.recipientUserId}, 'membership_gift',
-              ${`${gifter.split(" (")[0]} gifted you ${tierName}`},
-              ${`${gifter} gifted you ${input.months} month${input.months === 1 ? "" : "s"} of ${tierName} on Bow Down Visuals — ${queued ? `it starts ${periodStart.toISOString().slice(0, 10)} (queued behind your current gift, so no time is lost) and runs` : "it is active now and runs"} until ${periodEnd.toISOString().slice(0, 10)}. ${GIFT_NO_RENEW_COPY}`},
+              ${title},
+              ${body},
               '/creator-pricing')
     `);
+    await _giftPushGate(input.recipientUserId, "money", {
+      title,
+      body,
+      link: "/creator-pricing",
+      kind: "membership_gift",
+    }).catch((err) => {
+      logger.warn({ err, giftId: gift.id }, "membership-gifts: recipient push failed (grant + bell stand)");
+    });
   } catch (err) {
     logger.warn({ err, giftId: gift.id }, "membership-gifts: recipient notification failed (grant stands)");
   }

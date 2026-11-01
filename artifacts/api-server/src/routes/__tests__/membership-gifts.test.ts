@@ -89,6 +89,7 @@ import {
   giftTierForProfile,
   highestGiftTierAt,
   resolveGiftRecipient,
+  __setMembershipGiftPushGate,
 } from "../../lib/membership-gifts";
 import { createTestDb } from "../../lib/__tests__/test-db";
 
@@ -357,5 +358,50 @@ describe("collision + glide-back", () => {
     expect(await giftTierForProfile(RECIPIENT_PROFILE, new Date("2026-11-01T00:00:00Z"))).toBe("pro");
     expect(await giftTierForProfile(RECIPIENT_PROFILE, new Date("2026-12-01T00:00:00Z"))).toBe("elite");
     expect(await giftTierForProfile(RECIPIENT_PROFILE, new Date("2027-01-01T00:00:00Z"))).toBeNull();
+  });
+});
+
+describe("recipient device ping (fan-out truth, stack1100 Y3)", () => {
+  it("grant pings the recipient once through the money gate; a replay pings never", async () => {
+    const pings: Array<{ userId: string; category: string; kind: string; title: string }> = [];
+    __setMembershipGiftPushGate(async (userId, category, payload) => {
+      pings.push({ userId, category, kind: payload.kind, title: payload.title });
+      return { sent: 1, pruned: 0, failed: 0, skippedReason: null };
+    });
+    try {
+      const input = {
+        sessionId: "cs_gift_ping_1", paymentIntentId: "pi_gift_ping_1", amountCents: 1200, currency: "usd",
+        senderUserId: SENDER, recipientUserId: RECIPIENT, recipientProfileId: RECIPIENT_PROFILE,
+        tier: "pro" as const, months: 1,
+      };
+      const first = await fulfillGiftMembership(input);
+      expect(first.duplicate).toBe(false);
+      expect(pings).toHaveLength(1);
+      expect(pings[0]).toMatchObject({ userId: RECIPIENT, category: "money", kind: "membership_gift" });
+      expect(pings[0]!.title).toContain("Gift Giver");
+
+      const replay = await fulfillGiftMembership(input);
+      expect(replay.duplicate).toBe(true);
+      expect(pings).toHaveLength(1);
+      expect(await count("notifications")).toBe(1);
+    } finally {
+      __setMembershipGiftPushGate(null);
+    }
+  });
+
+  it("a silenced money category still lands exactly one bell and never un-grants", async () => {
+    __setMembershipGiftPushGate(async () => null); // category off — the gate answers null
+    try {
+      const granted = await fulfillGiftMembership({
+        sessionId: "cs_gift_ping_2", paymentIntentId: "pi_gift_ping_2", amountCents: 2900, currency: "usd",
+        senderUserId: SENDER, recipientUserId: RECIPIENT, recipientProfileId: RECIPIENT_PROFILE,
+        tier: "elite", months: 1,
+      });
+      expect(granted.duplicate).toBe(false);
+      expect(await count("membership_gifts")).toBe(1);
+      expect(await count("notifications")).toBe(1);
+    } finally {
+      __setMembershipGiftPushGate(null);
+    }
   });
 });
