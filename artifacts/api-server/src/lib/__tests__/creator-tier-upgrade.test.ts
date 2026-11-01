@@ -9,7 +9,7 @@
  * refuse instead of minting anything.
  */
 import { describe, it, expect, vi } from "vitest";
-import { changeCreatorTierSubscription, previewCreatorTierChange } from "../creator-tier-upgrade";
+import { changeCreatorTierSubscription, previewCreatorTierChange, prorationNetFromPreviewLines } from "../creator-tier-upgrade";
 
 function fakeStripe(sub: any) {
   return {
@@ -120,19 +120,72 @@ describe("changeCreatorTierSubscription", () => {
   });
 });
 
-function fakeStripeWithPreview(sub: any, amountDue: number) {
+/* Line fixtures in Stripe's preview shape. A preview invoice for a
+   subscription change carries the swap's PRORATION lines (unused-time
+   credit + remaining-time debit, each = price × remaining/period,
+   rounded by Stripe) PLUS the next renewal line at the new price —
+   and its amount_due is the sum of ALL of them. The quote must read
+   only the proration lines (stack1100 Z2; Gate #5 quoted $46 = $17
+   proration + $29 renewal for a same-day Pro→Elite switch). */
+const prorationLine = (amount: number) => ({
+  amount,
+  parent: {
+    type: "subscription_item_details",
+    subscription_item_details: { proration: true },
+    invoice_item_details: null,
+  },
+});
+const renewalLine = (amount: number) => ({
+  amount,
+  parent: {
+    type: "subscription_item_details",
+    subscription_item_details: { proration: false },
+    invoice_item_details: null,
+  },
+});
+
+function fakeStripeWithPreview(sub: any, lines: any[], amountDue: number) {
   const base = fakeStripe(sub);
   return {
     ...base,
     invoices: {
-      createPreview: vi.fn(async () => ({ amount_due: amountDue, currency: "usd" })),
+      createPreview: vi.fn(async () => ({
+        amount_due: amountDue,
+        currency: "usd",
+        lines: { data: lines, has_more: false },
+      })),
     },
   };
 }
 
-describe("previewCreatorTierChange (stack600)", () => {
-  it("upgrade: a positive amount_due is today's charge; the preview targets the same sub/item at the pinned proration_date", async () => {
-    const stripe = fakeStripeWithPreview(structuredClone(baseSub), 850);
+describe("prorationNetFromPreviewLines (stack1100 Z2)", () => {
+  it("sums ONLY proration lines — the renewal line never enters the quote", () => {
+    const lines = [prorationLine(-1200), prorationLine(2900), renewalLine(2900)] as any;
+    expect(prorationNetFromPreviewLines(lines)).toBe(1700);
+  });
+
+  it("counts invoice-item prorations too, and skips lines with no parent", () => {
+    const lines = [
+      { amount: -300, parent: { type: "invoice_item_details", subscription_item_details: null, invoice_item_details: { proration: true } } },
+      { amount: 999, parent: null },
+      renewalLine(1200),
+    ] as any;
+    expect(prorationNetFromPreviewLines(lines)).toBe(-300);
+  });
+
+  it("refuses a preview with no line list instead of quoting a guess", () => {
+    expect(() => prorationNetFromPreviewLines(undefined)).toThrow(/without line items/);
+    expect(() => prorationNetFromPreviewLines(null)).toThrow(/without line items/);
+    expect(prorationNetFromPreviewLines([])).toBe(0);
+  });
+});
+
+describe("previewCreatorTierChange (stack600, quote math stack1100 Z2)", () => {
+  it("upgrade: the quote is the proration net, not the preview's amount_due; the preview targets the same sub/item at the pinned proration_date", async () => {
+    /* Proration net +850 (credit −600, debit +1450); amount_due 3750
+       includes the $29 renewal — the OLD code quoted 3750. */
+    const stripe = fakeStripeWithPreview(structuredClone(baseSub),
+      [prorationLine(-600), prorationLine(1450), renewalLine(2900)], 3750);
     const preview = await previewCreatorTierChange(stripe as any, {
       subscriptionId: "sub_1", priceId: "price_elite", prorationDate: 1_798_000_000,
     });
@@ -152,10 +205,15 @@ describe("previewCreatorTierChange (stack600)", () => {
     expect(stripe.subscriptions.update).not.toHaveBeenCalled();
   });
 
-  it("downgrade: a negative amount_due becomes a credit with $0 due today", async () => {
+  it("downgrade: a negative proration net becomes a credit with $0 due today — even when amount_due is positive", async () => {
+    /* Elite→Pro mid-period: proration net −700 (credit −1450, debit
+       +750) but the preview's amount_due is +500 (net + $12 renewal)
+       — the OLD code quoted a $5.00 CHARGE for a downgrade that
+       actually credits $7. */
     const elite = structuredClone(baseSub);
     elite.items.data[0].price.id = "price_elite";
-    const stripe = fakeStripeWithPreview(elite, -700);
+    const stripe = fakeStripeWithPreview(elite,
+      [prorationLine(-1450), prorationLine(750), renewalLine(1200)], 500);
     const preview = await previewCreatorTierChange(stripe as any, {
       subscriptionId: "sub_1", priceId: "price_pro", prorationDate: 1_798_000_000,
     });
@@ -163,8 +221,83 @@ describe("previewCreatorTierChange (stack600)", () => {
     expect(preview.creditCents).toBe(700);
   });
 
+  /* ── The Gate #5 case table — Stripe's documented arithmetic on the
+     real $12 Pro / $29 Elite prices. Each proration line is
+     price × (seconds remaining / period seconds), rounded; the
+     proration invoice always_invoice bills today is their net. ── */
+  it("CASE same-day upgrade (Gate #5): quotes $17.00, not the preview's $46.00", async () => {
+    /* Switch moments after subscribing: unused Pro ≈ −1200, Elite
+       remaining ≈ +2900, renewal +2900 → amount_due 4600. */
+    const stripe = fakeStripeWithPreview(structuredClone(baseSub),
+      [prorationLine(-1200), prorationLine(2900), renewalLine(2900)], 4600);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite",
+    });
+    expect(preview.amountDueTodayCents).toBe(1700);
+    expect(preview.creditCents).toBe(0);
+  });
+
+  it("CASE mid-period upgrade (day 15 of 30): quotes half the difference, $8.50", async () => {
+    /* f = 0.5: unused Pro −600, Elite remaining +1450 → net +850;
+       amount_due 3750 with the renewal. */
+    const stripe = fakeStripeWithPreview(structuredClone(baseSub),
+      [prorationLine(-600), prorationLine(1450), renewalLine(2900)], 3750);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite",
+    });
+    expect(preview.amountDueTodayCents).toBe(850);
+    expect(preview.creditCents).toBe(0);
+  });
+
+  it("CASE same-day downgrade: quotes a $17.00 credit and $0 due — the preview's amount_due is −$5.00", async () => {
+    const elite = structuredClone(baseSub);
+    elite.items.data[0].price.id = "price_elite";
+    const stripe = fakeStripeWithPreview(elite,
+      [prorationLine(-2900), prorationLine(1200), renewalLine(1200)], -500);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_pro",
+    });
+    expect(preview.amountDueTodayCents).toBe(0);
+    expect(preview.creditCents).toBe(1700);
+  });
+
+  it("CASE mid-period downgrade: quotes an $8.50 credit — the preview's amount_due (+$3.50) reads as a charge under the old math", async () => {
+    const elite = structuredClone(baseSub);
+    elite.items.data[0].price.id = "price_elite";
+    const stripe = fakeStripeWithPreview(elite,
+      [prorationLine(-1450), prorationLine(600), renewalLine(1200)], 350);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_pro",
+    });
+    expect(preview.amountDueTodayCents).toBe(0);
+    expect(preview.creditCents).toBe(850);
+  });
+
+  it("CASE trial upgrade: no proration lines exist (nothing paid yet) — $0 due today, $0 credit", async () => {
+    const trialing = structuredClone(baseSub);
+    trialing.status = "trialing";
+    const stripe = fakeStripeWithPreview(trialing, [renewalLine(2900)], 2900);
+    const preview = await previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite",
+    });
+    expect(preview.amountDueTodayCents).toBe(0);
+    expect(preview.creditCents).toBe(0);
+  });
+
+  it("a preview without lines refuses instead of quoting", async () => {
+    const base = fakeStripe(structuredClone(baseSub));
+    const stripe = {
+      ...base,
+      invoices: { createPreview: vi.fn(async () => ({ amount_due: 4600, currency: "usd" })) },
+    };
+    await expect(previewCreatorTierChange(stripe as any, {
+      subscriptionId: "sub_1", priceId: "price_elite",
+    })).rejects.toThrow(/without line items/);
+  });
+
   it("an unpinned preview picks a proration instant and reports the SAME one it sent to Stripe", async () => {
-    const stripe = fakeStripeWithPreview(structuredClone(baseSub), 850);
+    const stripe = fakeStripeWithPreview(structuredClone(baseSub),
+      [prorationLine(-600), prorationLine(1450), renewalLine(2900)], 3750);
     const preview = await previewCreatorTierChange(stripe as any, {
       subscriptionId: "sub_1", priceId: "price_elite",
     });
@@ -174,7 +307,7 @@ describe("previewCreatorTierChange (stack600)", () => {
   });
 
   it("refuses to preview a same-price change or a canceled subscription", async () => {
-    const samePrice = fakeStripeWithPreview(structuredClone(baseSub), 0);
+    const samePrice = fakeStripeWithPreview(structuredClone(baseSub), [], 0);
     await expect(previewCreatorTierChange(samePrice as any, {
       subscriptionId: "sub_1", priceId: "price_pro",
     })).rejects.toThrow(/already on that price/);
@@ -182,7 +315,7 @@ describe("previewCreatorTierChange (stack600)", () => {
 
     const dead = structuredClone(baseSub);
     dead.status = "canceled";
-    const canceled = fakeStripeWithPreview(dead, 0);
+    const canceled = fakeStripeWithPreview(dead, [], 0);
     await expect(previewCreatorTierChange(canceled as any, {
       subscriptionId: "sub_1", priceId: "price_elite",
     })).rejects.toThrow(/cannot be changed/);
