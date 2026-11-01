@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { matchesQuery } from "../../lib/search-match";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MarketingBadge } from "@/components/MarketingBadge";
@@ -60,8 +61,8 @@ export default function VideoTemplates() {
     const list = VIDEO_TEMPLATE_METAS.filter((tpl) => {
       if (category !== "All" && tpl.category !== category) return false;
       if (!q) return true;
-      const hay = `${tpl.name} ${tpl.tagline} ${tpl.description} ${tpl.category} ${tpl.outcome}`.toLowerCase();
-      return hay.includes(q);
+      const hay = `${tpl.name} ${tpl.tagline} ${tpl.description} ${tpl.category} ${tpl.outcome}`;
+      return matchesQuery(hay, query);
     });
     if (sort === "az") return [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sort === "shortest") return [...list].sort((a, b) => secondsOf(a.durationLabel) - secondsOf(b.durationLabel));

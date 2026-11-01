@@ -1,4 +1,5 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { matchesQuery } from "../lib/search-match";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
@@ -131,7 +132,10 @@ export default function Library() {
   }
 
   const q = query.trim().toLowerCase();
-  const matchQ = (s: string) => !q || s.toLowerCase().includes(q);
+  /* Shared token-AND matcher (lib/search-match): every word the
+     creator types must hit — the old whole-string includes() could
+     never match a two-word query split across title and blurb. */
+  const matchQ = (s: string) => !q || matchesQuery(s, query);
 
   const filteredTemplates = useMemo(() => LIBRARY_TEMPLATES.filter((tpl) =>
     (templateCat === "All" || tpl.category === templateCat) &&

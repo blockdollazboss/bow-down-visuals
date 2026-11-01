@@ -24,6 +24,7 @@ import {
   type CreatorFontCategory,
 } from "@/lib/creator-fonts";
 import { ensureCreatorFonts } from "@/lib/load-fonts";
+import { matchesQuery } from "../lib/search-match";
 import {
   getFontFavoritesSnapshot,
   setFontFavorite,
@@ -60,7 +61,7 @@ export function CreatorFontPicker({ value, onChange, previewText, label, default
     return CREATOR_FONTS.filter((f) => {
       if (filter === "Favorites" && !favorites.includes(f.id)) return false;
       if (filter !== "All" && filter !== "Favorites" && f.category !== filter) return false;
-      if (q && !f.family.toLowerCase().includes(q) && !f.blurb.toLowerCase().includes(q)) return false;
+      if (q && !matchesQuery(f.family, query) && !matchesQuery(f.blurb, query)) return false;
       return true;
     });
   }, [filter, query, favorites]);

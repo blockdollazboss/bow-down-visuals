@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { matchesQuery } from "../lib/search-match";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -186,7 +187,7 @@ export default function ViralSoundFinder() {
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((s) =>
-        `${s.title} ${s.artist} ${s.whyTrending} ${s.bestFor}`.toLowerCase().includes(q),
+        matchesQuery(`${s.title} ${s.artist} ${s.whyTrending} ${s.bestFor}`, query),
       );
     }
     return list;

@@ -21,22 +21,43 @@ const STOPWORDS = new Set([
   "how", "do", "does", "can", "is", "it",
 ]);
 
-/** The meaningful words of a query, lowercased, in order. */
+/* Letters Unicode decomposition cannot fold to ASCII — mapped by
+   hand so "beyonce" finds Beyoncé and "lukasz" finds Łukasz. This is
+   the same fold the server matcher applies (api-server
+   lib/search-match): the two implementations are twins, one rule. */
+const ATOMIC_FOLD: Record<string, string> = {
+  "ı": "i", "ø": "o", "ŋ": "n", "đ": "d",
+  "ħ": "h", "ŀ": "l", "ł": "l", "ŧ": "t",
+};
+
+/**
+ * Search-fold a string: strip accents/diacritics and lowercase, so
+ * matching never depends on how a name was typed. (Extended by
+ * Stack1100 lane Y5 — the in-page searches adopt the same matcher.)
+ */
+export function foldSearchText(s: string): string {
+  const stripped = s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return stripped.replace(/[ıøŋđħŀłŧ]/g, (c) => ATOMIC_FOLD[c] ?? c);
+}
+
+/** The meaningful words of a query, folded, in order. */
 export function queryTokens(query: string): string[] {
-  return query
-    .toLowerCase()
+  return foldSearchText(query)
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length > 0 && !STOPWORDS.has(w));
 }
 
 /**
  * True when every meaningful word of `query` appears in `haystack`
- * (case-insensitive substring per word). A query with no meaningful
- * words falls back to the old whole-string substring match.
+ * (accent-folded substring per word). A query with no meaningful
+ * words falls back to the old whole-string substring match, folded.
  */
 export function matchesQuery(haystack: string, query: string): boolean {
-  const hay = haystack.toLowerCase();
+  const hay = foldSearchText(haystack);
   const tokens = queryTokens(query);
-  if (tokens.length === 0) return hay.includes(query.trim().toLowerCase());
+  if (tokens.length === 0) return hay.includes(foldSearchText(query.trim()));
   return tokens.every((tok) => hay.includes(tok));
 }
