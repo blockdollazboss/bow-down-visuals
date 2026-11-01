@@ -18,6 +18,7 @@ import { requestAudioExport } from "@/lib/audio-export";
 import {
   formatLipSyncResultMeta,
   lipSyncProviderLabel,
+  resolveLipSyncProvenance,
   type LipSyncResultMeta,
 } from "@/lib/lip-sync-result-meta";
 import { PollFailureBudget, isTransientPollHttpStatus } from "@/lib/poll-tolerance";
@@ -882,9 +883,11 @@ export function LipSyncSection({
         sceneId,
         artistVaultId:      activeArtist?.id ?? null,
         getAccessToken,
-        onSyncLabsJobAccepted: (syncLabsJobId) => {
-          /* Save provider job ID immediately — persists even if local polling times out */
-          updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
+        onSyncLabsJobAccepted: (syncLabsJobId, provider) => {
+          /* Save provider job ID immediately — persists even if local polling times out.
+             The stamp is the route recorded on the job itself (or null when
+             unrecorded) — never a hardcoded route name. */
+          updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: provider });
         },
         fetchImpl: confirmedFetch,
       });
@@ -1007,8 +1010,10 @@ export function LipSyncSection({
           sceneId:            sid,
           artistVaultId:      activeArtist?.id ?? null,
           getAccessToken,
-          onSyncLabsJobAccepted: (syncLabsJobId) => {
-            updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
+          onSyncLabsJobAccepted: (syncLabsJobId, provider) => {
+            /* Same truthful stamp as the single-clip path: the job's own
+               recorded route, or null when unrecorded. */
+            updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: provider });
           },
           fetchImpl: skipConfirmFetch,
         });
@@ -4039,10 +4044,12 @@ interface LipSyncBackendRequest {
   /** The character this lip-sync is made as (0142, G8). */
   artistVaultId?:       string | null;
   getAccessToken:       () => Promise<string | null>;
-  /** Called the first time the backend records the Sync.so provider job ID.
+  /** Called the first time the backend records the provider job ID.
    *  The client should immediately persist this to the clip so it survives
-   *  a local timeout or server restart. */
-  onSyncLabsJobAccepted?: (syncLabsJobId: string) => void;
+   *  a local timeout or server restart. Also carries the job's recorded
+   *  route (canonical provider id) from the same poll answer — null when
+   *  the job carries no recorded route, never guessed. */
+  onSyncLabsJobAccepted?: (syncLabsJobId: string, provider: string | null) => void;
   /** fetch implementation (for the universal credit confirmation). */
   fetchImpl?: FetchImpl;
 }
@@ -4175,9 +4182,11 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       continue;
     }
 
-    /* Notify caller the moment the Sync.so provider job ID becomes available */
+    /* Notify caller the moment the provider job ID becomes available —
+       with the route recorded on that same job answer, so the clip's
+       provenance stamp names the route that actually accepted the job. */
     if (job.syncLabsJobId && !syncLabsJobNotified) {
-      req.onSyncLabsJobAccepted?.(job.syncLabsJobId);
+      req.onSyncLabsJobAccepted?.(job.syncLabsJobId, resolveLipSyncProvenance(job.provider));
       syncLabsJobNotified = true;
     }
 
