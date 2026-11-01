@@ -170,7 +170,7 @@ import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { emitNewSaleWebhook } from "../lib/api-webhooks";
 import { notifyBookingEvent } from "../lib/booking-notify";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
-import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
+import { isUndefinedTable, isMissingSchemaError, pgErrorText } from "../lib/pg-errors";
 /* Make-an-offer (Wave 4 #43): an accepted offer's agreed price can
    price this checkout — the resolution, claim and consumption live in
    lib/product-offers.ts; this rail only charges what it resolves. */
@@ -180,6 +180,12 @@ import {
   restampOfferClaim,
   consumeOfferById,
 } from "../lib/product-offers";
+/* Seller-money truth (stack1100 lane G5C): the pending-payout figure
+   the Store Dashboard quotes comes from the ONE unified ledger read
+   (lib/seller-earnings) — the same read /api/connect/status serves —
+   so the earnings hero can never disagree with the Get Paid card
+   rendered beneath it on the same page. */
+import { readPendingPayoutForSeller } from "../lib/seller-earnings";
 /* Back-in-stock alerts (Wave 4 #37): the fan's one-tap wait lives in
    lib/stock-alerts.ts — subscribe/claim/fire-once fan-out over the
    notifications rail (+ email only via the seller's list subscribers). */
@@ -4914,6 +4920,68 @@ function orderShape(r: Record<string, unknown>, artistSlug: string | null) {
   };
 }
 
+/** A customer-shop sale (shop_events, event_type='sale') shaped as a
+    seller order — the SAME row, with the SAME recorded amounts, that
+    GET /storefronts/:id/analytics returns to My Shop, so the Store
+    Dashboard's Orders tab and My Shop analytics can never tell two
+    stories about one sale (Gate #5 finding P2-1). Amounts are copied
+    from the event row — gross / platform fee as recorded at the paid
+    flip, net = gross − fee exactly as the analytics computes it —
+    never re-derived here. Both rails charge the same flat 5%. */
+function shopSaleShape(r: Record<string, unknown>, artistSlug: string | null) {
+  const gross = Number(r["amount_cents"]);
+  const fee = Number(r["platform_fee_cents"]);
+  const net = gross - fee;
+  const title = String(r["product_name"] ?? "Shop product");
+  const quantity = Number(r["quantity"] ?? 1);
+  const productId = r["product_id"] ? String(r["product_id"]) : null;
+  const created = r["created_at"];
+  const line = {
+    role: "main" as const,
+    productId,
+    title,
+    kind: "shop",
+    quantity,
+    grossCents: gross,
+    gross: money(gross),
+    platformFeeCents: fee,
+    platformFee: money(fee),
+    netCents: net,
+    net: money(net),
+  };
+  return {
+    id: String(r["id"]),
+    source: "shop" as const,
+    productId,
+    productTitle: title,
+    productKind: "shop",
+    quantity,
+    /* Honest money math on every order: gross − fee = net. */
+    grossCents: gross,
+    gross: money(gross),
+    platformFeeCents: fee,
+    platformFee: money(fee),
+    platformFeePct: PLATFORM_FEE_PCT,
+    netCents: net,
+    net: money(net),
+    lines: [line],
+    parentOrderId: null,
+    isUpsell: false,
+    discountCode: (r["discount_code"] as string | null) ?? null,
+    status: String(r["payment_status"] ?? "paid"),
+    fulfillmentNote: null,
+    /* Shop sales carry no calendar booking. */
+    booking: null,
+    bookingStatus: null,
+    createdAt: created instanceof Date ? created.toISOString() : String(created),
+    shopName: r["shop_name"] ? String(r["shop_name"]) : null,
+    links: {
+      productUrl: r["shop_handle"] ? `/shop/${String(r["shop_handle"])}` : null,
+      creatorUrl: artistSlug ? `/artist/${artistSlug}` : null,
+    },
+  };
+}
+
 router.get("/storefront/orders/sales", requireAuth, async (req, res) => {
   try {
     const profile = await callerProfile(req.userId!);
@@ -4963,7 +5031,46 @@ router.get("/storefront/orders/sales", requireAuth, async (req, res) => {
         `);
       }
     }
-    const orders = r.rows.map((row) => orderShape(row as Record<string, unknown>, profile.slug));
+    const storeOrders = r.rows.map((row) => ({
+      ...orderShape(row as Record<string, unknown>, profile.slug),
+      source: "storefront" as const,
+    }));
+    /* Customer-shop sales ride the SAME list (Gate #5 finding P2-1):
+       a seller's shop sales land in shop_events, not store_orders, and
+       a dashboard that read only store_orders showed $0.00 / "No sales
+       yet" to sellers whose shops were actively selling. This is the
+       analytics endpoint's own query (GET /storefronts/:id/analytics)
+       widened to every shop the caller owns — same rows, same amounts,
+       so both surfaces agree to the cent. 'sale' rows are paid truth;
+       'pending_sale' rows are never counted here, exactly as in the
+       analytics. */
+    /* Guarded like every best-effort read in this file: a database
+       without the shops tables degrades to the profile store alone
+       instead of 500ing the seller's Orders tab. */
+    let shopOrders: ReturnType<typeof shopSaleShape>[] = [];
+    try {
+      const shopR = await db.execute(sql`
+        SELECT e.id, e.product_id, p.name AS product_name,
+               e.amount_cents, e.platform_fee_cents,
+               e.buyer_email, e.created_at,
+               e.quantity, e.payment_status, e.discount_code,
+               s.handle AS shop_handle, s.name AS shop_name
+        FROM shop_events e
+        JOIN shops s ON s.id = e.shop_id
+        LEFT JOIN shop_products p ON p.id = e.product_id
+        WHERE e.user_id = ${req.userId!} AND e.event_type = 'sale'
+        ORDER BY e.created_at DESC
+        LIMIT 500
+      `);
+      shopOrders = shopR.rows.map((row) =>
+        shopSaleShape(row as Record<string, unknown>, profile.slug),
+      );
+    } catch (err) {
+      if (!isMissingSchemaError(err)) throw err;
+    }
+    const orders = [...storeOrders, ...shopOrders]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 500);
     const totals = orders.reduce(
       (acc, o) => ({
         grossCents: acc.grossCents + o.grossCents,
@@ -4981,7 +5088,7 @@ router.get("/storefront/orders/sales", requireAuth, async (req, res) => {
         net: money(totals.netCents),
         platformFeePct: PLATFORM_FEE_PCT,
       },
-      note: "Real-money sales via Stripe. This is not Visual Bucs (AI credits). Payouts need Stripe Connect — your net sits as a pending balance until then.",
+      note: "Real-money sales via Stripe — your profile store and your shops, one list. This is not Visual Bucs (AI credits). Your net accrues to your pending balance; cash out through Stripe Connect from this dashboard.",
     });
   } catch (err) {
     logger.error({ err }, "[storefront] sales list failed");
@@ -5073,11 +5180,43 @@ router.post("/storefront/orders/:id/log-to-tracker", requireAuth, publicApiLimit
       LIMIT 1
     `);
     const srow = sale.rows[0] as Record<string, unknown> | undefined;
-    if (!srow) {
-      res.status(404).json({ error: "Order not found." });
-      return;
+    /* One Orders list, one Log button (Gate #5 finding P2-1): shop
+       sales listed by /storefront/orders/sales carry shop_events ids,
+       so the tracker write resolves those too — owner-scoped, paid
+       'sale' rows only, net = amount − fee exactly as recorded. */
+    let cents: number;
+    let title: string;
+    let marker: string;
+    let sourceLabel: string;
+    if (srow) {
+      cents = Number(srow["creator_amount_cents"]);
+      title = String(srow["product_title"] ?? "Store product");
+      marker = `Storefront sale ${id}`;
+      sourceLabel = "Storefront — " + title;
+    } else {
+      let erowSale: Record<string, unknown> | undefined;
+      try {
+        const shopSale = await db.execute(sql`
+          SELECT e.id, p.name AS product_name,
+                 (e.amount_cents - e.platform_fee_cents) AS net_cents
+          FROM shop_events e
+          LEFT JOIN shop_products p ON p.id = e.product_id
+          WHERE e.id = ${id} AND e.user_id = ${req.userId!} AND e.event_type = 'sale'
+          LIMIT 1
+        `);
+        erowSale = shopSale.rows[0] as Record<string, unknown> | undefined;
+      } catch (err) {
+        if (!isMissingSchemaError(err)) throw err;
+      }
+      if (!erowSale) {
+        res.status(404).json({ error: "Order not found." });
+        return;
+      }
+      cents = Number(erowSale["net_cents"]);
+      title = String(erowSale["product_name"] ?? "Shop product");
+      marker = `Shop sale ${id}`;
+      sourceLabel = "Shop — " + title;
     }
-    const marker = `Storefront sale ${id}`;
     const dup = await db.execute(sql`
       SELECT id FROM money_entries
       WHERE user_id = ${req.userId!} AND entry_type = 'income' AND note = ${marker}
@@ -5087,13 +5226,11 @@ router.post("/storefront/orders/:id/log-to-tracker", requireAuth, publicApiLimit
       res.status(409).json({ error: "ALREADY_LOGGED", message: "This sale is already in your Money Tracker." });
       return;
     }
-    const cents = Number(srow["creator_amount_cents"]);
-    const title = String(srow["product_title"] ?? "Store product");
     const inserted = await db.execute(sql`
       INSERT INTO money_entries
         (user_id, entry_type, category, amount_cents, note, source, entry_date)
       VALUES (${req.userId!}, 'income', 'store_sales', ${cents},
-              ${marker}, ${"Storefront — " + title}, ${todayYmd()})
+              ${marker}, ${sourceLabel}, ${todayYmd()})
       RETURNING id, amount_cents, entry_date
     `);
     const erow = inserted.rows[0] as Record<string, unknown>;
@@ -5522,6 +5659,59 @@ router.get("/storefront/promote/email", requireAuth, async (req, res) => {
   }
 });
 
+/* ── Customer-shop sales reads for the seller dashboard ──────────────
+   The analytics endpoint's own aggregates over shop_events
+   (event_type='sale' — paid truth only; 'pending_sale' rows are not
+   sales), keyed by the shop owner's user id exactly as the analytics
+   and lib/seller-earnings key them. Both degrade to zero on a
+   database without the shops tables (pre-0030), per this file's
+   best-effort rule — a missing shops schema must never 500 the
+   dashboard. */
+async function shopSalesTotals(userId: string): Promise<{ n: number; gross: number; fee: number; net: number }> {
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n,
+             COALESCE(SUM(amount_cents),0)::int AS gross,
+             COALESCE(SUM(platform_fee_cents),0)::int AS fee,
+             COALESCE(SUM(amount_cents - platform_fee_cents),0)::int AS net
+      FROM shop_events
+      WHERE user_id = ${userId} AND event_type = 'sale'
+    `);
+    const row = r.rows[0] as Record<string, unknown>;
+    return {
+      n: Number(row["n"]),
+      gross: Number(row["gross"]),
+      fee: Number(row["fee"]),
+      net: Number(row["net"]),
+    };
+  } catch (err) {
+    if (isMissingSchemaError(err)) return { n: 0, gross: 0, fee: 0, net: 0 };
+    throw err;
+  }
+}
+
+/* Shop sales not yet logged to the Money Tracker ('Shop sale <id>'
+   markers, written by POST /storefront/orders/:id/log-to-tracker) —
+   the checklist's unlogged count covers both sales ledgers. */
+async function shopUnloggedSalesCount(userId: string): Promise<number> {
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM shop_events se
+      LEFT JOIN money_entries me
+        ON me.user_id = ${userId}
+          AND me.entry_type = 'income'
+          AND me.note = ('Shop sale ' || se.id::text)
+      WHERE se.user_id = ${userId}
+        AND se.event_type = 'sale'
+        AND me.id IS NULL
+    `);
+    return Number((r.rows[0] as Record<string, unknown>)["n"]);
+  } catch (err) {
+    if (isMissingSchemaError(err)) return 0;
+    throw err;
+  }
+}
+
 /* ═══════════ SELLER: money checklist (Get Paid finale) ═══════════════
    The seller dashboard IS the Get Paid finale: earnings first, then a money
    checklist, then the single sharpest next-money-move nudge. Viewing
@@ -5560,29 +5750,65 @@ router.get("/storefront/money-checklist", requireAuth, async (req, res) => {
                  WHERE profile_id = ${profile.id} AND is_published = true
                    AND COALESCE(download_price_cents,0) = 0) AS n
       `),
+      /* The unlogged count is a LEFT JOIN anti-join, not a correlated
+         NOT EXISTS — identical results on Postgres, and the pg-mem
+         harness can execute it (it cannot resolve this correlated
+         shape), which is what lets this endpoint be tested at all. */
       db.execute(sql`
         SELECT COUNT(*)::int AS n FROM store_orders so
+        LEFT JOIN money_entries me
+          ON me.user_id = ${req.userId!}
+            AND me.entry_type = 'income'
+            AND me.note = ('Storefront sale ' || so.id::text)
         WHERE so.profile_id = ${profile.id}
-          AND NOT EXISTS (
-            SELECT 1 FROM money_entries me
-            WHERE me.user_id = ${req.userId!}
-              AND me.entry_type = 'income'
-              AND me.note = ('Storefront sale ' || so.id::text)
-          )
+          AND me.id IS NULL
       `),
     ]);
 
+    /* Customer-shop sales (Gate #5 finding P2-1): the dashboard's
+       earnings used to read store_orders alone, so a seller whose
+       sales all came through their shop (/shop/:handle) saw $0.00
+       here while My Shop analytics showed the real sales. These are
+       the analytics endpoint's own aggregates (shop_events,
+       event_type='sale' — paid truth only) over every shop the caller
+       owns; net = gross − fee, the analytics' own math. Guarded like
+       every best-effort read in this file: a database without the
+       shops tables reads as zero shop sales, never a 500. */
+    const shopTotals = await shopSalesTotals(req.userId!);
+    const shopUnlogged = await shopUnloggedSalesCount(req.userId!);
+
     const orow = ordersR.rows[0] as Record<string, unknown>;
+    const earningsTotals = {
+      orderCount: Number(orow["n"]) + shopTotals.n,
+      grossCents: Number(orow["gross"]) + shopTotals.gross,
+      feeCents: Number(orow["fee"]) + shopTotals.fee,
+      netCents: Number(orow["net"]) + shopTotals.net,
+    };
+    /* The pending figure is the ONE unified ledger read — every
+       payable rail (profile store, shops, digital, beats,
+       memberships), settled cash-outs subtracted — the same number
+       the Get Paid card on this page shows and pays. A ledger hiccup
+       must never 500 the checklist: fall back to the combined sales
+       net (the pending figure before any cash-out). */
+    let pendingPayoutCents = earningsTotals.netCents;
+    try {
+      const pendingRead = await readPendingPayoutForSeller(req.userId!);
+      pendingPayoutCents = pendingRead.pendingCents;
+    } catch (err) {
+      logger.warn({ err }, "[storefront] pending payout read failed — using combined sales net");
+    }
     const earnings = {
-      orderCount: Number(orow["n"]),
-      grossCents: Number(orow["gross"]),
-      feeCents: Number(orow["fee"]),
-      netCents: Number(orow["net"]),
-      gross: money(Number(orow["gross"])),
-      fee: money(Number(orow["fee"])),
-      net: money(Number(orow["net"])),
+      orderCount: earningsTotals.orderCount,
+      grossCents: earningsTotals.grossCents,
+      feeCents: earningsTotals.feeCents,
+      netCents: earningsTotals.netCents,
+      gross: money(earningsTotals.grossCents),
+      fee: money(earningsTotals.feeCents),
+      net: money(earningsTotals.netCents),
       platformFeePct: PLATFORM_FEE_PCT,
-      pendingPayoutNote: "Payouts need Stripe Connect (not built yet) — your net sits here as a pending balance. Real dollars, not Visual Bucs.",
+      pendingPayoutCents,
+      pendingPayout: money(pendingPayoutCents),
+      pendingPayoutNote: "Payouts run through Stripe Connect, built into this dashboard: connect your bank in the Get Paid card below and cash out your pending balance anytime. Real dollars, not Visual Bucs.",
     };
 
     const products = productsR.rows as unknown as Array<{
@@ -5592,7 +5818,8 @@ router.get("/storefront/money-checklist", requireAuth, async (req, res) => {
     const soldOut = products.filter((p) => p.is_active && Number(p.inventory) === 0);
     const codeCount = Number((codesR.rows[0] as Record<string, unknown>)["n"]);
     const unpricedCount = Number((unpricedR.rows[0] as Record<string, unknown>)["n"]);
-    const unloggedCount = Number((unloggedR.rows[0] as Record<string, unknown>)["n"]);
+    const unloggedCount =
+      Number((unloggedR.rows[0] as Record<string, unknown>)["n"]) + shopUnlogged;
 
     interface ChecklistItem {
       id: string; title: string; detail: string; cta: string; href: string;

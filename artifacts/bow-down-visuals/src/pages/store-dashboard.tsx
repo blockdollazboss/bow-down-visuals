@@ -132,7 +132,7 @@ function EarningsHero({ data }: { data: MoneyChecklist }) {
       <div className="mt-3 flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
         <PiggyBank className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <p className="text-[11px] leading-relaxed text-white/50">
-          <span className="font-bold text-white/70">Pending payout: {e.net}.</span> {e.pendingPayoutNote}
+          <span className="font-bold text-white/70">Pending payout: {e.pendingPayout ?? e.net}.</span> {e.pendingPayoutNote}
         </p>
       </div>
     </div>
@@ -1510,7 +1510,9 @@ function OrdersTab() {
                       <span className="font-bold text-white">{o.productTitle}</span>
                     )}
                     <p className="text-[10px] text-white/35">
-                      {KIND_EMOJI[o.productKind as StoreProductKind] ?? "📦"} {o.productKind} · ×{o.quantity}
+                      {o.source === "shop"
+                        ? <>🏪 Shop sale{o.shopName ? ` · ${o.shopName}` : ""}</>
+                        : <>{KIND_EMOJI[o.productKind as StoreProductKind] ?? "📦"} {o.productKind}</>} · ×{o.quantity}
                       {o.discountCode && <span className="ml-1 rounded bg-primary/15 px-1.5 py-0.5 text-primary">🏷️ {o.discountCode}</span>}
                       {" · "}{new Date(o.createdAt).toLocaleDateString()}
                     </p>
