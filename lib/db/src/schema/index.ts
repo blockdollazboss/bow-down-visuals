@@ -180,6 +180,7 @@ export * from "./coach-tracker";
 export * from "./content-reports";
 export * from "./operator-actions";
 export * from "./payment-reversals";
+export * from "./payment-reversal-resolutions";
 export * from "./pending-payout-ledger";
 export * from "./clip-charge-obligations";
 export * from "./generation-charge-intents";
