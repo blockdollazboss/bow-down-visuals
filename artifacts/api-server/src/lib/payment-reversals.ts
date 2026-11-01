@@ -1300,11 +1300,20 @@ export async function resolvePaymentReversal(input: {
     const row = firstRow(r);
     return row ? resolutionFromRow(row) : null;
   };
-  const deleteResolution = async (id: string): Promise<void> => {
+  /* Claim cleanup is guarded on the row STILL being parked (fresh
+     read, then delete): a delete may only ever remove a claim whose
+     decision never landed. The guard matters because a claim id can
+     name the WINNER's audit row — drivers that echo the existing row
+     back from an ON CONFLICT DO NOTHING insert hand the loser the
+     winner's id — and the winner's audit must survive the loser's
+     cleanup once their flip has landed. */
+  const deleteResolutionIfParked = async (id: string): Promise<void> => {
+    const fresh = await readRow();
+    if (!fresh || String(fresh["status"] ?? "") !== "needs_manual_review") return;
     await db.execute(sql`DELETE FROM payment_reversal_resolutions WHERE id = ${id}`);
   };
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     const row = await readRow();
     if (!row) return { outcome: "not_found" };
     const status = String(row["status"] ?? "");
@@ -1322,13 +1331,13 @@ export async function resolvePaymentReversal(input: {
       /* A resolution exists but the row never landed: either another
          admin is mid-resolve right now (fresh claim — conflict), or
          a resolve crashed between claiming and flipping (stale claim
-         — reclaim it and let this attempt proceed). */
+         — reclaim it and re-read before proceeding). */
       const age = Date.now() - new Date(resolution.createdAt).getTime();
       if (Number.isFinite(age) && age < RESOLUTION_STALE_MS) {
         return { outcome: "conflict", status };
       }
-      await deleteResolution(resolution.id);
-      resolution = null;
+      await deleteResolutionIfParked(resolution.id);
+      continue;
     }
 
     if (status !== "needs_manual_review") {
@@ -1363,6 +1372,17 @@ export async function resolvePaymentReversal(input: {
     const claimed = firstRow(claim);
     if (!claimed) continue; // a racer claimed it — re-read and adjudicate
     resolution = resolutionFromRow(claimed);
+    if (
+      resolution.decision !== decision ||
+      resolution.adminEmail !== input.adminEmail ||
+      resolution.note !== note
+    ) {
+      /* The insert was skipped on the UNIQUE claim but the driver
+         echoed the existing (winner's) row back — that claim is not
+         ours to act on. Loop: the read path adjudicates against the
+         recorded decision without touching it. */
+      continue;
+    }
 
     try {
       let rev = { entitlement: false, seller: false };
@@ -1419,9 +1439,10 @@ export async function resolvePaymentReversal(input: {
       const landed = firstRow(flipped);
       if (!landed) {
         /* The row moved under us (a webhook event reclaimed it
-           between claim and flip). Release the claim and let the
-           loop adjudicate against the fresh state. */
-        await deleteResolution(resolution.id);
+           between claim and flip). Release the claim — guarded, so a
+           winner whose flip DID land keeps their audit row — and let
+           the loop adjudicate against the fresh state. */
+        await deleteResolutionIfParked(resolution.id);
         continue;
       }
       logger.info(
@@ -1432,7 +1453,7 @@ export async function resolvePaymentReversal(input: {
     } catch (err) {
       /* A leg failed: release the claim so the row stays parked and
          resolvable, and surface the failure to the caller. */
-      await deleteResolution(resolution.id).catch(() => {});
+      await deleteResolutionIfParked(resolution.id).catch(() => {});
       logger.error({ err, reversalId }, "payment reversal resolve: failed — row left parked");
       throw err;
     }
