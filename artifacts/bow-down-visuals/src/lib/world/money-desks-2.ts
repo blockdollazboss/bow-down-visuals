@@ -12,7 +12,9 @@
  * - Beats ride the beats page's own endpoints (GET /api/beats with
  *   its limit/offset filters, POST /api/beats/:id/license,
  *   POST /api/beats/licenses/verify, POST /api/beats, the seller
- *   dashboard and the license-template CRUD). The commission is the
+ *   dashboard and the license-template CRUD) — plus the dashboard
+ *   BeatRow's AI-tags pair (POST /api/beats/:id/ai-tags → PATCH
+ *   /api/beats/:id { genre, moodTags }, stack1200 parity). The commission is the
  *   page's own line — "15% site commission on sales" (heroSubtitle)
  *   — displayed exactly where the page displays it (the subtitle and
  *   the dashboard's gross → net stats), never folded into a price.
@@ -538,6 +540,100 @@ export function beatTemplateProblem(form: BeatTemplateForm): string | null {
   const price = Number(form.priceDollars || "0");
   if (!Number.isFinite(price) || price < 0) return "Enter a price of $0 or more.";
   return null;
+}
+
+/* ─── AI tag suggester — the dashboard BeatRow's affordance ───────
+   The 2D dashboard's producer rows (pages/beats.tsx BeatRow) carry
+   the page's only beat edit: POST /api/beats/:id/ai-tags suggests a
+   genre + mood tags, and Apply PATCHes /api/beats/:id with exactly
+   { genre, moodTags }. The suggester is a CHARGED rail: the server
+   charges BEAT_AI_TAGS_CREDIT_COST (100 Visual Bucs, env-overridable
+   via BEAT_AI_TAGS_CREDITS — beats-pricing.ts getBeatAiTagsCost)
+   BEFORE generating and refunds on provider failure or empty
+   output, in its own words on the error line. The desk mirrors the
+   charge exactly — same endpoint, same price, named before the
+   spend confirmation (the World's confirmedFetch law, the way the
+   neighbouring charged desks pin their costs) — and never invents
+   a second price. (The 2D button's label still reads "Tags · 1cr",
+   a stale pre-×100 label; the rail's true charge is 100 and the
+   desk names the true charge, per price-display honesty.) */
+
+/** The suggester's pinned price — the server default in
+ *  beats-pricing.ts (BEAT_AI_TAGS_CREDIT_COST = 100). */
+export const BEAT_AI_TAGS_COST_VB = 100;
+
+/** The server's own ledger name for the charge
+ *  (chargeCreditsAtomic action: "Beat AI Tag Suggester") — the
+ *  spend confirmation's feature label. */
+export const BEAT_AI_TAGS_FEATURE = "Beat AI Tag Suggester";
+
+export function beatAiTagsPath(beatId: string): string {
+  return `/api/beats/${encodeURIComponent(beatId)}/ai-tags`;
+}
+
+/** PATCH /api/beats/:id — the producer metadata rail the BeatRow's
+ *  Apply rides (owner-only server-side). */
+export function beatPatchPath(beatId: string): string {
+  return `/api/beats/${encodeURIComponent(beatId)}`;
+}
+
+export interface BeatAiTagSuggestion {
+  genre: string;
+  moodTags: string[];
+}
+
+/** Parse a suggester answer tolerantly, the BeatRow's own reading:
+ *  genre falls back to the beat's current genre when the answer
+ *  carries none, moodTags to an empty list. Null when the payload
+ *  isn't an object at all — a shape the desk can't honestly show. */
+export function parseBeatAiTagSuggestion(payload: unknown, fallbackGenre: string): BeatAiTagSuggestion | null {
+  if (!isObj(payload)) return null;
+  return {
+    genre: str(payload["genre"]) ?? fallbackGenre,
+    moodTags: Array.isArray(payload["moodTags"])
+      ? (payload["moodTags"] as unknown[]).filter((x): x is string => typeof x === "string")
+      : [],
+  };
+}
+
+export type BeatAiTagsOutcome =
+  | { kind: "ok"; suggestion: BeatAiTagSuggestion }
+  | { kind: "credits" }
+  | { kind: "error"; message: string };
+
+/** The suggester POST's verdict, in the BeatRow's order of checks:
+ *  a 402 is the out-of-credits answer (the page opens its
+ *  OutOfCredits surface; the desk names it in place — the server
+ *  charged nothing, its balance pre-check runs before the charge);
+ *  an OK answer parses into the suggestion; anything else STOPS
+ *  with the server's own error line when it sent one (its 500 text
+ *  already carries the refund note), else the desk's plain retry
+ *  line. An OK answer in an unreadable shape is an error too,
+ *  never a suggestion the desk invented. */
+export function beatAiTagsOutcome(
+  result: { status: number; data: unknown },
+  fallbackGenre: string,
+): BeatAiTagsOutcome {
+  const { status, data } = result;
+  if (status === 402) return { kind: "credits" };
+  if (status >= 200 && status < 300) {
+    const suggestion = parseBeatAiTagSuggestion(data, fallbackGenre);
+    if (suggestion) return { kind: "ok", suggestion };
+    return {
+      kind: "error",
+      message: "The suggester answered in a shape this desk can't read — the rail refunds failed generations; if Bucs left your balance, the refund lands on its own.",
+    };
+  }
+  return {
+    kind: "error",
+    message: apiErrorLine(data, "The tag suggester couldn't run — try again."),
+  };
+}
+
+/** PATCH body for Apply — the BeatRow's exact payload:
+ *  { genre, moodTags } from the shown suggestion, nothing else. */
+export function beatAiTagApplyPayload(suggestion: BeatAiTagSuggestion): { genre: string; moodTags: string[] } {
+  return { genre: suggestion.genre, moodTags: suggestion.moodTags };
 }
 
 /** GET /api/beats/license-templates/mine → the caller's templates. */
