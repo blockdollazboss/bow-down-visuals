@@ -1025,6 +1025,69 @@ describe("runner — abandoned checkout", () => {
 
 /* ── Runner: membership winback ──────────────────────────────────── */
 
+describe("runner — orphaned claims (crashed runs)", () => {
+  /* Email-trigger truth (stack1100 Y6): a claim is created and settled
+     inside one run. A run that dies mid-send leaves the claim 'queued'
+     — invisible to automationStats (which count only settled statuses)
+     while the dedupe row blocks any re-drive. The reap at the top of
+     every run settles stale 'queued' claims to 'failed': visible,
+     counted, never re-sent. */
+  async function seedClaim(automationId: string, subscriberId: string, ref: string, createdAt: Date) {
+    const [row] = await db
+      .insert(emailAutomationSendsTable)
+      .values({
+        automationId,
+        subscriberId,
+        triggerKind: "post_purchase",
+        triggerRef: ref,
+        recipientEmail: "buyer@x.com",
+        status: "queued",
+        createdAt,
+      })
+      .returning();
+    return row;
+  }
+
+  it("settles a stale queued claim to failed and never sends it", async () => {
+    const sub = await addSubscriber("buyer@x.com");
+    const automation = await enableAutomation("post_purchase", { enabledAt: hoursAgo(72) });
+    await seedClaim(automation.id, sub.id, "shop_checkout:g-crashed", hoursAgo(48));
+
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(mail.sends).toEqual([]);
+    const rows = await sendRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0].status).toBe("failed");
+  });
+
+  it("leaves a fresh queued claim untouched (a live run may own it)", async () => {
+    const sub = await addSubscriber("buyer@x.com");
+    const automation = await enableAutomation("post_purchase", { enabledAt: hoursAgo(72) });
+    await seedClaim(automation.id, sub.id, "shop_checkout:g-live", NOW);
+
+    await runNow();
+    const rows = await sendRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0].status).toBe("queued");
+  });
+
+  it("a reaped trigger is record-and-stop: its sale never emails later", async () => {
+    const sub = await addSubscriber("buyer@x.com");
+    const shop = await seedShop(OWNER);
+    await seedShopEvent(shop, { type: "sale", email: "buyer@x.com", at: hoursAgo(30), group: "g-crashed" });
+    const automation = await enableAutomation("post_purchase", { enabledAt: hoursAgo(72) });
+    await seedClaim(automation.id, sub.id, "shop_checkout:g-crashed", hoursAgo(48));
+
+    const totals = await runNow();
+    expect(totals.sent).toBe(0);
+    expect(mail.sends).toEqual([]);
+    const rows = await sendRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0].status).toBe("failed");
+  });
+});
+
 describe("runner — membership winback", () => {
   it("fires for canceled members by recorded email and by account email; active members never fire", async () => {
     await addSubscriber("gone@x.com");
