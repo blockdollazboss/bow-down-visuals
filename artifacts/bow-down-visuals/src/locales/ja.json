@@ -1877,7 +1877,7 @@
     "moodTagsLabel": "ムードタグ（カンマ区切り）",
     "moodTagsPlaceholder": "dark, aggressive, bouncy",
     "aiTagsTooltip": "まずビートを出品してから、ダッシュボードでAIタグを使用",
-    "aiTagsButton": "AIタグ · 1cr",
+    "aiTagsButton": "AIタグ · {{cost}} Visual Bucs",
     "descriptionLabel": "説明",
     "descriptionPlaceholder": "このビートの特別なところは？",
     "licensePricesLabel": "ライセンス価格（USD）",

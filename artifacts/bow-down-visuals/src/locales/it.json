@@ -1878,7 +1878,7 @@
     "moodTagsLabel": "Tag di mood (separati da virgola)",
     "moodTagsPlaceholder": "cupo, aggressivo, rimbalzante",
     "aiTagsTooltip": "Prima pubblica il tuo beat, poi usa i tag AI dalla dashboard",
-    "aiTagsButton": "Tag AI · 1cr",
+    "aiTagsButton": "Tag AI · {{cost}} Visual Bucs",
     "descriptionLabel": "Descrizione",
     "descriptionPlaceholder": "Cosa rende speciale questo beat?",
     "licensePricesLabel": "Prezzi licenze (USD)",

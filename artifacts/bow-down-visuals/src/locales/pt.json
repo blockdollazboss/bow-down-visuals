@@ -1878,7 +1878,7 @@
     "moodTagsLabel": "Tags de clima (separadas por vírgula)",
     "moodTagsPlaceholder": "sombrio, agressivo, saltitante",
     "aiTagsTooltip": "Liste seu beat primeiro, depois use as tags de IA pelo painel",
-    "aiTagsButton": "Tags IA · 1cr",
+    "aiTagsButton": "Tags IA · {{cost}} Visual Bucs",
     "descriptionLabel": "Descrição",
     "descriptionPlaceholder": "O que torna este beat especial?",
     "licensePricesLabel": "Preços das licenças (USD)",

@@ -570,7 +570,7 @@ router.delete("/beats/license-templates/:templateId", requireAuth, async (req, r
 });
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   POST /api/beats/:id/ai-tags — AI tag suggester (1 credit).
+   POST /api/beats/:id/ai-tags — AI tag suggester (100 credits).
    Analyzes the beat's metadata (title, genre, BPM, key, description) and
    suggests genre + mood tags via GPT-6. Charge-before-generate, refund on
    provider failure or empty output.

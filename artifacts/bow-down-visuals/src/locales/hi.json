@@ -1877,7 +1877,7 @@
     "moodTagsLabel": "मूड टैग (अल्पविराम से अलग करें)",
     "moodTagsPlaceholder": "dark, aggressive, bouncy",
     "aiTagsTooltip": "पहले अपनी बीट लिस्ट करें, फिर डैशबोर्ड से AI टैग इस्तेमाल करें",
-    "aiTagsButton": "AI टैग · 1cr",
+    "aiTagsButton": "AI टैग · {{cost}} Visual Bucs",
     "descriptionLabel": "विवरण",
     "descriptionPlaceholder": "इस बीट को ख़ास क्या बनाता है?",
     "licensePricesLabel": "लाइसेंस कीमतें (USD)",

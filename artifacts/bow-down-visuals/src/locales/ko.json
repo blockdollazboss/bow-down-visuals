@@ -1877,7 +1877,7 @@
     "moodTagsLabel": "무드 태그 (쉼표로 구분)",
     "moodTagsPlaceholder": "dark, aggressive, bouncy",
     "aiTagsTooltip": "먼저 비트를 등록한 뒤 대시보드에서 AI 태그를 사용하세요",
-    "aiTagsButton": "AI 태그 · 1cr",
+    "aiTagsButton": "AI 태그 · {{cost}} Visual Bucs",
     "descriptionLabel": "설명",
     "descriptionPlaceholder": "이 비트만의 매력은 무엇인가요?",
     "licensePricesLabel": "라이선스 가격 (USD)",

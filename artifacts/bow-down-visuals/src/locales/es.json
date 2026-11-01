@@ -1878,7 +1878,7 @@
     "moodTagsLabel": "Etiquetas de ambiente (separadas por comas)",
     "moodTagsPlaceholder": "oscuro, agresivo, bailable",
     "aiTagsTooltip": "Publica tu beat primero, luego usa las etiquetas IA desde el panel",
-    "aiTagsButton": "Etiquetas IA · 1cr",
+    "aiTagsButton": "Etiquetas IA · {{cost}} Visual Bucs",
     "descriptionLabel": "Descripción",
     "descriptionPlaceholder": "¿Qué hace especial a este beat?",
     "licensePricesLabel": "Precios de licencia (USD)",

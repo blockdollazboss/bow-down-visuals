@@ -117,6 +117,13 @@ const LICENSE_TIERS = [
 
 const GENRES = ["hip-hop", "trap", "drill", "r&b", "afrobeats", "pop", "edm", "lofi", "rock", "latin"];
 
+/** Display mirror of the AI tag suggester's rail cost — the server charges
+ *  BEAT_AI_TAGS_CREDIT_COST (api-server beats-pricing.ts, env-overridable)
+ *  on every POST /api/beats/:id/ai-tags. The button labels interpolate this
+ *  constant so the displayed price cannot drift from the charge again
+ *  (pinned by beats-ai-tags-price-truth.test.ts). */
+const AI_TAGS_CREDIT_COST = 100;
+
 function centsToDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -661,7 +668,7 @@ export default function Beats() {
                 className="flex-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/25" />
               <button onClick={runAiTags} title={t("beats.aiTagsTooltip")}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#C9A84C]/50 text-[#E3C566] text-sm font-semibold hover:bg-[#C9A84C]/10">
-                <Sparkles className="w-4 h-4" /> {t("beats.aiTagsButton")}
+                <Sparkles className="w-4 h-4" /> {t("beats.aiTagsButton", { cost: AI_TAGS_CREDIT_COST })}
               </button>
             </div>
 
@@ -1048,7 +1055,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
         <button onClick={handleAiTags} disabled={aiTagging}
           className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-yellow-500/40 text-yellow-200 text-xs font-semibold hover:bg-yellow-500/10 disabled:opacity-50">
           {aiTagging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-          {t("beats.aiTagsButton")}
+          {t("beats.aiTagsButton", { cost: AI_TAGS_CREDIT_COST })}
         </button>
       </div>
       {suggestion && (

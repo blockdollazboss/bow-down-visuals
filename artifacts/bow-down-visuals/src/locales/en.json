@@ -2014,7 +2014,7 @@
     "moodTagsLabel": "Mood tags (comma-separated)",
     "moodTagsPlaceholder": "dark, aggressive, bouncy",
     "aiTagsTooltip": "List your beat first, then use AI tags from the dashboard",
-    "aiTagsButton": "Tags · 1cr",
+    "aiTagsButton": "Tags · {{cost}} Visual Bucs",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "What makes this beat special?",
     "licensePricesLabel": "License prices (USD)",
