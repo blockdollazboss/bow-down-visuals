@@ -27,6 +27,18 @@ export const beatsTable = pgTable("beats", {
   audio_path: text("audio_path"),
   /** Public URL of the watermarked preview (shorter / tagged). Falls back to audio_url. */
   preview_url: text("preview_url"),
+  /** The track stems a stems-bearing license delivers (migration 0304,
+      stack1100 X4): a producer-supplied file (typically a ZIP of the
+      separate tracks). The Exclusive tier and wav_mp3_stems templates
+      PROMISE "plus the separate track stems" in the plain words the
+      buyer agrees to — until this column existed there was nowhere
+      for stems to live, so the promise could never be kept. Public
+      reads never see it (presentBeatPublic masks it like the master):
+      it is delivered only on a completed license whose sold terms
+      carry a stems format. */
+  stems_url: text("stems_url"),
+  /** Supabase storage path for the stems file, when stored. */
+  stems_path: text("stems_path"),
   genre: text("genre").notNull().default("hip-hop"),
   bpm: integer("bpm"),
   /** Musical key, e.g. "C min", "F# maj". */
