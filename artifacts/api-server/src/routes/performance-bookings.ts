@@ -15,10 +15,93 @@ import {
   escrowStatusAfterCancel,
   buildPlainWordsTerms,
   buildPerformanceEscrowCheckoutKey,
+  moneyCents,
   ACTION_ACTOR,
   type PerformanceBookingAction,
 } from "../lib/performance-bookings";
 import type { PerformanceBookingTerms } from "@workspace/db";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
+
+/* ── Booking lifecycle fan-out (fan-out truth, stack1100 Y3) ───────────
+   This mirror of the sponsor escrow lifecycle also ran with ZERO
+   notifications: an artist never learned they were booked, a promoter
+   never learned the artist answered, funded, completed, or that the
+   other side cancelled. Each tell fires through the one event door
+   (money category), gated on the transition actually LANDING (a
+   RETURNING row), so replays and race-losers stay silent. The deep
+   link is the artist page's booking section — where both parties
+   manage the booking — resolved from the row's profile. */
+type PerformanceEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _performanceEventNotifier: PerformanceEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setPerformanceEventNotifier(fn: PerformanceEventNotifier | null): void {
+  _performanceEventNotifier = fn ?? notifyUserEvent;
+}
+
+export function buildPerformanceEvent(input: {
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+  link?: string;
+}): UserEventInput {
+  return {
+    userId: input.userId,
+    category: "money",
+    kind: input.kind,
+    title: input.title,
+    body: input.body,
+    ...(input.link ? { link: input.link } : {}),
+  };
+}
+
+/** Fire one booking tell. Best-effort: never throws into a money path. */
+export async function tellBookingParty(input: {
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+  link?: string;
+}): Promise<void> {
+  try {
+    await _performanceEventNotifier(buildPerformanceEvent(input));
+  } catch (err) {
+    logger.warn({ err, userId: input.userId, kind: input.kind }, "[performance-bookings] lifecycle tell failed (transition stands)");
+  }
+}
+
+/** The artist-page deep link for a booking (both parties manage the
+ *  booking in the Book the Artist section of that page). */
+async function bookingLink(row: BookingRow): Promise<string | undefined> {
+  try {
+    const r = await db.execute(sql`
+      SELECT slug FROM creator_profiles WHERE id = ${row.profile_id} LIMIT 1
+    `);
+    const slug = (r.rows[0] as { slug?: string } | undefined)?.slug;
+    return slug ? `/artist/${slug}?booking=${row.id}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The reversal engine un-funds a funded-but-unreleased booking. The
+ *  artist working against that escrow hears it emptied — called by
+ *  lib/payment-reversals only after its flip actually lands. */
+export async function notifyPerformanceEscrowReversed(bookingId: string): Promise<void> {
+  try {
+    const row = await findBooking(bookingId);
+    if (!row) return;
+    await tellBookingParty({
+      userId: row.artist_user_id,
+      kind: "performance_escrow_reversed",
+      title: "Booking escrow reversed",
+      body: `The escrow funding for "${row.event_title}" was refunded or charged back, so the escrow is empty. Don't perform against it until the promoter funds it again.`,
+      link: await bookingLink(row),
+    });
+  } catch (err) {
+    logger.warn({ err, bookingId }, "[performance-bookings] escrow-reversed tell failed (reversal stands)");
+  }
+}
 
 /**
  * Book the Artist (#158) — performance bookings with escrow.
@@ -302,6 +385,14 @@ router.post("/performance-bookings", requireAuth, publicApiLimiter, async (req, 
     `);
     const row = await findBooking(id);
     logger.info({ bookingId: id, profileId: profile.id, feeCents: d.feeCents }, "[performance-bookings] booking proposed");
+    /* The booking exists — the artist hears about it now. */
+    await tellBookingParty({
+      userId: profile.user_id,
+      kind: "performance_booking_proposed",
+      title: "New booking request",
+      body: `${d.promoterName} wants to book you for "${d.eventTitle}" — fee ${moneyCents(d.feeCents)}. Review the terms and answer.`,
+      link: row ? await bookingLink(row) : undefined,
+    });
     res.status(201).json({ booking: toBookingDto(row!, req.userId!) });
   } catch (err) {
     logger.error({ err }, "[performance-bookings] create failed");
@@ -373,9 +464,26 @@ router.post("/performance-bookings/:id/respond", requireAuth, publicApiLimiter, 
     const row = await guardAction(req, res, uuidParam(req.params["id"]), parsed.data.action);
     if (!row) return;
     const to = parsed.data.action === "accept" ? "accepted" : "declined";
-    await db.execute(sql`
-      UPDATE performance_bookings SET status = ${to}, updated_at = NOW() WHERE id = ${row.id}
+    /* Claim the answer: only a still-proposed booking flips, so a
+       racing double-answer can't tell the promoter twice. */
+    const flipped = await db.execute(sql`
+      UPDATE performance_bookings SET status = ${to}, updated_at = NOW()
+      WHERE id = ${row.id} AND status = 'proposed'
+      RETURNING id
     `);
+    if (flipped.rows.length === 0) {
+      res.status(409).json({ error: "This booking just changed — refresh and try again." });
+      return;
+    }
+    await tellBookingParty({
+      userId: row.promoter_user_id,
+      kind: parsed.data.action === "accept" ? "performance_booking_accepted" : "performance_booking_declined",
+      title: parsed.data.action === "accept" ? "Booking accepted" : "Booking declined",
+      body: parsed.data.action === "accept"
+        ? `${row.artist_name} accepted your booking for "${row.event_title}" (${moneyCents(Number(row.fee_cents))}). Fund the escrow to lock it in.`
+        : `${row.artist_name} declined your booking for "${row.event_title}". No money moved.`,
+      link: await bookingLink(row),
+    });
     const fresh = await findBooking(row.id);
     res.json({ booking: toBookingDto(fresh!, req.userId!) });
   } catch (err) {
@@ -489,15 +597,30 @@ export async function markPerformanceEscrowFunded(
   if (row.status !== "accepted" && row.status !== "funded") {
     return { ok: false, reason: `bad-status:${row.status}` };
   }
-  await db.execute(sql`
+  /* The flip claims the from-states: concurrent webhook + confirm
+     calls land it exactly once, and only the lander tells the artist. */
+  const flipped = await db.execute(sql`
     UPDATE performance_bookings
     SET escrow_status = 'funded', status = 'funded',
         stripe_session_id = ${sessionId},
         stripe_payment_intent_id = ${paymentIntentId},
         updated_at = NOW()
-    WHERE id = ${bookingId}
+    WHERE id = ${bookingId} AND escrow_status IN ('funding', 'unfunded')
+    RETURNING id
   `);
+  if (flipped.rows.length === 0) {
+    const now = await findBooking(bookingId);
+    if (now?.escrow_status === "funded") return { ok: true, reason: "already-funded" };
+    return { ok: false, reason: `bad-state:${now?.escrow_status ?? "gone"}` };
+  }
   logger.info({ bookingId, sessionId }, "[performance-bookings] escrow funded");
+  await tellBookingParty({
+    userId: row.artist_user_id,
+    kind: "performance_escrow_funded",
+    title: "Booking escrow funded",
+    body: `The promoter funded the escrow for "${row.event_title}" (${moneyCents(Number(row.fee_cents))}). The show is locked in.`,
+    link: await bookingLink(row),
+  });
   return { ok: true };
 }
 
@@ -552,9 +675,22 @@ router.post("/performance-bookings/:id/complete", requireAuth, publicApiLimiter,
   try {
     const row = await guardAction(req, res, uuidParam(req.params["id"]), "complete");
     if (!row) return;
-    await db.execute(sql`
-      UPDATE performance_bookings SET status = 'completed', updated_at = NOW() WHERE id = ${row.id}
+    const flipped = await db.execute(sql`
+      UPDATE performance_bookings SET status = 'completed', updated_at = NOW()
+      WHERE id = ${row.id} AND status = 'funded'
+      RETURNING id
     `);
+    if (flipped.rows.length === 0) {
+      res.status(409).json({ error: "This booking just changed — refresh and try again." });
+      return;
+    }
+    await tellBookingParty({
+      userId: row.promoter_user_id,
+      kind: "performance_booking_completed",
+      title: "Show marked complete",
+      body: `${row.artist_name} marked "${row.event_title}" complete. Review it and release the fee when you're ready.`,
+      link: await bookingLink(row),
+    });
     const fresh = await findBooking(row.id);
     res.json({ booking: toBookingDto(fresh!, req.userId!) });
   } catch (err) {
@@ -620,6 +756,18 @@ router.post("/performance-bookings/:id/release", requireAuth, publicApiLimiter, 
       { bookingId: row.id, agreedFeeCents: Number(row.fee_cents), gross, refundedCents: held.refundedCents, feeCents, netCents },
       "[performance-bookings] escrow released — platform fee collected",
     );
+    /* The flip landed — the artist hears the money moved, naming the
+       NET that actually released (never the stale agreed fee when
+       part of the escrow was refunded first — L4 truth rule). */
+    await tellBookingParty({
+      userId: row.artist_user_id,
+      kind: "performance_payment_released",
+      title: "Booking fee released",
+      body: held.refundedCents > 0
+        ? `You were paid ${moneyCents(netCents)} for "${row.event_title}". (${moneyCents(held.refundedCents)} of the funded escrow was refunded to the promoter before release, so the release split what was still held.)`
+        : `You were paid ${moneyCents(netCents)} for "${row.event_title}".`,
+      link: await bookingLink(row),
+    });
     const fresh = await findBooking(row.id);
     res.json({
       booking: toBookingDto(fresh!, req.userId!),
@@ -676,11 +824,34 @@ router.post("/performance-bookings/:id/cancel", requireAuth, publicApiLimiter, a
       }
       logger.info({ bookingId: row.id, sessionId: row.stripe_session_id }, "[performance-bookings] cancel: escrow refund landed");
     }
-    await db.execute(sql`
+    /* Claim the cancel against the status the guard read — a racing
+       action that already moved the booking wins, and the loser is
+       told honestly instead of double-writing (and double-telling). */
+    const flipped = await db.execute(sql`
       UPDATE performance_bookings
       SET status = 'cancelled', escrow_status = ${escrow}, updated_at = NOW()
-      WHERE id = ${row.id}
+      WHERE id = ${row.id} AND status = ${row.status}
+      RETURNING id
     `);
+    if (flipped.rows.length === 0) {
+      res.status(409).json({ error: "This booking just changed — refresh and try again." });
+      return;
+    }
+    /* Tell the other side, with the same refund truth the canceller
+       sees in the response note below. */
+    const actorIsPromoter = row.promoter_user_id === req.userId;
+    const refundTruth = escrow === "refunded"
+      ? row.escrow_status === "funded"
+        ? "The escrowed fee has been refunded in full to the promoter."
+        : "The funding never completed, so no captured money is owed back."
+      : "No money had moved, so nothing is owed back.";
+    await tellBookingParty({
+      userId: actorIsPromoter ? row.artist_user_id : row.promoter_user_id,
+      kind: "performance_booking_cancelled",
+      title: `Booking cancelled: ${row.event_title}`,
+      body: `${actorIsPromoter ? row.promoter_name : row.artist_name} cancelled "${row.event_title}". ${refundTruth}`,
+      link: await bookingLink(row),
+    });
     const fresh = await findBooking(row.id);
     res.json({
       booking: toBookingDto(fresh!, req.userId!),
