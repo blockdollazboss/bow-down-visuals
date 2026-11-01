@@ -1,0 +1,41 @@
+-- Sponsor applications — the (deal_id, user_id) unique arbiter (heal).
+--
+-- WHY THIS FILE EXISTS (stack1200 apply fix, 2026-11-01): on the live
+-- staging build (stack1100), a creator applying to a sponsor deal fails
+-- EVERY time with "Could not send your application — try again." and zero
+-- application rows are created, while posting, deal detail, dashboards
+-- and application review all work.
+--
+-- Root cause (reproduced in pg-mem against the real apply route): the
+-- apply insert in routes/generate/sponsors.ts is
+--   INSERT INTO sponsor_applications (...)
+--   ON CONFLICT (deal_id, user_id) DO NOTHING ...
+-- Postgres requires a unique index/constraint on exactly (deal_id,
+-- user_id) to arbitrate that clause; without one the statement throws
+-- SQLSTATE 42P10 "there is no unique or exclusion constraint matching
+-- the ON CONFLICT specification" and the route answers its 500.
+--
+-- The ONLY place that arbiter was ever created is 0010's CREATE TABLE
+-- (UNIQUE (deal_id, user_id)) — a CREATE TABLE IF NOT EXISTS, so it
+-- never lands on a table that already exists, and the drizzle schema
+-- (lib/db/src/schema/sponsor-deals.ts) declares no such unique, so any
+-- database whose sponsor_applications was built from the schema rather
+-- than by running 0010 has every column (post-0307) but no arbiter.
+-- Neither heal file (0069, 0307) touched it. G5B's reproduction suite
+-- missed this because its hand-written production shape copied the
+-- UNIQUE constraint from 0010 into the test DDL.
+--
+-- This file creates the arbiter as a unique INDEX (an index satisfies
+-- ON CONFLICT arbitration identically to a table constraint). It cannot
+-- conflict with existing data: the only insert paths are the apply
+-- route itself (which either arbitrated successfully or failed, so it
+-- never wrote a duplicate) and the direct-sponsorship insert (one
+-- application per brand-new deal id). On a database that already has
+-- 0010's table constraint this adds a redundant-but-harmless second
+-- unique index on a small table.
+--
+-- The drizzle schema now declares this index too (same name), so the
+-- two stay in sync. Idempotent: safe to run anywhere.
+
+CREATE UNIQUE INDEX IF NOT EXISTS sponsor_applications_deal_user_ux
+  ON sponsor_applications (deal_id, user_id);

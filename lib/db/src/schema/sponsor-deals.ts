@@ -1,12 +1,15 @@
-import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Bow Down Visuals takes a 15% cut of every released deal (escrow flow).
- * Must stay in sync with lib/db/migrations/0010_sponsor_deals.sql and
- * lib/db/migrations/0033_sponsor_escrow.sql
- * (boot-time `drizzle-kit push` derives the same shape from this schema).
+ * Must stay in sync with lib/db/migrations/0010_sponsor_deals.sql,
+ * lib/db/migrations/0033_sponsor_escrow.sql and
+ * lib/db/migrations/0309_sponsor_applications_deal_user_unique.sql.
+ * The (deal_id, user_id) unique index below is load-bearing: the apply
+ * route's INSERT ... ON CONFLICT (deal_id, user_id) throws SQLSTATE
+ * 42P10 on any database missing it (stack1200 apply fix, 2026-11-01).
  *
  * Deal lifecycle:  active → funded → in_progress → completed → paid
  * Application lifecycle: pending → accepted | rejected */
@@ -56,7 +59,14 @@ export const sponsorApplicationsTable = pgTable("sponsor_applications", {
   portfolioUrl: text("portfolio_url"),
   decidedAt:    timestamp("decided_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [
+  /* One application per creator per deal — also the arbiter index the
+     apply route's ON CONFLICT (deal_id, user_id) requires. Created by
+     0010 as a table constraint and healed as this named index by 0309
+     for databases whose table came from this schema (which previously
+     declared no unique here — the stack1200 staging apply failure). */
+  uniqueIndex("sponsor_applications_deal_user_ux").on(t.dealId, t.userId),
+]);
 
 export const insertSponsorApplicationSchema = createInsertSchema(sponsorApplicationsTable).omit({ id: true, createdAt: true });
 export type InsertSponsorApplication = z.infer<typeof insertSponsorApplicationSchema>;
