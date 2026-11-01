@@ -7,13 +7,19 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  BEAT_AI_TAGS_COST_VB,
+  BEAT_AI_TAGS_FEATURE,
   BEATS_COMMISSION_LINE,
   BEATS_PAGE_SIZE,
+  beatAiTagApplyPayload,
+  beatAiTagsOutcome,
+  beatAiTagsPath,
   beatCheckoutSessionId,
   beatCheckoutUrl,
   beatLicensePayload,
   beatLicensePath,
   beatListingProblem,
+  beatPatchPath,
   beatSaleStatusLabel,
   beatTemplateFormFromDto,
   beatTemplateProblem,
@@ -34,6 +40,7 @@ import {
   moneyCents,
   otherElection,
   parseBeat,
+  parseBeatAiTagSuggestion,
   parseBeatDashboard,
   parseClaimRows,
   parseMyLicenses,
@@ -264,6 +271,54 @@ describe("#65 beats station logic", () => {
     expect(back.priceDollars).toBe("49.99");
     expect(back.streamsCap).toBe("100000");
     expect(back.termYears).toBe("2");
+  });
+});
+
+/* Stack1200 Y1-gap parity: the dashboard BeatRow's AI-tags
+   affordance, mirrored on the page's own rails — POST
+   /api/beats/:id/ai-tags (the charged suggester) and the Apply
+   PATCH /api/beats/:id { genre, moodTags }. */
+describe("#65 beats AI-tags parity (stack1200)", () => {
+  it("the pinned price + feature name the server's own charge (100 VB, its ledger action)", () => {
+    /* beats-pricing.ts: BEAT_AI_TAGS_CREDIT_COST = 100, charged as
+       "Beat AI Tag Suggester". The 2D button's "1cr" label is stale;
+       the desk names the rail's true charge and changes nothing. */
+    expect(BEAT_AI_TAGS_COST_VB).toBe(100);
+    expect(BEAT_AI_TAGS_FEATURE).toBe("Beat AI Tag Suggester");
+    expect(beatAiTagsPath("b 1")).toBe("/api/beats/b%201/ai-tags");
+    expect(beatPatchPath("b 1")).toBe("/api/beats/b%201");
+  });
+
+  it("a suggestion parses the page's way — genre falls back to the beat's own, tags default empty", () => {
+    expect(parseBeatAiTagSuggestion({ genre: " drill ", moodTags: ["dark", "bouncy"] }, "trap"))
+      .toEqual({ genre: "drill", moodTags: ["dark", "bouncy"] });
+    expect(parseBeatAiTagSuggestion({ moodTags: ["chill"] }, "lofi"))
+      .toEqual({ genre: "lofi", moodTags: ["chill"] });
+    expect(parseBeatAiTagSuggestion({ genre: "pop" }, "trap"))
+      .toEqual({ genre: "pop", moodTags: [] });
+    expect(parseBeatAiTagSuggestion(null, "trap")).toBeNull();
+    expect(parseBeatAiTagSuggestion("drill", "trap")).toBeNull();
+  });
+
+  it("the outcome verdict: 402 is credits, an OK answer is the suggestion, failures stop honestly", () => {
+    expect(beatAiTagsOutcome({ status: 402, data: { error: "out_of_credits" } }, "trap"))
+      .toEqual({ kind: "credits" });
+    expect(beatAiTagsOutcome({ status: 200, data: { genre: "drill", moodTags: ["dark"] } }, "trap"))
+      .toEqual({ kind: "ok", suggestion: { genre: "drill", moodTags: ["dark"] } });
+    /* The server's 500 line already carries its refund note — the
+       desk surfaces it verbatim rather than inventing its own. */
+    expect(beatAiTagsOutcome({ status: 500, data: { error: "AI returned no usable tags — Visual Bucs refunded." } }, "trap"))
+      .toEqual({ kind: "error", message: "AI returned no usable tags — Visual Bucs refunded." });
+    const shapeless = beatAiTagsOutcome({ status: 200, data: null }, "trap");
+    expect(shapeless.kind).toBe("error");
+    const bare = beatAiTagsOutcome({ status: 500, data: {} }, "trap");
+    expect(bare).toEqual({ kind: "error", message: "The tag suggester couldn't run — try again." });
+  });
+
+  it("the Apply payload is the BeatRow's exact PATCH body — genre + moodTags, nothing else", () => {
+    expect(beatAiTagApplyPayload({ genre: "drill", moodTags: ["dark", "bouncy"] }))
+      .toEqual({ genre: "drill", moodTags: ["dark", "bouncy"] });
+    expect(Object.keys(beatAiTagApplyPayload({ genre: "pop", moodTags: [] }))).toEqual(["genre", "moodTags"]);
   });
 });
 
