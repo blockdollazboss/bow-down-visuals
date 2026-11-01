@@ -358,6 +358,9 @@ export function LipSyncSection({
     rawStatus:     string;
     outputUrl:     string | null;
     providerError: string | null;
+    /** Route the check actually queried for this job (server-reported);
+     *  null when the answer carried none — never guessed client-side. */
+    provider:      string | null;
     checkedAt:     string;
   } | null>(null);
 
@@ -713,7 +716,7 @@ export function LipSyncSection({
         const body = await res.text().catch(() => "");
         throw new Error(`Check failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
       }
-      const data = await res.json() as { status: string; outputUrl?: string; error?: string };
+      const data = await res.json() as { status: string; outputUrl?: string; error?: string; provider?: string | null };
       const normalStatus = data.status.toLowerCase();
 
       const result = {
@@ -721,6 +724,7 @@ export function LipSyncSection({
         rawStatus:     data.status,
         outputUrl:     data.outputUrl ?? null,
         providerError: data.error ?? null,
+        provider:      data.provider ?? null,
         checkedAt:     new Date().toISOString(),
       };
       setCheckJobResult(result);
@@ -742,13 +746,17 @@ export function LipSyncSection({
     }
   }
 
-  /* ── Save completed Sync.so result to scene metadata only ── */
-  function saveResultToScene(jobId: string, outputUrl: string) {
+  /* ── Save completed result to scene metadata only ──
+     Provenance: the route the job check reported (checkedProvider, when
+     the caller has one) wins; otherwise the clip's previously recorded
+     stamp is preserved; when neither knows, the stamp is null — this
+     recovery path never fabricates a route name. */
+  function saveResultToScene(jobId: string, outputUrl: string, checkedProvider?: string | null) {
     if (!selectedScene) return;
     updateClipEdit(selectedScene.id, {
       lipSyncUrl:       outputUrl,
       lipSyncStatus:    "done",
-      lipSyncProvider:  "sync.so",
+      lipSyncProvider:  resolveLipSyncProvenance(checkedProvider, selectedClipEdit?.lipSyncProvider),
       lipSyncJobId:     jobId,
       lipSyncCreatedAt: new Date().toISOString(),
       lipSyncError:     null,
@@ -757,13 +765,14 @@ export function LipSyncSection({
     setApplyError(null);
   }
 
-  /* ── Apply completed result to master player (save + activate useLipSync) ── */
-  function useResultInPlayer(jobId: string, outputUrl: string) {
+  /* ── Apply completed result to master player (save + activate useLipSync) ──
+     Same provenance rule as saveResultToScene. */
+  function useResultInPlayer(jobId: string, outputUrl: string, checkedProvider?: string | null) {
     if (!selectedScene) return;
     updateClipEdit(selectedScene.id, {
       lipSyncUrl:       outputUrl,
       lipSyncStatus:    "done",
-      lipSyncProvider:  "sync.so",
+      lipSyncProvider:  resolveLipSyncProvenance(checkedProvider, selectedClipEdit?.lipSyncProvider),
       lipSyncJobId:     jobId,
       lipSyncCreatedAt: new Date().toISOString(),
       lipSyncError:     null,
@@ -2809,7 +2818,7 @@ export function LipSyncSection({
                             </button>
                             <button
                               type="button"
-                              onClick={() => useResultInPlayer(cjr.jobId, cjr.outputUrl!)}
+                              onClick={() => useResultInPlayer(cjr.jobId, cjr.outputUrl!, cjr.provider)}
                               disabled={isInPlayer}
                               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
@@ -2818,7 +2827,7 @@ export function LipSyncSection({
                             </button>
                             <button
                               type="button"
-                              onClick={() => saveResultToScene(cjr.jobId, cjr.outputUrl!)}
+                              onClick={() => saveResultToScene(cjr.jobId, cjr.outputUrl!, cjr.provider)}
                               disabled={isSaved}
                               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
