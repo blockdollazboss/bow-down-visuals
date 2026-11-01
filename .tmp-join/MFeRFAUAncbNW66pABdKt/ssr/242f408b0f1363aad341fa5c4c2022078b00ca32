@@ -1,0 +1,180 @@
+__vite_ssr_exportName__("publicApiLimiter", () => { try { return publicApiLimiter } catch {} });
+__vite_ssr_exportName__("generationLimiter", () => { try { return generationLimiter } catch {} });
+__vite_ssr_exportName__("freeAiLimiter", () => { try { return freeAiLimiter } catch {} });
+__vite_ssr_exportName__("freeExpensiveAiLimiter", () => { try { return freeExpensiveAiLimiter } catch {} });
+__vite_ssr_exportName__("reportWriteLimiter", () => { try { return reportWriteLimiter } catch {} });
+__vite_ssr_exportName__("apiKeyLimiter", () => { try { return apiKeyLimiter } catch {} });
+__vite_ssr_exportName__("apiKeyGenerationLimiter", () => { try { return apiKeyGenerationLimiter } catch {} });
+__vite_ssr_exportName__("isWorldStaticAssetPath", () => { try { return isWorldStaticAssetPath } catch {} });
+__vite_ssr_exportName__("skipWorldStaticAssets", () => { try { return skipWorldStaticAssets } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/express-rate-limit@8.7.0_express@5.2.1/node_modules/express-rate-limit/dist/index.mjs", {"importedNames":["default","ipKeyGenerator"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/lib/admin.ts", {"importedNames":["skipIfAdmin"]});
+
+
+/* Owner exemption (Oct 29, 2026): every session limiter below carries
+`skip: skipIfAdmin` — an admin (ADMIN_EMAILS) never burns a bucket
+and is never refused by one. The skip reads the email requireAuth
+resolved, so it bites on mounts where auth runs first; routes that
+mount a limiter before auth were reordered so identity exists.
+The per-API-KEY limiters further down deliberately carry NO skip:
+a key is a bearer credential, and its runaway-loop protection must
+hold no matter whose key it is. */
+/**
+* Shared rate limiter for abuse-prone public endpoints.
+* 30 requests per minute per IP — generous enough for real users,
+* tight enough to stop quota-burn / spam floods.
+*/
+const publicApiLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 6e4,
+	limit: 30,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	skip: __vite_ssr_import_1__.skipIfAdmin,
+	message: { error: "Too many requests. Please try again in a minute." }
+});
+/**
+* Per-user rate limiter for expensive AI generation endpoints.
+* 20 generations per minute per user — prevents a single compromised
+* account from burning through shared provider quota at full speed.
+* Uses userId from auth (falls back to IP if unauthenticated).
+*/
+const generationLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 6e4,
+	limit: 20,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	skip: __vite_ssr_import_1__.skipIfAdmin,
+	keyGenerator: (req) => {
+		// Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
+		const userId = req.userId;
+		return userId || (req.ip ? (0,__vite_ssr_import_0__.ipKeyGenerator)(req.ip) : "unknown");
+	},
+	message: { error: "Too many generations. Please wait a minute and try again." }
+});
+/**
+* Per-user hourly limiter for FREE AI endpoints that still call paid
+* provider models (prompt/style enhancers, section analysis, edit
+* plans, transcription). These endpoints charge no credits, so
+* without a cap one account can burn shared provider quota on a
+* loop. 30 requests per hour per user — generous for humans,
+* useless for scripts. Keys on userId, same as generationLimiter.
+*/
+const freeAiLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 60 * 6e4,
+	limit: 30,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	skip: __vite_ssr_import_1__.skipIfAdmin,
+	keyGenerator: (req) => {
+		// Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
+		const userId = req.userId;
+		return userId || (req.ip ? (0,__vite_ssr_import_0__.ipKeyGenerator)(req.ip) : "unknown");
+	},
+	message: { error: "You've hit the hourly limit for this free AI tool. Please try again later." }
+});
+/**
+* Tighter per-user hourly limiter for FREE endpoints whose provider
+* calls are expensive per request (video generation, lip-sync job
+* creation, voice cloning). 5 requests per hour per user still lets
+* a human experiment freely while capping scripted abuse at a
+* handful of paid provider calls. Keys on userId, same as above.
+*/
+const freeExpensiveAiLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 60 * 6e4,
+	limit: 5,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	skip: __vite_ssr_import_1__.skipIfAdmin,
+	keyGenerator: (req) => {
+		// Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
+		const userId = req.userId;
+		return userId || (req.ip ? (0,__vite_ssr_import_0__.ipKeyGenerator)(req.ip) : "unknown");
+	},
+	message: { error: "You've hit the hourly limit for this free AI tool. Please try again later." }
+});
+/**
+* Per-user limiter for filing content reports (POST /api/reports).
+* Reporting is a low-frequency human act — 30 filings per 15 minutes
+* per user is generous for a person working through a thread and
+* useless for a script trying to flood the moderation queue. Keys on
+* userId, same as generationLimiter (the route is auth-only, so the
+* IP fallback is just belt-and-braces).
+*/
+const reportWriteLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 15 * 6e4,
+	limit: 30,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	skip: __vite_ssr_import_1__.skipIfAdmin,
+	keyGenerator: (req) => {
+		const userId = req.userId;
+		return userId || (req.ip ? (0,__vite_ssr_import_0__.ipKeyGenerator)(req.ip) : "unknown");
+	},
+	message: { error: "Too many reports in a short window. Please wait a bit and try again." }
+});
+/**
+* Per-API-KEY limiter for the Public Creator API reads (/api/v1).
+* Runs AFTER requireApiKey, so it keys on the key id — one leaked key
+* cannot burn more than its own bucket, and buckets don't collide
+* across creators. 120 requests per minute per key.
+*/
+const apiKeyLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 6e4,
+	limit: 120,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	keyGenerator: (req) => {
+		const keyId = req.apiKeyId;
+		return keyId || (req.ip ? (0,__vite_ssr_import_0__.ipKeyGenerator)(req.ip) : "unknown");
+	},
+	message: {
+		error: "rate_limited",
+		message: "Too many API requests for this key. Please wait a minute."
+	}
+});
+/**
+* Per-API-KEY limiter for CHARGED API generation (POST /api/v1/generate/*).
+* 10 per minute per key — far above human/agent workflows, far below a
+* runaway loop draining a balance. The owner's balance is the second,
+* harder wall (charges refuse past it).
+*/
+const apiKeyGenerationLimiter = (0,__vite_ssr_import_0__.default)({
+	windowMs: 6e4,
+	limit: 10,
+	standardHeaders: "draft-7",
+	legacyHeaders: false,
+	keyGenerator: (req) => {
+		const keyId = req.apiKeyId;
+		const userId = req.userId;
+		return keyId || userId || (req.ip ? (0,__vite_ssr_import_0__.ipKeyGenerator)(req.ip) : "unknown");
+	},
+	message: {
+		error: "rate_limited",
+		message: "Too many generation requests for this key. Please wait a minute."
+	}
+});
+/**
+* Static World assets — the fixture bodies, guard mattes, idle
+* loops and hall textures under /world/ — are inert files shipped
+* in the app bundle and mirrored to the media CDN; the origin
+* copies are the loader's FALLBACK when the CDN leg fails. They
+* must never burn the global limiter's bucket: a World entry fires
+* its whole texture program first and the fixture bodies load
+* last, so a burst peak could shed the one asset class the palace
+* figures depend on and strand them on their stand-ins for the
+* whole session (World figures diagnosis, Oct 25-26 2026). No API
+* surface lives under /world/ (every API route is /api/*), and the
+* SPA page itself — /world, no asset extension — stays metered.
+*/
+const WORLD_STATIC_ASSET_EXT = /\.(?:glb|gltf|png|jpe?g|webp|mp4|webm)$/i;
+function isWorldStaticAssetPath(path) {
+	return path.startsWith("/world/") && WORLD_STATIC_ASSET_EXT.test(path);
+};
+/** express-rate-limit `skip` predicate for the global limiter. */
+function skipWorldStaticAssets(req) {
+	return (req.method === "GET" || req.method === "HEAD") && isWorldStaticAssetPath(req.path);
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7Ozs7O0FBQUE7QUFDQTs7Ozs7Ozs7Ozs7Ozs7OztBQWdCTyxNQUFNLG1CQUFtQixrQ0FBVTtDQUN4QyxVQUFVO0NBQ1YsT0FBTztDQUNQLGlCQUFpQjtDQUNqQixlQUFlO0NBQ2YsTUFBTTtDQUNOLFNBQVMsRUFBRSxPQUFPLG1EQUFtRDtBQUN2RSxDQUFDOzs7Ozs7O0FBUU0sTUFBTSxvQkFBb0Isa0NBQVU7Q0FDekMsVUFBVTtDQUNWLE9BQU87Q0FDUCxpQkFBaUI7Q0FDakIsZUFBZTtDQUNmLE1BQU07Q0FDTixlQUFlLFFBQVE7O0VBRXJCLE1BQU0sU0FBVSxJQUE0QjtFQUM1QyxPQUFPLFdBQVcsSUFBSSxLQUFLLHlDQUFlLElBQUksRUFBRSxJQUFJO0NBQ3REO0NBQ0EsU0FBUyxFQUFFLE9BQU8sNERBQTREO0FBQ2hGLENBQUM7Ozs7Ozs7OztBQVVNLE1BQU0sZ0JBQWdCLGtDQUFVO0NBQ3JDLFVBQVUsS0FBSztDQUNmLE9BQU87Q0FDUCxpQkFBaUI7Q0FDakIsZUFBZTtDQUNmLE1BQU07Q0FDTixlQUFlLFFBQVE7O0VBRXJCLE1BQU0sU0FBVSxJQUE0QjtFQUM1QyxPQUFPLFdBQVcsSUFBSSxLQUFLLHlDQUFlLElBQUksRUFBRSxJQUFJO0NBQ3REO0NBQ0EsU0FBUyxFQUNQLE9BQU8sNkVBQ1Q7QUFDRixDQUFDOzs7Ozs7OztBQVNNLE1BQU0seUJBQXlCLGtDQUFVO0NBQzlDLFVBQVUsS0FBSztDQUNmLE9BQU87Q0FDUCxpQkFBaUI7Q0FDakIsZUFBZTtDQUNmLE1BQU07Q0FDTixlQUFlLFFBQVE7O0VBRXJCLE1BQU0sU0FBVSxJQUE0QjtFQUM1QyxPQUFPLFdBQVcsSUFBSSxLQUFLLHlDQUFlLElBQUksRUFBRSxJQUFJO0NBQ3REO0NBQ0EsU0FBUyxFQUNQLE9BQU8sNkVBQ1Q7QUFDRixDQUFDOzs7Ozs7Ozs7QUFVTSxNQUFNLHFCQUFxQixrQ0FBVTtDQUMxQyxVQUFVLEtBQUs7Q0FDZixPQUFPO0NBQ1AsaUJBQWlCO0NBQ2pCLGVBQWU7Q0FDZixNQUFNO0NBQ04sZUFBZSxRQUFRO0VBQ3JCLE1BQU0sU0FBVSxJQUE0QjtFQUM1QyxPQUFPLFdBQVcsSUFBSSxLQUFLLHlDQUFlLElBQUksRUFBRSxJQUFJO0NBQ3REO0NBQ0EsU0FBUyxFQUFFLE9BQU8sdUVBQXVFO0FBQzNGLENBQUM7Ozs7Ozs7QUFRTSxNQUFNLGdCQUFnQixrQ0FBVTtDQUNyQyxVQUFVO0NBQ1YsT0FBTztDQUNQLGlCQUFpQjtDQUNqQixlQUFlO0NBQ2YsZUFBZSxRQUFRO0VBQ3JCLE1BQU0sUUFBUyxJQUE4QjtFQUM3QyxPQUFPLFVBQVUsSUFBSSxLQUFLLHlDQUFlLElBQUksRUFBRSxJQUFJO0NBQ3JEO0NBQ0EsU0FBUztFQUFFLE9BQU87RUFBZ0IsU0FBUztDQUE0RDtBQUN6RyxDQUFDOzs7Ozs7O0FBUU0sTUFBTSwwQkFBMEIsa0NBQVU7Q0FDL0MsVUFBVTtDQUNWLE9BQU87Q0FDUCxpQkFBaUI7Q0FDakIsZUFBZTtDQUNmLGVBQWUsUUFBUTtFQUNyQixNQUFNLFFBQVMsSUFBOEI7RUFDN0MsTUFBTSxTQUFVLElBQTRCO0VBQzVDLE9BQU8sU0FBUyxXQUFXLElBQUksS0FBSyx5Q0FBZSxJQUFJLEVBQUUsSUFBSTtDQUMvRDtDQUNBLFNBQVM7RUFBRSxPQUFPO0VBQWdCLFNBQVM7Q0FBbUU7QUFDaEgsQ0FBQzs7Ozs7Ozs7Ozs7Ozs7QUFlRCxNQUFNLHlCQUF5QjtBQUV4QixTQUFTLHVCQUF1QixNQUF1QjtDQUM1RCxPQUFPLEtBQUssV0FBVyxTQUFTLEtBQUssdUJBQXVCLEtBQUssSUFBSTtBQUN2RTs7QUFHTyxTQUFTLHNCQUFzQixLQUFnRDtDQUNwRixRQUFRLElBQUksV0FBVyxTQUFTLElBQUksV0FBVyxXQUFXLHVCQUF1QixJQUFJLElBQUk7QUFDM0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInJhdGUtbGltaXQudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHJhdGVMaW1pdCwgeyBpcEtleUdlbmVyYXRvciB9IGZyb20gXCJleHByZXNzLXJhdGUtbGltaXRcIjtcbmltcG9ydCB7IHNraXBJZkFkbWluIH0gZnJvbSBcIi4vYWRtaW5cIjtcblxuLyogT3duZXIgZXhlbXB0aW9uIChPY3QgMjksIDIwMjYpOiBldmVyeSBzZXNzaW9uIGxpbWl0ZXIgYmVsb3cgY2Fycmllc1xuICAgYHNraXA6IHNraXBJZkFkbWluYCDigJQgYW4gYWRtaW4gKEFETUlOX0VNQUlMUykgbmV2ZXIgYnVybnMgYSBidWNrZXRcbiAgIGFuZCBpcyBuZXZlciByZWZ1c2VkIGJ5IG9uZS4gVGhlIHNraXAgcmVhZHMgdGhlIGVtYWlsIHJlcXVpcmVBdXRoXG4gICByZXNvbHZlZCwgc28gaXQgYml0ZXMgb24gbW91bnRzIHdoZXJlIGF1dGggcnVucyBmaXJzdDsgcm91dGVzIHRoYXRcbiAgIG1vdW50IGEgbGltaXRlciBiZWZvcmUgYXV0aCB3ZXJlIHJlb3JkZXJlZCBzbyBpZGVudGl0eSBleGlzdHMuXG4gICBUaGUgcGVyLUFQSS1LRVkgbGltaXRlcnMgZnVydGhlciBkb3duIGRlbGliZXJhdGVseSBjYXJyeSBOTyBza2lwOlxuICAgYSBrZXkgaXMgYSBiZWFyZXIgY3JlZGVudGlhbCwgYW5kIGl0cyBydW5hd2F5LWxvb3AgcHJvdGVjdGlvbiBtdXN0XG4gICBob2xkIG5vIG1hdHRlciB3aG9zZSBrZXkgaXQgaXMuICovXG5cbi8qKlxuICogU2hhcmVkIHJhdGUgbGltaXRlciBmb3IgYWJ1c2UtcHJvbmUgcHVibGljIGVuZHBvaW50cy5cbiAqIDMwIHJlcXVlc3RzIHBlciBtaW51dGUgcGVyIElQIOKAlCBnZW5lcm91cyBlbm91Z2ggZm9yIHJlYWwgdXNlcnMsXG4gKiB0aWdodCBlbm91Z2ggdG8gc3RvcCBxdW90YS1idXJuIC8gc3BhbSBmbG9vZHMuXG4gKi9cbmV4cG9ydCBjb25zdCBwdWJsaWNBcGlMaW1pdGVyID0gcmF0ZUxpbWl0KHtcbiAgd2luZG93TXM6IDYwXzAwMCxcbiAgbGltaXQ6IDMwLFxuICBzdGFuZGFyZEhlYWRlcnM6IFwiZHJhZnQtN1wiLFxuICBsZWdhY3lIZWFkZXJzOiBmYWxzZSxcbiAgc2tpcDogc2tpcElmQWRtaW4sXG4gIG1lc3NhZ2U6IHsgZXJyb3I6IFwiVG9vIG1hbnkgcmVxdWVzdHMuIFBsZWFzZSB0cnkgYWdhaW4gaW4gYSBtaW51dGUuXCIgfSxcbn0pO1xuXG4vKipcbiAqIFBlci11c2VyIHJhdGUgbGltaXRlciBmb3IgZXhwZW5zaXZlIEFJIGdlbmVyYXRpb24gZW5kcG9pbnRzLlxuICogMjAgZ2VuZXJhdGlvbnMgcGVyIG1pbnV0ZSBwZXIgdXNlciDigJQgcHJldmVudHMgYSBzaW5nbGUgY29tcHJvbWlzZWRcbiAqIGFjY291bnQgZnJvbSBidXJuaW5nIHRocm91Z2ggc2hhcmVkIHByb3ZpZGVyIHF1b3RhIGF0IGZ1bGwgc3BlZWQuXG4gKiBVc2VzIHVzZXJJZCBmcm9tIGF1dGggKGZhbGxzIGJhY2sgdG8gSVAgaWYgdW5hdXRoZW50aWNhdGVkKS5cbiAqL1xuZXhwb3J0IGNvbnN0IGdlbmVyYXRpb25MaW1pdGVyID0gcmF0ZUxpbWl0KHtcbiAgd2luZG93TXM6IDYwXzAwMCxcbiAgbGltaXQ6IDIwLFxuICBzdGFuZGFyZEhlYWRlcnM6IFwiZHJhZnQtN1wiLFxuICBsZWdhY3lIZWFkZXJzOiBmYWxzZSxcbiAgc2tpcDogc2tpcElmQWRtaW4sXG4gIGtleUdlbmVyYXRvcjogKHJlcSkgPT4ge1xuICAgIC8vIFByZWZlciBhdXRoZW50aWNhdGVkIHVzZXIgSUQ7IGZhbGwgYmFjayB0byBJUCAoSVB2Ni1zYWZlIGhlbHBlcilcbiAgICBjb25zdCB1c2VySWQgPSAocmVxIGFzIHsgdXNlcklkPzogc3RyaW5nIH0pLnVzZXJJZDtcbiAgICByZXR1cm4gdXNlcklkIHx8IChyZXEuaXAgPyBpcEtleUdlbmVyYXRvcihyZXEuaXApIDogXCJ1bmtub3duXCIpO1xuICB9LFxuICBtZXNzYWdlOiB7IGVycm9yOiBcIlRvbyBtYW55IGdlbmVyYXRpb25zLiBQbGVhc2Ugd2FpdCBhIG1pbnV0ZSBhbmQgdHJ5IGFnYWluLlwiIH0sXG59KTtcblxuLyoqXG4gKiBQZXItdXNlciBob3VybHkgbGltaXRlciBmb3IgRlJFRSBBSSBlbmRwb2ludHMgdGhhdCBzdGlsbCBjYWxsIHBhaWRcbiAqIHByb3ZpZGVyIG1vZGVscyAocHJvbXB0L3N0eWxlIGVuaGFuY2Vycywgc2VjdGlvbiBhbmFseXNpcywgZWRpdFxuICogcGxhbnMsIHRyYW5zY3JpcHRpb24pLiBUaGVzZSBlbmRwb2ludHMgY2hhcmdlIG5vIGNyZWRpdHMsIHNvXG4gKiB3aXRob3V0IGEgY2FwIG9uZSBhY2NvdW50IGNhbiBidXJuIHNoYXJlZCBwcm92aWRlciBxdW90YSBvbiBhXG4gKiBsb29wLiAzMCByZXF1ZXN0cyBwZXIgaG91ciBwZXIgdXNlciDigJQgZ2VuZXJvdXMgZm9yIGh1bWFucyxcbiAqIHVzZWxlc3MgZm9yIHNjcmlwdHMuIEtleXMgb24gdXNlcklkLCBzYW1lIGFzIGdlbmVyYXRpb25MaW1pdGVyLlxuICovXG5leHBvcnQgY29uc3QgZnJlZUFpTGltaXRlciA9IHJhdGVMaW1pdCh7XG4gIHdpbmRvd01zOiA2MCAqIDYwXzAwMCxcbiAgbGltaXQ6IDMwLFxuICBzdGFuZGFyZEhlYWRlcnM6IFwiZHJhZnQtN1wiLFxuICBsZWdhY3lIZWFkZXJzOiBmYWxzZSxcbiAgc2tpcDogc2tpcElmQWRtaW4sXG4gIGtleUdlbmVyYXRvcjogKHJlcSkgPT4ge1xuICAgIC8vIFByZWZlciBhdXRoZW50aWNhdGVkIHVzZXIgSUQ7IGZhbGwgYmFjayB0byBJUCAoSVB2Ni1zYWZlIGhlbHBlcilcbiAgICBjb25zdCB1c2VySWQgPSAocmVxIGFzIHsgdXNlcklkPzogc3RyaW5nIH0pLnVzZXJJZDtcbiAgICByZXR1cm4gdXNlcklkIHx8IChyZXEuaXAgPyBpcEtleUdlbmVyYXRvcihyZXEuaXApIDogXCJ1bmtub3duXCIpO1xuICB9LFxuICBtZXNzYWdlOiB7XG4gICAgZXJyb3I6IFwiWW91J3ZlIGhpdCB0aGUgaG91cmx5IGxpbWl0IGZvciB0aGlzIGZyZWUgQUkgdG9vbC4gUGxlYXNlIHRyeSBhZ2FpbiBsYXRlci5cIixcbiAgfSxcbn0pO1xuXG4vKipcbiAqIFRpZ2h0ZXIgcGVyLXVzZXIgaG91cmx5IGxpbWl0ZXIgZm9yIEZSRUUgZW5kcG9pbnRzIHdob3NlIHByb3ZpZGVyXG4gKiBjYWxscyBhcmUgZXhwZW5zaXZlIHBlciByZXF1ZXN0ICh2aWRlbyBnZW5lcmF0aW9uLCBsaXAtc3luYyBqb2JcbiAqIGNyZWF0aW9uLCB2b2ljZSBjbG9uaW5nKS4gNSByZXF1ZXN0cyBwZXIgaG91ciBwZXIgdXNlciBzdGlsbCBsZXRzXG4gKiBhIGh1bWFuIGV4cGVyaW1lbnQgZnJlZWx5IHdoaWxlIGNhcHBpbmcgc2NyaXB0ZWQgYWJ1c2UgYXQgYVxuICogaGFuZGZ1bCBvZiBwYWlkIHByb3ZpZGVyIGNhbGxzLiBLZXlzIG9uIHVzZXJJZCwgc2FtZSBhcyBhYm92ZS5cbiAqL1xuZXhwb3J0IGNvbnN0IGZyZWVFeHBlbnNpdmVBaUxpbWl0ZXIgPSByYXRlTGltaXQoe1xuICB3aW5kb3dNczogNjAgKiA2MF8wMDAsXG4gIGxpbWl0OiA1LFxuICBzdGFuZGFyZEhlYWRlcnM6IFwiZHJhZnQtN1wiLFxuICBsZWdhY3lIZWFkZXJzOiBmYWxzZSxcbiAgc2tpcDogc2tpcElmQWRtaW4sXG4gIGtleUdlbmVyYXRvcjogKHJlcSkgPT4ge1xuICAgIC8vIFByZWZlciBhdXRoZW50aWNhdGVkIHVzZXIgSUQ7IGZhbGwgYmFjayB0byBJUCAoSVB2Ni1zYWZlIGhlbHBlcilcbiAgICBjb25zdCB1c2VySWQgPSAocmVxIGFzIHsgdXNlcklkPzogc3RyaW5nIH0pLnVzZXJJZDtcbiAgICByZXR1cm4gdXNlcklkIHx8IChyZXEuaXAgPyBpcEtleUdlbmVyYXRvcihyZXEuaXApIDogXCJ1bmtub3duXCIpO1xuICB9LFxuICBtZXNzYWdlOiB7XG4gICAgZXJyb3I6IFwiWW91J3ZlIGhpdCB0aGUgaG91cmx5IGxpbWl0IGZvciB0aGlzIGZyZWUgQUkgdG9vbC4gUGxlYXNlIHRyeSBhZ2FpbiBsYXRlci5cIixcbiAgfSxcbn0pO1xuXG4vKipcbiAqIFBlci11c2VyIGxpbWl0ZXIgZm9yIGZpbGluZyBjb250ZW50IHJlcG9ydHMgKFBPU1QgL2FwaS9yZXBvcnRzKS5cbiAqIFJlcG9ydGluZyBpcyBhIGxvdy1mcmVxdWVuY3kgaHVtYW4gYWN0IOKAlCAzMCBmaWxpbmdzIHBlciAxNSBtaW51dGVzXG4gKiBwZXIgdXNlciBpcyBnZW5lcm91cyBmb3IgYSBwZXJzb24gd29ya2luZyB0aHJvdWdoIGEgdGhyZWFkIGFuZFxuICogdXNlbGVzcyBmb3IgYSBzY3JpcHQgdHJ5aW5nIHRvIGZsb29kIHRoZSBtb2RlcmF0aW9uIHF1ZXVlLiBLZXlzIG9uXG4gKiB1c2VySWQsIHNhbWUgYXMgZ2VuZXJhdGlvbkxpbWl0ZXIgKHRoZSByb3V0ZSBpcyBhdXRoLW9ubHksIHNvIHRoZVxuICogSVAgZmFsbGJhY2sgaXMganVzdCBiZWx0LWFuZC1icmFjZXMpLlxuICovXG5leHBvcnQgY29uc3QgcmVwb3J0V3JpdGVMaW1pdGVyID0gcmF0ZUxpbWl0KHtcbiAgd2luZG93TXM6IDE1ICogNjBfMDAwLFxuICBsaW1pdDogMzAsXG4gIHN0YW5kYXJkSGVhZGVyczogXCJkcmFmdC03XCIsXG4gIGxlZ2FjeUhlYWRlcnM6IGZhbHNlLFxuICBza2lwOiBza2lwSWZBZG1pbixcbiAga2V5R2VuZXJhdG9yOiAocmVxKSA9PiB7XG4gICAgY29uc3QgdXNlcklkID0gKHJlcSBhcyB7IHVzZXJJZD86IHN0cmluZyB9KS51c2VySWQ7XG4gICAgcmV0dXJuIHVzZXJJZCB8fCAocmVxLmlwID8gaXBLZXlHZW5lcmF0b3IocmVxLmlwKSA6IFwidW5rbm93blwiKTtcbiAgfSxcbiAgbWVzc2FnZTogeyBlcnJvcjogXCJUb28gbWFueSByZXBvcnRzIGluIGEgc2hvcnQgd2luZG93LiBQbGVhc2Ugd2FpdCBhIGJpdCBhbmQgdHJ5IGFnYWluLlwiIH0sXG59KTtcblxuLyoqXG4gKiBQZXItQVBJLUtFWSBsaW1pdGVyIGZvciB0aGUgUHVibGljIENyZWF0b3IgQVBJIHJlYWRzICgvYXBpL3YxKS5cbiAqIFJ1bnMgQUZURVIgcmVxdWlyZUFwaUtleSwgc28gaXQga2V5cyBvbiB0aGUga2V5IGlkIOKAlCBvbmUgbGVha2VkIGtleVxuICogY2Fubm90IGJ1cm4gbW9yZSB0aGFuIGl0cyBvd24gYnVja2V0LCBhbmQgYnVja2V0cyBkb24ndCBjb2xsaWRlXG4gKiBhY3Jvc3MgY3JlYXRvcnMuIDEyMCByZXF1ZXN0cyBwZXIgbWludXRlIHBlciBrZXkuXG4gKi9cbmV4cG9ydCBjb25zdCBhcGlLZXlMaW1pdGVyID0gcmF0ZUxpbWl0KHtcbiAgd2luZG93TXM6IDYwXzAwMCxcbiAgbGltaXQ6IDEyMCxcbiAgc3RhbmRhcmRIZWFkZXJzOiBcImRyYWZ0LTdcIixcbiAgbGVnYWN5SGVhZGVyczogZmFsc2UsXG4gIGtleUdlbmVyYXRvcjogKHJlcSkgPT4ge1xuICAgIGNvbnN0IGtleUlkID0gKHJlcSBhcyB7IGFwaUtleUlkPzogc3RyaW5nIH0pLmFwaUtleUlkO1xuICAgIHJldHVybiBrZXlJZCB8fCAocmVxLmlwID8gaXBLZXlHZW5lcmF0b3IocmVxLmlwKSA6IFwidW5rbm93blwiKTtcbiAgfSxcbiAgbWVzc2FnZTogeyBlcnJvcjogXCJyYXRlX2xpbWl0ZWRcIiwgbWVzc2FnZTogXCJUb28gbWFueSBBUEkgcmVxdWVzdHMgZm9yIHRoaXMga2V5LiBQbGVhc2Ugd2FpdCBhIG1pbnV0ZS5cIiB9LFxufSk7XG5cbi8qKlxuICogUGVyLUFQSS1LRVkgbGltaXRlciBmb3IgQ0hBUkdFRCBBUEkgZ2VuZXJhdGlvbiAoUE9TVCAvYXBpL3YxL2dlbmVyYXRlLyopLlxuICogMTAgcGVyIG1pbnV0ZSBwZXIga2V5IOKAlCBmYXIgYWJvdmUgaHVtYW4vYWdlbnQgd29ya2Zsb3dzLCBmYXIgYmVsb3cgYVxuICogcnVuYXdheSBsb29wIGRyYWluaW5nIGEgYmFsYW5jZS4gVGhlIG93bmVyJ3MgYmFsYW5jZSBpcyB0aGUgc2Vjb25kLFxuICogaGFyZGVyIHdhbGwgKGNoYXJnZXMgcmVmdXNlIHBhc3QgaXQpLlxuICovXG5leHBvcnQgY29uc3QgYXBpS2V5R2VuZXJhdGlvbkxpbWl0ZXIgPSByYXRlTGltaXQoe1xuICB3aW5kb3dNczogNjBfMDAwLFxuICBsaW1pdDogMTAsXG4gIHN0YW5kYXJkSGVhZGVyczogXCJkcmFmdC03XCIsXG4gIGxlZ2FjeUhlYWRlcnM6IGZhbHNlLFxuICBrZXlHZW5lcmF0b3I6IChyZXEpID0+IHtcbiAgICBjb25zdCBrZXlJZCA9IChyZXEgYXMgeyBhcGlLZXlJZD86IHN0cmluZyB9KS5hcGlLZXlJZDtcbiAgICBjb25zdCB1c2VySWQgPSAocmVxIGFzIHsgdXNlcklkPzogc3RyaW5nIH0pLnVzZXJJZDtcbiAgICByZXR1cm4ga2V5SWQgfHwgdXNlcklkIHx8IChyZXEuaXAgPyBpcEtleUdlbmVyYXRvcihyZXEuaXApIDogXCJ1bmtub3duXCIpO1xuICB9LFxuICBtZXNzYWdlOiB7IGVycm9yOiBcInJhdGVfbGltaXRlZFwiLCBtZXNzYWdlOiBcIlRvbyBtYW55IGdlbmVyYXRpb24gcmVxdWVzdHMgZm9yIHRoaXMga2V5LiBQbGVhc2Ugd2FpdCBhIG1pbnV0ZS5cIiB9LFxufSk7XG5cbi8qKlxuICogU3RhdGljIFdvcmxkIGFzc2V0cyDigJQgdGhlIGZpeHR1cmUgYm9kaWVzLCBndWFyZCBtYXR0ZXMsIGlkbGVcbiAqIGxvb3BzIGFuZCBoYWxsIHRleHR1cmVzIHVuZGVyIC93b3JsZC8g4oCUIGFyZSBpbmVydCBmaWxlcyBzaGlwcGVkXG4gKiBpbiB0aGUgYXBwIGJ1bmRsZSBhbmQgbWlycm9yZWQgdG8gdGhlIG1lZGlhIENETjsgdGhlIG9yaWdpblxuICogY29waWVzIGFyZSB0aGUgbG9hZGVyJ3MgRkFMTEJBQ0sgd2hlbiB0aGUgQ0ROIGxlZyBmYWlscy4gVGhleVxuICogbXVzdCBuZXZlciBidXJuIHRoZSBnbG9iYWwgbGltaXRlcidzIGJ1Y2tldDogYSBXb3JsZCBlbnRyeSBmaXJlc1xuICogaXRzIHdob2xlIHRleHR1cmUgcHJvZ3JhbSBmaXJzdCBhbmQgdGhlIGZpeHR1cmUgYm9kaWVzIGxvYWRcbiAqIGxhc3QsIHNvIGEgYnVyc3QgcGVhayBjb3VsZCBzaGVkIHRoZSBvbmUgYXNzZXQgY2xhc3MgdGhlIHBhbGFjZVxuICogZmlndXJlcyBkZXBlbmQgb24gYW5kIHN0cmFuZCB0aGVtIG9uIHRoZWlyIHN0YW5kLWlucyBmb3IgdGhlXG4gKiB3aG9sZSBzZXNzaW9uIChXb3JsZCBmaWd1cmVzIGRpYWdub3NpcywgT2N0IDI1LTI2IDIwMjYpLiBObyBBUElcbiAqIHN1cmZhY2UgbGl2ZXMgdW5kZXIgL3dvcmxkLyAoZXZlcnkgQVBJIHJvdXRlIGlzIC9hcGkvKiksIGFuZCB0aGVcbiAqIFNQQSBwYWdlIGl0c2VsZiDigJQgL3dvcmxkLCBubyBhc3NldCBleHRlbnNpb24g4oCUIHN0YXlzIG1ldGVyZWQuXG4gKi9cbmNvbnN0IFdPUkxEX1NUQVRJQ19BU1NFVF9FWFQgPSAvXFwuKD86Z2xifGdsdGZ8cG5nfGpwZT9nfHdlYnB8bXA0fHdlYm0pJC9pO1xuXG5leHBvcnQgZnVuY3Rpb24gaXNXb3JsZFN0YXRpY0Fzc2V0UGF0aChwYXRoOiBzdHJpbmcpOiBib29sZWFuIHtcbiAgcmV0dXJuIHBhdGguc3RhcnRzV2l0aChcIi93b3JsZC9cIikgJiYgV09STERfU1RBVElDX0FTU0VUX0VYVC50ZXN0KHBhdGgpO1xufVxuXG4vKiogZXhwcmVzcy1yYXRlLWxpbWl0IGBza2lwYCBwcmVkaWNhdGUgZm9yIHRoZSBnbG9iYWwgbGltaXRlci4gKi9cbmV4cG9ydCBmdW5jdGlvbiBza2lwV29ybGRTdGF0aWNBc3NldHMocmVxOiB7IG1ldGhvZDogc3RyaW5nOyBwYXRoOiBzdHJpbmcgfSk6IGJvb2xlYW4ge1xuICByZXR1cm4gKHJlcS5tZXRob2QgPT09IFwiR0VUXCIgfHwgcmVxLm1ldGhvZCA9PT0gXCJIRUFEXCIpICYmIGlzV29ybGRTdGF0aWNBc3NldFBhdGgocmVxLnBhdGgpO1xufVxuIl0sImZpbGUiOiIvc3JjL2xpYi9yYXRlLWxpbWl0LnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9yYXRlLWxpbWl0LnRzIiwiL3NyYy9saWIvcmF0ZS1saW1pdC50cyIsW10sWyI2IiwiNyJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZXhwcmVzcy1yYXRlLWxpbWl0QDguNy4wX2V4cHJlc3NANS4yLjEvbm9kZV9tb2R1bGVzL2V4cHJlc3MtcmF0ZS1saW1pdC9kaXN0L2luZGV4Lm1qcyIsIi9zcmMvbGliL2FkbWluLnRzIl0=

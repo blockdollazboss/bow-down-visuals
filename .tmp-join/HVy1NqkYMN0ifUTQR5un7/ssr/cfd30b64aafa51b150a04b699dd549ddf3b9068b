@@ -1,0 +1,47 @@
+__vite_ssr_exportName__("globalDropPackagesTable", () => { try { return globalDropPackagesTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","jsonb","timestamp","uniqueIndex","check"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+
+
+/**
+* Global Drop (#165) — UPGRADE of Translate & Dub.
+*
+* One package per music RELEASE (distribution_releases): the five
+* launch-language versions of the release, assembled in one tap.
+* Each version is a first-class record — { language, sourceTitle,
+* translatedTitle, url, status } — that the creator REVIEWS one by
+* one (draft → approved) before anything publishes. Publishing
+* writes the approved versions' URLs into the release's existing
+* smartlink language routing (smartlink_language_destinations), so
+* an approved version is a real destination on the release's own
+* distribution surface, not a note in a drawer.
+*
+* Honesty rules: the package invents no translations — a version's
+* translatedTitle is the creator's own (entered at review, from
+* their dub/caption work on the existing Translate & Dub rails);
+* its url is the creator's, validated http(s) only. A version with
+* no URL can be approved as a title-only version; publish routes
+* only versions that carry both approval and a URL, and says so.
+*
+* Package status: draft (assembled/reviewing) → active (published
+* at least once). Per-version status lives inside `versions`.
+*
+* Migration: provisional 0285_global_drop.sql (renumbered at join).
+*/
+const globalDropPackagesTable = (0,__vite_ssr_import_0__.pgTable)("global_drop_packages", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	releaseId: (0,__vite_ssr_import_0__.uuid)("release_id").notNull(),
+	/** 'draft' | 'active' */
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("draft"),
+	/** The five language versions, keyed by language code:
+	*  { es: { language, label, sourceTitle, translatedTitle, url,
+	*  status }, ... } — built by lib/global-drop. */
+	versions: (0,__vite_ssr_import_0__.jsonb)("versions").notNull(),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (t) => [(0,__vite_ssr_import_0__.check)("global_drop_packages_status_check", __vite_ssr_import_1__.sql`${t.status} IN ('draft','active')`), (0,__vite_ssr_import_0__.uniqueIndex)("global_drop_packages_release_idx").on(t.releaseId)]);
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBO0FBQ0E7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUEyQk8sTUFBTSwwQkFBMEIsa0NBQ3JDLHdCQUNBO0NBQ0UsSUFBSSwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjO0NBQzFDLFFBQVEsK0JBQUssU0FBUyxDQUFDLENBQUMsUUFBUTtDQUNoQyxXQUFXLCtCQUFLLFlBQVksQ0FBQyxDQUFDLFFBQVE7O0NBRXRDLFFBQVEsK0JBQUssUUFBUSxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxPQUFPOzs7O0NBSWhELFVBQVUsZ0NBQU0sVUFBVSxDQUFDLENBQUMsUUFBUTtDQUNwQyxXQUFXLG9DQUFVLGNBQWMsRUFBRSxjQUFjLEtBQUssQ0FBQyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsV0FBVztDQUNoRixXQUFXLG9DQUFVLGNBQWMsRUFBRSxjQUFjLEtBQUssQ0FBQyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsV0FBVztBQUNsRixJQUNDLE1BQU0sQ0FDTCxnQ0FBTSxxQ0FBcUMseUJBQUcsR0FBRyxFQUFFLE9BQU8sdUJBQXVCLEdBQ2pGLHNDQUFZLGtDQUFrQyxDQUFDLENBQUMsR0FBRyxFQUFFLFNBQVMsQ0FDaEUsQ0FDRiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiZ2xvYmFsLWRyb3AudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgcGdUYWJsZSwgdXVpZCwgdGV4dCwganNvbmIsIHRpbWVzdGFtcCwgdW5pcXVlSW5kZXgsIGNoZWNrIH0gZnJvbSBcImRyaXp6bGUtb3JtL3BnLWNvcmVcIjtcbmltcG9ydCB7IHNxbCB9IGZyb20gXCJkcml6emxlLW9ybVwiO1xuXG4vKipcbiAqIEdsb2JhbCBEcm9wICgjMTY1KSDigJQgVVBHUkFERSBvZiBUcmFuc2xhdGUgJiBEdWIuXG4gKlxuICogT25lIHBhY2thZ2UgcGVyIG11c2ljIFJFTEVBU0UgKGRpc3RyaWJ1dGlvbl9yZWxlYXNlcyk6IHRoZSBmaXZlXG4gKiBsYXVuY2gtbGFuZ3VhZ2UgdmVyc2lvbnMgb2YgdGhlIHJlbGVhc2UsIGFzc2VtYmxlZCBpbiBvbmUgdGFwLlxuICogRWFjaCB2ZXJzaW9uIGlzIGEgZmlyc3QtY2xhc3MgcmVjb3JkIOKAlCB7IGxhbmd1YWdlLCBzb3VyY2VUaXRsZSxcbiAqIHRyYW5zbGF0ZWRUaXRsZSwgdXJsLCBzdGF0dXMgfSDigJQgdGhhdCB0aGUgY3JlYXRvciBSRVZJRVdTIG9uZSBieVxuICogb25lIChkcmFmdCDihpIgYXBwcm92ZWQpIGJlZm9yZSBhbnl0aGluZyBwdWJsaXNoZXMuIFB1Ymxpc2hpbmdcbiAqIHdyaXRlcyB0aGUgYXBwcm92ZWQgdmVyc2lvbnMnIFVSTHMgaW50byB0aGUgcmVsZWFzZSdzIGV4aXN0aW5nXG4gKiBzbWFydGxpbmsgbGFuZ3VhZ2Ugcm91dGluZyAoc21hcnRsaW5rX2xhbmd1YWdlX2Rlc3RpbmF0aW9ucyksIHNvXG4gKiBhbiBhcHByb3ZlZCB2ZXJzaW9uIGlzIGEgcmVhbCBkZXN0aW5hdGlvbiBvbiB0aGUgcmVsZWFzZSdzIG93blxuICogZGlzdHJpYnV0aW9uIHN1cmZhY2UsIG5vdCBhIG5vdGUgaW4gYSBkcmF3ZXIuXG4gKlxuICogSG9uZXN0eSBydWxlczogdGhlIHBhY2thZ2UgaW52ZW50cyBubyB0cmFuc2xhdGlvbnMg4oCUIGEgdmVyc2lvbidzXG4gKiB0cmFuc2xhdGVkVGl0bGUgaXMgdGhlIGNyZWF0b3IncyBvd24gKGVudGVyZWQgYXQgcmV2aWV3LCBmcm9tXG4gKiB0aGVpciBkdWIvY2FwdGlvbiB3b3JrIG9uIHRoZSBleGlzdGluZyBUcmFuc2xhdGUgJiBEdWIgcmFpbHMpO1xuICogaXRzIHVybCBpcyB0aGUgY3JlYXRvcidzLCB2YWxpZGF0ZWQgaHR0cChzKSBvbmx5LiBBIHZlcnNpb24gd2l0aFxuICogbm8gVVJMIGNhbiBiZSBhcHByb3ZlZCBhcyBhIHRpdGxlLW9ubHkgdmVyc2lvbjsgcHVibGlzaCByb3V0ZXNcbiAqIG9ubHkgdmVyc2lvbnMgdGhhdCBjYXJyeSBib3RoIGFwcHJvdmFsIGFuZCBhIFVSTCwgYW5kIHNheXMgc28uXG4gKlxuICogUGFja2FnZSBzdGF0dXM6IGRyYWZ0IChhc3NlbWJsZWQvcmV2aWV3aW5nKSDihpIgYWN0aXZlIChwdWJsaXNoZWRcbiAqIGF0IGxlYXN0IG9uY2UpLiBQZXItdmVyc2lvbiBzdGF0dXMgbGl2ZXMgaW5zaWRlIGB2ZXJzaW9uc2AuXG4gKlxuICogTWlncmF0aW9uOiBwcm92aXNpb25hbCAwMjg1X2dsb2JhbF9kcm9wLnNxbCAocmVudW1iZXJlZCBhdCBqb2luKS5cbiAqL1xuZXhwb3J0IGNvbnN0IGdsb2JhbERyb3BQYWNrYWdlc1RhYmxlID0gcGdUYWJsZShcbiAgXCJnbG9iYWxfZHJvcF9wYWNrYWdlc1wiLFxuICB7XG4gICAgaWQ6IHV1aWQoXCJpZFwiKS5wcmltYXJ5S2V5KCkuZGVmYXVsdFJhbmRvbSgpLFxuICAgIHVzZXJJZDogdXVpZChcInVzZXJfaWRcIikubm90TnVsbCgpLFxuICAgIHJlbGVhc2VJZDogdXVpZChcInJlbGVhc2VfaWRcIikubm90TnVsbCgpLFxuICAgIC8qKiAnZHJhZnQnIHwgJ2FjdGl2ZScgKi9cbiAgICBzdGF0dXM6IHRleHQoXCJzdGF0dXNcIikubm90TnVsbCgpLmRlZmF1bHQoXCJkcmFmdFwiKSxcbiAgICAvKiogVGhlIGZpdmUgbGFuZ3VhZ2UgdmVyc2lvbnMsIGtleWVkIGJ5IGxhbmd1YWdlIGNvZGU6XG4gICAgICogIHsgZXM6IHsgbGFuZ3VhZ2UsIGxhYmVsLCBzb3VyY2VUaXRsZSwgdHJhbnNsYXRlZFRpdGxlLCB1cmwsXG4gICAgICogIHN0YXR1cyB9LCAuLi4gfSDigJQgYnVpbHQgYnkgbGliL2dsb2JhbC1kcm9wLiAqL1xuICAgIHZlcnNpb25zOiBqc29uYihcInZlcnNpb25zXCIpLm5vdE51bGwoKSxcbiAgICBjcmVhdGVkQXQ6IHRpbWVzdGFtcChcImNyZWF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbiAgICB1cGRhdGVkQXQ6IHRpbWVzdGFtcChcInVwZGF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbiAgfSxcbiAgKHQpID0+IFtcbiAgICBjaGVjayhcImdsb2JhbF9kcm9wX3BhY2thZ2VzX3N0YXR1c19jaGVja1wiLCBzcWxgJHt0LnN0YXR1c30gSU4gKCdkcmFmdCcsJ2FjdGl2ZScpYCksXG4gICAgdW5pcXVlSW5kZXgoXCJnbG9iYWxfZHJvcF9wYWNrYWdlc19yZWxlYXNlX2lkeFwiKS5vbih0LnJlbGVhc2VJZCksXG4gIF0sXG4pO1xuXG5leHBvcnQgdHlwZSBHbG9iYWxEcm9wUGFja2FnZSA9IHR5cGVvZiBnbG9iYWxEcm9wUGFja2FnZXNUYWJsZS4kaW5mZXJTZWxlY3Q7XG4iXSwiZmlsZSI6Ii9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2dsb2JhbC1kcm9wLnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvZ2xvYmFsLWRyb3AudHMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9nbG9iYWwtZHJvcC50cyIsW10sWyI2IiwiNyJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vaW5kZXguanMiXQ==

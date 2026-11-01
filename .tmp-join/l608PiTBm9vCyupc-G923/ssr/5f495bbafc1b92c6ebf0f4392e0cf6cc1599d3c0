@@ -1,0 +1,115 @@
+__vite_ssr_exportName__("PLAY_COUNT_GAP_MS", () => { try { return PLAY_COUNT_GAP_MS } catch {} });
+__vite_ssr_exportName__("PLAY_COUNT_DAILY_CAP", () => { try { return PLAY_COUNT_DAILY_CAP } catch {} });
+__vite_ssr_exportName__("PLAY_COUNT_WINDOW_MS", () => { try { return PLAY_COUNT_WINDOW_MS } catch {} });
+__vite_ssr_exportName__("playSourceKey", () => { try { return playSourceKey } catch {} });
+__vite_ssr_exportName__("PlayCounter", () => { try { return PlayCounter } catch {} });
+__vite_ssr_exportName__("playCounter", () => { try { return playCounter } catch {} });
+__vite_ssr_exportName__("__resetPlayCounterForTests", () => { try { return __resetPlayCounterForTests } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/lib/sweep-map.ts", {"importedNames":["capMapSize","sweepTtlIfLarge"]});
+/* ─── Play counting — what one listener may add to the charts ─────────
+The charts' raw material is the play: one play_events row + the
+counter columns (play_count / view_count / total_plays), written by
+the two public play doors (POST /media/:kind/:id/play and
+POST /discovery/play). Both doors are unauthenticated by design —
+listening is public — and the counting was wide open: the
+discovery door counted EVERY post (one script at its own
+120/min/IP load limiter could mint 7,200 plays an hour from a
+single address), the media door's per-IP gap still allowed
+1,440 counted plays a day per address with no daily bound, the
+owner's plays of their own upload counted toward their own
+chart position, and unpublished uploads accrued counters. Any
+of it puts a track at #1 on Today / This week, permanently
+inflates the all-time counters, and trips the Trend Radar's
+≥25-plays-in-24h qualification in seconds. The live presence
+cap (stack1100 W4) settled the shape for streams: the
+action stays free and unlimited; what one source may COUNT is
+bounded. This module is that bound for plays, shared by both doors
+so the twins can never drift apart:
+
+- GAP: the same source's plays of the same media count at most
+once per minute. A play POST is a "someone pressed play" ping,
+not a verified listen — double-fires, client retries and
+scripted bursts inside the minute are one listen, not sixty.
+- CAP: at most 10 counted plays per source per media per rolling
+24 hours. A fan looping a favourite all day is real listening,
+and the first ten count; one listener's loop is not a crowd,
+and a chart that claims "what's popping" must not let it pose
+as one. Minting 100 counted plays now takes ≥10 distinct
+sources over ≥10 minutes each — bounded, not eliminated (the
+same honest posture as W4's presence cap).
+
+A "source" is the signed-in user when the door knows one (both
+doors resolve the optional session), else the client IP (the app
+sets trust proxy, so req.ip is the real client behind Render).
+Plays that don't count still PLAY — the listener hears the song;
+the response just reports counted:false and no chart input moves:
+no play_events row, no counter bump, no total_plays bump. The
+three writes always move together or not at all, so the windowed
+charts (play_events) and the all-time charts (counter columns)
+can never disagree about a play.
+
+State is process-local (one Render instance), kept in a
+timestamp-array map pruned to the rolling day on every claim and
+swept/capped with the house sweep-map helpers (the creator-rank
+cache discipline) so client-mintable keys can't grow the heap.
+A restart forgets the pacing — the safe direction is bounded by
+the doors' rate limiter for the first minute after boot. */
+
+const PLAY_COUNT_GAP_MS = 6e4;
+const PLAY_COUNT_DAILY_CAP = 10;
+const PLAY_COUNT_WINDOW_MS = 24 * 36e5;
+const SWEEP_THRESHOLD = 1e3;
+const MAX_KEYS = 5e3;
+/** The pacing key's source half: the account when known, else the
+*  client address. User keys and IP keys live in separate namespaces
+*  so an id can never collide with an address. */
+function playSourceKey(userId, ip) {
+	if (userId) return `u:${userId}`;
+	return `ip:${ip ?? "unknown"}`;
+};
+class PlayCounter {
+	/* key → ascending counted-play timestamps inside the rolling day.
+	The newest element is the key's recency (the sweep-map atOf
+	contract for hit-window arrays). */
+	hits = new Map();
+	/**
+	* Claim one play: returns true when this play COUNTS (and records
+	* it), false when the source is over its gap or its daily cap for
+	* this media (and records nothing). Check-and-record is one
+	* synchronous step — two concurrent posts can never both slip
+	* through the gap the way a check-then-await race would allow.
+	*/
+	claim(sourceKey, kind, mediaId, now = Date.now()) {
+		const key = `${sourceKey}|${kind}:${mediaId}`;
+		const floor = now - PLAY_COUNT_WINDOW_MS;
+		const prior = (this.hits.get(key) ?? []).filter((t) => t > floor);
+		const last = prior[prior.length - 1];
+		if (last !== undefined && now - last < PLAY_COUNT_GAP_MS) return false;
+		if (prior.length >= PLAY_COUNT_DAILY_CAP) return false;
+		prior.push(now);
+		this.hits.set(key, prior);
+		(0,__vite_ssr_import_0__.sweepTtlIfLarge)(this.hits, SWEEP_THRESHOLD, PLAY_COUNT_WINDOW_MS, (arr) => arr[arr.length - 1] ?? 0, now);
+		(0,__vite_ssr_import_0__.capMapSize)(this.hits, MAX_KEYS, (arr) => arr[arr.length - 1] ?? 0);
+		return true;
+	}
+	/** Counted plays currently inside the window for one key — the
+	*  read side the tests (and only the tests) need. */
+	counted(sourceKey, kind, mediaId, now = Date.now()) {
+		const floor = now - PLAY_COUNT_WINDOW_MS;
+		return (this.hits.get(`${sourceKey}|${kind}:${mediaId}`) ?? []).filter((t) => t > floor).length;
+	}
+	reset() {
+		this.hits.clear();
+	}
+};
+/** The one counter both play doors share — two instances would be
+*  two budgets, and the doors must never disagree. */
+const playCounter = new PlayCounter();
+/** Test seam — never used outside tests. */
+function __resetPlayCounterForTests() {
+	playCounter.reset();
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7OztBQWlEQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFFTyxNQUFNLG9CQUFvQjtBQUMxQixNQUFNLHVCQUF1QjtBQUM3QixNQUFNLHVCQUF1QixLQUFLO0FBRXpDLE1BQU0sa0JBQWtCO0FBQ3hCLE1BQU0sV0FBVzs7OztBQUtWLFNBQVMsY0FDZCxRQUNBLElBQ1E7Q0FDUixJQUFJLFFBQVEsT0FBTyxLQUFLO0NBQ3hCLE9BQU8sTUFBTSxNQUFNO0FBQ3JCO0FBRU8sTUFBTSxZQUFZOzs7O0NBSXZCLElBQVEsR0FBTyxJQUFJLElBQXNCOzs7Ozs7OztDQVN6QyxNQUFNLFdBQW1CLE1BQWMsU0FBaUIsTUFBYyxLQUFLLElBQUksR0FBWTtFQUN6RixNQUFNLE1BQU0sR0FBRyxVQUFVLEdBQUcsS0FBSyxHQUFHO0VBQ3BDLE1BQU0sUUFBUSxNQUFNO0VBQ3BCLE1BQU0sU0FBUyxLQUFLLEtBQUssSUFBSSxHQUFHLEtBQUssQ0FBQyxFQUFDLENBQUUsUUFBUSxNQUFNLElBQUksS0FBSztFQUNoRSxNQUFNLE9BQU8sTUFBTSxNQUFNLFNBQVM7RUFDbEMsSUFBSSxTQUFTLGFBQWEsTUFBTSxPQUFPLG1CQUFtQixPQUFPO0VBQ2pFLElBQUksTUFBTSxVQUFVLHNCQUFzQixPQUFPO0VBQ2pELE1BQU0sS0FBSyxHQUFHO0VBQ2QsS0FBSyxLQUFLLElBQUksS0FBSyxLQUFLO0VBQ3hCLDBDQUFnQixLQUFLLE1BQU0saUJBQWlCLHVCQUF1QixRQUFRLElBQUksSUFBSSxTQUFTLE1BQU0sR0FBRyxHQUFHO0VBQ3hHLHFDQUFXLEtBQUssTUFBTSxXQUFXLFFBQVEsSUFBSSxJQUFJLFNBQVMsTUFBTSxDQUFDO0VBQ2pFLE9BQU87Q0FDVDs7O0NBSUEsUUFBUSxXQUFtQixNQUFjLFNBQWlCLE1BQWMsS0FBSyxJQUFJLEdBQVc7RUFDMUYsTUFBTSxRQUFRLE1BQU07RUFDcEIsUUFBUSxLQUFLLEtBQUssSUFBSSxHQUFHLFVBQVUsR0FBRyxLQUFLLEdBQUcsU0FBUyxLQUFLLENBQUMsRUFBQyxDQUFFLFFBQVEsTUFBTSxJQUFJLEtBQUssQ0FBQyxDQUFDO0NBQzNGO0NBRUEsUUFBYztFQUNaLEtBQUssS0FBSyxNQUFNO0NBQ2xCO0FBQ0Y7OztBQUlPLE1BQU0sY0FBYyxJQUFJLFlBQVk7O0FBR3BDLFNBQVMsNkJBQW1DO0NBQ2pELFlBQVksTUFBTTtBQUNwQiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsicGxheS1jb3VudGluZy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKiDilIDilIDilIAgUGxheSBjb3VudGluZyDigJQgd2hhdCBvbmUgbGlzdGVuZXIgbWF5IGFkZCB0byB0aGUgY2hhcnRzIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxuICAgVGhlIGNoYXJ0cycgcmF3IG1hdGVyaWFsIGlzIHRoZSBwbGF5OiBvbmUgcGxheV9ldmVudHMgcm93ICsgdGhlXG4gICBjb3VudGVyIGNvbHVtbnMgKHBsYXlfY291bnQgLyB2aWV3X2NvdW50IC8gdG90YWxfcGxheXMpLCB3cml0dGVuIGJ5XG4gICB0aGUgdHdvIHB1YmxpYyBwbGF5IGRvb3JzIChQT1NUIC9tZWRpYS86a2luZC86aWQvcGxheSBhbmRcbiAgIFBPU1QgL2Rpc2NvdmVyeS9wbGF5KS4gQm90aCBkb29ycyBhcmUgdW5hdXRoZW50aWNhdGVkIGJ5IGRlc2lnbiDigJRcbiAgIGxpc3RlbmluZyBpcyBwdWJsaWMg4oCUIGFuZCB0aGUgY291bnRpbmcgd2FzIHdpZGUgb3BlbjogdGhlXG4gICBkaXNjb3ZlcnkgZG9vciBjb3VudGVkIEVWRVJZIHBvc3QgKG9uZSBzY3JpcHQgYXQgaXRzIG93blxuICAgMTIwL21pbi9JUCBsb2FkIGxpbWl0ZXIgY291bGQgbWludCA3LDIwMCBwbGF5cyBhbiBob3VyIGZyb20gYVxuICAgc2luZ2xlIGFkZHJlc3MpLCB0aGUgbWVkaWEgZG9vcidzIHBlci1JUCBnYXAgc3RpbGwgYWxsb3dlZFxuICAgMSw0NDAgY291bnRlZCBwbGF5cyBhIGRheSBwZXIgYWRkcmVzcyB3aXRoIG5vIGRhaWx5IGJvdW5kLCB0aGVcbiAgIG93bmVyJ3MgcGxheXMgb2YgdGhlaXIgb3duIHVwbG9hZCBjb3VudGVkIHRvd2FyZCB0aGVpciBvd25cbiAgIGNoYXJ0IHBvc2l0aW9uLCBhbmQgdW5wdWJsaXNoZWQgdXBsb2FkcyBhY2NydWVkIGNvdW50ZXJzLiBBbnlcbiAgIG9mIGl0IHB1dHMgYSB0cmFjayBhdCAjMSBvbiBUb2RheSAvIFRoaXMgd2VlaywgcGVybWFuZW50bHlcbiAgIGluZmxhdGVzIHRoZSBhbGwtdGltZSBjb3VudGVycywgYW5kIHRyaXBzIHRoZSBUcmVuZCBSYWRhcidzXG4gICDiiaUyNS1wbGF5cy1pbi0yNGggcXVhbGlmaWNhdGlvbiBpbiBzZWNvbmRzLiBUaGUgbGl2ZSBwcmVzZW5jZVxuICAgY2FwIChzdGFjazExMDAgVzQpIHNldHRsZWQgdGhlIHNoYXBlIGZvciBzdHJlYW1zOiB0aGVcbiAgIGFjdGlvbiBzdGF5cyBmcmVlIGFuZCB1bmxpbWl0ZWQ7IHdoYXQgb25lIHNvdXJjZSBtYXkgQ09VTlQgaXNcbiAgIGJvdW5kZWQuIFRoaXMgbW9kdWxlIGlzIHRoYXQgYm91bmQgZm9yIHBsYXlzLCBzaGFyZWQgYnkgYm90aCBkb29yc1xuICAgc28gdGhlIHR3aW5zIGNhbiBuZXZlciBkcmlmdCBhcGFydDpcblxuICAgLSBHQVA6IHRoZSBzYW1lIHNvdXJjZSdzIHBsYXlzIG9mIHRoZSBzYW1lIG1lZGlhIGNvdW50IGF0IG1vc3RcbiAgICAgb25jZSBwZXIgbWludXRlLiBBIHBsYXkgUE9TVCBpcyBhIFwic29tZW9uZSBwcmVzc2VkIHBsYXlcIiBwaW5nLFxuICAgICBub3QgYSB2ZXJpZmllZCBsaXN0ZW4g4oCUIGRvdWJsZS1maXJlcywgY2xpZW50IHJldHJpZXMgYW5kXG4gICAgIHNjcmlwdGVkIGJ1cnN0cyBpbnNpZGUgdGhlIG1pbnV0ZSBhcmUgb25lIGxpc3Rlbiwgbm90IHNpeHR5LlxuICAgLSBDQVA6IGF0IG1vc3QgMTAgY291bnRlZCBwbGF5cyBwZXIgc291cmNlIHBlciBtZWRpYSBwZXIgcm9sbGluZ1xuICAgICAyNCBob3Vycy4gQSBmYW4gbG9vcGluZyBhIGZhdm91cml0ZSBhbGwgZGF5IGlzIHJlYWwgbGlzdGVuaW5nLFxuICAgICBhbmQgdGhlIGZpcnN0IHRlbiBjb3VudDsgb25lIGxpc3RlbmVyJ3MgbG9vcCBpcyBub3QgYSBjcm93ZCxcbiAgICAgYW5kIGEgY2hhcnQgdGhhdCBjbGFpbXMgXCJ3aGF0J3MgcG9wcGluZ1wiIG11c3Qgbm90IGxldCBpdCBwb3NlXG4gICAgIGFzIG9uZS4gTWludGluZyAxMDAgY291bnRlZCBwbGF5cyBub3cgdGFrZXMg4omlMTAgZGlzdGluY3RcbiAgICAgc291cmNlcyBvdmVyIOKJpTEwIG1pbnV0ZXMgZWFjaCDigJQgYm91bmRlZCwgbm90IGVsaW1pbmF0ZWQgKHRoZVxuICAgICBzYW1lIGhvbmVzdCBwb3N0dXJlIGFzIFc0J3MgcHJlc2VuY2UgY2FwKS5cblxuICAgQSBcInNvdXJjZVwiIGlzIHRoZSBzaWduZWQtaW4gdXNlciB3aGVuIHRoZSBkb29yIGtub3dzIG9uZSAoYm90aFxuICAgZG9vcnMgcmVzb2x2ZSB0aGUgb3B0aW9uYWwgc2Vzc2lvbiksIGVsc2UgdGhlIGNsaWVudCBJUCAodGhlIGFwcFxuICAgc2V0cyB0cnVzdCBwcm94eSwgc28gcmVxLmlwIGlzIHRoZSByZWFsIGNsaWVudCBiZWhpbmQgUmVuZGVyKS5cbiAgIFBsYXlzIHRoYXQgZG9uJ3QgY291bnQgc3RpbGwgUExBWSDigJQgdGhlIGxpc3RlbmVyIGhlYXJzIHRoZSBzb25nO1xuICAgdGhlIHJlc3BvbnNlIGp1c3QgcmVwb3J0cyBjb3VudGVkOmZhbHNlIGFuZCBubyBjaGFydCBpbnB1dCBtb3ZlczpcbiAgIG5vIHBsYXlfZXZlbnRzIHJvdywgbm8gY291bnRlciBidW1wLCBubyB0b3RhbF9wbGF5cyBidW1wLiBUaGVcbiAgIHRocmVlIHdyaXRlcyBhbHdheXMgbW92ZSB0b2dldGhlciBvciBub3QgYXQgYWxsLCBzbyB0aGUgd2luZG93ZWRcbiAgIGNoYXJ0cyAocGxheV9ldmVudHMpIGFuZCB0aGUgYWxsLXRpbWUgY2hhcnRzIChjb3VudGVyIGNvbHVtbnMpXG4gICBjYW4gbmV2ZXIgZGlzYWdyZWUgYWJvdXQgYSBwbGF5LlxuXG4gICBTdGF0ZSBpcyBwcm9jZXNzLWxvY2FsIChvbmUgUmVuZGVyIGluc3RhbmNlKSwga2VwdCBpbiBhXG4gICB0aW1lc3RhbXAtYXJyYXkgbWFwIHBydW5lZCB0byB0aGUgcm9sbGluZyBkYXkgb24gZXZlcnkgY2xhaW0gYW5kXG4gICBzd2VwdC9jYXBwZWQgd2l0aCB0aGUgaG91c2Ugc3dlZXAtbWFwIGhlbHBlcnMgKHRoZSBjcmVhdG9yLXJhbmtcbiAgIGNhY2hlIGRpc2NpcGxpbmUpIHNvIGNsaWVudC1taW50YWJsZSBrZXlzIGNhbid0IGdyb3cgdGhlIGhlYXAuXG4gICBBIHJlc3RhcnQgZm9yZ2V0cyB0aGUgcGFjaW5nIOKAlCB0aGUgc2FmZSBkaXJlY3Rpb24gaXMgYm91bmRlZCBieVxuICAgdGhlIGRvb3JzJyByYXRlIGxpbWl0ZXIgZm9yIHRoZSBmaXJzdCBtaW51dGUgYWZ0ZXIgYm9vdC4gKi9cblxuaW1wb3J0IHsgY2FwTWFwU2l6ZSwgc3dlZXBUdGxJZkxhcmdlIH0gZnJvbSBcIi4vc3dlZXAtbWFwXCI7XG5cbmV4cG9ydCBjb25zdCBQTEFZX0NPVU5UX0dBUF9NUyA9IDYwXzAwMDtcbmV4cG9ydCBjb25zdCBQTEFZX0NPVU5UX0RBSUxZX0NBUCA9IDEwO1xuZXhwb3J0IGNvbnN0IFBMQVlfQ09VTlRfV0lORE9XX01TID0gMjQgKiAzNjAwXzAwMDtcblxuY29uc3QgU1dFRVBfVEhSRVNIT0xEID0gMTAwMDtcbmNvbnN0IE1BWF9LRVlTID0gNTAwMDtcblxuLyoqIFRoZSBwYWNpbmcga2V5J3Mgc291cmNlIGhhbGY6IHRoZSBhY2NvdW50IHdoZW4ga25vd24sIGVsc2UgdGhlXG4gKiAgY2xpZW50IGFkZHJlc3MuIFVzZXIga2V5cyBhbmQgSVAga2V5cyBsaXZlIGluIHNlcGFyYXRlIG5hbWVzcGFjZXNcbiAqICBzbyBhbiBpZCBjYW4gbmV2ZXIgY29sbGlkZSB3aXRoIGFuIGFkZHJlc3MuICovXG5leHBvcnQgZnVuY3Rpb24gcGxheVNvdXJjZUtleShcbiAgdXNlcklkOiBzdHJpbmcgfCBudWxsIHwgdW5kZWZpbmVkLFxuICBpcDogc3RyaW5nIHwgbnVsbCB8IHVuZGVmaW5lZCxcbik6IHN0cmluZyB7XG4gIGlmICh1c2VySWQpIHJldHVybiBgdToke3VzZXJJZH1gO1xuICByZXR1cm4gYGlwOiR7aXAgPz8gXCJ1bmtub3duXCJ9YDtcbn1cblxuZXhwb3J0IGNsYXNzIFBsYXlDb3VudGVyIHtcbiAgLyoga2V5IOKGkiBhc2NlbmRpbmcgY291bnRlZC1wbGF5IHRpbWVzdGFtcHMgaW5zaWRlIHRoZSByb2xsaW5nIGRheS5cbiAgICAgVGhlIG5ld2VzdCBlbGVtZW50IGlzIHRoZSBrZXkncyByZWNlbmN5ICh0aGUgc3dlZXAtbWFwIGF0T2ZcbiAgICAgY29udHJhY3QgZm9yIGhpdC13aW5kb3cgYXJyYXlzKS4gKi9cbiAgcHJpdmF0ZSBoaXRzID0gbmV3IE1hcDxzdHJpbmcsIG51bWJlcltdPigpO1xuXG4gIC8qKlxuICAgKiBDbGFpbSBvbmUgcGxheTogcmV0dXJucyB0cnVlIHdoZW4gdGhpcyBwbGF5IENPVU5UUyAoYW5kIHJlY29yZHNcbiAgICogaXQpLCBmYWxzZSB3aGVuIHRoZSBzb3VyY2UgaXMgb3ZlciBpdHMgZ2FwIG9yIGl0cyBkYWlseSBjYXAgZm9yXG4gICAqIHRoaXMgbWVkaWEgKGFuZCByZWNvcmRzIG5vdGhpbmcpLiBDaGVjay1hbmQtcmVjb3JkIGlzIG9uZVxuICAgKiBzeW5jaHJvbm91cyBzdGVwIOKAlCB0d28gY29uY3VycmVudCBwb3N0cyBjYW4gbmV2ZXIgYm90aCBzbGlwXG4gICAqIHRocm91Z2ggdGhlIGdhcCB0aGUgd2F5IGEgY2hlY2stdGhlbi1hd2FpdCByYWNlIHdvdWxkIGFsbG93LlxuICAgKi9cbiAgY2xhaW0oc291cmNlS2V5OiBzdHJpbmcsIGtpbmQ6IHN0cmluZywgbWVkaWFJZDogc3RyaW5nLCBub3c6IG51bWJlciA9IERhdGUubm93KCkpOiBib29sZWFuIHtcbiAgICBjb25zdCBrZXkgPSBgJHtzb3VyY2VLZXl9fCR7a2luZH06JHttZWRpYUlkfWA7XG4gICAgY29uc3QgZmxvb3IgPSBub3cgLSBQTEFZX0NPVU5UX1dJTkRPV19NUztcbiAgICBjb25zdCBwcmlvciA9ICh0aGlzLmhpdHMuZ2V0KGtleSkgPz8gW10pLmZpbHRlcigodCkgPT4gdCA+IGZsb29yKTtcbiAgICBjb25zdCBsYXN0ID0gcHJpb3JbcHJpb3IubGVuZ3RoIC0gMV07XG4gICAgaWYgKGxhc3QgIT09IHVuZGVmaW5lZCAmJiBub3cgLSBsYXN0IDwgUExBWV9DT1VOVF9HQVBfTVMpIHJldHVybiBmYWxzZTtcbiAgICBpZiAocHJpb3IubGVuZ3RoID49IFBMQVlfQ09VTlRfREFJTFlfQ0FQKSByZXR1cm4gZmFsc2U7XG4gICAgcHJpb3IucHVzaChub3cpO1xuICAgIHRoaXMuaGl0cy5zZXQoa2V5LCBwcmlvcik7XG4gICAgc3dlZXBUdGxJZkxhcmdlKHRoaXMuaGl0cywgU1dFRVBfVEhSRVNIT0xELCBQTEFZX0NPVU5UX1dJTkRPV19NUywgKGFycikgPT4gYXJyW2Fyci5sZW5ndGggLSAxXSA/PyAwLCBub3cpO1xuICAgIGNhcE1hcFNpemUodGhpcy5oaXRzLCBNQVhfS0VZUywgKGFycikgPT4gYXJyW2Fyci5sZW5ndGggLSAxXSA/PyAwKTtcbiAgICByZXR1cm4gdHJ1ZTtcbiAgfVxuXG4gIC8qKiBDb3VudGVkIHBsYXlzIGN1cnJlbnRseSBpbnNpZGUgdGhlIHdpbmRvdyBmb3Igb25lIGtleSDigJQgdGhlXG4gICAqICByZWFkIHNpZGUgdGhlIHRlc3RzIChhbmQgb25seSB0aGUgdGVzdHMpIG5lZWQuICovXG4gIGNvdW50ZWQoc291cmNlS2V5OiBzdHJpbmcsIGtpbmQ6IHN0cmluZywgbWVkaWFJZDogc3RyaW5nLCBub3c6IG51bWJlciA9IERhdGUubm93KCkpOiBudW1iZXIge1xuICAgIGNvbnN0IGZsb29yID0gbm93IC0gUExBWV9DT1VOVF9XSU5ET1dfTVM7XG4gICAgcmV0dXJuICh0aGlzLmhpdHMuZ2V0KGAke3NvdXJjZUtleX18JHtraW5kfToke21lZGlhSWR9YCkgPz8gW10pLmZpbHRlcigodCkgPT4gdCA+IGZsb29yKS5sZW5ndGg7XG4gIH1cblxuICByZXNldCgpOiB2b2lkIHtcbiAgICB0aGlzLmhpdHMuY2xlYXIoKTtcbiAgfVxufVxuXG4vKiogVGhlIG9uZSBjb3VudGVyIGJvdGggcGxheSBkb29ycyBzaGFyZSDigJQgdHdvIGluc3RhbmNlcyB3b3VsZCBiZVxuICogIHR3byBidWRnZXRzLCBhbmQgdGhlIGRvb3JzIG11c3QgbmV2ZXIgZGlzYWdyZWUuICovXG5leHBvcnQgY29uc3QgcGxheUNvdW50ZXIgPSBuZXcgUGxheUNvdW50ZXIoKTtcblxuLyoqIFRlc3Qgc2VhbSDigJQgbmV2ZXIgdXNlZCBvdXRzaWRlIHRlc3RzLiAqL1xuZXhwb3J0IGZ1bmN0aW9uIF9fcmVzZXRQbGF5Q291bnRlckZvclRlc3RzKCk6IHZvaWQge1xuICBwbGF5Q291bnRlci5yZXNldCgpO1xufVxuIl0sImZpbGUiOiIvc3JjL2xpYi9wbGF5LWNvdW50aW5nLnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9wbGF5LWNvdW50aW5nLnRzIiwiL3NyYy9saWIvcGxheS1jb3VudGluZy50cyIsW10sWyI2Il0sW10sIi9zcmMvbGliL3N3ZWVwLW1hcC50cyJd

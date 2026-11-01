@@ -1,0 +1,31 @@
+__vite_ssr_exportName__("locationsTable", () => { try { return locationsTable } catch {} });
+__vite_ssr_exportName__("insertLocationSchema", () => { try { return insertLocationSchema } catch {} });
+__vite_ssr_exportName__("selectLocationSchema", () => { try { return selectLocationSchema } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","timestamp"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-zod@0.8.3_drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0__zod@4.6.5/node_modules/drizzle-zod/index.mjs", {"importedNames":["createInsertSchema","createSelectSchema"]});
+
+
+/* ── Locations library ─────────────────────────────────────────────────────
+The user's own library of scene locations for music video creation
+("Golden Throne Room", "Black-Ocean Stage", ...). Each location is a
+named place with an image. Locations are video-making assets — they are
+user-scoped and have nothing to do with artist vaults. */
+const locationsTable = (0,__vite_ssr_import_0__.pgTable)("locations", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	user_id: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	label: (0,__vite_ssr_import_0__.text)("label").notNull(),
+	/** Public (signed) URL of the location image. */
+	image_url: (0,__vite_ssr_import_0__.text)("image_url").notNull(),
+	/** Supabase storage reference for the image file (if uploaded). */
+	image_path: (0,__vite_ssr_import_0__.text)("image_path"),
+	created_at: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+const insertLocationSchema = (0,__vite_ssr_import_1__.createInsertSchema)(locationsTable).omit({
+	id: true,
+	created_at: true
+});
+const selectLocationSchema = (0,__vite_ssr_import_1__.createSelectSchema)(locationsTable);
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7O0FBQUE7QUFDQTs7Ozs7Ozs7QUFRTyxNQUFNLGlCQUFpQixrQ0FBUSxhQUFhO0NBQ2pELElBQUksK0JBQUssSUFBSSxDQUFDLENBQUMsV0FBVyxDQUFDLENBQUMsY0FBYztDQUMxQyxTQUFTLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFFBQVE7Q0FDakMsT0FBTywrQkFBSyxPQUFPLENBQUMsQ0FBQyxRQUFROztDQUU3QixXQUFXLCtCQUFLLFdBQVcsQ0FBQyxDQUFDLFFBQVE7O0NBRXJDLFlBQVksK0JBQUssWUFBWTtDQUM3QixZQUFZLG9DQUFVLGNBQWMsRUFBRSxjQUFjLEtBQUssQ0FBQyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsV0FBVztBQUNuRixDQUFDO0FBRU0sTUFBTSx1QkFBdUIsNkNBQW1CLGNBQWMsQ0FBQyxDQUFDLEtBQUs7Q0FDMUUsSUFBSTtDQUNKLFlBQVk7QUFDZCxDQUFDO0FBRU0sTUFBTSx1QkFBdUIsNkNBQW1CLGNBQWMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImxvY2F0aW9ucy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwZ1RhYmxlLCB1dWlkLCB0ZXh0LCB0aW1lc3RhbXAgfSBmcm9tIFwiZHJpenpsZS1vcm0vcGctY29yZVwiO1xuaW1wb3J0IHsgY3JlYXRlSW5zZXJ0U2NoZW1hLCBjcmVhdGVTZWxlY3RTY2hlbWEgfSBmcm9tIFwiZHJpenpsZS16b2RcIjtcblxuLyog4pSA4pSAIExvY2F0aW9ucyBsaWJyYXJ5IOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxuICAgVGhlIHVzZXIncyBvd24gbGlicmFyeSBvZiBzY2VuZSBsb2NhdGlvbnMgZm9yIG11c2ljIHZpZGVvIGNyZWF0aW9uXG4gICAoXCJHb2xkZW4gVGhyb25lIFJvb21cIiwgXCJCbGFjay1PY2VhbiBTdGFnZVwiLCAuLi4pLiBFYWNoIGxvY2F0aW9uIGlzIGFcbiAgIG5hbWVkIHBsYWNlIHdpdGggYW4gaW1hZ2UuIExvY2F0aW9ucyBhcmUgdmlkZW8tbWFraW5nIGFzc2V0cyDigJQgdGhleSBhcmVcbiAgIHVzZXItc2NvcGVkIGFuZCBoYXZlIG5vdGhpbmcgdG8gZG8gd2l0aCBhcnRpc3QgdmF1bHRzLiAqL1xuXG5leHBvcnQgY29uc3QgbG9jYXRpb25zVGFibGUgPSBwZ1RhYmxlKFwibG9jYXRpb25zXCIsIHtcbiAgaWQ6IHV1aWQoXCJpZFwiKS5wcmltYXJ5S2V5KCkuZGVmYXVsdFJhbmRvbSgpLFxuICB1c2VyX2lkOiB1dWlkKFwidXNlcl9pZFwiKS5ub3ROdWxsKCksXG4gIGxhYmVsOiB0ZXh0KFwibGFiZWxcIikubm90TnVsbCgpLFxuICAvKiogUHVibGljIChzaWduZWQpIFVSTCBvZiB0aGUgbG9jYXRpb24gaW1hZ2UuICovXG4gIGltYWdlX3VybDogdGV4dChcImltYWdlX3VybFwiKS5ub3ROdWxsKCksXG4gIC8qKiBTdXBhYmFzZSBzdG9yYWdlIHJlZmVyZW5jZSBmb3IgdGhlIGltYWdlIGZpbGUgKGlmIHVwbG9hZGVkKS4gKi9cbiAgaW1hZ2VfcGF0aDogdGV4dChcImltYWdlX3BhdGhcIiksXG4gIGNyZWF0ZWRfYXQ6IHRpbWVzdGFtcChcImNyZWF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbn0pO1xuXG5leHBvcnQgY29uc3QgaW5zZXJ0TG9jYXRpb25TY2hlbWEgPSBjcmVhdGVJbnNlcnRTY2hlbWEobG9jYXRpb25zVGFibGUpLm9taXQoe1xuICBpZDogdHJ1ZSxcbiAgY3JlYXRlZF9hdDogdHJ1ZSxcbn0pO1xuXG5leHBvcnQgY29uc3Qgc2VsZWN0TG9jYXRpb25TY2hlbWEgPSBjcmVhdGVTZWxlY3RTY2hlbWEobG9jYXRpb25zVGFibGUpO1xuXG5leHBvcnQgdHlwZSBMb2NhdGlvbiA9IHR5cGVvZiBsb2NhdGlvbnNUYWJsZS4kaW5mZXJTZWxlY3Q7XG4iXSwiZmlsZSI6Ii9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2xvY2F0aW9ucy50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvbG9jYXRpb25zLnRzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvbG9jYXRpb25zLnRzIixbXSxbIjYiLCI3Il0sW10sIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMDAwL25vZGVfbW9kdWxlcy8ucG5wbS9kcml6emxlLW9ybUAwLjQ1LjNfQHR5cGVzK3BnQDguMjMuMV9wZ0A4LjIzLjAvbm9kZV9tb2R1bGVzL2RyaXp6bGUtb3JtL3BnLWNvcmUvaW5kZXguanMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS16b2RAMC44LjNfZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wX196b2RANC42LjUvbm9kZV9tb2R1bGVzL2RyaXp6bGUtem9kL2luZGV4Lm1qcyJd

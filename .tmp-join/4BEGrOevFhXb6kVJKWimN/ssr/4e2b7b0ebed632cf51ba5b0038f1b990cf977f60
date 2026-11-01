@@ -1,0 +1,48 @@
+__vite_ssr_exportName__("dropDayKitsTable", () => { try { return dropDayKitsTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","jsonb","timestamp","uniqueIndex","check"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+
+
+/**
+* Drop Day Kit (#169) — UPGRADE of Product Drops + Release Checklist +
+* Promo Clips + presave notify.
+*
+* One kit per music RELEASE (distribution_releases). The kit is the
+* one-tap assembly the audit scoped: a teaser-short spec and a banner
+* set auto-built from the release's OWN art and track, the countdown
+* bound to the release's existing presave page, and the fan heads-up
+* at land time riding the existing presave rail (kit-era captures are
+* presave_follows, which lib/presave-release-notify.ts already fans
+* out exactly once at the release moment).
+*
+* The kit assembles SPECS, never finished renders and never claims:
+* the teaser and banners sit at 'draft' inside the payload until the
+* creator reviews the kit and activates it; rendering/publishing
+* happens in Create, from the kit's pre-loaded links. Anything the
+* release lacks (no artwork, no audio, no date, no presave page) is
+* listed in payload.missing — never invented to complete the set.
+*
+* Status: draft (assembled, awaiting review) → active (creator
+* approved the kit) → landed (release moment passed; read-side flip,
+* the presave sweeper owns the actual fan-out).
+*
+* Migration: provisional 0284_drop_day_kit.sql (renumbered at join).
+*/
+const dropDayKitsTable = (0,__vite_ssr_import_0__.pgTable)("drop_day_kits", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	/** The distribution release this kit was assembled for. One kit
+	*  per release — re-assembly updates the same row. */
+	releaseId: (0,__vite_ssr_import_0__.uuid)("release_id").notNull(),
+	/** 'draft' | 'active' | 'landed' */
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("draft"),
+	/** The assembled kit: { teaser, banners, countdown, missing } —
+	*  built by lib/drop-day-kit from the release's own fields. */
+	kit: (0,__vite_ssr_import_0__.jsonb)("kit").notNull(),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (t) => [(0,__vite_ssr_import_0__.check)("drop_day_kits_status_check", __vite_ssr_import_1__.sql`${t.status} IN ('draft','active','landed')`), (0,__vite_ssr_import_0__.uniqueIndex)("drop_day_kits_release_idx").on(t.releaseId)]);
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBO0FBQ0E7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUEyQk8sTUFBTSxtQkFBbUIsa0NBQzlCLGlCQUNBO0NBQ0UsSUFBSSwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjO0NBQzFDLFFBQVEsK0JBQUssU0FBUyxDQUFDLENBQUMsUUFBUTs7O0NBR2hDLFdBQVcsK0JBQUssWUFBWSxDQUFDLENBQUMsUUFBUTs7Q0FFdEMsUUFBUSwrQkFBSyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLE9BQU87OztDQUdoRCxLQUFLLGdDQUFNLEtBQUssQ0FBQyxDQUFDLFFBQVE7Q0FDMUIsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFdBQVc7Q0FDaEYsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFdBQVc7QUFDbEYsSUFDQyxNQUFNLENBQ0wsZ0NBQU0sOEJBQThCLHlCQUFHLEdBQUcsRUFBRSxPQUFPLGdDQUFnQyxHQUNuRixzQ0FBWSwyQkFBMkIsQ0FBQyxDQUFDLEdBQUcsRUFBRSxTQUFTLENBQ3pELENBQ0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImRyb3AtZGF5LWtpdC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwZ1RhYmxlLCB1dWlkLCB0ZXh0LCBqc29uYiwgdGltZXN0YW1wLCB1bmlxdWVJbmRleCwgY2hlY2sgfSBmcm9tIFwiZHJpenpsZS1vcm0vcGctY29yZVwiO1xuaW1wb3J0IHsgc3FsIH0gZnJvbSBcImRyaXp6bGUtb3JtXCI7XG5cbi8qKlxuICogRHJvcCBEYXkgS2l0ICgjMTY5KSDigJQgVVBHUkFERSBvZiBQcm9kdWN0IERyb3BzICsgUmVsZWFzZSBDaGVja2xpc3QgK1xuICogUHJvbW8gQ2xpcHMgKyBwcmVzYXZlIG5vdGlmeS5cbiAqXG4gKiBPbmUga2l0IHBlciBtdXNpYyBSRUxFQVNFIChkaXN0cmlidXRpb25fcmVsZWFzZXMpLiBUaGUga2l0IGlzIHRoZVxuICogb25lLXRhcCBhc3NlbWJseSB0aGUgYXVkaXQgc2NvcGVkOiBhIHRlYXNlci1zaG9ydCBzcGVjIGFuZCBhIGJhbm5lclxuICogc2V0IGF1dG8tYnVpbHQgZnJvbSB0aGUgcmVsZWFzZSdzIE9XTiBhcnQgYW5kIHRyYWNrLCB0aGUgY291bnRkb3duXG4gKiBib3VuZCB0byB0aGUgcmVsZWFzZSdzIGV4aXN0aW5nIHByZXNhdmUgcGFnZSwgYW5kIHRoZSBmYW4gaGVhZHMtdXBcbiAqIGF0IGxhbmQgdGltZSByaWRpbmcgdGhlIGV4aXN0aW5nIHByZXNhdmUgcmFpbCAoa2l0LWVyYSBjYXB0dXJlcyBhcmVcbiAqIHByZXNhdmVfZm9sbG93cywgd2hpY2ggbGliL3ByZXNhdmUtcmVsZWFzZS1ub3RpZnkudHMgYWxyZWFkeSBmYW5zXG4gKiBvdXQgZXhhY3RseSBvbmNlIGF0IHRoZSByZWxlYXNlIG1vbWVudCkuXG4gKlxuICogVGhlIGtpdCBhc3NlbWJsZXMgU1BFQ1MsIG5ldmVyIGZpbmlzaGVkIHJlbmRlcnMgYW5kIG5ldmVyIGNsYWltczpcbiAqIHRoZSB0ZWFzZXIgYW5kIGJhbm5lcnMgc2l0IGF0ICdkcmFmdCcgaW5zaWRlIHRoZSBwYXlsb2FkIHVudGlsIHRoZVxuICogY3JlYXRvciByZXZpZXdzIHRoZSBraXQgYW5kIGFjdGl2YXRlcyBpdDsgcmVuZGVyaW5nL3B1Ymxpc2hpbmdcbiAqIGhhcHBlbnMgaW4gQ3JlYXRlLCBmcm9tIHRoZSBraXQncyBwcmUtbG9hZGVkIGxpbmtzLiBBbnl0aGluZyB0aGVcbiAqIHJlbGVhc2UgbGFja3MgKG5vIGFydHdvcmssIG5vIGF1ZGlvLCBubyBkYXRlLCBubyBwcmVzYXZlIHBhZ2UpIGlzXG4gKiBsaXN0ZWQgaW4gcGF5bG9hZC5taXNzaW5nIOKAlCBuZXZlciBpbnZlbnRlZCB0byBjb21wbGV0ZSB0aGUgc2V0LlxuICpcbiAqIFN0YXR1czogZHJhZnQgKGFzc2VtYmxlZCwgYXdhaXRpbmcgcmV2aWV3KSDihpIgYWN0aXZlIChjcmVhdG9yXG4gKiBhcHByb3ZlZCB0aGUga2l0KSDihpIgbGFuZGVkIChyZWxlYXNlIG1vbWVudCBwYXNzZWQ7IHJlYWQtc2lkZSBmbGlwLFxuICogdGhlIHByZXNhdmUgc3dlZXBlciBvd25zIHRoZSBhY3R1YWwgZmFuLW91dCkuXG4gKlxuICogTWlncmF0aW9uOiBwcm92aXNpb25hbCAwMjg0X2Ryb3BfZGF5X2tpdC5zcWwgKHJlbnVtYmVyZWQgYXQgam9pbikuXG4gKi9cbmV4cG9ydCBjb25zdCBkcm9wRGF5S2l0c1RhYmxlID0gcGdUYWJsZShcbiAgXCJkcm9wX2RheV9raXRzXCIsXG4gIHtcbiAgICBpZDogdXVpZChcImlkXCIpLnByaW1hcnlLZXkoKS5kZWZhdWx0UmFuZG9tKCksXG4gICAgdXNlcklkOiB1dWlkKFwidXNlcl9pZFwiKS5ub3ROdWxsKCksXG4gICAgLyoqIFRoZSBkaXN0cmlidXRpb24gcmVsZWFzZSB0aGlzIGtpdCB3YXMgYXNzZW1ibGVkIGZvci4gT25lIGtpdFxuICAgICAqICBwZXIgcmVsZWFzZSDigJQgcmUtYXNzZW1ibHkgdXBkYXRlcyB0aGUgc2FtZSByb3cuICovXG4gICAgcmVsZWFzZUlkOiB1dWlkKFwicmVsZWFzZV9pZFwiKS5ub3ROdWxsKCksXG4gICAgLyoqICdkcmFmdCcgfCAnYWN0aXZlJyB8ICdsYW5kZWQnICovXG4gICAgc3RhdHVzOiB0ZXh0KFwic3RhdHVzXCIpLm5vdE51bGwoKS5kZWZhdWx0KFwiZHJhZnRcIiksXG4gICAgLyoqIFRoZSBhc3NlbWJsZWQga2l0OiB7IHRlYXNlciwgYmFubmVycywgY291bnRkb3duLCBtaXNzaW5nIH0g4oCUXG4gICAgICogIGJ1aWx0IGJ5IGxpYi9kcm9wLWRheS1raXQgZnJvbSB0aGUgcmVsZWFzZSdzIG93biBmaWVsZHMuICovXG4gICAga2l0OiBqc29uYihcImtpdFwiKS5ub3ROdWxsKCksXG4gICAgY3JlYXRlZEF0OiB0aW1lc3RhbXAoXCJjcmVhdGVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLm5vdE51bGwoKS5kZWZhdWx0Tm93KCksXG4gICAgdXBkYXRlZEF0OiB0aW1lc3RhbXAoXCJ1cGRhdGVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLm5vdE51bGwoKS5kZWZhdWx0Tm93KCksXG4gIH0sXG4gICh0KSA9PiBbXG4gICAgY2hlY2soXCJkcm9wX2RheV9raXRzX3N0YXR1c19jaGVja1wiLCBzcWxgJHt0LnN0YXR1c30gSU4gKCdkcmFmdCcsJ2FjdGl2ZScsJ2xhbmRlZCcpYCksXG4gICAgdW5pcXVlSW5kZXgoXCJkcm9wX2RheV9raXRzX3JlbGVhc2VfaWR4XCIpLm9uKHQucmVsZWFzZUlkKSxcbiAgXSxcbik7XG5cbmV4cG9ydCB0eXBlIERyb3BEYXlLaXQgPSB0eXBlb2YgZHJvcERheUtpdHNUYWJsZS4kaW5mZXJTZWxlY3Q7XG4iXSwiZmlsZSI6Ii9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2Ryb3AtZGF5LWtpdC50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvZHJvcC1kYXkta2l0LnRzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvZHJvcC1kYXkta2l0LnRzIixbXSxbIjYiLCI3Il0sW10sIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMDAwL25vZGVfbW9kdWxlcy8ucG5wbS9kcml6emxlLW9ybUAwLjQ1LjNfQHR5cGVzK3BnQDguMjMuMV9wZ0A4LjIzLjAvbm9kZV9tb2R1bGVzL2RyaXp6bGUtb3JtL3BnLWNvcmUvaW5kZXguanMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9pbmRleC5qcyJd

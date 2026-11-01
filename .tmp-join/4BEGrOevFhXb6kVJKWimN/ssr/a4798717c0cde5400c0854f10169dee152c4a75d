@@ -1,0 +1,120 @@
+__vite_ssr_exportName__("jewelryOrdersTable", () => { try { return jewelryOrdersTable } catch {} });
+__vite_ssr_exportName__("insertJewelryOrderSchema", () => { try { return insertJewelryOrderSchema } catch {} });
+__vite_ssr_exportName__("JEWELRY_PRODUCTS", () => { try { return JEWELRY_PRODUCTS } catch {} });
+__vite_ssr_exportName__("jewelryProductByKey", () => { try { return jewelryProductByKey } catch {} });
+__vite_ssr_exportName__("JEWELRY_FINISHES", () => { try { return JEWELRY_FINISHES } catch {} });
+__vite_ssr_exportName__("jewelryFinishByKey", () => { try { return jewelryFinishByKey } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","integer","timestamp","jsonb"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-zod@0.8.3_drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0__zod@4.6.5/node_modules/drizzle-zod/index.mjs", {"importedNames":["createInsertSchema"]});
+
+
+/* Custom jewelry line (dropship model — made-to-order by the manufacturer).
+HONESTY CONTRACT: reservation-only v1. Statuses are only "received" /
+"pending_fulfillment" until a real fulfillment integration reports
+otherwise. No charge is taken at reservation time. */
+const jewelryOrdersTable = (0,__vite_ssr_import_0__.pgTable)("jewelry_orders", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	userId: (0,__vite_ssr_import_0__.text)("user_id").notNull(),
+	productKey: (0,__vite_ssr_import_0__.text)("product_key").notNull(),
+	finish: (0,__vite_ssr_import_0__.text)("finish").notNull(),
+	sizeOption: (0,__vite_ssr_import_0__.text)("size_option").notNull(),
+	engraving: (0,__vite_ssr_import_0__.text)("engraving"),
+	/** Customer avatar/character image URL (for custom pieces referencing their avatar). */
+	avatarUrl: (0,__vite_ssr_import_0__.text)("avatar_url"),
+	designNotes: (0,__vite_ssr_import_0__.text)("design_notes"),
+	quantity: (0,__vite_ssr_import_0__.integer)("quantity").notNull().default(1),
+	fullName: (0,__vite_ssr_import_0__.text)("full_name").notNull(),
+	email: (0,__vite_ssr_import_0__.text)("email").notNull(),
+	phone: (0,__vite_ssr_import_0__.text)("phone"),
+	shippingAddress: (0,__vite_ssr_import_0__.jsonb)("shipping_address").notNull(),
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("received"),
+	unitPriceCents: (0,__vite_ssr_import_0__.integer)("unit_price_cents").notNull(),
+	totalCents: (0,__vite_ssr_import_0__.integer)("total_cents").notNull(),
+	idempotencyKey: (0,__vite_ssr_import_0__.text)("idempotency_key").unique(),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+const insertJewelryOrderSchema = (0,__vite_ssr_import_1__.createInsertSchema)(jewelryOrdersTable).omit({
+	id: true,
+	createdAt: true,
+	updatedAt: true
+});
+/* Jewelry catalog: key, label, price, blurb, size options. Backend-validated. */
+const JEWELRY_PRODUCTS = [
+	{
+		key: "logo-pendant",
+		label: "Custom Logo Pendant",
+		priceCents: 0,
+		blurb: "Your logo or mark, cast in solid gold with real diamond accents — the signature piece",
+		sizes: [
+			"18\" chain",
+			"20\" chain",
+			"22\" chain",
+			"24\" chain"
+		]
+	},
+	{
+		key: "cuban-chain",
+		label: "Cuban Link Chain",
+		priceCents: 0,
+		blurb: "Heavy solid-gold Cuban link with engraved clasp and diamond accents — pure weight",
+		sizes: [
+			"18\"",
+			"20\"",
+			"22\"",
+			"24\"",
+			"26\""
+		]
+	},
+	{
+		key: "signet-ring",
+		label: "Engraved Signet Ring",
+		priceCents: 0,
+		blurb: "Your initials or emblem, deep-engraved in solid gold",
+		sizes: [
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13"
+		]
+	},
+	{
+		key: "id-bracelet",
+		label: "Engraved ID Bracelet",
+		priceCents: 0,
+		blurb: "Classic ID plate in solid gold, engraved with your name or brand",
+		sizes: [
+			"S (7\")",
+			"M (8\")",
+			"L (9\")"
+		]
+	}
+];
+function jewelryProductByKey(key) {
+	return JEWELRY_PRODUCTS.find((p) => p.key === key);
+};
+const JEWELRY_FINISHES = [
+	{
+		key: "gold-10k",
+		label: "10K Solid Gold"
+	},
+	{
+		key: "gold-14k",
+		label: "14K Solid Gold"
+	},
+	{
+		key: "gold-18k",
+		label: "18K Solid Gold"
+	}
+];
+function jewelryFinishByKey(key) {
+	return JEWELRY_FINISHES.find((f) => f.key === key);
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7O0FBQUE7QUFDQTs7Ozs7OztBQVFPLE1BQU0scUJBQXFCLGtDQUFRLGtCQUFrQjtDQUMxRCxJQUFpQiwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjO0NBQ3ZELFFBQWlCLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFFBQVE7Q0FDekMsWUFBaUIsK0JBQUssYUFBYSxDQUFDLENBQUMsUUFBUTtDQUM3QyxRQUFpQiwrQkFBSyxRQUFRLENBQUMsQ0FBQyxRQUFRO0NBQ3hDLFlBQWlCLCtCQUFLLGFBQWEsQ0FBQyxDQUFDLFFBQVE7Q0FDN0MsV0FBaUIsK0JBQUssV0FBVzs7Q0FFakMsV0FBaUIsK0JBQUssWUFBWTtDQUNsQyxhQUFpQiwrQkFBSyxjQUFjO0NBQ3BDLFVBQWlCLGtDQUFRLFVBQVUsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQztDQUN4RCxVQUFpQiwrQkFBSyxXQUFXLENBQUMsQ0FBQyxRQUFRO0NBQzNDLE9BQWlCLCtCQUFLLE9BQU8sQ0FBQyxDQUFDLFFBQVE7Q0FDdkMsT0FBaUIsK0JBQUssT0FBTztDQUM3QixpQkFBaUIsZ0NBQU0sa0JBQWtCLENBQUMsQ0FBQyxRQUFRO0NBQ25ELFFBQWlCLCtCQUFLLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsVUFBVTtDQUM1RCxnQkFBaUIsa0NBQVEsa0JBQWtCLENBQUMsQ0FBQyxRQUFRO0NBQ3JELFlBQWlCLGtDQUFRLGFBQWEsQ0FBQyxDQUFDLFFBQVE7Q0FDaEQsZ0JBQWlCLCtCQUFLLGlCQUFpQixDQUFDLENBQUMsT0FBTztDQUNoRCxXQUFpQixvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFdBQVcsQ0FBQyxDQUFDLFFBQVE7Q0FDdEYsV0FBaUIsb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxRQUFRO0FBQ3hGLENBQUM7QUFFTSxNQUFNLDJCQUEyQiw2Q0FBbUIsa0JBQWtCLENBQUMsQ0FBQyxLQUFLO0NBQ2xGLElBQUk7Q0FDSixXQUFXO0NBQ1gsV0FBVztBQUNiLENBQUM7O0FBS00sTUFBTSxtQkFBbUI7Q0FDOUI7RUFDRSxLQUFLO0VBQ0wsT0FBTztFQUNQLFlBQVk7RUFDWixPQUFPO0VBQ1AsT0FBTztHQUFDO0dBQWE7R0FBYTtHQUFhO0VBQVc7Q0FDNUQ7Q0FDQTtFQUNFLEtBQUs7RUFDTCxPQUFPO0VBQ1AsWUFBWTtFQUNaLE9BQU87RUFDUCxPQUFPO0dBQUM7R0FBTztHQUFPO0dBQU87R0FBTztFQUFLO0NBQzNDO0NBQ0E7RUFDRSxLQUFLO0VBQ0wsT0FBTztFQUNQLFlBQVk7RUFDWixPQUFPO0VBQ1AsT0FBTztHQUFDO0dBQUs7R0FBSztHQUFLO0dBQUs7R0FBTTtHQUFNO0dBQU07RUFBSTtDQUNwRDtDQUNBO0VBQ0UsS0FBSztFQUNMLE9BQU87RUFDUCxZQUFZO0VBQ1osT0FBTztFQUNQLE9BQU87R0FBQztHQUFVO0dBQVU7RUFBUTtDQUN0QztBQUNGO0FBSU8sU0FBUyxvQkFBb0IsS0FBYTtDQUMvQyxPQUFPLGlCQUFpQixNQUFNLE1BQU0sRUFBRSxRQUFRLEdBQUc7QUFDbkQ7QUFFTyxNQUFNLG1CQUFtQjtDQUM5QjtFQUFFLEtBQUs7RUFBWSxPQUFPO0NBQWlCO0NBQzNDO0VBQUUsS0FBSztFQUFZLE9BQU87Q0FBaUI7Q0FDM0M7RUFBRSxLQUFLO0VBQVksT0FBTztDQUFpQjtBQUM3QztBQUlPLFNBQVMsbUJBQW1CLEtBQWE7Q0FDOUMsT0FBTyxpQkFBaUIsTUFBTSxNQUFNLEVBQUUsUUFBUSxHQUFHO0FBQ25EIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJqZXdlbHJ5LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHBnVGFibGUsIHV1aWQsIHRleHQsIGludGVnZXIsIHRpbWVzdGFtcCwganNvbmIgfSBmcm9tIFwiZHJpenpsZS1vcm0vcGctY29yZVwiO1xuaW1wb3J0IHsgY3JlYXRlSW5zZXJ0U2NoZW1hIH0gZnJvbSBcImRyaXp6bGUtem9kXCI7XG5pbXBvcnQgeyB6IH0gZnJvbSBcInpvZC92NFwiO1xuXG4vKiBDdXN0b20gamV3ZWxyeSBsaW5lIChkcm9wc2hpcCBtb2RlbCDigJQgbWFkZS10by1vcmRlciBieSB0aGUgbWFudWZhY3R1cmVyKS5cbiAgIEhPTkVTVFkgQ09OVFJBQ1Q6IHJlc2VydmF0aW9uLW9ubHkgdjEuIFN0YXR1c2VzIGFyZSBvbmx5IFwicmVjZWl2ZWRcIiAvXG4gICBcInBlbmRpbmdfZnVsZmlsbG1lbnRcIiB1bnRpbCBhIHJlYWwgZnVsZmlsbG1lbnQgaW50ZWdyYXRpb24gcmVwb3J0c1xuICAgb3RoZXJ3aXNlLiBObyBjaGFyZ2UgaXMgdGFrZW4gYXQgcmVzZXJ2YXRpb24gdGltZS4gKi9cblxuZXhwb3J0IGNvbnN0IGpld2VscnlPcmRlcnNUYWJsZSA9IHBnVGFibGUoXCJqZXdlbHJ5X29yZGVyc1wiLCB7XG4gIGlkOiAgICAgICAgICAgICAgdXVpZChcImlkXCIpLnByaW1hcnlLZXkoKS5kZWZhdWx0UmFuZG9tKCksXG4gIHVzZXJJZDogICAgICAgICAgdGV4dChcInVzZXJfaWRcIikubm90TnVsbCgpLFxuICBwcm9kdWN0S2V5OiAgICAgIHRleHQoXCJwcm9kdWN0X2tleVwiKS5ub3ROdWxsKCksXG4gIGZpbmlzaDogICAgICAgICAgdGV4dChcImZpbmlzaFwiKS5ub3ROdWxsKCksIC8vICdnb2xkLTEwaycgfCAnZ29sZC0xNGsnIHwgJ2dvbGQtMThrJ1xuICBzaXplT3B0aW9uOiAgICAgIHRleHQoXCJzaXplX29wdGlvblwiKS5ub3ROdWxsKCksXG4gIGVuZ3JhdmluZzogICAgICAgdGV4dChcImVuZ3JhdmluZ1wiKSxcbiAgLyoqIEN1c3RvbWVyIGF2YXRhci9jaGFyYWN0ZXIgaW1hZ2UgVVJMIChmb3IgY3VzdG9tIHBpZWNlcyByZWZlcmVuY2luZyB0aGVpciBhdmF0YXIpLiAqL1xuICBhdmF0YXJVcmw6ICAgICAgIHRleHQoXCJhdmF0YXJfdXJsXCIpLFxuICBkZXNpZ25Ob3RlczogICAgIHRleHQoXCJkZXNpZ25fbm90ZXNcIiksXG4gIHF1YW50aXR5OiAgICAgICAgaW50ZWdlcihcInF1YW50aXR5XCIpLm5vdE51bGwoKS5kZWZhdWx0KDEpLFxuICBmdWxsTmFtZTogICAgICAgIHRleHQoXCJmdWxsX25hbWVcIikubm90TnVsbCgpLFxuICBlbWFpbDogICAgICAgICAgIHRleHQoXCJlbWFpbFwiKS5ub3ROdWxsKCksXG4gIHBob25lOiAgICAgICAgICAgdGV4dChcInBob25lXCIpLFxuICBzaGlwcGluZ0FkZHJlc3M6IGpzb25iKFwic2hpcHBpbmdfYWRkcmVzc1wiKS5ub3ROdWxsKCksXG4gIHN0YXR1czogICAgICAgICAgdGV4dChcInN0YXR1c1wiKS5ub3ROdWxsKCkuZGVmYXVsdChcInJlY2VpdmVkXCIpLFxuICB1bml0UHJpY2VDZW50czogIGludGVnZXIoXCJ1bml0X3ByaWNlX2NlbnRzXCIpLm5vdE51bGwoKSxcbiAgdG90YWxDZW50czogICAgICBpbnRlZ2VyKFwidG90YWxfY2VudHNcIikubm90TnVsbCgpLFxuICBpZGVtcG90ZW5jeUtleTogIHRleHQoXCJpZGVtcG90ZW5jeV9rZXlcIikudW5pcXVlKCksXG4gIGNyZWF0ZWRBdDogICAgICAgdGltZXN0YW1wKFwiY3JlYXRlZF9hdFwiLCB7IHdpdGhUaW1lem9uZTogdHJ1ZSB9KS5kZWZhdWx0Tm93KCkubm90TnVsbCgpLFxuICB1cGRhdGVkQXQ6ICAgICAgIHRpbWVzdGFtcChcInVwZGF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkuZGVmYXVsdE5vdygpLm5vdE51bGwoKSxcbn0pO1xuXG5leHBvcnQgY29uc3QgaW5zZXJ0SmV3ZWxyeU9yZGVyU2NoZW1hID0gY3JlYXRlSW5zZXJ0U2NoZW1hKGpld2VscnlPcmRlcnNUYWJsZSkub21pdCh7XG4gIGlkOiB0cnVlLFxuICBjcmVhdGVkQXQ6IHRydWUsXG4gIHVwZGF0ZWRBdDogdHJ1ZSxcbn0pO1xuZXhwb3J0IHR5cGUgSW5zZXJ0SmV3ZWxyeU9yZGVyID0gei5pbmZlcjx0eXBlb2YgaW5zZXJ0SmV3ZWxyeU9yZGVyU2NoZW1hPjtcbmV4cG9ydCB0eXBlIEpld2VscnlPcmRlciA9IHR5cGVvZiBqZXdlbHJ5T3JkZXJzVGFibGUuJGluZmVyU2VsZWN0O1xuXG4vKiBKZXdlbHJ5IGNhdGFsb2c6IGtleSwgbGFiZWwsIHByaWNlLCBibHVyYiwgc2l6ZSBvcHRpb25zLiBCYWNrZW5kLXZhbGlkYXRlZC4gKi9cbmV4cG9ydCBjb25zdCBKRVdFTFJZX1BST0RVQ1RTID0gW1xuICB7XG4gICAga2V5OiBcImxvZ28tcGVuZGFudFwiLFxuICAgIGxhYmVsOiBcIkN1c3RvbSBMb2dvIFBlbmRhbnRcIixcbiAgICBwcmljZUNlbnRzOiAwLCAvLyBwcmVtaXVtIGxpbmU6IGZpbmFsIHByaWNlIGNvbmZpcm1lZCB3aXRoIGJ1eWVyIGJlZm9yZSBwcm9kdWN0aW9uXG4gICAgYmx1cmI6IFwiWW91ciBsb2dvIG9yIG1hcmssIGNhc3QgaW4gc29saWQgZ29sZCB3aXRoIHJlYWwgZGlhbW9uZCBhY2NlbnRzIOKAlCB0aGUgc2lnbmF0dXJlIHBpZWNlXCIsXG4gICAgc2l6ZXM6IFsnMThcIiBjaGFpbicsICcyMFwiIGNoYWluJywgJzIyXCIgY2hhaW4nLCAnMjRcIiBjaGFpbiddLFxuICB9LFxuICB7XG4gICAga2V5OiBcImN1YmFuLWNoYWluXCIsXG4gICAgbGFiZWw6IFwiQ3ViYW4gTGluayBDaGFpblwiLFxuICAgIHByaWNlQ2VudHM6IDAsIC8vIHByZW1pdW0gbGluZTogZmluYWwgcHJpY2UgY29uZmlybWVkIHdpdGggYnV5ZXIgYmVmb3JlIHByb2R1Y3Rpb25cbiAgICBibHVyYjogXCJIZWF2eSBzb2xpZC1nb2xkIEN1YmFuIGxpbmsgd2l0aCBlbmdyYXZlZCBjbGFzcCBhbmQgZGlhbW9uZCBhY2NlbnRzIOKAlCBwdXJlIHdlaWdodFwiLFxuICAgIHNpemVzOiBbJzE4XCInLCAnMjBcIicsICcyMlwiJywgJzI0XCInLCAnMjZcIiddLFxuICB9LFxuICB7XG4gICAga2V5OiBcInNpZ25ldC1yaW5nXCIsXG4gICAgbGFiZWw6IFwiRW5ncmF2ZWQgU2lnbmV0IFJpbmdcIixcbiAgICBwcmljZUNlbnRzOiAwLCAvLyBwcmVtaXVtIGxpbmU6IGZpbmFsIHByaWNlIGNvbmZpcm1lZCB3aXRoIGJ1eWVyIGJlZm9yZSBwcm9kdWN0aW9uXG4gICAgYmx1cmI6IFwiWW91ciBpbml0aWFscyBvciBlbWJsZW0sIGRlZXAtZW5ncmF2ZWQgaW4gc29saWQgZ29sZFwiLFxuICAgIHNpemVzOiBbXCI2XCIsIFwiN1wiLCBcIjhcIiwgXCI5XCIsIFwiMTBcIiwgXCIxMVwiLCBcIjEyXCIsIFwiMTNcIl0sXG4gIH0sXG4gIHtcbiAgICBrZXk6IFwiaWQtYnJhY2VsZXRcIixcbiAgICBsYWJlbDogXCJFbmdyYXZlZCBJRCBCcmFjZWxldFwiLFxuICAgIHByaWNlQ2VudHM6IDAsIC8vIHByZW1pdW0gbGluZTogZmluYWwgcHJpY2UgY29uZmlybWVkIHdpdGggYnV5ZXIgYmVmb3JlIHByb2R1Y3Rpb25cbiAgICBibHVyYjogXCJDbGFzc2ljIElEIHBsYXRlIGluIHNvbGlkIGdvbGQsIGVuZ3JhdmVkIHdpdGggeW91ciBuYW1lIG9yIGJyYW5kXCIsXG4gICAgc2l6ZXM6IFsnUyAoN1wiKScsICdNICg4XCIpJywgJ0wgKDlcIiknXSxcbiAgfSxcbl0gYXMgY29uc3Q7XG5cbmV4cG9ydCB0eXBlIEpld2VscnlQcm9kdWN0S2V5ID0gKHR5cGVvZiBKRVdFTFJZX1BST0RVQ1RTKVtudW1iZXJdW1wia2V5XCJdO1xuXG5leHBvcnQgZnVuY3Rpb24gamV3ZWxyeVByb2R1Y3RCeUtleShrZXk6IHN0cmluZykge1xuICByZXR1cm4gSkVXRUxSWV9QUk9EVUNUUy5maW5kKChwKSA9PiBwLmtleSA9PT0ga2V5KTtcbn1cblxuZXhwb3J0IGNvbnN0IEpFV0VMUllfRklOSVNIRVMgPSBbXG4gIHsga2V5OiBcImdvbGQtMTBrXCIsIGxhYmVsOiBcIjEwSyBTb2xpZCBHb2xkXCIgfSxcbiAgeyBrZXk6IFwiZ29sZC0xNGtcIiwgbGFiZWw6IFwiMTRLIFNvbGlkIEdvbGRcIiB9LFxuICB7IGtleTogXCJnb2xkLTE4a1wiLCBsYWJlbDogXCIxOEsgU29saWQgR29sZFwiIH0sXG5dIGFzIGNvbnN0O1xuXG5leHBvcnQgdHlwZSBKZXdlbHJ5RmluaXNoS2V5ID0gKHR5cGVvZiBKRVdFTFJZX0ZJTklTSEVTKVtudW1iZXJdW1wia2V5XCJdO1xuXG5leHBvcnQgZnVuY3Rpb24gamV3ZWxyeUZpbmlzaEJ5S2V5KGtleTogc3RyaW5nKSB7XG4gIHJldHVybiBKRVdFTFJZX0ZJTklTSEVTLmZpbmQoKGYpID0+IGYua2V5ID09PSBrZXkpO1xufVxuIl0sImZpbGUiOiIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9qZXdlbHJ5LnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvamV3ZWxyeS50cyIsIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2pld2VscnkudHMiLFtdLFsiNiIsIjciXSxbXSwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vcGctY29yZS9pbmRleC5qcyIsIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMDAwL25vZGVfbW9kdWxlcy8ucG5wbS9kcml6emxlLXpvZEAwLjguM19kcml6emxlLW9ybUAwLjQ1LjNfQHR5cGVzK3BnQDguMjMuMV9wZ0A4LjIzLjBfX3pvZEA0LjYuNS9ub2RlX21vZHVsZXMvZHJpenpsZS16b2QvaW5kZXgubWpzIl0=

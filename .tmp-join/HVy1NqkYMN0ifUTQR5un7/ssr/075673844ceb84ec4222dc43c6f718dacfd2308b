@@ -1,0 +1,129 @@
+__vite_ssr_exportName__("LIP_SYNC_JOBS_DDL", () => { try { return LIP_SYNC_JOBS_DDL } catch {} });
+__vite_ssr_exportName__("JOB_NOTIFICATIONS_DDL", () => { try { return JOB_NOTIFICATIONS_DDL } catch {} });
+__vite_ssr_exportName__("EXPORT_JOBS_DDL", () => { try { return EXPORT_JOBS_DDL } catch {} });
+__vite_ssr_exportName__("createTestDb", () => { try { return createTestDb } catch {} });
+__vite_ssr_exportName__("claimWhenDue", () => { try { return claimWhenDue } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/pg-mem@3.0.14/node_modules/pg-mem/index.js", {"importedNames":["newDb"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/index.js", {"importedNames":["drizzle"]});
+/**
+* In-memory Postgres for the $0 verification suite (pg-mem + drizzle).
+*
+* The lip-sync job store speaks raw SQL through drizzle's `execute()`, so
+* pg-mem gives us real database semantics — atomic UPDATEs, UNIQUE
+* constraints, ON CONFLICT — without a live Postgres. Each test gets a
+* fresh database via `createTestDb()`.
+*/
+
+
+const LIP_SYNC_JOBS_DDL = `
+CREATE TABLE lip_sync_jobs (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  project_id uuid,
+  scene_id text,
+  artist_vault_id uuid,
+  state text NOT NULL DEFAULT 'queued',
+  params jsonb NOT NULL,
+  provider_job_id text,
+  result_url text,
+  result_meta jsonb,
+  error jsonb,
+  attempts integer NOT NULL DEFAULT 0,
+  polls integer NOT NULL DEFAULT 0,
+  consecutive_poll_errors integer NOT NULL DEFAULT 0,
+  next_poll_at timestamptz,
+  next_attempt_at timestamptz,
+  submit_deferrals integer NOT NULL DEFAULT 0,
+  history_recorded boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);`;
+const JOB_NOTIFICATIONS_DDL = `
+CREATE TABLE job_notifications (
+  id uuid PRIMARY KEY,
+  job_type text NOT NULL,
+  job_id text NOT NULL,
+  user_id uuid NOT NULL,
+  project_id uuid,
+  status text NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  video_url text,
+  delivered_at timestamptz,
+  delivery_channel text,
+  delivery_attempts integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT job_notifications_job_uniq UNIQUE (job_type, job_id)
+);`;
+const EXPORT_JOBS_DDL = `
+CREATE TABLE export_jobs (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  project_id uuid,
+  state text NOT NULL DEFAULT 'queued',
+  result jsonb,
+  error jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);`;
+/** Fresh in-memory DB with the job tables created. */
+function createTestDb() {
+	const mem = (0,__vite_ssr_import_0__.newDb)({ autoCreateForeignKeyIndices: true });
+	mem.public.none(LIP_SYNC_JOBS_DDL);
+	mem.public.none(JOB_NOTIFICATIONS_DDL);
+	const pg = mem.adapters.createPg();
+	const pool = new pg.Pool();
+	// pg-mem cannot adapt drizzle's `types.getTypeParser` query config
+	// (drizzle uses it to control timestamp parsing). Strip it before
+	// delegating — pg-mem returns Date objects for timestamps, which the
+	// store's `new Date(...)` parsing handles either way.
+	const clientShim = { query: async (config, values) => {
+		let cfg = config;
+		let wantArrayRows = false;
+		if (cfg !== null && typeof cfg === "object" && !Array.isArray(cfg)) {
+			const rec = cfg;
+			const { types: _types, rowMode, ...rest } = rec;
+			if ("types" in rec || "rowMode" in rec) cfg = rest;
+			// pg-mem rejects drizzle's rowMode:"array" queries ("Not
+			// supported: pg rowMode") — run in object mode and translate
+			// rows back to field-ordered arrays, which is all drizzle's
+			// array-mode mapping consumes. Paths that never set rowMode
+			// (db.execute) are untouched.
+			wantArrayRows = rowMode === "array";
+		};
+		const result = await pool.query(cfg, values);
+		if (wantArrayRows && result && Array.isArray(result.rows) && result.rows.length > 0) {
+			// pg-mem's pg adapter returns no `fields` — fall back to the row
+			// objects' key order (pg-mem emits keys in select-list order).
+			const names = result.fields && result.fields.length > 0 ? result.fields.map((f) => f.name) : Object.keys(result.rows[0]);
+			return {
+				...result,
+				rows: result.rows.map((r) => names.map((n) => r[n]))
+			};
+		};
+		return result;
+	} };
+	const db = (0,__vite_ssr_import_1__.drizzle)(clientShim);
+	return {
+		mem,
+		db
+	};
+};
+/**
+* Claim a job that was deferred with a ~0ms backoff. The not-before
+* timestamp is computed in JS just before the UPDATE runs, so a claim in
+* the same millisecond can race pg-mem's now(); retry briefly instead of
+* assuming immediate claimability. Fails loudly if the job never frees up.
+*/
+async function claimWhenDue(claim, tries = 200) {
+	for (let i = 0; i < tries; i++) {
+		const c = await claim();
+		if (c !== undefined) return c;
+		await new Promise((r) => setTimeout(r, 10));
+	};
+	throw new Error("claimWhenDue: job never became claimable");
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7QUFRQTtBQUNBOzs7Ozs7Ozs7OztBQUVPLE1BQU0sb0JBQW9COzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQXdCMUIsTUFBTSx3QkFBd0I7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBa0I5QixNQUFNLGtCQUFrQjs7Ozs7Ozs7Ozs7O0FBa0J4QixTQUFTLGVBQXVCO0NBQUcsTUFBTSxNQUFNLGdDQUFNLEVBQUUsNkJBQTZCLEtBQUssQ0FBQztDQUMvRixJQUFJLE9BQU8sS0FBSyxpQkFBaUI7Q0FDakMsSUFBSSxPQUFPLEtBQUsscUJBQXFCO0NBQ3JDLE1BQU0sS0FBSyxJQUFJLFNBQVMsU0FBUztDQUNqQyxNQUFNLE9BQU8sSUFBSSxHQUFHLEtBQUs7Ozs7O0NBS3pCLE1BQU0sYUFBYSxFQUNqQixPQUFPLE9BQU8sUUFBaUIsV0FBdUI7RUFDcEQsSUFBSSxNQUFNO0VBQ1YsSUFBSSxnQkFBZ0I7RUFDcEIsSUFBSSxRQUFRLFFBQVEsT0FBTyxRQUFRLFlBQVksQ0FBQyxNQUFNLFFBQVEsR0FBRyxHQUFHO0dBQ2xFLE1BQU0sTUFBTTtHQUNaLE1BQU0sRUFBRSxPQUFPLFFBQVEsU0FBUyxHQUFHLFNBQVM7R0FDNUMsSUFBSSxXQUFXLE9BQU8sYUFBYSxLQUFLLE1BQU07Ozs7OztHQU05QyxnQkFBZ0IsWUFBWTtFQUM5QjtFQUNBLE1BQU0sU0FBVSxNQUFPLEtBQStFLE1BQU0sS0FBSyxNQUFNO0VBSXZILElBQUksaUJBQWlCLFVBQVUsTUFBTSxRQUFRLE9BQU8sSUFBSSxLQUFLLE9BQU8sS0FBSyxTQUFTLEdBQUc7OztHQUduRixNQUFNLFFBQ0osT0FBTyxVQUFVLE9BQU8sT0FBTyxTQUFTLElBQ3BDLE9BQU8sT0FBTyxLQUFLLE1BQU0sRUFBRSxJQUFJLElBQy9CLE9BQU8sS0FBSyxPQUFPLEtBQUssRUFBRTtHQUNoQyxPQUFPO0lBQUUsR0FBRztJQUFRLE1BQU0sT0FBTyxLQUFLLEtBQUssTUFBTSxNQUFNLEtBQUssTUFBTSxFQUFFLEVBQUUsQ0FBQztHQUFFO0VBQzNFO0VBQ0EsT0FBTztDQUNULEVBQ0Y7Q0FDQSxNQUFNLEtBQUssa0NBQVEsVUFBbUI7Q0FDdEMsT0FBTztFQUFFO0VBQUs7Q0FBRztBQUNuQjs7Ozs7OztBQVFPLGVBQWUsYUFDcEIsT0FDQSxRQUFRLEtBQ0k7Q0FDWixLQUFLLElBQUksSUFBSSxHQUFHLElBQUksT0FBTyxLQUFLO0VBQzlCLE1BQU0sSUFBSSxNQUFNLE1BQU07RUFDdEIsSUFBSSxNQUFNLFdBQVcsT0FBTztFQUM1QixNQUFNLElBQUksU0FBUyxNQUFNLFdBQVcsR0FBRyxFQUFFLENBQUM7Q0FDNUM7Q0FDQSxNQUFNLElBQUksTUFBTSwwQ0FBMEM7QUFDNUQiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInRlc3QtZGIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBJbi1tZW1vcnkgUG9zdGdyZXMgZm9yIHRoZSAkMCB2ZXJpZmljYXRpb24gc3VpdGUgKHBnLW1lbSArIGRyaXp6bGUpLlxuICpcbiAqIFRoZSBsaXAtc3luYyBqb2Igc3RvcmUgc3BlYWtzIHJhdyBTUUwgdGhyb3VnaCBkcml6emxlJ3MgYGV4ZWN1dGUoKWAsIHNvXG4gKiBwZy1tZW0gZ2l2ZXMgdXMgcmVhbCBkYXRhYmFzZSBzZW1hbnRpY3Mg4oCUIGF0b21pYyBVUERBVEVzLCBVTklRVUVcbiAqIGNvbnN0cmFpbnRzLCBPTiBDT05GTElDVCDigJQgd2l0aG91dCBhIGxpdmUgUG9zdGdyZXMuIEVhY2ggdGVzdCBnZXRzIGFcbiAqIGZyZXNoIGRhdGFiYXNlIHZpYSBgY3JlYXRlVGVzdERiKClgLlxuICovXG5pbXBvcnQgeyBuZXdEYiwgdHlwZSBJTWVtb3J5RGIgfSBmcm9tIFwicGctbWVtXCI7XG5pbXBvcnQgeyBkcml6emxlIH0gZnJvbSBcImRyaXp6bGUtb3JtL25vZGUtcG9zdGdyZXNcIjtcblxuZXhwb3J0IGNvbnN0IExJUF9TWU5DX0pPQlNfRERMID0gYFxuQ1JFQVRFIFRBQkxFIGxpcF9zeW5jX2pvYnMgKFxuICBpZCB1dWlkIFBSSU1BUlkgS0VZLFxuICB1c2VyX2lkIHV1aWQgTk9UIE5VTEwsXG4gIHByb2plY3RfaWQgdXVpZCxcbiAgc2NlbmVfaWQgdGV4dCxcbiAgYXJ0aXN0X3ZhdWx0X2lkIHV1aWQsXG4gIHN0YXRlIHRleHQgTk9UIE5VTEwgREVGQVVMVCAncXVldWVkJyxcbiAgcGFyYW1zIGpzb25iIE5PVCBOVUxMLFxuICBwcm92aWRlcl9qb2JfaWQgdGV4dCxcbiAgcmVzdWx0X3VybCB0ZXh0LFxuICByZXN1bHRfbWV0YSBqc29uYixcbiAgZXJyb3IganNvbmIsXG4gIGF0dGVtcHRzIGludGVnZXIgTk9UIE5VTEwgREVGQVVMVCAwLFxuICBwb2xscyBpbnRlZ2VyIE5PVCBOVUxMIERFRkFVTFQgMCxcbiAgY29uc2VjdXRpdmVfcG9sbF9lcnJvcnMgaW50ZWdlciBOT1QgTlVMTCBERUZBVUxUIDAsXG4gIG5leHRfcG9sbF9hdCB0aW1lc3RhbXB0eixcbiAgbmV4dF9hdHRlbXB0X2F0IHRpbWVzdGFtcHR6LFxuICBzdWJtaXRfZGVmZXJyYWxzIGludGVnZXIgTk9UIE5VTEwgREVGQVVMVCAwLFxuICBoaXN0b3J5X3JlY29yZGVkIGJvb2xlYW4gTk9UIE5VTEwgREVGQVVMVCBmYWxzZSxcbiAgY3JlYXRlZF9hdCB0aW1lc3RhbXB0eiBOT1QgTlVMTCBERUZBVUxUIG5vdygpLFxuICB1cGRhdGVkX2F0IHRpbWVzdGFtcHR6IE5PVCBOVUxMIERFRkFVTFQgbm93KClcbik7YDtcblxuZXhwb3J0IGNvbnN0IEpPQl9OT1RJRklDQVRJT05TX0RETCA9IGBcbkNSRUFURSBUQUJMRSBqb2Jfbm90aWZpY2F0aW9ucyAoXG4gIGlkIHV1aWQgUFJJTUFSWSBLRVksXG4gIGpvYl90eXBlIHRleHQgTk9UIE5VTEwsXG4gIGpvYl9pZCB0ZXh0IE5PVCBOVUxMLFxuICB1c2VyX2lkIHV1aWQgTk9UIE5VTEwsXG4gIHByb2plY3RfaWQgdXVpZCxcbiAgc3RhdHVzIHRleHQgTk9UIE5VTEwsXG4gIHRpdGxlIHRleHQgTk9UIE5VTEwsXG4gIG1lc3NhZ2UgdGV4dCBOT1QgTlVMTCxcbiAgdmlkZW9fdXJsIHRleHQsXG4gIGRlbGl2ZXJlZF9hdCB0aW1lc3RhbXB0eixcbiAgZGVsaXZlcnlfY2hhbm5lbCB0ZXh0LFxuICBkZWxpdmVyeV9hdHRlbXB0cyBpbnRlZ2VyIE5PVCBOVUxMIERFRkFVTFQgMCxcbiAgY3JlYXRlZF9hdCB0aW1lc3RhbXB0eiBOT1QgTlVMTCBERUZBVUxUIG5vdygpLFxuICBDT05TVFJBSU5UIGpvYl9ub3RpZmljYXRpb25zX2pvYl91bmlxIFVOSVFVRSAoam9iX3R5cGUsIGpvYl9pZClcbik7YDtcblxuZXhwb3J0IGNvbnN0IEVYUE9SVF9KT0JTX0RETCA9IGBcbkNSRUFURSBUQUJMRSBleHBvcnRfam9icyAoXG4gIGlkIHV1aWQgUFJJTUFSWSBLRVksXG4gIHVzZXJfaWQgdXVpZCBOT1QgTlVMTCxcbiAgcHJvamVjdF9pZCB1dWlkLFxuICBzdGF0ZSB0ZXh0IE5PVCBOVUxMIERFRkFVTFQgJ3F1ZXVlZCcsXG4gIHJlc3VsdCBqc29uYixcbiAgZXJyb3IganNvbmIsXG4gIGNyZWF0ZWRfYXQgdGltZXN0YW1wdHogTk9UIE5VTEwgREVGQVVMVCBub3coKSxcbiAgdXBkYXRlZF9hdCB0aW1lc3RhbXB0eiBOT1QgTlVMTCBERUZBVUxUIG5vdygpXG4pO2A7XG5cbmV4cG9ydCBpbnRlcmZhY2UgVGVzdERiIHtcbiAgbWVtOiBJTWVtb3J5RGI7XG4gIGRiOiBSZXR1cm5UeXBlPHR5cGVvZiBkcml6emxlPjtcbn1cblxuLyoqIEZyZXNoIGluLW1lbW9yeSBEQiB3aXRoIHRoZSBqb2IgdGFibGVzIGNyZWF0ZWQuICovXG5leHBvcnQgZnVuY3Rpb24gY3JlYXRlVGVzdERiKCk6IFRlc3REYiB7ICBjb25zdCBtZW0gPSBuZXdEYih7IGF1dG9DcmVhdGVGb3JlaWduS2V5SW5kaWNlczogdHJ1ZSB9KTtcbiAgbWVtLnB1YmxpYy5ub25lKExJUF9TWU5DX0pPQlNfRERMKTtcbiAgbWVtLnB1YmxpYy5ub25lKEpPQl9OT1RJRklDQVRJT05TX0RETCk7XG4gIGNvbnN0IHBnID0gbWVtLmFkYXB0ZXJzLmNyZWF0ZVBnKCk7XG4gIGNvbnN0IHBvb2wgPSBuZXcgcGcuUG9vbCgpO1xuICAvLyBwZy1tZW0gY2Fubm90IGFkYXB0IGRyaXp6bGUncyBgdHlwZXMuZ2V0VHlwZVBhcnNlcmAgcXVlcnkgY29uZmlnXG4gIC8vIChkcml6emxlIHVzZXMgaXQgdG8gY29udHJvbCB0aW1lc3RhbXAgcGFyc2luZykuIFN0cmlwIGl0IGJlZm9yZVxuICAvLyBkZWxlZ2F0aW5nIOKAlCBwZy1tZW0gcmV0dXJucyBEYXRlIG9iamVjdHMgZm9yIHRpbWVzdGFtcHMsIHdoaWNoIHRoZVxuICAvLyBzdG9yZSdzIGBuZXcgRGF0ZSguLi4pYCBwYXJzaW5nIGhhbmRsZXMgZWl0aGVyIHdheS5cbiAgY29uc3QgY2xpZW50U2hpbSA9IHtcbiAgICBxdWVyeTogYXN5bmMgKGNvbmZpZzogdW5rbm93biwgdmFsdWVzPzogdW5rbm93bltdKSA9PiB7XG4gICAgICBsZXQgY2ZnID0gY29uZmlnO1xuICAgICAgbGV0IHdhbnRBcnJheVJvd3MgPSBmYWxzZTtcbiAgICAgIGlmIChjZmcgIT09IG51bGwgJiYgdHlwZW9mIGNmZyA9PT0gXCJvYmplY3RcIiAmJiAhQXJyYXkuaXNBcnJheShjZmcpKSB7XG4gICAgICAgIGNvbnN0IHJlYyA9IGNmZyBhcyBSZWNvcmQ8c3RyaW5nLCB1bmtub3duPjtcbiAgICAgICAgY29uc3QgeyB0eXBlczogX3R5cGVzLCByb3dNb2RlLCAuLi5yZXN0IH0gPSByZWM7XG4gICAgICAgIGlmIChcInR5cGVzXCIgaW4gcmVjIHx8IFwicm93TW9kZVwiIGluIHJlYykgY2ZnID0gcmVzdDtcbiAgICAgICAgLy8gcGctbWVtIHJlamVjdHMgZHJpenpsZSdzIHJvd01vZGU6XCJhcnJheVwiIHF1ZXJpZXMgKFwiTm90XG4gICAgICAgIC8vIHN1cHBvcnRlZDogcGcgcm93TW9kZVwiKSDigJQgcnVuIGluIG9iamVjdCBtb2RlIGFuZCB0cmFuc2xhdGVcbiAgICAgICAgLy8gcm93cyBiYWNrIHRvIGZpZWxkLW9yZGVyZWQgYXJyYXlzLCB3aGljaCBpcyBhbGwgZHJpenpsZSdzXG4gICAgICAgIC8vIGFycmF5LW1vZGUgbWFwcGluZyBjb25zdW1lcy4gUGF0aHMgdGhhdCBuZXZlciBzZXQgcm93TW9kZVxuICAgICAgICAvLyAoZGIuZXhlY3V0ZSkgYXJlIHVudG91Y2hlZC5cbiAgICAgICAgd2FudEFycmF5Um93cyA9IHJvd01vZGUgPT09IFwiYXJyYXlcIjtcbiAgICAgIH1cbiAgICAgIGNvbnN0IHJlc3VsdCA9IChhd2FpdCAocG9vbCBhcyB1bmtub3duIGFzIHsgcXVlcnk6IChjOiB1bmtub3duLCB2PzogdW5rbm93bltdKSA9PiBQcm9taXNlPHVua25vd24+IH0pLnF1ZXJ5KGNmZywgdmFsdWVzKSkgYXMge1xuICAgICAgICByb3dzOiBSZWNvcmQ8c3RyaW5nLCB1bmtub3duPltdO1xuICAgICAgICBmaWVsZHM/OiB7IG5hbWU6IHN0cmluZyB9W107XG4gICAgICB9O1xuICAgICAgaWYgKHdhbnRBcnJheVJvd3MgJiYgcmVzdWx0ICYmIEFycmF5LmlzQXJyYXkocmVzdWx0LnJvd3MpICYmIHJlc3VsdC5yb3dzLmxlbmd0aCA+IDApIHtcbiAgICAgICAgLy8gcGctbWVtJ3MgcGcgYWRhcHRlciByZXR1cm5zIG5vIGBmaWVsZHNgIOKAlCBmYWxsIGJhY2sgdG8gdGhlIHJvd1xuICAgICAgICAvLyBvYmplY3RzJyBrZXkgb3JkZXIgKHBnLW1lbSBlbWl0cyBrZXlzIGluIHNlbGVjdC1saXN0IG9yZGVyKS5cbiAgICAgICAgY29uc3QgbmFtZXMgPVxuICAgICAgICAgIHJlc3VsdC5maWVsZHMgJiYgcmVzdWx0LmZpZWxkcy5sZW5ndGggPiAwXG4gICAgICAgICAgICA/IHJlc3VsdC5maWVsZHMubWFwKChmKSA9PiBmLm5hbWUpXG4gICAgICAgICAgICA6IE9iamVjdC5rZXlzKHJlc3VsdC5yb3dzWzBdKTtcbiAgICAgICAgcmV0dXJuIHsgLi4ucmVzdWx0LCByb3dzOiByZXN1bHQucm93cy5tYXAoKHIpID0+IG5hbWVzLm1hcCgobikgPT4gcltuXSkpIH07XG4gICAgICB9XG4gICAgICByZXR1cm4gcmVzdWx0O1xuICAgIH0sXG4gIH07XG4gIGNvbnN0IGRiID0gZHJpenpsZShjbGllbnRTaGltIGFzIG5ldmVyKTtcbiAgcmV0dXJuIHsgbWVtLCBkYiB9O1xufVxuXG4vKipcbiAqIENsYWltIGEgam9iIHRoYXQgd2FzIGRlZmVycmVkIHdpdGggYSB+MG1zIGJhY2tvZmYuIFRoZSBub3QtYmVmb3JlXG4gKiB0aW1lc3RhbXAgaXMgY29tcHV0ZWQgaW4gSlMganVzdCBiZWZvcmUgdGhlIFVQREFURSBydW5zLCBzbyBhIGNsYWltIGluXG4gKiB0aGUgc2FtZSBtaWxsaXNlY29uZCBjYW4gcmFjZSBwZy1tZW0ncyBub3coKTsgcmV0cnkgYnJpZWZseSBpbnN0ZWFkIG9mXG4gKiBhc3N1bWluZyBpbW1lZGlhdGUgY2xhaW1hYmlsaXR5LiBGYWlscyBsb3VkbHkgaWYgdGhlIGpvYiBuZXZlciBmcmVlcyB1cC5cbiAqL1xuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGNsYWltV2hlbkR1ZTxUPihcbiAgY2xhaW06ICgpID0+IFByb21pc2U8VCB8IHVuZGVmaW5lZD4sXG4gIHRyaWVzID0gMjAwLFxuKTogUHJvbWlzZTxUPiB7XG4gIGZvciAobGV0IGkgPSAwOyBpIDwgdHJpZXM7IGkrKykge1xuICAgIGNvbnN0IGMgPSBhd2FpdCBjbGFpbSgpO1xuICAgIGlmIChjICE9PSB1bmRlZmluZWQpIHJldHVybiBjO1xuICAgIGF3YWl0IG5ldyBQcm9taXNlKChyKSA9PiBzZXRUaW1lb3V0KHIsIDEwKSk7XG4gIH1cbiAgdGhyb3cgbmV3IEVycm9yKFwiY2xhaW1XaGVuRHVlOiBqb2IgbmV2ZXIgYmVjYW1lIGNsYWltYWJsZVwiKTtcbn1cbiJdLCJmaWxlIjoiL3NyYy9saWIvX190ZXN0c19fL3Rlc3QtZGIudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9fX3Rlc3RzX18vdGVzdC1kYi50cyIsIi9zcmMvbGliL19fdGVzdHNfXy90ZXN0LWRiLnRzIixbXSxbIjYiLCI3Il0sW10sIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMDAwL25vZGVfbW9kdWxlcy8ucG5wbS9wZy1tZW1AMy4wLjE0L25vZGVfbW9kdWxlcy9wZy1tZW0vaW5kZXguanMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9ub2RlLXBvc3RncmVzL2luZGV4LmpzIl0=

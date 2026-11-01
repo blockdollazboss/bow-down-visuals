@@ -1,0 +1,49 @@
+__vite_ssr_exportName__("jobNotificationsTable", () => { try { return jobNotificationsTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","integer","timestamp","unique"]});
+
+/**
+* Exactly-once completion/failure notifications for server-owned jobs.
+*
+* When a lip-sync or export job reaches a terminal state, the background
+* poller inserts one row here. The UNIQUE(job_type, job_id) constraint is
+* the exactly-once gate: INSERT … ON CONFLICT DO NOTHING means a job can
+* never produce a second ping, no matter how many times the poller,
+* boot recovery, or a relay re-checks it.
+*
+* Delivery is channel-agnostic by design (see JOB_NOTIFY_CHANNEL):
+* - `relay`   (default) — the row waits here; an external relay (the
+*               assistant's scheduled check) picks it up via
+*               GET /api/job-notifications/pending and ACKs it after the
+*               user has been pinged in chat (Discord later — same relay,
+*               different destination, no code changes).
+* - `discord` — the server POSTs straight to JOB_NOTIFY_DISCORD_WEBHOOK_URL.
+* - `log`     — dev fallback: logged, marked delivered.
+* - `none`    — stored but never delivered.
+*
+* `delivered_at` is flipped atomically (only when still NULL), so two
+* relays racing the same row still produce exactly one user-facing ping.
+*/
+const jobNotificationsTable = (0,__vite_ssr_import_0__.pgTable)("job_notifications", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	/** 'lip_sync' | 'export' */
+	job_type: (0,__vite_ssr_import_0__.text)("job_type").notNull(),
+	/** Source job id. */
+	job_id: (0,__vite_ssr_import_0__.text)("job_id").notNull(),
+	user_id: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	project_id: (0,__vite_ssr_import_0__.uuid)("project_id"),
+	/** 'completed' | 'failed' */
+	status: (0,__vite_ssr_import_0__.text)("status").notNull(),
+	title: (0,__vite_ssr_import_0__.text)("title").notNull(),
+	message: (0,__vite_ssr_import_0__.text)("message").notNull(),
+	/** Finished video URL, when there is one. */
+	video_url: (0,__vite_ssr_import_0__.text)("video_url"),
+	/** Set when a delivery channel confirms the ping went out. */
+	delivered_at: (0,__vite_ssr_import_0__.timestamp)("delivered_at", { withTimezone: true }),
+	delivery_channel: (0,__vite_ssr_import_0__.text)("delivery_channel"),
+	delivery_attempts: (0,__vite_ssr_import_0__.integer)("delivery_attempts").notNull().default(0),
+	created_at: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (t) => [(0,__vite_ssr_import_0__.unique)("job_notifications_job_uniq").on(t.job_type, t.job_id)]);
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUF3Qk8sTUFBTSx3QkFBd0Isa0NBQ25DLHFCQUNBO0NBQ0UsSUFBSSwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjOztDQUUxQyxVQUFVLCtCQUFLLFVBQVUsQ0FBQyxDQUFDLFFBQVE7O0NBRW5DLFFBQVEsK0JBQUssUUFBUSxDQUFDLENBQUMsUUFBUTtDQUMvQixTQUFTLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFFBQVE7Q0FDakMsWUFBWSwrQkFBSyxZQUFZOztDQUU3QixRQUFRLCtCQUFLLFFBQVEsQ0FBQyxDQUFDLFFBQVE7Q0FDL0IsT0FBTywrQkFBSyxPQUFPLENBQUMsQ0FBQyxRQUFRO0NBQzdCLFNBQVMsK0JBQUssU0FBUyxDQUFDLENBQUMsUUFBUTs7Q0FFakMsV0FBVywrQkFBSyxXQUFXOztDQUUzQixjQUFjLG9DQUFVLGdCQUFnQixFQUFFLGNBQWMsS0FBSyxDQUFDO0NBQzlELGtCQUFrQiwrQkFBSyxrQkFBa0I7Q0FDekMsbUJBQW1CLGtDQUFRLG1CQUFtQixDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxDQUFDO0NBQ25FLFlBQVksb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxXQUFXO0FBQ25GLElBQ0MsTUFBTSxDQUFDLGlDQUFPLDRCQUE0QixDQUFDLENBQUMsR0FBRyxFQUFFLFVBQVUsRUFBRSxNQUFNLENBQUMsQ0FDdkUiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImpvYi1ub3RpZmljYXRpb25zLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHBnVGFibGUsIHV1aWQsIHRleHQsIGludGVnZXIsIHRpbWVzdGFtcCwgdW5pcXVlIH0gZnJvbSBcImRyaXp6bGUtb3JtL3BnLWNvcmVcIjtcblxuLyoqXG4gKiBFeGFjdGx5LW9uY2UgY29tcGxldGlvbi9mYWlsdXJlIG5vdGlmaWNhdGlvbnMgZm9yIHNlcnZlci1vd25lZCBqb2JzLlxuICpcbiAqIFdoZW4gYSBsaXAtc3luYyBvciBleHBvcnQgam9iIHJlYWNoZXMgYSB0ZXJtaW5hbCBzdGF0ZSwgdGhlIGJhY2tncm91bmRcbiAqIHBvbGxlciBpbnNlcnRzIG9uZSByb3cgaGVyZS4gVGhlIFVOSVFVRShqb2JfdHlwZSwgam9iX2lkKSBjb25zdHJhaW50IGlzXG4gKiB0aGUgZXhhY3RseS1vbmNlIGdhdGU6IElOU0VSVCDigKYgT04gQ09ORkxJQ1QgRE8gTk9USElORyBtZWFucyBhIGpvYiBjYW5cbiAqIG5ldmVyIHByb2R1Y2UgYSBzZWNvbmQgcGluZywgbm8gbWF0dGVyIGhvdyBtYW55IHRpbWVzIHRoZSBwb2xsZXIsXG4gKiBib290IHJlY292ZXJ5LCBvciBhIHJlbGF5IHJlLWNoZWNrcyBpdC5cbiAqXG4gKiBEZWxpdmVyeSBpcyBjaGFubmVsLWFnbm9zdGljIGJ5IGRlc2lnbiAoc2VlIEpPQl9OT1RJRllfQ0hBTk5FTCk6XG4gKiAtIGByZWxheWAgICAoZGVmYXVsdCkg4oCUIHRoZSByb3cgd2FpdHMgaGVyZTsgYW4gZXh0ZXJuYWwgcmVsYXkgKHRoZVxuICogICAgICAgICAgICAgICBhc3Npc3RhbnQncyBzY2hlZHVsZWQgY2hlY2spIHBpY2tzIGl0IHVwIHZpYVxuICogICAgICAgICAgICAgICBHRVQgL2FwaS9qb2Itbm90aWZpY2F0aW9ucy9wZW5kaW5nIGFuZCBBQ0tzIGl0IGFmdGVyIHRoZVxuICogICAgICAgICAgICAgICB1c2VyIGhhcyBiZWVuIHBpbmdlZCBpbiBjaGF0IChEaXNjb3JkIGxhdGVyIOKAlCBzYW1lIHJlbGF5LFxuICogICAgICAgICAgICAgICBkaWZmZXJlbnQgZGVzdGluYXRpb24sIG5vIGNvZGUgY2hhbmdlcykuXG4gKiAtIGBkaXNjb3JkYCDigJQgdGhlIHNlcnZlciBQT1NUcyBzdHJhaWdodCB0byBKT0JfTk9USUZZX0RJU0NPUkRfV0VCSE9PS19VUkwuXG4gKiAtIGBsb2dgICAgICDigJQgZGV2IGZhbGxiYWNrOiBsb2dnZWQsIG1hcmtlZCBkZWxpdmVyZWQuXG4gKiAtIGBub25lYCAgICDigJQgc3RvcmVkIGJ1dCBuZXZlciBkZWxpdmVyZWQuXG4gKlxuICogYGRlbGl2ZXJlZF9hdGAgaXMgZmxpcHBlZCBhdG9taWNhbGx5IChvbmx5IHdoZW4gc3RpbGwgTlVMTCksIHNvIHR3b1xuICogcmVsYXlzIHJhY2luZyB0aGUgc2FtZSByb3cgc3RpbGwgcHJvZHVjZSBleGFjdGx5IG9uZSB1c2VyLWZhY2luZyBwaW5nLlxuICovXG5leHBvcnQgY29uc3Qgam9iTm90aWZpY2F0aW9uc1RhYmxlID0gcGdUYWJsZShcbiAgXCJqb2Jfbm90aWZpY2F0aW9uc1wiLFxuICB7XG4gICAgaWQ6IHV1aWQoXCJpZFwiKS5wcmltYXJ5S2V5KCkuZGVmYXVsdFJhbmRvbSgpLFxuICAgIC8qKiAnbGlwX3N5bmMnIHwgJ2V4cG9ydCcgKi9cbiAgICBqb2JfdHlwZTogdGV4dChcImpvYl90eXBlXCIpLm5vdE51bGwoKSxcbiAgICAvKiogU291cmNlIGpvYiBpZC4gKi9cbiAgICBqb2JfaWQ6IHRleHQoXCJqb2JfaWRcIikubm90TnVsbCgpLFxuICAgIHVzZXJfaWQ6IHV1aWQoXCJ1c2VyX2lkXCIpLm5vdE51bGwoKSxcbiAgICBwcm9qZWN0X2lkOiB1dWlkKFwicHJvamVjdF9pZFwiKSxcbiAgICAvKiogJ2NvbXBsZXRlZCcgfCAnZmFpbGVkJyAqL1xuICAgIHN0YXR1czogdGV4dChcInN0YXR1c1wiKS5ub3ROdWxsKCksXG4gICAgdGl0bGU6IHRleHQoXCJ0aXRsZVwiKS5ub3ROdWxsKCksXG4gICAgbWVzc2FnZTogdGV4dChcIm1lc3NhZ2VcIikubm90TnVsbCgpLFxuICAgIC8qKiBGaW5pc2hlZCB2aWRlbyBVUkwsIHdoZW4gdGhlcmUgaXMgb25lLiAqL1xuICAgIHZpZGVvX3VybDogdGV4dChcInZpZGVvX3VybFwiKSxcbiAgICAvKiogU2V0IHdoZW4gYSBkZWxpdmVyeSBjaGFubmVsIGNvbmZpcm1zIHRoZSBwaW5nIHdlbnQgb3V0LiAqL1xuICAgIGRlbGl2ZXJlZF9hdDogdGltZXN0YW1wKFwiZGVsaXZlcmVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLFxuICAgIGRlbGl2ZXJ5X2NoYW5uZWw6IHRleHQoXCJkZWxpdmVyeV9jaGFubmVsXCIpLFxuICAgIGRlbGl2ZXJ5X2F0dGVtcHRzOiBpbnRlZ2VyKFwiZGVsaXZlcnlfYXR0ZW1wdHNcIikubm90TnVsbCgpLmRlZmF1bHQoMCksXG4gICAgY3JlYXRlZF9hdDogdGltZXN0YW1wKFwiY3JlYXRlZF9hdFwiLCB7IHdpdGhUaW1lem9uZTogdHJ1ZSB9KS5ub3ROdWxsKCkuZGVmYXVsdE5vdygpLFxuICB9LFxuICAodCkgPT4gW3VuaXF1ZShcImpvYl9ub3RpZmljYXRpb25zX2pvYl91bmlxXCIpLm9uKHQuam9iX3R5cGUsIHQuam9iX2lkKV0sXG4pO1xuXG5leHBvcnQgdHlwZSBKb2JOb3RpZmljYXRpb25Sb3cgPSB0eXBlb2Ygam9iTm90aWZpY2F0aW9uc1RhYmxlLiRpbmZlclNlbGVjdDtcbiJdLCJmaWxlIjoiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvam9iLW5vdGlmaWNhdGlvbnMudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvam9iLW5vdGlmaWNhdGlvbnMudHMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9qb2Itbm90aWZpY2F0aW9ucy50cyIsW10sWyI2Il0sW10sIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMDAwL25vZGVfbW9kdWxlcy8ucG5wbS9kcml6emxlLW9ybUAwLjQ1LjNfQHR5cGVzK3BnQDguMjMuMV9wZ0A4LjIzLjAvbm9kZV9tb2R1bGVzL2RyaXp6bGUtb3JtL3BnLWNvcmUvaW5kZXguanMiXQ==

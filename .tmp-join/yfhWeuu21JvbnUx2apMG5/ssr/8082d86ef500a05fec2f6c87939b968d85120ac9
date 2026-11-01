@@ -1,0 +1,67 @@
+__vite_ssr_exportName__("worldRoomInvitesTable", () => { try { return worldRoomInvitesTable } catch {} });
+__vite_ssr_exportName__("insertWorldRoomInviteSchema", () => { try { return insertWorldRoomInviteSchema } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","timestamp","index","uniqueIndex"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-zod@0.8.3_drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0__zod@4.6.5/node_modules/drizzle-zod/index.mjs", {"importedNames":["createInsertSchema"]});
+
+
+
+/**
+* World room invites (migration 0300, stack900 Lane B4 — owner
+* ruling Oct 29, 2026: "Build real room invites — pick a person,
+* they accept or decline").
+*
+* Until this table, a Creator Room spread only by an anonymous
+* copied link/code: no invitee was ever recorded, so nobody could
+* be told they'd been invited. This row IS the invite: a named
+* inviter (the room's host — the creator profile's user id) invites
+* a named member (a user id picked from the member directory, never
+* an email string) to one room (`creator:<slug>`), and the member
+* answers it.
+*
+*   status  "pending"   — sent, waiting on the invitee
+*           "accepted"  — the invitee said yes; the row is their
+*                         standing invitation, and they walk in
+*                         through the palace's existing doorway
+*                         (the room read + transfer — no second
+*                         door is built on top of this table)
+*           "declined"  — the invitee said no; the row stays as
+*                         history and the host may invite again
+*                         (a fresh row — history is never rewritten)
+*
+* Exactly-once lives here, not in counters: the partial unique
+* index allows ONE pending row per (room, invitee), so a replayed
+* or raced create can never double the invite — and the create
+* route's bell fires only behind a landed insert, so it can never
+* double the telling either.
+*/
+const worldRoomInvitesTable = (0,__vite_ssr_import_0__.pgTable)("world_room_invites", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	/** The palace room id: `creator:<slug>`. */
+	roomId: (0,__vite_ssr_import_0__.text)("room_id").notNull(),
+	/** The room's slug, denormalized so invite reads and bell copy
+	*  name the room without re-deriving it from the id. */
+	roomSlug: (0,__vite_ssr_import_0__.text)("room_slug").notNull(),
+	/** The host who sent it (the room-owning creator's user id). */
+	inviterUserId: (0,__vite_ssr_import_0__.uuid)("inviter_user_id").notNull(),
+	/** The member who was invited (a user id — always a real,
+	*  picked person, never an email or a typed string). */
+	inviteeUserId: (0,__vite_ssr_import_0__.uuid)("invitee_user_id").notNull(),
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("pending"),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).defaultNow().notNull(),
+	/** When the invitee answered (accept or decline); null while
+	*  the invite still waits on them. */
+	respondedAt: (0,__vite_ssr_import_0__.timestamp)("responded_at", { withTimezone: true })
+}, (t) => [
+	(0,__vite_ssr_import_0__.index)("world_room_invites_invitee_idx").on(t.inviteeUserId, t.status),
+	(0,__vite_ssr_import_0__.index)("world_room_invites_room_idx").on(t.roomId, t.status),
+	(0,__vite_ssr_import_0__.uniqueIndex)("world_room_invites_one_pending_ux").on(t.roomId, t.inviteeUserId).where(__vite_ssr_import_1__.sql`${t.status} = 'pending'`)
+]);
+const insertWorldRoomInviteSchema = (0,__vite_ssr_import_2__.createInsertSchema)(worldRoomInvitesTable).omit({
+	id: true,
+	createdAt: true
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7QUFBQTtBQUNBO0FBQ0E7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQWdDTyxNQUFNLHdCQUF3QixrQ0FBUSxzQkFBc0I7Q0FDakUsSUFBZSwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjOztDQUVyRCxRQUFlLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFFBQVE7OztDQUd2QyxVQUFlLCtCQUFLLFdBQVcsQ0FBQyxDQUFDLFFBQVE7O0NBRXpDLGVBQWUsK0JBQUssaUJBQWlCLENBQUMsQ0FBQyxRQUFROzs7Q0FHL0MsZUFBZSwrQkFBSyxpQkFBaUIsQ0FBQyxDQUFDLFFBQVE7Q0FDL0MsUUFBZSwrQkFBSyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLFNBQVM7Q0FDekQsV0FBZSxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFdBQVcsQ0FBQyxDQUFDLFFBQVE7OztDQUdwRixhQUFlLG9DQUFVLGdCQUFnQixFQUFFLGNBQWMsS0FBSyxDQUFDO0FBQ2pFLElBQUksTUFBTTtDQUNSLGdDQUFNLGdDQUFnQyxDQUFDLENBQUMsR0FBRyxFQUFFLGVBQWUsRUFBRSxNQUFNO0NBQ3BFLGdDQUFNLDZCQUE2QixDQUFDLENBQUMsR0FBRyxFQUFFLFFBQVEsRUFBRSxNQUFNO0NBQzFELHNDQUFZLG1DQUFtQyxDQUFDLENBQzdDLEdBQUcsRUFBRSxRQUFRLEVBQUUsYUFBYSxDQUFDLENBQzdCLE1BQU0seUJBQUcsR0FBRyxFQUFFLE9BQU8sYUFBYTtBQUN2QyxDQUFDO0FBRU0sTUFBTSw4QkFBOEIsNkNBQW1CLHFCQUFxQixDQUFDLENBQUMsS0FBSztDQUN4RixJQUFJO0NBQ0osV0FBVztBQUNiLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIndvcmxkLXJvb20taW52aXRlcy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwZ1RhYmxlLCB1dWlkLCB0ZXh0LCB0aW1lc3RhbXAsIGluZGV4LCB1bmlxdWVJbmRleCB9IGZyb20gXCJkcml6emxlLW9ybS9wZy1jb3JlXCI7XG5pbXBvcnQgeyBzcWwgfSBmcm9tIFwiZHJpenpsZS1vcm1cIjtcbmltcG9ydCB7IGNyZWF0ZUluc2VydFNjaGVtYSB9IGZyb20gXCJkcml6emxlLXpvZFwiO1xuaW1wb3J0IHsgeiB9IGZyb20gXCJ6b2QvdjRcIjtcblxuLyoqXG4gKiBXb3JsZCByb29tIGludml0ZXMgKG1pZ3JhdGlvbiAwMzAwLCBzdGFjazkwMCBMYW5lIEI0IOKAlCBvd25lclxuICogcnVsaW5nIE9jdCAyOSwgMjAyNjogXCJCdWlsZCByZWFsIHJvb20gaW52aXRlcyDigJQgcGljayBhIHBlcnNvbixcbiAqIHRoZXkgYWNjZXB0IG9yIGRlY2xpbmVcIikuXG4gKlxuICogVW50aWwgdGhpcyB0YWJsZSwgYSBDcmVhdG9yIFJvb20gc3ByZWFkIG9ubHkgYnkgYW4gYW5vbnltb3VzXG4gKiBjb3BpZWQgbGluay9jb2RlOiBubyBpbnZpdGVlIHdhcyBldmVyIHJlY29yZGVkLCBzbyBub2JvZHkgY291bGRcbiAqIGJlIHRvbGQgdGhleSdkIGJlZW4gaW52aXRlZC4gVGhpcyByb3cgSVMgdGhlIGludml0ZTogYSBuYW1lZFxuICogaW52aXRlciAodGhlIHJvb20ncyBob3N0IOKAlCB0aGUgY3JlYXRvciBwcm9maWxlJ3MgdXNlciBpZCkgaW52aXRlc1xuICogYSBuYW1lZCBtZW1iZXIgKGEgdXNlciBpZCBwaWNrZWQgZnJvbSB0aGUgbWVtYmVyIGRpcmVjdG9yeSwgbmV2ZXJcbiAqIGFuIGVtYWlsIHN0cmluZykgdG8gb25lIHJvb20gKGBjcmVhdG9yOjxzbHVnPmApLCBhbmQgdGhlIG1lbWJlclxuICogYW5zd2VycyBpdC5cbiAqXG4gKiAgIHN0YXR1cyAgXCJwZW5kaW5nXCIgICDigJQgc2VudCwgd2FpdGluZyBvbiB0aGUgaW52aXRlZVxuICogICAgICAgICAgIFwiYWNjZXB0ZWRcIiAg4oCUIHRoZSBpbnZpdGVlIHNhaWQgeWVzOyB0aGUgcm93IGlzIHRoZWlyXG4gKiAgICAgICAgICAgICAgICAgICAgICAgICBzdGFuZGluZyBpbnZpdGF0aW9uLCBhbmQgdGhleSB3YWxrIGluXG4gKiAgICAgICAgICAgICAgICAgICAgICAgICB0aHJvdWdoIHRoZSBwYWxhY2UncyBleGlzdGluZyBkb29yd2F5XG4gKiAgICAgICAgICAgICAgICAgICAgICAgICAodGhlIHJvb20gcmVhZCArIHRyYW5zZmVyIOKAlCBubyBzZWNvbmRcbiAqICAgICAgICAgICAgICAgICAgICAgICAgIGRvb3IgaXMgYnVpbHQgb24gdG9wIG9mIHRoaXMgdGFibGUpXG4gKiAgICAgICAgICAgXCJkZWNsaW5lZFwiICDigJQgdGhlIGludml0ZWUgc2FpZCBubzsgdGhlIHJvdyBzdGF5cyBhc1xuICogICAgICAgICAgICAgICAgICAgICAgICAgaGlzdG9yeSBhbmQgdGhlIGhvc3QgbWF5IGludml0ZSBhZ2FpblxuICogICAgICAgICAgICAgICAgICAgICAgICAgKGEgZnJlc2ggcm93IOKAlCBoaXN0b3J5IGlzIG5ldmVyIHJld3JpdHRlbilcbiAqXG4gKiBFeGFjdGx5LW9uY2UgbGl2ZXMgaGVyZSwgbm90IGluIGNvdW50ZXJzOiB0aGUgcGFydGlhbCB1bmlxdWVcbiAqIGluZGV4IGFsbG93cyBPTkUgcGVuZGluZyByb3cgcGVyIChyb29tLCBpbnZpdGVlKSwgc28gYSByZXBsYXllZFxuICogb3IgcmFjZWQgY3JlYXRlIGNhbiBuZXZlciBkb3VibGUgdGhlIGludml0ZSDigJQgYW5kIHRoZSBjcmVhdGVcbiAqIHJvdXRlJ3MgYmVsbCBmaXJlcyBvbmx5IGJlaGluZCBhIGxhbmRlZCBpbnNlcnQsIHNvIGl0IGNhbiBuZXZlclxuICogZG91YmxlIHRoZSB0ZWxsaW5nIGVpdGhlci5cbiAqL1xuZXhwb3J0IGNvbnN0IHdvcmxkUm9vbUludml0ZXNUYWJsZSA9IHBnVGFibGUoXCJ3b3JsZF9yb29tX2ludml0ZXNcIiwge1xuICBpZDogICAgICAgICAgICB1dWlkKFwiaWRcIikucHJpbWFyeUtleSgpLmRlZmF1bHRSYW5kb20oKSxcbiAgLyoqIFRoZSBwYWxhY2Ugcm9vbSBpZDogYGNyZWF0b3I6PHNsdWc+YC4gKi9cbiAgcm9vbUlkOiAgICAgICAgdGV4dChcInJvb21faWRcIikubm90TnVsbCgpLFxuICAvKiogVGhlIHJvb20ncyBzbHVnLCBkZW5vcm1hbGl6ZWQgc28gaW52aXRlIHJlYWRzIGFuZCBiZWxsIGNvcHlcbiAgICogIG5hbWUgdGhlIHJvb20gd2l0aG91dCByZS1kZXJpdmluZyBpdCBmcm9tIHRoZSBpZC4gKi9cbiAgcm9vbVNsdWc6ICAgICAgdGV4dChcInJvb21fc2x1Z1wiKS5ub3ROdWxsKCksXG4gIC8qKiBUaGUgaG9zdCB3aG8gc2VudCBpdCAodGhlIHJvb20tb3duaW5nIGNyZWF0b3IncyB1c2VyIGlkKS4gKi9cbiAgaW52aXRlclVzZXJJZDogdXVpZChcImludml0ZXJfdXNlcl9pZFwiKS5ub3ROdWxsKCksXG4gIC8qKiBUaGUgbWVtYmVyIHdobyB3YXMgaW52aXRlZCAoYSB1c2VyIGlkIOKAlCBhbHdheXMgYSByZWFsLFxuICAgKiAgcGlja2VkIHBlcnNvbiwgbmV2ZXIgYW4gZW1haWwgb3IgYSB0eXBlZCBzdHJpbmcpLiAqL1xuICBpbnZpdGVlVXNlcklkOiB1dWlkKFwiaW52aXRlZV91c2VyX2lkXCIpLm5vdE51bGwoKSxcbiAgc3RhdHVzOiAgICAgICAgdGV4dChcInN0YXR1c1wiKS5ub3ROdWxsKCkuZGVmYXVsdChcInBlbmRpbmdcIiksXG4gIGNyZWF0ZWRBdDogICAgIHRpbWVzdGFtcChcImNyZWF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkuZGVmYXVsdE5vdygpLm5vdE51bGwoKSxcbiAgLyoqIFdoZW4gdGhlIGludml0ZWUgYW5zd2VyZWQgKGFjY2VwdCBvciBkZWNsaW5lKTsgbnVsbCB3aGlsZVxuICAgKiAgdGhlIGludml0ZSBzdGlsbCB3YWl0cyBvbiB0aGVtLiAqL1xuICByZXNwb25kZWRBdDogICB0aW1lc3RhbXAoXCJyZXNwb25kZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSksXG59LCAodCkgPT4gW1xuICBpbmRleChcIndvcmxkX3Jvb21faW52aXRlc19pbnZpdGVlX2lkeFwiKS5vbih0Lmludml0ZWVVc2VySWQsIHQuc3RhdHVzKSxcbiAgaW5kZXgoXCJ3b3JsZF9yb29tX2ludml0ZXNfcm9vbV9pZHhcIikub24odC5yb29tSWQsIHQuc3RhdHVzKSxcbiAgdW5pcXVlSW5kZXgoXCJ3b3JsZF9yb29tX2ludml0ZXNfb25lX3BlbmRpbmdfdXhcIilcbiAgICAub24odC5yb29tSWQsIHQuaW52aXRlZVVzZXJJZClcbiAgICAud2hlcmUoc3FsYCR7dC5zdGF0dXN9ID0gJ3BlbmRpbmcnYCksXG5dKTtcblxuZXhwb3J0IGNvbnN0IGluc2VydFdvcmxkUm9vbUludml0ZVNjaGVtYSA9IGNyZWF0ZUluc2VydFNjaGVtYSh3b3JsZFJvb21JbnZpdGVzVGFibGUpLm9taXQoe1xuICBpZDogdHJ1ZSxcbiAgY3JlYXRlZEF0OiB0cnVlLFxufSk7XG5leHBvcnQgdHlwZSBJbnNlcnRXb3JsZFJvb21JbnZpdGUgPSB6LmluZmVyPHR5cGVvZiBpbnNlcnRXb3JsZFJvb21JbnZpdGVTY2hlbWE+O1xuZXhwb3J0IHR5cGUgV29ybGRSb29tSW52aXRlID0gdHlwZW9mIHdvcmxkUm9vbUludml0ZXNUYWJsZS4kaW5mZXJTZWxlY3Q7XG4iXSwiZmlsZSI6Ii9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL3dvcmxkLXJvb20taW52aXRlcy50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvd29ybGQtcm9vbS1pbnZpdGVzLnRzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvd29ybGQtcm9vbS1pbnZpdGVzLnRzIixbXSxbIjYiLCI3IiwiOCJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vaW5kZXguanMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS16b2RAMC44LjNfZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wX196b2RANC42LjUvbm9kZV9tb2R1bGVzL2RyaXp6bGUtem9kL2luZGV4Lm1qcyJd

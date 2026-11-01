@@ -1,0 +1,61 @@
+__vite_ssr_exportName__("CONTENT_WARNING_LABELS", () => { try { return CONTENT_WARNING_LABELS } catch {} });
+__vite_ssr_exportName__("isContentWarningLabel", () => { try { return isContentWarningLabel } catch {} });
+__vite_ssr_exportName__("normalizeContentWarnings", () => { try { return normalizeContentWarnings } catch {} });
+__vite_ssr_exportName__("contentWarningPreferencesTable", () => { try { return contentWarningPreferencesTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","jsonb","timestamp"]});
+
+/**
+* Content warnings & sensitive-content labels (Wave 4 #40, migration 0238).
+*
+* The label set is FIXED and small — a creator picks any subset of these
+* for their own post at publish time (or later, author-only). It is the
+* creator's honesty tool, never a moderation weapon: platform moderation
+* (flags / removal) is a separate system, and no other account — fan,
+* admin, or the platform — can add or remove a creator's label.
+*
+*   sensitive        — the generic "sensitive content" label
+*   flashing_lights  — strobing / flicker content (photosensitivity)
+*   mature_themes    — heavy or adult themes
+*   strong_language  — explicit language
+*
+* The label rides posts.content_warnings (jsonb array, creator-stories-
+* posts.ts) and is enforced at READ time in the post DTO (routes/social
+* enrichPosts, the members-gate pattern): a labelled post's media never
+* leaves the server until the viewer taps to reveal that one item.
+*/
+const CONTENT_WARNING_LABELS = [
+	"sensitive",
+	"flashing_lights",
+	"mature_themes",
+	"strong_language"
+];
+function isContentWarningLabel(v) {
+	return typeof v === "string" && CONTENT_WARNING_LABELS.includes(v);
+};
+/** Keep only known labels, deduped, in canonical set order. */
+function normalizeContentWarnings(v) {
+	if (!Array.isArray(v)) return [];
+	const seen = new Set(v.filter(isContentWarningLabel));
+	return CONTENT_WARNING_LABELS.filter((l) => seen.has(l));
+};
+/**
+* A viewer's own content-warning preference (migration 0238): the labels
+* THEY have chosen to always hide entirely from their own feeds, instead
+* of the standard cover-and-tap-to-reveal. One row per member, keyed by
+* user — the routes only ever read and write the caller's own row.
+*
+* STRICTER ONLY, by construction: the default (no row / empty list) is
+* the creator's label at full strength — covered until tapped. The only
+* direction this preference moves is MORE protective for the viewer
+* themselves (hide instead of cover). There is deliberately no setting
+* that loosens another creator's label.
+*/
+const contentWarningPreferencesTable = (0,__vite_ssr_import_0__.pgTable)("content_warning_preferences", {
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").primaryKey(),
+	hiddenLabels: (0,__vite_ssr_import_0__.jsonb)("hidden_labels").$type().notNull().default([]),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7OztBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFxQk8sTUFBTSx5QkFBeUI7Q0FDcEM7Q0FDQTtDQUNBO0NBQ0E7QUFDRjtBQUdPLFNBQVMsc0JBQXNCLEdBQXNDO0NBQzFFLE9BQU8sT0FBTyxNQUFNLFlBQWEsdUJBQTZDLFNBQVMsQ0FBQztBQUMxRjs7QUFHTyxTQUFTLHlCQUF5QixHQUFtQztDQUMxRSxJQUFJLENBQUMsTUFBTSxRQUFRLENBQUMsR0FBRyxPQUFPLENBQUM7Q0FDL0IsTUFBTSxPQUFPLElBQUksSUFBSSxFQUFFLE9BQU8scUJBQXFCLENBQUM7Q0FDcEQsT0FBTyx1QkFBdUIsUUFBUSxNQUFNLEtBQUssSUFBSSxDQUFDLENBQUM7QUFDekQ7Ozs7Ozs7Ozs7Ozs7QUFjTyxNQUFNLGlDQUFpQyxrQ0FBUSwrQkFBK0I7Q0FDbkYsUUFBYywrQkFBSyxTQUFTLENBQUMsQ0FBQyxXQUFXO0NBQ3pDLGNBQWMsZ0NBQU0sZUFBZSxDQUFDLENBQUMsTUFBNkIsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDO0NBQ3hGLFdBQWMsb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxRQUFRO0FBQ3JGLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImNvbnRlbnQtd2FybmluZ3MudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgcGdUYWJsZSwgdXVpZCwganNvbmIsIHRpbWVzdGFtcCB9IGZyb20gXCJkcml6emxlLW9ybS9wZy1jb3JlXCI7XG5cbi8qKlxuICogQ29udGVudCB3YXJuaW5ncyAmIHNlbnNpdGl2ZS1jb250ZW50IGxhYmVscyAoV2F2ZSA0ICM0MCwgbWlncmF0aW9uIDAyMzgpLlxuICpcbiAqIFRoZSBsYWJlbCBzZXQgaXMgRklYRUQgYW5kIHNtYWxsIOKAlCBhIGNyZWF0b3IgcGlja3MgYW55IHN1YnNldCBvZiB0aGVzZVxuICogZm9yIHRoZWlyIG93biBwb3N0IGF0IHB1Ymxpc2ggdGltZSAob3IgbGF0ZXIsIGF1dGhvci1vbmx5KS4gSXQgaXMgdGhlXG4gKiBjcmVhdG9yJ3MgaG9uZXN0eSB0b29sLCBuZXZlciBhIG1vZGVyYXRpb24gd2VhcG9uOiBwbGF0Zm9ybSBtb2RlcmF0aW9uXG4gKiAoZmxhZ3MgLyByZW1vdmFsKSBpcyBhIHNlcGFyYXRlIHN5c3RlbSwgYW5kIG5vIG90aGVyIGFjY291bnQg4oCUIGZhbixcbiAqIGFkbWluLCBvciB0aGUgcGxhdGZvcm0g4oCUIGNhbiBhZGQgb3IgcmVtb3ZlIGEgY3JlYXRvcidzIGxhYmVsLlxuICpcbiAqICAgc2Vuc2l0aXZlICAgICAgICDigJQgdGhlIGdlbmVyaWMgXCJzZW5zaXRpdmUgY29udGVudFwiIGxhYmVsXG4gKiAgIGZsYXNoaW5nX2xpZ2h0cyAg4oCUIHN0cm9iaW5nIC8gZmxpY2tlciBjb250ZW50IChwaG90b3NlbnNpdGl2aXR5KVxuICogICBtYXR1cmVfdGhlbWVzICAgIOKAlCBoZWF2eSBvciBhZHVsdCB0aGVtZXNcbiAqICAgc3Ryb25nX2xhbmd1YWdlICDigJQgZXhwbGljaXQgbGFuZ3VhZ2VcbiAqXG4gKiBUaGUgbGFiZWwgcmlkZXMgcG9zdHMuY29udGVudF93YXJuaW5ncyAoanNvbmIgYXJyYXksIGNyZWF0b3Itc3Rvcmllcy1cbiAqIHBvc3RzLnRzKSBhbmQgaXMgZW5mb3JjZWQgYXQgUkVBRCB0aW1lIGluIHRoZSBwb3N0IERUTyAocm91dGVzL3NvY2lhbFxuICogZW5yaWNoUG9zdHMsIHRoZSBtZW1iZXJzLWdhdGUgcGF0dGVybik6IGEgbGFiZWxsZWQgcG9zdCdzIG1lZGlhIG5ldmVyXG4gKiBsZWF2ZXMgdGhlIHNlcnZlciB1bnRpbCB0aGUgdmlld2VyIHRhcHMgdG8gcmV2ZWFsIHRoYXQgb25lIGl0ZW0uXG4gKi9cbmV4cG9ydCBjb25zdCBDT05URU5UX1dBUk5JTkdfTEFCRUxTID0gW1xuICBcInNlbnNpdGl2ZVwiLFxuICBcImZsYXNoaW5nX2xpZ2h0c1wiLFxuICBcIm1hdHVyZV90aGVtZXNcIixcbiAgXCJzdHJvbmdfbGFuZ3VhZ2VcIixcbl0gYXMgY29uc3Q7XG5leHBvcnQgdHlwZSBDb250ZW50V2FybmluZ0xhYmVsID0gKHR5cGVvZiBDT05URU5UX1dBUk5JTkdfTEFCRUxTKVtudW1iZXJdO1xuXG5leHBvcnQgZnVuY3Rpb24gaXNDb250ZW50V2FybmluZ0xhYmVsKHY6IHVua25vd24pOiB2IGlzIENvbnRlbnRXYXJuaW5nTGFiZWwge1xuICByZXR1cm4gdHlwZW9mIHYgPT09IFwic3RyaW5nXCIgJiYgKENPTlRFTlRfV0FSTklOR19MQUJFTFMgYXMgcmVhZG9ubHkgc3RyaW5nW10pLmluY2x1ZGVzKHYpO1xufVxuXG4vKiogS2VlcCBvbmx5IGtub3duIGxhYmVscywgZGVkdXBlZCwgaW4gY2Fub25pY2FsIHNldCBvcmRlci4gKi9cbmV4cG9ydCBmdW5jdGlvbiBub3JtYWxpemVDb250ZW50V2FybmluZ3ModjogdW5rbm93bik6IENvbnRlbnRXYXJuaW5nTGFiZWxbXSB7XG4gIGlmICghQXJyYXkuaXNBcnJheSh2KSkgcmV0dXJuIFtdO1xuICBjb25zdCBzZWVuID0gbmV3IFNldCh2LmZpbHRlcihpc0NvbnRlbnRXYXJuaW5nTGFiZWwpKTtcbiAgcmV0dXJuIENPTlRFTlRfV0FSTklOR19MQUJFTFMuZmlsdGVyKChsKSA9PiBzZWVuLmhhcyhsKSk7XG59XG5cbi8qKlxuICogQSB2aWV3ZXIncyBvd24gY29udGVudC13YXJuaW5nIHByZWZlcmVuY2UgKG1pZ3JhdGlvbiAwMjM4KTogdGhlIGxhYmVsc1xuICogVEhFWSBoYXZlIGNob3NlbiB0byBhbHdheXMgaGlkZSBlbnRpcmVseSBmcm9tIHRoZWlyIG93biBmZWVkcywgaW5zdGVhZFxuICogb2YgdGhlIHN0YW5kYXJkIGNvdmVyLWFuZC10YXAtdG8tcmV2ZWFsLiBPbmUgcm93IHBlciBtZW1iZXIsIGtleWVkIGJ5XG4gKiB1c2VyIOKAlCB0aGUgcm91dGVzIG9ubHkgZXZlciByZWFkIGFuZCB3cml0ZSB0aGUgY2FsbGVyJ3Mgb3duIHJvdy5cbiAqXG4gKiBTVFJJQ1RFUiBPTkxZLCBieSBjb25zdHJ1Y3Rpb246IHRoZSBkZWZhdWx0IChubyByb3cgLyBlbXB0eSBsaXN0KSBpc1xuICogdGhlIGNyZWF0b3IncyBsYWJlbCBhdCBmdWxsIHN0cmVuZ3RoIOKAlCBjb3ZlcmVkIHVudGlsIHRhcHBlZC4gVGhlIG9ubHlcbiAqIGRpcmVjdGlvbiB0aGlzIHByZWZlcmVuY2UgbW92ZXMgaXMgTU9SRSBwcm90ZWN0aXZlIGZvciB0aGUgdmlld2VyXG4gKiB0aGVtc2VsdmVzIChoaWRlIGluc3RlYWQgb2YgY292ZXIpLiBUaGVyZSBpcyBkZWxpYmVyYXRlbHkgbm8gc2V0dGluZ1xuICogdGhhdCBsb29zZW5zIGFub3RoZXIgY3JlYXRvcidzIGxhYmVsLlxuICovXG5leHBvcnQgY29uc3QgY29udGVudFdhcm5pbmdQcmVmZXJlbmNlc1RhYmxlID0gcGdUYWJsZShcImNvbnRlbnRfd2FybmluZ19wcmVmZXJlbmNlc1wiLCB7XG4gIHVzZXJJZDogICAgICAgdXVpZChcInVzZXJfaWRcIikucHJpbWFyeUtleSgpLFxuICBoaWRkZW5MYWJlbHM6IGpzb25iKFwiaGlkZGVuX2xhYmVsc1wiKS4kdHlwZTxDb250ZW50V2FybmluZ0xhYmVsW10+KCkubm90TnVsbCgpLmRlZmF1bHQoW10pLFxuICB1cGRhdGVkQXQ6ICAgIHRpbWVzdGFtcChcInVwZGF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkuZGVmYXVsdE5vdygpLm5vdE51bGwoKSxcbn0pO1xuXG5leHBvcnQgdHlwZSBDb250ZW50V2FybmluZ1ByZWZlcmVuY2VzID0gdHlwZW9mIGNvbnRlbnRXYXJuaW5nUHJlZmVyZW5jZXNUYWJsZS4kaW5mZXJTZWxlY3Q7XG4iXSwiZmlsZSI6Ii9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2NvbnRlbnQtd2FybmluZ3MudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvY29udGVudC13YXJuaW5ncy50cyIsIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2NvbnRlbnQtd2FybmluZ3MudHMiLFtdLFsiNiJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIl0=

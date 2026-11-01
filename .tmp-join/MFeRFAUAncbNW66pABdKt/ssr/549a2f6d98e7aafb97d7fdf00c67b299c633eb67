@@ -1,0 +1,200 @@
+__vite_ssr_exportName__("LOYALTY_WATCH_MENU", () => { try { return LOYALTY_WATCH_MENU } catch {} });
+__vite_ssr_exportName__("LOYALTY_CHAT_MENU", () => { try { return LOYALTY_CHAT_MENU } catch {} });
+__vite_ssr_exportName__("LOYALTY_TIP_MENU", () => { try { return LOYALTY_TIP_MENU } catch {} });
+__vite_ssr_exportName__("LOYALTY_CUSTOM_COST_MENU", () => { try { return LOYALTY_CUSTOM_COST_MENU } catch {} });
+__vite_ssr_exportName__("perkMenu", () => { try { return perkMenu } catch {} });
+__vite_ssr_exportName__("getLoyaltySettings", () => { try { return getLoyaltySettings } catch {} });
+__vite_ssr_exportName__("defaultLoyaltySettings", () => { try { return defaultLoyaltySettings } catch {} });
+__vite_ssr_exportName__("awardLoyaltyPoints", () => { try { return awardLoyaltyPoints } catch {} });
+__vite_ssr_exportName__("awardChatPoints", () => { try { return awardChatPoints } catch {} });
+__vite_ssr_exportName__("awardTipPoints", () => { try { return awardTipPoints } catch {} });
+__vite_ssr_exportName__("awardWatchPoints", () => { try { return awardWatchPoints } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["eq","and","sql"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1100/lib/db/src/index.ts", {"importedNames":["db","loyaltySettingsTable","loyaltyBalancesTable"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/lib/logger.ts", {"importedNames":["logger"]});
+
+
+
+/* ── Per-channel loyalty (Stack 9 #6) ───────────────────────────────────
+Fans earn a channel's own points for watching / chatting / tipping.
+Earn rules are a FIXED MENU — creators pick a value per action from
+the allowed lists below; there are no arbitrary formulas. Points
+are NOT Visual Bucs: they live in their own balance table, no code
+path converts them to credits or money, and the copy says so.
+
+Awards are fire-and-forget from the hot paths (chat post, tip,
+watch heartbeat): a loyalty failure must never break the action
+that earned the points, but it is logged. */
+const LOYALTY_WATCH_MENU = [
+	0,
+	5,
+	10,
+	20
+];
+const LOYALTY_CHAT_MENU = [
+	0,
+	1,
+	2,
+	5
+];
+const LOYALTY_TIP_MENU = [
+	0,
+	5,
+	10
+];
+const LOYALTY_CUSTOM_COST_MENU = [
+	500,
+	1e3,
+	2500,
+	5e3
+];
+/** The fixed perk menu. 'custom' only exists when the creator named
+*  a reward (their own text, fulfilled by them manually). */
+function perkMenu(settings) {
+	const perks = [{
+		kind: "shoutout",
+		label: "Shoutout request",
+		cost: 500
+	}, {
+		kind: "priority_chat",
+		label: "Priority chat mark",
+		cost: 1e3
+	}];
+	if (settings?.custom_reward_label && settings.custom_reward_cost) {
+		perks.push({
+			kind: "custom",
+			label: settings.custom_reward_label,
+			cost: settings.custom_reward_cost
+		});
+	};
+	return perks;
+};
+async function getLoyaltySettings(profileId) {
+	const rows = await __vite_ssr_import_1__.db.select().from((0,__vite_ssr_import_1__.loyaltySettingsTable)).where((0,__vite_ssr_import_0__.eq)(__vite_ssr_import_1__.loyaltySettingsTable.profile_id, profileId)).limit(1);
+	return rows[0] ?? null;
+};
+function defaultLoyaltySettings(profileId) {
+	return {
+		profile_id: profileId,
+		enabled: true,
+		watch_points_per_10min: 10,
+		chat_points: 2,
+		tip_points_per_100vb: 5,
+		custom_reward_label: null,
+		custom_reward_cost: null,
+		updated_at: new Date()
+	};
+};
+/** Credit points to a (fan, channel) balance. Never throws. */
+async function awardLoyaltyPoints(userId, profileId, points) {
+	if (points <= 0 || userId === undefined) return;
+	try {
+		await __vite_ssr_import_1__.db.insert((0,__vite_ssr_import_1__.loyaltyBalancesTable)).values({
+			user_id: userId,
+			profile_id: profileId,
+			points,
+			updated_at: new Date()
+		}).onConflictDoUpdate({
+			target: [__vite_ssr_import_1__.loyaltyBalancesTable.user_id, __vite_ssr_import_1__.loyaltyBalancesTable.profile_id],
+			set: {
+				points: __vite_ssr_import_0__.sql`${__vite_ssr_import_1__.loyaltyBalancesTable.points} + ${points}`,
+				updated_at: new Date()
+			}
+		});
+	} catch (err) {
+		__vite_ssr_import_2__.logger.warn({
+			err,
+			userId,
+			profileId,
+			points
+		}, "loyalty: award failed");
+	}
+};
+/** Award for a chat message on the channel's stream. */
+async function awardChatPoints(userId, profileId, ownerUserId) {
+	if (userId === ownerUserId) return;
+	try {
+		const settings = await getLoyaltySettings(profileId);
+		const rate = settings ? settings.enabled ? settings.chat_points : 0 : defaultLoyaltySettings(profileId).chat_points;
+		await awardLoyaltyPoints(userId, profileId, rate);
+	} catch (err) {
+		__vite_ssr_import_2__.logger.warn({
+			err,
+			userId,
+			profileId
+		}, "loyalty: chat award failed");
+	}
+};
+/** Award for a tip: floor(amount/100) × the menu rate. */
+async function awardTipPoints(userId, profileId, ownerUserId, amountVb) {
+	if (userId === ownerUserId) return;
+	try {
+		const settings = await getLoyaltySettings(profileId);
+		const rate = settings ? settings.enabled ? settings.tip_points_per_100vb : 0 : defaultLoyaltySettings(profileId).tip_points_per_100vb;
+		await awardLoyaltyPoints(userId, profileId, Math.floor(amountVb / 100) * rate);
+	} catch (err) {
+		__vite_ssr_import_2__.logger.warn({
+			err,
+			userId,
+			profileId
+		}, "loyalty: tip award failed");
+	}
+};
+/**
+* Convert accrued watch minutes into points, exactly once per minute
+* block: the balance row remembers how many minutes were already
+* credited, so heartbeats can call this freely. Returns the points
+* newly awarded. Never throws (returns 0 on failure).
+*/
+async function awardWatchPoints(userId, profileId, ownerUserId, totalSecondsWatched) {
+	if (userId === ownerUserId) return 0;
+	try {
+		const settings = await getLoyaltySettings(profileId);
+		const s = settings ?? defaultLoyaltySettings(profileId);
+		if (settings && !settings.enabled) return 0;
+		const per10 = s.watch_points_per_10min;
+		if (per10 <= 0) return 0;
+		const minutes = Math.floor(totalSecondsWatched / 60);
+		const rows = await __vite_ssr_import_1__.db.select().from((0,__vite_ssr_import_1__.loyaltyBalancesTable)).where((0,__vite_ssr_import_0__.and)((0,__vite_ssr_import_0__.eq)(__vite_ssr_import_1__.loyaltyBalancesTable.user_id, userId), (0,__vite_ssr_import_0__.eq)(__vite_ssr_import_1__.loyaltyBalancesTable.profile_id, profileId))).limit(1);
+		const already = rows[0]?.watch_minutes_credited ?? 0;
+		// Points land per completed 10-minute block.
+		const newBlocks = Math.floor(minutes / 10) - Math.floor(already / 10);
+		if (newBlocks <= 0) {
+			// Still advance the credited-minutes marker so blocks line up.
+			if (rows[0] && minutes > already) {
+				await __vite_ssr_import_1__.db.update((0,__vite_ssr_import_1__.loyaltyBalancesTable)).set({
+					watch_minutes_credited: minutes,
+					updated_at: new Date()
+				}).where((0,__vite_ssr_import_0__.and)((0,__vite_ssr_import_0__.eq)(__vite_ssr_import_1__.loyaltyBalancesTable.user_id, userId), (0,__vite_ssr_import_0__.eq)(__vite_ssr_import_1__.loyaltyBalancesTable.profile_id, profileId)));
+			};
+			return 0;
+		};
+		const points = newBlocks * per10;
+		await __vite_ssr_import_1__.db.insert((0,__vite_ssr_import_1__.loyaltyBalancesTable)).values({
+			user_id: userId,
+			profile_id: profileId,
+			points,
+			watch_minutes_credited: minutes,
+			updated_at: new Date()
+		}).onConflictDoUpdate({
+			target: [__vite_ssr_import_1__.loyaltyBalancesTable.user_id, __vite_ssr_import_1__.loyaltyBalancesTable.profile_id],
+			set: {
+				points: __vite_ssr_import_0__.sql`${__vite_ssr_import_1__.loyaltyBalancesTable.points} + ${points}`,
+				watch_minutes_credited: minutes,
+				updated_at: new Date()
+			}
+		});
+		return points;
+	} catch (err) {
+		__vite_ssr_import_2__.logger.warn({
+			err,
+			userId,
+			profileId
+		}, "loyalty: watch award failed");
+		return 0;
+	}
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,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bkgsbUJBQW1CO0dBQ2xCLFFBQVEsQ0FBQywyQ0FBcUIsU0FBUywyQ0FBcUIsVUFBVTtHQUN0RSxLQUFLO0lBQ0gsUUFBUSx5QkFBRyxHQUFHLDJDQUFxQixPQUFPLEtBQUs7SUFDL0Msd0JBQXdCO0lBQ3hCLFlBQVksSUFBSSxLQUFLO0dBQ3ZCO0VBQ0YsQ0FBQztFQUNILE9BQU87Q0FDVCxTQUFTLEtBQUs7RUFDWiw2QkFBTyxLQUFLO0dBQUU7R0FBSztHQUFRO0VBQVUsR0FBRyw2QkFBNkI7RUFDckUsT0FBTztDQUNUO0FBQ0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImxveWFsdHkudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgZXEsIGFuZCwgc3FsIH0gZnJvbSBcImRyaXp6bGUtb3JtXCI7XG5pbXBvcnQgeyBkYiwgbG95YWx0eVNldHRpbmdzVGFibGUsIGxveWFsdHlCYWxhbmNlc1RhYmxlLCB0eXBlIExveWFsdHlTZXR0aW5ncyB9IGZyb20gXCJAd29ya3NwYWNlL2RiXCI7XG5pbXBvcnQgeyBsb2dnZXIgfSBmcm9tIFwiLi9sb2dnZXJcIjtcblxuLyog4pSA4pSAIFBlci1jaGFubmVsIGxveWFsdHkgKFN0YWNrIDkgIzYpIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxuICAgRmFucyBlYXJuIGEgY2hhbm5lbCdzIG93biBwb2ludHMgZm9yIHdhdGNoaW5nIC8gY2hhdHRpbmcgLyB0aXBwaW5nLlxuICAgRWFybiBydWxlcyBhcmUgYSBGSVhFRCBNRU5VIOKAlCBjcmVhdG9ycyBwaWNrIGEgdmFsdWUgcGVyIGFjdGlvbiBmcm9tXG4gICB0aGUgYWxsb3dlZCBsaXN0cyBiZWxvdzsgdGhlcmUgYXJlIG5vIGFyYml0cmFyeSBmb3JtdWxhcy4gUG9pbnRzXG4gICBhcmUgTk9UIFZpc3VhbCBCdWNzOiB0aGV5IGxpdmUgaW4gdGhlaXIgb3duIGJhbGFuY2UgdGFibGUsIG5vIGNvZGVcbiAgIHBhdGggY29udmVydHMgdGhlbSB0byBjcmVkaXRzIG9yIG1vbmV5LCBhbmQgdGhlIGNvcHkgc2F5cyBzby5cblxuICAgQXdhcmRzIGFyZSBmaXJlLWFuZC1mb3JnZXQgZnJvbSB0aGUgaG90IHBhdGhzIChjaGF0IHBvc3QsIHRpcCxcbiAgIHdhdGNoIGhlYXJ0YmVhdCk6IGEgbG95YWx0eSBmYWlsdXJlIG11c3QgbmV2ZXIgYnJlYWsgdGhlIGFjdGlvblxuICAgdGhhdCBlYXJuZWQgdGhlIHBvaW50cywgYnV0IGl0IGlzIGxvZ2dlZC4gKi9cblxuZXhwb3J0IGNvbnN0IExPWUFMVFlfV0FUQ0hfTUVOVSA9IFswLCA1LCAxMCwgMjBdIGFzIGNvbnN0OyAvLyBwb2ludHMgcGVyIDEwIG1pbnV0ZXMgd2F0Y2hlZFxuZXhwb3J0IGNvbnN0IExPWUFMVFlfQ0hBVF9NRU5VID0gWzAsIDEsIDIsIDVdIGFzIGNvbnN0OyAvLyBwb2ludHMgcGVyIGNoYXQgbWVzc2FnZVxuZXhwb3J0IGNvbnN0IExPWUFMVFlfVElQX01FTlUgPSBbMCwgNSwgMTBdIGFzIGNvbnN0OyAvLyBwb2ludHMgcGVyIDEwMCBWQiB0aXBwZWRcbmV4cG9ydCBjb25zdCBMT1lBTFRZX0NVU1RPTV9DT1NUX01FTlUgPSBbNTAwLCAxMDAwLCAyNTAwLCA1MDAwXSBhcyBjb25zdDtcblxuZXhwb3J0IGludGVyZmFjZSBMb3lhbHR5UGVyayB7XG4gIGtpbmQ6IFwic2hvdXRvdXRcIiB8IFwicHJpb3JpdHlfY2hhdFwiIHwgXCJjdXN0b21cIjtcbiAgbGFiZWw6IHN0cmluZztcbiAgY29zdDogbnVtYmVyO1xufVxuXG4vKiogVGhlIGZpeGVkIHBlcmsgbWVudS4gJ2N1c3RvbScgb25seSBleGlzdHMgd2hlbiB0aGUgY3JlYXRvciBuYW1lZFxuICogIGEgcmV3YXJkICh0aGVpciBvd24gdGV4dCwgZnVsZmlsbGVkIGJ5IHRoZW0gbWFudWFsbHkpLiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHBlcmtNZW51KHNldHRpbmdzOiBMb3lhbHR5U2V0dGluZ3MgfCBudWxsKTogTG95YWx0eVBlcmtbXSB7XG4gIGNvbnN0IHBlcmtzOiBMb3lhbHR5UGVya1tdID0gW1xuICAgIHsga2luZDogXCJzaG91dG91dFwiLCBsYWJlbDogXCJTaG91dG91dCByZXF1ZXN0XCIsIGNvc3Q6IDUwMCB9LFxuICAgIHsga2luZDogXCJwcmlvcml0eV9jaGF0XCIsIGxhYmVsOiBcIlByaW9yaXR5IGNoYXQgbWFya1wiLCBjb3N0OiAxMDAwIH0sXG4gIF07XG4gIGlmIChzZXR0aW5ncz8uY3VzdG9tX3Jld2FyZF9sYWJlbCAmJiBzZXR0aW5ncy5jdXN0b21fcmV3YXJkX2Nvc3QpIHtcbiAgICBwZXJrcy5wdXNoKHsga2luZDogXCJjdXN0b21cIiwgbGFiZWw6IHNldHRpbmdzLmN1c3RvbV9yZXdhcmRfbGFiZWwsIGNvc3Q6IHNldHRpbmdzLmN1c3RvbV9yZXdhcmRfY29zdCB9KTtcbiAgfVxuICByZXR1cm4gcGVya3M7XG59XG5cbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBnZXRMb3lhbHR5U2V0dGluZ3MocHJvZmlsZUlkOiBzdHJpbmcpOiBQcm9taXNlPExveWFsdHlTZXR0aW5ncyB8IG51bGw+IHtcbiAgY29uc3Qgcm93cyA9IGF3YWl0IGRiLnNlbGVjdCgpLmZyb20obG95YWx0eVNldHRpbmdzVGFibGUpLndoZXJlKGVxKGxveWFsdHlTZXR0aW5nc1RhYmxlLnByb2ZpbGVfaWQsIHByb2ZpbGVJZCkpLmxpbWl0KDEpO1xuICByZXR1cm4gcm93c1swXSA/PyBudWxsO1xufVxuXG5leHBvcnQgZnVuY3Rpb24gZGVmYXVsdExveWFsdHlTZXR0aW5ncyhwcm9maWxlSWQ6IHN0cmluZyk6IExveWFsdHlTZXR0aW5ncyB7XG4gIHJldHVybiB7XG4gICAgcHJvZmlsZV9pZDogcHJvZmlsZUlkLFxuICAgIGVuYWJsZWQ6IHRydWUsXG4gICAgd2F0Y2hfcG9pbnRzX3Blcl8xMG1pbjogMTAsXG4gICAgY2hhdF9wb2ludHM6IDIsXG4gICAgdGlwX3BvaW50c19wZXJfMTAwdmI6IDUsXG4gICAgY3VzdG9tX3Jld2FyZF9sYWJlbDogbnVsbCxcbiAgICBjdXN0b21fcmV3YXJkX2Nvc3Q6IG51bGwsXG4gICAgdXBkYXRlZF9hdDogbmV3IERhdGUoKSxcbiAgfTtcbn1cblxuLyoqIENyZWRpdCBwb2ludHMgdG8gYSAoZmFuLCBjaGFubmVsKSBiYWxhbmNlLiBOZXZlciB0aHJvd3MuICovXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gYXdhcmRMb3lhbHR5UG9pbnRzKHVzZXJJZDogc3RyaW5nLCBwcm9maWxlSWQ6IHN0cmluZywgcG9pbnRzOiBudW1iZXIpOiBQcm9taXNlPHZvaWQ+IHtcbiAgaWYgKHBvaW50cyA8PSAwIHx8IHVzZXJJZCA9PT0gdW5kZWZpbmVkKSByZXR1cm47XG4gIHRyeSB7XG4gICAgYXdhaXQgZGJcbiAgICAgIC5pbnNlcnQobG95YWx0eUJhbGFuY2VzVGFibGUpXG4gICAgICAudmFsdWVzKHsgdXNlcl9pZDogdXNlcklkLCBwcm9maWxlX2lkOiBwcm9maWxlSWQsIHBvaW50cywgdXBkYXRlZF9hdDogbmV3IERhdGUoKSB9KVxuICAgICAgLm9uQ29uZmxpY3REb1VwZGF0ZSh7XG4gICAgICAgIHRhcmdldDogW2xveWFsdHlCYWxhbmNlc1RhYmxlLnVzZXJfaWQsIGxveWFsdHlCYWxhbmNlc1RhYmxlLnByb2ZpbGVfaWRdLFxuICAgICAgICBzZXQ6IHsgcG9pbnRzOiBzcWxgJHtsb3lhbHR5QmFsYW5jZXNUYWJsZS5wb2ludHN9ICsgJHtwb2ludHN9YCwgdXBkYXRlZF9hdDogbmV3IERhdGUoKSB9LFxuICAgICAgfSk7XG4gIH0gY2F0Y2ggKGVycikge1xuICAgIGxvZ2dlci53YXJuKHsgZXJyLCB1c2VySWQsIHByb2ZpbGVJZCwgcG9pbnRzIH0sIFwibG95YWx0eTogYXdhcmQgZmFpbGVkXCIpO1xuICB9XG59XG5cbi8qKiBBd2FyZCBmb3IgYSBjaGF0IG1lc3NhZ2Ugb24gdGhlIGNoYW5uZWwncyBzdHJlYW0uICovXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gYXdhcmRDaGF0UG9pbnRzKHVzZXJJZDogc3RyaW5nLCBwcm9maWxlSWQ6IHN0cmluZywgb3duZXJVc2VySWQ6IHN0cmluZyk6IFByb21pc2U8dm9pZD4ge1xuICBpZiAodXNlcklkID09PSBvd25lclVzZXJJZCkgcmV0dXJuOyAvLyBjcmVhdG9ycyBkb24ndCBmYXJtIHRoZWlyIG93biBjaGFubmVsXG4gIHRyeSB7XG4gICAgY29uc3Qgc2V0dGluZ3MgPSBhd2FpdCBnZXRMb3lhbHR5U2V0dGluZ3MocHJvZmlsZUlkKTtcbiAgICBjb25zdCByYXRlID0gc2V0dGluZ3MgPyAoc2V0dGluZ3MuZW5hYmxlZCA/IHNldHRpbmdzLmNoYXRfcG9pbnRzIDogMCkgOiBkZWZhdWx0TG95YWx0eVNldHRpbmdzKHByb2ZpbGVJZCkuY2hhdF9wb2ludHM7XG4gICAgYXdhaXQgYXdhcmRMb3lhbHR5UG9pbnRzKHVzZXJJZCwgcHJvZmlsZUlkLCByYXRlKTtcbiAgfSBjYXRjaCAoZXJyKSB7XG4gICAgbG9nZ2VyLndhcm4oeyBlcnIsIHVzZXJJZCwgcHJvZmlsZUlkIH0sIFwibG95YWx0eTogY2hhdCBhd2FyZCBmYWlsZWRcIik7XG4gIH1cbn1cblxuLyoqIEF3YXJkIGZvciBhIHRpcDogZmxvb3IoYW1vdW50LzEwMCkgw5cgdGhlIG1lbnUgcmF0ZS4gKi9cbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBhd2FyZFRpcFBvaW50cyh1c2VySWQ6IHN0cmluZywgcHJvZmlsZUlkOiBzdHJpbmcsIG93bmVyVXNlcklkOiBzdHJpbmcsIGFtb3VudFZiOiBudW1iZXIpOiBQcm9taXNlPHZvaWQ+IHtcbiAgaWYgKHVzZXJJZCA9PT0gb3duZXJVc2VySWQpIHJldHVybjtcbiAgdHJ5IHtcbiAgICBjb25zdCBzZXR0aW5ncyA9IGF3YWl0IGdldExveWFsdHlTZXR0aW5ncyhwcm9maWxlSWQpO1xuICAgIGNvbnN0IHJhdGUgPSBzZXR0aW5ncyA/IChzZXR0aW5ncy5lbmFibGVkID8gc2V0dGluZ3MudGlwX3BvaW50c19wZXJfMTAwdmIgOiAwKSA6IGRlZmF1bHRMb3lhbHR5U2V0dGluZ3MocHJvZmlsZUlkKS50aXBfcG9pbnRzX3Blcl8xMDB2YjtcbiAgICBhd2FpdCBhd2FyZExveWFsdHlQb2ludHModXNlcklkLCBwcm9maWxlSWQsIE1hdGguZmxvb3IoYW1vdW50VmIgLyAxMDApICogcmF0ZSk7XG4gIH0gY2F0Y2ggKGVycikge1xuICAgIGxvZ2dlci53YXJuKHsgZXJyLCB1c2VySWQsIHByb2ZpbGVJZCB9LCBcImxveWFsdHk6IHRpcCBhd2FyZCBmYWlsZWRcIik7XG4gIH1cbn1cblxuLyoqXG4gKiBDb252ZXJ0IGFjY3J1ZWQgd2F0Y2ggbWludXRlcyBpbnRvIHBvaW50cywgZXhhY3RseSBvbmNlIHBlciBtaW51dGVcbiAqIGJsb2NrOiB0aGUgYmFsYW5jZSByb3cgcmVtZW1iZXJzIGhvdyBtYW55IG1pbnV0ZXMgd2VyZSBhbHJlYWR5XG4gKiBjcmVkaXRlZCwgc28gaGVhcnRiZWF0cyBjYW4gY2FsbCB0aGlzIGZyZWVseS4gUmV0dXJucyB0aGUgcG9pbnRzXG4gKiBuZXdseSBhd2FyZGVkLiBOZXZlciB0aHJvd3MgKHJldHVybnMgMCBvbiBmYWlsdXJlKS5cbiAqL1xuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGF3YXJkV2F0Y2hQb2ludHMoXG4gIHVzZXJJZDogc3RyaW5nLFxuICBwcm9maWxlSWQ6IHN0cmluZyxcbiAgb3duZXJVc2VySWQ6IHN0cmluZyxcbiAgdG90YWxTZWNvbmRzV2F0Y2hlZDogbnVtYmVyLFxuKTogUHJvbWlzZTxudW1iZXI+IHtcbiAgaWYgKHVzZXJJZCA9PT0gb3duZXJVc2VySWQpIHJldHVybiAwO1xuICB0cnkge1xuICAgIGNvbnN0IHNldHRpbmdzID0gYXdhaXQgZ2V0TG95YWx0eVNldHRpbmdzKHByb2ZpbGVJZCk7XG4gICAgY29uc3QgcyA9IHNldHRpbmdzID8/IGRlZmF1bHRMb3lhbHR5U2V0dGluZ3MocHJvZmlsZUlkKTtcbiAgICBpZiAoc2V0dGluZ3MgJiYgIXNldHRpbmdzLmVuYWJsZWQpIHJldHVybiAwO1xuICAgIGNvbnN0IHBlcjEwID0gcy53YXRjaF9wb2ludHNfcGVyXzEwbWluO1xuICAgIGlmIChwZXIxMCA8PSAwKSByZXR1cm4gMDtcbiAgICBjb25zdCBtaW51dGVzID0gTWF0aC5mbG9vcih0b3RhbFNlY29uZHNXYXRjaGVkIC8gNjApO1xuICAgIGNvbnN0IHJvd3MgPSBhd2FpdCBkYlxuICAgICAgLnNlbGVjdCgpXG4gICAgICAuZnJvbShsb3lhbHR5QmFsYW5jZXNUYWJsZSlcbiAgICAgIC53aGVyZShhbmQoZXEobG95YWx0eUJhbGFuY2VzVGFibGUudXNlcl9pZCwgdXNlcklkKSwgZXEobG95YWx0eUJhbGFuY2VzVGFibGUucHJvZmlsZV9pZCwgcHJvZmlsZUlkKSkpXG4gICAgICAubGltaXQoMSk7XG4gICAgY29uc3QgYWxyZWFkeSA9IHJvd3NbMF0/LndhdGNoX21pbnV0ZXNfY3JlZGl0ZWQgPz8gMDtcbiAgICAvLyBQb2ludHMgbGFuZCBwZXIgY29tcGxldGVkIDEwLW1pbnV0ZSBibG9jay5cbiAgICBjb25zdCBuZXdCbG9ja3MgPSBNYXRoLmZsb29yKG1pbnV0ZXMgLyAxMCkgLSBNYXRoLmZsb29yKGFscmVhZHkgLyAxMCk7XG4gICAgaWYgKG5ld0Jsb2NrcyA8PSAwKSB7XG4gICAgICAvLyBTdGlsbCBhZHZhbmNlIHRoZSBjcmVkaXRlZC1taW51dGVzIG1hcmtlciBzbyBibG9ja3MgbGluZSB1cC5cbiAgICAgIGlmIChyb3dzWzBdICYmIG1pbnV0ZXMgPiBhbHJlYWR5KSB7XG4gICAgICAgIGF3YWl0IGRiXG4gICAgICAgICAgLnVwZGF0ZShsb3lhbHR5QmFsYW5jZXNUYWJsZSlcbiAgICAgICAgICAuc2V0KHsgd2F0Y2hfbWludXRlc19jcmVkaXRlZDogbWludXRlcywgdXBkYXRlZF9hdDogbmV3IERhdGUoKSB9KVxuICAgICAgICAgIC53aGVyZShhbmQoZXEobG95YWx0eUJhbGFuY2VzVGFibGUudXNlcl9pZCwgdXNlcklkKSwgZXEobG95YWx0eUJhbGFuY2VzVGFibGUucHJvZmlsZV9pZCwgcHJvZmlsZUlkKSkpO1xuICAgICAgfVxuICAgICAgcmV0dXJuIDA7XG4gICAgfVxuICAgIGNvbnN0IHBvaW50cyA9IG5ld0Jsb2NrcyAqIHBlcjEwO1xuICAgIGF3YWl0IGRiXG4gICAgICAuaW5zZXJ0KGxveWFsdHlCYWxhbmNlc1RhYmxlKVxuICAgICAgLnZhbHVlcyh7IHVzZXJfaWQ6IHVzZXJJZCwgcHJvZmlsZV9pZDogcHJvZmlsZUlkLCBwb2ludHMsIHdhdGNoX21pbnV0ZXNfY3JlZGl0ZWQ6IG1pbnV0ZXMsIHVwZGF0ZWRfYXQ6IG5ldyBEYXRlKCkgfSlcbiAgICAgIC5vbkNvbmZsaWN0RG9VcGRhdGUoe1xuICAgICAgICB0YXJnZXQ6IFtsb3lhbHR5QmFsYW5jZXNUYWJsZS51c2VyX2lkLCBsb3lhbHR5QmFsYW5jZXNUYWJsZS5wcm9maWxlX2lkXSxcbiAgICAgICAgc2V0OiB7XG4gICAgICAgICAgcG9pbnRzOiBzcWxgJHtsb3lhbHR5QmFsYW5jZXNUYWJsZS5wb2ludHN9ICsgJHtwb2ludHN9YCxcbiAgICAgICAgICB3YXRjaF9taW51dGVzX2NyZWRpdGVkOiBtaW51dGVzLFxuICAgICAgICAgIHVwZGF0ZWRfYXQ6IG5ldyBEYXRlKCksXG4gICAgICAgIH0sXG4gICAgICB9KTtcbiAgICByZXR1cm4gcG9pbnRzO1xuICB9IGNhdGNoIChlcnIpIHtcbiAgICBsb2dnZXIud2Fybih7IGVyciwgdXNlcklkLCBwcm9maWxlSWQgfSwgXCJsb3lhbHR5OiB3YXRjaCBhd2FyZCBmYWlsZWRcIik7XG4gICAgcmV0dXJuIDA7XG4gIH1cbn1cbiJdLCJmaWxlIjoiL3NyYy9saWIvbG95YWx0eS50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9sb3lhbHR5LnRzIiwiL3NyYy9saWIvbG95YWx0eS50cyIsW10sWyI2IiwiNyIsIjgiXSxbXSwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vaW5kZXguanMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL2luZGV4LnRzIiwiL3NyYy9saWIvbG9nZ2VyLnRzIl0=

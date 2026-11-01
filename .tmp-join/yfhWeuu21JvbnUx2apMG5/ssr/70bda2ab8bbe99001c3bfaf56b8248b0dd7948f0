@@ -1,0 +1,89 @@
+__vite_ssr_exportName__("sweepStaleEntries", () => { try { return sweepStaleEntries } catch {} });
+__vite_ssr_exportName__("sweepIfLarge", () => { try { return sweepIfLarge } catch {} });
+__vite_ssr_exportName__("sweepTtlEntries", () => { try { return sweepTtlEntries } catch {} });
+__vite_ssr_exportName__("sweepTtlIfLarge", () => { try { return sweepTtlIfLarge } catch {} });
+__vite_ssr_exportName__("capMapSize", () => { try { return capMapSize } catch {} });
+/**
+* sweep-map.ts — TTL eviction for the small process-local timestamp maps
+* (Lane F audit, Flag S-4). Several route modules keep a
+* Map<string, number> of "last seen at" timestamps for pacing/throttle
+* decisions; the entries are only ever read back within a short window,
+* after which an entry is indistinguishable from an absent one — but
+* nothing ever deleted them, so the maps grew for the life of the
+* process (and some keys are client-mintable).
+*
+* The pattern: callers sweep opportunistically when the map passes a
+* size threshold, so the sweep cost is amortized and bounded. Entries
+* older than the TTL are deleted; the return value is how many died.
+*/
+function sweepStaleEntries(map, olderThanMs, now = Date.now()) {
+	let removed = 0;
+	for (const [key, at] of map) {
+		if (now - at > olderThanMs) {
+			map.delete(key);
+			removed++;
+		}
+	};
+	return removed;
+};
+/** Sweep only once the map is past `threshold` entries (amortized). */
+function sweepIfLarge(map, threshold, olderThanMs, now = Date.now()) {
+	if (map.size <= threshold) return 0;
+	return sweepStaleEntries(map, olderThanMs, now);
+};
+/**
+* TTL eviction for value maps that carry their own timestamp
+* (OOM fix, 2026-10-25). The diagnosis found the same shape in a
+* dozen modules: entries `.set()` on a hot path, the TTL consulted
+* only on read, nothing ever deleting — one retained entry per user
+* / track / key for the life of the process, summing to the steady
+* heap climb behind the day's nine OOM kills. `atOf` extracts the
+* entry's timestamp: `{ at, ... }` caches, `{ last, ... }` token
+* buckets, hit-window arrays (age = newest hit, the last element —
+* callers keep the arrays window-pruned and ascending).
+*/
+function sweepTtlEntries(map, olderThanMs, atOf, now = Date.now()) {
+	let removed = 0;
+	for (const [key, value] of map) {
+		if (now - atOf(value) > olderThanMs) {
+			map.delete(key);
+			removed++;
+		}
+	};
+	return removed;
+};
+/** Sweep only once the map is past `threshold` entries (amortized). */
+function sweepTtlIfLarge(map, threshold, olderThanMs, atOf, now = Date.now()) {
+	if (map.size <= threshold) return 0;
+	return sweepTtlEntries(map, olderThanMs, atOf, now);
+};
+/**
+* Hard bound, as a backstop behind TTL sweeps: evict the
+* least-recently-touched entries until the map is at `cap`. With
+* `atOf`, recency is the value's timestamp; without it, Map
+* insertion order (oldest first). Runs the sort only when the map
+* is already oversized, so the hot path stays free.
+*/
+function capMapSize(map, cap, atOf) {
+	if (map.size <= cap) return 0;
+	let removed = 0;
+	if (atOf) {
+		const byAge = [...map.entries()].sort((a, b) => atOf(a[1]) - atOf(b[1]));
+		for (const [key] of byAge) {
+			if (map.size <= cap) break;
+			map.delete(key);
+			removed++;
+		}
+	} else {
+		for (const key of map.keys()) {
+			if (map.size <= cap) break;
+			map.delete(key);
+			removed++;
+		}
+	};
+	return removed;
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBYU8sU0FBUyxrQkFBa0IsS0FBMEIsYUFBcUIsTUFBYyxLQUFLLElBQUksR0FBVztDQUNqSCxJQUFJLFVBQVU7Q0FDZCxLQUFLLE1BQU0sQ0FBQyxLQUFLLE9BQU8sS0FBSztFQUMzQixJQUFJLE1BQU0sS0FBSyxhQUFhO0dBQzFCLElBQUksT0FBTyxHQUFHO0dBQ2Q7RUFDRjtDQUNGO0NBQ0EsT0FBTztBQUNUOztBQUdPLFNBQVMsYUFBYSxLQUEwQixXQUFtQixhQUFxQixNQUFjLEtBQUssSUFBSSxHQUFXO0NBQy9ILElBQUksSUFBSSxRQUFRLFdBQVcsT0FBTztDQUNsQyxPQUFPLGtCQUFrQixLQUFLLGFBQWEsR0FBRztBQUNoRDs7Ozs7Ozs7Ozs7O0FBYU8sU0FBUyxnQkFBc0IsS0FBZ0IsYUFBcUIsTUFBNEIsTUFBYyxLQUFLLElBQUksR0FBVztDQUN2SSxJQUFJLFVBQVU7Q0FDZCxLQUFLLE1BQU0sQ0FBQyxLQUFLLFVBQVUsS0FBSztFQUM5QixJQUFJLE1BQU0sS0FBSyxLQUFLLElBQUksYUFBYTtHQUNuQyxJQUFJLE9BQU8sR0FBRztHQUNkO0VBQ0Y7Q0FDRjtDQUNBLE9BQU87QUFDVDs7QUFHTyxTQUFTLGdCQUFzQixLQUFnQixXQUFtQixhQUFxQixNQUE0QixNQUFjLEtBQUssSUFBSSxHQUFXO0NBQzFKLElBQUksSUFBSSxRQUFRLFdBQVcsT0FBTztDQUNsQyxPQUFPLGdCQUFnQixLQUFLLGFBQWEsTUFBTSxHQUFHO0FBQ3BEOzs7Ozs7OztBQVNPLFNBQVMsV0FBaUIsS0FBZ0IsS0FBYSxNQUFxQztDQUNqRyxJQUFJLElBQUksUUFBUSxLQUFLLE9BQU87Q0FDNUIsSUFBSSxVQUFVO0NBQ2QsSUFBSSxNQUFNO0VBQ1IsTUFBTSxRQUFRLENBQUMsR0FBRyxJQUFJLFFBQVEsQ0FBQyxDQUFDLENBQUMsTUFBTSxHQUFHLE1BQU0sS0FBSyxFQUFFLEVBQUUsSUFBSSxLQUFLLEVBQUUsRUFBRSxDQUFDO0VBQ3ZFLEtBQUssTUFBTSxDQUFDLFFBQVEsT0FBTztHQUN6QixJQUFJLElBQUksUUFBUSxLQUFLO0dBQ3JCLElBQUksT0FBTyxHQUFHO0dBQ2Q7RUFDRjtDQUNGLE9BQU87RUFDTCxLQUFLLE1BQU0sT0FBTyxJQUFJLEtBQUssR0FBRztHQUM1QixJQUFJLElBQUksUUFBUSxLQUFLO0dBQ3JCLElBQUksT0FBTyxHQUFHO0dBQ2Q7RUFDRjtDQUNGO0NBQ0EsT0FBTztBQUNUIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJzd2VlcC1tYXAudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBzd2VlcC1tYXAudHMg4oCUIFRUTCBldmljdGlvbiBmb3IgdGhlIHNtYWxsIHByb2Nlc3MtbG9jYWwgdGltZXN0YW1wIG1hcHNcbiAqIChMYW5lIEYgYXVkaXQsIEZsYWcgUy00KS4gU2V2ZXJhbCByb3V0ZSBtb2R1bGVzIGtlZXAgYVxuICogTWFwPHN0cmluZywgbnVtYmVyPiBvZiBcImxhc3Qgc2VlbiBhdFwiIHRpbWVzdGFtcHMgZm9yIHBhY2luZy90aHJvdHRsZVxuICogZGVjaXNpb25zOyB0aGUgZW50cmllcyBhcmUgb25seSBldmVyIHJlYWQgYmFjayB3aXRoaW4gYSBzaG9ydCB3aW5kb3csXG4gKiBhZnRlciB3aGljaCBhbiBlbnRyeSBpcyBpbmRpc3Rpbmd1aXNoYWJsZSBmcm9tIGFuIGFic2VudCBvbmUg4oCUIGJ1dFxuICogbm90aGluZyBldmVyIGRlbGV0ZWQgdGhlbSwgc28gdGhlIG1hcHMgZ3JldyBmb3IgdGhlIGxpZmUgb2YgdGhlXG4gKiBwcm9jZXNzIChhbmQgc29tZSBrZXlzIGFyZSBjbGllbnQtbWludGFibGUpLlxuICpcbiAqIFRoZSBwYXR0ZXJuOiBjYWxsZXJzIHN3ZWVwIG9wcG9ydHVuaXN0aWNhbGx5IHdoZW4gdGhlIG1hcCBwYXNzZXMgYVxuICogc2l6ZSB0aHJlc2hvbGQsIHNvIHRoZSBzd2VlcCBjb3N0IGlzIGFtb3J0aXplZCBhbmQgYm91bmRlZC4gRW50cmllc1xuICogb2xkZXIgdGhhbiB0aGUgVFRMIGFyZSBkZWxldGVkOyB0aGUgcmV0dXJuIHZhbHVlIGlzIGhvdyBtYW55IGRpZWQuXG4gKi9cbmV4cG9ydCBmdW5jdGlvbiBzd2VlcFN0YWxlRW50cmllcyhtYXA6IE1hcDxzdHJpbmcsIG51bWJlcj4sIG9sZGVyVGhhbk1zOiBudW1iZXIsIG5vdzogbnVtYmVyID0gRGF0ZS5ub3coKSk6IG51bWJlciB7XG4gIGxldCByZW1vdmVkID0gMDtcbiAgZm9yIChjb25zdCBba2V5LCBhdF0gb2YgbWFwKSB7XG4gICAgaWYgKG5vdyAtIGF0ID4gb2xkZXJUaGFuTXMpIHtcbiAgICAgIG1hcC5kZWxldGUoa2V5KTtcbiAgICAgIHJlbW92ZWQrKztcbiAgICB9XG4gIH1cbiAgcmV0dXJuIHJlbW92ZWQ7XG59XG5cbi8qKiBTd2VlcCBvbmx5IG9uY2UgdGhlIG1hcCBpcyBwYXN0IGB0aHJlc2hvbGRgIGVudHJpZXMgKGFtb3J0aXplZCkuICovXG5leHBvcnQgZnVuY3Rpb24gc3dlZXBJZkxhcmdlKG1hcDogTWFwPHN0cmluZywgbnVtYmVyPiwgdGhyZXNob2xkOiBudW1iZXIsIG9sZGVyVGhhbk1zOiBudW1iZXIsIG5vdzogbnVtYmVyID0gRGF0ZS5ub3coKSk6IG51bWJlciB7XG4gIGlmIChtYXAuc2l6ZSA8PSB0aHJlc2hvbGQpIHJldHVybiAwO1xuICByZXR1cm4gc3dlZXBTdGFsZUVudHJpZXMobWFwLCBvbGRlclRoYW5Ncywgbm93KTtcbn1cblxuLyoqXG4gKiBUVEwgZXZpY3Rpb24gZm9yIHZhbHVlIG1hcHMgdGhhdCBjYXJyeSB0aGVpciBvd24gdGltZXN0YW1wXG4gKiAoT09NIGZpeCwgMjAyNi0xMC0yNSkuIFRoZSBkaWFnbm9zaXMgZm91bmQgdGhlIHNhbWUgc2hhcGUgaW4gYVxuICogZG96ZW4gbW9kdWxlczogZW50cmllcyBgLnNldCgpYCBvbiBhIGhvdCBwYXRoLCB0aGUgVFRMIGNvbnN1bHRlZFxuICogb25seSBvbiByZWFkLCBub3RoaW5nIGV2ZXIgZGVsZXRpbmcg4oCUIG9uZSByZXRhaW5lZCBlbnRyeSBwZXIgdXNlclxuICogLyB0cmFjayAvIGtleSBmb3IgdGhlIGxpZmUgb2YgdGhlIHByb2Nlc3MsIHN1bW1pbmcgdG8gdGhlIHN0ZWFkeVxuICogaGVhcCBjbGltYiBiZWhpbmQgdGhlIGRheSdzIG5pbmUgT09NIGtpbGxzLiBgYXRPZmAgZXh0cmFjdHMgdGhlXG4gKiBlbnRyeSdzIHRpbWVzdGFtcDogYHsgYXQsIC4uLiB9YCBjYWNoZXMsIGB7IGxhc3QsIC4uLiB9YCB0b2tlblxuICogYnVja2V0cywgaGl0LXdpbmRvdyBhcnJheXMgKGFnZSA9IG5ld2VzdCBoaXQsIHRoZSBsYXN0IGVsZW1lbnQg4oCUXG4gKiBjYWxsZXJzIGtlZXAgdGhlIGFycmF5cyB3aW5kb3ctcHJ1bmVkIGFuZCBhc2NlbmRpbmcpLlxuICovXG5leHBvcnQgZnVuY3Rpb24gc3dlZXBUdGxFbnRyaWVzPEssIFY+KG1hcDogTWFwPEssIFY+LCBvbGRlclRoYW5NczogbnVtYmVyLCBhdE9mOiAodmFsdWU6IFYpID0+IG51bWJlciwgbm93OiBudW1iZXIgPSBEYXRlLm5vdygpKTogbnVtYmVyIHtcbiAgbGV0IHJlbW92ZWQgPSAwO1xuICBmb3IgKGNvbnN0IFtrZXksIHZhbHVlXSBvZiBtYXApIHtcbiAgICBpZiAobm93IC0gYXRPZih2YWx1ZSkgPiBvbGRlclRoYW5Ncykge1xuICAgICAgbWFwLmRlbGV0ZShrZXkpO1xuICAgICAgcmVtb3ZlZCsrO1xuICAgIH1cbiAgfVxuICByZXR1cm4gcmVtb3ZlZDtcbn1cblxuLyoqIFN3ZWVwIG9ubHkgb25jZSB0aGUgbWFwIGlzIHBhc3QgYHRocmVzaG9sZGAgZW50cmllcyAoYW1vcnRpemVkKS4gKi9cbmV4cG9ydCBmdW5jdGlvbiBzd2VlcFR0bElmTGFyZ2U8SywgVj4obWFwOiBNYXA8SywgVj4sIHRocmVzaG9sZDogbnVtYmVyLCBvbGRlclRoYW5NczogbnVtYmVyLCBhdE9mOiAodmFsdWU6IFYpID0+IG51bWJlciwgbm93OiBudW1iZXIgPSBEYXRlLm5vdygpKTogbnVtYmVyIHtcbiAgaWYgKG1hcC5zaXplIDw9IHRocmVzaG9sZCkgcmV0dXJuIDA7XG4gIHJldHVybiBzd2VlcFR0bEVudHJpZXMobWFwLCBvbGRlclRoYW5NcywgYXRPZiwgbm93KTtcbn1cblxuLyoqXG4gKiBIYXJkIGJvdW5kLCBhcyBhIGJhY2tzdG9wIGJlaGluZCBUVEwgc3dlZXBzOiBldmljdCB0aGVcbiAqIGxlYXN0LXJlY2VudGx5LXRvdWNoZWQgZW50cmllcyB1bnRpbCB0aGUgbWFwIGlzIGF0IGBjYXBgLiBXaXRoXG4gKiBgYXRPZmAsIHJlY2VuY3kgaXMgdGhlIHZhbHVlJ3MgdGltZXN0YW1wOyB3aXRob3V0IGl0LCBNYXBcbiAqIGluc2VydGlvbiBvcmRlciAob2xkZXN0IGZpcnN0KS4gUnVucyB0aGUgc29ydCBvbmx5IHdoZW4gdGhlIG1hcFxuICogaXMgYWxyZWFkeSBvdmVyc2l6ZWQsIHNvIHRoZSBob3QgcGF0aCBzdGF5cyBmcmVlLlxuICovXG5leHBvcnQgZnVuY3Rpb24gY2FwTWFwU2l6ZTxLLCBWPihtYXA6IE1hcDxLLCBWPiwgY2FwOiBudW1iZXIsIGF0T2Y/OiAodmFsdWU6IFYpID0+IG51bWJlcik6IG51bWJlciB7XG4gIGlmIChtYXAuc2l6ZSA8PSBjYXApIHJldHVybiAwO1xuICBsZXQgcmVtb3ZlZCA9IDA7XG4gIGlmIChhdE9mKSB7XG4gICAgY29uc3QgYnlBZ2UgPSBbLi4ubWFwLmVudHJpZXMoKV0uc29ydCgoYSwgYikgPT4gYXRPZihhWzFdKSAtIGF0T2YoYlsxXSkpO1xuICAgIGZvciAoY29uc3QgW2tleV0gb2YgYnlBZ2UpIHtcbiAgICAgIGlmIChtYXAuc2l6ZSA8PSBjYXApIGJyZWFrO1xuICAgICAgbWFwLmRlbGV0ZShrZXkpO1xuICAgICAgcmVtb3ZlZCsrO1xuICAgIH1cbiAgfSBlbHNlIHtcbiAgICBmb3IgKGNvbnN0IGtleSBvZiBtYXAua2V5cygpKSB7XG4gICAgICBpZiAobWFwLnNpemUgPD0gY2FwKSBicmVhaztcbiAgICAgIG1hcC5kZWxldGUoa2V5KTtcbiAgICAgIHJlbW92ZWQrKztcbiAgICB9XG4gIH1cbiAgcmV0dXJuIHJlbW92ZWQ7XG59XG4iXSwiZmlsZSI6Ii9zcmMvbGliL3N3ZWVwLW1hcC50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9zd2VlcC1tYXAudHMiLCIvc3JjL2xpYi9zd2VlcC1tYXAudHMiLFtdLFtdLFtdXQ==

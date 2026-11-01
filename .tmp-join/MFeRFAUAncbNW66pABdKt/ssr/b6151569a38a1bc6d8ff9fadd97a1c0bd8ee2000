@@ -1,0 +1,66 @@
+__vite_ssr_exportName__("secondLifePrefsTable", () => { try { return secondLifePrefsTable } catch {} });
+__vite_ssr_exportName__("secondLifeRevivalsTable", () => { try { return secondLifeRevivalsTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","boolean","integer","doublePrecision","jsonb","timestamp","index","check"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+
+
+/**
+* Second Life (#161) — UPGRADE of Viral Spike Watch.
+*
+* Two tables:
+*
+* `second_life_prefs` — the Settings off-switch for catalog watching,
+* one row per account (mirrors sound_prefs). No row = watching ON (the
+* shipped default of the spike watch). When a creator turns watching
+* off, the watch skips their catalog entirely: no spike alerts and no
+* revival proposals for their items.
+*
+* `second_life_revivals` — one revival proposal per spike episode that
+* fired while watching was on. A proposal is a PLAN, never an action:
+* re-cut the spiking item as a short + a fresh cover, both deep-linked
+* into Create pre-loaded. Status walks proposed → approved (creator
+* tapped the one-tap revival) or proposed → dismissed. Approving never
+* posts anything — it only records the creator's yes and hands them
+* the pre-loaded Create links; the creator publishes from Create.
+*
+* `current_plays` / `baseline_daily` are the REAL computed values from
+* play_events at the moment the spike fired (copied from the spike
+* evaluation) — the proposal shows exactly what fired it, never a
+* synthesized metric.
+*
+* Migration: provisional 0286_second_life.sql (renumbered at join).
+*/
+const secondLifePrefsTable = (0,__vite_ssr_import_0__.pgTable)("second_life_prefs", {
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").primaryKey(),
+	watchEnabled: (0,__vite_ssr_import_0__.boolean)("watch_enabled").notNull().default(true),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+const secondLifeRevivalsTable = (0,__vite_ssr_import_0__.pgTable)("second_life_revivals", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	ownerUserId: (0,__vite_ssr_import_0__.uuid)("owner_user_id").notNull(),
+	profileId: (0,__vite_ssr_import_0__.uuid)("profile_id").notNull(),
+	/** 'track' | 'video' — the spiking item's kind (play_events kind). */
+	kind: (0,__vite_ssr_import_0__.text)("kind").notNull(),
+	mediaId: (0,__vite_ssr_import_0__.uuid)("media_id").notNull(),
+	/** 'proposed' | 'approved' | 'dismissed' — creator decides; the
+	*  house never moves a proposal past 'proposed' on its own. */
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("proposed"),
+	/** The revival plan: { recut: {...}, cover: {...} } — Create
+	*  deep links + source ids, built by lib/second-life. */
+	plan: (0,__vite_ssr_import_0__.jsonb)("plan").notNull(),
+	/** Plays in the 24h window when the spike fired (real count). */
+	currentPlays: (0,__vite_ssr_import_0__.integer)("current_plays").notNull().default(0),
+	/** Trailing-7-day plays ÷ 7 at fire time (real computed value). */
+	baselineDaily: (0,__vite_ssr_import_0__.doublePrecision)("baseline_daily").notNull().default(0),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow(),
+	decidedAt: (0,__vite_ssr_import_0__.timestamp)("decided_at", { withTimezone: true })
+}, (t) => [
+	(0,__vite_ssr_import_0__.check)("second_life_revivals_kind_check", __vite_ssr_import_1__.sql`${t.kind} IN ('track','video')`),
+	(0,__vite_ssr_import_0__.check)("second_life_revivals_status_check", __vite_ssr_import_1__.sql`${t.status} IN ('proposed','approved','dismissed')`),
+	(0,__vite_ssr_import_0__.index)("second_life_revivals_owner_status_idx").on(t.ownerUserId, t.status),
+	(0,__vite_ssr_import_0__.index)("second_life_revivals_media_idx").on(t.kind, t.mediaId)
+]);
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7QUFBQTtBQUNBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQTRCTyxNQUFNLHVCQUF1QixrQ0FBUSxxQkFBcUI7Q0FDL0QsUUFBUSwrQkFBSyxTQUFTLENBQUMsQ0FBQyxXQUFXO0NBQ25DLGNBQWMsa0NBQVEsZUFBZSxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxJQUFJO0NBQzdELFdBQVcsb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxXQUFXO0FBQ2xGLENBQUM7QUFJTSxNQUFNLDBCQUEwQixrQ0FDckMsd0JBQ0E7Q0FDRSxJQUFJLCtCQUFLLElBQUksQ0FBQyxDQUFDLFdBQVcsQ0FBQyxDQUFDLGNBQWM7Q0FDMUMsYUFBYSwrQkFBSyxlQUFlLENBQUMsQ0FBQyxRQUFRO0NBQzNDLFdBQVcsK0JBQUssWUFBWSxDQUFDLENBQUMsUUFBUTs7Q0FFdEMsTUFBTSwrQkFBSyxNQUFNLENBQUMsQ0FBQyxRQUFRO0NBQzNCLFNBQVMsK0JBQUssVUFBVSxDQUFDLENBQUMsUUFBUTs7O0NBR2xDLFFBQVEsK0JBQUssUUFBUSxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxVQUFVOzs7Q0FHbkQsTUFBTSxnQ0FBTSxNQUFNLENBQUMsQ0FBQyxRQUFROztDQUU1QixjQUFjLGtDQUFRLGVBQWUsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQzs7Q0FFMUQsZUFBZSwwQ0FBZ0IsZ0JBQWdCLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUM7Q0FDcEUsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFdBQVc7Q0FDaEYsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUM7QUFDM0QsSUFDQyxNQUFNO0NBQ0wsZ0NBQU0sbUNBQW1DLHlCQUFHLEdBQUcsRUFBRSxLQUFLLHNCQUFzQjtDQUM1RSxnQ0FBTSxxQ0FBcUMseUJBQUcsR0FBRyxFQUFFLE9BQU8sd0NBQXdDO0NBQ2xHLGdDQUFNLHVDQUF1QyxDQUFDLENBQUMsR0FBRyxFQUFFLGFBQWEsRUFBRSxNQUFNO0NBQ3pFLGdDQUFNLGdDQUFnQyxDQUFDLENBQUMsR0FBRyxFQUFFLE1BQU0sRUFBRSxPQUFPO0FBQzlELENBQ0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInNlY29uZC1saWZlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHBnVGFibGUsIHV1aWQsIHRleHQsIGJvb2xlYW4sIGludGVnZXIsIGRvdWJsZVByZWNpc2lvbiwganNvbmIsIHRpbWVzdGFtcCwgaW5kZXgsIGNoZWNrIH0gZnJvbSBcImRyaXp6bGUtb3JtL3BnLWNvcmVcIjtcbmltcG9ydCB7IHNxbCB9IGZyb20gXCJkcml6emxlLW9ybVwiO1xuXG4vKipcbiAqIFNlY29uZCBMaWZlICgjMTYxKSDigJQgVVBHUkFERSBvZiBWaXJhbCBTcGlrZSBXYXRjaC5cbiAqXG4gKiBUd28gdGFibGVzOlxuICpcbiAqIGBzZWNvbmRfbGlmZV9wcmVmc2Ag4oCUIHRoZSBTZXR0aW5ncyBvZmYtc3dpdGNoIGZvciBjYXRhbG9nIHdhdGNoaW5nLFxuICogb25lIHJvdyBwZXIgYWNjb3VudCAobWlycm9ycyBzb3VuZF9wcmVmcykuIE5vIHJvdyA9IHdhdGNoaW5nIE9OICh0aGVcbiAqIHNoaXBwZWQgZGVmYXVsdCBvZiB0aGUgc3Bpa2Ugd2F0Y2gpLiBXaGVuIGEgY3JlYXRvciB0dXJucyB3YXRjaGluZ1xuICogb2ZmLCB0aGUgd2F0Y2ggc2tpcHMgdGhlaXIgY2F0YWxvZyBlbnRpcmVseTogbm8gc3Bpa2UgYWxlcnRzIGFuZCBub1xuICogcmV2aXZhbCBwcm9wb3NhbHMgZm9yIHRoZWlyIGl0ZW1zLlxuICpcbiAqIGBzZWNvbmRfbGlmZV9yZXZpdmFsc2Ag4oCUIG9uZSByZXZpdmFsIHByb3Bvc2FsIHBlciBzcGlrZSBlcGlzb2RlIHRoYXRcbiAqIGZpcmVkIHdoaWxlIHdhdGNoaW5nIHdhcyBvbi4gQSBwcm9wb3NhbCBpcyBhIFBMQU4sIG5ldmVyIGFuIGFjdGlvbjpcbiAqIHJlLWN1dCB0aGUgc3Bpa2luZyBpdGVtIGFzIGEgc2hvcnQgKyBhIGZyZXNoIGNvdmVyLCBib3RoIGRlZXAtbGlua2VkXG4gKiBpbnRvIENyZWF0ZSBwcmUtbG9hZGVkLiBTdGF0dXMgd2Fsa3MgcHJvcG9zZWQg4oaSIGFwcHJvdmVkIChjcmVhdG9yXG4gKiB0YXBwZWQgdGhlIG9uZS10YXAgcmV2aXZhbCkgb3IgcHJvcG9zZWQg4oaSIGRpc21pc3NlZC4gQXBwcm92aW5nIG5ldmVyXG4gKiBwb3N0cyBhbnl0aGluZyDigJQgaXQgb25seSByZWNvcmRzIHRoZSBjcmVhdG9yJ3MgeWVzIGFuZCBoYW5kcyB0aGVtXG4gKiB0aGUgcHJlLWxvYWRlZCBDcmVhdGUgbGlua3M7IHRoZSBjcmVhdG9yIHB1Ymxpc2hlcyBmcm9tIENyZWF0ZS5cbiAqXG4gKiBgY3VycmVudF9wbGF5c2AgLyBgYmFzZWxpbmVfZGFpbHlgIGFyZSB0aGUgUkVBTCBjb21wdXRlZCB2YWx1ZXMgZnJvbVxuICogcGxheV9ldmVudHMgYXQgdGhlIG1vbWVudCB0aGUgc3Bpa2UgZmlyZWQgKGNvcGllZCBmcm9tIHRoZSBzcGlrZVxuICogZXZhbHVhdGlvbikg4oCUIHRoZSBwcm9wb3NhbCBzaG93cyBleGFjdGx5IHdoYXQgZmlyZWQgaXQsIG5ldmVyIGFcbiAqIHN5bnRoZXNpemVkIG1ldHJpYy5cbiAqXG4gKiBNaWdyYXRpb246IHByb3Zpc2lvbmFsIDAyODZfc2Vjb25kX2xpZmUuc3FsIChyZW51bWJlcmVkIGF0IGpvaW4pLlxuICovXG5leHBvcnQgY29uc3Qgc2Vjb25kTGlmZVByZWZzVGFibGUgPSBwZ1RhYmxlKFwic2Vjb25kX2xpZmVfcHJlZnNcIiwge1xuICB1c2VySWQ6IHV1aWQoXCJ1c2VyX2lkXCIpLnByaW1hcnlLZXkoKSxcbiAgd2F0Y2hFbmFibGVkOiBib29sZWFuKFwid2F0Y2hfZW5hYmxlZFwiKS5ub3ROdWxsKCkuZGVmYXVsdCh0cnVlKSxcbiAgdXBkYXRlZEF0OiB0aW1lc3RhbXAoXCJ1cGRhdGVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLm5vdE51bGwoKS5kZWZhdWx0Tm93KCksXG59KTtcblxuZXhwb3J0IHR5cGUgU2Vjb25kTGlmZVByZWZzID0gdHlwZW9mIHNlY29uZExpZmVQcmVmc1RhYmxlLiRpbmZlclNlbGVjdDtcblxuZXhwb3J0IGNvbnN0IHNlY29uZExpZmVSZXZpdmFsc1RhYmxlID0gcGdUYWJsZShcbiAgXCJzZWNvbmRfbGlmZV9yZXZpdmFsc1wiLFxuICB7XG4gICAgaWQ6IHV1aWQoXCJpZFwiKS5wcmltYXJ5S2V5KCkuZGVmYXVsdFJhbmRvbSgpLFxuICAgIG93bmVyVXNlcklkOiB1dWlkKFwib3duZXJfdXNlcl9pZFwiKS5ub3ROdWxsKCksXG4gICAgcHJvZmlsZUlkOiB1dWlkKFwicHJvZmlsZV9pZFwiKS5ub3ROdWxsKCksXG4gICAgLyoqICd0cmFjaycgfCAndmlkZW8nIOKAlCB0aGUgc3Bpa2luZyBpdGVtJ3Mga2luZCAocGxheV9ldmVudHMga2luZCkuICovXG4gICAga2luZDogdGV4dChcImtpbmRcIikubm90TnVsbCgpLFxuICAgIG1lZGlhSWQ6IHV1aWQoXCJtZWRpYV9pZFwiKS5ub3ROdWxsKCksXG4gICAgLyoqICdwcm9wb3NlZCcgfCAnYXBwcm92ZWQnIHwgJ2Rpc21pc3NlZCcg4oCUIGNyZWF0b3IgZGVjaWRlczsgdGhlXG4gICAgICogIGhvdXNlIG5ldmVyIG1vdmVzIGEgcHJvcG9zYWwgcGFzdCAncHJvcG9zZWQnIG9uIGl0cyBvd24uICovXG4gICAgc3RhdHVzOiB0ZXh0KFwic3RhdHVzXCIpLm5vdE51bGwoKS5kZWZhdWx0KFwicHJvcG9zZWRcIiksXG4gICAgLyoqIFRoZSByZXZpdmFsIHBsYW46IHsgcmVjdXQ6IHsuLi59LCBjb3Zlcjogey4uLn0gfSDigJQgQ3JlYXRlXG4gICAgICogIGRlZXAgbGlua3MgKyBzb3VyY2UgaWRzLCBidWlsdCBieSBsaWIvc2Vjb25kLWxpZmUuICovXG4gICAgcGxhbjoganNvbmIoXCJwbGFuXCIpLm5vdE51bGwoKSxcbiAgICAvKiogUGxheXMgaW4gdGhlIDI0aCB3aW5kb3cgd2hlbiB0aGUgc3Bpa2UgZmlyZWQgKHJlYWwgY291bnQpLiAqL1xuICAgIGN1cnJlbnRQbGF5czogaW50ZWdlcihcImN1cnJlbnRfcGxheXNcIikubm90TnVsbCgpLmRlZmF1bHQoMCksXG4gICAgLyoqIFRyYWlsaW5nLTctZGF5IHBsYXlzIMO3IDcgYXQgZmlyZSB0aW1lIChyZWFsIGNvbXB1dGVkIHZhbHVlKS4gKi9cbiAgICBiYXNlbGluZURhaWx5OiBkb3VibGVQcmVjaXNpb24oXCJiYXNlbGluZV9kYWlseVwiKS5ub3ROdWxsKCkuZGVmYXVsdCgwKSxcbiAgICBjcmVhdGVkQXQ6IHRpbWVzdGFtcChcImNyZWF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbiAgICBkZWNpZGVkQXQ6IHRpbWVzdGFtcChcImRlY2lkZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSksXG4gIH0sXG4gICh0KSA9PiBbXG4gICAgY2hlY2soXCJzZWNvbmRfbGlmZV9yZXZpdmFsc19raW5kX2NoZWNrXCIsIHNxbGAke3Qua2luZH0gSU4gKCd0cmFjaycsJ3ZpZGVvJylgKSxcbiAgICBjaGVjayhcInNlY29uZF9saWZlX3Jldml2YWxzX3N0YXR1c19jaGVja1wiLCBzcWxgJHt0LnN0YXR1c30gSU4gKCdwcm9wb3NlZCcsJ2FwcHJvdmVkJywnZGlzbWlzc2VkJylgKSxcbiAgICBpbmRleChcInNlY29uZF9saWZlX3Jldml2YWxzX293bmVyX3N0YXR1c19pZHhcIikub24odC5vd25lclVzZXJJZCwgdC5zdGF0dXMpLFxuICAgIGluZGV4KFwic2Vjb25kX2xpZmVfcmV2aXZhbHNfbWVkaWFfaWR4XCIpLm9uKHQua2luZCwgdC5tZWRpYUlkKSxcbiAgXSxcbik7XG5cbmV4cG9ydCB0eXBlIFNlY29uZExpZmVSZXZpdmFsID0gdHlwZW9mIHNlY29uZExpZmVSZXZpdmFsc1RhYmxlLiRpbmZlclNlbGVjdDtcbiJdLCJmaWxlIjoiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvc2Vjb25kLWxpZmUudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvc2Vjb25kLWxpZmUudHMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9zZWNvbmQtbGlmZS50cyIsW10sWyI2IiwiNyJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vaW5kZXguanMiXQ==

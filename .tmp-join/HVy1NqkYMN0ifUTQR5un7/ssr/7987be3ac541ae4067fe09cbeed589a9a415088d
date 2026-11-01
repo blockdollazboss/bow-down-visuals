@@ -1,0 +1,57 @@
+__vite_ssr_exportName__("songsTable", () => { try { return songsTable } catch {} });
+__vite_ssr_exportName__("insertSongSchema", () => { try { return insertSongSchema } catch {} });
+__vite_ssr_exportName__("selectSongSchema", () => { try { return selectSongSchema } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","timestamp","jsonb","boolean"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-zod@0.8.3_drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0__zod@4.6.5/node_modules/drizzle-zod/index.mjs", {"importedNames":["createInsertSchema","createSelectSchema"]});
+
+
+/* ── Songs library ─────────────────────────────────────────────────────────
+Songs the user uploaded, generated on the site, remixed from either, or
+covered (a new-style arrangement of an existing song, linked via
+parent_song_id).
+Uploaded songs can be stripped to vocals (to clone a character voice) or
+remixed — vocals regenerated in an artist vault's locked voice. */
+const songsTable = (0,__vite_ssr_import_0__.pgTable)("songs", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	user_id: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	title: (0,__vite_ssr_import_0__.text)("title").notNull(),
+	/** Public (signed) URL of the audio file. */
+	audio_url: (0,__vite_ssr_import_0__.text)("audio_url").notNull(),
+	/** Supabase storage reference for the audio file. */
+	audio_path: (0,__vite_ssr_import_0__.text)("audio_path"),
+	/** upload | generated | remix | cover | song-remix (new arrangement) |
+	section-replace (one tagged section regenerated + spliced) */
+	source: (0,__vite_ssr_import_0__.text)("source").notNull().default("upload"),
+	/** For remixes and covers: the song this was made from. */
+	parent_song_id: (0,__vite_ssr_import_0__.uuid)("parent_song_id"),
+	/** Artist vault whose locked voice was used (remixes). */
+	artist_vault_id: (0,__vite_ssr_import_0__.uuid)("artist_vault_id"),
+	/** For mashups: the two source songs [{ songId, title }]. */
+	mashup_sources: (0,__vite_ssr_import_0__.jsonb)("mashup_sources").$type(),
+	/** For mashups: crossfade | beat-match | interleave. */
+	mashup_style: (0,__vite_ssr_import_0__.text)("mashup_style"),
+	duration_sec: (0,__vite_ssr_import_0__.text)("duration_sec"),
+	/** Release metadata (migration 0142, DE-9): saved once on the song so
+	the distribute flow reads/writes it here instead of re-collecting
+	it per release. All nullable — older songs simply don't know yet. */
+	lyrics: (0,__vite_ssr_import_0__.text)("lyrics"),
+	/** N9 Karaoke Mode (upgrade-deltas wave): creator switches for the
+	interactive in-player sing-along. timed_lyrics is artist-supplied LRC
+	([mm:ss] lines) whose text must match `lyrics` when both are present. */
+	karaoke_enabled: (0,__vite_ssr_import_0__.boolean)("karaoke_enabled").notNull().default(false),
+	karaoke_share_enabled: (0,__vite_ssr_import_0__.boolean)("karaoke_share_enabled").notNull().default(false),
+	timed_lyrics: (0,__vite_ssr_import_0__.text)("timed_lyrics"),
+	genre: (0,__vite_ssr_import_0__.text)("genre"),
+	isrc: (0,__vite_ssr_import_0__.text)("isrc"),
+	cover_art_url: (0,__vite_ssr_import_0__.text)("cover_art_url"),
+	created_at: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow()
+});
+const insertSongSchema = (0,__vite_ssr_import_1__.createInsertSchema)(songsTable).omit({
+	id: true,
+	created_at: true
+});
+const selectSongSchema = (0,__vite_ssr_import_1__.createSelectSchema)(songsTable);
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7O0FBQUE7QUFDQTs7Ozs7Ozs7O0FBU08sTUFBTSxhQUFhLGtDQUFRLFNBQVM7Q0FDekMsSUFBSSwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjO0NBQzFDLFNBQVMsK0JBQUssU0FBUyxDQUFDLENBQUMsUUFBUTtDQUNqQyxPQUFPLCtCQUFLLE9BQU8sQ0FBQyxDQUFDLFFBQVE7O0NBRTdCLFdBQVcsK0JBQUssV0FBVyxDQUFDLENBQUMsUUFBUTs7Q0FFckMsWUFBWSwrQkFBSyxZQUFZOzs7Q0FHN0IsUUFBUSwrQkFBSyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLFFBQVE7O0NBRWpELGdCQUFnQiwrQkFBSyxnQkFBZ0I7O0NBRXJDLGlCQUFpQiwrQkFBSyxpQkFBaUI7O0NBRXZDLGdCQUFnQixnQ0FBTSxnQkFBZ0IsQ0FBQyxDQUFDLE1BQWdEOztDQUV4RixjQUFjLCtCQUFLLGNBQWM7Q0FDakMsY0FBYywrQkFBSyxjQUFjOzs7O0NBSWpDLFFBQVEsK0JBQUssUUFBUTs7OztDQUlyQixpQkFBaUIsa0NBQVEsaUJBQWlCLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLEtBQUs7Q0FDbkUsdUJBQXVCLGtDQUFRLHVCQUF1QixDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxLQUFLO0NBQy9FLGNBQWMsK0JBQUssY0FBYztDQUNqQyxPQUFPLCtCQUFLLE9BQU87Q0FDbkIsTUFBTSwrQkFBSyxNQUFNO0NBQ2pCLGVBQWUsK0JBQUssZUFBZTtDQUNuQyxZQUFZLG9DQUFVLGNBQWMsRUFBRSxjQUFjLEtBQUssQ0FBQyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsV0FBVztBQUNuRixDQUFDO0FBRU0sTUFBTSxtQkFBbUIsNkNBQW1CLFVBQVUsQ0FBQyxDQUFDLEtBQUs7Q0FDbEUsSUFBSTtDQUNKLFlBQVk7QUFDZCxDQUFDO0FBRU0sTUFBTSxtQkFBbUIsNkNBQW1CLFVBQVUiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInNvbmdzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHBnVGFibGUsIHV1aWQsIHRleHQsIHRpbWVzdGFtcCwganNvbmIsIGJvb2xlYW4gfSBmcm9tIFwiZHJpenpsZS1vcm0vcGctY29yZVwiO1xuaW1wb3J0IHsgY3JlYXRlSW5zZXJ0U2NoZW1hLCBjcmVhdGVTZWxlY3RTY2hlbWEgfSBmcm9tIFwiZHJpenpsZS16b2RcIjtcblxuLyog4pSA4pSAIFNvbmdzIGxpYnJhcnkg4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSA4pSAXG4gICBTb25ncyB0aGUgdXNlciB1cGxvYWRlZCwgZ2VuZXJhdGVkIG9uIHRoZSBzaXRlLCByZW1peGVkIGZyb20gZWl0aGVyLCBvclxuICAgY292ZXJlZCAoYSBuZXctc3R5bGUgYXJyYW5nZW1lbnQgb2YgYW4gZXhpc3Rpbmcgc29uZywgbGlua2VkIHZpYVxuICAgcGFyZW50X3NvbmdfaWQpLlxuICAgVXBsb2FkZWQgc29uZ3MgY2FuIGJlIHN0cmlwcGVkIHRvIHZvY2FscyAodG8gY2xvbmUgYSBjaGFyYWN0ZXIgdm9pY2UpIG9yXG4gICByZW1peGVkIOKAlCB2b2NhbHMgcmVnZW5lcmF0ZWQgaW4gYW4gYXJ0aXN0IHZhdWx0J3MgbG9ja2VkIHZvaWNlLiAqL1xuXG5leHBvcnQgY29uc3Qgc29uZ3NUYWJsZSA9IHBnVGFibGUoXCJzb25nc1wiLCB7XG4gIGlkOiB1dWlkKFwiaWRcIikucHJpbWFyeUtleSgpLmRlZmF1bHRSYW5kb20oKSxcbiAgdXNlcl9pZDogdXVpZChcInVzZXJfaWRcIikubm90TnVsbCgpLFxuICB0aXRsZTogdGV4dChcInRpdGxlXCIpLm5vdE51bGwoKSxcbiAgLyoqIFB1YmxpYyAoc2lnbmVkKSBVUkwgb2YgdGhlIGF1ZGlvIGZpbGUuICovXG4gIGF1ZGlvX3VybDogdGV4dChcImF1ZGlvX3VybFwiKS5ub3ROdWxsKCksXG4gIC8qKiBTdXBhYmFzZSBzdG9yYWdlIHJlZmVyZW5jZSBmb3IgdGhlIGF1ZGlvIGZpbGUuICovXG4gIGF1ZGlvX3BhdGg6IHRleHQoXCJhdWRpb19wYXRoXCIpLFxuICAvKiogdXBsb2FkIHwgZ2VuZXJhdGVkIHwgcmVtaXggfCBjb3ZlciB8IHNvbmctcmVtaXggKG5ldyBhcnJhbmdlbWVudCkgfFxuICAgICAgc2VjdGlvbi1yZXBsYWNlIChvbmUgdGFnZ2VkIHNlY3Rpb24gcmVnZW5lcmF0ZWQgKyBzcGxpY2VkKSAqL1xuICBzb3VyY2U6IHRleHQoXCJzb3VyY2VcIikubm90TnVsbCgpLmRlZmF1bHQoXCJ1cGxvYWRcIiksXG4gIC8qKiBGb3IgcmVtaXhlcyBhbmQgY292ZXJzOiB0aGUgc29uZyB0aGlzIHdhcyBtYWRlIGZyb20uICovXG4gIHBhcmVudF9zb25nX2lkOiB1dWlkKFwicGFyZW50X3NvbmdfaWRcIiksXG4gIC8qKiBBcnRpc3QgdmF1bHQgd2hvc2UgbG9ja2VkIHZvaWNlIHdhcyB1c2VkIChyZW1peGVzKS4gKi9cbiAgYXJ0aXN0X3ZhdWx0X2lkOiB1dWlkKFwiYXJ0aXN0X3ZhdWx0X2lkXCIpLFxuICAvKiogRm9yIG1hc2h1cHM6IHRoZSB0d28gc291cmNlIHNvbmdzIFt7IHNvbmdJZCwgdGl0bGUgfV0uICovXG4gIG1hc2h1cF9zb3VyY2VzOiBqc29uYihcIm1hc2h1cF9zb3VyY2VzXCIpLiR0eXBlPEFycmF5PHsgc29uZ0lkOiBzdHJpbmc7IHRpdGxlOiBzdHJpbmcgfT4+KCksXG4gIC8qKiBGb3IgbWFzaHVwczogY3Jvc3NmYWRlIHwgYmVhdC1tYXRjaCB8IGludGVybGVhdmUuICovXG4gIG1hc2h1cF9zdHlsZTogdGV4dChcIm1hc2h1cF9zdHlsZVwiKSxcbiAgZHVyYXRpb25fc2VjOiB0ZXh0KFwiZHVyYXRpb25fc2VjXCIpLFxuICAvKiogUmVsZWFzZSBtZXRhZGF0YSAobWlncmF0aW9uIDAxNDIsIERFLTkpOiBzYXZlZCBvbmNlIG9uIHRoZSBzb25nIHNvXG4gICAgICB0aGUgZGlzdHJpYnV0ZSBmbG93IHJlYWRzL3dyaXRlcyBpdCBoZXJlIGluc3RlYWQgb2YgcmUtY29sbGVjdGluZ1xuICAgICAgaXQgcGVyIHJlbGVhc2UuIEFsbCBudWxsYWJsZSDigJQgb2xkZXIgc29uZ3Mgc2ltcGx5IGRvbid0IGtub3cgeWV0LiAqL1xuICBseXJpY3M6IHRleHQoXCJseXJpY3NcIiksXG4gIC8qKiBOOSBLYXJhb2tlIE1vZGUgKHVwZ3JhZGUtZGVsdGFzIHdhdmUpOiBjcmVhdG9yIHN3aXRjaGVzIGZvciB0aGVcbiAgICAgIGludGVyYWN0aXZlIGluLXBsYXllciBzaW5nLWFsb25nLiB0aW1lZF9seXJpY3MgaXMgYXJ0aXN0LXN1cHBsaWVkIExSQ1xuICAgICAgKFttbTpzc10gbGluZXMpIHdob3NlIHRleHQgbXVzdCBtYXRjaCBgbHlyaWNzYCB3aGVuIGJvdGggYXJlIHByZXNlbnQuICovXG4gIGthcmFva2VfZW5hYmxlZDogYm9vbGVhbihcImthcmFva2VfZW5hYmxlZFwiKS5ub3ROdWxsKCkuZGVmYXVsdChmYWxzZSksXG4gIGthcmFva2Vfc2hhcmVfZW5hYmxlZDogYm9vbGVhbihcImthcmFva2Vfc2hhcmVfZW5hYmxlZFwiKS5ub3ROdWxsKCkuZGVmYXVsdChmYWxzZSksXG4gIHRpbWVkX2x5cmljczogdGV4dChcInRpbWVkX2x5cmljc1wiKSxcbiAgZ2VucmU6IHRleHQoXCJnZW5yZVwiKSxcbiAgaXNyYzogdGV4dChcImlzcmNcIiksXG4gIGNvdmVyX2FydF91cmw6IHRleHQoXCJjb3Zlcl9hcnRfdXJsXCIpLFxuICBjcmVhdGVkX2F0OiB0aW1lc3RhbXAoXCJjcmVhdGVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLm5vdE51bGwoKS5kZWZhdWx0Tm93KCksXG59KTtcblxuZXhwb3J0IGNvbnN0IGluc2VydFNvbmdTY2hlbWEgPSBjcmVhdGVJbnNlcnRTY2hlbWEoc29uZ3NUYWJsZSkub21pdCh7XG4gIGlkOiB0cnVlLFxuICBjcmVhdGVkX2F0OiB0cnVlLFxufSk7XG5cbmV4cG9ydCBjb25zdCBzZWxlY3RTb25nU2NoZW1hID0gY3JlYXRlU2VsZWN0U2NoZW1hKHNvbmdzVGFibGUpO1xuXG5leHBvcnQgdHlwZSBTb25nID0gdHlwZW9mIHNvbmdzVGFibGUuJGluZmVyU2VsZWN0O1xuIl0sImZpbGUiOiIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9zb25ncy50cyJ9
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvc29uZ3MudHMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9zb25ncy50cyIsW10sWyI2IiwiNyJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtem9kQDAuOC4zX2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMF9fem9kQDQuNi41L25vZGVfbW9kdWxlcy9kcml6emxlLXpvZC9pbmRleC5tanMiXQ==

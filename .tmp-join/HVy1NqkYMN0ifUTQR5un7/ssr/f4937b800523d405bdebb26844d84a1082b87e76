@@ -1,0 +1,39 @@
+__vite_ssr_exportName__("producerTagsTable", () => { try { return producerTagsTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","timestamp","boolean","integer"]});
+
+/**
+* Producer tags — the creator's ONE signature tag (#159 Your Own Tag).
+*
+* Lifecycle: a generated tag starts as a `draft` (free to audition — the
+* approve-by-ear gate). Approving a draft charges the tag price (100 VB)
+* unless it is the creator's FIRST approved tag, which is the house gift
+* (price_charged = 0). The approved draft becomes `active`; the previous
+* active tag is demoted to `replaced`. One active tag per creator.
+*
+* `kind`: "spoken" (the original TTS tag) or "sonic" (the musical
+* two-second sonic-logo form).
+*
+* `stampEnabled` is the per-creator export-stamping preference, carried
+* on the tag rows: approving a new tag inherits the previous active
+* tag's setting, and the settings endpoint updates the active row.
+*/
+const producerTagsTable = (0,__vite_ssr_import_0__.pgTable)("producer_tags", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	kind: (0,__vite_ssr_import_0__.text)("kind").notNull().default("spoken"),
+	text: (0,__vite_ssr_import_0__.text)("text"),
+	voice: (0,__vite_ssr_import_0__.text)("voice"),
+	preset: (0,__vite_ssr_import_0__.text)("preset"),
+	format: (0,__vite_ssr_import_0__.text)("format").notNull().default("mp3"),
+	audioUrl: (0,__vite_ssr_import_0__.text)("audio_url"),
+	storageRef: (0,__vite_ssr_import_0__.text)("storage_ref"),
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("draft"),
+	stampEnabled: (0,__vite_ssr_import_0__.boolean)("stamp_enabled").notNull().default(true),
+	priceCharged: (0,__vite_ssr_import_0__.integer)("price_charged").notNull().default(0),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow(),
+	approvedAt: (0,__vite_ssr_import_0__.timestamp)("approved_at", { withTimezone: true })
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFrQk8sTUFBTSxvQkFBb0Isa0NBQVEsaUJBQWlCO0NBQ3hELElBQUksK0JBQUssSUFBSSxDQUFDLENBQUMsV0FBVyxDQUFDLENBQUMsY0FBYztDQUMxQyxRQUFRLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFFBQVE7Q0FDaEMsTUFBTSwrQkFBSyxNQUFNLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLFFBQVE7Q0FDN0MsTUFBTSwrQkFBSyxNQUFNO0NBQ2pCLE9BQU8sK0JBQUssT0FBTztDQUNuQixRQUFRLCtCQUFLLFFBQVE7Q0FDckIsUUFBUSwrQkFBSyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLEtBQUs7Q0FDOUMsVUFBVSwrQkFBSyxXQUFXO0NBQzFCLFlBQVksK0JBQUssYUFBYTtDQUM5QixRQUFRLCtCQUFLLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsT0FBTztDQUNoRCxjQUFjLGtDQUFRLGVBQWUsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsSUFBSTtDQUM3RCxjQUFjLGtDQUFRLGVBQWUsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQztDQUMxRCxXQUFXLG9DQUFVLGNBQWMsRUFBRSxjQUFjLEtBQUssQ0FBQyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsV0FBVztDQUNoRixZQUFZLG9DQUFVLGVBQWUsRUFBRSxjQUFjLEtBQUssQ0FBQztBQUM3RCxDQUFDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJwcm9kdWNlci10YWdzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHBnVGFibGUsIHV1aWQsIHRleHQsIHRpbWVzdGFtcCwgYm9vbGVhbiwgaW50ZWdlciB9IGZyb20gXCJkcml6emxlLW9ybS9wZy1jb3JlXCI7XG5cbi8qKlxuICogUHJvZHVjZXIgdGFncyDigJQgdGhlIGNyZWF0b3IncyBPTkUgc2lnbmF0dXJlIHRhZyAoIzE1OSBZb3VyIE93biBUYWcpLlxuICpcbiAqIExpZmVjeWNsZTogYSBnZW5lcmF0ZWQgdGFnIHN0YXJ0cyBhcyBhIGBkcmFmdGAgKGZyZWUgdG8gYXVkaXRpb24g4oCUIHRoZVxuICogYXBwcm92ZS1ieS1lYXIgZ2F0ZSkuIEFwcHJvdmluZyBhIGRyYWZ0IGNoYXJnZXMgdGhlIHRhZyBwcmljZSAoMTAwIFZCKVxuICogdW5sZXNzIGl0IGlzIHRoZSBjcmVhdG9yJ3MgRklSU1QgYXBwcm92ZWQgdGFnLCB3aGljaCBpcyB0aGUgaG91c2UgZ2lmdFxuICogKHByaWNlX2NoYXJnZWQgPSAwKS4gVGhlIGFwcHJvdmVkIGRyYWZ0IGJlY29tZXMgYGFjdGl2ZWA7IHRoZSBwcmV2aW91c1xuICogYWN0aXZlIHRhZyBpcyBkZW1vdGVkIHRvIGByZXBsYWNlZGAuIE9uZSBhY3RpdmUgdGFnIHBlciBjcmVhdG9yLlxuICpcbiAqIGBraW5kYDogXCJzcG9rZW5cIiAodGhlIG9yaWdpbmFsIFRUUyB0YWcpIG9yIFwic29uaWNcIiAodGhlIG11c2ljYWxcbiAqIHR3by1zZWNvbmQgc29uaWMtbG9nbyBmb3JtKS5cbiAqXG4gKiBgc3RhbXBFbmFibGVkYCBpcyB0aGUgcGVyLWNyZWF0b3IgZXhwb3J0LXN0YW1waW5nIHByZWZlcmVuY2UsIGNhcnJpZWRcbiAqIG9uIHRoZSB0YWcgcm93czogYXBwcm92aW5nIGEgbmV3IHRhZyBpbmhlcml0cyB0aGUgcHJldmlvdXMgYWN0aXZlXG4gKiB0YWcncyBzZXR0aW5nLCBhbmQgdGhlIHNldHRpbmdzIGVuZHBvaW50IHVwZGF0ZXMgdGhlIGFjdGl2ZSByb3cuXG4gKi9cbmV4cG9ydCBjb25zdCBwcm9kdWNlclRhZ3NUYWJsZSA9IHBnVGFibGUoXCJwcm9kdWNlcl90YWdzXCIsIHtcbiAgaWQ6IHV1aWQoXCJpZFwiKS5wcmltYXJ5S2V5KCkuZGVmYXVsdFJhbmRvbSgpLFxuICB1c2VySWQ6IHV1aWQoXCJ1c2VyX2lkXCIpLm5vdE51bGwoKSxcbiAga2luZDogdGV4dChcImtpbmRcIikubm90TnVsbCgpLmRlZmF1bHQoXCJzcG9rZW5cIiksXG4gIHRleHQ6IHRleHQoXCJ0ZXh0XCIpLFxuICB2b2ljZTogdGV4dChcInZvaWNlXCIpLFxuICBwcmVzZXQ6IHRleHQoXCJwcmVzZXRcIiksXG4gIGZvcm1hdDogdGV4dChcImZvcm1hdFwiKS5ub3ROdWxsKCkuZGVmYXVsdChcIm1wM1wiKSxcbiAgYXVkaW9Vcmw6IHRleHQoXCJhdWRpb191cmxcIiksXG4gIHN0b3JhZ2VSZWY6IHRleHQoXCJzdG9yYWdlX3JlZlwiKSxcbiAgc3RhdHVzOiB0ZXh0KFwic3RhdHVzXCIpLm5vdE51bGwoKS5kZWZhdWx0KFwiZHJhZnRcIiksXG4gIHN0YW1wRW5hYmxlZDogYm9vbGVhbihcInN0YW1wX2VuYWJsZWRcIikubm90TnVsbCgpLmRlZmF1bHQodHJ1ZSksXG4gIHByaWNlQ2hhcmdlZDogaW50ZWdlcihcInByaWNlX2NoYXJnZWRcIikubm90TnVsbCgpLmRlZmF1bHQoMCksXG4gIGNyZWF0ZWRBdDogdGltZXN0YW1wKFwiY3JlYXRlZF9hdFwiLCB7IHdpdGhUaW1lem9uZTogdHJ1ZSB9KS5ub3ROdWxsKCkuZGVmYXVsdE5vdygpLFxuICBhcHByb3ZlZEF0OiB0aW1lc3RhbXAoXCJhcHByb3ZlZF9hdFwiLCB7IHdpdGhUaW1lem9uZTogdHJ1ZSB9KSxcbn0pO1xuIl0sImZpbGUiOiIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9wcm9kdWNlci10YWdzLnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvcHJvZHVjZXItdGFncy50cyIsIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL3Byb2R1Y2VyLXRhZ3MudHMiLFtdLFsiNiJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIl0=

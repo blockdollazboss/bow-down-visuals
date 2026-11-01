@@ -1,0 +1,63 @@
+__vite_ssr_exportName__("DemucsBusyError", () => { try { return DemucsBusyError } catch {} });
+__vite_ssr_exportName__("runGatedDemucs", () => { try { return runGatedDemucs } catch {} });
+__vite_ssr_exportName__("DEMUCS_THREAD_ENV", () => { try { return DEMUCS_THREAD_ENV } catch {} });
+/**
+* demucs-gate.ts — process-wide single-flight gate for Demucs (PyTorch)
+* child processes. (2026-10-12, OOM fix.)
+*
+* One Demucs run RSSes hundreds of MB; two concurrent runs in the
+* 512 MB container OOM-kill the whole service — this was the top
+* suspect in oom-investigation.md. Every Demucs spawn in the process
+* must go through runGatedDemucs(): one run at a time, up to
+* MAX_WAITERS queued, beyond that a retryable busy error instead of
+* a dead container.
+*/
+class DemucsBusyError extends Error {
+	retryable = true;
+	constructor() {
+		super("Stem separation is busy — another track is being processed right now. Please retry in a moment.");
+		this.name = "DemucsBusyError";
+	}
+};
+const MAX_WAITERS = 2;
+let running = false;
+const waiters = [];
+async function acquireDemucsSlot() {
+	if (!running) {
+		running = true;
+		return;
+	};
+	if (waiters.length >= MAX_WAITERS) throw new DemucsBusyError();
+	// Woken by releaseDemucsSlot(), which transfers slot ownership.
+	await new Promise((resolve) => waiters.push(resolve));
+}
+function releaseDemucsSlot() {
+	const next = waiters.shift();
+	if (next) {
+		next();
+	} else {
+		running = false;
+	}
+}
+async function runGatedDemucs(fn) {
+	await acquireDemucsSlot();
+	try {
+		return await fn();
+	} finally {
+		releaseDemucsSlot();
+	}
+};
+/**
+* Thread caps for the Demucs child env. Uncapped, PyTorch spawns a
+* thread per core and thrashes CPU + memory on a small container.
+* Mirrors the export pipeline's `-threads 2` discipline.
+*/
+const DEMUCS_THREAD_ENV = {
+	OMP_NUM_THREADS: "2",
+	MKL_NUM_THREADS: "2",
+	TORCH_NUM_THREADS: "2"
+};
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7Ozs7Ozs7Ozs7QUFZTyxNQUFNLHdCQUF3QixNQUFNO0NBQ3pDLFNBQVMsR0FBWTtDQUNyQixjQUFjO0VBQ1osTUFDRSxpR0FDRjtFQUNBLEtBQUssT0FBTztDQUNkO0FBQ0Y7QUFFQSxNQUFNLGNBQWM7QUFDcEIsSUFBSSxVQUFVO0FBQ2QsTUFBTSxVQUE2QixDQUFDO0FBRXBDLGVBQWUsb0JBQW1DO0NBQ2hELElBQUksQ0FBQyxTQUFTO0VBQ1osVUFBVTtFQUNWO0NBQ0Y7Q0FDQSxJQUFJLFFBQVEsVUFBVSxhQUFhLE1BQU0sSUFBSSxnQkFBZ0I7O0NBRTdELE1BQU0sSUFBSSxTQUFlLFlBQVksUUFBUSxLQUFLLE9BQU8sQ0FBQztBQUM1RDtBQUVBLFNBQVMsb0JBQTBCO0NBQ2pDLE1BQU0sT0FBTyxRQUFRLE1BQU07Q0FDM0IsSUFBSSxNQUFNO0VBQ1IsS0FBSztDQUNQLE9BQU87RUFDTCxVQUFVO0NBQ1o7QUFDRjtBQUVPLGVBQWUsZUFBa0IsSUFBa0M7Q0FDeEUsTUFBTSxrQkFBa0I7Q0FDeEIsSUFBSTtFQUNGLE9BQU8sTUFBTSxHQUFHO0NBQ2xCLFVBQVU7RUFDUixrQkFBa0I7Q0FDcEI7QUFDRjs7Ozs7O0FBT08sTUFBTSxvQkFBb0I7Q0FDL0IsaUJBQWlCO0NBQ2pCLGlCQUFpQjtDQUNqQixtQkFBbUI7QUFDckIiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImRlbXVjcy1nYXRlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogZGVtdWNzLWdhdGUudHMg4oCUIHByb2Nlc3Mtd2lkZSBzaW5nbGUtZmxpZ2h0IGdhdGUgZm9yIERlbXVjcyAoUHlUb3JjaClcbiAqIGNoaWxkIHByb2Nlc3Nlcy4gKDIwMjYtMTAtMTIsIE9PTSBmaXguKVxuICpcbiAqIE9uZSBEZW11Y3MgcnVuIFJTU2VzIGh1bmRyZWRzIG9mIE1COyB0d28gY29uY3VycmVudCBydW5zIGluIHRoZVxuICogNTEyIE1CIGNvbnRhaW5lciBPT00ta2lsbCB0aGUgd2hvbGUgc2VydmljZSDigJQgdGhpcyB3YXMgdGhlIHRvcFxuICogc3VzcGVjdCBpbiBvb20taW52ZXN0aWdhdGlvbi5tZC4gRXZlcnkgRGVtdWNzIHNwYXduIGluIHRoZSBwcm9jZXNzXG4gKiBtdXN0IGdvIHRocm91Z2ggcnVuR2F0ZWREZW11Y3MoKTogb25lIHJ1biBhdCBhIHRpbWUsIHVwIHRvXG4gKiBNQVhfV0FJVEVSUyBxdWV1ZWQsIGJleW9uZCB0aGF0IGEgcmV0cnlhYmxlIGJ1c3kgZXJyb3IgaW5zdGVhZCBvZlxuICogYSBkZWFkIGNvbnRhaW5lci5cbiAqL1xuXG5leHBvcnQgY2xhc3MgRGVtdWNzQnVzeUVycm9yIGV4dGVuZHMgRXJyb3Ige1xuICByZWFkb25seSByZXRyeWFibGUgPSB0cnVlO1xuICBjb25zdHJ1Y3RvcigpIHtcbiAgICBzdXBlcihcbiAgICAgIFwiU3RlbSBzZXBhcmF0aW9uIGlzIGJ1c3kg4oCUIGFub3RoZXIgdHJhY2sgaXMgYmVpbmcgcHJvY2Vzc2VkIHJpZ2h0IG5vdy4gUGxlYXNlIHJldHJ5IGluIGEgbW9tZW50LlwiLFxuICAgICk7XG4gICAgdGhpcy5uYW1lID0gXCJEZW11Y3NCdXN5RXJyb3JcIjtcbiAgfVxufVxuXG5jb25zdCBNQVhfV0FJVEVSUyA9IDI7XG5sZXQgcnVubmluZyA9IGZhbHNlO1xuY29uc3Qgd2FpdGVyczogQXJyYXk8KCkgPT4gdm9pZD4gPSBbXTtcblxuYXN5bmMgZnVuY3Rpb24gYWNxdWlyZURlbXVjc1Nsb3QoKTogUHJvbWlzZTx2b2lkPiB7XG4gIGlmICghcnVubmluZykge1xuICAgIHJ1bm5pbmcgPSB0cnVlO1xuICAgIHJldHVybjtcbiAgfVxuICBpZiAod2FpdGVycy5sZW5ndGggPj0gTUFYX1dBSVRFUlMpIHRocm93IG5ldyBEZW11Y3NCdXN5RXJyb3IoKTtcbiAgLy8gV29rZW4gYnkgcmVsZWFzZURlbXVjc1Nsb3QoKSwgd2hpY2ggdHJhbnNmZXJzIHNsb3Qgb3duZXJzaGlwLlxuICBhd2FpdCBuZXcgUHJvbWlzZTx2b2lkPigocmVzb2x2ZSkgPT4gd2FpdGVycy5wdXNoKHJlc29sdmUpKTtcbn1cblxuZnVuY3Rpb24gcmVsZWFzZURlbXVjc1Nsb3QoKTogdm9pZCB7XG4gIGNvbnN0IG5leHQgPSB3YWl0ZXJzLnNoaWZ0KCk7XG4gIGlmIChuZXh0KSB7XG4gICAgbmV4dCgpOyAvLyBvd25lcnNoaXAgdHJhbnNmZXJyZWQ7IGBydW5uaW5nYCBzdGF5cyB0cnVlXG4gIH0gZWxzZSB7XG4gICAgcnVubmluZyA9IGZhbHNlO1xuICB9XG59XG5cbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBydW5HYXRlZERlbXVjczxUPihmbjogKCkgPT4gUHJvbWlzZTxUPik6IFByb21pc2U8VD4ge1xuICBhd2FpdCBhY3F1aXJlRGVtdWNzU2xvdCgpO1xuICB0cnkge1xuICAgIHJldHVybiBhd2FpdCBmbigpO1xuICB9IGZpbmFsbHkge1xuICAgIHJlbGVhc2VEZW11Y3NTbG90KCk7XG4gIH1cbn1cblxuLyoqXG4gKiBUaHJlYWQgY2FwcyBmb3IgdGhlIERlbXVjcyBjaGlsZCBlbnYuIFVuY2FwcGVkLCBQeVRvcmNoIHNwYXducyBhXG4gKiB0aHJlYWQgcGVyIGNvcmUgYW5kIHRocmFzaGVzIENQVSArIG1lbW9yeSBvbiBhIHNtYWxsIGNvbnRhaW5lci5cbiAqIE1pcnJvcnMgdGhlIGV4cG9ydCBwaXBlbGluZSdzIGAtdGhyZWFkcyAyYCBkaXNjaXBsaW5lLlxuICovXG5leHBvcnQgY29uc3QgREVNVUNTX1RIUkVBRF9FTlYgPSB7XG4gIE9NUF9OVU1fVEhSRUFEUzogXCIyXCIsXG4gIE1LTF9OVU1fVEhSRUFEUzogXCIyXCIsXG4gIFRPUkNIX05VTV9USFJFQURTOiBcIjJcIixcbn0gYXMgY29uc3Q7XG4iXSwiZmlsZSI6Ii9zcmMvbGliL2RlbXVjcy1nYXRlLnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9kZW11Y3MtZ2F0ZS50cyIsIi9zcmMvbGliL2RlbXVjcy1nYXRlLnRzIixbXSxbXSxbXV0=

@@ -38,6 +38,11 @@ const h = vi.hoisted(() => {
 });
 
 const PROFILE = "11111111-1111-4111-8111-1111111111a1";
+// JOIN COMPOSITION (stack1100 join, X5 x X3): the composed handler
+// reads creator_profiles.user_id for X3's self-play check, so this
+// fixture carries the column and an owner id (this suite plays
+// anonymously, so no play here is a self-play).
+const PROFILE_OWNER = "99999999-9999-4999-8999-9999999999a9";
 const TRACK_A = "22222222-2222-4222-8222-2222222222b1";
 const TRACK_B = "22222222-2222-4222-8222-2222222222b2";
 const TRACK_C = "22222222-2222-4222-8222-2222222222b5";
@@ -75,7 +80,7 @@ import { randomUUID } from "node:crypto";
 import discoveryRouter from "../discovery";
 
 const DDL = `
-CREATE TABLE creator_profiles (id uuid PRIMARY KEY, total_plays integer NOT NULL DEFAULT 0);
+CREATE TABLE creator_profiles (id uuid PRIMARY KEY, user_id uuid, total_plays integer NOT NULL DEFAULT 0);
 CREATE TABLE profile_tracks (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL,
   play_count integer NOT NULL DEFAULT 0, is_published boolean NOT NULL DEFAULT false);
@@ -122,7 +127,7 @@ beforeEach(() => {
   });
   h.mem.public.none(DDL);
   h.mem.public.none(`
-    INSERT INTO creator_profiles (id, total_plays) VALUES ('${PROFILE}', 0);
+    INSERT INTO creator_profiles (id, user_id, total_plays) VALUES ('${PROFILE}', '${PROFILE_OWNER}', 0);
     INSERT INTO profile_tracks (id, profile_id, is_published) VALUES
       ('${TRACK_A}', '${PROFILE}', true),
       ('${TRACK_B}', '${PROFILE}', true),

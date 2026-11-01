@@ -1,0 +1,61 @@
+__vite_ssr_exportName__("tmpUploadStorage", () => { try { return tmpUploadStorage } catch {} });
+__vite_ssr_exportName__("ADMIN_UPLOAD_MAX_BYTES", () => { try { return ADMIN_UPLOAD_MAX_BYTES } catch {} });
+__vite_ssr_exportName__("createAdminAwareUpload", () => { try { return createAdminAwareUpload } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/multer@2.4.0/node_modules/multer/index.js", {"importedNames":["default"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("node:crypto", {"importedNames":["randomUUID"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("node:os", {"importedNames":["tmpdir"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/src/lib/admin.ts", {"importedNames":["isAdminRequest"]});
+/**
+* upload-storage.ts — shared disk-backed multer storage for large
+* uploads. (2026-10-12, OOM fix.)
+*
+* multer.memoryStorage() held entire uploads (up to 100 MB) in RAM
+* for the request's duration; a few concurrent uploads could OOM the
+* 512 MB container (oom-investigation.md, suspect #3). Disk storage
+* lands the file in the OS temp dir instead; handlers pass
+* req.file.path downstream and delete the temp file when done.
+* Mirrors the pattern routes/generate/mix-master.ts already used.
+*/
+
+
+
+
+const tmpUploadStorage = __vite_ssr_import_0__.default.diskStorage({
+	destination: (_req, _file, cb) => cb(null, (0,__vite_ssr_import_2__.tmpdir)()),
+	filename: (_req, file, cb) => {
+		const safe = (file.originalname || "upload").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+		cb(null, `upload-${(0,__vite_ssr_import_1__.randomUUID)()}-${safe}`);
+	}
+});
+/* ── Admin-aware upload limits (owner directive, Oct 29, 2026) ──────────
+The fileSize caps on DISK-backed routes are policy numbers (the file
+streams to temp disk; it never sits in RAM), so the owner's account
+gets a far larger ceiling on them: ADMIN_UPLOAD_MAX_BYTES. Member
+caps are byte-identical to before. This helper builds the member
+and admin multer instances from ONE options object (same storage,
+same fileFilter) and returns chain-compatible middleware that picks
+per request — mount it AFTER requireAuth so the caller's identity
+is resolved. Memory-storage routes deliberately do NOT use this:
+their caps are a technical guard (a buffered upload is RAM on a
+512 MB instance) and stay for everyone. */
+const ADMIN_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024;
+function createAdminAwareUpload(options) {
+	const member = (0,__vite_ssr_import_0__.default)(options);
+	const admin = (0,__vite_ssr_import_0__.default)({
+		...options,
+		limits: {
+			...options.limits ?? {},
+			fileSize: ADMIN_UPLOAD_MAX_BYTES
+		}
+	});
+	const pick = (req) => (0,__vite_ssr_import_3__.isAdminRequest)(req) ? admin : member;
+	return {
+		single: (field) => (req, res, next) => pick(req).single(field)(req, res, next),
+		array: (field, maxCount) => (req, res, next) => pick(req).array(field, maxCount)(req, res, next),
+		fields: (fields) => (req, res, next) => pick(req).fields(fields)(req, res, next)
+	};
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7O0FBV0E7QUFFQTtBQUNBO0FBQ0E7Ozs7Ozs7Ozs7Ozs7Ozs7QUFFTyxNQUFNLG1CQUFtQiw4QkFBTyxZQUFZO0NBQ2pELGNBQWMsTUFBTSxPQUFPLE9BQU8sR0FBRyxNQUFNLGtDQUFRO0NBQ25ELFdBQVcsTUFBTSxNQUFNLE9BQU87RUFDNUIsTUFBTSxRQUFRLEtBQUssZ0JBQWdCLFNBQVEsQ0FDeEMsUUFBUSxvQkFBb0IsR0FBRyxDQUFDLENBQ2hDLE1BQU0sR0FBRyxFQUFFO0VBQ2QsR0FBRyxNQUFNLFVBQVUsc0NBQVcsQ0FBRSxHQUFHLE1BQU07Q0FDM0M7QUFDRixDQUFDOzs7Ozs7Ozs7Ozs7QUFhTSxNQUFNLHlCQUF5QixPQUFPLE9BQU87QUFRN0MsU0FBUyx1QkFBdUIsU0FBMkM7Q0FDaEYsTUFBTSxTQUFTLGtDQUFPLE9BQU87Q0FDN0IsTUFBTSxRQUFRLGtDQUFPO0VBQ25CLEdBQUc7RUFDSCxRQUFRO0dBQUUsR0FBSSxRQUFRLFVBQVUsQ0FBQztHQUFJLFVBQVU7RUFBdUI7Q0FDeEUsQ0FBQztDQUNELE1BQU0sUUFBUSxRQUFpQyx5Q0FBZSxHQUFHLElBQUksUUFBUTtDQUM3RSxPQUFPO0VBQ0wsU0FBUyxXQUFXLEtBQUssS0FBSyxTQUFTLEtBQUssR0FBRyxDQUFDLENBQUMsT0FBTyxLQUFLLENBQUMsQ0FBQyxLQUFLLEtBQUssSUFBSTtFQUM3RSxRQUFRLE9BQU8sY0FBYyxLQUFLLEtBQUssU0FBUyxLQUFLLEdBQUcsQ0FBQyxDQUFDLE1BQU0sT0FBTyxRQUFRLENBQUMsQ0FBQyxLQUFLLEtBQUssSUFBSTtFQUMvRixTQUFTLFlBQVksS0FBSyxLQUFLLFNBQVMsS0FBSyxHQUFHLENBQUMsQ0FBQyxPQUFPLE1BQU0sQ0FBQyxDQUFDLEtBQUssS0FBSyxJQUFJO0NBQ2pGO0FBQ0YiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInVwbG9hZC1zdG9yYWdlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogdXBsb2FkLXN0b3JhZ2UudHMg4oCUIHNoYXJlZCBkaXNrLWJhY2tlZCBtdWx0ZXIgc3RvcmFnZSBmb3IgbGFyZ2VcbiAqIHVwbG9hZHMuICgyMDI2LTEwLTEyLCBPT00gZml4LilcbiAqXG4gKiBtdWx0ZXIubWVtb3J5U3RvcmFnZSgpIGhlbGQgZW50aXJlIHVwbG9hZHMgKHVwIHRvIDEwMCBNQikgaW4gUkFNXG4gKiBmb3IgdGhlIHJlcXVlc3QncyBkdXJhdGlvbjsgYSBmZXcgY29uY3VycmVudCB1cGxvYWRzIGNvdWxkIE9PTSB0aGVcbiAqIDUxMiBNQiBjb250YWluZXIgKG9vbS1pbnZlc3RpZ2F0aW9uLm1kLCBzdXNwZWN0ICMzKS4gRGlzayBzdG9yYWdlXG4gKiBsYW5kcyB0aGUgZmlsZSBpbiB0aGUgT1MgdGVtcCBkaXIgaW5zdGVhZDsgaGFuZGxlcnMgcGFzc1xuICogcmVxLmZpbGUucGF0aCBkb3duc3RyZWFtIGFuZCBkZWxldGUgdGhlIHRlbXAgZmlsZSB3aGVuIGRvbmUuXG4gKiBNaXJyb3JzIHRoZSBwYXR0ZXJuIHJvdXRlcy9nZW5lcmF0ZS9taXgtbWFzdGVyLnRzIGFscmVhZHkgdXNlZC5cbiAqL1xuaW1wb3J0IG11bHRlciBmcm9tIFwibXVsdGVyXCI7XG5pbXBvcnQgdHlwZSB7IFJlcXVlc3QsIFJlcXVlc3RIYW5kbGVyIH0gZnJvbSBcImV4cHJlc3NcIjtcbmltcG9ydCB7IHJhbmRvbVVVSUQgfSBmcm9tIFwibm9kZTpjcnlwdG9cIjtcbmltcG9ydCB7IHRtcGRpciB9IGZyb20gXCJub2RlOm9zXCI7XG5pbXBvcnQgeyBpc0FkbWluUmVxdWVzdCB9IGZyb20gXCIuL2FkbWluXCI7XG5cbmV4cG9ydCBjb25zdCB0bXBVcGxvYWRTdG9yYWdlID0gbXVsdGVyLmRpc2tTdG9yYWdlKHtcbiAgZGVzdGluYXRpb246IChfcmVxLCBfZmlsZSwgY2IpID0+IGNiKG51bGwsIHRtcGRpcigpKSxcbiAgZmlsZW5hbWU6IChfcmVxLCBmaWxlLCBjYikgPT4ge1xuICAgIGNvbnN0IHNhZmUgPSAoZmlsZS5vcmlnaW5hbG5hbWUgfHwgXCJ1cGxvYWRcIilcbiAgICAgIC5yZXBsYWNlKC9bXmEtekEtWjAtOS5fLV0vZywgXCJfXCIpXG4gICAgICAuc2xpY2UoMCwgODApO1xuICAgIGNiKG51bGwsIGB1cGxvYWQtJHtyYW5kb21VVUlEKCl9LSR7c2FmZX1gKTtcbiAgfSxcbn0pO1xuXG4vKiDilIDilIAgQWRtaW4tYXdhcmUgdXBsb2FkIGxpbWl0cyAob3duZXIgZGlyZWN0aXZlLCBPY3QgMjksIDIwMjYpIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxuICAgVGhlIGZpbGVTaXplIGNhcHMgb24gRElTSy1iYWNrZWQgcm91dGVzIGFyZSBwb2xpY3kgbnVtYmVycyAodGhlIGZpbGVcbiAgIHN0cmVhbXMgdG8gdGVtcCBkaXNrOyBpdCBuZXZlciBzaXRzIGluIFJBTSksIHNvIHRoZSBvd25lcidzIGFjY291bnRcbiAgIGdldHMgYSBmYXIgbGFyZ2VyIGNlaWxpbmcgb24gdGhlbTogQURNSU5fVVBMT0FEX01BWF9CWVRFUy4gTWVtYmVyXG4gICBjYXBzIGFyZSBieXRlLWlkZW50aWNhbCB0byBiZWZvcmUuIFRoaXMgaGVscGVyIGJ1aWxkcyB0aGUgbWVtYmVyXG4gICBhbmQgYWRtaW4gbXVsdGVyIGluc3RhbmNlcyBmcm9tIE9ORSBvcHRpb25zIG9iamVjdCAoc2FtZSBzdG9yYWdlLFxuICAgc2FtZSBmaWxlRmlsdGVyKSBhbmQgcmV0dXJucyBjaGFpbi1jb21wYXRpYmxlIG1pZGRsZXdhcmUgdGhhdCBwaWNrc1xuICAgcGVyIHJlcXVlc3Qg4oCUIG1vdW50IGl0IEFGVEVSIHJlcXVpcmVBdXRoIHNvIHRoZSBjYWxsZXIncyBpZGVudGl0eVxuICAgaXMgcmVzb2x2ZWQuIE1lbW9yeS1zdG9yYWdlIHJvdXRlcyBkZWxpYmVyYXRlbHkgZG8gTk9UIHVzZSB0aGlzOlxuICAgdGhlaXIgY2FwcyBhcmUgYSB0ZWNobmljYWwgZ3VhcmQgKGEgYnVmZmVyZWQgdXBsb2FkIGlzIFJBTSBvbiBhXG4gICA1MTIgTUIgaW5zdGFuY2UpIGFuZCBzdGF5IGZvciBldmVyeW9uZS4gKi9cbmV4cG9ydCBjb25zdCBBRE1JTl9VUExPQURfTUFYX0JZVEVTID0gMTAyNCAqIDEwMjQgKiAxMDI0OyAvLyAxIEdCXG5cbmV4cG9ydCBpbnRlcmZhY2UgQWRtaW5Bd2FyZVVwbG9hZCB7XG4gIHNpbmdsZShmaWVsZDogc3RyaW5nKTogUmVxdWVzdEhhbmRsZXI7XG4gIGFycmF5KGZpZWxkOiBzdHJpbmcsIG1heENvdW50PzogbnVtYmVyKTogUmVxdWVzdEhhbmRsZXI7XG4gIGZpZWxkcyhmaWVsZHM6IG11bHRlci5GaWVsZFtdKTogUmVxdWVzdEhhbmRsZXI7XG59XG5cbmV4cG9ydCBmdW5jdGlvbiBjcmVhdGVBZG1pbkF3YXJlVXBsb2FkKG9wdGlvbnM6IG11bHRlci5PcHRpb25zKTogQWRtaW5Bd2FyZVVwbG9hZCB7XG4gIGNvbnN0IG1lbWJlciA9IG11bHRlcihvcHRpb25zKTtcbiAgY29uc3QgYWRtaW4gPSBtdWx0ZXIoe1xuICAgIC4uLm9wdGlvbnMsXG4gICAgbGltaXRzOiB7IC4uLihvcHRpb25zLmxpbWl0cyA/PyB7fSksIGZpbGVTaXplOiBBRE1JTl9VUExPQURfTUFYX0JZVEVTIH0sXG4gIH0pO1xuICBjb25zdCBwaWNrID0gKHJlcTogUmVxdWVzdCk6IG11bHRlci5NdWx0ZXIgPT4gKGlzQWRtaW5SZXF1ZXN0KHJlcSkgPyBhZG1pbiA6IG1lbWJlcik7XG4gIHJldHVybiB7XG4gICAgc2luZ2xlOiAoZmllbGQpID0+IChyZXEsIHJlcywgbmV4dCkgPT4gcGljayhyZXEpLnNpbmdsZShmaWVsZCkocmVxLCByZXMsIG5leHQpLFxuICAgIGFycmF5OiAoZmllbGQsIG1heENvdW50KSA9PiAocmVxLCByZXMsIG5leHQpID0+IHBpY2socmVxKS5hcnJheShmaWVsZCwgbWF4Q291bnQpKHJlcSwgcmVzLCBuZXh0KSxcbiAgICBmaWVsZHM6IChmaWVsZHMpID0+IChyZXEsIHJlcywgbmV4dCkgPT4gcGljayhyZXEpLmZpZWxkcyhmaWVsZHMpKHJlcSwgcmVzLCBuZXh0KSxcbiAgfTtcbn1cbiJdLCJmaWxlIjoiL3NyYy9saWIvdXBsb2FkLXN0b3JhZ2UudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi91cGxvYWQtc3RvcmFnZS50cyIsIi9zcmMvbGliL3VwbG9hZC1zdG9yYWdlLnRzIixbXSxbIjYiLCI3IiwiOCIsIjkiXSxbXSwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL211bHRlckAyLjQuMC9ub2RlX21vZHVsZXMvbXVsdGVyL2luZGV4LmpzIiwibm9kZTpjcnlwdG8iLCJub2RlOm9zIiwiL3NyYy9saWIvYWRtaW4udHMiXQ==

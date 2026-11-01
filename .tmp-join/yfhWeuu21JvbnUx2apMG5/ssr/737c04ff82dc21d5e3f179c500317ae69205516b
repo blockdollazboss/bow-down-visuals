@@ -1,0 +1,86 @@
+__vite_ssr_exportName__("PENDING_PAYOUT_SOURCE_KINDS", () => { try { return PENDING_PAYOUT_SOURCE_KINDS } catch {} });
+__vite_ssr_exportName__("PENDING_PAYOUT_ENTRY_TYPES", () => { try { return PENDING_PAYOUT_ENTRY_TYPES } catch {} });
+__vite_ssr_exportName__("pendingPayoutLedgerTable", () => { try { return pendingPayoutLedgerTable } catch {} });
+__vite_ssr_exportName__("insertPendingPayoutLedgerSchema", () => { try { return insertPendingPayoutLedgerSchema } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","integer","timestamp","check","index","uniqueIndex"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-zod@0.8.3_drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0__zod@4.6.5/node_modules/drizzle-zod/index.mjs", {"importedNames":["createInsertSchema"]});
+
+
+
+/**
+* Pending-payout ledger (payfix store-dashboards lane, provisional
+* migration 9999). ONE ledger every seller-money surface reads:
+*
+* Each completed sale on a payable rail accrues the seller's net
+* EXACTLY ONCE as an 'accrual' row, and a refund of that sale records
+* EXACTLY ONE 'reversal' row of the same amount. Exactly-once is the
+* UNIQUE (source_kind, source_id, entry_type) key + INSERT … ON
+* CONFLICT DO NOTHING — the same discipline as the credit-pack
+* clawback (payment_reversals' UNIQUE stripe_charge_id claim).
+*
+* Rows are materialized by the idempotent reconciliation in
+* api-server lib/seller-earnings.ts (syncPendingPayoutLedgerForSeller),
+* which scans the source sale tables — so a sale completed through
+* ANY door (webhook, verify endpoint, POS, replay) accrues once, and
+* duplicate/replayed events can never double-accrue.
+*
+* source_kind:
+*  - 'digital_sale'  digital_sales row (profile store, 5% fee already
+*                    split into platform_fee_cents/creator_amount_cents)
+*  - 'store_order'   store_orders row (profile storefront, 5%)
+*  - 'shop_event'    shop_events 'sale' line (marketplace shop, 5%;
+*                    net = amount_cents − platform_fee_cents)
+*  - 'beat_license'  beat_licenses 'completed' row (15% commission in
+*                    commission_cents; net = price − commission)
+*  - 'membership'    fan_members paid row (stripe_session_id present).
+*                    The membership model carries NO fee split column —
+*                    the payable amount is price_cents, exactly as the
+*                    0142 Connect settlement has always counted it;
+*                    platform_fee_cents is recorded as 0 rather than
+*                    inventing a split the model does not carry.
+*
+* Brand deals are deliberately NOT copied here: sponsor_payouts is
+* already a per-row released-escrow ledger; the unified pending read
+* (lib/seller-earnings readPendingPayoutForSeller) adds its released
+* total alongside this ledger instead of duplicating its rows.
+*
+* Settlement discipline is BULK, mirroring digital_sales/store_orders:
+* creator_payouts rows in active states ('processing' | 'pending' |
+* 'paid') are subtracted by the pending read; a 'failed' payout stops
+* subtracting, so its money becomes payable again with no cleanup.
+*/
+const PENDING_PAYOUT_SOURCE_KINDS = [
+	"digital_sale",
+	"store_order",
+	"shop_event",
+	"beat_license",
+	"membership"
+];
+const PENDING_PAYOUT_ENTRY_TYPES = ["accrual", "reversal"];
+const pendingPayoutLedgerTable = (0,__vite_ssr_import_0__.pgTable)("pending_payout_ledger", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	sellerUserId: (0,__vite_ssr_import_0__.uuid)("seller_user_id").notNull(),
+	sellerProfileId: (0,__vite_ssr_import_0__.uuid)("seller_profile_id"),
+	sourceKind: (0,__vite_ssr_import_0__.text)("source_kind").notNull().$type(),
+	sourceId: (0,__vite_ssr_import_0__.uuid)("source_id").notNull(),
+	entryType: (0,__vite_ssr_import_0__.text)("entry_type").notNull().$type(),
+	grossCents: (0,__vite_ssr_import_0__.integer)("gross_cents").notNull().default(0),
+	platformFeeCents: (0,__vite_ssr_import_0__.integer)("platform_fee_cents").notNull().default(0),
+	netCents: (0,__vite_ssr_import_0__.integer)("net_cents").notNull().default(0),
+	stripeSessionId: (0,__vite_ssr_import_0__.text)("stripe_session_id"),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow()
+}, (t) => [
+	(0,__vite_ssr_import_0__.check)("pending_payout_ledger_source_kind_check", __vite_ssr_import_1__.sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership')`),
+	(0,__vite_ssr_import_0__.check)("pending_payout_ledger_entry_type_check", __vite_ssr_import_1__.sql`${t.entryType} IN ('accrual','reversal')`),
+	(0,__vite_ssr_import_0__.uniqueIndex)("pending_payout_ledger_source_entry_ux").on(t.sourceKind, t.sourceId, t.entryType),
+	(0,__vite_ssr_import_0__.index)("pending_payout_ledger_seller_idx").on(t.sellerUserId, t.createdAt)
+]);
+const insertPendingPayoutLedgerSchema = (0,__vite_ssr_import_2__.createInsertSchema)(pendingPayoutLedgerTable).omit({
+	id: true,
+	createdAt: true
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7OztBQUFBO0FBQ0E7QUFDQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQTZDTyxNQUFNLDhCQUE4QjtDQUN6QztDQUNBO0NBQ0E7Q0FDQTtDQUNBO0FBQ0Y7QUFHTyxNQUFNLDZCQUE2QixDQUFDLFdBQVcsVUFBVTtBQUd6RCxNQUFNLDJCQUEyQixrQ0FBUSx5QkFBeUI7Q0FDdkUsSUFBa0IsK0JBQUssSUFBSSxDQUFDLENBQUMsV0FBVyxDQUFDLENBQUMsY0FBYztDQUN4RCxjQUFrQiwrQkFBSyxnQkFBZ0IsQ0FBQyxDQUFDLFFBQVE7Q0FDakQsaUJBQWtCLCtCQUFLLG1CQUFtQjtDQUMxQyxZQUFrQiwrQkFBSyxhQUFhLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxNQUErQjtDQUMvRSxVQUFrQiwrQkFBSyxXQUFXLENBQUMsQ0FBQyxRQUFRO0NBQzVDLFdBQWtCLCtCQUFLLFlBQVksQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLE1BQThCO0NBQzdFLFlBQWtCLGtDQUFRLGFBQWEsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQztDQUM1RCxrQkFBa0Isa0NBQVEsb0JBQW9CLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUM7Q0FDbkUsVUFBa0Isa0NBQVEsV0FBVyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxDQUFDO0NBQzFELGlCQUFrQiwrQkFBSyxtQkFBbUI7Q0FDMUMsV0FBa0Isb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxXQUFXO0FBQ3pGLElBQUksTUFBTTtDQUNSLGdDQUFNLDJDQUEyQyx5QkFBRyxHQUFHLEVBQUUsV0FBVyw0RUFBNEU7Q0FDaEosZ0NBQU0sMENBQTBDLHlCQUFHLEdBQUcsRUFBRSxVQUFVLDJCQUEyQjtDQUM3RixzQ0FBWSx1Q0FBdUMsQ0FBQyxDQUFDLEdBQUcsRUFBRSxZQUFZLEVBQUUsVUFBVSxFQUFFLFNBQVM7Q0FDN0YsZ0NBQU0sa0NBQWtDLENBQUMsQ0FBQyxHQUFHLEVBQUUsY0FBYyxFQUFFLFNBQVM7QUFDMUUsQ0FBQztBQUVNLE1BQU0sa0NBQWtDLDZDQUFtQix3QkFBd0IsQ0FBQyxDQUFDLEtBQUs7Q0FBRSxJQUFJO0NBQU0sV0FBVztBQUFLLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInBlbmRpbmctcGF5b3V0LWxlZGdlci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwZ1RhYmxlLCB1dWlkLCB0ZXh0LCBpbnRlZ2VyLCB0aW1lc3RhbXAsIGNoZWNrLCBpbmRleCwgdW5pcXVlSW5kZXggfSBmcm9tIFwiZHJpenpsZS1vcm0vcGctY29yZVwiO1xuaW1wb3J0IHsgc3FsIH0gZnJvbSBcImRyaXp6bGUtb3JtXCI7XG5pbXBvcnQgeyBjcmVhdGVJbnNlcnRTY2hlbWEgfSBmcm9tIFwiZHJpenpsZS16b2RcIjtcbmltcG9ydCB7IHogfSBmcm9tIFwiem9kL3Y0XCI7XG5cbi8qKlxuICogUGVuZGluZy1wYXlvdXQgbGVkZ2VyIChwYXlmaXggc3RvcmUtZGFzaGJvYXJkcyBsYW5lLCBwcm92aXNpb25hbFxuICogbWlncmF0aW9uIDk5OTkpLiBPTkUgbGVkZ2VyIGV2ZXJ5IHNlbGxlci1tb25leSBzdXJmYWNlIHJlYWRzOlxuICpcbiAqIEVhY2ggY29tcGxldGVkIHNhbGUgb24gYSBwYXlhYmxlIHJhaWwgYWNjcnVlcyB0aGUgc2VsbGVyJ3MgbmV0XG4gKiBFWEFDVExZIE9OQ0UgYXMgYW4gJ2FjY3J1YWwnIHJvdywgYW5kIGEgcmVmdW5kIG9mIHRoYXQgc2FsZSByZWNvcmRzXG4gKiBFWEFDVExZIE9ORSAncmV2ZXJzYWwnIHJvdyBvZiB0aGUgc2FtZSBhbW91bnQuIEV4YWN0bHktb25jZSBpcyB0aGVcbiAqIFVOSVFVRSAoc291cmNlX2tpbmQsIHNvdXJjZV9pZCwgZW50cnlfdHlwZSkga2V5ICsgSU5TRVJUIOKApiBPTlxuICogQ09ORkxJQ1QgRE8gTk9USElORyDigJQgdGhlIHNhbWUgZGlzY2lwbGluZSBhcyB0aGUgY3JlZGl0LXBhY2tcbiAqIGNsYXdiYWNrIChwYXltZW50X3JldmVyc2FscycgVU5JUVVFIHN0cmlwZV9jaGFyZ2VfaWQgY2xhaW0pLlxuICpcbiAqIFJvd3MgYXJlIG1hdGVyaWFsaXplZCBieSB0aGUgaWRlbXBvdGVudCByZWNvbmNpbGlhdGlvbiBpblxuICogYXBpLXNlcnZlciBsaWIvc2VsbGVyLWVhcm5pbmdzLnRzIChzeW5jUGVuZGluZ1BheW91dExlZGdlckZvclNlbGxlciksXG4gKiB3aGljaCBzY2FucyB0aGUgc291cmNlIHNhbGUgdGFibGVzIOKAlCBzbyBhIHNhbGUgY29tcGxldGVkIHRocm91Z2hcbiAqIEFOWSBkb29yICh3ZWJob29rLCB2ZXJpZnkgZW5kcG9pbnQsIFBPUywgcmVwbGF5KSBhY2NydWVzIG9uY2UsIGFuZFxuICogZHVwbGljYXRlL3JlcGxheWVkIGV2ZW50cyBjYW4gbmV2ZXIgZG91YmxlLWFjY3J1ZS5cbiAqXG4gKiBzb3VyY2Vfa2luZDpcbiAqICAtICdkaWdpdGFsX3NhbGUnICBkaWdpdGFsX3NhbGVzIHJvdyAocHJvZmlsZSBzdG9yZSwgNSUgZmVlIGFscmVhZHlcbiAqICAgICAgICAgICAgICAgICAgICBzcGxpdCBpbnRvIHBsYXRmb3JtX2ZlZV9jZW50cy9jcmVhdG9yX2Ftb3VudF9jZW50cylcbiAqICAtICdzdG9yZV9vcmRlcicgICBzdG9yZV9vcmRlcnMgcm93IChwcm9maWxlIHN0b3JlZnJvbnQsIDUlKVxuICogIC0gJ3Nob3BfZXZlbnQnICAgIHNob3BfZXZlbnRzICdzYWxlJyBsaW5lIChtYXJrZXRwbGFjZSBzaG9wLCA1JTtcbiAqICAgICAgICAgICAgICAgICAgICBuZXQgPSBhbW91bnRfY2VudHMg4oiSIHBsYXRmb3JtX2ZlZV9jZW50cylcbiAqICAtICdiZWF0X2xpY2Vuc2UnICBiZWF0X2xpY2Vuc2VzICdjb21wbGV0ZWQnIHJvdyAoMTUlIGNvbW1pc3Npb24gaW5cbiAqICAgICAgICAgICAgICAgICAgICBjb21taXNzaW9uX2NlbnRzOyBuZXQgPSBwcmljZSDiiJIgY29tbWlzc2lvbilcbiAqICAtICdtZW1iZXJzaGlwJyAgICBmYW5fbWVtYmVycyBwYWlkIHJvdyAoc3RyaXBlX3Nlc3Npb25faWQgcHJlc2VudCkuXG4gKiAgICAgICAgICAgICAgICAgICAgVGhlIG1lbWJlcnNoaXAgbW9kZWwgY2FycmllcyBOTyBmZWUgc3BsaXQgY29sdW1uIOKAlFxuICogICAgICAgICAgICAgICAgICAgIHRoZSBwYXlhYmxlIGFtb3VudCBpcyBwcmljZV9jZW50cywgZXhhY3RseSBhcyB0aGVcbiAqICAgICAgICAgICAgICAgICAgICAwMTQyIENvbm5lY3Qgc2V0dGxlbWVudCBoYXMgYWx3YXlzIGNvdW50ZWQgaXQ7XG4gKiAgICAgICAgICAgICAgICAgICAgcGxhdGZvcm1fZmVlX2NlbnRzIGlzIHJlY29yZGVkIGFzIDAgcmF0aGVyIHRoYW5cbiAqICAgICAgICAgICAgICAgICAgICBpbnZlbnRpbmcgYSBzcGxpdCB0aGUgbW9kZWwgZG9lcyBub3QgY2FycnkuXG4gKlxuICogQnJhbmQgZGVhbHMgYXJlIGRlbGliZXJhdGVseSBOT1QgY29waWVkIGhlcmU6IHNwb25zb3JfcGF5b3V0cyBpc1xuICogYWxyZWFkeSBhIHBlci1yb3cgcmVsZWFzZWQtZXNjcm93IGxlZGdlcjsgdGhlIHVuaWZpZWQgcGVuZGluZyByZWFkXG4gKiAobGliL3NlbGxlci1lYXJuaW5ncyByZWFkUGVuZGluZ1BheW91dEZvclNlbGxlcikgYWRkcyBpdHMgcmVsZWFzZWRcbiAqIHRvdGFsIGFsb25nc2lkZSB0aGlzIGxlZGdlciBpbnN0ZWFkIG9mIGR1cGxpY2F0aW5nIGl0cyByb3dzLlxuICpcbiAqIFNldHRsZW1lbnQgZGlzY2lwbGluZSBpcyBCVUxLLCBtaXJyb3JpbmcgZGlnaXRhbF9zYWxlcy9zdG9yZV9vcmRlcnM6XG4gKiBjcmVhdG9yX3BheW91dHMgcm93cyBpbiBhY3RpdmUgc3RhdGVzICgncHJvY2Vzc2luZycgfCAncGVuZGluZycgfFxuICogJ3BhaWQnKSBhcmUgc3VidHJhY3RlZCBieSB0aGUgcGVuZGluZyByZWFkOyBhICdmYWlsZWQnIHBheW91dCBzdG9wc1xuICogc3VidHJhY3RpbmcsIHNvIGl0cyBtb25leSBiZWNvbWVzIHBheWFibGUgYWdhaW4gd2l0aCBubyBjbGVhbnVwLlxuICovXG5leHBvcnQgY29uc3QgUEVORElOR19QQVlPVVRfU09VUkNFX0tJTkRTID0gW1xuICBcImRpZ2l0YWxfc2FsZVwiLFxuICBcInN0b3JlX29yZGVyXCIsXG4gIFwic2hvcF9ldmVudFwiLFxuICBcImJlYXRfbGljZW5zZVwiLFxuICBcIm1lbWJlcnNoaXBcIixcbl0gYXMgY29uc3Q7XG5leHBvcnQgdHlwZSBQZW5kaW5nUGF5b3V0U291cmNlS2luZCA9ICh0eXBlb2YgUEVORElOR19QQVlPVVRfU09VUkNFX0tJTkRTKVtudW1iZXJdO1xuXG5leHBvcnQgY29uc3QgUEVORElOR19QQVlPVVRfRU5UUllfVFlQRVMgPSBbXCJhY2NydWFsXCIsIFwicmV2ZXJzYWxcIl0gYXMgY29uc3Q7XG5leHBvcnQgdHlwZSBQZW5kaW5nUGF5b3V0RW50cnlUeXBlID0gKHR5cGVvZiBQRU5ESU5HX1BBWU9VVF9FTlRSWV9UWVBFUylbbnVtYmVyXTtcblxuZXhwb3J0IGNvbnN0IHBlbmRpbmdQYXlvdXRMZWRnZXJUYWJsZSA9IHBnVGFibGUoXCJwZW5kaW5nX3BheW91dF9sZWRnZXJcIiwge1xuICBpZDogICAgICAgICAgICAgICB1dWlkKFwiaWRcIikucHJpbWFyeUtleSgpLmRlZmF1bHRSYW5kb20oKSxcbiAgc2VsbGVyVXNlcklkOiAgICAgdXVpZChcInNlbGxlcl91c2VyX2lkXCIpLm5vdE51bGwoKSxcbiAgc2VsbGVyUHJvZmlsZUlkOiAgdXVpZChcInNlbGxlcl9wcm9maWxlX2lkXCIpLFxuICBzb3VyY2VLaW5kOiAgICAgICB0ZXh0KFwic291cmNlX2tpbmRcIikubm90TnVsbCgpLiR0eXBlPFBlbmRpbmdQYXlvdXRTb3VyY2VLaW5kPigpLFxuICBzb3VyY2VJZDogICAgICAgICB1dWlkKFwic291cmNlX2lkXCIpLm5vdE51bGwoKSxcbiAgZW50cnlUeXBlOiAgICAgICAgdGV4dChcImVudHJ5X3R5cGVcIikubm90TnVsbCgpLiR0eXBlPFBlbmRpbmdQYXlvdXRFbnRyeVR5cGU+KCksXG4gIGdyb3NzQ2VudHM6ICAgICAgIGludGVnZXIoXCJncm9zc19jZW50c1wiKS5ub3ROdWxsKCkuZGVmYXVsdCgwKSxcbiAgcGxhdGZvcm1GZWVDZW50czogaW50ZWdlcihcInBsYXRmb3JtX2ZlZV9jZW50c1wiKS5ub3ROdWxsKCkuZGVmYXVsdCgwKSxcbiAgbmV0Q2VudHM6ICAgICAgICAgaW50ZWdlcihcIm5ldF9jZW50c1wiKS5ub3ROdWxsKCkuZGVmYXVsdCgwKSxcbiAgc3RyaXBlU2Vzc2lvbklkOiAgdGV4dChcInN0cmlwZV9zZXNzaW9uX2lkXCIpLFxuICBjcmVhdGVkQXQ6ICAgICAgICB0aW1lc3RhbXAoXCJjcmVhdGVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLm5vdE51bGwoKS5kZWZhdWx0Tm93KCksXG59LCAodCkgPT4gW1xuICBjaGVjayhcInBlbmRpbmdfcGF5b3V0X2xlZGdlcl9zb3VyY2Vfa2luZF9jaGVja1wiLCBzcWxgJHt0LnNvdXJjZUtpbmR9IElOICgnZGlnaXRhbF9zYWxlJywnc3RvcmVfb3JkZXInLCdzaG9wX2V2ZW50JywnYmVhdF9saWNlbnNlJywnbWVtYmVyc2hpcCcpYCksXG4gIGNoZWNrKFwicGVuZGluZ19wYXlvdXRfbGVkZ2VyX2VudHJ5X3R5cGVfY2hlY2tcIiwgc3FsYCR7dC5lbnRyeVR5cGV9IElOICgnYWNjcnVhbCcsJ3JldmVyc2FsJylgKSxcbiAgdW5pcXVlSW5kZXgoXCJwZW5kaW5nX3BheW91dF9sZWRnZXJfc291cmNlX2VudHJ5X3V4XCIpLm9uKHQuc291cmNlS2luZCwgdC5zb3VyY2VJZCwgdC5lbnRyeVR5cGUpLFxuICBpbmRleChcInBlbmRpbmdfcGF5b3V0X2xlZGdlcl9zZWxsZXJfaWR4XCIpLm9uKHQuc2VsbGVyVXNlcklkLCB0LmNyZWF0ZWRBdCksXG5dKTtcblxuZXhwb3J0IGNvbnN0IGluc2VydFBlbmRpbmdQYXlvdXRMZWRnZXJTY2hlbWEgPSBjcmVhdGVJbnNlcnRTY2hlbWEocGVuZGluZ1BheW91dExlZGdlclRhYmxlKS5vbWl0KHsgaWQ6IHRydWUsIGNyZWF0ZWRBdDogdHJ1ZSB9KTtcbmV4cG9ydCB0eXBlIEluc2VydFBlbmRpbmdQYXlvdXRMZWRnZXIgPSB6LmluZmVyPHR5cGVvZiBpbnNlcnRQZW5kaW5nUGF5b3V0TGVkZ2VyU2NoZW1hPjtcbmV4cG9ydCB0eXBlIFBlbmRpbmdQYXlvdXRMZWRnZXJFbnRyeSA9IHR5cGVvZiBwZW5kaW5nUGF5b3V0TGVkZ2VyVGFibGUuJGluZmVyU2VsZWN0O1xuIl0sImZpbGUiOiIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9wZW5kaW5nLXBheW91dC1sZWRnZXIudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvcGVuZGluZy1wYXlvdXQtbGVkZ2VyLnRzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvcGVuZGluZy1wYXlvdXQtbGVkZ2VyLnRzIixbXSxbIjYiLCI3IiwiOCJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vaW5kZXguanMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS16b2RAMC44LjNfZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wX196b2RANC42LjUvbm9kZV9tb2R1bGVzL2RyaXp6bGUtem9kL2luZGV4Lm1qcyJd

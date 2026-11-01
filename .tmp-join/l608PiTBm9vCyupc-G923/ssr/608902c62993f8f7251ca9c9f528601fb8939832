@@ -1,0 +1,187 @@
+__vite_ssr_exportName__("deliverPaidShopLinesSafely", () => { try { return deliverPaidShopLinesSafely } catch {} });
+__vite_ssr_exportName__("fetchDeliveriesForSaleEvents", () => { try { return fetchDeliveriesForSaleEvents } catch {} });
+__vite_ssr_exportName__("fetchUndeliveredSalesForBuyer", () => { try { return fetchUndeliveredSalesForBuyer } catch {} });
+__vite_ssr_exportName__("fetchDeliveriesForBuyer", () => { try { return fetchDeliveriesForBuyer } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1100/lib/db/src/index.ts", {"importedNames":["db"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/lib/logger.ts", {"importedNames":["logger"]});
+/**
+* shop-delivery.ts — digital delivery for marketplace shop sales
+* (payfix lane 4, provisional migration 0271_shop_delivery).
+*
+* The launch blocker this closes: a buyer paid $5 for a digital
+* download and received NOTHING — no download, no library entry, no
+* order record. Now, when a sale line flips to PAID (and only then),
+* a digital product's deliverable lands in shop_deliveries as the
+* buyer's permanent record:
+*   (1) library entry — GET /api/shops/my-purchases reads these rows;
+*   (2) download/access — the row carries the deliverable URL snapshot;
+*   (3) order record — order_id is the checkout group, shown to the
+*       buyer on the receipt and in their library.
+*
+* Exactly-once: UNIQUE(sale_event_id) + ON CONFLICT DO NOTHING, and the
+* only callers are the guarded paid flip (lib/market-sale) and the
+* free/gift-card cart path that records a sale directly. Declined,
+* pending and expired checkouts never reach either caller, so they
+* never deliver.
+*
+* "Safely" discipline (the house pattern from affiliates/splits): a
+* delivery failure never breaks the flip that records the sale — it
+* logs LOUD with the sale id so the miss is reconcilable. On a
+* pre-migration database the shop_deliveries table simply doesn't
+* exist yet and every call is a no-op.
+*/
+
+
+
+/** Resolve a buyer account id from their checkout email, when one
+*  exists. Best-effort: the delivery is keyed by email regardless, so
+*  a guest buyer who signs up later with the same email still finds
+*  it in their library (my-purchases matches on email too). */
+async function buyerUserIdForEmail(email) {
+	if (!email) return null;
+	try {
+		const r = await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+      SELECT id FROM users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+    `);
+		const row = r.rows[0];
+		return row ? String(row["id"]) : null;
+	} catch {
+		return null;
+	}
+}
+/**
+* Deliver every digital line in `lines`. Returns how many delivery
+* rows this call created (0 on replays — the rows already exist).
+* Never throws.
+*/
+async function deliverPaidShopLinesSafely(lines) {
+	let created = 0;
+	for (const line of lines) {
+		if (!line.productId) continue;
+		try {
+			const pr = await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+        SELECT product_type, deliverable_url, deliverable_name, name
+        FROM shop_products WHERE id = ${line.productId} LIMIT 1
+      `);
+			const p = pr.rows[0];
+			if (!p) continue;
+			if (String(p["product_type"] ?? "physical") !== "digital") continue;
+			const url = p["deliverable_url"] ? String(p["deliverable_url"]) : "";
+			if (!url) {
+				/* A digital product with no file attached can deliver nothing —
+				say so loudly: the seller misconfigured the listing. */
+				__vite_ssr_import_2__.logger.error({
+					saleEventId: line.saleEventId,
+					productId: line.productId
+				}, "[shop-delivery] digital product has NO deliverable_url — buyer paid, nothing to deliver (seller must attach a file)");
+				continue;
+			};
+			const buyerUserId = line.buyerUserId ?? await buyerUserIdForEmail(line.buyerEmail);
+			const ins = await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+        INSERT INTO shop_deliveries
+          (sale_event_id, shop_id, product_id, buyer_user_id, buyer_email, order_id, product_name, deliverable_url, deliverable_name)
+        VALUES
+          (${line.saleEventId}, ${line.shopId}, ${line.productId}, ${buyerUserId}, ${line.buyerEmail}, ${line.orderId},
+           ${p["name"] ? String(p["name"]) : null}, ${url}, ${p["deliverable_name"] ? String(p["deliverable_name"]) : null})
+        ON CONFLICT (sale_event_id) DO NOTHING
+        RETURNING id
+      `);
+			created += ins.rows.length;
+		} catch (err) {
+			__vite_ssr_import_2__.logger.error({
+				err,
+				saleEventId: line.saleEventId,
+				productId: line.productId
+			}, "[shop-delivery] delivery write failed (sale stands; reconcile by sale_event_id)");
+		}
+	};
+	return created;
+};
+/** Deliveries for a set of sale lines (receipt rendering). [] when the
+*  table isn't there yet or nothing digital was in the order. */
+async function fetchDeliveriesForSaleEvents(saleEventIds) {
+	if (saleEventIds.length === 0) return [];
+	try {
+		const r = await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+      SELECT sale_event_id, order_id, product_id, product_name, deliverable_url, deliverable_name, created_at
+      FROM shop_deliveries
+      WHERE sale_event_id IN (${__vite_ssr_import_1__.sql.join(saleEventIds.map((id) => __vite_ssr_import_1__.sql`${id}`), __vite_ssr_import_1__.sql`, `)})
+      ORDER BY created_at ASC
+    `);
+		return r.rows;
+	} catch {
+		return [];
+	}
+};
+/** Paid shop sale lines that produced NO delivery row — the
+*  order-record half of the buyer's library (read-compat shim).
+*
+*  A paid line lands here when its product carried nothing
+*  deliverable at flip time: typed physical, or a digital listing
+*  whose file was never attached. The Oct 28 gate's "TEST Digital
+*  Download" was exactly this — sold three times at $5 while its
+*  product row sat at the physical default with no file, so no
+*  shop_deliveries row could ever be written and the buyer's
+*  Library → Purchases read "Nothing here yet" forever. The sale
+*  itself is real and recorded; the library must at least show the
+*  ORDER under the buyer's account, honestly marked as carrying no
+*  download, instead of pretending the purchase never happened.
+*
+*  Matched by the same keys the delivery read uses — account id OR
+*  checkout email — so pre-0297 sales (recorded before buyer ids
+*  were stamped; the column reads NULL on those rows) still surface
+*  by the email they checked out with. Refunded sales never match:
+*  the reversal engine renames them event_type='refunded_sale'
+*  (lib/payment-reversals). Never throws — [] when the shop tables
+*  aren't there yet. */
+async function fetchUndeliveredSalesForBuyer(userId, email) {
+	try {
+		const keyClause = email ? __vite_ssr_import_1__.sql`(e.buyer_user_id = ${userId} OR LOWER(e.buyer_email) = LOWER(${email}))` : __vite_ssr_import_1__.sql`e.buyer_user_id = ${userId}`;
+		/* Anti-join via LEFT JOIN (delivery sale_event_id is UNIQUE, so at
+		most one delivery row per sale — no fan-out). Written this way
+		instead of NOT EXISTS so the pg-mem harness can execute it;
+		semantics are identical on real Postgres. */
+		const r = await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+      SELECT e.id AS sale_event_id, e.checkout_group_id AS order_id, e.product_id,
+             p.name AS product_name, p.product_type AS product_type,
+             e.paid_at, e.created_at
+      FROM shop_events e
+      LEFT JOIN shop_products p ON p.id = e.product_id
+      LEFT JOIN shop_deliveries d ON d.sale_event_id = e.id
+      WHERE e.event_type = 'sale' AND ${keyClause}
+        AND d.id IS NULL
+      ORDER BY COALESCE(e.paid_at, e.created_at) DESC
+      LIMIT 200
+    `);
+		return r.rows;
+	} catch {
+		return [];
+	}
+};
+/** The buyer's library: every delivery that is theirs — matched by
+*  account id OR by the email they checked out with. */
+async function fetchDeliveriesForBuyer(userId, email) {
+	try {
+		const r = email ? await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+          SELECT sale_event_id, order_id, product_id, product_name, deliverable_url, deliverable_name, created_at
+          FROM shop_deliveries
+          WHERE buyer_user_id = ${userId} OR LOWER(buyer_email) = LOWER(${email})
+          ORDER BY created_at DESC
+          LIMIT 200
+        `) : await __vite_ssr_import_0__.db.execute(__vite_ssr_import_1__.sql`
+          SELECT sale_event_id, order_id, product_id, product_name, deliverable_url, deliverable_name, created_at
+          FROM shop_deliveries
+          WHERE buyer_user_id = ${userId}
+          ORDER BY created_at DESC
+          LIMIT 200
+        `);
+		return r.rows;
+	} catch {
+		return [];
+	}
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,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cyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbInNob3AtZGVsaXZlcnkudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBzaG9wLWRlbGl2ZXJ5LnRzIOKAlCBkaWdpdGFsIGRlbGl2ZXJ5IGZvciBtYXJrZXRwbGFjZSBzaG9wIHNhbGVzXG4gKiAocGF5Zml4IGxhbmUgNCwgcHJvdmlzaW9uYWwgbWlncmF0aW9uIDAyNzFfc2hvcF9kZWxpdmVyeSkuXG4gKlxuICogVGhlIGxhdW5jaCBibG9ja2VyIHRoaXMgY2xvc2VzOiBhIGJ1eWVyIHBhaWQgJDUgZm9yIGEgZGlnaXRhbFxuICogZG93bmxvYWQgYW5kIHJlY2VpdmVkIE5PVEhJTkcg4oCUIG5vIGRvd25sb2FkLCBubyBsaWJyYXJ5IGVudHJ5LCBub1xuICogb3JkZXIgcmVjb3JkLiBOb3csIHdoZW4gYSBzYWxlIGxpbmUgZmxpcHMgdG8gUEFJRCAoYW5kIG9ubHkgdGhlbiksXG4gKiBhIGRpZ2l0YWwgcHJvZHVjdCdzIGRlbGl2ZXJhYmxlIGxhbmRzIGluIHNob3BfZGVsaXZlcmllcyBhcyB0aGVcbiAqIGJ1eWVyJ3MgcGVybWFuZW50IHJlY29yZDpcbiAqICAgKDEpIGxpYnJhcnkgZW50cnkg4oCUIEdFVCAvYXBpL3Nob3BzL215LXB1cmNoYXNlcyByZWFkcyB0aGVzZSByb3dzO1xuICogICAoMikgZG93bmxvYWQvYWNjZXNzIOKAlCB0aGUgcm93IGNhcnJpZXMgdGhlIGRlbGl2ZXJhYmxlIFVSTCBzbmFwc2hvdDtcbiAqICAgKDMpIG9yZGVyIHJlY29yZCDigJQgb3JkZXJfaWQgaXMgdGhlIGNoZWNrb3V0IGdyb3VwLCBzaG93biB0byB0aGVcbiAqICAgICAgIGJ1eWVyIG9uIHRoZSByZWNlaXB0IGFuZCBpbiB0aGVpciBsaWJyYXJ5LlxuICpcbiAqIEV4YWN0bHktb25jZTogVU5JUVVFKHNhbGVfZXZlbnRfaWQpICsgT04gQ09ORkxJQ1QgRE8gTk9USElORywgYW5kIHRoZVxuICogb25seSBjYWxsZXJzIGFyZSB0aGUgZ3VhcmRlZCBwYWlkIGZsaXAgKGxpYi9tYXJrZXQtc2FsZSkgYW5kIHRoZVxuICogZnJlZS9naWZ0LWNhcmQgY2FydCBwYXRoIHRoYXQgcmVjb3JkcyBhIHNhbGUgZGlyZWN0bHkuIERlY2xpbmVkLFxuICogcGVuZGluZyBhbmQgZXhwaXJlZCBjaGVja291dHMgbmV2ZXIgcmVhY2ggZWl0aGVyIGNhbGxlciwgc28gdGhleVxuICogbmV2ZXIgZGVsaXZlci5cbiAqXG4gKiBcIlNhZmVseVwiIGRpc2NpcGxpbmUgKHRoZSBob3VzZSBwYXR0ZXJuIGZyb20gYWZmaWxpYXRlcy9zcGxpdHMpOiBhXG4gKiBkZWxpdmVyeSBmYWlsdXJlIG5ldmVyIGJyZWFrcyB0aGUgZmxpcCB0aGF0IHJlY29yZHMgdGhlIHNhbGUg4oCUIGl0XG4gKiBsb2dzIExPVUQgd2l0aCB0aGUgc2FsZSBpZCBzbyB0aGUgbWlzcyBpcyByZWNvbmNpbGFibGUuIE9uIGFcbiAqIHByZS1taWdyYXRpb24gZGF0YWJhc2UgdGhlIHNob3BfZGVsaXZlcmllcyB0YWJsZSBzaW1wbHkgZG9lc24ndFxuICogZXhpc3QgeWV0IGFuZCBldmVyeSBjYWxsIGlzIGEgbm8tb3AuXG4gKi9cbmltcG9ydCB7IGRiIH0gZnJvbSBcIkB3b3Jrc3BhY2UvZGJcIjtcbmltcG9ydCB7IHNxbCB9IGZyb20gXCJkcml6emxlLW9ybVwiO1xuaW1wb3J0IHsgbG9nZ2VyIH0gZnJvbSBcIi4vbG9nZ2VyXCI7XG5cbmV4cG9ydCBpbnRlcmZhY2UgRGVsaXZlcnlMaW5lSW5wdXQge1xuICBzYWxlRXZlbnRJZDogc3RyaW5nO1xuICBzaG9wSWQ6IHN0cmluZztcbiAgcHJvZHVjdElkOiBzdHJpbmcgfCBudWxsO1xuICBidXllckVtYWlsOiBzdHJpbmcgfCBudWxsO1xuICAvKiogVGhlIGJ1eWVyJ3MgYWNjb3VudCBpZCB3aGVuIGEgdmVyaWZpZWQgc2Vzc2lvbiByb2RlIGFsb25nIGF0XG4gICAqICBjaGVja291dCAobWlncmF0aW9uIDAyOTcpLiBQcmVmZXJyZWQgb3ZlciB0aGUgZW1haWwgcmVzb2x1dGlvbjpcbiAgICogIGFuIGVtYWlsLW9ubHkga2V5IGlzIGxvc3Qgd2hlbmV2ZXIgdGhlIGJ1eWVyIGxlYXZlcyB0aGUgY2hlY2tvdXRcbiAgICogIGVtYWlsIGZpZWxkIGJsYW5rIG9yIHR5cGVzIGEgZGlmZmVyZW50IGluYm94IHRoYW4gdGhlaXIgYWNjb3VudCdzXG4gICAqICAodGhlIE9jdCAyNiArIE9jdCAyOCBnYXRlIGZhaWx1cmVzKS4gKi9cbiAgYnV5ZXJVc2VySWQ/OiBzdHJpbmcgfCBudWxsO1xuICAvKiogVGhlIGNoZWNrb3V0IGdyb3VwIGlkIOKAlCB0aGUgb3JkZXIncyB2aXNpYmxlIGlkZW50aWZpZXIuICovXG4gIG9yZGVySWQ6IHN0cmluZztcbn1cblxuZXhwb3J0IGludGVyZmFjZSBTaG9wRGVsaXZlcnlSb3cge1xuICBzYWxlX2V2ZW50X2lkOiBzdHJpbmc7XG4gIG9yZGVyX2lkOiBzdHJpbmc7XG4gIHByb2R1Y3RfaWQ6IHN0cmluZyB8IG51bGw7XG4gIHByb2R1Y3RfbmFtZTogc3RyaW5nIHwgbnVsbDtcbiAgZGVsaXZlcmFibGVfdXJsOiBzdHJpbmc7XG4gIGRlbGl2ZXJhYmxlX25hbWU6IHN0cmluZyB8IG51bGw7XG4gIGNyZWF0ZWRfYXQ6IHN0cmluZztcbn1cblxuLyoqIFJlc29sdmUgYSBidXllciBhY2NvdW50IGlkIGZyb20gdGhlaXIgY2hlY2tvdXQgZW1haWwsIHdoZW4gb25lXG4gKiAgZXhpc3RzLiBCZXN0LWVmZm9ydDogdGhlIGRlbGl2ZXJ5IGlzIGtleWVkIGJ5IGVtYWlsIHJlZ2FyZGxlc3MsIHNvXG4gKiAgYSBndWVzdCBidXllciB3aG8gc2lnbnMgdXAgbGF0ZXIgd2l0aCB0aGUgc2FtZSBlbWFpbCBzdGlsbCBmaW5kc1xuICogIGl0IGluIHRoZWlyIGxpYnJhcnkgKG15LXB1cmNoYXNlcyBtYXRjaGVzIG9uIGVtYWlsIHRvbykuICovXG5hc3luYyBmdW5jdGlvbiBidXllclVzZXJJZEZvckVtYWlsKGVtYWlsOiBzdHJpbmcgfCBudWxsKTogUHJvbWlzZTxzdHJpbmcgfCBudWxsPiB7XG4gIGlmICghZW1haWwpIHJldHVybiBudWxsO1xuICB0cnkge1xuICAgIGNvbnN0IHIgPSBhd2FpdCBkYi5leGVjdXRlKHNxbGBcbiAgICAgIFNFTEVDVCBpZCBGUk9NIHVzZXJzIFdIRVJFIExPV0VSKGVtYWlsKSA9IExPV0VSKCR7ZW1haWx9KSBMSU1JVCAxXG4gICAgYCk7XG4gICAgY29uc3Qgcm93ID0gKHIucm93cyBhcyBBcnJheTxSZWNvcmQ8c3RyaW5nLCB1bmtub3duPj4pWzBdO1xuICAgIHJldHVybiByb3cgPyBTdHJpbmcocm93W1wiaWRcIl0pIDogbnVsbDtcbiAgfSBjYXRjaCB7XG4gICAgcmV0dXJuIG51bGw7XG4gIH1cbn1cblxuLyoqXG4gKiBEZWxpdmVyIGV2ZXJ5IGRpZ2l0YWwgbGluZSBpbiBgbGluZXNgLiBSZXR1cm5zIGhvdyBtYW55IGRlbGl2ZXJ5XG4gKiByb3dzIHRoaXMgY2FsbCBjcmVhdGVkICgwIG9uIHJlcGxheXMg4oCUIHRoZSByb3dzIGFscmVhZHkgZXhpc3QpLlxuICogTmV2ZXIgdGhyb3dzLlxuICovXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gZGVsaXZlclBhaWRTaG9wTGluZXNTYWZlbHkobGluZXM6IERlbGl2ZXJ5TGluZUlucHV0W10pOiBQcm9taXNlPG51bWJlcj4ge1xuICBsZXQgY3JlYXRlZCA9IDA7XG4gIGZvciAoY29uc3QgbGluZSBvZiBsaW5lcykge1xuICAgIGlmICghbGluZS5wcm9kdWN0SWQpIGNvbnRpbnVlO1xuICAgIHRyeSB7XG4gICAgICBjb25zdCBwciA9IGF3YWl0IGRiLmV4ZWN1dGUoc3FsYFxuICAgICAgICBTRUxFQ1QgcHJvZHVjdF90eXBlLCBkZWxpdmVyYWJsZV91cmwsIGRlbGl2ZXJhYmxlX25hbWUsIG5hbWVcbiAgICAgICAgRlJPTSBzaG9wX3Byb2R1Y3RzIFdIRVJFIGlkID0gJHtsaW5lLnByb2R1Y3RJZH0gTElNSVQgMVxuICAgICAgYCk7XG4gICAgICBjb25zdCBwID0gKHByLnJvd3MgYXMgQXJyYXk8UmVjb3JkPHN0cmluZywgdW5rbm93bj4+KVswXTtcbiAgICAgIGlmICghcCkgY29udGludWU7XG4gICAgICBpZiAoU3RyaW5nKHBbXCJwcm9kdWN0X3R5cGVcIl0gPz8gXCJwaHlzaWNhbFwiKSAhPT0gXCJkaWdpdGFsXCIpIGNvbnRpbnVlO1xuICAgICAgY29uc3QgdXJsID0gcFtcImRlbGl2ZXJhYmxlX3VybFwiXSA/IFN0cmluZyhwW1wiZGVsaXZlcmFibGVfdXJsXCJdKSA6IFwiXCI7XG4gICAgICBpZiAoIXVybCkge1xuICAgICAgICAvKiBBIGRpZ2l0YWwgcHJvZHVjdCB3aXRoIG5vIGZpbGUgYXR0YWNoZWQgY2FuIGRlbGl2ZXIgbm90aGluZyDigJRcbiAgICAgICAgICAgc2F5IHNvIGxvdWRseTogdGhlIHNlbGxlciBtaXNjb25maWd1cmVkIHRoZSBsaXN0aW5nLiAqL1xuICAgICAgICBsb2dnZXIuZXJyb3IoXG4gICAgICAgICAgeyBzYWxlRXZlbnRJZDogbGluZS5zYWxlRXZlbnRJZCwgcHJvZHVjdElkOiBsaW5lLnByb2R1Y3RJZCB9LFxuICAgICAgICAgIFwiW3Nob3AtZGVsaXZlcnldIGRpZ2l0YWwgcHJvZHVjdCBoYXMgTk8gZGVsaXZlcmFibGVfdXJsIOKAlCBidXllciBwYWlkLCBub3RoaW5nIHRvIGRlbGl2ZXIgKHNlbGxlciBtdXN0IGF0dGFjaCBhIGZpbGUpXCIsXG4gICAgICAgICk7XG4gICAgICAgIGNvbnRpbnVlO1xuICAgICAgfVxuICAgICAgY29uc3QgYnV5ZXJVc2VySWQgPSBsaW5lLmJ1eWVyVXNlcklkID8/IChhd2FpdCBidXllclVzZXJJZEZvckVtYWlsKGxpbmUuYnV5ZXJFbWFpbCkpO1xuICAgICAgY29uc3QgaW5zID0gYXdhaXQgZGIuZXhlY3V0ZShzcWxgXG4gICAgICAgIElOU0VSVCBJTlRPIHNob3BfZGVsaXZlcmllc1xuICAgICAgICAgIChzYWxlX2V2ZW50X2lkLCBzaG9wX2lkLCBwcm9kdWN0X2lkLCBidXllcl91c2VyX2lkLCBidXllcl9lbWFpbCwgb3JkZXJfaWQsIHByb2R1Y3RfbmFtZSwgZGVsaXZlcmFibGVfdXJsLCBkZWxpdmVyYWJsZV9uYW1lKVxuICAgICAgICBWQUxVRVNcbiAgICAgICAgICAoJHtsaW5lLnNhbGVFdmVudElkfSwgJHtsaW5lLnNob3BJZH0sICR7bGluZS5wcm9kdWN0SWR9LCAke2J1eWVyVXNlcklkfSwgJHtsaW5lLmJ1eWVyRW1haWx9LCAke2xpbmUub3JkZXJJZH0sXG4gICAgICAgICAgICR7cFtcIm5hbWVcIl0gPyBTdHJpbmcocFtcIm5hbWVcIl0pIDogbnVsbH0sICR7dXJsfSwgJHtwW1wiZGVsaXZlcmFibGVfbmFtZVwiXSA/IFN0cmluZyhwW1wiZGVsaXZlcmFibGVfbmFtZVwiXSkgOiBudWxsfSlcbiAgICAgICAgT04gQ09ORkxJQ1QgKHNhbGVfZXZlbnRfaWQpIERPIE5PVEhJTkdcbiAgICAgICAgUkVUVVJOSU5HIGlkXG4gICAgICBgKTtcbiAgICAgIGNyZWF0ZWQgKz0gaW5zLnJvd3MubGVuZ3RoO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgbG9nZ2VyLmVycm9yKFxuICAgICAgICB7IGVyciwgc2FsZUV2ZW50SWQ6IGxpbmUuc2FsZUV2ZW50SWQsIHByb2R1Y3RJZDogbGluZS5wcm9kdWN0SWQgfSxcbiAgICAgICAgXCJbc2hvcC1kZWxpdmVyeV0gZGVsaXZlcnkgd3JpdGUgZmFpbGVkIChzYWxlIHN0YW5kczsgcmVjb25jaWxlIGJ5IHNhbGVfZXZlbnRfaWQpXCIsXG4gICAgICApO1xuICAgIH1cbiAgfVxuICByZXR1cm4gY3JlYXRlZDtcbn1cblxuLyoqIERlbGl2ZXJpZXMgZm9yIGEgc2V0IG9mIHNhbGUgbGluZXMgKHJlY2VpcHQgcmVuZGVyaW5nKS4gW10gd2hlbiB0aGVcbiAqICB0YWJsZSBpc24ndCB0aGVyZSB5ZXQgb3Igbm90aGluZyBkaWdpdGFsIHdhcyBpbiB0aGUgb3JkZXIuICovXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gZmV0Y2hEZWxpdmVyaWVzRm9yU2FsZUV2ZW50cyhzYWxlRXZlbnRJZHM6IHN0cmluZ1tdKTogUHJvbWlzZTxTaG9wRGVsaXZlcnlSb3dbXT4ge1xuICBpZiAoc2FsZUV2ZW50SWRzLmxlbmd0aCA9PT0gMCkgcmV0dXJuIFtdO1xuICB0cnkge1xuICAgIGNvbnN0IHIgPSBhd2FpdCBkYi5leGVjdXRlKHNxbGBcbiAgICAgIFNFTEVDVCBzYWxlX2V2ZW50X2lkLCBvcmRlcl9pZCwgcHJvZHVjdF9pZCwgcHJvZHVjdF9uYW1lLCBkZWxpdmVyYWJsZV91cmwsIGRlbGl2ZXJhYmxlX25hbWUsIGNyZWF0ZWRfYXRcbiAgICAgIEZST00gc2hvcF9kZWxpdmVyaWVzXG4gICAgICBXSEVSRSBzYWxlX2V2ZW50X2lkIElOICgke3NxbC5qb2luKHNhbGVFdmVudElkcy5tYXAoKGlkKSA9PiBzcWxgJHtpZH1gKSwgc3FsYCwgYCl9KVxuICAgICAgT1JERVIgQlkgY3JlYXRlZF9hdCBBU0NcbiAgICBgKTtcbiAgICByZXR1cm4gci5yb3dzIGFzIHVua25vd24gYXMgU2hvcERlbGl2ZXJ5Um93W107XG4gIH0gY2F0Y2gge1xuICAgIHJldHVybiBbXTtcbiAgfVxufVxuXG5leHBvcnQgaW50ZXJmYWNlIFVuZGVsaXZlcmVkU2FsZVJvdyB7XG4gIHNhbGVfZXZlbnRfaWQ6IHN0cmluZztcbiAgb3JkZXJfaWQ6IHN0cmluZyB8IG51bGw7XG4gIHByb2R1Y3RfaWQ6IHN0cmluZyB8IG51bGw7XG4gIHByb2R1Y3RfbmFtZTogc3RyaW5nIHwgbnVsbDtcbiAgcHJvZHVjdF90eXBlOiBzdHJpbmcgfCBudWxsO1xuICBwYWlkX2F0OiBzdHJpbmcgfCBudWxsO1xuICBjcmVhdGVkX2F0OiBzdHJpbmc7XG59XG5cbi8qKiBQYWlkIHNob3Agc2FsZSBsaW5lcyB0aGF0IHByb2R1Y2VkIE5PIGRlbGl2ZXJ5IHJvdyDigJQgdGhlXG4gKiAgb3JkZXItcmVjb3JkIGhhbGYgb2YgdGhlIGJ1eWVyJ3MgbGlicmFyeSAocmVhZC1jb21wYXQgc2hpbSkuXG4gKlxuICogIEEgcGFpZCBsaW5lIGxhbmRzIGhlcmUgd2hlbiBpdHMgcHJvZHVjdCBjYXJyaWVkIG5vdGhpbmdcbiAqICBkZWxpdmVyYWJsZSBhdCBmbGlwIHRpbWU6IHR5cGVkIHBoeXNpY2FsLCBvciBhIGRpZ2l0YWwgbGlzdGluZ1xuICogIHdob3NlIGZpbGUgd2FzIG5ldmVyIGF0dGFjaGVkLiBUaGUgT2N0IDI4IGdhdGUncyBcIlRFU1QgRGlnaXRhbFxuICogIERvd25sb2FkXCIgd2FzIGV4YWN0bHkgdGhpcyDigJQgc29sZCB0aHJlZSB0aW1lcyBhdCAkNSB3aGlsZSBpdHNcbiAqICBwcm9kdWN0IHJvdyBzYXQgYXQgdGhlIHBoeXNpY2FsIGRlZmF1bHQgd2l0aCBubyBmaWxlLCBzbyBub1xuICogIHNob3BfZGVsaXZlcmllcyByb3cgY291bGQgZXZlciBiZSB3cml0dGVuIGFuZCB0aGUgYnV5ZXInc1xuICogIExpYnJhcnkg4oaSIFB1cmNoYXNlcyByZWFkIFwiTm90aGluZyBoZXJlIHlldFwiIGZvcmV2ZXIuIFRoZSBzYWxlXG4gKiAgaXRzZWxmIGlzIHJlYWwgYW5kIHJlY29yZGVkOyB0aGUgbGlicmFyeSBtdXN0IGF0IGxlYXN0IHNob3cgdGhlXG4gKiAgT1JERVIgdW5kZXIgdGhlIGJ1eWVyJ3MgYWNjb3VudCwgaG9uZXN0bHkgbWFya2VkIGFzIGNhcnJ5aW5nIG5vXG4gKiAgZG93bmxvYWQsIGluc3RlYWQgb2YgcHJldGVuZGluZyB0aGUgcHVyY2hhc2UgbmV2ZXIgaGFwcGVuZWQuXG4gKlxuICogIE1hdGNoZWQgYnkgdGhlIHNhbWUga2V5cyB0aGUgZGVsaXZlcnkgcmVhZCB1c2VzIOKAlCBhY2NvdW50IGlkIE9SXG4gKiAgY2hlY2tvdXQgZW1haWwg4oCUIHNvIHByZS0wMjk3IHNhbGVzIChyZWNvcmRlZCBiZWZvcmUgYnV5ZXIgaWRzXG4gKiAgd2VyZSBzdGFtcGVkOyB0aGUgY29sdW1uIHJlYWRzIE5VTEwgb24gdGhvc2Ugcm93cykgc3RpbGwgc3VyZmFjZVxuICogIGJ5IHRoZSBlbWFpbCB0aGV5IGNoZWNrZWQgb3V0IHdpdGguIFJlZnVuZGVkIHNhbGVzIG5ldmVyIG1hdGNoOlxuICogIHRoZSByZXZlcnNhbCBlbmdpbmUgcmVuYW1lcyB0aGVtIGV2ZW50X3R5cGU9J3JlZnVuZGVkX3NhbGUnXG4gKiAgKGxpYi9wYXltZW50LXJldmVyc2FscykuIE5ldmVyIHRocm93cyDigJQgW10gd2hlbiB0aGUgc2hvcCB0YWJsZXNcbiAqICBhcmVuJ3QgdGhlcmUgeWV0LiAqL1xuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGZldGNoVW5kZWxpdmVyZWRTYWxlc0ZvckJ1eWVyKFxuICB1c2VySWQ6IHN0cmluZyxcbiAgZW1haWw6IHN0cmluZyB8IG51bGwsXG4pOiBQcm9taXNlPFVuZGVsaXZlcmVkU2FsZVJvd1tdPiB7XG4gIHRyeSB7XG4gICAgY29uc3Qga2V5Q2xhdXNlID0gZW1haWxcbiAgICAgID8gc3FsYChlLmJ1eWVyX3VzZXJfaWQgPSAke3VzZXJJZH0gT1IgTE9XRVIoZS5idXllcl9lbWFpbCkgPSBMT1dFUigke2VtYWlsfSkpYFxuICAgICAgOiBzcWxgZS5idXllcl91c2VyX2lkID0gJHt1c2VySWR9YDtcbiAgICAvKiBBbnRpLWpvaW4gdmlhIExFRlQgSk9JTiAoZGVsaXZlcnkgc2FsZV9ldmVudF9pZCBpcyBVTklRVUUsIHNvIGF0XG4gICAgICAgbW9zdCBvbmUgZGVsaXZlcnkgcm93IHBlciBzYWxlIOKAlCBubyBmYW4tb3V0KS4gV3JpdHRlbiB0aGlzIHdheVxuICAgICAgIGluc3RlYWQgb2YgTk9UIEVYSVNUUyBzbyB0aGUgcGctbWVtIGhhcm5lc3MgY2FuIGV4ZWN1dGUgaXQ7XG4gICAgICAgc2VtYW50aWNzIGFyZSBpZGVudGljYWwgb24gcmVhbCBQb3N0Z3Jlcy4gKi9cbiAgICBjb25zdCByID0gYXdhaXQgZGIuZXhlY3V0ZShzcWxgXG4gICAgICBTRUxFQ1QgZS5pZCBBUyBzYWxlX2V2ZW50X2lkLCBlLmNoZWNrb3V0X2dyb3VwX2lkIEFTIG9yZGVyX2lkLCBlLnByb2R1Y3RfaWQsXG4gICAgICAgICAgICAgcC5uYW1lIEFTIHByb2R1Y3RfbmFtZSwgcC5wcm9kdWN0X3R5cGUgQVMgcHJvZHVjdF90eXBlLFxuICAgICAgICAgICAgIGUucGFpZF9hdCwgZS5jcmVhdGVkX2F0XG4gICAgICBGUk9NIHNob3BfZXZlbnRzIGVcbiAgICAgIExFRlQgSk9JTiBzaG9wX3Byb2R1Y3RzIHAgT04gcC5pZCA9IGUucHJvZHVjdF9pZFxuICAgICAgTEVGVCBKT0lOIHNob3BfZGVsaXZlcmllcyBkIE9OIGQuc2FsZV9ldmVudF9pZCA9IGUuaWRcbiAgICAgIFdIRVJFIGUuZXZlbnRfdHlwZSA9ICdzYWxlJyBBTkQgJHtrZXlDbGF1c2V9XG4gICAgICAgIEFORCBkLmlkIElTIE5VTExcbiAgICAgIE9SREVSIEJZIENPQUxFU0NFKGUucGFpZF9hdCwgZS5jcmVhdGVkX2F0KSBERVNDXG4gICAgICBMSU1JVCAyMDBcbiAgICBgKTtcbiAgICByZXR1cm4gci5yb3dzIGFzIHVua25vd24gYXMgVW5kZWxpdmVyZWRTYWxlUm93W107XG4gIH0gY2F0Y2gge1xuICAgIHJldHVybiBbXTtcbiAgfVxufVxuXG4vKiogVGhlIGJ1eWVyJ3MgbGlicmFyeTogZXZlcnkgZGVsaXZlcnkgdGhhdCBpcyB0aGVpcnMg4oCUIG1hdGNoZWQgYnlcbiAqICBhY2NvdW50IGlkIE9SIGJ5IHRoZSBlbWFpbCB0aGV5IGNoZWNrZWQgb3V0IHdpdGguICovXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gZmV0Y2hEZWxpdmVyaWVzRm9yQnV5ZXIodXNlcklkOiBzdHJpbmcsIGVtYWlsOiBzdHJpbmcgfCBudWxsKTogUHJvbWlzZTxTaG9wRGVsaXZlcnlSb3dbXT4ge1xuICB0cnkge1xuICAgIGNvbnN0IHIgPSBlbWFpbFxuICAgICAgPyBhd2FpdCBkYi5leGVjdXRlKHNxbGBcbiAgICAgICAgICBTRUxFQ1Qgc2FsZV9ldmVudF9pZCwgb3JkZXJfaWQsIHByb2R1Y3RfaWQsIHByb2R1Y3RfbmFtZSwgZGVsaXZlcmFibGVfdXJsLCBkZWxpdmVyYWJsZV9uYW1lLCBjcmVhdGVkX2F0XG4gICAgICAgICAgRlJPTSBzaG9wX2RlbGl2ZXJpZXNcbiAgICAgICAgICBXSEVSRSBidXllcl91c2VyX2lkID0gJHt1c2VySWR9IE9SIExPV0VSKGJ1eWVyX2VtYWlsKSA9IExPV0VSKCR7ZW1haWx9KVxuICAgICAgICAgIE9SREVSIEJZIGNyZWF0ZWRfYXQgREVTQ1xuICAgICAgICAgIExJTUlUIDIwMFxuICAgICAgICBgKVxuICAgICAgOiBhd2FpdCBkYi5leGVjdXRlKHNxbGBcbiAgICAgICAgICBTRUxFQ1Qgc2FsZV9ldmVudF9pZCwgb3JkZXJfaWQsIHByb2R1Y3RfaWQsIHByb2R1Y3RfbmFtZSwgZGVsaXZlcmFibGVfdXJsLCBkZWxpdmVyYWJsZV9uYW1lLCBjcmVhdGVkX2F0XG4gICAgICAgICAgRlJPTSBzaG9wX2RlbGl2ZXJpZXNcbiAgICAgICAgICBXSEVSRSBidXllcl91c2VyX2lkID0gJHt1c2VySWR9XG4gICAgICAgICAgT1JERVIgQlkgY3JlYXRlZF9hdCBERVNDXG4gICAgICAgICAgTElNSVQgMjAwXG4gICAgICAgIGApO1xuICAgIHJldHVybiByLnJvd3MgYXMgdW5rbm93biBhcyBTaG9wRGVsaXZlcnlSb3dbXTtcbiAgfSBjYXRjaCB7XG4gICAgcmV0dXJuIFtdO1xuICB9XG59XG4iXSwiZmlsZSI6Ii9zcmMvbGliL3Nob3AtZGVsaXZlcnkudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9zaG9wLWRlbGl2ZXJ5LnRzIiwiL3NyYy9saWIvc2hvcC1kZWxpdmVyeS50cyIsW10sWyI2IiwiNyIsIjgiXSxbXSwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9pbmRleC50cyIsIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMDAwL25vZGVfbW9kdWxlcy8ucG5wbS9kcml6emxlLW9ybUAwLjQ1LjNfQHR5cGVzK3BnQDguMjMuMV9wZ0A4LjIzLjAvbm9kZV9tb2R1bGVzL2RyaXp6bGUtb3JtL2luZGV4LmpzIiwiL3NyYy9saWIvbG9nZ2VyLnRzIl0=

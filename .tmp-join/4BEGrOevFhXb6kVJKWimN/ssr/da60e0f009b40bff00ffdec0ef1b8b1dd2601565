@@ -1,0 +1,43 @@
+__vite_ssr_exportName__("selectedLiveTransport", () => { try { return selectedLiveTransport } catch {} });
+__vite_ssr_exportName__("LIVE_TIP_MINIMUM_VB", () => { try { return LIVE_TIP_MINIMUM_VB } catch {} });
+__vite_ssr_exportName__("LIVE_TIP_MAXIMUM_VB", () => { try { return LIVE_TIP_MAXIMUM_VB } catch {} });
+__vite_ssr_exportName__("LIVE_TIP_PIN_MINIMUM_VB", () => { try { return LIVE_TIP_PIN_MINIMUM_VB } catch {} });
+__vite_ssr_exportName__("LIVE_TIP_PIN_DURATION_MS", () => { try { return LIVE_TIP_PIN_DURATION_MS } catch {} });
+__vite_ssr_exportName__("LIVE_TICKET_MIN_VB", () => { try { return LIVE_TICKET_MIN_VB } catch {} });
+__vite_ssr_exportName__("LIVE_TICKET_MAX_VB", () => { try { return LIVE_TICKET_MAX_VB } catch {} });
+__vite_ssr_exportName__("LIVE_TICKET_MAX_CAPACITY", () => { try { return LIVE_TICKET_MAX_CAPACITY } catch {} });
+__vite_ssr_exportName__("isLiveTransportReady", () => { try { return isLiveTransportReady } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/src/lib/cloudflare-stream.ts", {"importedNames":["isStreamConfigured"]});
+
+function selectedLiveTransport(env = process.env) {
+	return env["LIVE_TRANSPORT"]?.trim().toLowerCase() === "cloudflare" ? "cloudflare" : "own";
+};
+/* ── Stream tips + pinned messages (Stack 2) ──────────────────────────────
+Amounts are Visual Bucs — the site's credit unit, displayed as-is
+(the x100 convention: never single-digit money figures). The pin
+minimum is a single named constant so the owner can rule on it in
+one place: a tip at or above it pins its message to the top of
+chat for LIVE_TIP_PIN_DURATION_MS. The pin rides the tip — there
+is no separate pin charge. */
+const LIVE_TIP_MINIMUM_VB = 100;
+const LIVE_TIP_MAXIMUM_VB = 1e6;
+const LIVE_TIP_PIN_MINIMUM_VB = 500;
+const LIVE_TIP_PIN_DURATION_MS = 2 * 60 * 1e3;
+/* ── Ticketed live (Wave 4 #31) ──────────────────────────────────────────
+A creator-set ticket price for a stream, in Visual Bucs. The bounds
+mirror the tip range above (and the 100–1,000,000 VB range the owner
+ratified for World stage tips): below 100 VB a door is noise, above
+1,000,000 it is not a ticket. 0 / unset = a free stream. Named
+constants so the owner can rule on them in one place. */
+const LIVE_TICKET_MIN_VB = 100;
+const LIVE_TICKET_MAX_VB = 1e6;
+/** Seat capacity bounds when a creator caps the room (null = no cap). */
+const LIVE_TICKET_MAX_CAPACITY = 1e5;
+function isLiveTransportReady(kind, env = process.env) {
+	if (kind === "cloudflare") return (0,__vite_ssr_import_0__.isStreamConfigured)(env);
+	return env["LIVE_OWN_SERVER"]?.trim().toLowerCase() !== "off";
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7Ozs7O0FBQUE7O0FBc0JPLFNBQVMsc0JBQXNCLE1BQXlCLFFBQVEsS0FBd0I7Q0FDN0YsT0FBTyxJQUFJLGlCQUFpQixFQUFFLEtBQUssQ0FBQyxDQUFDLFlBQVksTUFBTSxlQUFlLGVBQWU7QUFDdkY7Ozs7Ozs7O0FBU08sTUFBTSxzQkFBc0I7QUFDNUIsTUFBTSxzQkFBc0I7QUFDNUIsTUFBTSwwQkFBMEI7QUFDaEMsTUFBTSwyQkFBMkIsSUFBSSxLQUFLOzs7Ozs7O0FBUTFDLE1BQU0scUJBQXFCO0FBQzNCLE1BQU0scUJBQXFCOztBQUUzQixNQUFNLDJCQUEyQjtBQUVqQyxTQUFTLHFCQUNkLE1BQ0EsTUFBeUIsUUFBUSxLQUN4QjtDQUNULElBQUksU0FBUyxjQUFjLE9BQU8sNkNBQW1CLEdBQUc7Q0FDeEQsT0FBTyxJQUFJLGtCQUFrQixFQUFFLEtBQUssQ0FBQyxDQUFDLFlBQVksTUFBTTtBQUMxRCIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsibGl2ZS1jb25maWcudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgaXNTdHJlYW1Db25maWd1cmVkIH0gZnJvbSBcIi4vY2xvdWRmbGFyZS1zdHJlYW1cIjtcblxuLyog4pSA4pSAIEdvIExpdmUgdHJhbnNwb3J0IHNlbGVjdGlvbiDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcbiAgIFRoZSBicm9hZGNhc3Qgc3R1ZGlvIHB1Ymxpc2hlcyB0aHJvdWdoIG9uZSBvZiB0d28gdHJhbnNwb3J0cywgY2hvc2VuXG4gICBieSBlbnYg4oCUIHRoZSBzdHVkaW8gbGVhcm5zIHRoZSBjaG9pY2UgZnJvbSBHRVQgL2xpdmUtc3RyZWFtcy9zdGF0dXNcbiAgIGFuZCBuZXZlciBvZmZlcnMgYSBwYXRoIHRoZSBzZXJ2ZXIgaGFzbid0IHNlbGVjdGVkOlxuXG4gICAtIFwib3duXCIgKGRlZmF1bHQpOiBvdXIgb3duIHNlcnZlciBjYXJyaWVzIHRoZSBzdHJlYW0uIFRoZSBicm93c2VyXG4gICAgIHNlbmRzIHRoZSBzaG93IHRvIHRoaXMgQVBJIGluIHNob3J0IGNodW5rczsgdGhlIEFQSSB0dXJucyB0aGVtIGludG9cbiAgICAgYSBsaXZlIEhMUyBmZWVkIGFuZCBzZXJ2ZXMgaXQgdG8gdGhlIHdhdGNoIHBhZ2UuIE5vIGV4dGVybmFsIGtleXMsXG4gICAgIG5vIHBlci1taW51dGUgcHJvdmlkZXIgYmlsbCDigJQgaXQgcmlkZXMgdGhlIHNlcnZpY2UgdGhlIHNpdGUgYWxyZWFkeVxuICAgICBydW5zIG9uLiBSZWFkeSB1bmxlc3MgZXhwbGljaXRseSBzd2l0Y2hlZCBvZmYgKExJVkVfT1dOX1NFUlZFUj1vZmYpLlxuXG4gICAtIFwiY2xvdWRmbGFyZVwiOiBXSElQL1dlYlJUQyB0aHJvdWdoIENsb3VkZmxhcmUgU3RyZWFtLiBSZWFkeSBvbmx5XG4gICAgIHdoZW4gaXRzIGNyZWRlbnRpYWxzIGFyZSBzZXQgKENMT1VERkxBUkVfQUNDT1VOVF9JRCAvXG4gICAgIENMT1VERkxBUkVfU1RSRUFNX1RPS0VOKSDigJQgdW50aWwgdGhlbiBjcmVhdGUgYW5zd2VycyBhbiBob25lc3QgNTAzLlxuXG4gICBTZWxlY3Rpb24gaXMgcmVhZCBmcm9tIGVudiBhdCBjYWxsIHRpbWUgKG5ldmVyIGNhY2hlZCkgc28gdGVzdHMgYW5kXG4gICBvcHMgY2FuIGZsaXAgaXQgd2l0aG91dCBhIGNvZGUgY2hhbmdlLiAqL1xuXG5leHBvcnQgdHlwZSBMaXZlVHJhbnNwb3J0S2luZCA9IFwib3duXCIgfCBcImNsb3VkZmxhcmVcIjtcblxuZXhwb3J0IGZ1bmN0aW9uIHNlbGVjdGVkTGl2ZVRyYW5zcG9ydChlbnY6IE5vZGVKUy5Qcm9jZXNzRW52ID0gcHJvY2Vzcy5lbnYpOiBMaXZlVHJhbnNwb3J0S2luZCB7XG4gIHJldHVybiBlbnZbXCJMSVZFX1RSQU5TUE9SVFwiXT8udHJpbSgpLnRvTG93ZXJDYXNlKCkgPT09IFwiY2xvdWRmbGFyZVwiID8gXCJjbG91ZGZsYXJlXCIgOiBcIm93blwiO1xufVxuXG4vKiDilIDilIAgU3RyZWFtIHRpcHMgKyBwaW5uZWQgbWVzc2FnZXMgKFN0YWNrIDIpIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxuICAgQW1vdW50cyBhcmUgVmlzdWFsIEJ1Y3Mg4oCUIHRoZSBzaXRlJ3MgY3JlZGl0IHVuaXQsIGRpc3BsYXllZCBhcy1pc1xuICAgKHRoZSB4MTAwIGNvbnZlbnRpb246IG5ldmVyIHNpbmdsZS1kaWdpdCBtb25leSBmaWd1cmVzKS4gVGhlIHBpblxuICAgbWluaW11bSBpcyBhIHNpbmdsZSBuYW1lZCBjb25zdGFudCBzbyB0aGUgb3duZXIgY2FuIHJ1bGUgb24gaXQgaW5cbiAgIG9uZSBwbGFjZTogYSB0aXAgYXQgb3IgYWJvdmUgaXQgcGlucyBpdHMgbWVzc2FnZSB0byB0aGUgdG9wIG9mXG4gICBjaGF0IGZvciBMSVZFX1RJUF9QSU5fRFVSQVRJT05fTVMuIFRoZSBwaW4gcmlkZXMgdGhlIHRpcCDigJQgdGhlcmVcbiAgIGlzIG5vIHNlcGFyYXRlIHBpbiBjaGFyZ2UuICovXG5leHBvcnQgY29uc3QgTElWRV9USVBfTUlOSU1VTV9WQiA9IDEwMDtcbmV4cG9ydCBjb25zdCBMSVZFX1RJUF9NQVhJTVVNX1ZCID0gMV8wMDBfMDAwO1xuZXhwb3J0IGNvbnN0IExJVkVfVElQX1BJTl9NSU5JTVVNX1ZCID0gNTAwO1xuZXhwb3J0IGNvbnN0IExJVkVfVElQX1BJTl9EVVJBVElPTl9NUyA9IDIgKiA2MCAqIDEwMDA7XG5cbi8qIOKUgOKUgCBUaWNrZXRlZCBsaXZlIChXYXZlIDQgIzMxKSDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcbiAgIEEgY3JlYXRvci1zZXQgdGlja2V0IHByaWNlIGZvciBhIHN0cmVhbSwgaW4gVmlzdWFsIEJ1Y3MuIFRoZSBib3VuZHNcbiAgIG1pcnJvciB0aGUgdGlwIHJhbmdlIGFib3ZlIChhbmQgdGhlIDEwMOKAkzEsMDAwLDAwMCBWQiByYW5nZSB0aGUgb3duZXJcbiAgIHJhdGlmaWVkIGZvciBXb3JsZCBzdGFnZSB0aXBzKTogYmVsb3cgMTAwIFZCIGEgZG9vciBpcyBub2lzZSwgYWJvdmVcbiAgIDEsMDAwLDAwMCBpdCBpcyBub3QgYSB0aWNrZXQuIDAgLyB1bnNldCA9IGEgZnJlZSBzdHJlYW0uIE5hbWVkXG4gICBjb25zdGFudHMgc28gdGhlIG93bmVyIGNhbiBydWxlIG9uIHRoZW0gaW4gb25lIHBsYWNlLiAqL1xuZXhwb3J0IGNvbnN0IExJVkVfVElDS0VUX01JTl9WQiA9IDEwMDtcbmV4cG9ydCBjb25zdCBMSVZFX1RJQ0tFVF9NQVhfVkIgPSAxXzAwMF8wMDA7XG4vKiogU2VhdCBjYXBhY2l0eSBib3VuZHMgd2hlbiBhIGNyZWF0b3IgY2FwcyB0aGUgcm9vbSAobnVsbCA9IG5vIGNhcCkuICovXG5leHBvcnQgY29uc3QgTElWRV9USUNLRVRfTUFYX0NBUEFDSVRZID0gMTAwXzAwMDtcblxuZXhwb3J0IGZ1bmN0aW9uIGlzTGl2ZVRyYW5zcG9ydFJlYWR5KFxuICBraW5kOiBMaXZlVHJhbnNwb3J0S2luZCxcbiAgZW52OiBOb2RlSlMuUHJvY2Vzc0VudiA9IHByb2Nlc3MuZW52LFxuKTogYm9vbGVhbiB7XG4gIGlmIChraW5kID09PSBcImNsb3VkZmxhcmVcIikgcmV0dXJuIGlzU3RyZWFtQ29uZmlndXJlZChlbnYpO1xuICByZXR1cm4gZW52W1wiTElWRV9PV05fU0VSVkVSXCJdPy50cmltKCkudG9Mb3dlckNhc2UoKSAhPT0gXCJvZmZcIjtcbn1cbiJdLCJmaWxlIjoiL3NyYy9saWIvbGl2ZS1jb25maWcudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9saXZlLWNvbmZpZy50cyIsIi9zcmMvbGliL2xpdmUtY29uZmlnLnRzIixbXSxbIjYiXSxbXSwiL3NyYy9saWIvY2xvdWRmbGFyZS1zdHJlYW0udHMiXQ==

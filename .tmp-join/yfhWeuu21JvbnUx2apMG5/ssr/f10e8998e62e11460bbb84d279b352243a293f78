@@ -1,0 +1,75 @@
+__vite_ssr_exportName__("pgErrorCode", () => { try { return pgErrorCode } catch {} });
+__vite_ssr_exportName__("isUniqueViolation", () => { try { return isUniqueViolation } catch {} });
+__vite_ssr_exportName__("isUndefinedTable", () => { try { return isUndefinedTable } catch {} });
+__vite_ssr_exportName__("isUndefinedColumn", () => { try { return isUndefinedColumn } catch {} });
+__vite_ssr_exportName__("isMissingSchemaError", () => { try { return isMissingSchemaError } catch {} });
+__vite_ssr_exportName__("pgErrorText", () => { try { return pgErrorText } catch {} });
+/* Postgres error-shape helpers.
+*
+* @workspace/db runs on drizzle-orm/node-postgres, which wraps EVERY
+* driver error in a DrizzleQueryError: the pg error (with its .code,
+* e.g. "23505") rides on .cause, the wrapper itself has NO .code, and
+* its message is just "Failed query: …". Any check that reads a
+* top-level err.code — or regexes the top-level message — therefore
+* NEVER fires on a drizzle path in production (the D6 lesson). These
+* helpers walk the cause chain (≤5 levels) to the real pg error.
+*
+* Supabase PostgREST errors are NOT wrapped: their .code is top-level
+* and checks against them are correct without this helper.
+*
+* RECONCILED at Stack-21 integration: this module is the single
+* implementation — lib/payment-record.ts (which grew its own walker in
+* the D6 fix) and lib/payment-reversals.ts (which had a one-level
+* checker) both delegate here now. */
+function pgErrorCode(err) {
+	let cur = err;
+	for (let depth = 0; depth < 5 && cur != null; depth++) {
+		const code = cur.code;
+		if (typeof code === "string" && code !== "") return code;
+		cur = cur.cause;
+	};
+	return undefined;
+};
+/** Postgres unique-violation (23505), wherever it hides in the chain. */
+function isUniqueViolation(err) {
+	return pgErrorCode(err) === "23505";
+};
+/** Postgres undefined-table (42P01), wherever it hides in the chain. */
+function isUndefinedTable(err) {
+	return pgErrorCode(err) === "42P01";
+};
+/** Postgres undefined-column (42703), wherever it hides in the chain —
+*  the signal a held migration has not landed yet (graceful-degradation
+*  paths key off this, never off message text). */
+function isUndefinedColumn(err) {
+	return pgErrorCode(err) === "42703";
+};
+/** Missing schema (undefined table OR undefined column), wherever it
+*  hides. pg-code first; the message fallback covers drivers that
+*  report the same condition without a SQLSTATE (pg-mem, the house
+*  test engine, phrases it as: relation "x" does not exist / column
+*  "x" does not exist). Used by read endpoints that must answer an
+*  honest not-ready state instead of a 500 when a held/baseline
+*  migration has not landed on this database. */
+function isMissingSchemaError(err) {
+	if (isUndefinedTable(err) || isUndefinedColumn(err)) return true;
+	return /(relation|column) "[^"]+" does not exist/i.test(pgErrorText(err));
+};
+/* Every message along the cause chain, outermost first. For checks
+* written against the raw pg message ("duplicate key value violates
+* unique constraint …", "relation \"x\" does not exist") — on a
+* drizzle path that text survives only on the wrapped error's cause. */
+function pgErrorText(err) {
+	const parts = [];
+	let cur = err;
+	for (let depth = 0; depth < 5 && cur != null; depth++) {
+		const msg = cur.message;
+		if (typeof msg === "string" && msg !== "") parts.push(msg);
+		cur = cur.cause;
+	};
+	return parts.join(" ");
+}
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFrQk8sU0FBUyxZQUFZLEtBQWtDO0NBQzVELElBQUksTUFBZTtDQUNuQixLQUFLLElBQUksUUFBUSxHQUFHLFFBQVEsS0FBSyxPQUFPLE1BQU0sU0FBUztFQUNyRCxNQUFNLE9BQVEsSUFBMkI7RUFDekMsSUFBSSxPQUFPLFNBQVMsWUFBWSxTQUFTLElBQUksT0FBTztFQUNwRCxNQUFPLElBQTRCO0NBQ3JDO0NBQ0EsT0FBTztBQUNUOztBQUdPLFNBQVMsa0JBQWtCLEtBQXVCO0NBQ3ZELE9BQU8sWUFBWSxHQUFHLE1BQU07QUFDOUI7O0FBR08sU0FBUyxpQkFBaUIsS0FBdUI7Q0FDdEQsT0FBTyxZQUFZLEdBQUcsTUFBTTtBQUM5Qjs7OztBQUtPLFNBQVMsa0JBQWtCLEtBQXVCO0NBQ3ZELE9BQU8sWUFBWSxHQUFHLE1BQU07QUFDOUI7Ozs7Ozs7O0FBU08sU0FBUyxxQkFBcUIsS0FBdUI7Q0FDMUQsSUFBSSxpQkFBaUIsR0FBRyxLQUFLLGtCQUFrQixHQUFHLEdBQUcsT0FBTztDQUM1RCxPQUFPLDRDQUE0QyxLQUFLLFlBQVksR0FBRyxDQUFDO0FBQzFFOzs7OztBQU1PLFNBQVMsWUFBWSxLQUFzQjtDQUNoRCxNQUFNLFFBQWtCLENBQUM7Q0FDekIsSUFBSSxNQUFlO0NBQ25CLEtBQUssSUFBSSxRQUFRLEdBQUcsUUFBUSxLQUFLLE9BQU8sTUFBTSxTQUFTO0VBQ3JELE1BQU0sTUFBTyxJQUE4QjtFQUMzQyxJQUFJLE9BQU8sUUFBUSxZQUFZLFFBQVEsSUFBSSxNQUFNLEtBQUssR0FBRztFQUN6RCxNQUFPLElBQTRCO0NBQ3JDO0NBQ0EsT0FBTyxNQUFNLEtBQUssR0FBRztBQUN2QiIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsicGctZXJyb3JzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qIFBvc3RncmVzIGVycm9yLXNoYXBlIGhlbHBlcnMuXG4gKlxuICogQHdvcmtzcGFjZS9kYiBydW5zIG9uIGRyaXp6bGUtb3JtL25vZGUtcG9zdGdyZXMsIHdoaWNoIHdyYXBzIEVWRVJZXG4gKiBkcml2ZXIgZXJyb3IgaW4gYSBEcml6emxlUXVlcnlFcnJvcjogdGhlIHBnIGVycm9yICh3aXRoIGl0cyAuY29kZSxcbiAqIGUuZy4gXCIyMzUwNVwiKSByaWRlcyBvbiAuY2F1c2UsIHRoZSB3cmFwcGVyIGl0c2VsZiBoYXMgTk8gLmNvZGUsIGFuZFxuICogaXRzIG1lc3NhZ2UgaXMganVzdCBcIkZhaWxlZCBxdWVyeTog4oCmXCIuIEFueSBjaGVjayB0aGF0IHJlYWRzIGFcbiAqIHRvcC1sZXZlbCBlcnIuY29kZSDigJQgb3IgcmVnZXhlcyB0aGUgdG9wLWxldmVsIG1lc3NhZ2Ug4oCUIHRoZXJlZm9yZVxuICogTkVWRVIgZmlyZXMgb24gYSBkcml6emxlIHBhdGggaW4gcHJvZHVjdGlvbiAodGhlIEQ2IGxlc3NvbikuIFRoZXNlXG4gKiBoZWxwZXJzIHdhbGsgdGhlIGNhdXNlIGNoYWluICjiiaQ1IGxldmVscykgdG8gdGhlIHJlYWwgcGcgZXJyb3IuXG4gKlxuICogU3VwYWJhc2UgUG9zdGdSRVNUIGVycm9ycyBhcmUgTk9UIHdyYXBwZWQ6IHRoZWlyIC5jb2RlIGlzIHRvcC1sZXZlbFxuICogYW5kIGNoZWNrcyBhZ2FpbnN0IHRoZW0gYXJlIGNvcnJlY3Qgd2l0aG91dCB0aGlzIGhlbHBlci5cbiAqXG4gKiBSRUNPTkNJTEVEIGF0IFN0YWNrLTIxIGludGVncmF0aW9uOiB0aGlzIG1vZHVsZSBpcyB0aGUgc2luZ2xlXG4gKiBpbXBsZW1lbnRhdGlvbiDigJQgbGliL3BheW1lbnQtcmVjb3JkLnRzICh3aGljaCBncmV3IGl0cyBvd24gd2Fsa2VyIGluXG4gKiB0aGUgRDYgZml4KSBhbmQgbGliL3BheW1lbnQtcmV2ZXJzYWxzLnRzICh3aGljaCBoYWQgYSBvbmUtbGV2ZWxcbiAqIGNoZWNrZXIpIGJvdGggZGVsZWdhdGUgaGVyZSBub3cuICovXG5cbmV4cG9ydCBmdW5jdGlvbiBwZ0Vycm9yQ29kZShlcnI6IHVua25vd24pOiBzdHJpbmcgfCB1bmRlZmluZWQge1xuICBsZXQgY3VyOiB1bmtub3duID0gZXJyO1xuICBmb3IgKGxldCBkZXB0aCA9IDA7IGRlcHRoIDwgNSAmJiBjdXIgIT0gbnVsbDsgZGVwdGgrKykge1xuICAgIGNvbnN0IGNvZGUgPSAoY3VyIGFzIHsgY29kZT86IHVua25vd24gfSkuY29kZTtcbiAgICBpZiAodHlwZW9mIGNvZGUgPT09IFwic3RyaW5nXCIgJiYgY29kZSAhPT0gXCJcIikgcmV0dXJuIGNvZGU7XG4gICAgY3VyID0gKGN1ciBhcyB7IGNhdXNlPzogdW5rbm93biB9KS5jYXVzZTtcbiAgfVxuICByZXR1cm4gdW5kZWZpbmVkO1xufVxuXG4vKiogUG9zdGdyZXMgdW5pcXVlLXZpb2xhdGlvbiAoMjM1MDUpLCB3aGVyZXZlciBpdCBoaWRlcyBpbiB0aGUgY2hhaW4uICovXG5leHBvcnQgZnVuY3Rpb24gaXNVbmlxdWVWaW9sYXRpb24oZXJyOiB1bmtub3duKTogYm9vbGVhbiB7XG4gIHJldHVybiBwZ0Vycm9yQ29kZShlcnIpID09PSBcIjIzNTA1XCI7XG59XG5cbi8qKiBQb3N0Z3JlcyB1bmRlZmluZWQtdGFibGUgKDQyUDAxKSwgd2hlcmV2ZXIgaXQgaGlkZXMgaW4gdGhlIGNoYWluLiAqL1xuZXhwb3J0IGZ1bmN0aW9uIGlzVW5kZWZpbmVkVGFibGUoZXJyOiB1bmtub3duKTogYm9vbGVhbiB7XG4gIHJldHVybiBwZ0Vycm9yQ29kZShlcnIpID09PSBcIjQyUDAxXCI7XG59XG5cbi8qKiBQb3N0Z3JlcyB1bmRlZmluZWQtY29sdW1uICg0MjcwMyksIHdoZXJldmVyIGl0IGhpZGVzIGluIHRoZSBjaGFpbiDigJRcbiAqICB0aGUgc2lnbmFsIGEgaGVsZCBtaWdyYXRpb24gaGFzIG5vdCBsYW5kZWQgeWV0IChncmFjZWZ1bC1kZWdyYWRhdGlvblxuICogIHBhdGhzIGtleSBvZmYgdGhpcywgbmV2ZXIgb2ZmIG1lc3NhZ2UgdGV4dCkuICovXG5leHBvcnQgZnVuY3Rpb24gaXNVbmRlZmluZWRDb2x1bW4oZXJyOiB1bmtub3duKTogYm9vbGVhbiB7XG4gIHJldHVybiBwZ0Vycm9yQ29kZShlcnIpID09PSBcIjQyNzAzXCI7XG59XG5cbi8qKiBNaXNzaW5nIHNjaGVtYSAodW5kZWZpbmVkIHRhYmxlIE9SIHVuZGVmaW5lZCBjb2x1bW4pLCB3aGVyZXZlciBpdFxuICogIGhpZGVzLiBwZy1jb2RlIGZpcnN0OyB0aGUgbWVzc2FnZSBmYWxsYmFjayBjb3ZlcnMgZHJpdmVycyB0aGF0XG4gKiAgcmVwb3J0IHRoZSBzYW1lIGNvbmRpdGlvbiB3aXRob3V0IGEgU1FMU1RBVEUgKHBnLW1lbSwgdGhlIGhvdXNlXG4gKiAgdGVzdCBlbmdpbmUsIHBocmFzZXMgaXQgYXM6IHJlbGF0aW9uIFwieFwiIGRvZXMgbm90IGV4aXN0IC8gY29sdW1uXG4gKiAgXCJ4XCIgZG9lcyBub3QgZXhpc3QpLiBVc2VkIGJ5IHJlYWQgZW5kcG9pbnRzIHRoYXQgbXVzdCBhbnN3ZXIgYW5cbiAqICBob25lc3Qgbm90LXJlYWR5IHN0YXRlIGluc3RlYWQgb2YgYSA1MDAgd2hlbiBhIGhlbGQvYmFzZWxpbmVcbiAqICBtaWdyYXRpb24gaGFzIG5vdCBsYW5kZWQgb24gdGhpcyBkYXRhYmFzZS4gKi9cbmV4cG9ydCBmdW5jdGlvbiBpc01pc3NpbmdTY2hlbWFFcnJvcihlcnI6IHVua25vd24pOiBib29sZWFuIHtcbiAgaWYgKGlzVW5kZWZpbmVkVGFibGUoZXJyKSB8fCBpc1VuZGVmaW5lZENvbHVtbihlcnIpKSByZXR1cm4gdHJ1ZTtcbiAgcmV0dXJuIC8ocmVsYXRpb258Y29sdW1uKSBcIlteXCJdK1wiIGRvZXMgbm90IGV4aXN0L2kudGVzdChwZ0Vycm9yVGV4dChlcnIpKTtcbn1cblxuLyogRXZlcnkgbWVzc2FnZSBhbG9uZyB0aGUgY2F1c2UgY2hhaW4sIG91dGVybW9zdCBmaXJzdC4gRm9yIGNoZWNrc1xuICogd3JpdHRlbiBhZ2FpbnN0IHRoZSByYXcgcGcgbWVzc2FnZSAoXCJkdXBsaWNhdGUga2V5IHZhbHVlIHZpb2xhdGVzXG4gKiB1bmlxdWUgY29uc3RyYWludCDigKZcIiwgXCJyZWxhdGlvbiBcXFwieFxcXCIgZG9lcyBub3QgZXhpc3RcIikg4oCUIG9uIGFcbiAqIGRyaXp6bGUgcGF0aCB0aGF0IHRleHQgc3Vydml2ZXMgb25seSBvbiB0aGUgd3JhcHBlZCBlcnJvcidzIGNhdXNlLiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHBnRXJyb3JUZXh0KGVycjogdW5rbm93bik6IHN0cmluZyB7XG4gIGNvbnN0IHBhcnRzOiBzdHJpbmdbXSA9IFtdO1xuICBsZXQgY3VyOiB1bmtub3duID0gZXJyO1xuICBmb3IgKGxldCBkZXB0aCA9IDA7IGRlcHRoIDwgNSAmJiBjdXIgIT0gbnVsbDsgZGVwdGgrKykge1xuICAgIGNvbnN0IG1zZyA9IChjdXIgYXMgeyBtZXNzYWdlPzogdW5rbm93biB9KS5tZXNzYWdlO1xuICAgIGlmICh0eXBlb2YgbXNnID09PSBcInN0cmluZ1wiICYmIG1zZyAhPT0gXCJcIikgcGFydHMucHVzaChtc2cpO1xuICAgIGN1ciA9IChjdXIgYXMgeyBjYXVzZT86IHVua25vd24gfSkuY2F1c2U7XG4gIH1cbiAgcmV0dXJuIHBhcnRzLmpvaW4oXCIgXCIpO1xufVxuIl0sImZpbGUiOiIvc3JjL2xpYi9wZy1lcnJvcnMudHMifQ==
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvYXJ0aWZhY3RzL2FwaS1zZXJ2ZXIvc3JjL2xpYi9wZy1lcnJvcnMudHMiLCIvc3JjL2xpYi9wZy1lcnJvcnMudHMiLFtdLFtdLFtdXQ==

@@ -1,0 +1,81 @@
+__vite_ssr_exportName__("lipSyncJobsTable", () => { try { return lipSyncJobsTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","integer","boolean","timestamp","jsonb"]});
+
+/**
+* Durable lip-sync job records.
+*
+* A lip-sync generation (trim audio/video → submit to Sync.so → poll for
+* 25–40+ minutes) far outlives any browser tab or HTTP request. The job
+* record is the source of truth for the server-owned background poller
+* (see artifacts/api-server/src/lib/job-poller.ts):
+*
+* - `queued`      — accepted by POST /lip-sync/preview, waiting for a submit worker
+* - `submitting`  — a worker claimed it and is trimming media + submitting to Sync.so
+* - `polling`     — submitted; provider_job_id is set, poller checks Sync.so on backoff
+* - `done`        — provider reported completion; result_url is the finished video
+* - `failed`      — terminal; error holds the last provider/worker error
+*
+* State transitions are atomic single-statement UPDATEs (queued→submitting,
+* submitting→polling), so overlapping deploys can never double-submit or
+* double-poll the same job. Jobs left in `submitting` by a dead process are
+* re-queued on boot; jobs in `polling` keep their provider_job_id and the
+* poller simply resumes checking. `history_recorded` is the idempotency
+* gate for the generation_history insert, so a recovered job can never
+* attach its video to the project twice.
+*/
+const lipSyncJobsTable = (0,__vite_ssr_import_0__.pgTable)("lip_sync_jobs", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	user_id: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	project_id: (0,__vite_ssr_import_0__.uuid)("project_id"),
+	scene_id: (0,__vite_ssr_import_0__.text)("scene_id"),
+	/** The Creative Vault character this lip-sync was made as (migration
+	0142, G8). Nullable: no character pick = null. */
+	artist_vault_id: (0,__vite_ssr_import_0__.uuid)("artist_vault_id"),
+	/** queued | submitting | polling | done | failed */
+	state: (0,__vite_ssr_import_0__.text)("state").notNull().default("queued"),
+	/** Full lip-sync request params — everything needed to (re)run the submit. */
+	params: (0,__vite_ssr_import_0__.jsonb)("params").notNull(),
+	/** Sync.so provider job id, set once the provider accepts the generation. */
+	provider_job_id: (0,__vite_ssr_import_0__.text)("provider_job_id"),
+	/** Provider-reported output URL on success. */
+	result_url: (0,__vite_ssr_import_0__.text)("result_url"),
+	/**
+	* Provider result metadata (migration 0230): provider + model, the
+	* input dimensions probed at submit time, the output dimensions probed
+	* at completion, and resolution_reduced — so a provider that returns a
+	* smaller frame than it was given (LatentSync does) can never do so
+	* silently. NULL until a submit/completion writes it.
+	*/
+	result_meta: (0,__vite_ssr_import_0__.jsonb)("result_meta"),
+	/** Normalized error payload on failure. */
+	error: (0,__vite_ssr_import_0__.jsonb)("error"),
+	/** How many times a worker has claimed this job for submit. Poison jobs stop at 3. */
+	attempts: (0,__vite_ssr_import_0__.integer)("attempts").notNull().default(0),
+	/** How many provider status polls have run. */
+	polls: (0,__vite_ssr_import_0__.integer)("polls").notNull().default(0),
+	/** Consecutive provider poll transport failures. The job fails at 5. */
+	consecutive_poll_errors: (0,__vite_ssr_import_0__.integer)("consecutive_poll_errors").notNull().default(0),
+	/** When the poller should next check the provider (backoff schedule). */
+	next_poll_at: (0,__vite_ssr_import_0__.timestamp)("next_poll_at", { withTimezone: true }),
+	/**
+	* When a transient provider rejection (HTTP 429 / plan-concurrency limit)
+	* deferred this job's next submit attempt. Submit claims skip rows whose
+	* window has not elapsed yet — slots free up over 25–40 min, so the job
+	* waits instead of burning its submit attempts in ~2 minutes.
+	*/
+	next_attempt_at: (0,__vite_ssr_import_0__.timestamp)("next_attempt_at", { withTimezone: true }),
+	/**
+	* Consecutive transient submit deferrals. Backoff grows 5→10→20→40 min
+	* (capped); the job fails with provider_busy_timeout after 36 (~24h).
+	* Unlike `attempts`, deferrals are not poison — they are just waiting.
+	*/
+	submit_deferrals: (0,__vite_ssr_import_0__.integer)("submit_deferrals").notNull().default(0),
+	/** Idempotency flag: generation_history is written only on the false→true transition. */
+	history_recorded: (0,__vite_ssr_import_0__.boolean)("history_recorded").notNull().default(false),
+	created_at: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updated_at: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTtBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUF3Qk8sTUFBTSxtQkFBbUIsa0NBQVEsaUJBQWlCO0NBQ3ZELElBQUksK0JBQUssSUFBSSxDQUFDLENBQUMsV0FBVyxDQUFDLENBQUMsY0FBYztDQUMxQyxTQUFTLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFFBQVE7Q0FDakMsWUFBWSwrQkFBSyxZQUFZO0NBQzdCLFVBQVUsK0JBQUssVUFBVTs7O0NBR3pCLGlCQUFpQiwrQkFBSyxpQkFBaUI7O0NBRXZDLE9BQU8sK0JBQUssT0FBTyxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxRQUFROztDQUUvQyxRQUFRLGdDQUFNLFFBQVEsQ0FBQyxDQUFDLFFBQVE7O0NBRWhDLGlCQUFpQiwrQkFBSyxpQkFBaUI7O0NBRXZDLFlBQVksK0JBQUssWUFBWTs7Ozs7Ozs7Q0FRN0IsYUFBYSxnQ0FBTSxhQUFhOztDQUVoQyxPQUFPLGdDQUFNLE9BQU87O0NBRXBCLFVBQVUsa0NBQVEsVUFBVSxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxDQUFDOztDQUVqRCxPQUFPLGtDQUFRLE9BQU8sQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQzs7Q0FFM0MseUJBQXlCLGtDQUFRLHlCQUF5QixDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxDQUFDOztDQUUvRSxjQUFjLG9DQUFVLGdCQUFnQixFQUFFLGNBQWMsS0FBSyxDQUFDOzs7Ozs7O0NBTzlELGlCQUFpQixvQ0FBVSxtQkFBbUIsRUFBRSxjQUFjLEtBQUssQ0FBQzs7Ozs7O0NBTXBFLGtCQUFrQixrQ0FBUSxrQkFBa0IsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFFBQVEsQ0FBQzs7Q0FFakUsa0JBQWtCLGtDQUFRLGtCQUFrQixDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxLQUFLO0NBQ3JFLFlBQVksb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxXQUFXO0NBQ2pGLFlBQVksb0NBQVUsY0FBYyxFQUFFLGNBQWMsS0FBSyxDQUFDLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxXQUFXO0FBQ25GLENBQUMiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImxpcC1zeW5jLWpvYnMudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgcGdUYWJsZSwgdXVpZCwgdGV4dCwgaW50ZWdlciwgYm9vbGVhbiwgdGltZXN0YW1wLCBqc29uYiB9IGZyb20gXCJkcml6emxlLW9ybS9wZy1jb3JlXCI7XG5cbi8qKlxuICogRHVyYWJsZSBsaXAtc3luYyBqb2IgcmVjb3Jkcy5cbiAqXG4gKiBBIGxpcC1zeW5jIGdlbmVyYXRpb24gKHRyaW0gYXVkaW8vdmlkZW8g4oaSIHN1Ym1pdCB0byBTeW5jLnNvIOKGkiBwb2xsIGZvclxuICogMjXigJM0MCsgbWludXRlcykgZmFyIG91dGxpdmVzIGFueSBicm93c2VyIHRhYiBvciBIVFRQIHJlcXVlc3QuIFRoZSBqb2JcbiAqIHJlY29yZCBpcyB0aGUgc291cmNlIG9mIHRydXRoIGZvciB0aGUgc2VydmVyLW93bmVkIGJhY2tncm91bmQgcG9sbGVyXG4gKiAoc2VlIGFydGlmYWN0cy9hcGktc2VydmVyL3NyYy9saWIvam9iLXBvbGxlci50cyk6XG4gKlxuICogLSBgcXVldWVkYCAgICAgIOKAlCBhY2NlcHRlZCBieSBQT1NUIC9saXAtc3luYy9wcmV2aWV3LCB3YWl0aW5nIGZvciBhIHN1Ym1pdCB3b3JrZXJcbiAqIC0gYHN1Ym1pdHRpbmdgICDigJQgYSB3b3JrZXIgY2xhaW1lZCBpdCBhbmQgaXMgdHJpbW1pbmcgbWVkaWEgKyBzdWJtaXR0aW5nIHRvIFN5bmMuc29cbiAqIC0gYHBvbGxpbmdgICAgICDigJQgc3VibWl0dGVkOyBwcm92aWRlcl9qb2JfaWQgaXMgc2V0LCBwb2xsZXIgY2hlY2tzIFN5bmMuc28gb24gYmFja29mZlxuICogLSBgZG9uZWAgICAgICAgIOKAlCBwcm92aWRlciByZXBvcnRlZCBjb21wbGV0aW9uOyByZXN1bHRfdXJsIGlzIHRoZSBmaW5pc2hlZCB2aWRlb1xuICogLSBgZmFpbGVkYCAgICAgIOKAlCB0ZXJtaW5hbDsgZXJyb3IgaG9sZHMgdGhlIGxhc3QgcHJvdmlkZXIvd29ya2VyIGVycm9yXG4gKlxuICogU3RhdGUgdHJhbnNpdGlvbnMgYXJlIGF0b21pYyBzaW5nbGUtc3RhdGVtZW50IFVQREFURXMgKHF1ZXVlZOKGknN1Ym1pdHRpbmcsXG4gKiBzdWJtaXR0aW5n4oaScG9sbGluZyksIHNvIG92ZXJsYXBwaW5nIGRlcGxveXMgY2FuIG5ldmVyIGRvdWJsZS1zdWJtaXQgb3JcbiAqIGRvdWJsZS1wb2xsIHRoZSBzYW1lIGpvYi4gSm9icyBsZWZ0IGluIGBzdWJtaXR0aW5nYCBieSBhIGRlYWQgcHJvY2VzcyBhcmVcbiAqIHJlLXF1ZXVlZCBvbiBib290OyBqb2JzIGluIGBwb2xsaW5nYCBrZWVwIHRoZWlyIHByb3ZpZGVyX2pvYl9pZCBhbmQgdGhlXG4gKiBwb2xsZXIgc2ltcGx5IHJlc3VtZXMgY2hlY2tpbmcuIGBoaXN0b3J5X3JlY29yZGVkYCBpcyB0aGUgaWRlbXBvdGVuY3lcbiAqIGdhdGUgZm9yIHRoZSBnZW5lcmF0aW9uX2hpc3RvcnkgaW5zZXJ0LCBzbyBhIHJlY292ZXJlZCBqb2IgY2FuIG5ldmVyXG4gKiBhdHRhY2ggaXRzIHZpZGVvIHRvIHRoZSBwcm9qZWN0IHR3aWNlLlxuICovXG5leHBvcnQgY29uc3QgbGlwU3luY0pvYnNUYWJsZSA9IHBnVGFibGUoXCJsaXBfc3luY19qb2JzXCIsIHtcbiAgaWQ6IHV1aWQoXCJpZFwiKS5wcmltYXJ5S2V5KCkuZGVmYXVsdFJhbmRvbSgpLFxuICB1c2VyX2lkOiB1dWlkKFwidXNlcl9pZFwiKS5ub3ROdWxsKCksXG4gIHByb2plY3RfaWQ6IHV1aWQoXCJwcm9qZWN0X2lkXCIpLFxuICBzY2VuZV9pZDogdGV4dChcInNjZW5lX2lkXCIpLFxuICAvKiogVGhlIENyZWF0aXZlIFZhdWx0IGNoYXJhY3RlciB0aGlzIGxpcC1zeW5jIHdhcyBtYWRlIGFzIChtaWdyYXRpb25cbiAgICAgIDAxNDIsIEc4KS4gTnVsbGFibGU6IG5vIGNoYXJhY3RlciBwaWNrID0gbnVsbC4gKi9cbiAgYXJ0aXN0X3ZhdWx0X2lkOiB1dWlkKFwiYXJ0aXN0X3ZhdWx0X2lkXCIpLFxuICAvKiogcXVldWVkIHwgc3VibWl0dGluZyB8IHBvbGxpbmcgfCBkb25lIHwgZmFpbGVkICovXG4gIHN0YXRlOiB0ZXh0KFwic3RhdGVcIikubm90TnVsbCgpLmRlZmF1bHQoXCJxdWV1ZWRcIiksXG4gIC8qKiBGdWxsIGxpcC1zeW5jIHJlcXVlc3QgcGFyYW1zIOKAlCBldmVyeXRoaW5nIG5lZWRlZCB0byAocmUpcnVuIHRoZSBzdWJtaXQuICovXG4gIHBhcmFtczoganNvbmIoXCJwYXJhbXNcIikubm90TnVsbCgpLFxuICAvKiogU3luYy5zbyBwcm92aWRlciBqb2IgaWQsIHNldCBvbmNlIHRoZSBwcm92aWRlciBhY2NlcHRzIHRoZSBnZW5lcmF0aW9uLiAqL1xuICBwcm92aWRlcl9qb2JfaWQ6IHRleHQoXCJwcm92aWRlcl9qb2JfaWRcIiksXG4gIC8qKiBQcm92aWRlci1yZXBvcnRlZCBvdXRwdXQgVVJMIG9uIHN1Y2Nlc3MuICovXG4gIHJlc3VsdF91cmw6IHRleHQoXCJyZXN1bHRfdXJsXCIpLFxuICAvKipcbiAgICogUHJvdmlkZXIgcmVzdWx0IG1ldGFkYXRhIChtaWdyYXRpb24gMDIzMCk6IHByb3ZpZGVyICsgbW9kZWwsIHRoZVxuICAgKiBpbnB1dCBkaW1lbnNpb25zIHByb2JlZCBhdCBzdWJtaXQgdGltZSwgdGhlIG91dHB1dCBkaW1lbnNpb25zIHByb2JlZFxuICAgKiBhdCBjb21wbGV0aW9uLCBhbmQgcmVzb2x1dGlvbl9yZWR1Y2VkIOKAlCBzbyBhIHByb3ZpZGVyIHRoYXQgcmV0dXJucyBhXG4gICAqIHNtYWxsZXIgZnJhbWUgdGhhbiBpdCB3YXMgZ2l2ZW4gKExhdGVudFN5bmMgZG9lcykgY2FuIG5ldmVyIGRvIHNvXG4gICAqIHNpbGVudGx5LiBOVUxMIHVudGlsIGEgc3VibWl0L2NvbXBsZXRpb24gd3JpdGVzIGl0LlxuICAgKi9cbiAgcmVzdWx0X21ldGE6IGpzb25iKFwicmVzdWx0X21ldGFcIiksXG4gIC8qKiBOb3JtYWxpemVkIGVycm9yIHBheWxvYWQgb24gZmFpbHVyZS4gKi9cbiAgZXJyb3I6IGpzb25iKFwiZXJyb3JcIiksXG4gIC8qKiBIb3cgbWFueSB0aW1lcyBhIHdvcmtlciBoYXMgY2xhaW1lZCB0aGlzIGpvYiBmb3Igc3VibWl0LiBQb2lzb24gam9icyBzdG9wIGF0IDMuICovXG4gIGF0dGVtcHRzOiBpbnRlZ2VyKFwiYXR0ZW1wdHNcIikubm90TnVsbCgpLmRlZmF1bHQoMCksXG4gIC8qKiBIb3cgbWFueSBwcm92aWRlciBzdGF0dXMgcG9sbHMgaGF2ZSBydW4uICovXG4gIHBvbGxzOiBpbnRlZ2VyKFwicG9sbHNcIikubm90TnVsbCgpLmRlZmF1bHQoMCksXG4gIC8qKiBDb25zZWN1dGl2ZSBwcm92aWRlciBwb2xsIHRyYW5zcG9ydCBmYWlsdXJlcy4gVGhlIGpvYiBmYWlscyBhdCA1LiAqL1xuICBjb25zZWN1dGl2ZV9wb2xsX2Vycm9yczogaW50ZWdlcihcImNvbnNlY3V0aXZlX3BvbGxfZXJyb3JzXCIpLm5vdE51bGwoKS5kZWZhdWx0KDApLFxuICAvKiogV2hlbiB0aGUgcG9sbGVyIHNob3VsZCBuZXh0IGNoZWNrIHRoZSBwcm92aWRlciAoYmFja29mZiBzY2hlZHVsZSkuICovXG4gIG5leHRfcG9sbF9hdDogdGltZXN0YW1wKFwibmV4dF9wb2xsX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLFxuICAvKipcbiAgICogV2hlbiBhIHRyYW5zaWVudCBwcm92aWRlciByZWplY3Rpb24gKEhUVFAgNDI5IC8gcGxhbi1jb25jdXJyZW5jeSBsaW1pdClcbiAgICogZGVmZXJyZWQgdGhpcyBqb2IncyBuZXh0IHN1Ym1pdCBhdHRlbXB0LiBTdWJtaXQgY2xhaW1zIHNraXAgcm93cyB3aG9zZVxuICAgKiB3aW5kb3cgaGFzIG5vdCBlbGFwc2VkIHlldCDigJQgc2xvdHMgZnJlZSB1cCBvdmVyIDI14oCTNDAgbWluLCBzbyB0aGUgam9iXG4gICAqIHdhaXRzIGluc3RlYWQgb2YgYnVybmluZyBpdHMgc3VibWl0IGF0dGVtcHRzIGluIH4yIG1pbnV0ZXMuXG4gICAqL1xuICBuZXh0X2F0dGVtcHRfYXQ6IHRpbWVzdGFtcChcIm5leHRfYXR0ZW1wdF9hdFwiLCB7IHdpdGhUaW1lem9uZTogdHJ1ZSB9KSxcbiAgLyoqXG4gICAqIENvbnNlY3V0aXZlIHRyYW5zaWVudCBzdWJtaXQgZGVmZXJyYWxzLiBCYWNrb2ZmIGdyb3dzIDXihpIxMOKGkjIw4oaSNDAgbWluXG4gICAqIChjYXBwZWQpOyB0aGUgam9iIGZhaWxzIHdpdGggcHJvdmlkZXJfYnVzeV90aW1lb3V0IGFmdGVyIDM2ICh+MjRoKS5cbiAgICogVW5saWtlIGBhdHRlbXB0c2AsIGRlZmVycmFscyBhcmUgbm90IHBvaXNvbiDigJQgdGhleSBhcmUganVzdCB3YWl0aW5nLlxuICAgKi9cbiAgc3VibWl0X2RlZmVycmFsczogaW50ZWdlcihcInN1Ym1pdF9kZWZlcnJhbHNcIikubm90TnVsbCgpLmRlZmF1bHQoMCksXG4gIC8qKiBJZGVtcG90ZW5jeSBmbGFnOiBnZW5lcmF0aW9uX2hpc3RvcnkgaXMgd3JpdHRlbiBvbmx5IG9uIHRoZSBmYWxzZeKGknRydWUgdHJhbnNpdGlvbi4gKi9cbiAgaGlzdG9yeV9yZWNvcmRlZDogYm9vbGVhbihcImhpc3RvcnlfcmVjb3JkZWRcIikubm90TnVsbCgpLmRlZmF1bHQoZmFsc2UpLFxuICBjcmVhdGVkX2F0OiB0aW1lc3RhbXAoXCJjcmVhdGVkX2F0XCIsIHsgd2l0aFRpbWV6b25lOiB0cnVlIH0pLm5vdE51bGwoKS5kZWZhdWx0Tm93KCksXG4gIHVwZGF0ZWRfYXQ6IHRpbWVzdGFtcChcInVwZGF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbn0pO1xuXG5leHBvcnQgdHlwZSBMaXBTeW5jSm9iUm93ID0gdHlwZW9mIGxpcFN5bmNKb2JzVGFibGUuJGluZmVyU2VsZWN0O1xuIl0sImZpbGUiOiIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9saXAtc3luYy1qb2JzLnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvbGlwLXN5bmMtam9icy50cyIsIi9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL2xpcC1zeW5jLWpvYnMudHMiLFtdLFsiNiJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIl0=

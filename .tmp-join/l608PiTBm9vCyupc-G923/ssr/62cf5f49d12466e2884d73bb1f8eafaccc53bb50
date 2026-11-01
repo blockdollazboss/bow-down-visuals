@@ -1,0 +1,86 @@
+__vite_ssr_exportName__("PROXY_STATUSES", () => { try { return PROXY_STATUSES } catch {} });
+__vite_ssr_exportName__("PROXY_MAX_EDGE", () => { try { return PROXY_MAX_EDGE } catch {} });
+__vite_ssr_exportName__("PROXY_PROFILE_LABEL", () => { try { return PROXY_PROFILE_LABEL } catch {} });
+__vite_ssr_exportName__("proxyMediaTable", () => { try { return proxyMediaTable } catch {} });
+__vite_ssr_exportName__("proxyPrefsTable", () => { try { return proxyPrefsTable } catch {} });
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/pg-core/index.js", {"importedNames":["pgTable","uuid","text","integer","boolean","timestamp","doublePrecision","check","uniqueIndex","index"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/home/hatch/workspace/bdv-wt-join1000/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/index.js", {"importedNames":["sql"]});
+
+
+/**
+* Proxy editing (Stack-200 board item 184, migration 9999-proxy-editing).
+*
+* A proxy is a low-resolution, lightweight copy of ONE heavy original
+* clip, made ONLY so the Visual Vibes editor can scrub / preview /
+* arrange that clip smoothly. It is never a deliverable:
+*
+*  - RELINK HONESTY: export ALWAYS renders from `original_url`. The
+*    proxy row keeps the original beside the proxy precisely so any
+*    clip URL that points at `proxy_url` can be swapped back to the
+*    original before a render starts (see api-server lib/proxy-editing
+*    `resolveExportSources` / `relinkKnownProxyUrls`, wired into the
+*    export job kickoff). There is no code path that exports a proxy.
+*  - ON DEMAND ONLY: a row is created only when the creator asks for a
+*    proxy for a clip that is actually heavy (see HEAVY_* thresholds in
+*    the api-server lib). Light clips get no row and no proxy — the
+*    editor keeps using the original and says so.
+*  - NO PRICES: proxy editing charges nothing and prices nothing.
+*
+* Status lifecycle: pending → generating → ready | failed. A failed
+* generation may be retried by requesting again (the request seam
+* re-queues the same row instead of minting a duplicate).
+*/
+const PROXY_STATUSES = [
+	"pending",
+	"generating",
+	"ready",
+	"failed"
+];
+/** The one proxy rendition profile: long edge capped at 854 px. */
+const PROXY_MAX_EDGE = 854;
+const PROXY_PROFILE_LABEL = "Proxy 854";
+const proxyMediaTable = (0,__vite_ssr_import_0__.pgTable)("proxy_media", {
+	id: (0,__vite_ssr_import_0__.uuid)("id").primaryKey().defaultRandom(),
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").notNull(),
+	/** Project the clip belongs to, when the request came from a project. */
+	projectId: (0,__vite_ssr_import_0__.text)("project_id"),
+	/** THE source of truth for export. Never a proxy URL. */
+	originalUrl: (0,__vite_ssr_import_0__.text)("original_url").notNull(),
+	/** Null until generation finishes; only ever read by the PREVIEW. */
+	proxyUrl: (0,__vite_ssr_import_0__.text)("proxy_url"),
+	originalWidth: (0,__vite_ssr_import_0__.integer)("original_width"),
+	originalHeight: (0,__vite_ssr_import_0__.integer)("original_height"),
+	originalBytes: (0,__vite_ssr_import_0__.integer)("original_bytes"),
+	originalDurationSec: (0,__vite_ssr_import_0__.doublePrecision)("original_duration_sec"),
+	originalCodec: (0,__vite_ssr_import_0__.text)("original_codec"),
+	proxyWidth: (0,__vite_ssr_import_0__.integer)("proxy_width"),
+	proxyHeight: (0,__vite_ssr_import_0__.integer)("proxy_height"),
+	status: (0,__vite_ssr_import_0__.text)("status").notNull().default("pending"),
+	/** Snapshot of the heavy verdict at request time (audit / honesty). */
+	isHeavy: (0,__vite_ssr_import_0__.boolean)("is_heavy").notNull().default(true),
+	heavyReasons: (0,__vite_ssr_import_0__.text)("heavy_reasons").array(),
+	error: (0,__vite_ssr_import_0__.text)("error"),
+	createdAt: (0,__vite_ssr_import_0__.timestamp)("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).notNull().defaultNow()
+}, (t) => [
+	(0,__vite_ssr_import_0__.check)("proxy_media_status_check", __vite_ssr_import_1__.sql`${t.status} IN ('pending', 'generating', 'ready', 'failed')`),
+	(0,__vite_ssr_import_0__.uniqueIndex)("proxy_media_user_original_idx").on(t.userId, t.originalUrl),
+	(0,__vite_ssr_import_0__.index)("proxy_media_user_project_idx").on(t.userId, t.projectId, t.createdAt),
+	(0,__vite_ssr_import_0__.index)("proxy_media_proxy_url_idx").on(t.proxyUrl),
+	(0,__vite_ssr_import_0__.index)("proxy_media_status_idx").on(t.status, t.createdAt)
+]);
+/**
+* Per-account proxy preference. No row = defaults (enabled). When a
+* creator turns proxy editing off, the editor previews originals only
+* and offers no new proxies; existing rows are kept (turning it back
+* on restores them) — off never deletes anyone's media.
+*/
+const proxyPrefsTable = (0,__vite_ssr_import_0__.pgTable)("proxy_prefs", {
+	userId: (0,__vite_ssr_import_0__.uuid)("user_id").primaryKey(),
+	enabled: (0,__vite_ssr_import_0__.boolean)("enabled").notNull().default(true),
+	updatedAt: (0,__vite_ssr_import_0__.timestamp)("updated_at", { withTimezone: true }).notNull().defaultNow()
+});
+//# sourceMappingSource=vite-generated
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7QUFBQTtBQUNBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQTBCTyxNQUFNLGlCQUFpQjtDQUFDO0NBQVc7Q0FBYztDQUFTO0FBQVE7O0FBSWxFLE1BQU0saUJBQWlCO0FBQ3ZCLE1BQU0sc0JBQXNCO0FBRTVCLE1BQU0sa0JBQWtCLGtDQUFRLGVBQWU7Q0FDcEQsSUFBSSwrQkFBSyxJQUFJLENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxjQUFjO0NBQzFDLFFBQVEsK0JBQUssU0FBUyxDQUFDLENBQUMsUUFBUTs7Q0FFaEMsV0FBVywrQkFBSyxZQUFZOztDQUU1QixhQUFhLCtCQUFLLGNBQWMsQ0FBQyxDQUFDLFFBQVE7O0NBRTFDLFVBQVUsK0JBQUssV0FBVztDQUMxQixlQUFlLGtDQUFRLGdCQUFnQjtDQUN2QyxnQkFBZ0Isa0NBQVEsaUJBQWlCO0NBQ3pDLGVBQWUsa0NBQVEsZ0JBQWdCO0NBQ3ZDLHFCQUFxQiwwQ0FBZ0IsdUJBQXVCO0NBQzVELGVBQWUsK0JBQUssZ0JBQWdCO0NBQ3BDLFlBQVksa0NBQVEsYUFBYTtDQUNqQyxhQUFhLGtDQUFRLGNBQWM7Q0FDbkMsUUFBUSwrQkFBSyxRQUFRLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLFNBQVM7O0NBRWxELFNBQVMsa0NBQVEsVUFBVSxDQUFDLENBQUMsUUFBUSxDQUFDLENBQUMsUUFBUSxJQUFJO0NBQ25ELGNBQWMsK0JBQUssZUFBZSxDQUFDLENBQUMsTUFBTTtDQUMxQyxPQUFPLCtCQUFLLE9BQU87Q0FDbkIsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFdBQVc7Q0FDaEYsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFdBQVc7QUFDbEYsSUFBSSxNQUFNO0NBQ1IsZ0NBQU0sNEJBQTRCLHlCQUFHLEdBQUcsRUFBRSxPQUFPLGlEQUFpRDtDQUNsRyxzQ0FBWSwrQkFBK0IsQ0FBQyxDQUFDLEdBQUcsRUFBRSxRQUFRLEVBQUUsV0FBVztDQUN2RSxnQ0FBTSw4QkFBOEIsQ0FBQyxDQUFDLEdBQUcsRUFBRSxRQUFRLEVBQUUsV0FBVyxFQUFFLFNBQVM7Q0FDM0UsZ0NBQU0sMkJBQTJCLENBQUMsQ0FBQyxHQUFHLEVBQUUsUUFBUTtDQUNoRCxnQ0FBTSx3QkFBd0IsQ0FBQyxDQUFDLEdBQUcsRUFBRSxRQUFRLEVBQUUsU0FBUztBQUMxRCxDQUFDOzs7Ozs7O0FBUU0sTUFBTSxrQkFBa0Isa0NBQVEsZUFBZTtDQUNwRCxRQUFRLCtCQUFLLFNBQVMsQ0FBQyxDQUFDLFdBQVc7Q0FDbkMsU0FBUyxrQ0FBUSxTQUFTLENBQUMsQ0FBQyxRQUFRLENBQUMsQ0FBQyxRQUFRLElBQUk7Q0FDbEQsV0FBVyxvQ0FBVSxjQUFjLEVBQUUsY0FBYyxLQUFLLENBQUMsQ0FBQyxDQUFDLFFBQVEsQ0FBQyxDQUFDLFdBQVc7QUFDbEYsQ0FBQyIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsicHJveHktbWVkaWEudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgcGdUYWJsZSwgdXVpZCwgdGV4dCwgaW50ZWdlciwgYm9vbGVhbiwgdGltZXN0YW1wLCBkb3VibGVQcmVjaXNpb24sIGNoZWNrLCB1bmlxdWVJbmRleCwgaW5kZXggfSBmcm9tIFwiZHJpenpsZS1vcm0vcGctY29yZVwiO1xuaW1wb3J0IHsgc3FsIH0gZnJvbSBcImRyaXp6bGUtb3JtXCI7XG5cbi8qKlxuICogUHJveHkgZWRpdGluZyAoU3RhY2stMjAwIGJvYXJkIGl0ZW0gMTg0LCBtaWdyYXRpb24gOTk5OS1wcm94eS1lZGl0aW5nKS5cbiAqXG4gKiBBIHByb3h5IGlzIGEgbG93LXJlc29sdXRpb24sIGxpZ2h0d2VpZ2h0IGNvcHkgb2YgT05FIGhlYXZ5IG9yaWdpbmFsXG4gKiBjbGlwLCBtYWRlIE9OTFkgc28gdGhlIFZpc3VhbCBWaWJlcyBlZGl0b3IgY2FuIHNjcnViIC8gcHJldmlldyAvXG4gKiBhcnJhbmdlIHRoYXQgY2xpcCBzbW9vdGhseS4gSXQgaXMgbmV2ZXIgYSBkZWxpdmVyYWJsZTpcbiAqXG4gKiAgLSBSRUxJTksgSE9ORVNUWTogZXhwb3J0IEFMV0FZUyByZW5kZXJzIGZyb20gYG9yaWdpbmFsX3VybGAuIFRoZVxuICogICAgcHJveHkgcm93IGtlZXBzIHRoZSBvcmlnaW5hbCBiZXNpZGUgdGhlIHByb3h5IHByZWNpc2VseSBzbyBhbnlcbiAqICAgIGNsaXAgVVJMIHRoYXQgcG9pbnRzIGF0IGBwcm94eV91cmxgIGNhbiBiZSBzd2FwcGVkIGJhY2sgdG8gdGhlXG4gKiAgICBvcmlnaW5hbCBiZWZvcmUgYSByZW5kZXIgc3RhcnRzIChzZWUgYXBpLXNlcnZlciBsaWIvcHJveHktZWRpdGluZ1xuICogICAgYHJlc29sdmVFeHBvcnRTb3VyY2VzYCAvIGByZWxpbmtLbm93blByb3h5VXJsc2AsIHdpcmVkIGludG8gdGhlXG4gKiAgICBleHBvcnQgam9iIGtpY2tvZmYpLiBUaGVyZSBpcyBubyBjb2RlIHBhdGggdGhhdCBleHBvcnRzIGEgcHJveHkuXG4gKiAgLSBPTiBERU1BTkQgT05MWTogYSByb3cgaXMgY3JlYXRlZCBvbmx5IHdoZW4gdGhlIGNyZWF0b3IgYXNrcyBmb3IgYVxuICogICAgcHJveHkgZm9yIGEgY2xpcCB0aGF0IGlzIGFjdHVhbGx5IGhlYXZ5IChzZWUgSEVBVllfKiB0aHJlc2hvbGRzIGluXG4gKiAgICB0aGUgYXBpLXNlcnZlciBsaWIpLiBMaWdodCBjbGlwcyBnZXQgbm8gcm93IGFuZCBubyBwcm94eSDigJQgdGhlXG4gKiAgICBlZGl0b3Iga2VlcHMgdXNpbmcgdGhlIG9yaWdpbmFsIGFuZCBzYXlzIHNvLlxuICogIC0gTk8gUFJJQ0VTOiBwcm94eSBlZGl0aW5nIGNoYXJnZXMgbm90aGluZyBhbmQgcHJpY2VzIG5vdGhpbmcuXG4gKlxuICogU3RhdHVzIGxpZmVjeWNsZTogcGVuZGluZyDihpIgZ2VuZXJhdGluZyDihpIgcmVhZHkgfCBmYWlsZWQuIEEgZmFpbGVkXG4gKiBnZW5lcmF0aW9uIG1heSBiZSByZXRyaWVkIGJ5IHJlcXVlc3RpbmcgYWdhaW4gKHRoZSByZXF1ZXN0IHNlYW1cbiAqIHJlLXF1ZXVlcyB0aGUgc2FtZSByb3cgaW5zdGVhZCBvZiBtaW50aW5nIGEgZHVwbGljYXRlKS5cbiAqL1xuXG5leHBvcnQgY29uc3QgUFJPWFlfU1RBVFVTRVMgPSBbXCJwZW5kaW5nXCIsIFwiZ2VuZXJhdGluZ1wiLCBcInJlYWR5XCIsIFwiZmFpbGVkXCJdIGFzIGNvbnN0O1xuZXhwb3J0IHR5cGUgUHJveHlTdGF0dXMgPSAodHlwZW9mIFBST1hZX1NUQVRVU0VTKVtudW1iZXJdO1xuXG4vKiogVGhlIG9uZSBwcm94eSByZW5kaXRpb24gcHJvZmlsZTogbG9uZyBlZGdlIGNhcHBlZCBhdCA4NTQgcHguICovXG5leHBvcnQgY29uc3QgUFJPWFlfTUFYX0VER0UgPSA4NTQ7XG5leHBvcnQgY29uc3QgUFJPWFlfUFJPRklMRV9MQUJFTCA9IFwiUHJveHkgODU0XCI7XG5cbmV4cG9ydCBjb25zdCBwcm94eU1lZGlhVGFibGUgPSBwZ1RhYmxlKFwicHJveHlfbWVkaWFcIiwge1xuICBpZDogdXVpZChcImlkXCIpLnByaW1hcnlLZXkoKS5kZWZhdWx0UmFuZG9tKCksXG4gIHVzZXJJZDogdXVpZChcInVzZXJfaWRcIikubm90TnVsbCgpLFxuICAvKiogUHJvamVjdCB0aGUgY2xpcCBiZWxvbmdzIHRvLCB3aGVuIHRoZSByZXF1ZXN0IGNhbWUgZnJvbSBhIHByb2plY3QuICovXG4gIHByb2plY3RJZDogdGV4dChcInByb2plY3RfaWRcIiksXG4gIC8qKiBUSEUgc291cmNlIG9mIHRydXRoIGZvciBleHBvcnQuIE5ldmVyIGEgcHJveHkgVVJMLiAqL1xuICBvcmlnaW5hbFVybDogdGV4dChcIm9yaWdpbmFsX3VybFwiKS5ub3ROdWxsKCksXG4gIC8qKiBOdWxsIHVudGlsIGdlbmVyYXRpb24gZmluaXNoZXM7IG9ubHkgZXZlciByZWFkIGJ5IHRoZSBQUkVWSUVXLiAqL1xuICBwcm94eVVybDogdGV4dChcInByb3h5X3VybFwiKSxcbiAgb3JpZ2luYWxXaWR0aDogaW50ZWdlcihcIm9yaWdpbmFsX3dpZHRoXCIpLFxuICBvcmlnaW5hbEhlaWdodDogaW50ZWdlcihcIm9yaWdpbmFsX2hlaWdodFwiKSxcbiAgb3JpZ2luYWxCeXRlczogaW50ZWdlcihcIm9yaWdpbmFsX2J5dGVzXCIpLFxuICBvcmlnaW5hbER1cmF0aW9uU2VjOiBkb3VibGVQcmVjaXNpb24oXCJvcmlnaW5hbF9kdXJhdGlvbl9zZWNcIiksXG4gIG9yaWdpbmFsQ29kZWM6IHRleHQoXCJvcmlnaW5hbF9jb2RlY1wiKSxcbiAgcHJveHlXaWR0aDogaW50ZWdlcihcInByb3h5X3dpZHRoXCIpLFxuICBwcm94eUhlaWdodDogaW50ZWdlcihcInByb3h5X2hlaWdodFwiKSxcbiAgc3RhdHVzOiB0ZXh0KFwic3RhdHVzXCIpLm5vdE51bGwoKS5kZWZhdWx0KFwicGVuZGluZ1wiKSxcbiAgLyoqIFNuYXBzaG90IG9mIHRoZSBoZWF2eSB2ZXJkaWN0IGF0IHJlcXVlc3QgdGltZSAoYXVkaXQgLyBob25lc3R5KS4gKi9cbiAgaXNIZWF2eTogYm9vbGVhbihcImlzX2hlYXZ5XCIpLm5vdE51bGwoKS5kZWZhdWx0KHRydWUpLFxuICBoZWF2eVJlYXNvbnM6IHRleHQoXCJoZWF2eV9yZWFzb25zXCIpLmFycmF5KCksXG4gIGVycm9yOiB0ZXh0KFwiZXJyb3JcIiksXG4gIGNyZWF0ZWRBdDogdGltZXN0YW1wKFwiY3JlYXRlZF9hdFwiLCB7IHdpdGhUaW1lem9uZTogdHJ1ZSB9KS5ub3ROdWxsKCkuZGVmYXVsdE5vdygpLFxuICB1cGRhdGVkQXQ6IHRpbWVzdGFtcChcInVwZGF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbn0sICh0KSA9PiBbXG4gIGNoZWNrKFwicHJveHlfbWVkaWFfc3RhdHVzX2NoZWNrXCIsIHNxbGAke3Quc3RhdHVzfSBJTiAoJ3BlbmRpbmcnLCAnZ2VuZXJhdGluZycsICdyZWFkeScsICdmYWlsZWQnKWApLFxuICB1bmlxdWVJbmRleChcInByb3h5X21lZGlhX3VzZXJfb3JpZ2luYWxfaWR4XCIpLm9uKHQudXNlcklkLCB0Lm9yaWdpbmFsVXJsKSxcbiAgaW5kZXgoXCJwcm94eV9tZWRpYV91c2VyX3Byb2plY3RfaWR4XCIpLm9uKHQudXNlcklkLCB0LnByb2plY3RJZCwgdC5jcmVhdGVkQXQpLFxuICBpbmRleChcInByb3h5X21lZGlhX3Byb3h5X3VybF9pZHhcIikub24odC5wcm94eVVybCksXG4gIGluZGV4KFwicHJveHlfbWVkaWFfc3RhdHVzX2lkeFwiKS5vbih0LnN0YXR1cywgdC5jcmVhdGVkQXQpLFxuXSk7XG5cbi8qKlxuICogUGVyLWFjY291bnQgcHJveHkgcHJlZmVyZW5jZS4gTm8gcm93ID0gZGVmYXVsdHMgKGVuYWJsZWQpLiBXaGVuIGFcbiAqIGNyZWF0b3IgdHVybnMgcHJveHkgZWRpdGluZyBvZmYsIHRoZSBlZGl0b3IgcHJldmlld3Mgb3JpZ2luYWxzIG9ubHlcbiAqIGFuZCBvZmZlcnMgbm8gbmV3IHByb3hpZXM7IGV4aXN0aW5nIHJvd3MgYXJlIGtlcHQgKHR1cm5pbmcgaXQgYmFja1xuICogb24gcmVzdG9yZXMgdGhlbSkg4oCUIG9mZiBuZXZlciBkZWxldGVzIGFueW9uZSdzIG1lZGlhLlxuICovXG5leHBvcnQgY29uc3QgcHJveHlQcmVmc1RhYmxlID0gcGdUYWJsZShcInByb3h5X3ByZWZzXCIsIHtcbiAgdXNlcklkOiB1dWlkKFwidXNlcl9pZFwiKS5wcmltYXJ5S2V5KCksXG4gIGVuYWJsZWQ6IGJvb2xlYW4oXCJlbmFibGVkXCIpLm5vdE51bGwoKS5kZWZhdWx0KHRydWUpLFxuICB1cGRhdGVkQXQ6IHRpbWVzdGFtcChcInVwZGF0ZWRfYXRcIiwgeyB3aXRoVGltZXpvbmU6IHRydWUgfSkubm90TnVsbCgpLmRlZmF1bHROb3coKSxcbn0pO1xuXG5leHBvcnQgdHlwZSBQcm94eU1lZGlhUm93ID0gdHlwZW9mIHByb3h5TWVkaWFUYWJsZS4kaW5mZXJTZWxlY3Q7XG5leHBvcnQgdHlwZSBQcm94eVByZWZzUm93ID0gdHlwZW9mIHByb3h5UHJlZnNUYWJsZS4kaW5mZXJTZWxlY3Q7XG4iXSwiZmlsZSI6Ii9AZnMvaG9tZS9oYXRjaC93b3Jrc3BhY2UvYmR2LXd0LWpvaW4xMTAwL2xpYi9kYi9zcmMvc2NoZW1hL3Byb3h5LW1lZGlhLnRzIn0=
+
+//# vitestCache=W3siZmlsZSI6IjEiLCJpZCI6IjEiLCJ1cmwiOiIyIiwiaW1wb3J0ZWRVcmxzIjoiMyIsIm1hcHBpbmdzIjpmYWxzZSwiZGVwcyI6IjQiLCJkeW5hbWljRGVwcyI6IjUiLCJzdGF0aWNNb2NrcyI6bnVsbH0sIi9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjExMDAvbGliL2RiL3NyYy9zY2hlbWEvcHJveHktbWVkaWEudHMiLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTEwMC9saWIvZGIvc3JjL3NjaGVtYS9wcm94eS1tZWRpYS50cyIsW10sWyI2IiwiNyJdLFtdLCIvQGZzL2hvbWUvaGF0Y2gvd29ya3NwYWNlL2Jkdi13dC1qb2luMTAwMC9ub2RlX21vZHVsZXMvLnBucG0vZHJpenpsZS1vcm1AMC40NS4zX0B0eXBlcytwZ0A4LjIzLjFfcGdAOC4yMy4wL25vZGVfbW9kdWxlcy9kcml6emxlLW9ybS9wZy1jb3JlL2luZGV4LmpzIiwiL0Bmcy9ob21lL2hhdGNoL3dvcmtzcGFjZS9iZHYtd3Qtam9pbjEwMDAvbm9kZV9tb2R1bGVzLy5wbnBtL2RyaXp6bGUtb3JtQDAuNDUuM19AdHlwZXMrcGdAOC4yMy4xX3BnQDguMjMuMC9ub2RlX21vZHVsZXMvZHJpenpsZS1vcm0vaW5kZXguanMiXQ==
