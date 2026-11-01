@@ -1074,7 +1074,7 @@
   ,
       "reversals": {
         "title": "Payment Reversals",
-        "description": "Every refund and chargeback the reversal engine has clawed back — plus the charges parked for a human to reverse by hand.",
+        "description": "Every refund and chargeback the reversal engine has clawed back — plus the charges parked for a human decision.",
         "empty": "No reversals yet — nothing has been refunded or charged back.",
         "emptyFilter": "Nothing in this view.",
         "loadErrorTitle": "Couldn't load payment reversals.",
@@ -1092,17 +1092,32 @@
         "sellerReversed": "Seller reversed",
         "member": "Member",
         "session": "Session",
-        "footerNote": "Read-only — the reversal engine writes these rows from Stripe webhooks. A charge parked at Needs manual review has not been reversed yet: it still has to be reversed by hand, and nothing on this bench can close it.",
+        "footerNote": "The reversal engine writes these rows from Stripe webhooks, and it parks a charge at Needs manual review when a person has to decide. Completing runs the engine's own reversal for that charge; dismissing closes the review without moving any money. Every decision is recorded with who made it and their note.",
         "filterAll": "All",
         "age": "{{value}}{{unit}}",
         "ageMinute": "m",
         "ageHour": "h",
         "ageDay": "d",
+        "completeAction": "Complete the reversal",
+        "dismissAction": "Dismiss review",
+        "confirmComplete": "Complete the reversal for the {{charge}} charge ({{refunded}} refunded)? The engine unwinds the entitlement and any seller payout for this charge.",
+        "confirmDismiss": "Dismiss the review for the {{charge}} charge ({{refunded}} refunded)? Nothing is reversed and no money moves — this charge keeps what it has.",
+        "noteLabel": "Note",
+        "notePlaceholder": "Why are you deciding this?",
+        "noteRequired": "A dismissal needs a note saying why.",
+        "confirmButton": "Confirm",
+        "cancelButton": "Cancel",
+        "resolvedComplete": "Reversal completed",
+        "resolvedDismiss": "Review dismissed",
+        "resolvedBy": "by {{email}}",
+        "conflict": "This charge was already resolved — the list has been refreshed with the recorded decision.",
+        "resolveError": "That didn't go through — the charge is still parked. Try again.",
         "status": {
           "needsManualReview": "Needs manual review",
           "processing": "Processing",
           "completed": "Completed",
-          "partialShortfall": "Partial — shortfall"
+          "partialShortfall": "Partial — shortfall",
+          "dismissed": "Dismissed"
         }
       },
       "operatorActions": {

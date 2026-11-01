@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "Zahlungsrückbuchungen",
-        "description": "Jede Erstattung und jeder Chargeback, den die Rückbuchungs-Engine zurückgefordert hat — plus die Zahlungen, die für eine manuelle Rückbuchung durch einen Menschen geparkt sind.",
+        "description": "Jede Erstattung und jeder Chargeback, den die Rückbuchungs-Engine zurückgefordert hat — plus die Zahlungen, die für eine menschliche Entscheidung geparkt sind.",
         "empty": "Noch keine Rückbuchungen — nichts wurde erstattet oder angefochten.",
         "emptyFilter": "Nichts in dieser Ansicht.",
         "loadErrorTitle": "Zahlungsrückbuchungen konnten nicht geladen werden.",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "Verkäufer zurückgebucht",
         "member": "Mitglied",
         "session": "Sitzung",
-        "footerNote": "Nur Lesezugriff — die Rückbuchungs-Engine schreibt diese Zeilen aus Stripe-Webhooks. Eine unter Manuelle Prüfung geparkte Zahlung ist noch nicht zurückgebucht: Sie muss weiterhin von Hand zurückgebucht werden, und nichts in diesem Panel kann sie schließen.",
+        "footerNote": "Die Rückbuchungs-Engine schreibt diese Zeilen aus Stripe-Webhooks und parkt eine Zahlung unter Manuelle Prüfung, wenn ein Mensch entscheiden muss. Abschließen führt die engineeigene Rückbuchung für diese Zahlung aus; Verwerfen schließt die Prüfung, ohne Geld zu bewegen. Jede Entscheidung wird mit Entscheider und Notiz festgehalten.",
         "filterAll": "Alle",
         "age": "{{value}}{{unit}}",
         "ageMinute": "Min.",
         "ageHour": "Std.",
         "ageDay": "T",
+        "completeAction": "Rückbuchung abschließen",
+        "dismissAction": "Prüfung verwerfen",
+        "confirmComplete": "Die Rückbuchung für die Zahlung über {{charge}} abschließen ({{refunded}} erstattet)? Die Engine macht den Anspruch und jede Verkäuferauszahlung für diese Zahlung rückgängig.",
+        "confirmDismiss": "Die Prüfung für die Zahlung über {{charge}} verwerfen ({{refunded}} erstattet)? Nichts wird zurückgebucht und kein Geld bewegt sich — diese Zahlung behält, was sie hat.",
+        "noteLabel": "Notiz",
+        "notePlaceholder": "Warum entscheiden Sie das?",
+        "noteRequired": "Ein Verwerfen braucht eine Notiz mit dem Grund.",
+        "confirmButton": "Bestätigen",
+        "cancelButton": "Abbrechen",
+        "resolvedComplete": "Rückbuchung abgeschlossen",
+        "resolvedDismiss": "Prüfung verworfen",
+        "resolvedBy": "von {{email}}",
+        "conflict": "Diese Zahlung wurde bereits entschieden — die Liste wurde mit der festgehaltenen Entscheidung aktualisiert.",
+        "resolveError": "Das hat nicht geklappt — die Zahlung ist weiterhin geparkt. Bitte erneut versuchen.",
         "status": {
           "needsManualReview": "Manuelle Prüfung nötig",
           "processing": "In Bearbeitung",
           "completed": "Abgeschlossen",
-          "partialShortfall": "Teilweise — mit Fehlbetrag"
+          "partialShortfall": "Teilweise — mit Fehlbetrag",
+          "dismissed": "Verworfen"
         }
       },
       "operatorActions": {

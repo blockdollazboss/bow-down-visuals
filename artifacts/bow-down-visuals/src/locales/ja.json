@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "支払いの巻き戻し",
-        "description": "巻き戻しエンジンが回収したすべての返金とチャージバックに加え、人が手動で巻き戻すために保留された請求。",
+        "description": "巻き戻しエンジンが回収したすべての返金とチャージバックに加え、人が判断するために保留された請求。",
         "empty": "まだ巻き戻しはありません — 返金も異議申し立てもありません。",
         "emptyFilter": "この表示には何もありません。",
         "loadErrorTitle": "支払いの巻き戻しを読み込めませんでした。",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "販売者を巻き戻し",
         "member": "メンバー",
         "session": "セッション",
-        "footerNote": "読み取り専用 — 巻き戻しエンジンが Stripe のウェブフックからこれらの行を書きます。「手動レビューが必要」で保留中の請求はまだ巻き戻されていません。手動で巻き戻す必要があり、このベンチでは閉じられません。",
+        "footerNote": "巻き戻しエンジンは Stripe のウェブフックからこれらの行を書き、人が判断する必要がある請求を「手動レビューが必要」として保留します。完了すると、その請求に対するエンジン自体の巻き戻しが実行されます。却下すると、お金を動かさずにレビューが閉じます。すべての判断は、判断した人とそのメモとともに記録されます。",
         "filterAll": "すべて",
         "age": "{{value}}{{unit}}",
         "ageMinute": "分",
         "ageHour": "時間",
         "ageDay": "日",
+        "completeAction": "巻き戻しを完了",
+        "dismissAction": "レビューを却下",
+        "confirmComplete": "{{charge}} の請求（{{refunded}} 返金済み）の巻き戻しを完了しますか？エンジンがこの請求の権利と販売者への支払いを取り消します。",
+        "confirmDismiss": "{{charge}} の請求（{{refunded}} 返金済み）のレビューを却下しますか？何も巻き戻されず、お金も動きません — この請求は現状のままです。",
+        "noteLabel": "メモ",
+        "notePlaceholder": "なぜこの判断をしますか？",
+        "noteRequired": "却下には理由のメモが必要です。",
+        "confirmButton": "確認",
+        "cancelButton": "キャンセル",
+        "resolvedComplete": "巻き戻し完了",
+        "resolvedDismiss": "レビュー却下済み",
+        "resolvedBy": "{{email}} による",
+        "conflict": "この請求はすでに解決済みです — リストは記録された判断で更新されました。",
+        "resolveError": "処理できませんでした — 請求はまだ保留中です。もう一度お試しください。",
         "status": {
           "needsManualReview": "手動レビューが必要",
           "processing": "処理中",
           "completed": "完了",
-          "partialShortfall": "一部 — 不足あり"
+          "partialShortfall": "一部 — 不足あり",
+          "dismissed": "却下済み"
         }
       },
       "operatorActions": {

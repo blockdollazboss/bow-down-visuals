@@ -34,7 +34,7 @@ import { eq, isNull, isNotNull, inArray, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { spendableBalance } from "../lib/credits";
 import { listOperatorActions, OPERATOR_DAILY_CHARGED_CAP, operatorHandsEnabled } from "../lib/operator-executor";
-import { listPaymentReversals } from "../lib/payment-reversals";
+import { listPaymentReversals, getPaymentReversal, resolvePaymentReversal } from "../lib/payment-reversals";
 
 const router = Router();
 
@@ -1055,48 +1055,126 @@ router.get("/admin/operator-actions", requireAuth, requireAdmin, async (req, res
   }
 });
 
+/** One reversal row as the bench reads it (GET list + resolve answer). */
+function presentPaymentReversal(r: Record<string, unknown>) {
+  return {
+    id: r["id"],
+    stripeEventId: r["stripe_event_id"],
+    stripeChargeId: r["stripe_charge_id"],
+    stripePaymentIntentId: r["stripe_payment_intent_id"],
+    trigger: r["trigger"],
+    rail: r["rail"],
+    userId: r["user_id"],
+    sessionId: r["session_id"],
+    grantedCredits: r["granted_credits"],
+    creditsClawed: r["credits_clawed"],
+    referralCreditsClawed: r["referral_credits_clawed"],
+    refundedCentsSeen: r["refunded_cents_seen"],
+    chargeAmountCents: r["charge_amount_cents"],
+    disputeLost: r["dispute_lost"],
+    entitlementRevoked: r["entitlement_revoked"],
+    sellerReversed: r["seller_reversed"],
+    shortfallCredits: r["shortfall_credits"],
+    status: r["status"],
+    details: r["details"],
+    createdAt: r["created_at"],
+    updatedAt: r["updated_at"],
+    /* The human decision (stack1100 Y2), when one exists: who
+       resolved this row, when, which way, and their note. */
+    resolution: r["resolution_id"]
+      ? {
+          id: r["resolution_id"],
+          decision: r["resolution_decision"],
+          adminUserId: r["resolution_admin_user_id"],
+          adminEmail: r["resolution_admin_email"],
+          note: r["resolution_note"],
+          resolvedAt: r["resolution_created_at"],
+        }
+      : null,
+  };
+}
+
 /**
  * GET /api/admin/payment-reversals?limit=
  * The refund / chargeback clawback trail (0183, defect D1): one row
  * per reversed charge — the rail, what was granted, what was clawed
  * back, any shortfall the balance couldn't cover, and the rows parked
  * at 'needs_manual_review' (identified charges a human must reverse,
- * and charges no grant record identifies). Read-only: the rows are
- * written by the webhook's reversal engine from rail results.
+ * and charges no grant record identifies). Rows are written by the
+ * webhook's reversal engine from rail results; a parked row is
+ * resolved through the POST verb below.
  */
 router.get("/admin/payment-reversals", requireAuth, requireAdmin, async (req, res) => {
   try {
     const limitRaw = Number(req.query["limit"]);
     const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : 50;
     const reversals = await listPaymentReversals(limit);
-    res.json({
-      reversals: reversals.map((r) => ({
-        id: r["id"],
-        stripeEventId: r["stripe_event_id"],
-        stripeChargeId: r["stripe_charge_id"],
-        stripePaymentIntentId: r["stripe_payment_intent_id"],
-        trigger: r["trigger"],
-        rail: r["rail"],
-        userId: r["user_id"],
-        sessionId: r["session_id"],
-        grantedCredits: r["granted_credits"],
-        creditsClawed: r["credits_clawed"],
-        referralCreditsClawed: r["referral_credits_clawed"],
-        refundedCentsSeen: r["refunded_cents_seen"],
-        chargeAmountCents: r["charge_amount_cents"],
-        disputeLost: r["dispute_lost"],
-        entitlementRevoked: r["entitlement_revoked"],
-        sellerReversed: r["seller_reversed"],
-        shortfallCredits: r["shortfall_credits"],
-        status: r["status"],
-        details: r["details"],
-        createdAt: r["created_at"],
-        updatedAt: r["updated_at"],
-      })),
-    });
+    res.json({ reversals: reversals.map(presentPaymentReversal) });
   } catch (err) {
     req.log.error({ err }, "admin: list payment reversals failed");
     res.status(500).json({ error: "Could not load payment reversals." });
+  }
+});
+
+const ResolveReversalSchema = z.object({
+  decision: z.enum(["complete", "dismiss"]),
+  note: z.string().trim().max(1000).optional(),
+});
+
+/**
+ * POST /api/admin/payment-reversals/:id/resolve  { decision, note? }
+ * The human's verb on a parked row (stack1100 Lane Y2 — the queue's
+ * missing write verb). 'complete' runs the reversal engine's own
+ * completion path for the row; 'dismiss' closes the review with NO
+ * money movement and requires the admin's note. Exactly-once lives in
+ * lib/payment-reversals (the resolutions row is the claim): a retry
+ * of the same decision answers 200 with the recorded outcome, a
+ * conflicting decision or a row that isn't parked answers 409.
+ */
+router.post("/admin/payment-reversals/:id/resolve", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const idParsed = z.string().uuid().safeParse(req.params["id"]);
+    if (!idParsed.success) {
+      res.status(404).json({ error: "Reversal not found." });
+      return;
+    }
+    const bodyParsed = ResolveReversalSchema.safeParse(req.body);
+    if (!bodyParsed.success) {
+      res.status(400).json({ error: "A decision of 'complete' or 'dismiss' is required." });
+      return;
+    }
+    const { decision } = bodyParsed.data;
+    const note = bodyParsed.data.note ?? "";
+    if (decision === "dismiss" && note.length === 0) {
+      res.status(400).json({ error: "A note is required to dismiss a review." });
+      return;
+    }
+    const result = await resolvePaymentReversal({
+      reversalId: idParsed.data,
+      decision,
+      adminUserId: req.userId ?? null,
+      adminEmail: req.userEmail ?? null,
+      note,
+    });
+    if (result.outcome === "not_found") {
+      res.status(404).json({ error: "Reversal not found." });
+      return;
+    }
+    if (result.outcome === "conflict") {
+      res.status(409).json({
+        error: "This reversal is not waiting on a review, or was already resolved.",
+        status: result.status,
+      });
+      return;
+    }
+    const fresh = await getPaymentReversal(idParsed.data);
+    res.json({
+      outcome: result.outcome,
+      reversal: fresh ? presentPaymentReversal(fresh) : null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin: resolve payment reversal failed");
+    res.status(500).json({ error: "Could not resolve this reversal — the row is unchanged." });
   }
 });
 

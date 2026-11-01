@@ -1092,7 +1092,7 @@
   ,
       "reversals": {
         "title": "Reversements de paiement",
-        "description": "Chaque remboursement et rétrofacturation que le moteur de reversement a récupérés, plus les paiements mis de côté pour qu'une personne les reverse à la main.",
+        "description": "Chaque remboursement et rétrofacturation que le moteur de reversement a récupérés, plus les paiements mis de côté pour une décision humaine.",
         "empty": "Aucun reversement pour le moment — rien n'a été remboursé ni contesté.",
         "emptyFilter": "Rien dans cette vue.",
         "loadErrorTitle": "Impossible de charger les reversements de paiement.",
@@ -1110,17 +1110,32 @@
         "sellerReversed": "Vendeur reversé",
         "member": "Membre",
         "session": "Session",
-        "footerNote": "Lecture seule — le moteur de reversement écrit ces lignes depuis les webhooks Stripe. Un paiement mis en Révision manuelle n'a pas encore été reversé : il doit encore l'être à la main, et rien dans ce panneau ne peut le clore.",
+        "footerNote": "Le moteur de reversement écrit ces lignes depuis les webhooks Stripe, et met un paiement en Révision manuelle quand une personne doit décider. Terminer lance le reversement propre au moteur pour ce paiement ; écarter clôt la révision sans déplacer d'argent. Chaque décision est enregistrée avec son auteur et sa note.",
         "filterAll": "Tout",
         "age": "{{value}}{{unit}}",
         "ageMinute": "min",
         "ageHour": "h",
         "ageDay": "j",
+        "completeAction": "Terminer le reversement",
+        "dismissAction": "Écarter la révision",
+        "confirmComplete": "Terminer le reversement du paiement de {{charge}} ({{refunded}} remboursés) ? Le moteur annule le droit et tout versement au vendeur pour ce paiement.",
+        "confirmDismiss": "Écarter la révision du paiement de {{charge}} ({{refunded}} remboursés) ? Rien n'est reversé et aucun argent ne bouge — ce paiement garde ce qu'il a.",
+        "noteLabel": "Note",
+        "notePlaceholder": "Pourquoi décidez-vous cela ?",
+        "noteRequired": "Un écartement exige une note expliquant pourquoi.",
+        "confirmButton": "Confirmer",
+        "cancelButton": "Annuler",
+        "resolvedComplete": "Reversement terminé",
+        "resolvedDismiss": "Révision écartée",
+        "resolvedBy": "par {{email}}",
+        "conflict": "Ce paiement a déjà été résolu — la liste a été actualisée avec la décision enregistrée.",
+        "resolveError": "Cela n'a pas abouti — le paiement est toujours mis de côté. Réessayez.",
         "status": {
           "needsManualReview": "Révision manuelle requise",
           "processing": "En cours",
           "completed": "Terminé",
-          "partialShortfall": "Partiel — avec manque"
+          "partialShortfall": "Partiel — avec manque",
+          "dismissed": "Écarté"
         }
       },
       "operatorActions": {

@@ -24,6 +24,13 @@ import { z } from "zod/v4";
  *                          orders already fulfilled, subscription
  *                          charges, released sponsor escrow) or not
  *                          identifiable at all — a human work item
+ *  - 'dismissed'           a human reviewed the parked row and closed
+ *                          it with NO reversal (the decision + note
+ *                          live in payment_reversal_resolutions). A
+ *                          later webhook event that identifies NEW
+ *                          auto-reversible work reclaims the row —
+ *                          the dismissal answers the facts as they
+ *                          stood, not facts that arrive afterwards.
  */
 export const PAYMENT_REVERSAL_RAILS = [
   "credit_pack",
@@ -48,6 +55,7 @@ export const PAYMENT_REVERSAL_STATUSES = [
   "partial_shortfall",
   "failed",
   "needs_manual_review",
+  "dismissed",
 ] as const;
 export type PaymentReversalStatus = (typeof PAYMENT_REVERSAL_STATUSES)[number];
 

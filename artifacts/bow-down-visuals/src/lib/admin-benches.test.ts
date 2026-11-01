@@ -203,15 +203,48 @@ describe("admin benches — payment reversals parser", () => {
     expect(countNeedsManualReview([])).toBe(0);
   });
 
+  it("parses the recorded resolution on resolved rows, and filters dismissed rows", () => {
+    const resolved = {
+      ...REVERSAL,
+      id: "rev-3",
+      status: "dismissed",
+      resolution: {
+        id: "res-1",
+        decision: "dismiss",
+        adminUserId: "admin-1",
+        adminEmail: "king@example.test",
+        note: "Charge verified as legitimate.",
+        resolvedAt: "2026-10-31T10:00:00.000Z",
+      },
+    };
+    const rows = parsePaymentReversals({ reversals: [resolved, REVERSAL] })!;
+    expect(rows[0]!.resolution).toEqual({
+      decision: "dismiss",
+      adminEmail: "king@example.test",
+      note: "Charge verified as legitimate.",
+      resolvedAt: "2026-10-31T10:00:00.000Z",
+    });
+    expect(rows[1]!.resolution).toBeNull();
+    expect(filterReversals(rows, "dismissed")).toHaveLength(1);
+    /* a malformed resolution is a failed read, never a painted row */
+    expect(parsePaymentReversals({ reversals: [{ ...REVERSAL, resolution: "yes" }] })).toBeNull();
+  });
+
   it("the status set is the API reversal engine's own literal set", () => {
     const engine = readFileSync(join(API_LIB, "payment-reversals.ts"), "utf8");
     for (const s of REVERSAL_STATUSES) expect(engine).toContain(`'${s}'`);
     expect(REVERSAL_STATUSES).toContain("needs_manual_review");
-    /* the bench can never close a parked row: no write verb exists */
+    /* stack1100 Y2: a parked row CAN be closed now — through the
+       rail's own resolve verb and nothing else. The verb exists in
+       the admin router, guarded, exactly once. */
     const adminRoutes = readFileSync(join(API_ROUTES, "admin.ts"), "utf8");
     const railBlock = adminRoutes.slice(adminRoutes.indexOf("/admin/payment-reversals"));
     expect(railBlock).toContain('router.get("/admin/payment-reversals"');
-    expect(adminRoutes).not.toMatch(/router\.(post|patch|put|delete)\("\/admin\/payment-reversals/);
+    expect(adminRoutes.split('"/admin/payment-reversals/:id/resolve"')).toHaveLength(2);
+    const verbBlock = railBlock.slice(railBlock.indexOf('"/admin/payment-reversals/:id/resolve"'));
+    expect(verbBlock).toContain("requireAuth");
+    expect(verbBlock).toContain("requireAdmin");
+    expect(verbBlock).toContain("resolvePaymentReversal");
   });
 });
 
