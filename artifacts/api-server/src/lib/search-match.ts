@@ -100,18 +100,29 @@ export function foldedField(field: SQL): SQL {
 }
 
 /**
+ * The tokens a search actually matches on: the meaningful words, or —
+ * for an all-filler query — the one folded whole string (the JS
+ * matcher's fallback), or [] when the query carries no text at all.
+ * Exported for callers that must build per-token conditions of their
+ * own (e.g. beats, where each token may also match a producer name
+ * resolved by a separate query).
+ */
+export function effectiveSearchTokens(query: string): string[] {
+  const folded = foldSearchText(query).trim();
+  if (!folded) return [];
+  const tokens = queryTokens(query);
+  return tokens.length > 0 ? tokens : [folded];
+}
+
+/**
  * The SQL form of the matcher: for every query token, an OR of folded
  * ILIKEs across `fields`; the token groups are ANDed. Returns
  * undefined when the query carries no searchable text (empty /
- * whitespace) — callers treat that as "no text filter". A query whose
- * words are all filler falls back to one whole-string condition,
- * mirroring the JS matcher.
+ * whitespace) — callers treat that as "no text filter".
  */
 export function searchTextCondition(fields: SQL[], query: string): SQL | undefined {
-  const folded = foldSearchText(query).trim();
-  if (!folded) return undefined;
-  const tokens = queryTokens(query);
-  const effective = tokens.length > 0 ? tokens : [folded];
+  const effective = effectiveSearchTokens(query);
+  if (effective.length === 0) return undefined;
   const perToken = effective.map((tok) => {
     const pattern = likeTokenPattern(tok);
     const ors = fields.map((f) => sql`${foldedField(f)} ILIKE ${pattern}`);

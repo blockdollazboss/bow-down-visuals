@@ -20,6 +20,7 @@ import {
   foldSearchText,
   queryTokens,
   matchesSearchText,
+  effectiveSearchTokens,
   escapeLikeToken,
   searchTextCondition,
 } from "../search-match";
@@ -85,6 +86,16 @@ describe("matchesSearchText", () => {
   it("an all-filler query falls back to whole-string matching", () => {
     expect(matchesSearchText("The Crown", "the")).toBe(true);
     expect(matchesSearchText("Crown", "the")).toBe(false);
+  });
+});
+
+describe("effectiveSearchTokens", () => {
+  it("meaningful words, the all-filler fallback, and the empty case", () => {
+    expect(effectiveSearchTokens("dark trap")).toEqual(["dark", "trap"]);
+    expect(effectiveSearchTokens("the")).toEqual(["the"]);
+    expect(effectiveSearchTokens("")).toEqual([]);
+    expect(effectiveSearchTokens("   ")).toEqual([]);
+    expect(effectiveSearchTokens("Beyoncé")).toEqual(["beyonce"]);
   });
 });
 
