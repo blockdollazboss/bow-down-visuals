@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type RequestHandler, type Response } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import {
@@ -39,6 +39,8 @@ import {
   type DiscoveryAffinityCounts,
 } from "../lib/for-you-discovery";
 import rateLimit from "express-rate-limit";
+import { resolveOptionalSession } from "../lib/optional-auth";
+import { playCounter, playSourceKey } from "../lib/play-counting";
 
 /* ─── Creator Streaming Platform — Discovery + Social (Worker 6) ──────────
    Vertical-aware discovery for ALL creators — music, video, gaming,
@@ -159,9 +161,13 @@ const ChartsQuery = z.object({
   vertical: z.string().trim().toLowerCase().optional(),
   genre: z.string().trim().max(60).optional(),
   limit: z.coerce.number().optional(),
-  /* Advanced (4-6 star creators): custom lookback in days, 1-90.
-     Overrides `window` when present. Base charts/search/follow are
-     never gated — this only adds precision for power users. */
+  /* Custom lookback in days, 1-90. Overrides `window` when present.
+     NOT a star gate: the charts data is public and this API accepts
+     `days` from anyone. Only the charts PAGE's Advanced panel is
+     star-gated — in the UI, as an exposure choice, with the
+     grandfather floor (lib/creator-rank) — the server never checks
+     rank for it. Fixed-span boards (/rising, /rising-earners,
+     /brands) refuse `days` outright: rejectDaysOnFixedSpan below. */
   days: z.coerce.number().int().min(1).max(90).optional(),
 });
 
@@ -178,6 +184,22 @@ function parseChartsQuery(req: Request, res: Response): z.infer<typeof ChartsQue
     return null;
   }
   return parsed.data;
+}
+
+/* Fixed-span boards (/rising = last 7 days, /rising-earners = last 30
+   days, /brands = no window at all) share ChartsQuery, whose contract
+   says `days` "overrides window when present" — but these handlers
+   have no window for `days` to override, so a valid ?days=30 used to
+   be silently IGNORED: the caller asked for one board and was served
+   another. (The same silent-ignore shape the house already fixed
+   inside topTracks.) The fixed-span boards refuse the parameter out
+   loud instead. Returns true when it answered, so callers bail. */
+function rejectDaysOnFixedSpan(res: Response, q: { days?: number }, span: string): boolean {
+  if (!q.days) return false;
+  res.status(400).json({
+    error: `days doesn't apply to this board — ${span}. Drop the days parameter, or use /charts for a custom lookback.`,
+  });
+  return true;
 }
 
 function verticalFilter(vertical: string | undefined, alias = "p"): ReturnType<typeof sql> | null {
@@ -418,6 +440,7 @@ router.patch("/radio/prefs", requireAuth, asyncHandler(async (req, res) => {
 router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = parseChartsQuery(req, res);
   if (!q) return;
+  if (rejectDaysOnFixedSpan(res, q, "it always reads the last 7 days")) return;
   const limit = clampLimit(q.limit, 10);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`
@@ -457,6 +480,7 @@ router.get("/rising", publicApiLimiter, asyncHandler(async (req, res) => {
 router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = parseChartsQuery(req, res);
   if (!q) return;
+  if (rejectDaysOnFixedSpan(res, q, "it always reads the last 30 days")) return;
   const limit = clampLimit(q.limit, 10);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`
@@ -484,6 +508,7 @@ router.get("/rising-earners", publicApiLimiter, asyncHandler(async (req, res) =>
 router.get("/brands", publicApiLimiter, asyncHandler(async (req, res) => {
   const q = parseChartsQuery(req, res);
   if (!q) return;
+  if (rejectDaysOnFixedSpan(res, q, "it ranks by all-time audience and has no time window")) return;
   const limit = clampLimit(q.limit, 12);
   const vf = verticalFilter(q.vertical);
   const rows = await db.execute(sql`
@@ -870,48 +895,88 @@ router.get("/reposts", requireAuth, asyncHandler(async (req, res) => {
 
 /* ─── Play recording ──────────────────────────────────────────────────────
    POST /play { kind: 'track'|'video', mediaId } — canonical play logger.
-   Inserts the play_events row AND bumps the counter columns + the profile's
-   total_plays, so windowed charts and all-time charts stay in sync.
-   Other workers: call this endpoint (or POST /api/media/:kind/:id/play)
-   instead of writing play_events directly. */
+   A COUNTED play inserts the play_events row AND bumps the counter
+   columns + the profile's total_plays, so windowed charts and all-time
+   charts stay in sync. Other workers: call this endpoint (or
+   POST /api/media/:kind/:id/play) instead of writing play_events
+   directly.
+
+   What counts is bounded by lib/play-counting — the charts' input
+   integrity, paced identically at both doors: the media must exist
+   and be published (this door used to insert a play_events row for
+   ANY uuid, so phantom rows sat in the table waiting to chart the
+   moment the media published inside the window — and counted every
+   post, 7,200 chart plays an hour per address at the limiter's own
+   rate); the owner playing their own upload never counts it; and one
+   source's plays of one media count at most once a minute and 10 per
+   rolling day. An uncounted play writes NOTHING and the response
+   reports counted:false — the play itself always plays.
+   optionalAuth only NAMES the caller when a session rides along (it
+   never gates): signed-in listeners pace per account instead of
+   sharing their household's IP budget, and their plays record their
+   user id (the For-You affinity read consumes play_events by user —
+   before this, nothing on this router ever stamped it). */
+
+const optionalAuth: RequestHandler = async (req, _res, next) => {
+  await resolveOptionalSession(req);
+  next();
+};
 
 const PlayBody = z.object({
   kind: z.enum(["track", "video"]),
   mediaId: z.string().uuid(),
 });
 
-router.post("/play", playLimiter, asyncHandler(async (req, res) => {
+router.post("/play", playLimiter, optionalAuth, asyncHandler(async (req, res) => {
   const parsed = PlayBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "kind ('track'|'video') and mediaId (uuid) required." });
     return;
   }
   const { kind, mediaId } = parsed.data;
-  await db.insert(playEventsTable).values({
-    kind,
-    mediaId,
-    userId: (req as Request & { userId?: string }).userId ?? null,
-  });
-  if (kind === "track") {
-    const updated = await db.execute(sql`
-      UPDATE profile_tracks SET play_count = play_count + 1
-      WHERE id = ${mediaId}::uuid AND is_published
-      RETURNING profile_id`);
-    const row = (updated.rows[0] as { profile_id: string } | undefined);
-    if (row) {
-      await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
+  const table = kind === "track" ? sql`profile_tracks` : sql`profile_videos`;
+  const mediaRows = (await db.execute(sql`
+    SELECT profile_id, is_published FROM ${table}
+    WHERE id = ${mediaId}::uuid LIMIT 1`)).rows as unknown as Array<{ profile_id: string; is_published: boolean }>;
+  const media = mediaRows[0];
+  let counted = false;
+  if (media?.is_published) {
+    const ownerRows = (await db.execute(sql`
+      SELECT user_id FROM creator_profiles
+      WHERE id = ${media.profile_id}::uuid LIMIT 1`)).rows as unknown as Array<{ user_id: string }>;
+    const userId = (req as Request & { userId?: string }).userId ?? null;
+    const isSelfPlay = !!userId && ownerRows[0]?.user_id === userId;
+    if (!isSelfPlay) {
+      counted = playCounter.claim(playSourceKey(userId, req.ip), kind, mediaId);
     }
-  } else {
-    const updated = await db.execute(sql`
-      UPDATE profile_videos SET view_count = view_count + 1
-      WHERE id = ${mediaId}::uuid AND is_published
-      RETURNING profile_id`);
-    const row = (updated.rows[0] as { profile_id: string } | undefined);
-    if (row) {
-      await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
+    if (counted) {
+      await db.insert(playEventsTable).values({
+        kind,
+        mediaId,
+        userId,
+      });
+      if (kind === "track") {
+        const updated = await db.execute(sql`
+          UPDATE profile_tracks SET play_count = play_count + 1
+          WHERE id = ${mediaId}::uuid AND is_published
+          RETURNING profile_id`);
+        const row = (updated.rows[0] as { profile_id: string } | undefined);
+        if (row) {
+          await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
+        }
+      } else {
+        const updated = await db.execute(sql`
+          UPDATE profile_videos SET view_count = view_count + 1
+          WHERE id = ${mediaId}::uuid AND is_published
+          RETURNING profile_id`);
+        const row = (updated.rows[0] as { profile_id: string } | undefined);
+        if (row) {
+          await db.execute(sql`UPDATE creator_profiles SET total_plays = total_plays + 1 WHERE id = ${row.profile_id}::uuid`);
+        }
+      }
     }
   }
-  res.json({ ok: true });
+  res.json({ ok: true, counted });
 }));
 
 /* ─── Activity feed (auth) ────────────────────────────────────────────────

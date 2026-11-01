@@ -156,7 +156,7 @@ export default function VerticalPage() {
             <SectionHeader
               icon={<Users className="h-5 w-5" />}
               title={`Top ${meta.plural.toLowerCase()}`}
-              blurb="Ranked by plays + followers. This is where the next big one gets found."
+              blurb="Ranked by plays + followers — every follower counts as 50 plays. This is where the next big one gets found."
             />
             {data.creators.length === 0 ? (
               <EmptyState

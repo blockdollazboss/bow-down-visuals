@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import {
   creatorProfilesTable,
@@ -46,6 +46,7 @@ import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { pricePointFor } from "./store";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { getPublicSocialProof } from "../lib/social-proof";
+import { playCounter, playSourceKey } from "../lib/play-counting";
 import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
 import { getActiveProducerTag } from "./generate/producer-tag-lifecycle";
@@ -1200,14 +1201,20 @@ async function resolvePlaylistItems(
   );
 }
 
-/** Rate limiter: 1 counted play per IP per media item per 60s window. */
+/** Load guard only — 120 posts/min/IP, the discovery door's exact
+ *  shape. The COUNTING bound (what one source's plays may add to
+ *  the charts) lives in lib/play-counting and paces per account
+ *  when known, per IP otherwise; this limiter used to double as a
+ *  blunt 1-per-IP-per-minute counting cap, which disagreed with
+ *  the discovery twin's pacing and throttled a whole household
+ *  behind one address for a minute per song — the twins now pace
+ *  identically, in the lib, and this stays as the flood brake. */
 const playLimiter = rateLimit({
   windowMs: 60_000,
-  limit: 1,
+  limit: 120,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.ip ? ipKeyGenerator(req.ip) : "unknown"}|${req.params["kind"] ?? "?"}|${req.params["id"] ?? "?"}`,
-  message: { error: "Already counted that play — the cheat code remembers. 🦈" },
+  message: { error: "Too many plays logged. Slow down a touch." },
 });
 
 /* ── Profiles ──────────────────────────────────────────────────────────────── */
@@ -2203,9 +2210,23 @@ router.delete("/tracks/:id/unrepost", requireAuth, async (req, res) => {
   }
 });
 
-/* ── Plays (public, rate-limited) ──────────────────────────────────────────── */
+/* ── Plays (public, rate-limited) ────────────────────────────────────────
+   A play always plays. What it may COUNT is bounded by
+   lib/play-counting (the charts' input integrity): the media must be
+   published (an unpublished upload used to accrue counters here and
+   debut pre-inflated), the owner playing their own upload never
+   counts it (the self-follow rule's play twin), and one source's
+   plays of one media count at most once a minute and 10 per rolling
+   day — double-fires and scripted bursts move nothing. An uncounted
+   play writes nothing: no play_events row, no counter bump, no
+   total_plays bump, so the windowed and all-time charts can never
+   disagree about it. optionalAuth only NAMES the caller when a
+   session rides along (it never gates): signed-in listeners pace
+   per account instead of sharing their household's IP budget, and
+   their plays record their user id (the For-You affinity read
+   consumes play_events by user). */
 
-router.post("/media/:kind/:id/play", playLimiter, async (req, res) => {
+router.post("/media/:kind/:id/play", playLimiter, optionalAuth, async (req, res) => {
   try {
     const kind = parseKind(req.params["kind"]);
     if (!kind) {
@@ -2217,18 +2238,29 @@ router.post("/media/:kind/:id/play", playLimiter, async (req, res) => {
       res.status(404).json({ error: "That upload doesn't exist here. Dead link, chief." });
       return;
     }
-    await bumpCounter(kind, media.id, "play");
-    await db.insert(playEventsTable).values({
-      kind,
-      mediaId: media.id,
-      userId: req.userId ?? null,
-    });
-    await db.update(creatorProfilesTable)
-      .set({ totalPlays: sql`${creatorProfilesTable.totalPlays} + 1`, updatedAt: new Date() })
-      .where(eq(creatorProfilesTable.id, media.profileId));
+    let counted = false;
+    if (media.isPublished) {
+      const owner = await getProfileById(media.profileId);
+      const isSelfPlay = !!req.userId && !!owner && owner.userId === req.userId;
+      if (!isSelfPlay) {
+        counted = playCounter.claim(playSourceKey(req.userId ?? null, req.ip), kind, media.id);
+      }
+    }
+    if (counted) {
+      await bumpCounter(kind, media.id, "play");
+      await db.insert(playEventsTable).values({
+        kind,
+        mediaId: media.id,
+        userId: req.userId ?? null,
+      });
+      await db.update(creatorProfilesTable)
+        .set({ totalPlays: sql`${creatorProfilesTable.totalPlays} + 1`, updatedAt: new Date() })
+        .where(eq(creatorProfilesTable.id, media.profileId));
+    }
     const fresh = await getMedia(kind, media.id);
     res.json({
       ok: true,
+      counted,
       plays: kind === "track" ? (fresh as TrackRow | null)?.playCount : (fresh as VideoRow | null)?.viewCount,
     });
   } catch (err) {
