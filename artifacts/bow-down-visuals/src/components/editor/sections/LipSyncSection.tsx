@@ -728,7 +728,7 @@ export function LipSyncSection({
       if (normalStatus === "failed") {
         updateClipEdit(selectedScene.id, {
           lipSyncStatus: "failed",
-          lipSyncError:  data.error ?? "Sync.so job failed.",
+          lipSyncError:  data.error ?? "Lip sync job failed.",
         });
         /* Do NOT setApplyError — shown in checkJobResult panel */
       }
@@ -962,7 +962,7 @@ export function LipSyncSection({
     const okToSpend = await confirmSpend({
       cost: eligible.length * 3,
       feature: `Lip Sync ${eligible.length} Clip${eligible.length !== 1 ? "s" : ""}`,
-      details: "Submits a Sync.so lip sync job for every eligible scene.",
+      details: "Submits a lip sync job for every eligible scene.",
     });
     if (!okToSpend) return;
     const skipConfirmFetch: FetchImpl = (url, init) =>
@@ -1063,7 +1063,7 @@ export function LipSyncSection({
 
     /* Guard: processing job exists — check instead of resubmit */
     if (ce.lipSyncJobId && ce.lipSyncStatus === "processing") {
-      setAutoAiMessage("Existing Sync.so job is processing. Checking status instead of submitting again…");
+      setAutoAiMessage("Existing lip sync job is processing. Checking status instead of submitting again…");
       setAutoAiOk(null);
       void checkExistingJob();
       return;
@@ -1099,7 +1099,7 @@ export function LipSyncSection({
     }
 
     /* All checks passed — open the confirmation dialog */
-    setAutoAiMessage("All checks passed. Confirm the paid Sync.so job in the dialog below.");
+    setAutoAiMessage("All checks passed. Confirm the paid lip sync job in the dialog below.");
     setAutoAiOk(true);
     setApplyError(null);
     setConfirmOpen("single");
@@ -1128,7 +1128,7 @@ export function LipSyncSection({
     }
   }
 
-  /* ── Sync Labs account check ── */
+  /* ── Lip Sync account check ── */
   async function fetchAccountCheck() {
     setAccountCheckLoading(true);
     try {
@@ -1261,7 +1261,7 @@ export function LipSyncSection({
     if (!ce.lipSyncUrl)        return blank("No lip sync result yet", "Run Auto Lip Sync first, then re-analyze.");
 
     /* ── Offsets ── */
-    const previewOffset     = ce.lipSyncAudioOffset  ?? 0;   // shifts audio window sent to Sync.so
+    const previewOffset     = ce.lipSyncAudioOffset  ?? 0;   // shifts audio window sent to the engine
     const exportFineTune    = ce.lipSyncOffsetSeconds ?? 0;  // delays/advances lip sync VIDEO in export
     // totalExportOffset is the NET video delay that will be applied to the export.
     // It is simply exportFineTune — previewOffset is a separate preview-only control.
@@ -1753,7 +1753,7 @@ export function LipSyncSection({
           </EditorCard>
 
           {/* ── Test Submit Route ── */}
-          <EditorCard title="Test Sync Labs Submit Route" icon={<ShieldCheck className="h-4 w-4" />}>
+          <EditorCard title="Test Lip Sync Submit Route" icon={<ShieldCheck className="h-4 w-4" />}>
             <div className="space-y-2">
               <button
                 type="button"
@@ -1763,7 +1763,7 @@ export function LipSyncSection({
               >
                 {routeTestLoading
                   ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing route…</>
-                  : <><ShieldCheck className="h-3.5 w-3.5" /> Test Sync Labs Submit Route</>}
+                  : <><ShieldCheck className="h-3.5 w-3.5" /> Test Lip Sync Submit Route</>}
               </button>
 
               {!routeTest && !routeTestLoading && (
@@ -1801,8 +1801,8 @@ export function LipSyncSection({
             </div>
           </EditorCard>
 
-          {/* ── Sync Labs Account Check ── */}
-          <EditorCard title="Sync Labs Account Check" icon={<KeyRound className="h-4 w-4" />}>
+          {/* ── Lip Sync Account Check ── */}
+          <EditorCard title="Lip Sync Account Check" icon={<KeyRound className="h-4 w-4" />}>
             <div className="space-y-2">
               <button
                 type="button"
@@ -1811,8 +1811,8 @@ export function LipSyncSection({
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-bold hover:bg-white/10 transition-colors disabled:opacity-40"
               >
                 {accountCheckLoading
-                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking Sync Labs account…</>
-                  : <><RefreshCw className="h-3.5 w-3.5" /> Refresh Sync Labs Account Status</>}
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking lip sync account…</>
+                  : <><RefreshCw className="h-3.5 w-3.5" /> Refresh Lip Sync Account Status</>}
               </button>
 
               {!accountCheck && !accountCheckLoading && (
@@ -1825,7 +1825,7 @@ export function LipSyncSection({
                 <div className="space-y-1.5">
                   {/* Key inventory */}
                   <StatusRow
-                    label="Sync Labs API key present"
+                    label="Lip sync API key present"
                     value={accountCheck.keyPresent ? "yes ✓" : "no ✗"}
                     ok={accountCheck.keyPresent}
                   />
@@ -1846,7 +1846,7 @@ export function LipSyncSection({
                   {accountCheck.multipleKeysFound && (
                     <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400 text-[10px] font-semibold">
                       <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                      Multiple Sync Labs keys found. Using: {accountCheck.activeKeyVar} ending in {accountCheck.activeKeyLast4}
+                      Multiple lip sync keys found. Using: {accountCheck.activeKeyVar} ending in {accountCheck.activeKeyLast4}
                     </div>
                   )}
                   <StatusRow
@@ -1882,7 +1882,7 @@ export function LipSyncSection({
                   {accountCheck.billingBlocked === true && (
                     <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/[0.06] text-red-400 text-[10px] font-bold">
                       <XCircle className="h-3 w-3 shrink-0 mt-0.5" />
-                      This API key is tied to a free / exhausted Sync Labs account. Replace it with your paid account API key.
+                      This API key is tied to a free / exhausted lip sync account. Replace it with your paid account API key.
                     </div>
                   )}
                   {accountCheck.billingBlocked === false && (
@@ -2215,7 +2215,7 @@ export function LipSyncSection({
 
                 {/* Payload validation */}
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5 space-y-1.5">
-                  <p className="text-[10px] font-bold text-white/45 uppercase tracking-widest pb-0.5">Sync Labs Payload</p>
+                  <p className="text-[10px] font-bold text-white/45 uppercase tracking-widest pb-0.5">Lip Sync Payload</p>
                   <StatusRow
                     label="invalid fields in payload"
                     value={!inputCheck?.payload ? "—" : "none ✓"}
@@ -2304,7 +2304,7 @@ export function LipSyncSection({
                 >
                   {inputCheckLoading
                     ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Validating…</>
-                    : <><ScanSearch className="h-3.5 w-3.5" /> Validate Sync Labs Payload</>}
+                    : <><ScanSearch className="h-3.5 w-3.5" /> Validate Lip Sync Payload</>}
                 </button>
               </div>
             </EditorCard>
@@ -2497,7 +2497,7 @@ export function LipSyncSection({
                     <div className="rounded-xl border border-amber-500/35 bg-amber-500/[0.06] px-3 py-3 space-y-2">
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
-                        <p className="text-[12px] font-bold text-amber-300">Existing Sync.so job processing.</p>
+                        <p className="text-[12px] font-bold text-amber-300">Existing lip sync job processing.</p>
                       </div>
                       <p className="text-[10px] text-amber-400 leading-snug">
                         Checking status instead of submitting again.
@@ -2629,7 +2629,7 @@ export function LipSyncSection({
                           <p className="text-[12px] font-bold text-amber-300">Paid job confirmation</p>
                         </div>
                         <p className="text-[11px] text-amber-400 leading-snug">
-                          This will submit a new paid Sync.so lip sync job and may use Visual Bucs.
+                          This will submit a new paid lip sync job and may use Visual Bucs.
                         </p>
                       </div>
                     ) : (
@@ -2656,7 +2656,7 @@ export function LipSyncSection({
                         <StatusRow label="clip video duration" value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s` : "—"} ok={null} />
                         <StatusRow label="timing match"        value={timingOk === null ? "checking…" : timingOk ? "yes ✓ (<0.25s diff)" : `no — diff ${timingDiff!.toFixed(2)}s`} ok={timingOk} />
                         <StatusRow label="audio source"        value={ls.audioSource === "vocals" ? "vocals only" : "full mix"} ok={null} />
-                        <StatusRow label="provider"            value="Sync.so"                                          ok={null} />
+                        <StatusRow label="engine"              value="Premium engine"                                   ok={null} />
                         <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                         ok={null} />
                         <div className="border-t border-white/10 my-1" />
                         <StatusRow label="existing saved job"  value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 12)}…` : "none"} ok={selectedClipEdit?.lipSyncJobId ? false : null} />
@@ -2668,7 +2668,7 @@ export function LipSyncSection({
                     {!safeToSubmit && (
                       <div className="flex items-start gap-1.5 text-[10px] text-red-400/90 font-semibold">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                        Audio segment is {segmentDuration.toFixed(1)}s — over the {PROVIDER_LIMIT_SEC}s plan limit. Trim this scene or upgrade your Sync.so plan.
+                        Audio segment is {segmentDuration.toFixed(1)}s — over the {PROVIDER_LIMIT_SEC}s limit for one job. Trim this scene or split it in two.
                       </div>
                     )}
 
@@ -2686,7 +2686,7 @@ export function LipSyncSection({
                     {/* Corrected-job note when an existing result exists */}
                     {!demoMode && selectedClipEdit?.lipSyncUrl && confirmOpen === "single" && (
                       <div className="text-[10px] text-amber-400 font-semibold leading-snug">
-                        ⚠ This will submit a new Sync.so job using the corrected scene audio segment.
+                        ⚠ This will submit a new lip sync job using the corrected scene audio segment.
                         The existing result is kept until the corrected job succeeds.
                       </div>
                     )}
@@ -2725,7 +2725,7 @@ export function LipSyncSection({
                   {selectedClipEdit?.lipSyncJobId ? (
                     <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-amber-400 text-[11px] font-semibold">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <span>Existing Sync.so job found — check status instead of submitting again.</span>
+                      <span>Existing lip sync job found — check status instead of submitting again.</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold">
@@ -2766,7 +2766,7 @@ export function LipSyncSection({
 
                         {/* Status rows */}
                         <div className="space-y-1.5">
-                          <StatusRow label="Sync.so job ID"    value={cjr.jobId}                                                     ok={null} />
+                          <StatusRow label="lip sync job ID"   value={cjr.jobId}                                                     ok={null} />
                           <StatusRow label="selected scene"    value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}  ok={null} />
                           <StatusRow label="submitted"         value={fmtDate(submittedAt)}                                          ok={null} />
                           <StatusRow label="processing time"   value={elapsedMin != null ? `${elapsedMin} min` : "—"}                ok={isLongRun && isProcessing ? false : null} />
@@ -2827,8 +2827,8 @@ export function LipSyncSection({
                         {isLongRun && isProcessing && (
                           <div className="flex items-start gap-2 px-2.5 py-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] text-amber-400 text-[10px] font-semibold leading-snug">
                             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                            <span>This Sync.so job is taking longer than expected.<br />
-                              <span className="font-normal">Do not resubmit yet. Check Sync.so dashboard for the job ID, or keep checking status.</span>
+                            <span>This lip sync job is taking longer than expected.<br />
+                              <span className="font-normal">Do not resubmit yet. Keep checking status.</span>
                             </span>
                           </div>
                         )}
@@ -2850,14 +2850,14 @@ export function LipSyncSection({
                             onClick={() => { void navigator.clipboard.writeText(cjr.jobId); }}
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/5 transition-colors"
                           >
-                            <Copy className="h-3 w-3" /> Copy Sync.so Job ID
+                            <Copy className="h-3 w-3" /> Copy Lip Sync Job ID
                           </button>
                           <button
                             type="button"
                             onClick={() => window.open("https://sync.so", "_blank")}
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/5 transition-colors"
                           >
-                            <ExternalLink className="h-3 w-3" /> Open Sync.so Dashboard
+                            <ExternalLink className="h-3 w-3" /> Open Engine Dashboard
                           </button>
                         </div>
                       </div>
@@ -3215,7 +3215,7 @@ export function LipSyncSection({
                     <p className="text-[9px] text-white/45 leading-relaxed">
                       Later = lip sync video starts later (use when mouth moves too early).
                       Earlier = video starts sooner (use when mouth moves too late).
-                      No new Sync.so job is needed.
+                      No new lip sync job is needed.
                     </p>
                   </div>
                 )}
@@ -3271,7 +3271,7 @@ export function LipSyncSection({
 
                       {/* ── Safety note ── */}
                       <p className={`text-[9px] ${isLight ? "text-violet-800" : "text-violet-300/60"} leading-relaxed rounded-lg bg-violet-500/[0.06] px-2.5 py-1.5`}>
-                        Fixes playback timing only · No new Sync.so Visual Bucs will be used
+                        Fixes playback timing only · No new job — no Visual Bucs used
                       </p>
 
                       {/* ── Click feedback message ── */}
@@ -3299,7 +3299,7 @@ export function LipSyncSection({
                            fixLog ? fixLog.saved : null],
                           ["master player updated", fixLog ? (fixLog.masterUpdated ? "yes ✓" : "no") : "—",
                            fixLog ? fixLog.masterUpdated : null],
-                          ["no Sync.so job submitted", "yes ✓", true],
+                          ["no lip sync job submitted", "yes ✓", true],
                         ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
                           <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
                             <span className="text-white/40">{label}</span>
@@ -3489,7 +3489,7 @@ export function LipSyncSection({
                   <div className="space-y-2">
                     <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400 text-[10px] font-semibold">
                       <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin mt-0.5" />
-                      <span>Job is processing on Sync.so — do not resubmit. Use Check Job Status above.</span>
+                      <span>Job is processing — do not resubmit. Use Check Job Status above.</span>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -4126,7 +4126,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
   const { jobId } = startData;
 
   /* ── Step 2: Poll for job completion ────────────────────────────────────
-     Check every 3 s. The Sync Labs processing + FFmpeg can take 2–8 minutes
+     Check every 3 s. The engine processing + FFmpeg can take 2–8 minutes
      so we allow up to 8 minutes total before giving up.                    */
   const deadline = Date.now() + 480_000;
   let syncLabsJobNotified = false;
@@ -4191,13 +4191,13 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     /* Backend polled Sync.so until its own limit — job may still be running */
     if (job.status === "processing" && job.code === "still_processing") {
       throw new StillProcessingError(
-        job.error ?? "Still processing on Sync.so. Check again in a few minutes.",
+        job.error ?? "Still processing. Check again in a few minutes.",
       );
     }
     /* "queued" | "processing" — keep polling */
   }
 
   throw new StillProcessingError(
-    "Sync.so is taking longer than 8 minutes. The job may still be running — use 'Check Job Status' to follow up.",
+    "Lip sync is taking longer than 8 minutes. The job may still be running — use 'Check Job Status' to follow up.",
   );
 }
