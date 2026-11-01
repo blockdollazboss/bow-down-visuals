@@ -72,6 +72,13 @@
  *     'no_provider' — never a fake 'sent'. The claim stands (the
  *     rail's record-and-stop law, same as a failed campaign), and
  *     the status is visible in the creator's automation stats.
+ *   - Orphaned claims: a claim is created and settled inside one
+ *     run; a run that dies mid-send would otherwise leave it
+ *     'queued' forever — invisible to the stats above while its
+ *     dedupe row blocks any re-drive. Every run first reaps its
+ *     own claims still 'queued' past AUTOMATION_CLAIM_STALE_MS to
+ *     'failed' (reapStaleClaims), so a crash costs one honestly
+ *     reported failure, never a silent disappearance.
  */
 import { and, eq, inArray } from "drizzle-orm";
 import {
@@ -621,6 +628,56 @@ async function collectTriggers(
   }
 }
 
+/* ── Orphaned claims ──────────────────────────────────────────────────
+   A claim is created and settled inside one runAutomation pass, so a
+   claim still 'queued' long after its creation belongs to a run that
+   died mid-send (deploy, crash, DB drop between the claim and the
+   settle). Left alone it sits invisible forever — automationStats
+   counts only settled statuses — while its dedupe row silently blocks
+   any re-drive: the email neither sends nor ever reports. The reap
+   settles orphans to 'failed' (this rail's record-and-stop outcome:
+   visible in the creator's stats, counted, never re-sent), mirroring
+   the stale-pending discipline the presave / product-drop ledgers run
+   (their STALE_PENDING_MS constants). A live run settles each claim
+   seconds after claiming it, so the window cannot catch real work. */
+export const AUTOMATION_CLAIM_STALE_MS =
+  Number(process.env["EMAIL_AUTOMATION_CLAIM_STALE_MS"]) || 15 * 60 * 1000;
+
+async function reapStaleClaims(automationId: string, now: Date): Promise<number> {
+  const cutoff = now.getTime() - AUTOMATION_CLAIM_STALE_MS;
+  const queued = await db
+    .select({ id: emailAutomationSendsTable.id, createdAt: emailAutomationSendsTable.createdAt })
+    .from(emailAutomationSendsTable)
+    .where(
+      and(
+        eq(emailAutomationSendsTable.automationId, automationId),
+        eq(emailAutomationSendsTable.status, "queued"),
+      ),
+    );
+  let reaped = 0;
+  for (const row of queued) {
+    if (row.createdAt && new Date(row.createdAt).getTime() > cutoff) continue;
+    const flipped = await db
+      .update(emailAutomationSendsTable)
+      .set({ status: "failed" })
+      .where(
+        and(
+          eq(emailAutomationSendsTable.id, row.id),
+          eq(emailAutomationSendsTable.status, "queued"),
+        ),
+      )
+      .returning();
+    if (flipped.length > 0) reaped++;
+  }
+  if (reaped > 0) {
+    logger.warn(
+      { automationId, reaped },
+      "[email-automations] stale queued claims settled to failed (orphaned by a crashed run)",
+    );
+  }
+  return reaped;
+}
+
 /* ── The runner ─────────────────────────────────────────────────────── */
 
 export interface AutomationRunSummary {
@@ -693,6 +750,7 @@ export async function runAutomation(
   };
   try {
     if (!automation.enabled) return summary;
+    await reapStaleClaims(automation.id, now);
     const since = automation.enabledAt ?? automation.createdAt;
     const delayMs = Math.max(0, automation.delayHours) * 3_600_000;
     const triggers = (await collectTriggers(automation, list.userId, deps))
