@@ -103,6 +103,36 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         res.status(200).json({ received: true, kind: "marketplace_shop_purchase" });
         return;
       }
+      if (s.metadata?.type === "tip_jar") {
+        /* Tip jar (TIP-TRUTH, stack1200): before this branch existed a
+           paid tip session fell through the whole dispatch to the
+           credit-grant tail — which logged "missing user_id in
+           metadata" and answered 200 — so a tip settled ONLY if the
+           fan's browser returned and the page called verify. A fan
+           who closed the tab left the tip pending forever: never in
+           the creator's totals, never a notification. The settle runs
+           the same guarded flip as verify (exactly-once under
+           webhook replays and verify races) and fires the creator's
+           money tell on the landed transition. A settle failure 500s
+           so Stripe retries; it must NOT fall through to the credit
+           logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "tip_jar", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleTipBySessionId } = await import("../routes/generate/tip-jar");
+          const settled = await settleTipBySessionId(s.id);
+          if (!settled.found) {
+            logger.warn({ sessionId: s.id }, "Stripe webhook: tip_jar session has no tip row (checkout row missing or already cleaned up)");
+          }
+          res.status(200).json({ received: true, kind: "tip_jar" });
+        } catch (tipErr) {
+          logger.error({ err: tipErr, sessionId: s.id }, "Stripe webhook: tip settle failed");
+          res.status(500).json({ error: "Tip settle failed, retry later" });
+        }
+        return;
+      }
       if (s.metadata?.kind === "membership_gift") {
         /* Gift membership (payfix lane 9): a one-time payment granting
            the recipient a Pro/Elite window. Fulfillment claims on

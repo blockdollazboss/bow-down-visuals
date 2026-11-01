@@ -80,6 +80,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
     update: (table: unknown) => ({
       set: (patch: Record<string, any>) => ({
         where: (cond: unknown) => ({
+          /* TIP-TRUTH (stack1200): the settle flip awaits
+             .returning() — same guarded applyUpdate underneath. */
+          returning: async () => applyUpdate(table, patch, cond),
           then: (res: any, rej: any) => Promise.resolve(applyUpdate(table, patch, cond)).then(res, rej),
         }),
       }),

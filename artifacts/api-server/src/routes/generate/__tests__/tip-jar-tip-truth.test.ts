@@ -333,9 +333,12 @@ describe("tip truth — the creator is told, exactly once (defect 2)", () => {
   it("an unpaid tip tells nobody", async () => {
     await call("POST", "/tips/royal-voice/checkout", { amount: 5, fanName: "Fan", message: "" });
     h.stripePaid = false;
+    /* Verify is the rail that asks Stripe: unpaid → no flip, no tell.
+       (The webhook settle door is only invoked for sessions the
+       signed event already reports paid — pinned by the webhook
+       suite's unpaid-event case.) */
     await call("POST", "/tips/checkout/verify", { sessionId: "cs_tip_1" });
-    const settled = await settleTipBySessionId("cs_tip_1");
-    expect(settled.status).toBe("pending_payment");
+    expect(h.tips[0]!.status).toBe("pending_payment");
     expect(h.claims).toHaveLength(0);
     expect(h.pushes).toHaveLength(0);
   });
