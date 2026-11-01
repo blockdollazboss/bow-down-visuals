@@ -12,13 +12,38 @@ import { DraggableWidget } from "@/components/draggable-widget";
  * Has its own error boundary so a bug here can never crash the page.
  */
 export function FloatingAdminPanel() {
-  const { profile, getAccessToken, refreshProfile } = useAuth();
+  const { getAccessToken, refreshProfile } = useAuth();
   const isLight = useIsLightTheme();
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
-  /* Only the site owner sees this. */
-  const isAdmin = profile?.plan === "studio";
-  if (!isAdmin) return null;
+  /* Only admins see this — decided by the server's one predicate
+     (GET /api/admin/status, the fail-closed ADMIN_EMAILS allowlist),
+     never by a profile field. The old gate read the profile's legacy
+     plan string and compared it to a hard-coded tier name: an admin
+     on any other plan string never saw the panel, while a non-admin
+     holding that string did. Renders nothing until the server says
+     true. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/admin/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const status = (await res.json()) as { isAdmin?: boolean };
+        if (!cancelled) setIsAdmin(res.ok && status.isAdmin === true);
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessToken]);
+
+  if (isAdmin !== true) return null;
 
   return (
     <>
@@ -112,7 +137,7 @@ function AdminTools({
         tier: t,
         email: tierEmail.trim(),
       });
-      setTierMsg(`✓ ${tierEmail.trim()} → ${String(data.rank)} (tier ${String(data.tier)})`);
+      setTierMsg(`✓ ${tierEmail.trim()} → plan tier ${String(data.tier)} (${String(data.rank)})`);
       setTierEmail("");
     } catch (e) {
       setTierMsg(`✗ ${plainErrorText(e, "Failed.")}`);
@@ -167,9 +192,9 @@ function AdminTools({
 
   return (
     <div className="space-y-3">
-      {/* Upgrade user tier */}
+      {/* Set user plan tier */}
       <div>
-        <p className={labelCls}>Upgrade user tier</p>
+        <p className={labelCls}>Set user plan tier</p>
         <input aria-label="user@email.com"
           type="email"
           placeholder="user@email.com"

@@ -29,6 +29,7 @@ interface AdminJewelryOrder {
 export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
   const isLight = useIsLightTheme();
   const [orders, setOrders] = useState<AdminJewelryOrder[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -40,6 +41,7 @@ export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise
       const json = await res.json();
       if (!json.ok) throw new Error(apiErrorMessage(json, "Load failed"));
       setOrders(json.orders);
+      setTotal(typeof json.total === "number" ? json.total : json.orders.length);
     } catch (e) {
       setError(plainErrorText(e, "Load failed"));
     } finally {
@@ -66,7 +68,7 @@ export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
           <Gem className="h-5 w-5 text-amber-400" /> Jewelry Reservations
-          <span className="text-xs font-normal text-white/40">({orders.length})</span>
+          <span className="text-xs font-normal text-white/40">({total ?? orders.length})</span>
         </h3>
         <div className="flex gap-2">
           <button

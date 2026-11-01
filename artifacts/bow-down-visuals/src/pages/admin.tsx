@@ -349,7 +349,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   );
 }
 
-/* ─── Spotlight Inbox — $99 takeover leads ─────────────────────────────── */
+/* ─── Spotlight Inbox — $1,000 / 7-day takeover leads ─────────────────── */
 interface SpotlightInquiry {
   id: string;
   name: string;

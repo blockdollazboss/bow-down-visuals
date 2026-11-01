@@ -352,15 +352,6 @@ router.get("/email-list/lists/:id/subscribers", requireAuth, publicApiLimiter, a
     .where(eq(emailSubscribersTable.listId, id))
     .orderBy(desc(emailSubscribersTable.subscribedAt))
     .limit(500);
-  const active = subscribers.filter((s) => !s.unsubscribedAt);
-  /* Engagement is tracked for real (migration 0189): opens and clicks
-     land in email_engagement_events from the house pixel/redirect and
-     the verified Resend webhook, and the recorder maintains the
-     opens/clicks counters read here. Only tracked dispatch sends
-     produce signal — mail sent by the poller-drained sender carries
-     no pixel and contributes none. A list with no tracked sends yet
-     has no signal at all — it still reports opensTracked false and a
-     null rate rather than dressing up "never measured" as 0%. */
   const facts = await loadListFacts(list, subscribers);
   const enriched = subscribers.map((s) => {
     const f = facts.get(s.id);
@@ -376,15 +367,43 @@ router.get("/email-list/lists/:id/subscribers", requireAuth, publicApiLimiter, a
     .innerJoin(emailCampaignsTable, eq(emailCampaignDeliveriesTable.campaignId, emailCampaignsTable.id))
     .where(eq(emailCampaignsTable.listId, id));
   const opensTracked = (deliveryCount?.value ?? 0) > 0;
-  const totalOpens = active.reduce((sum, s) => sum + s.opens, 0);
-  const totalClicks = active.reduce((sum, s) => sum + s.clicks, 0);
+  /* Dashboard figures come from full-table aggregates, never from the
+     500-row display page above (admin-truth C3): "Total signups" and
+     "Active subscribers" computed from the page silently capped at
+     500. The engagement counters keep their exact definition — opens
+     and clicks summed over ACTIVE subscribers — via a counters-only
+     read with no limit.
+     Engagement is tracked for real (migration 0189): opens and clicks
+     land in email_engagement_events from the house pixel/redirect and
+     the verified Resend webhook, and the recorder maintains the
+     opens/clicks counters read here. Only tracked dispatch sends
+     produce signal — mail sent by the poller-drained sender carries
+     no pixel and contributes none. A list with no tracked sends yet
+     has no signal at all — it still reports opensTracked false and a
+     null rate rather than dressing up "never measured" as 0%. */
+  const [totalRow] = await db
+    .select({ value: count() })
+    .from(emailSubscribersTable)
+    .where(eq(emailSubscribersTable.listId, id));
+  const [activeRow] = await db
+    .select({ value: count() })
+    .from(emailSubscribersTable)
+    .where(and(eq(emailSubscribersTable.listId, id), isNull(emailSubscribersTable.unsubscribedAt)));
+  const activeCounters = await db
+    .select({ opens: emailSubscribersTable.opens, clicks: emailSubscribersTable.clicks })
+    .from(emailSubscribersTable)
+    .where(and(eq(emailSubscribersTable.listId, id), isNull(emailSubscribersTable.unsubscribedAt)));
+  const totalSubscribers = totalRow?.value ?? 0;
+  const activeSubscribers = activeRow?.value ?? 0;
+  const totalOpens = activeCounters.reduce((sum, s) => sum + (s.opens ?? 0), 0);
+  const totalClicks = activeCounters.reduce((sum, s) => sum + (s.clicks ?? 0), 0);
   res.json({
     subscribers: enriched,
     stats: {
-      total: subscribers.length,
-      active: active.length,
-      unsubscribed: subscribers.length - active.length,
-      openRate: opensTracked && active.length > 0 ? totalOpens / active.length : null,
+      total: totalSubscribers,
+      active: activeSubscribers,
+      unsubscribed: totalSubscribers - activeSubscribers,
+      openRate: opensTracked && activeSubscribers > 0 ? totalOpens / activeSubscribers : null,
       opensTracked,
       totalOpens,
       totalClicks,

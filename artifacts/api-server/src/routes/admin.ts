@@ -9,7 +9,11 @@
  *                                  to yourself (default), another user by id,
  *                                  or a friend by email.
  *  POST /api/admin/plan/set        { tier, userId?, email? } — set a user's plan tier.
- *                                  Tier N caps Creator Level at N stars.
+ *                                  The ladder number is a plan record, not a rank:
+ *                                  tiers 1–3 read as free, 4–5 as pro, 6 as elite
+ *                                  (lib/platform-fees tierFromPlanTier). Creator
+ *                                  Level stars are earned separately (lib/
+ *                                  creator-rank) and no tier moves them.
  *  GET  /api/admin/dmca-reports    the moderation bench's takedown queue.
  *  GET  /api/admin/content/:id     one post/comment's moderation state.
  *  PATCH /api/admin/content/:id    { removed, reason?, note? } — the
@@ -28,6 +32,7 @@ import { recordCreditUsageStrict } from "../lib/payment-record";
 import { db, artistVaultsTable, spotlightInquiriesTable, contactMessagesTable, dmcaReportsTable, contentReportsTable, CONTENT_REPORT_STATUSES, postsTable, creatorProfilesTable, POST_REMOVAL_REASONS } from "@workspace/db";
 import { eq, isNull, isNotNull, inArray, and, sql, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
+import { spendableBalance } from "../lib/credits";
 import { listOperatorActions, OPERATOR_DAILY_CHARGED_CAP, operatorHandsEnabled } from "../lib/operator-executor";
 import { listPaymentReversals } from "../lib/payment-reversals";
 
@@ -86,7 +91,7 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
     }
     const { data: profile, error: fetchErr } = await supabase
       .from("profiles")
-      .select("credits")
+      .select("credits, bonus_credits, bonus_credits_expires_at")
       .eq("id", targetUserId)
       .single();
     if (fetchErr || !profile) {
@@ -126,10 +131,20 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
       { admin: req.userEmail, targetUserId, targetLabel, amount: parsed.data.amount, newBalance },
       "admin: credits granted",
     );
+    /* The response's balance is the SPENDABLE composition (lib/credits'
+       one definition: permanent + live bonus) — the number every
+       surface shows and the charge rail moves. Returning the raw
+       credits column here made the grant confirmation ("New balance")
+       disagree with the balance line on the same card whenever a
+       temporary Bucs pool was live (admin-truth C6). */
     res.json({
       userId: targetUserId,
       granted: parsed.data.amount,
-      credits: newBalance,
+      credits: spendableBalance({
+        credits: newBalance,
+        bonus_credits: profile.bonus_credits,
+        bonus_credits_expires_at: profile.bonus_credits_expires_at,
+      }),
     });
   } catch (err) {
     req.log.error({ err }, "admin: grant credits failed");

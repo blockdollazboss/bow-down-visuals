@@ -145,7 +145,15 @@ router.get("/jewelry/admin/orders", requireAuth, requireAdmin, async (_req: Requ
     res.status(500).json({ ok: false, error: "Failed to load orders" });
     return;
   }
-  res.json({ ok: true, orders: await Promise.all((data ?? []).map(presentJewelryOrder)) });
+  /* The panel header shows a reservations count — it must be the
+     table's real total, not the 500-row page's length (admin-truth
+     C5). A failed count falls back to the page length rather than
+     hiding the orders that did load. */
+  const { count } = await supabase
+    .from("jewelry_orders")
+    .select("id", { count: "exact", head: true });
+  const orders = await Promise.all((data ?? []).map(presentJewelryOrder));
+  res.json({ ok: true, orders, total: count ?? orders.length });
 });
 
 /* GET /api/jewelry/admin/orders.csv — supplier data file. */

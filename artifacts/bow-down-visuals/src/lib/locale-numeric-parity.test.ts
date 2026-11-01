@@ -149,7 +149,7 @@ function grouped(...groups: [string, string[]][]): Record<string, string> {
 const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
   ar: grouped(
     [T_SPELL, [
-      "academy.next4Weeks", "admin.planDescription", "analytics.next3Moves", "analyticsHub.your3Moves",
+      "academy.next4Weeks", "analytics.next3Moves", "analyticsHub.your3Moves",
       "audit.topPrioritiesTitle", "beatMaker.duration1m", "beatMaker.duration2m", "brandCalculator.perPostNote",
       "chooseArtist.emptyDescription", "coach.moneyMovesTitle", "coach.subtitle",
       "distribute.2_week_promo_plan", "distribute.release_timing_a_2_week_promo_pl", "distribute.tier.single.blurb",
