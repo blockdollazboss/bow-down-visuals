@@ -752,6 +752,7 @@ const W6_LEGIT = new Set([
   "admin.gearQueue.total",
   "admin.reversals.age",
   "admin.reversals.ageHour",
+  "admin.reversals.noteLabel",
   "admin.reversals.session",
   "analyticsHub.competitor.notesLabel",
   "analyticsHub.fields.engagementRate",

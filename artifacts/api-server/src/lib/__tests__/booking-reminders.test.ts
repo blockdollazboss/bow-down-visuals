@@ -262,7 +262,10 @@ describe("buyer reminder fan-out (stack1100 Y3)", () => {
         category: "money",
         kind: BOOKING_REMINDER_JOB_TYPE,
         title: "Reminder: 1:1 Coaching Call",
-        link: "/store/purchases",
+        /* JOIN FIX (stack1100 join): the door link is /library — the
+           buyer's purchases surface; /store/purchases is an API path,
+           not a page (server-link-truth guard). */
+        link: "/library",
       });
       expect(String(events[0]!["body"])).toContain("1:1 Coaching Call");
       /* Second sweep: the claim is stamped, so no re-fire. */

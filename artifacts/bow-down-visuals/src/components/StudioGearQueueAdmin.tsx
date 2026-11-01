@@ -154,8 +154,11 @@ export function StudioGearQueueAdmin({ authHeaders }: { authHeaders: () => Promi
         ),
       );
       setProofForms((forms) => ({ ...forms, [order.id]: { url: "", note: "" } }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("admin.gearQueue.actionError"));
+    } catch {
+      /* Error-truth guard: a caught message never reaches the render —
+         the fixed translated copy stands for every failure shape (the
+         PaymentReversalsAdmin pattern). */
+      setError(t("admin.gearQueue.actionError"));
     } finally {
       setBusyId(null);
     }
@@ -176,8 +179,11 @@ export function StudioGearQueueAdmin({ authHeaders }: { authHeaders: () => Promi
       setOrders((list) =>
         list.map((o) => (o.id === order.id ? { ...o, status: body.status ?? status } : o)),
       );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("admin.gearQueue.actionError"));
+    } catch {
+      /* Error-truth guard: a caught message never reaches the render —
+         the fixed translated copy stands for every failure shape (the
+         PaymentReversalsAdmin pattern). */
+      setError(t("admin.gearQueue.actionError"));
     } finally {
       setBusyId(null);
     }

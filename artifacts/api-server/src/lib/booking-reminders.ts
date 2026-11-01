@@ -218,7 +218,10 @@ async function remindOne(
       kind: BOOKING_REMINDER_JOB_TYPE,
       title: reminderTitle,
       body: reminderMessage,
-      link: "/store/purchases",
+      /* JOIN FIX (stack1100 join): Y3's door link named /store/purchases,
+         which is an API path, not a page — the buyer's purchases live in
+         the Library (its Purchases tab), so the door lands there. */
+      link: "/library",
     });
   }
   return created;
