@@ -993,14 +993,20 @@ export async function processChargeReversal(input: {
     /* Does this event add work beyond what the row already records?
        (A row parked at needs_manual_review can be upgraded here when a
        later event's identification succeeds — reaching this claim at
-       all means the current identification is auto-reversible.) */
+       all means the current identification is auto-reversible. A row
+       an admin DISMISSED can be upgraded the same way: the dismissal
+       answered the facts as they stood when the human reviewed it,
+       and a later event that identifies NEW auto-reversible work is
+       new facts — the dismissal itself stays on the audit trail in
+       payment_reversal_resolutions.) */
     const granted = Number(row["granted_credits"] ?? 0) || ident.grantedCredits;
     const targetCredits = Math.floor(granted * fraction);
     const creditsWork = targetCredits > Number(row["credits_clawed"] ?? 0);
     const entitlementWork =
       fullReversal && ident.grantedCredits === 0 && row["entitlement_revoked"] !== true;
     const disputeWork = disputeLost && row["dispute_lost"] !== true;
-    const upgradeWork = String(row["status"]) === "needs_manual_review";
+    const upgradeWork =
+      String(row["status"]) === "needs_manual_review" || String(row["status"]) === "dismissed";
     /* A 'failed' row never finished by definition — always reclaim
        it and let the delta-driven execute converge (every step
        computes only its remaining delta, so re-running is safe). */
@@ -1031,7 +1037,7 @@ export async function processChargeReversal(input: {
           rail = ${ident.rail}, user_id = ${ident.userId}, session_id = ${ident.sessionId},
           granted_credits = ${granted}, updated_at = now()
       WHERE stripe_charge_id = ${charge.id}
-        AND (status IN ('failed', 'completed', 'partial_shortfall', 'needs_manual_review')
+        AND (status IN ('failed', 'completed', 'partial_shortfall', 'needs_manual_review', 'dismissed')
              OR (status = 'processing' AND updated_at < ${cutoff}::timestamptz))
       RETURNING *
     `);
@@ -1199,20 +1205,297 @@ export async function processStripeChargeReversal(input: {
   });
 }
 
-/** Admin readback (GET /api/admin/payment-reversals). */
-export async function listPaymentReversals(limit = 50): Promise<Record<string, unknown>[]> {
+/* ── Manual resolution — the human's verb on a parked row ────────────
+ *
+ * The engine parks what a machine must not reverse on its own at
+ * 'needs_manual_review' and the webhook answers 200: a Stripe retry
+ * cannot fix what a human must decide. Until stack1100 Y2 the queue
+ * had NO write verb — a parked row could never be resolved. This is
+ * that verb (POST /api/admin/payment-reversals/:id/resolve, admin-only
+ * at the route). The decisions are exactly the ones the engine's own
+ * states imply — no invented policy:
+ *
+ *   'complete' — run the engine's OWN completion path for the parked
+ *     row: the entitlement/seller legs (reverseEntitlement) fed by the
+ *     identification the row recorded when it parked, then the row
+ *     lands at 'completed' with the legs' flags — the same terminal
+ *     state an auto-reversal lands at. Parked rows never carry a VB
+ *     grant (identification parks only zero-grant rails; the credit
+ *     pack rail is the divisible one and always auto-reverses), so
+ *     completion never claws VB — if a parked row ever DID carry
+ *     granted credits, the verb refuses loudly instead of silently
+ *     skipping the claw leg.
+ *   'dismiss' — reviewed, no reversal: the row lands at 'dismissed'
+ *     and NO money moves and NO leg runs.
+ *
+ * Exactly-once, in the claim discipline the engine itself uses: the
+ * audit row in payment_reversal_resolutions (UNIQUE reversal_id) is
+ * inserted FIRST, before any leg runs — it IS the claim. The status
+ * flip that lands the decision is a conditional UPDATE whose
+ * predicate is status='needs_manual_review', so a second resolver
+ * can never double-act: retried resolves read the recorded audit row
+ * back (same decision → the recorded outcome; a different decision →
+ * conflict), and a resolution whose flip never landed (a crashed
+ * resolve) leaves a stale audit row that the next resolver reclaims
+ * after RESOLUTION_STALE_MS instead of mistaking it for a decision.
+ * A leg failure deletes the claim row and throws, leaving the row
+ * parked for the next human attempt.
+ */
+
+export type ReversalResolutionDecision = "complete" | "dismiss";
+
+export interface ReversalResolutionRecord {
+  id: string;
+  reversalId: string;
+  stripeChargeId: string;
+  decision: ReversalResolutionDecision;
+  adminUserId: string | null;
+  adminEmail: string | null;
+  note: string;
+  createdAt: string;
+}
+
+export type ResolveReversalOutcome =
+  | { outcome: "resolved"; row: Row; resolution: ReversalResolutionRecord }
+  | { outcome: "already_resolved"; row: Row; resolution: ReversalResolutionRecord }
+  | { outcome: "conflict"; status: string }
+  | { outcome: "not_found" };
+
+const RESOLUTION_STALE_MS = CLAIM_STALE_MS;
+
+function resolutionFromRow(r: Row): ReversalResolutionRecord {
+  const created = r["created_at"];
+  return {
+    id: String(r["id"]),
+    reversalId: String(r["reversal_id"]),
+    stripeChargeId: String(r["stripe_charge_id"]),
+    decision: String(r["decision"]) === "dismiss" ? "dismiss" : "complete",
+    adminUserId: (r["admin_user_id"] as string | null) ?? null,
+    adminEmail: (r["admin_email"] as string | null) ?? null,
+    note: String(r["note"] ?? ""),
+    createdAt: created instanceof Date ? created.toISOString() : String(created ?? ""),
+  };
+}
+
+export async function resolvePaymentReversal(input: {
+  reversalId: string;
+  decision: ReversalResolutionDecision;
+  adminUserId: string | null;
+  adminEmail: string | null;
+  note: string;
+}): Promise<ResolveReversalOutcome> {
+  const { reversalId, decision } = input;
+  const note = (input.note ?? "").trim();
+
+  const readRow = async (): Promise<Row | null> => {
+    const r = await db.execute(sql`
+      SELECT * FROM payment_reversals WHERE id = ${reversalId} LIMIT 1
+    `);
+    return firstRow(r) ?? null;
+  };
+  const readResolution = async (): Promise<ReversalResolutionRecord | null> => {
+    const r = await db.execute(sql`
+      SELECT * FROM payment_reversal_resolutions WHERE reversal_id = ${reversalId} LIMIT 1
+    `);
+    const row = firstRow(r);
+    return row ? resolutionFromRow(row) : null;
+  };
+  const deleteResolution = async (id: string): Promise<void> => {
+    await db.execute(sql`DELETE FROM payment_reversal_resolutions WHERE id = ${id}`);
+  };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const row = await readRow();
+    if (!row) return { outcome: "not_found" };
+    const status = String(row["status"] ?? "");
+    let resolution = await readResolution();
+
+    if (resolution) {
+      if (status === "completed" || status === "partial_shortfall" || status === "dismissed") {
+        /* The decision landed. A retry with the same decision reads
+           the recorded outcome back; a different decision conflicts —
+           the row was already decided the other way. */
+        return resolution.decision === decision
+          ? { outcome: "already_resolved", row, resolution }
+          : { outcome: "conflict", status };
+      }
+      /* A resolution exists but the row never landed: either another
+         admin is mid-resolve right now (fresh claim — conflict), or
+         a resolve crashed between claiming and flipping (stale claim
+         — reclaim it and let this attempt proceed). */
+      const age = Date.now() - new Date(resolution.createdAt).getTime();
+      if (Number.isFinite(age) && age < RESOLUTION_STALE_MS) {
+        return { outcome: "conflict", status };
+      }
+      await deleteResolution(resolution.id);
+      resolution = null;
+    }
+
+    if (status !== "needs_manual_review") {
+      return { outcome: "conflict", status };
+    }
+    if (Number(row["granted_credits"] ?? 0) > 0) {
+      /* Defensive: identification parks only zero-grant rails, so a
+         parked row carrying a VB grant means the engine's parking
+         rules changed under this verb. Completing here would skip
+         the claw leg silently — refuse loudly instead. */
+      logger.error(
+        { reversalId, chargeId: row["stripe_charge_id"], grantedCredits: row["granted_credits"] },
+        "payment reversal resolve: parked row carries granted credits — refusing (the VB claw leg is the engine's, not the verb's)",
+      );
+      return { outcome: "conflict", status };
+    }
+
+    /* The claim: the audit row goes in FIRST (UNIQUE reversal_id).
+       A racer whose insert lands second gets no row back and loops
+       into the read path above, which adjudicates their attempt
+       against the recorded decision. */
+    const claim = await db.execute(sql`
+      INSERT INTO payment_reversal_resolutions (
+        reversal_id, stripe_charge_id, decision, admin_user_id, admin_email, note
+      ) VALUES (
+        ${reversalId}, ${String(row["stripe_charge_id"])}, ${decision},
+        ${input.adminUserId}, ${input.adminEmail}, ${note}
+      )
+      ON CONFLICT (reversal_id) DO NOTHING
+      RETURNING *
+    `);
+    const claimed = firstRow(claim);
+    if (!claimed) continue; // a racer claimed it — re-read and adjudicate
+    resolution = resolutionFromRow(claimed);
+
+    try {
+      let rev = { entitlement: false, seller: false };
+      if (decision === "complete") {
+        /* The engine's own completion legs, fed by the identification
+           the row recorded when it parked — never a re-guess. */
+        const parkedDetails =
+          row["details"] && typeof row["details"] === "object"
+            ? (row["details"] as Record<string, unknown>)
+            : {};
+        const ident: IdentifiedRail = {
+          rail: String(row["rail"] ?? "unidentified"),
+          userId: (row["user_id"] as string | null) ?? null,
+          sessionId: (row["session_id"] as string | null) ?? null,
+          grantedCredits: 0,
+          details: parkedDetails,
+        };
+        rev = await reverseEntitlement(ident);
+      }
+      const prevDetails =
+        row["details"] && typeof row["details"] === "object"
+          ? (row["details"] as Record<string, unknown>)
+          : {};
+      const details = {
+        ...prevDetails,
+        resolution: {
+          decision,
+          adminUserId: input.adminUserId,
+          adminEmail: input.adminEmail,
+          note,
+          resolvedAt: resolution.createdAt,
+        },
+      };
+      const flipped =
+        decision === "complete"
+          ? await db.execute(sql`
+              UPDATE payment_reversals
+              SET status = 'completed',
+                  entitlement_revoked = entitlement_revoked OR ${rev.entitlement},
+                  seller_reversed = seller_reversed OR ${rev.seller},
+                  details = ${JSON.stringify(details)}::jsonb,
+                  updated_at = now()
+              WHERE id = ${reversalId} AND status = 'needs_manual_review'
+              RETURNING *
+            `)
+          : await db.execute(sql`
+              UPDATE payment_reversals
+              SET status = 'dismissed',
+                  details = ${JSON.stringify(details)}::jsonb,
+                  updated_at = now()
+              WHERE id = ${reversalId} AND status = 'needs_manual_review'
+              RETURNING *
+            `);
+      const landed = firstRow(flipped);
+      if (!landed) {
+        /* The row moved under us (a webhook event reclaimed it
+           between claim and flip). Release the claim and let the
+           loop adjudicate against the fresh state. */
+        await deleteResolution(resolution.id);
+        continue;
+      }
+      logger.info(
+        { reversalId, chargeId: row["stripe_charge_id"], decision, adminEmail: input.adminEmail },
+        "payment reversal: manual review resolved",
+      );
+      return { outcome: "resolved", row: landed, resolution };
+    } catch (err) {
+      /* A leg failed: release the claim so the row stays parked and
+         resolvable, and surface the failure to the caller. */
+      await deleteResolution(resolution.id).catch(() => {});
+      logger.error({ err, reversalId }, "payment reversal resolve: failed — row left parked");
+      throw err;
+    }
+  }
+
+  const row = await readRow();
+  return { outcome: "conflict", status: row ? String(row["status"] ?? "") : "unknown" };
+}
+
+/* ── Admin readback (GET /api/admin/payment-reversals) ───────────────
+ * Rows ride with their resolution (the human decision, when one
+ * exists) as flat resolution_* fields the route nests. The join is
+ * guarded the way the engine guards its own additive probes: a
+ * database the resolutions migration (0304) hasn't reached degrades
+ * to the plain read with a loud log, never a 500 bench. */
+
+const REVERSAL_READ_COLUMNS = `
+  pr.id, pr.stripe_event_id, pr.stripe_charge_id, pr.stripe_payment_intent_id,
+  pr.trigger, pr.rail, pr.user_id, pr.session_id, pr.granted_credits,
+  pr.credits_clawed, pr.referral_credits_clawed, pr.refunded_cents_seen,
+  pr.charge_amount_cents, pr.dispute_lost, pr.entitlement_revoked,
+  pr.seller_reversed, pr.shortfall_credits, pr.status, pr.details,
+  pr.created_at, pr.updated_at`;
+
+async function readReversals(id: string | null, limit: number): Promise<Record<string, unknown>[]> {
   /* Literal LIMIT (clamped + integer-forced here): some drivers reject
-     a bound LIMIT parameter — the same lesson as credits.ts. */
-  const n = Math.max(1, Math.min(200, Math.floor(limit)));
-  const r = await db.execute(sql`
-    SELECT id, stripe_event_id, stripe_charge_id, stripe_payment_intent_id,
-           trigger, rail, user_id, session_id, granted_credits, credits_clawed,
-           referral_credits_clawed, refunded_cents_seen, charge_amount_cents,
-           dispute_lost, entitlement_revoked, seller_reversed, shortfall_credits,
-           status, details, created_at, updated_at
-    FROM payment_reversals
-    ORDER BY created_at DESC
-    LIMIT ${sql.raw(String(n))}
-  `);
-  return r.rows as Record<string, unknown>[];
+     a bound LIMIT parameter — the same lesson as credits.ts. The id,
+     when present, stays a bound parameter. */
+  const lim = sql.raw(String(Math.max(1, Math.min(200, Math.floor(limit)))));
+  const where = id ? sql`WHERE pr.id = ${id}` : sql``;
+  try {
+    const r = await db.execute(sql`
+      SELECT ${sql.raw(REVERSAL_READ_COLUMNS)},
+             res.id AS resolution_id, res.decision AS resolution_decision,
+             res.admin_user_id AS resolution_admin_user_id,
+             res.admin_email AS resolution_admin_email,
+             res.note AS resolution_note,
+             res.created_at AS resolution_created_at
+      FROM payment_reversals pr
+      LEFT JOIN payment_reversal_resolutions res ON res.reversal_id = pr.id
+      ${where}
+      ORDER BY pr.created_at DESC
+      LIMIT ${lim}
+    `);
+    return r.rows as Record<string, unknown>[];
+  } catch (err) {
+    logger.error({ err }, "payment reversals read: resolutions join failed — reading without resolutions (migration 0304 not applied?)");
+    const r = await db.execute(sql`
+      SELECT ${sql.raw(REVERSAL_READ_COLUMNS)}
+      FROM payment_reversals pr
+      ${where}
+      ORDER BY pr.created_at DESC
+      LIMIT ${lim}
+    `);
+    return r.rows as Record<string, unknown>[];
+  }
+}
+
+export async function listPaymentReversals(limit = 50): Promise<Record<string, unknown>[]> {
+  return readReversals(null, limit);
+}
+
+export async function getPaymentReversal(id: string): Promise<Record<string, unknown> | null> {
+  const rows = await readReversals(id, 1);
+  return rows[0] ?? null;
 }
