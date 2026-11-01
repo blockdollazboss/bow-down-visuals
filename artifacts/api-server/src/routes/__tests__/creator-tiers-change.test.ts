@@ -145,13 +145,32 @@ vi.mock("../../lib/stripe-client", () => {
         },
       },
       invoices: {
-        /* Proration double: Pro→Elite mid-cycle nets +850 due today;
-           Elite→Pro nets a 700 credit (negative amount_due). */
+        /* Proration double in Stripe's real preview shape (stack1100
+           Z2): the lines carry the swap's prorations PLUS the next
+           renewal, and amount_due totals ALL of them. Pro→Elite
+           mid-cycle: prorations −600/+1450 (net +850 due today),
+           renewal +2900 → amount_due 3750. Elite→Pro: prorations
+           −1450/+750 (net −700 credit), renewal +1200 → amount_due
+           +500. The quote must read the proration net, never
+           amount_due. */
         createPreview: async (params: any) => {
           state.previewCalls.push(params);
           const price = params.subscription_details?.items?.[0]?.price;
-          const amount_due = price === "price_elite_test" ? 850 : price === "price_pro_test" ? -700 : 0;
-          return { amount_due, currency: "usd" };
+          const proration = (amount: number) => ({
+            amount,
+            parent: { type: "subscription_item_details", subscription_item_details: { proration: true }, invoice_item_details: null },
+          });
+          const renewal = (amount: number) => ({
+            amount,
+            parent: { type: "subscription_item_details", subscription_item_details: { proration: false }, invoice_item_details: null },
+          });
+          if (price === "price_elite_test") {
+            return { amount_due: 3750, currency: "usd", lines: { data: [proration(-600), proration(1450), renewal(2900)], has_more: false } };
+          }
+          if (price === "price_pro_test") {
+            return { amount_due: 500, currency: "usd", lines: { data: [proration(-1450), proration(750), renewal(1200)], has_more: false } };
+          }
+          return { amount_due: 0, currency: "usd", lines: { data: [], has_more: false } };
         },
       },
       billingPortal: {

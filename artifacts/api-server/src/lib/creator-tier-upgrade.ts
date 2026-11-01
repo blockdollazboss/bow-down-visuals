@@ -61,12 +61,50 @@ export interface TierChangePreview {
   currentPeriodEnd: Date | null;
 }
 
-/* Proration preview (stack600 plan-tier-change): the honest numbers
-   BEFORE any money moves. Stripe's invoice preview for the same
-   subscription + item-price swap + proration_date the apply call will
-   use: amount_due > 0 is the prorated difference charged today
-   (upgrade); amount_due < 0 is a net credit (downgrade). Creates
-   nothing, charges nothing. */
+/* The amount a tier change bills TODAY is the PRORATION NET — never
+   the preview invoice's amount_due. createPreview answers "the
+   upcoming invoice": it carries EVERY pending charge, so its
+   amount_due bundles the swap's proration lines together with the
+   next renewal at the new price (and any pending invoice items).
+   Quoting amount_due overstates an upgrade by exactly the new plan's
+   full monthly price — Gate #5 (Nov 1, live): a same-day Pro→Elite
+   switch quoted $46.00 = $17 proration + $29 renewal, while
+   always_invoice bills only the $17 proration invoice today — and in
+   the downgrade direction it can shrink a real credit or even flip
+   it into a fake charge. What the apply call (always_invoice) bills
+   today is the proration invoice alone, so the quote is the sum of
+   the preview's proration lines. Stripe's own API guidance: "The
+   recommended way to get only the prorations being previewed on the
+   invoice is to consider line items where
+   parent.subscription_item_details.proration is true." Proration
+   lines sort first on the preview's line list, ahead of the renewal
+   lines, so the net is complete even if the list is paginated. */
+export function prorationNetFromPreviewLines(
+  lines: readonly Stripe.InvoiceLineItem[] | undefined | null,
+): number {
+  if (!lines) {
+    /* A preview with no line list cannot support an honest quote —
+       refuse (the routes answer 502) rather than guess a number. */
+    throw new Error("Stripe's proration preview came back without line items — cannot quote that tier change.");
+  }
+  let net = 0;
+  for (const line of lines) {
+    const parent = line.parent;
+    const isProration =
+      parent?.subscription_item_details?.proration === true ||
+      parent?.invoice_item_details?.proration === true;
+    if (isProration && typeof line.amount === "number") net += line.amount;
+  }
+  return net;
+}
+
+/* Proration preview (stack600 plan-tier-change; quote math corrected
+   stack1100 Z2): the honest numbers BEFORE any money moves. Stripe's
+   invoice preview for the same subscription + item-price swap +
+   proration_date the apply call will use, reduced to its proration
+   lines (see prorationNetFromPreviewLines): net > 0 is the prorated
+   difference charged today (upgrade); net < 0 is a net credit toward
+   future invoices (downgrade). Creates nothing, charges nothing. */
 export async function previewCreatorTierChange(
   stripe: StripeTierChangeClient,
   args: { subscriptionId: string; priceId: string; prorationDate?: number },
@@ -81,7 +119,7 @@ export async function previewCreatorTierChange(
       proration_date: prorationDate,
     },
   });
-  const due = typeof preview.amount_due === "number" ? preview.amount_due : 0;
+  const due = prorationNetFromPreviewLines(preview.lines?.data);
   const cpe = item.current_period_end;
   return {
     subscriptionId: sub.id,

@@ -183,15 +183,32 @@ vi.mock("stripe", () => {
       },
     };
     invoices = {
-      /* Proration preview double (stack600 plan-tier-change): moving
-         to Elite mid-cycle nets +850 due today; moving to Pro nets a
-         700 credit (negative amount_due). Records every call so tests
+      /* Proration preview double (stack600 plan-tier-change; shape
+         corrected stack1100 Z2): lines carry the swap's prorations
+         PLUS the next renewal, and amount_due totals ALL of them.
+         Moving to Elite mid-cycle: proration net +850 due today
+         (amount_due 3750 with the renewal). Moving to Pro: proration
+         net −700 credit (amount_due +500). The quote reads the
+         proration net, never amount_due. Records every call so tests
          can prove a preview priced the EXISTING subscription. */
       createPreview: async (params: any) => {
         h.state.invoicePreviewCalls.push(params);
         const price = params.subscription_details?.items?.[0]?.price;
-        const amount_due = price === "price_elite_test" ? 850 : price === "price_pro_test" ? -700 : 0;
-        return { amount_due, currency: "usd" };
+        const proration = (amount: number) => ({
+          amount,
+          parent: { type: "subscription_item_details", subscription_item_details: { proration: true }, invoice_item_details: null },
+        });
+        const renewal = (amount: number) => ({
+          amount,
+          parent: { type: "subscription_item_details", subscription_item_details: { proration: false }, invoice_item_details: null },
+        });
+        if (price === "price_elite_test") {
+          return { amount_due: 3750, currency: "usd", lines: { data: [proration(-600), proration(1450), renewal(2900)], has_more: false } };
+        }
+        if (price === "price_pro_test") {
+          return { amount_due: 500, currency: "usd", lines: { data: [proration(-1450), proration(750), renewal(1200)], has_more: false } };
+        }
+        return { amount_due: 0, currency: "usd", lines: { data: [], has_more: false } };
       },
     };
   }
