@@ -88,7 +88,7 @@ export interface XOAuthConfig {
   redirectUri: string;
 }
 
-export const X_SCOPES = "tweet.read tweet.write users.read offline.access";
+const X_SCOPES = "tweet.read tweet.write users.read offline.access";
 
 /** Builds the X OAuth 2.0 authorize URL with the PKCE S256 challenge. */
 export function buildXAuthUrl(cfg: XOAuthConfig, state: string, codeChallenge: string): string {
@@ -114,7 +114,7 @@ interface XTokenResponse {
   error_description?: string;
 }
 
-export interface XTokens {
+interface XTokens {
   accessToken: string;
   refreshToken: string;
   expiresInSec: number;
@@ -399,7 +399,7 @@ export async function appendMediaSegment(
 }
 
 /** FINALIZE — returns processing_info when X still needs to process. */
-export async function finalizeMediaUpload(
+async function finalizeMediaUpload(
   accessToken: string,
   mediaId: string,
   fetchImpl: FetchImpl = defaultFetch,
@@ -409,7 +409,7 @@ export async function finalizeMediaUpload(
 }
 
 /** STATUS — poll target while processing_info.state isn't terminal. */
-export async function fetchMediaStatus(
+async function fetchMediaStatus(
   accessToken: string,
   mediaId: string,
   fetchImpl: FetchImpl = defaultFetch,
@@ -423,7 +423,7 @@ const MEDIA_POLL_MAX_TRIES = 30;
 
 /** Polls until X finishes processing the media (or fails). No-op when
     FINALIZE already reported succeeded / returned no processing_info. */
-export async function pollMediaUntilReady(
+async function pollMediaUntilReady(
   accessToken: string,
   mediaId: string,
   initial: ProcessingInfo | undefined,
@@ -472,7 +472,7 @@ export async function uploadMediaToX(
   return { mediaId };
 }
 
-export interface PublishToXInput {
+interface PublishToXInput {
   accessToken: string;
   text: string;
   mediaBytes?: Buffer;

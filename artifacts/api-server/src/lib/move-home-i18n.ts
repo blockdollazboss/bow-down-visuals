@@ -30,7 +30,7 @@
 import type { MoveHomeStepKey } from "@workspace/db";
 import type { ServerLocale } from "./server-i18n";
 
-export interface MoveHomeStepCopy {
+interface MoveHomeStepCopy {
   title: string;
   blurb: string;
 }

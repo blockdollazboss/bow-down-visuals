@@ -46,7 +46,7 @@ const CANVAS_TOTAL_FRAMES = CANVAS_SECONDS * CANVAS_FPS; // 240
 const FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 
 /* ─── Loop styles ───────────────────────────────────────────────────────── */
-export const CANVAS_STYLES = {
+const CANVAS_STYLES = {
   zoom: {
     label: "Slow Zoom",
     blurb: "Cinematic push-in on your cover art, perfectly looping",
@@ -65,7 +65,7 @@ export const CANVAS_STYLES = {
   },
 } as const;
 
-export type CanvasStyleKey = keyof typeof CANVAS_STYLES;
+type CanvasStyleKey = keyof typeof CANVAS_STYLES;
 
 const canvasStyleSchema = z
   .string()
@@ -104,7 +104,7 @@ function autoFontSize(text: string): number {
    (contained) and centered. Handles square covers, 9:16 art, anything.
    Pass `attributionFontfile` to burn the gold "Made with Bow Down Visuals"
    tag into the still — it then rides through every loop style (virality). */
-export function buildCanvasBaseFilter(attributionFontfile?: string | null): string {
+function buildCanvasBaseFilter(attributionFontfile?: string | null): string {
   const base =
     `[0:v]scale=${CANVAS_W}:${CANVAS_H}:force_original_aspect_ratio=increase,` +
     `crop=${CANVAS_W}:${CANVAS_H},boxblur=20:1[bg];` +
@@ -124,7 +124,7 @@ export function buildCanvasBaseFilter(attributionFontfile?: string | null): stri
    effects must use other filters (the life source works). */
 
 /** Slow cinematic zoom: one full in-and-out breath across the 8s loop. */
-export function zoomFilter(): string {
+function zoomFilter(): string {
   const n = CANVAS_TOTAL_FRAMES;
   return (
     `zoompan=z='1+0.075*sin(2*PI*on/${n})':` +
@@ -134,7 +134,7 @@ export function zoomFilter(): string {
 }
 
 /** Beat pulse: 4 periodic pulses per loop, amplitude from the song's energy. */
-export function pulseFilter(amplitude: number): string {
+function pulseFilter(amplitude: number): string {
   const n = CANVAS_TOTAL_FRAMES;
   const amp = Math.min(0.14, Math.max(0.04, amplitude)).toFixed(4);
   return (
@@ -147,7 +147,7 @@ export function pulseFilter(amplitude: number): string {
 
 /* Gold dust particle layer: Game-of-Life cells tinted gold, 4s rendered and
    looped twice → 8s. Looping whole frames is perfectly seamless. */
-export function particleLayerFilter(): string {
+function particleLayerFilter(): string {
   return (
     "colorchannelmixer=rr=1:gg=0.84:bb=0,format=rgba," +
     "colorkey=0x000000:0.25:0.15,boxblur=5:1,colorchannelmixer=aa=0.6," +
@@ -156,7 +156,7 @@ export function particleLayerFilter(): string {
 }
 
 /** Lyric flicker: 1Hz neon flicker inside an 8s envelope — both periodic. */
-export function lyricFlickerFilter(text: string): string {
+function lyricFlickerFilter(text: string): string {
   const n = CANVAS_TOTAL_FRAMES;
   const size = autoFontSize(text);
   const flicker =
@@ -191,12 +191,6 @@ async function measureAudioEnergy(audioPath: string): Promise<number> {
   }
 }
 
-export interface CanvasRenderOptions {
-  style: CanvasStyleKey;
-  overlayText?: string;
-  /** Pulse amplitude; measured from audio when omitted. */
-  pulseAmplitude?: number;
-}
 
 /* ─── Endpoints ─────────────────────────────────────────────────────────── */
 

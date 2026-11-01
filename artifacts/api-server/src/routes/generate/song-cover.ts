@@ -52,7 +52,7 @@ const MAX_LENGTH_MS = 300_000;
 const DEFAULT_LENGTH_MS = 60_000;
 
 /** Style presets — the single source of truth (GET /song-cover/presets mirrors this). */
-export const COVER_STYLE_PRESETS: Array<{ key: string; label: string; stylePrompt: string }> = [
+const COVER_STYLE_PRESETS: Array<{ key: string; label: string; stylePrompt: string }> = [
   { key: "pop-hit",    label: "🎵 Pop Hit",    stylePrompt: "catchy modern pop cover with a soaring, memorable chorus" },
   { key: "hip-hop",    label: "🎤 Hip Hop",    stylePrompt: "hard-hitting hip hop cover with heavy 808s and a confident flow" },
   { key: "rock-anthem",label: "🎸 Rock Anthem",stylePrompt: "powerful rock anthem cover with epic guitars and driving drums" },

@@ -21,10 +21,10 @@ import { logger } from "./logger";
 
 export const DAILY_BONUS_BASE = 200;
 export const DAILY_BONUS_STREAK_7 = 1000;
-export const BONUS_EXPIRY_HOURS = 48;
+const BONUS_EXPIRY_HOURS = 48;
 export const WHEEL_COOLDOWN_MINUTES = 60;
 
-export interface WheelSegment {
+interface WheelSegment {
   credits: number;
   weight: number;
   label: string;
@@ -59,7 +59,7 @@ export const WHEEL_SEGMENTS: WheelSegment[] = [
    - `wheel_spins` (Render Postgres, written by spinWheel below):
      lib/db/migrations/0278_schema_drift_fixes.sql. */
 
-export interface BonusProfile {
+interface BonusProfile {
   bonusCredits: number;
   bonusExpiresAt: string | null;
   dailyStreak: number;
@@ -277,7 +277,7 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
   };
 }
 
-export interface WheelSpinResult {
+interface WheelSpinResult {
   spun: boolean;
   reason?: "cooldown" | "already_claimed_global";
   cooldownSeconds?: number;
@@ -287,12 +287,12 @@ export interface WheelSpinResult {
 }
 
 /** Current UTC hour slot, e.g. "2026-10-04T00" */
-export function currentHourSlot(d = new Date()): string {
+function currentHourSlot(d = new Date()): string {
   return d.toISOString().slice(0, 13);
 }
 
 /** Seconds until the next UTC hour */
-export function secondsUntilNextHour(d = new Date()): number {
+function secondsUntilNextHour(d = new Date()): number {
   const next = new Date(d);
   next.setUTCMinutes(0, 0, 0);
   next.setUTCHours(next.getUTCHours() + 1);
@@ -384,7 +384,7 @@ export function crateCooldownSeconds(crate: { available: boolean; nextHourIn: nu
 }
 
 /** Weighted random segment selection. */
-export function pickWheelSegment(random: number = Math.random()): WheelSegment {
+function pickWheelSegment(random: number = Math.random()): WheelSegment {
   const total = WHEEL_SEGMENTS.reduce((s, seg) => s + seg.weight, 0);
   let r = random * total;
   for (const seg of WHEEL_SEGMENTS) {

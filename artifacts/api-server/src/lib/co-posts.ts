@@ -25,8 +25,8 @@
    and ends the co-post (it never quietly becomes a solo post — the
    initiator can post solo through the normal composer if they want). */
 
-export const CO_POST_ROLES = ["author", "co_author"] as const;
-export type CoPostRole = (typeof CO_POST_ROLES)[number];
+const CO_POST_ROLES = ["author", "co_author"] as const;
+type CoPostRole = (typeof CO_POST_ROLES)[number];
 
 export const CO_POST_SIDE_STATUSES = ["pending", "accepted", "declined", "withdrawn"] as const;
 export type CoPostSideStatus = (typeof CO_POST_SIDE_STATUSES)[number];
@@ -126,7 +126,7 @@ export function isCoPostVisibleOnProfile(co: CoPost, profileId: string): boolean
   return !!side && side.status === "accepted";
 }
 
-export type CoPostAction = "accept" | "decline" | "withdraw";
+type CoPostAction = "accept" | "decline" | "withdraw";
 
 /** Apply one side's action. Pure: returns a NEW CoPost; throws
  *  CoPostError on any transition the consent rules forbid. Only the

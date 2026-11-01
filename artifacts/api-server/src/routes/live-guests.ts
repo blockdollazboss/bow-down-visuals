@@ -88,7 +88,7 @@ const MINT_WINDOW_MS = 60 * 60 * 1000;
 const MINT_MAX_PER_WINDOW = 30;
 
 /** Backstage sockets (host + guests) — keyed rooms: `backstage:<id>`. */
-export const backstageHub = new RoomHub();
+const backstageHub = new RoomHub();
 
 /* ── pacing (in-memory; single instance, like the chat rail) ─────────
  * OOM fix (2026-10-25): these maps gained a key per host / guest

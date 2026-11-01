@@ -85,7 +85,7 @@ export const scheduledPostSchema = z.object({
   provenanceAssetId: z.string().max(220).optional().nullable(),
 });
 
-export const updateScheduledPostSchema = z.object({
+const updateScheduledPostSchema = z.object({
   caption: z.string().max(5000).optional(),
   hashtags: z.string().max(500).optional(),
   platforms: z.array(z.enum(PLATFORMS)).min(1).max(4).optional(),
@@ -668,7 +668,7 @@ const legacySchedulePostSchema = z.object({
   provenanceAssetId: z.string().max(220).optional().nullable(),
 });
 
-export type CreateLegacyScheduledPostOutcome =
+type CreateLegacyScheduledPostOutcome =
   | { kind: "created"; post: ScheduledPost }
   | { kind: "invalid"; issues: z.ZodIssue[] };
 

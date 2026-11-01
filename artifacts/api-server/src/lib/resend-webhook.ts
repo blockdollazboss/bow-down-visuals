@@ -33,7 +33,7 @@ import { logger } from "./logger";
 const TIMESTAMP_TOLERANCE_SECONDS = 300; /* Svix's own default window */
 
 /** Verify a Svix signature per the Svix spec. Returns false on any anomaly. */
-export function verifySvixSignature(args: {
+function verifySvixSignature(args: {
   secret: string;
   msgId: string;
   timestamp: string;

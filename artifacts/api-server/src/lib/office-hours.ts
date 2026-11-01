@@ -43,7 +43,7 @@ import { logger } from "./logger";
 
 /* ═══════════════ Service shape ══════════════════════════════════════ */
 
-export interface OfficeHoursInfo {
+interface OfficeHoursInfo {
   /** True when the service is an Office Hours service. */
   officeHours: boolean;
   /** The VB price when officeHours is true and valid, else null. A
@@ -87,7 +87,7 @@ export function officeHoursMessagesPath(otherUserId: string): string {
 
 /* ═══════════════ Money steps (credits-rail wrappers) ════════════════ */
 
-export type OfficeHoursChargeResult =
+type OfficeHoursChargeResult =
   | { ok: true; balanceAfter: number }
   | { ok: false; status: number; code: string; message: string };
 

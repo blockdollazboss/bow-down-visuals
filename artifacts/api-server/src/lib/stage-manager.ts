@@ -42,13 +42,13 @@ import {
 import { attachJobMapTtl } from "./job-map-sweeper";
 import { logger } from "./logger";
 
-export const LINK_DROP_COOLDOWN_MS = 120_000;
-export const PIN_COOLDOWN_MS = 60_000;
-export const PIN_DURATION_MS = 120_000;
-export const STING_COOLDOWN_MS = 60_000;
-export const FLAG_COOLDOWN_MS = 300_000;
-export const VIEWER_MILESTONES = [25, 50, 100, 250, 500, 1000, 2500, 5000];
-export const TIP_MILESTONES_VB = [500, 1000, 2500, 5000, 10000, 25000];
+const LINK_DROP_COOLDOWN_MS = 120_000;
+const PIN_COOLDOWN_MS = 60_000;
+const PIN_DURATION_MS = 120_000;
+const STING_COOLDOWN_MS = 60_000;
+const FLAG_COOLDOWN_MS = 300_000;
+const VIEWER_MILESTONES = [25, 50, 100, 250, 500, 1000, 2500, 5000];
+const TIP_MILESTONES_VB = [500, 1000, 2500, 5000, 10000, 25000];
 
 export interface StageState {
   muted: boolean;
@@ -56,7 +56,7 @@ export interface StageState {
   pinnedUntil: Date | null;
 }
 
-export interface StageFlag {
+interface StageFlag {
   at: number;
   reason: string;
   messageId: string | null;
@@ -107,13 +107,10 @@ export function recentStageFlags(streamId: string): StageFlag[] {
   return [...(memories.get(streamId)?.flags ?? [])].reverse();
 }
 
-export function __resetStageManagerMemory(): void {
-  memories.clear();
-}
 
 /* ── Store seam (prefs + persisted state + creator notifications) ────── */
 
-export interface StageManagerStore {
+interface StageManagerStore {
   getPrefs(userId: string): Promise<LivePrefsWire>;
   getState(streamId: string): Promise<StageState>;
   setMuted(streamId: string, muted: boolean): Promise<void>;
@@ -176,7 +173,7 @@ export type StageAction =
   | { type: "sting"; milestone: string }
   | { type: "flag"; reason: string; messageId: string | null };
 
-export interface StageChatMessage {
+interface StageChatMessage {
   id: string;
   userId: string;
   body: string;

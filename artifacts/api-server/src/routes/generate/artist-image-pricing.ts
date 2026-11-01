@@ -29,7 +29,7 @@ export const NANO_BANANA_21_CREDIT_COST = 100;
  */
 export const IDEOGRAM_40_CREDIT_COST = 100;
 
-export interface ArtistImagePlan {
+interface ArtistImagePlan {
   model: ArtistImageModel;
   /** Site credits charged on success. */
   creditCost: number;

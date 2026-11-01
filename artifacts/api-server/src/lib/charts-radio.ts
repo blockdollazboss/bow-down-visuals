@@ -47,7 +47,7 @@ export interface RadioTrackRow {
   slug: string | null;
 }
 
-export interface RadioRotationEntry {
+interface RadioRotationEntry {
   position: number;
   track_id: string;
   title: string;
@@ -136,7 +136,7 @@ export interface ChartsRadioPrefsWire {
   tuned_in: boolean;
 }
 
-export const DEFAULT_CHARTS_RADIO_PREFS: ChartsRadioPrefsWire = {
+const DEFAULT_CHARTS_RADIO_PREFS: ChartsRadioPrefsWire = {
   tuned_in: false,
 };
 

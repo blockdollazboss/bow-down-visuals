@@ -54,7 +54,7 @@ import {
    (frame-ancestors unrestricted) so any site can frame them. They make no
    authenticated requests and set no cookies — sandbox-friendly. */
 
-export const embedApiLimiter = rateLimit({
+const embedApiLimiter = rateLimit({
   windowMs: 60_000,
   limit: 120,
   standardHeaders: "draft-7",

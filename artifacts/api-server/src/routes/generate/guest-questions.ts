@@ -30,13 +30,7 @@ const guestQuestionsSchema = z.object({
   bio: z.string().trim().max(5000).optional().default(""),
 });
 
-export type GuestQuestion = { question: string; why: string };
-export type GuestQuestionsResult = {
-  warmup: GuestQuestion[];
-  deepDive: GuestQuestion[];
-  rapidFire: GuestQuestion[];
-  closer: GuestQuestion[];
-};
+type GuestQuestion = { question: string; why: string };
 
 /** Build the system prompt for a guest-question request. Exported for tests. */
 export function buildGuestQuestionsPrompt(input: z.infer<typeof guestQuestionsSchema>): string {

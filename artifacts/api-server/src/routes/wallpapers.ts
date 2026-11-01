@@ -116,7 +116,7 @@ export const screensaverSchema = z.object({
   aiDisclosure: z.boolean().optional(),
 });
 
-export const packDownloadSchema = z.object({
+const packDownloadSchema = z.object({
   urls: z.array(httpUrlSchema).min(1).max(12),
   name: z.string().trim().max(120).optional(),
 });
@@ -137,12 +137,12 @@ export function buildWallpaperScaleFilter(preset: WallpaperPreset): string {
    If a very tall logo would exceed ~30% of canvas height at that width,
    it is instead fit inside a bounding box with decrease-only scaling —
    the whole logo stays visible, letterboxed by transparency. */
-export interface LogoDimensions {
+interface LogoDimensions {
   width: number;
   height: number;
 }
 
-export const LOGO_MAX_CANVAS_HEIGHT_RATIO = 0.3;
+const LOGO_MAX_CANVAS_HEIGHT_RATIO = 0.3;
 
 export function buildLogoScaleFilter(
   preset: WallpaperPreset,
@@ -161,7 +161,7 @@ export function buildLogoScaleFilter(
 
 /** Probe a downloaded logo's pixel size (ffprobe). Fail-open: any probe
  *  failure returns null and the builder uses the width-only path. */
-export async function probeLogoDimensions(filePath: string): Promise<LogoDimensions | null> {
+async function probeLogoDimensions(filePath: string): Promise<LogoDimensions | null> {
   try {
     const { stdout } = await execFileAsync(
       "ffprobe",

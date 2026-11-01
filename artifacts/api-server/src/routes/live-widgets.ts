@@ -39,7 +39,7 @@ async function getStreamRow(id: string): Promise<LiveStream | null> {
   return rows[0] ?? null;
 }
 
-export interface LiveWidgetsDto {
+interface LiveWidgetsDto {
   streamId: string;
   latestFollower: { displayName: string; slug: string | null; followedAt: string } | null;
   recentTips: Array<{ tipperName: string; amountVb: number; createdAt: string }>;

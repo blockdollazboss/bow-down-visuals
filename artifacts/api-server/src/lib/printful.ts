@@ -46,7 +46,7 @@ export type FulfillmentStatus =
   | "canceled"
   | "failed";
 
-export interface FulfillmentOrder {
+interface FulfillmentOrder {
   providerOrderId: string;
   status: FulfillmentStatus;
   trackingNumber?: string;
@@ -211,7 +211,7 @@ export async function confirmPrintfulOrder(providerOrderId: string): Promise<voi
 }
 
 /** Live: fetch the current status of a provider order. */
-export async function getPrintfulOrder(providerOrderId: string): Promise<FulfillmentOrder> {
+async function getPrintfulOrder(providerOrderId: string): Promise<FulfillmentOrder> {
   const result = await printfulFetch<PrintfulApiOrder>(
     `/orders/${encodeURIComponent(providerOrderId)}`
   );

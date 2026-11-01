@@ -43,7 +43,7 @@ export interface TakenRange {
   endUtc: string;
 }
 
-export interface OpenSlot {
+interface OpenSlot {
   startUtc: string;
   endUtc: string;
 }
@@ -133,7 +133,7 @@ export function ymdInTimeZone(at: Date, tz: string): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-export function addDaysYmd(ymd: string, days: number): string {
+function addDaysYmd(ymd: string, days: number): string {
   const [y, mo, d] = ymd.split("-").map(Number);
   const dt = new Date(Date.UTC(y ?? 1970, (mo ?? 1) - 1, (d ?? 1) + days));
   return dt.toISOString().slice(0, 10);

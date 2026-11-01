@@ -110,7 +110,7 @@ export function isSocialBot(userAgent: string | undefined | null): boolean {
 
 /* ── Shareable routes ────────────────────────────────────────────────────── */
 
-export type ShareKind =
+type ShareKind =
   | "track"
   | "video"
   | "playlist"
@@ -150,7 +150,7 @@ export type ShareKind =
   | "unlock"
   | "challenge-winners";
 
-export interface ShareMatch {
+interface ShareMatch {
   kind: ShareKind;
   param: string;
 }
@@ -549,7 +549,7 @@ export interface PostCardSource {
   createdAt: Date | string;
 }
 
-export interface CardAuthor {
+interface CardAuthor {
   displayName: string;
   slug: string;
   avatarUrl: string | null;

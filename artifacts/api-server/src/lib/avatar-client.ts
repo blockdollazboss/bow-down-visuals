@@ -29,7 +29,7 @@
  * There is no script input — the script is spoken via the site's TTS rail.
  */
 
-export type AvatarProvider = "heygen" | "hedra";
+type AvatarProvider = "heygen" | "hedra";
 
 export function avatarProviderName(): AvatarProvider | null {
   const forced = (process.env["AVATAR_PROVIDER"] || "").toLowerCase();
@@ -83,7 +83,7 @@ function requireProvider(): AvatarProvider {
   return provider;
 }
 
-export interface AvatarCatalogEntry {
+interface AvatarCatalogEntry {
   id: string;
   name: string;
   /** Short descriptor shown in the picker. */
@@ -110,7 +110,7 @@ export const AVATAR_PLACEHOLDER_CATALOG: AvatarCatalogEntry[] = [
   { id: "avatar-creator-bold", name: "Creator — Bold", style: "High-energy hype presenter", providerAvatarId: null, imageUrl: null },
 ];
 
-export interface AvatarVideoRequest {
+interface AvatarVideoRequest {
   /** Catalog avatar id (see AVATAR_PLACEHOLDER_CATALOG). */
   avatarId: string;
   /** Spoken script for the talking head (plain text). */
@@ -137,7 +137,7 @@ export interface AvatarVideoRequest {
   idempotencyKey?: string;
 }
 
-export interface AvatarVideoResult {
+interface AvatarVideoResult {
   providerJobId: string;
   status: "queued" | "processing" | "done" | "failed";
   videoUrl?: string;
@@ -146,14 +146,14 @@ export interface AvatarVideoResult {
 
 /* ── Hedra v3 ─────────────────────────────────────────────────────── */
 
-export const HEDRA_API_BASE = "https://api.hedra.com/v3";
+const HEDRA_API_BASE = "https://api.hedra.com/v3";
 
 /** Character-3 start-image ceiling from the published model schema. */
 const HEDRA_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Character-3 driving-audio ceiling from the published model schema. */
 const HEDRA_MAX_AUDIO_BYTES = 100 * 1024 * 1024;
 
-export function hedraModelId(): string {
+function hedraModelId(): string {
   return process.env["HEDRA_AVATAR_MODEL"] || "hedra-character-3";
 }
 
@@ -169,7 +169,7 @@ function hedraHeaders(extra?: Record<string, string>): Record<string, string> {
   };
 }
 
-export interface HedraCharacter3Input {
+interface HedraCharacter3Input {
   start_image: { source: "url"; url: string };
   audio: { source: "url"; url: string };
   prompt: string;

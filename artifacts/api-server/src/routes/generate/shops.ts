@@ -596,7 +596,7 @@ function shopDiscountUsable(d: ShopDiscountRow): { ok: boolean; reason?: string 
 
 /** The storefront's discount step, verbatim: percent off the unit
     price, rounded to the cent. Line gross and fee derive from this. */
-export function discountedUnitCents(unitCents: number, percentOff: number): number {
+function discountedUnitCents(unitCents: number, percentOff: number): number {
   return Math.round((unitCents * (100 - percentOff)) / 100);
 }
 
@@ -638,7 +638,7 @@ function presentShopDiscount(c: ShopDiscountRow) {
    mean "no offer", so the rail behaves byte-identically until the
    migration lands, then lights up with no code change. */
 
-export interface ShopBumpOfferPayload {
+interface ShopBumpOfferPayload {
   productId: string;
   title: string;
   listPriceCents: number;
@@ -3060,9 +3060,9 @@ router.get("/storefronts/checkout/status", publicApiLimiter, async (req, res) =>
    honestly cash, never dressed up as a card sale, and deliberately
    NOT a shop_events sale row (those rows feed payout settlement for
    money the platform actually collected). */
-export const POS_CHANNEL_QR = "in_person_qr";
-export const POS_CASH_SOURCE = "in_person_cash";
-export const POS_GROUP_PREFIX = "pos_";
+const POS_CHANNEL_QR = "in_person_qr";
+const POS_CASH_SOURCE = "in_person_cash";
+const POS_GROUP_PREFIX = "pos_";
 
 const posItemsSchema = z.object({
   items: z.array(z.object({

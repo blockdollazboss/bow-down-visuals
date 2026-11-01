@@ -115,7 +115,7 @@ export class RoomHub {
   }
 }
 
-export interface WsUpgradeContext {
+interface WsUpgradeContext {
   req: IncomingMessage;
   socket: WebSocket;
   /** Path params from the registered pattern (e.g. { id }). */

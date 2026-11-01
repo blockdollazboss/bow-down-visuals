@@ -60,9 +60,9 @@ import { logger } from "./logger";
 import { emailButton, emailShell, EMAIL_COLORS, isEmailConfigured, sendEmail, type SendEmailResult } from "./email";
 import { getSupabaseAdmin } from "./supabase-admin";
 
-export const GROUP_DIGEST_KIND = "group_digest";
+const GROUP_DIGEST_KIND = "group_digest";
 
-export const GROUP_DIGEST_WINDOW_MS: Record<GroupDigestFrequency, number> = {
+const GROUP_DIGEST_WINDOW_MS: Record<GroupDigestFrequency, number> = {
   daily: 24 * 3600_000,
   weekly: 7 * 24 * 3600_000,
 };
@@ -73,7 +73,7 @@ export const GROUP_DIGEST_INTERVAL_MS = Math.max(
 );
 
 /** Safety cap on memberships scanned per pass (oldest joins first). */
-export const GROUP_DIGEST_BATCH = 1000;
+const GROUP_DIGEST_BATCH = 1000;
 
 /* ── Preferences ─────────────────────────────────────────────────────── */
 
@@ -89,9 +89,9 @@ export const DEFAULT_GROUP_DIGEST_PREFS: GroupDigestPrefsWire = {
   email_enabled: false,
 };
 
-export type GroupDigestPrefsPatch = Partial<GroupDigestPrefsWire>;
+type GroupDigestPrefsPatch = Partial<GroupDigestPrefsWire>;
 
-export function normalizeGroupDigestFrequency(v: unknown): GroupDigestFrequency {
+function normalizeGroupDigestFrequency(v: unknown): GroupDigestFrequency {
   return v === "daily" ? "daily" : "weekly";
 }
 
@@ -177,7 +177,7 @@ export async function setGroupDigestPrefs(
 
 /* ── Aggregation ─────────────────────────────────────────────────────── */
 
-export interface GroupActivityTopPost {
+interface GroupActivityTopPost {
   body: string;
   likeCount: number;
 }
@@ -296,7 +296,7 @@ async function countWhere(
   return rows[0]?.n ?? 0;
 }
 
-export const drizzleGroupDigestStore: GroupDigestStore = {
+const drizzleGroupDigestStore: GroupDigestStore = {
   async listMemberships() {
     const rows = await db
       .select({
@@ -414,7 +414,7 @@ export const drizzleGroupDigestStore: GroupDigestStore = {
 /** Resolve a member's email through Supabase Auth admin — the same
  *  lookup stripe-connect's getUserEmail performs. Null when unknown;
  *  a null address simply means the email channel stays silent. */
-export async function resolveGroupDigestEmail(userId: string): Promise<string | null> {
+async function resolveGroupDigestEmail(userId: string): Promise<string | null> {
   try {
     const admin = getSupabaseAdmin();
     const { data, error } = await admin.auth.admin.getUserById(userId);
@@ -448,7 +448,7 @@ ${emailButton(`${base}${escapeHtml(link)}`, "Open the group")}
 
 /* ── The sweep ───────────────────────────────────────────────────────── */
 
-export interface GroupDigestDeps {
+interface GroupDigestDeps {
   prefsStore?: GroupDigestPrefsStore;
   store?: GroupDigestStore;
   now?: Date;
@@ -462,7 +462,7 @@ export interface GroupDigestDeps {
   emailConfigured?: () => boolean;
 }
 
-export interface GroupDigestSummary {
+interface GroupDigestSummary {
   skipped: boolean;
   error: boolean;
   checked: number;

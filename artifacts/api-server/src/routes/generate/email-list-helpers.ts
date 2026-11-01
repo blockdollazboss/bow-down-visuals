@@ -42,7 +42,7 @@ export const NEWSLETTER_TONES = [
   "personal",
   "announcement",
 ] as const;
-export type NewsletterTone = (typeof NEWSLETTER_TONES)[number];
+type NewsletterTone = (typeof NEWSLETTER_TONES)[number];
 
 const TONE_DIRECTION: Record<NewsletterTone, string> = {
   "hype": "high-energy, confident, celebration mode — big news energy",
@@ -55,7 +55,7 @@ export function isNewsletterTone(t: unknown): t is NewsletterTone {
   return typeof t === "string" && (NEWSLETTER_TONES as readonly string[]).includes(t);
 }
 
-export interface NewsletterBrief {
+interface NewsletterBrief {
   topic: string;
   tone: NewsletterTone;
   creatorName: string;
@@ -85,7 +85,7 @@ export function buildNewsletterPrompt(brief: NewsletterBrief): string {
   );
 }
 
-export interface NewsletterDraft {
+interface NewsletterDraft {
   subject: string;
   body: string;
 }

@@ -18,7 +18,7 @@ export const LOYALTY_CHAT_MENU = [0, 1, 2, 5] as const; // points per chat messa
 export const LOYALTY_TIP_MENU = [0, 5, 10] as const; // points per 100 VB tipped
 export const LOYALTY_CUSTOM_COST_MENU = [500, 1000, 2500, 5000] as const;
 
-export interface LoyaltyPerk {
+interface LoyaltyPerk {
   kind: "shoutout" | "priority_chat" | "custom";
   label: string;
   cost: number;

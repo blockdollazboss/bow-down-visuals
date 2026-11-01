@@ -407,7 +407,7 @@ export function __setFollowEventNotifier(fn: FollowEventNotifier | null): void {
 }
 
 /** Best-effort: a ping failure never fails the follow that landed. */
-export async function notifyFollowed(opts: {
+async function notifyFollowed(opts: {
   ownerUserId: string;
   followerName: string | null;
   followerSlug: string | null;
@@ -456,7 +456,7 @@ export function __setPlaylistFollowEventNotifier(fn: PlaylistFollowEventNotifier
 }
 
 /** Best-effort: a ping failure never fails the follow that landed. */
-export async function notifyPlaylistFollowed(opts: {
+async function notifyPlaylistFollowed(opts: {
   ownerUserId: string;
   followerName: string | null;
   playlistTitle: string;
@@ -732,7 +732,7 @@ type VideoDto = ReturnType<typeof enrichVideo>;
 
 type ProfileRowFull = typeof creatorProfilesTable.$inferSelect;
 
-export function isProfilePin(
+function isProfilePin(
   profile: { pinnedKind: string | null; pinnedItemId: string | null },
   kind: "track" | "video",
   itemId: string,
@@ -743,7 +743,7 @@ export function isProfilePin(
 /** Compose a catalog list with the pinned row first. The pinned row
     replaces its natural slot (never duplicates); the caller caps the
     result, so a section's size doesn't grow because of the pin. */
-export function leadWithPinned<T extends { id: string }>(rows: T[], pinnedRow: T | null): T[] {
+function leadWithPinned<T extends { id: string }>(rows: T[], pinnedRow: T | null): T[] {
   if (!pinnedRow) return rows;
   return [pinnedRow, ...rows.filter((r) => r.id !== pinnedRow.id)];
 }
@@ -908,7 +908,7 @@ type PlaylistRow = typeof playlistsTable.$inferSelect;
    digital-store buyers (sales dashboard, earnings, /playlists/:id/buyers),
    never a platform-owned list. */
 
-export interface SeriesViewer {
+interface SeriesViewer {
   userId: string | null;
   profileId: string | null;
 }
@@ -925,11 +925,11 @@ async function seriesViewerFor(req: { userId?: string }): Promise<SeriesViewer> 
   return { userId, profileId: profile?.id ?? null };
 }
 
-export function isPaidSeriesRow(p: PlaylistRow): boolean {
+function isPaidSeriesRow(p: PlaylistRow): boolean {
   return p.kind === "series" && (p.priceCents ?? 0) > 0;
 }
 
-export type SeriesAccess = "free" | "owner" | "purchased" | "locked";
+type SeriesAccess = "free" | "owner" | "purchased" | "locked";
 
 /** Completed (never refunded) series purchases for one viewer, batched. */
 async function purchasedSeriesIds(userId: string | null, seriesIds: string[]): Promise<Set<string>> {
@@ -946,7 +946,7 @@ async function purchasedSeriesIds(userId: string | null, seriesIds: string[]): P
   return out;
 }
 
-export function seriesAccessFor(
+function seriesAccessFor(
   p: PlaylistRow, viewer: SeriesViewer, purchased: Set<string>,
 ): SeriesAccess {
   if (!isPaidSeriesRow(p)) return "free";
@@ -959,7 +959,7 @@ function seriesItemKey(kind: string, id: string): string {
   return `${kind}:${id}`;
 }
 
-export function isSeriesPreviewItem(
+function isSeriesPreviewItem(
   p: PlaylistRow, kind: string, id: string,
 ): boolean {
   return !!p.previewItem && p.previewItem.kind === kind && p.previewItem.id === id;
@@ -996,7 +996,7 @@ export function normalizeSeriesPrice(
  * viewer holds a completed purchase of one. Anything else is locked —
  * the first locking series is returned for the buy pointer.
  */
-export async function lockedSeriesByItem(
+async function lockedSeriesByItem(
   refs: Array<{ kind: MediaKind; id: string }>,
   viewer: SeriesViewer,
 ): Promise<Map<string, PlaylistRow>> {
@@ -2991,7 +2991,7 @@ router.get("/playlists/:id/buyers", requireAuth, async (req, res) => {
    (the store rail's own benchmarks); the only price ever charged is the
    one the creator types into the settings themselves. */
 
-export interface SeriesEpisodeDigest {
+interface SeriesEpisodeDigest {
   key: string;
   kind: "track" | "video";
   title: string;
@@ -3001,7 +3001,7 @@ export interface SeriesEpisodeDigest {
   description: string;
 }
 
-export function buildSeriesAssistPrompt(
+function buildSeriesAssistPrompt(
   series: { title: string; description: string },
   episodes: SeriesEpisodeDigest[],
 ): string {

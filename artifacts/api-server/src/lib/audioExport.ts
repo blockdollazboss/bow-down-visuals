@@ -63,7 +63,7 @@ export interface ExportStemInput {
 
 /* ── Stack 6: parametric FX + automation shapes (mirror of the frontend
  *    lib/arrangement.ts model). ─────────────────────────────────────── */
-export interface ExportFxBand {
+interface ExportFxBand {
   freq: number;
   gain: number;
   q: number;
@@ -83,7 +83,7 @@ export interface ExportFxStep {
   feedback?: number;
 }
 
-export interface ExportAutomationPoint {
+interface ExportAutomationPoint {
   /** Arrangement timeline seconds. */
   time: number;
   value: number;
@@ -114,7 +114,7 @@ export class AudioExportError extends Error {
 type StemRole = "lead" | "backing" | "adlib" | "beat" | "bass" | "drums" | "hats" | "melody" | "other";
 
 /** Mirror of the frontend classifyStem heuristic (editor-settings.ts). */
-export function classifyStemRole(type: string, name: string): StemRole {
+function classifyStemRole(type: string, name: string): StemRole {
   const t = `${type} ${name}`.toLowerCase();
   if (/ad[- ]?lib/.test(t)) return "adlib";
   if (/back|harmon|bgv/.test(t)) return "backing";
@@ -315,7 +315,7 @@ async function downloadStem(url: string, dest: string): Promise<void> {
   await writeFile(dest, Buffer.concat(chunks));
 }
 
-export interface MixResult {
+interface MixResult {
   buffer: Buffer;
   contentType: string;
   ext: "mp3" | "wav";
@@ -541,7 +541,7 @@ export function buildAutomationExpression(points: ExportAutomationPoint[]): stri
 }
 
 /** Shift timeline breakpoints to clip-local time for a clip at startTime. */
-export function shiftPoints(
+function shiftPoints(
   points: ExportAutomationPoint[] | undefined,
   startTime: number,
 ): ExportAutomationPoint[] {
@@ -571,11 +571,6 @@ export function buildVolumeAutomationFilter(
  * in `pending` and flush to a fresh label whenever a labelled step (or the
  * pan-automation channelsplit) needs one. */
 
-export interface StemGraphResult {
-  parts: string[];
-  outLabel: string;
-  autotuneSkipped: boolean;
-}
 
 const clampFx = (v: number | undefined, lo: number, hi: number, dflt: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;

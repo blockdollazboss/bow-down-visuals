@@ -113,7 +113,7 @@ async function probe(srcPath: string): Promise<Probe> {
  * Build a seamless loop from srcPath. Returns the output mp4 path inside workDir.
  * The caller owns workDir cleanup.
  */
-export async function makeSeamlessLoop(srcPath: string, workDir: string): Promise<{ outPath: string; frames: number; fps: number }> {
+async function makeSeamlessLoop(srcPath: string, workDir: string): Promise<{ outPath: string; frames: number; fps: number }> {
   const { frames: n, fps, hasAudio } = await probe(srcPath);
   const k = Math.min(4, n - 1);          // blended tail frames
   const headCount = n - k - 1;           // untouched head frames

@@ -58,7 +58,7 @@ interface FigureDef {
   label: string;
 }
 
-export const FIGURE_DEFS: Record<string, FigureDef[]> = {
+const FIGURE_DEFS: Record<string, FigureDef[]> = {
   instagram: [
     { field: "followers", key: "instagram.followers", label: "Instagram followers" },
     { field: "mediaCount", key: "instagram.posts", label: "Instagram posts" },
@@ -83,7 +83,7 @@ const PLATFORM_ORDER: Record<string, number> = { instagram: 0, facebook: 1, tikt
    The fetcher is injected (routes/social-proof.ts passes the analytics
    overviewForAccount) so this lib never imports a routes module; the
    structural types match analytics' AccountRow / PlatformOverview. */
-export interface ProofAccount {
+interface ProofAccount {
   id: string;
   platform: string;
   username: string | null;
@@ -94,7 +94,7 @@ export interface ProofAccount {
   token_expires_at: Date | null;
 }
 
-export interface ProofOverview {
+interface ProofOverview {
   status: string;
   stats: ProofStats | null;
   fetchedAt: string | null;
@@ -163,7 +163,7 @@ export function mergeFigures(
   return out;
 }
 
-export interface PublicProofFigure {
+interface PublicProofFigure {
   key: string;
   platform: string;
   label: string;
@@ -241,14 +241,14 @@ async function accountsForUser(userId: string): Promise<ProofAccount[]> {
     .where(eq(socialAccountsTable.user_id, userId));
 }
 
-export interface OwnerProofFigure extends SocialProofFigure {
+interface OwnerProofFigure extends SocialProofFigure {
   /** Creator's switch: false = hidden everywhere, for everyone. */
   visible: boolean;
   /** False once the source account is disconnected (figure retired). */
   connected: boolean;
 }
 
-export interface OwnerProofState {
+interface OwnerProofState {
   hasProfile: boolean;
   figures: OwnerProofFigure[];
   hiddenKeys: string[];
@@ -365,7 +365,7 @@ export async function refreshSocialProof(
    providers — one background refresh per creator at a time. */
 const refreshInFlight = new Set<string>();
 
-export function maybeRefreshSocialProof(
+function maybeRefreshSocialProof(
   userId: string,
   fetchOverview: ProofOverviewFetcher,
 ): void {

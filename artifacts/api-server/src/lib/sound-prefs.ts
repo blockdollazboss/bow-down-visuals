@@ -29,7 +29,7 @@ export const DEFAULT_SOUND_PREFS: SoundPrefsWire = {
   ringtone_enabled: true,
 };
 
-export type SoundPrefsPatch = Partial<SoundPrefsWire>;
+type SoundPrefsPatch = Partial<SoundPrefsWire>;
 
 /** Storage seam: the drizzle store in production, an in-memory store
  *  in tests — the read/merge/write rules live in the functions below

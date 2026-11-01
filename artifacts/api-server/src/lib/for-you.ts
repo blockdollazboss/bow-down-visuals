@@ -20,14 +20,14 @@
    sponsorships or spend, and none may be added without changing
    this comment and the "Why am I seeing this" copy together. */
 
-export type WhyReason =
+type WhyReason =
   | { kind: "following"; label: "Because you follow this creator" }
   | { kind: "affinity"; label: "Because you engage with this creator" }
   | { kind: "chart"; label: "Popular right now" }
   | { kind: "own"; label: "Your post" }
   | { kind: "fresh"; label: "Fresh post" };
 
-export interface RankSignals {
+interface RankSignals {
   isFollowed: boolean;
   isOwn: boolean;
   /** Weighted affinity count for (viewer, this post's creator). */

@@ -38,7 +38,7 @@ export const tmpUploadStorage = multer.diskStorage({
    512 MB instance) and stay for everyone. */
 export const ADMIN_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024; // 1 GB
 
-export interface AdminAwareUpload {
+interface AdminAwareUpload {
   single(field: string): RequestHandler;
   array(field: string, maxCount?: number): RequestHandler;
   fields(fields: multer.Field[]): RequestHandler;

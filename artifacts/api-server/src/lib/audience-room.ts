@@ -12,7 +12,7 @@
      location anywhere, so the room says so (unavailable + reason)
      instead of estimating an audience map it cannot prove. */
 
-export const PLAY_SOURCES = [
+const PLAY_SOURCES = [
   "profile",
   "feed",
   "charts",
@@ -23,7 +23,7 @@ export const PLAY_SOURCES = [
   "direct",
   "other",
 ] as const;
-export type PlaySource = (typeof PLAY_SOURCES)[number];
+type PlaySource = (typeof PLAY_SOURCES)[number];
 
 /* A client-declared source: known values pass through, anything else a
    surface invents collapses to "other" (still a declared source, just
@@ -66,13 +66,13 @@ export function hourLabel(hour: number): string {
   return `${pad(hour)}:00–${pad((hour + 1) % 24)}:00 UTC`;
 }
 
-export interface SourceSlice {
+interface SourceSlice {
   source: PlaySource;
   plays: number;
   pct: number; // of TRACKED plays
 }
 
-export interface AudienceRoomSummary {
+interface AudienceRoomSummary {
   totalPlays: number;
   trackedPlays: number;
   untrackedPlays: number;

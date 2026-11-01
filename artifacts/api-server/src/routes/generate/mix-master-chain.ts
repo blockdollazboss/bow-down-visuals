@@ -42,7 +42,7 @@ export type StemType =
   | "beat"
   | "other";
 
-export interface LoudnessTargetDef {
+interface LoudnessTargetDef {
   key: MixMasterLoudness;
   label: string;
   blurb: string;
@@ -78,7 +78,7 @@ export const LOUDNESS_TARGETS: Record<MixMasterLoudness, LoudnessTargetDef> = {
   },
 };
 
-export interface GenrePresetDef {
+interface GenrePresetDef {
   key: MixMasterGenre;
   label: string;
   blurb: string;
@@ -302,7 +302,7 @@ export const GENRE_PRESETS: Record<MixMasterGenre, GenrePresetDef> = {
 };
 
 /** Intensity scaling factor applied to EQ gains, makeup gain and (ratio − 1). */
-export const INTENSITY_SCALE: Record<MixMasterIntensity, number> = {
+const INTENSITY_SCALE: Record<MixMasterIntensity, number> = {
   subtle: 0.65,
   balanced: 1.0,
   aggressive: 1.4,
@@ -371,7 +371,7 @@ export function buildMasterPreChain(genreKey: MixMasterGenre, intensity: MixMast
  * compression (vocals/drums) → small-room space (vocals) →
  * gain staging (+ user vocal level) → genre panning.
  */
-export function buildStemChain(
+function buildStemChain(
   stemType: StemType,
   genreKey: MixMasterGenre,
   intensity: MixMasterIntensity,

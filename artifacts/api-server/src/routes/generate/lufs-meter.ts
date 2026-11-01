@@ -34,7 +34,7 @@ const ANALYZE_TIMEOUT_MS = 300_000;
 const NORMALIZE_TIMEOUT_MS = 600_000;
 
 const TARGETS = [-16, -14, -11, -8] as const;
-export type LufsTarget = (typeof TARGETS)[number];
+type LufsTarget = (typeof TARGETS)[number];
 const DEFAULT_TARGET: LufsTarget = -14;
 
 const TARGET_LABELS: Record<number, string> = {
@@ -70,7 +70,7 @@ export interface LoudnessSummary {
   threshold: number | null;
 }
 
-export interface LoudnormMeasured {
+interface LoudnormMeasured {
   I: string;
   TP: string;
   LRA: string;
@@ -138,7 +138,7 @@ export interface Ebur128Stats {
  * momentary (400 ms window) and short-term (3 s window) statistics.
  * Lines look like: "t: 1.2\tM: -23.1 S: -21.4     I: -70.0 LUFS".
  */
-export function parseEbur128Framelog(stderr: string, maxSamples = 200_000): Ebur128Stats {
+function parseEbur128Framelog(stderr: string, maxSamples = 200_000): Ebur128Stats {
   let mMax = -Infinity, mSum = 0, mCount = 0;
   let sMax = -Infinity, sSum = 0, sCount = 0;
   const re = /M:\s*(-?[\d.]+)\s+S:\s*(-?[\d.]+)/g;
@@ -168,7 +168,7 @@ export function parseEbur128Framelog(stderr: string, maxSamples = 200_000): Ebur
   };
 }
 
-export interface LoudnessAnalysis {
+interface LoudnessAnalysis {
   summary: LoudnessSummary;
   ebur128: Ebur128Stats;
   durationSec: number | null;
@@ -202,7 +202,7 @@ async function runLoudnormMeasure(inputPath: string, targetI: number): Promise<s
  * (integrated LUFS / LRA / true peak) plus ebur128 momentary and
  * short-term statistics. Exported for tests.
  */
-export async function runLoudnessAnalysis(
+async function runLoudnessAnalysis(
   inputPath: string,
   targetI: number = DEFAULT_TARGET,
 ): Promise<LoudnessAnalysis> {
@@ -228,7 +228,7 @@ export async function runLoudnessAnalysis(
 }
 
 /** Build the two-pass loudnorm correction filter from measured values. */
-export function buildLoudnormPass2Filter(targetI: number, measured: LoudnormMeasured): string {
+function buildLoudnormPass2Filter(targetI: number, measured: LoudnormMeasured): string {
   return (
     `loudnorm=I=${targetI}:TP=${NORM_TP}:LRA=${NORM_LRA}` +
     `:measured_I=${measured.I}:measured_TP=${measured.TP}:measured_LRA=${measured.LRA}` +
@@ -236,7 +236,7 @@ export function buildLoudnormPass2Filter(targetI: number, measured: LoudnormMeas
   );
 }
 
-export function buildNormalizeOutputArgs(
+function buildNormalizeOutputArgs(
   inputPath: string,
   filter: string,
   outputPath: string,
@@ -253,7 +253,7 @@ export function buildNormalizeOutputArgs(
 
 export type LufsJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface LufsNormalizeJob {
+interface LufsNormalizeJob {
   id: string;
   userId: string;
   status: LufsJobStatus;
@@ -272,17 +272,11 @@ export interface LufsNormalizeJob {
 const jobs = new Map<string, LufsNormalizeJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getLufsNormalizeJob(id: string): LufsNormalizeJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
-export function __clearLufsNormalizeJobs(): void {
-  jobs.clear();
-}
 
 /** Exported for tests. */
-export async function runLufsNormalizeJob(
+async function runLufsNormalizeJob(
   job: LufsNormalizeJob,
   uploadedPath: string,
   originalName: string,

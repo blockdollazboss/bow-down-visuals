@@ -108,7 +108,7 @@ export const beatLicenseTemplateSchema = z.object({
   termsNote: z.string().trim().max(2000).nullable().optional(),
 });
 
-export type BeatLicenseTemplateInput = z.infer<typeof beatLicenseTemplateSchema>;
+type BeatLicenseTemplateInput = z.infer<typeof beatLicenseTemplateSchema>;
 
 /** Patch payload: every field optional and NO defaults — an omitted
     field must leave the stored value untouched, never reset it. */
@@ -128,7 +128,6 @@ export const beatLicenseTemplatePatchSchema = z.object({
   termsNote: z.string().trim().max(2000).nullable().optional(),
 });
 
-export type BeatLicenseTemplatePatch = z.infer<typeof beatLicenseTemplatePatchSchema>;
 
 /** Normalize a validated template payload into the terms shape that is
     stored on the template row and snapshotted onto licenses at sale. */
@@ -192,7 +191,6 @@ export const beatMetadataSchema = z.object({
   exclusivePriceCents: z.number().int().min(0).max(100_000_00).default(49999),
 });
 
-export type BeatMetadata = z.infer<typeof beatMetadataSchema>;
 
 export const beatFiltersSchema = z.object({
   genre: z.string().trim().max(40).optional(),

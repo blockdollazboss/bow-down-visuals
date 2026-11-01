@@ -27,7 +27,7 @@ import { camelotFor } from "./track-analysis";
 
 /* ── Key parsing ──────────────────────────────────────────────────────── */
 
-export interface ParsedKey {
+interface ParsedKey {
   /** Pitch class 0–11 (0 = C). */
   root: number;
   mode: "major" | "minor";
@@ -113,7 +113,7 @@ function norm(s: string): string {
   return s.trim().toLowerCase();
 }
 
-export interface FitScore {
+interface FitScore {
   /** 0–100 total. */
   score: number;
   keyPoints: number;
@@ -183,7 +183,7 @@ export function scoreFit(source: FitProfile, candidate: FitProfile): FitScore | 
 
 /* ── Layer roles (metadata-derived, labelled as such) ─────────────────── */
 
-export type StackRole = "drums" | "bass" | "melodic" | "full";
+type StackRole = "drums" | "bass" | "melodic" | "full";
 
 const ROLE_KEYWORDS: Array<{ role: Exclude<StackRole, "full">; terms: string[] }> = [
   { role: "bass", terms: ["bass", "808", "sub bass", "subbass", "reese"] },
@@ -191,7 +191,7 @@ const ROLE_KEYWORDS: Array<{ role: Exclude<StackRole, "full">; terms: string[] }
   { role: "melodic", terms: ["melod", "piano", "keys", "synth", "pluck", "guitar", "chord", "arp", "lead", "loop"] },
 ];
 
-export interface RoleGuess {
+interface RoleGuess {
   role: StackRole;
   /** The listing word that produced the role, or null for "full". The UI
    *  labels roles as read from the listing's own title/tags — never as
@@ -223,7 +223,7 @@ export interface FitCandidate extends FitProfile {
   basicPriceCents: number | null;
 }
 
-export interface RankedFit extends FitCandidate {
+interface RankedFit extends FitCandidate {
   fit: FitScore;
   role: RoleGuess;
 }
@@ -245,22 +245,22 @@ export function rankFits(source: FitProfile, candidates: FitCandidate[], limit =
 
 /** Two sounds mutually fit when their keys are a smooth Camelot move
  *  (distance ≤ 1) and their tempos sit within 8 BPM (half/double aware). */
-export function mutuallyFit(a: FitProfile, b: FitProfile): boolean {
+function mutuallyFit(a: FitProfile, b: FitProfile): boolean {
   if (!isAnalysed(a) || !isAnalysed(b)) return false;
   return camelotDistance(a.camelot!, b.camelot!) <= 1 && bpmDistance(a.bpm!, b.bpm!) <= 8;
 }
 
-export interface StackSlot {
+interface StackSlot {
   role: StackRole;
   item: RankedFit;
 }
 
-export interface MissingSlot {
+interface MissingSlot {
   role: StackRole;
   reason: string;
 }
 
-export interface StarterStack {
+interface StarterStack {
   slots: StackSlot[];
   missing: MissingSlot[];
   /** Sample-pack generation parameters that would fill the missing

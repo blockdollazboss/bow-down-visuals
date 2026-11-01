@@ -89,7 +89,7 @@ export function __setSongRequestEventNotifier(fn: SongRequestEventNotifier | nul
 
 const MAX_LIVE_MS = 12 * 60 * 60 * 1000; // matches live-chat / live-streams lifecycle cap
 
-export type SongRequestStatus = "queued" | "playing" | "played" | "skipped" | "expired";
+type SongRequestStatus = "queued" | "playing" | "played" | "skipped" | "expired";
 
 export interface CreatorRequestRules {
   requestsOpen: boolean;
@@ -179,12 +179,12 @@ export async function getCreatorCatalog(creatorUserId: string): Promise<Song[]> 
   return rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-export async function getSongById(songId: string): Promise<Song | null> {
+async function getSongById(songId: string): Promise<Song | null> {
   const rows = await db.select().from(songsTable).where(eq(songsTable.id, songId)).limit(1);
   return rows[0] ?? null;
 }
 
-export type RuleCheck = { ok: true } | { ok: false; code: string; error: string };
+type RuleCheck = { ok: true } | { ok: false; code: string; error: string };
 
 /** Pure rule gate — every decline that can be known BEFORE money moves
  *  is decided here, so a rule-declined request is refused at submission
@@ -292,7 +292,7 @@ export async function listQueue(streamId: string): Promise<SongRequestDto[]> {
   return out;
 }
 
-export type ServiceFailure = { ok: false; status: number; code: string; error: string };
+type ServiceFailure = { ok: false; status: number; code: string; error: string };
 function fail(status: number, code: string, error: string): ServiceFailure {
   return { ok: false, status, code, error };
 }
@@ -513,7 +513,7 @@ async function creditCreatorForPlay(row: SongRequest): Promise<boolean> {
  *  update first, so concurrent/repeat calls after the claim are
  *  no-ops; a failed refund releases the claim so a later call can
  *  retry. The fan's bell is best-effort. */
-export async function refundRequestIfNeeded(row: SongRequest, reason: "skipped" | "expired"): Promise<boolean> {
+async function refundRequestIfNeeded(row: SongRequest, reason: "skipped" | "expired"): Promise<boolean> {
   if (row.refunded_at || row.creator_credited_at) return !!row.refunded_at;
   const claimed = await db
     .update(songRequestsTable)
@@ -542,7 +542,7 @@ export async function refundRequestIfNeeded(row: SongRequest, reason: "skipped" 
   return true;
 }
 
-export interface PlayNextResult {
+interface PlayNextResult {
   ok: true;
   /** The request that finished (was playing), if any. */
   finished: SongRequestDto | null;

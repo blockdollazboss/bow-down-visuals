@@ -18,7 +18,7 @@ export const JEWELRY_CONSULT_CREDIT_COST = 100;
 
 /* ─── Piece types ─────────────────────────────────────────────────────── */
 
-export type JewelryPieceKey =
+type JewelryPieceKey =
   | "diamond-pendant"
   | "gold-pendant"
   | "ring"
@@ -86,7 +86,7 @@ export function isJewelryPieceKey(v: string): v is JewelryPieceKey {
 
 /* ─── Metals ────────────────────────────────────────────────────────────── */
 
-export type MetalKey =
+type MetalKey =
   | "yellow-14k"
   | "yellow-18k"
   | "white-14k"
@@ -119,7 +119,7 @@ export function isMetalKey(v: string): v is MetalKey {
 
 /* ─── Stones ────────────────────────────────────────────────────────────── */
 
-export type StoneKey = "diamond" | "moissanite" | "cz" | "none";
+type StoneKey = "diamond" | "moissanite" | "cz" | "none";
 
 export const JEWELRY_STONES: Record<
   StoneKey,
@@ -141,7 +141,7 @@ export function isStoneKey(v: string): v is StoneKey {
 
 /* ─── Styles ────────────────────────────────────────────────────────────── */
 
-export type JewelryStyleKey = "iced-out" | "minimal" | "vintage";
+type JewelryStyleKey = "iced-out" | "minimal" | "vintage";
 
 export const JEWELRY_STYLES: Record<JewelryStyleKey, { label: string; blurb: string }> = {
   "iced-out": { label: "Iced-Out", blurb: "Fully flooded with pavé stones" },
@@ -315,7 +315,7 @@ function round10(n: number): number {
    Full clothing line sharing the same logo upload → AI preview flow.
    Category "apparel" on the design endpoint. */
 
-export type ApparelProductKey =
+type ApparelProductKey =
   | "t-shirt"
   | "hoodie"
   | "jacket"
@@ -345,7 +345,7 @@ export function isApparelProductKey(v: string): v is ApparelProductKey {
   return v in APPAREL_PRODUCTS;
 }
 
-export type DecoMethodKey = "print" | "embroidery";
+type DecoMethodKey = "print" | "embroidery";
 
 export const DECO_METHODS: Record<DecoMethodKey, { label: string; blurb: string }> = {
   print: { label: "Print", blurb: "Screen print / DTG — bold graphics" },

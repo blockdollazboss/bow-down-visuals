@@ -212,7 +212,7 @@ export function promoCardBrandSnapshot(kit: StoredBrandKit | null): PromoCardBra
 /** Read the caller's kit and snapshot it. Best-effort by design: a
  *  failed read is "no kit" (the pre-kit behavior), never a failed
  *  generation — the same contract the UGC lane runs. */
-export async function readPromoCardBrandSnapshot(userId: string): Promise<PromoCardBrandSnapshot | null> {
+async function readPromoCardBrandSnapshot(userId: string): Promise<PromoCardBrandSnapshot | null> {
   try {
     return promoCardBrandSnapshot(await readBrandKit(userId));
   } catch {
@@ -321,7 +321,7 @@ const execFileAsync = promisify(execFile);
    decides (generation has already been paid for and produced real
    cards, so the POST logs and continues with id-less cards rather
    than failing a finished pack). */
-export interface PromoCardPackCard {
+interface PromoCardPackCard {
   style: string;
   size: string;
   storageRef: string;

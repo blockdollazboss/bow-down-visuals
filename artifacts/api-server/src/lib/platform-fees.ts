@@ -163,13 +163,13 @@ export const TIER_AI_BOOSTS: Record<CreatorTier, number> = {
    Prices APPROVED 2026-10-07, charged in real USD via
    Stripe subscriptions (TEST mode only until launch). */
 
-export interface TierFeature {
+interface TierFeature {
   label: string;
   /** Where "learn more" links: a real page, or an in-page anchor on /creator-pricing. */
   detailsUrl: string;
 }
 
-export interface TierPlanDef {
+interface TierPlanDef {
   tier: CreatorTier;
   name: string;
   tagline: string;
@@ -278,7 +278,7 @@ export function monthlySavingsUsd(tier: Exclude<CreatorTier, "free">, salesUsdPe
    until that id is configured the plan displays its ruled price but
    checkout honestly refuses rather than faking a charge. */
 
-export interface HostingPlanDef {
+interface HostingPlanDef {
   name: string;
   tagline: string;
   /** Env var holding the Stripe TEST price id. */

@@ -8,7 +8,7 @@ import { z } from "zod";
    Nothing is ever faked — every file is really rendered. */
 
 export const SAMPLE_PACK_SIZES = [10, 25, 50] as const;
-export type SamplePackSize = (typeof SAMPLE_PACK_SIZES)[number];
+type SamplePackSize = (typeof SAMPLE_PACK_SIZES)[number];
 
 export const SAMPLE_PACK_10_CREDITS = 500;
 export const SAMPLE_PACK_25_CREDITS = 1200;
@@ -45,7 +45,7 @@ export type SampleTypeKey = (typeof SAMPLE_TYPE_KEYS)[number];
 /** How the sample is produced — shown honestly in the UI. */
 export type SampleOrigin = "synthesized" | "ai-generated";
 
-export interface SampleTypeInfo {
+interface SampleTypeInfo {
   key: SampleTypeKey;
   label: string;
   origin: SampleOrigin;
@@ -84,7 +84,7 @@ export const SAMPLE_GENRES = [
   "lofi",
   "pop",
 ] as const;
-export type SampleGenre = (typeof SAMPLE_GENRES)[number];
+type SampleGenre = (typeof SAMPLE_GENRES)[number];
 
 export function isSampleGenre(g: unknown): g is SampleGenre {
   return typeof g === "string" && (SAMPLE_GENRES as readonly string[]).includes(g);
@@ -94,7 +94,7 @@ export const MUSICAL_KEYS = [
   "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 ] as const;
 
-export function isMusicalKey(k: unknown): k is string {
+function isMusicalKey(k: unknown): k is string {
   return typeof k === "string" && (MUSICAL_KEYS as readonly string[]).includes(k);
 }
 
@@ -109,7 +109,6 @@ export const generatePackSchema = z.object({
   types: z.array(z.string().refine(isSampleTypeKey, "Unknown sample type")).min(1).max(11).optional(),
 });
 
-export type GeneratePackInput = z.infer<typeof generatePackSchema>;
 
 /* ─── Pack composition ────────────────────────────────────────────────────
    Distribute packSize samples across the requested types. Melodies and bass
@@ -161,7 +160,7 @@ export function planPackComposition(
    Each returns { args, durationSec, fileName }. All render 44.1kHz mono WAV.
    These are real synthesized sounds — the UI labels them "Synthesized". */
 
-export interface SynthRecipe {
+interface SynthRecipe {
   args: string[];
   durationSec: number;
 }

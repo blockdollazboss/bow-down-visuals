@@ -32,7 +32,7 @@ const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? process.env["VITE_
 // Creates a Supabase client with the user's session active — mirrors exactly
 // how the frontend SDK operates after signIn, which is required for the
 // sb_publishable_* key format to reach PostgREST correctly.
-export async function createSessionSupabase(accessToken: string): Promise<SupabaseClient> {
+async function createSessionSupabase(accessToken: string): Promise<SupabaseClient> {
   // Use the verified browser JWT as the Authorization header for PostgREST.
   // Do not call auth.setSession() here: the API only receives an access token,
   // not a real refresh token, and fake refresh tokens can cause random auth

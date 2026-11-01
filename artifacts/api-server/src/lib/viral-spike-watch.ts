@@ -178,7 +178,7 @@ export function spikeNotification(row: SpikeWindowRow, ev: SpikeEvaluation): {
   return { kind: "viral_spike", title, body, link: `/artist/${row.slug}` };
 }
 
-export interface SpikeWatchSummary {
+interface SpikeWatchSummary {
   skipped: boolean;
   error: boolean;
   checked: number;

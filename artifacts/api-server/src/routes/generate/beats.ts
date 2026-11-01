@@ -129,7 +129,7 @@ export function toTemplateJson(row: BeatLicenseTemplateRow) {
   };
 }
 
-export function termsFromTemplateRow(row: BeatLicenseTemplateRow): BeatLicenseTerms {
+function termsFromTemplateRow(row: BeatLicenseTemplateRow): BeatLicenseTerms {
   return {
     name: row.name,
     format: (BEAT_LICENSE_FORMATS as readonly string[]).includes(row.format)
@@ -761,7 +761,7 @@ router.delete("/beats/:id", requireAuth, async (req, res) => {
 
 type BeatLicenseRow = typeof beatLicensesTable.$inferSelect;
 
-export function toLicenseJson(l: BeatLicenseRow) {
+function toLicenseJson(l: BeatLicenseRow) {
   return {
     id: l.id,
     beatId: l.beat_id,
@@ -789,7 +789,7 @@ export function toLicenseJson(l: BeatLicenseRow) {
    decides, so a later template edit can neither grant nor revoke
    stems on a sold license. A beat with no stems on file delivers
    null: the slot exists; filling it is the producer's move (PATCH). */
-export function licenseStemsUrl(
+function licenseStemsUrl(
   terms: BeatLicenseTerms | null | undefined,
   presented: { stems_url?: string | null },
 ): string | null {

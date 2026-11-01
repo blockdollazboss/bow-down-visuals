@@ -35,7 +35,6 @@ export const sponsorReadSchema = z.object({
     .max(10, "Keep it to 10 talking points or fewer."),
 });
 
-export type SponsorReadRequest = z.infer<typeof sponsorReadSchema>;
 
 export interface SponsorRead {
   script: string;

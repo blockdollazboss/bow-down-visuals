@@ -74,7 +74,7 @@ export const WORDS_PER_MINUTE = 150;
 export const MAX_SCRIPT_CHARS = 36_000;
 
 /** Max characters per ElevenLabs TTS request (chunked at sentence bounds). */
-export const TTS_CHUNK_CHARS = 2_000;
+const TTS_CHUNK_CHARS = 2_000;
 
 /** ElevenLabs TTS model (env-overridable). */
 function ttsModel(): string {
@@ -137,7 +137,7 @@ export type PodcastMode = z.infer<typeof generateSchema>["mode"];
 
 /* ── Script parsing: segments + chapters ─────────────────────────────── */
 
-export interface ScriptSegment {
+interface ScriptSegment {
   speaker: "host" | "cohost";
   text: string;
 }
@@ -345,7 +345,7 @@ export async function assembleEpisode(
 }
 
 /** Extract the audio track from a video file/URL to MP3. */
-export async function extractAudioFromVideo(
+async function extractAudioFromVideo(
   videoPath: string,
   outPath: string,
   attribution = false,
@@ -396,7 +396,7 @@ async function downloadToFile(url: string, outPath: string): Promise<void> {
 
 /* ── Topic mode: GPT-6 writes the episode script ─────────────────────── */
 
-export async function writeScriptFromTopic(topic: string): Promise<string> {
+async function writeScriptFromTopic(topic: string): Promise<string> {
   const completion = await getOpenAI().chat.completions.create({
     model: getTextModel(),
     messages: [
@@ -432,7 +432,7 @@ function escapeXml(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-export interface RssEpisode {
+interface RssEpisode {
   title: string;
   description: string;
   audioUrl: string;

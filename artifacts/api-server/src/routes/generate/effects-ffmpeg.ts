@@ -153,21 +153,21 @@ export function cssToFfmpegChain(combinedCss: string): string {
  * the burned export actually looks like the master player (the generic sepia→eq
  * translation washed Luxury Gold out and the merged-eq path zeroed saturation
  * whenever Black & White was also active). */
-export const BW_NAME = "Black & White";
-export const LUXURY_GOLD_NAME = "Luxury Gold";
-export const FILM_GRAIN_NAME = "Film Grain";
+const BW_NAME = "Black & White";
+const LUXURY_GOLD_NAME = "Luxury Gold";
+const FILM_GRAIN_NAME = "Film Grain";
 
 /** Pure desaturation — export-safe Black & White. */
-export const BW_FFMPEG = "eq=saturation=0.0";
+const BW_FFMPEG = "eq=saturation=0.0";
 
 /** Real warm cinematic gold grade: warm balance, reduced blue/cool tones,
  *  increased contrast, gold highlights, cinematic saturation. */
-export const LUXURY_GOLD_FFMPEG =
+const LUXURY_GOLD_FFMPEG =
   "colorbalance=rs=0.06:gs=0.03:bs=-0.06:rm=0.08:gm=0.04:bm=-0.08:rh=0.12:gh=0.07:bh=-0.14,eq=contrast=1.12:saturation=1.30:brightness=0.02";
 
 /** Black & White + Luxury Gold "blend both": gold-tinted monochrome so BOTH
  *  effects are visibly present (low saturation + strong warm gold cast). */
-export const BW_GOLD_BLEND_FFMPEG =
+const BW_GOLD_BLEND_FFMPEG =
   "eq=saturation=0.18,colorbalance=rm=0.10:gm=0.05:bm=-0.10:rh=0.16:gh=0.08:bh=-0.16,eq=contrast=1.12:brightness=0.02";
 
 /** Real animated film grain — the old CSS-path translation ("contrast 108% /
@@ -178,14 +178,14 @@ export const FILM_GRAIN_FFMPEG =
 
 /** Heavier animated film grain — the "Film Grain+" preset's true burn:
  *  double the temporal noise of Film Grain with a touch more contrast. */
-export const FILM_GRAIN_PLUS_NAME = "Film Grain+";
-export const FILM_GRAIN_PLUS_FFMPEG =
+const FILM_GRAIN_PLUS_NAME = "Film Grain+";
+const FILM_GRAIN_PLUS_FFMPEG =
   "noise=alls=14:allf=t,eq=contrast=1.10:brightness=-0.02";
 
 /** True chromatic aberration — the CSS preview is only a color hint, so the
  *  burn applies a real RGB channel split (red/blue shifted ±5px). */
-export const CA_NAME = "Chromatic Aberration";
-export const TRUE_CA_FFMPEG =
+const CA_NAME = "Chromatic Aberration";
+const TRUE_CA_FFMPEG =
   "eq=saturation=1.20:contrast=1.08,rgbashift=rh=5:gh=0:bh=-5";
 
 /* ── True Cinematic FX (CapCut parity) ───────────────────────────────────────
@@ -215,12 +215,12 @@ export const TRUE_CAMERA_SHAKE_FFMPEG =
 export const TRUE_VHS_FFMPEG =
   "eq=saturation=0.8:contrast=1.12:brightness=-0.04,hue=h=8,rgbashift=rh=3:gh=0:bh=-3,noise=alls=9:allf=t";
 
-export const VHS_NAME = "VHS";
-export const CINEMATIC_BARS_NAME = "Cinematic Bars";
-export const CAMERA_SHAKE_NAME = "Camera Shake";
+const VHS_NAME = "VHS";
+const CINEMATIC_BARS_NAME = "Cinematic Bars";
+const CAMERA_SHAKE_NAME = "Camera Shake";
 
 /** Effects treated as color grades (vs. plain filters) for the comparison panel. */
-export const COLOR_GRADE_NAMES = new Set<string>([
+const COLOR_GRADE_NAMES = new Set<string>([
   "Warm Grade",
   "Cool Grade",
   "Teal & Orange",
@@ -233,9 +233,9 @@ export const COLOR_GRADE_NAMES = new Set<string>([
   BW_NAME,
 ]);
 
-export type EffectConflictMode = "bw-only" | "gold-only" | "blend";
+type EffectConflictMode = "bw-only" | "gold-only" | "blend";
 
-export interface ExportEffectEntry {
+interface ExportEffectEntry {
   name: string;
   type: "color-grade" | "filter";
   scope: "global";
@@ -249,7 +249,7 @@ export interface ExportEffectEntry {
   ffmpeg: string;
 }
 
-export interface EffectStackResult {
+interface EffectStackResult {
   filter: string;
   stack: ExportEffectEntry[];
   supported: string[];

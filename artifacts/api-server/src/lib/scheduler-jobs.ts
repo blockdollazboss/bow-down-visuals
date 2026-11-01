@@ -70,7 +70,7 @@ import { captionWithDisclosure, disclosureChannelFor } from "./publish-provenanc
  * result instead of posting twice.
  */
 
-export const SCHEDULER_CLAIM_LIMIT = 10;
+const SCHEDULER_CLAIM_LIMIT = 10;
 export const SCHEDULER_MAX_ATTEMPTS = 3;
 const TIKTOK_MAX_BYTES = 256 * 1024 * 1024;
 
@@ -81,7 +81,7 @@ const TIKTOK_MAX_BYTES = 256 * 1024 * 1024;
  *  the first attempt instead of riding the generic retry path until
  *  attempts exhaust. Transient provider failures are never classified
  *  this way and keep the existing retry behavior. */
-export class PermanentPlatformError extends Error {}
+class PermanentPlatformError extends Error {}
 
 function tiktokConfig(): TikTokOAuthConfig {
   const clientKey = (process.env.TIKTOK_CLIENT_KEY || "").trim();
@@ -110,7 +110,7 @@ function xConfig(): XOAuthConfig {
 /* ── Dependency injection seams (tests stub these; production uses the
       real provider helpers). Mirrors the __testHooks pattern in job-poller. */
 
-export interface SchedulerPublishers {
+interface SchedulerPublishers {
   instagram: (input: {
     igUserId: string;
     accessToken: string;
@@ -149,7 +149,7 @@ export interface SchedulerPublishers {
   }) => Promise<{ tweetId: string; permalink: string }>;
 }
 
-export interface LoadedAccount {
+interface LoadedAccount {
   accessToken: string;
   igUserId: string | null;
   pageId: string | null;

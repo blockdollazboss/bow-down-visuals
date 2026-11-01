@@ -110,16 +110,10 @@ export function escrowLedgerKey(orderId: string, kind: "hold" | "release" | "ref
 export function holdChargeKey(orderId: string): string {
   return escrowLedgerKey(orderId, "hold");
 }
-export function releaseCreditKey(orderId: string): string {
-  return escrowLedgerKey(orderId, "release");
-}
-export function refundCreditKey(orderId: string): string {
-  return escrowLedgerKey(orderId, "refund");
-}
 
 /* ── Order shape the machine reasons about ─────────────────────────────── */
 
-export interface FeatureVerseOrderLike {
+interface FeatureVerseOrderLike {
   status: string;
   escrowStatus: string;
   buyerSignedAt: string | Date | null;
@@ -176,7 +170,7 @@ export function signByFrom(now: Date = new Date()): Date {
 
 /* ── Lifecycle labels (plain words, shown to both parties) ─────────────── */
 
-export const FEATURE_VERSE_STATUS_LABELS: Record<string, string> = {
+const FEATURE_VERSE_STATUS_LABELS: Record<string, string> = {
   terms_proposed: "Terms proposed — waiting for both signatures",
   signed: "Both signed — waiting for the buyer to fund escrow",
   escrow_held: "Fee held in escrow — the feature can be recorded and delivered",
@@ -192,7 +186,7 @@ export function featureVerseStatusLabel(status: string): string {
   return FEATURE_VERSE_STATUS_LABELS[status] ?? status;
 }
 
-export const FEATURE_VERSE_ESCROW_LABELS: Record<string, string> = {
+const FEATURE_VERSE_ESCROW_LABELS: Record<string, string> = {
   none: "No fee held",
   held: "Fee held in escrow",
   released: "Escrow released to the creator",

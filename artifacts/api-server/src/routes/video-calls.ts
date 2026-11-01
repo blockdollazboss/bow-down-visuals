@@ -89,7 +89,7 @@ function isParticipant(conv: Conversation, userId: string): boolean {
   return conv.participantA === userId || conv.participantB === userId;
 }
 
-export function toCallEntry(row: VideoCall): CallHistoryEntry {
+function toCallEntry(row: VideoCall): CallHistoryEntry {
   return {
     id: row.id,
     conversationId: row.conversationId,

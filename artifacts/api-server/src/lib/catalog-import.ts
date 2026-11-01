@@ -82,9 +82,9 @@ const notFound = () => new CatalogImportError(404, "NOT_FOUND", "That item isn't
 
 export const CATALOG_HONESTY = catalogImportCopyFor("en").honesty;
 
-export type CatalogAccountState = "ready" | "blocked" | "link-only";
+type CatalogAccountState = "ready" | "blocked" | "link-only";
 
-export interface CatalogAccountView {
+interface CatalogAccountView {
   /** social_accounts row id, or null for link-only display entries. */
   accountId: string | null;
   platform: string;
@@ -162,7 +162,7 @@ async function defaultAiText(input: {
   }
 }
 
-export interface CatalogImportDeps {
+interface CatalogImportDeps {
   fetchImpl: FetchImpl;
   downloadBuffer: (url: string) => Promise<Buffer>;
   uploadObject: (key: string, body: Buffer, contentType: string) => Promise<string>;
@@ -171,7 +171,7 @@ export interface CatalogImportDeps {
   aiText: typeof defaultAiText;
 }
 
-export const catalogImportDeps: CatalogImportDeps = {
+const catalogImportDeps: CatalogImportDeps = {
   fetchImpl: (url, init) => fetch(url, init),
   downloadBuffer: (url) => defaultDownloadBuffer(catalogImportDeps.fetchImpl, url),
   uploadObject: (key, body, contentType) => r2Upload(key, body, contentType),
@@ -205,7 +205,7 @@ export function parseSeriesSuggestion(title: string): { name: string; season: nu
   return null;
 }
 
-export function hashtagsOf(text: string): string[] {
+function hashtagsOf(text: string): string[] {
   const found = (text.match(/#[\p{L}\p{N}_]+/gu) ?? []).map((t) => t.slice(1));
   return [...new Set(found)].slice(0, 8);
 }
@@ -374,7 +374,7 @@ export async function getCatalogState(
 
 /* ── Scan: list what isn't home yet ──────────────────────────────────── */
 
-export interface ScanResult {
+interface ScanResult {
   accountId: string;
   platform: string;
   listed: number;
@@ -558,7 +558,7 @@ export async function fetchItem(
   }
 }
 
-export interface BatchResult {
+interface BatchResult {
   results: Array<{ itemId: string; ok: boolean; status: string; note?: string }>;
 }
 
@@ -581,7 +581,7 @@ export async function fetchSelected(
 
 /* ── Bulk upload registration ────────────────────────────────────────── */
 
-export interface UploadRegistration {
+interface UploadRegistration {
   key: string;
   filename: string;
   kind: "video" | "audio";
@@ -686,7 +686,7 @@ export async function rebuildItem(
 
 /* ── Approve: the only door onto the real rails ──────────────────────── */
 
-export interface ApproveOverrides {
+interface ApproveOverrides {
   title?: string;
   description?: string;
   tags?: string[];

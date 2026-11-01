@@ -31,7 +31,7 @@ export interface SecondLifePrefsWire {
   watch_enabled: boolean;
 }
 
-export const DEFAULT_SECOND_LIFE_PREFS: SecondLifePrefsWire = { watch_enabled: true };
+const DEFAULT_SECOND_LIFE_PREFS: SecondLifePrefsWire = { watch_enabled: true };
 
 export interface SecondLifePrefsStore {
   getRow(userId: string): Promise<SecondLifePrefsWire | null>;
@@ -92,7 +92,7 @@ export async function isSecondLifeWatchEnabled(userId: string): Promise<boolean>
 
 /* ── Revival proposals ────────────────────────────────────────────── */
 
-export interface RevivalPlanStep {
+interface RevivalPlanStep {
   action: "recut_short" | "fresh_cover";
   sourceKind: SpikeKind;
   sourceMediaId: string;
@@ -101,7 +101,7 @@ export interface RevivalPlanStep {
   createLink: string;
 }
 
-export interface RevivalPlan {
+interface RevivalPlan {
   steps: RevivalPlanStep[];
 }
 

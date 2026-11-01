@@ -18,7 +18,7 @@ const router = Router();
    BEFORE the model call and REFUNDED on model failure, using the same
    pre-check + chargeCredits + refundCredits pattern as the paid routes. */
 
-export const WAVE8_CALENDAR_AUTOFILL_CREDITS =
+const WAVE8_CALENDAR_AUTOFILL_CREDITS =
   Number(process.env["WAVE8_CALENDAR_AUTOFILL_CREDITS"]) || 150;
 
 const WEEK_START_RE = /^\d{4}-\d{2}-\d{2}$/;

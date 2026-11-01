@@ -55,7 +55,7 @@ export const PITCH_KIT_DISCLAIMER =
    list — every entry carries submission-channel guidance instead of a
    fabricated personal email, and the UI must show the starter-list banner.
    Never add a fake curator name or email here. */
-export interface CuratorEntry {
+interface CuratorEntry {
   id: string;
   name: string;
   platform: string;
@@ -77,7 +77,6 @@ export const GENRE_FILTERS = [
   "latin",
   "afrobeats",
 ] as const;
-export type GenreFilter = (typeof GENRE_FILTERS)[number];
 
 export const CURATOR_STARTER_LIST: CuratorEntry[] = [
   {
@@ -223,7 +222,7 @@ const pitchKitSchema = z.object({
   playlistName: z.string().max(200).optional().default(""),
 });
 
-export interface SongAnalysis {
+interface SongAnalysis {
   genre: string;
   mood: string;
   energy: number;
@@ -233,7 +232,7 @@ export interface SongAnalysis {
   oneLiner: string;
 }
 
-export interface PitchKit {
+interface PitchKit {
   analysis: SongAnalysis;
   pitchEmail: { subject: string; body: string };
   dmPitch: string;
@@ -601,7 +600,7 @@ router.delete("/playlist-pitch/tracker/:id", requireAuth, async (req, res) => {
    streaming URLs, and a release with neither is named in `missing` —
    a URL is never fabricated. */
 
-export interface ReleaseRecordForPacket {
+interface ReleaseRecordForPacket {
   id: string;
   title: string;
   artist_name: string;
@@ -620,7 +619,7 @@ export interface ReleaseRecordForPacket {
   presave_bonus_url: string | null;
 }
 
-export interface ProfileRecordForPacket {
+interface ProfileRecordForPacket {
   displayName: string;
   slug: string;
   bio: string;
@@ -631,14 +630,14 @@ export interface ProfileRecordForPacket {
   socialLinks: Record<string, string> | null;
 }
 
-export interface ReleaseStatsForPacket {
+interface ReleaseStatsForPacket {
   presaves: number;
   shares: number;
   linkViews: number;
   linkClicks: number;
 }
 
-export interface PitchPacket {
+interface PitchPacket {
   releaseId: string;
   artist: {
     name: string;
@@ -855,7 +854,7 @@ router.get("/playlist-pitch/packet/:releaseId", requireAuth, async (req, res) =>
 export const PITCH_DEADLINE_STATUSES = ["drafted", "sent", "followed_up", "answered"] as const;
 export type PitchDeadlineStatus = (typeof PITCH_DEADLINE_STATUSES)[number];
 
-export interface DeadlineApiRow {
+interface DeadlineApiRow {
   id: string;
   pitchId: string | null;
   releaseId: string | null;

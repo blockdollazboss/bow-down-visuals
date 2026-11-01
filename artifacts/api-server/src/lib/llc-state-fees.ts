@@ -3,7 +3,7 @@
    KEEP IN SYNC with the frontend copy. Used to ground the AI plan
    generator in real state fees instead of letting the model guess. */
 
-export interface LlcStateFee {
+interface LlcStateFee {
   code: string;
   name: string;
   filingFee: number;

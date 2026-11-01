@@ -46,7 +46,7 @@ export function isStreamConfigured(env: NodeJS.ProcessEnv = process.env): boolea
   return streamCredentials(env) !== null;
 }
 
-export interface CreatedLiveInput {
+interface CreatedLiveInput {
   providerInputId: string;
   /* For Cloudflare live inputs the playback uid IS the input uid. */
   playbackId: string;

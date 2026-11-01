@@ -54,7 +54,7 @@ export interface GlobalDropVersion {
 
 export type GlobalDropVersions = Record<GlobalDropLanguageCode, GlobalDropVersion>;
 
-export interface GlobalDropRelease {
+interface GlobalDropRelease {
   id: string;
   userId: string;
   title: string;
@@ -120,7 +120,7 @@ export function mergeLanguageDestinations(
 
 /* ── Store ──────────────────────────────────────────────────────────── */
 
-export interface GlobalDropStore {
+interface GlobalDropStore {
   getByRelease(releaseId: string): Promise<Record<string, unknown> | null>;
   upsertPackage(row: { userId: string; releaseId: string; versions: GlobalDropVersions }): Promise<{ id: string }>;
   saveVersions(id: string, userId: string, versions: GlobalDropVersions): Promise<boolean>;

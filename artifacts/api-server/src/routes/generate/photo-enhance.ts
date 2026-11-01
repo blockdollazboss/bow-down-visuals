@@ -14,7 +14,7 @@ const router = Router();
    PLACEHOLDER — NOT USER-APPROVED. The user must approve the final price
    before this ships. Env-overridable without a deploy (PHOTO_ENHANCE_CREDITS).
    ───────────────────────────────────────────────────────────────────────────── */
-export const PHOTO_ENHANCE_CREDIT_COST_PLACEHOLDER = 100;
+const PHOTO_ENHANCE_CREDIT_COST_PLACEHOLDER = 100;
 const ENHANCE_CREDITS = Number(process.env["PHOTO_ENHANCE_CREDITS"]) || PHOTO_ENHANCE_CREDIT_COST_PLACEHOLDER;
 
 /* ── No local `sharp` build exists in this service (checked package.json +
@@ -26,8 +26,8 @@ const ENHANCE_CREDITS = Number(process.env["PHOTO_ENHANCE_CREDITS"]) || PHOTO_EN
 const NANO_MODEL = process.env["GEMINI_IMAGE_MODEL"] || "gemini-nano-banana-2.1";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${NANO_MODEL}:generateContent`;
 
-export const PHOTO_ENHANCE_OPS = ["upscale", "denoise", "restore", "colorize"] as const;
-export type PhotoEnhanceOp = (typeof PHOTO_ENHANCE_OPS)[number];
+const PHOTO_ENHANCE_OPS = ["upscale", "denoise", "restore", "colorize"] as const;
+type PhotoEnhanceOp = (typeof PHOTO_ENHANCE_OPS)[number];
 
 const NANO_ASPECT = {
   "9:16": "9:16",

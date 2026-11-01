@@ -29,13 +29,13 @@ import { db, creatorProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 
-export interface BrandColor {
+interface BrandColor {
   hex: string;
   name: string;
   role: string;
 }
 
-export interface BrandFont {
+interface BrandFont {
   heading: string;
   body: string;
   usage: string;
@@ -58,7 +58,7 @@ export interface StoredBrandKit {
 }
 
 /** What the generator produces (the pre-existing POST response's `kit`). */
-export interface GeneratedBrandKit {
+interface GeneratedBrandKit {
   colors: BrandColor[];
   fonts: BrandFont[];
   logoPrompt: string;

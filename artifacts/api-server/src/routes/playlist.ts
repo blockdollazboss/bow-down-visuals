@@ -20,7 +20,6 @@ import { r2Upload, r2Delete, r2List, r2PublicUrl } from "../lib/r2-client";
 
 const router = Router();
 
-export const PLAYLIST_BUCKET = "playlist";
 const PLAYLIST_PREFIX = "playlist/";
 
 const AUDIO_EXTENSIONS = ["mp3", "wav", "m4a", "ogg", "flac"];

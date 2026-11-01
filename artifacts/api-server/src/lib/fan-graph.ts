@@ -74,14 +74,14 @@ import {
 
 /* ─── Source row shapes (the loader projects rows into these) ────── */
 
-export interface FanGraphSubscriberRow {
+interface FanGraphSubscriberRow {
   email: string;
   name: string | null;
   subscribedAt: Date;
   unsubscribedAt: Date | null;
 }
 
-export interface FanGraphMemberRow {
+interface FanGraphMemberRow {
   fanLabel: string;
   fanUserId: string | null;
   tierName: string | null;
@@ -94,30 +94,30 @@ export interface FanGraphMemberRow {
   updatedAt: Date;
 }
 
-export interface FanGraphFollowRow {
+interface FanGraphFollowRow {
   followerUserId: string;
   createdAt: Date;
 }
 
-export interface FanGraphUsdSaleRow {
+interface FanGraphUsdSaleRow {
   buyerUserId: string | null;
   amountCents: number;
   createdAt: Date;
 }
 
-export interface FanGraphShopSaleRow {
+interface FanGraphShopSaleRow {
   buyerEmail: string | null;
   amountCents: number;
   createdAt: Date;
 }
 
-export interface FanGraphTipRow {
+interface FanGraphTipRow {
   fromUserId: string;
   amountVb: number;
   createdAt: Date;
 }
 
-export interface FanGraphProfileCard {
+interface FanGraphProfileCard {
   displayName: string;
   slug: string;
   avatarUrl: string | null;
@@ -148,7 +148,7 @@ export type FanSourceKind =
   | "live"
   | "tips";
 
-export interface FanMemberInfo {
+interface FanMemberInfo {
   tierName: string | null;
   status: string;
   joinedAt: string;
@@ -192,11 +192,11 @@ export interface FanGraphSummary {
 
 const EMAIL_SHAPE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export function normalizeEmail(raw: string): string {
+function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-export function isEmailShaped(raw: string): boolean {
+function isEmailShaped(raw: string): boolean {
   return EMAIL_SHAPE.test(raw.trim());
 }
 
@@ -450,10 +450,10 @@ export function buildFanGraph(sources: FanGraphSources): { fans: FanRecord[]; su
 
 /* ─── Search / sort / paginate (pure) ─────────────────────────────── */
 
-export type FanGraphSort = "recent" | "spent" | "name";
+type FanGraphSort = "recent" | "spent" | "name";
 export const FAN_GRAPH_SORTS: readonly FanGraphSort[] = ["recent", "spent", "name"];
 
-export interface FanGraphQuery {
+interface FanGraphQuery {
   search?: string;
   sort?: FanGraphSort;
   page?: number;

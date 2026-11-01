@@ -76,7 +76,7 @@ const housePresetById = (id: string): HousePreset | undefined =>
 
 /* ── LUT parsing / validation ───────────────────────────────────────────── */
 
-export interface ParsedLut {
+interface ParsedLut {
   format: "cube" | "3dl";
   title: string;
   size: number;
@@ -84,7 +84,7 @@ export interface ParsedLut {
   cubeText: string;
 }
 
-export class LutValidationError extends Error {}
+class LutValidationError extends Error {}
 
 function parseCube(text: string): Omit<ParsedLut, "format" | "cubeText"> {
   const lines = text.split(/\r?\n/);
@@ -197,7 +197,7 @@ function parse3dl(text: string): Omit<ParsedLut, "format" | "cubeText"> & { cube
 }
 
 /** Validate an uploaded LUT buffer. Throws LutValidationError with a user-facing message. */
-export function validateLutBuffer(buffer: Buffer, originalName: string): ParsedLut {
+function validateLutBuffer(buffer: Buffer, originalName: string): ParsedLut {
   if (!buffer || buffer.length < 20) {
     throw new LutValidationError("That file is empty or too small to be a LUT.");
   }

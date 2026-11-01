@@ -54,7 +54,7 @@ function queryToken(req: Request): string {
   return typeof v === "string" ? v : "";
 }
 
-export interface OverlayStateDto {
+interface OverlayStateDto {
   creator: { displayName: string };
   /** The stream the goal + tips describe: the live one when the
    *  creator is on air, otherwise their most recent. Null when the
@@ -69,7 +69,7 @@ export interface OverlayStateDto {
  *  goal math mirrors routes/live-widgets.ts exactly: the recent
  *  window's sum, recounted over the full set when the window is
  *  full, so the bar never understates. */
-export async function buildOverlayState(userId: string): Promise<OverlayStateDto> {
+async function buildOverlayState(userId: string): Promise<OverlayStateDto> {
   const profiles = await db
     .select({ id: creatorProfilesTable.id, displayName: creatorProfilesTable.displayName })
     .from(creatorProfilesTable)
@@ -185,14 +185,14 @@ router.get("/overlay/state", publicApiLimiter, async (req: Request, res: Respons
   }
 });
 
-export interface OverlayDeskDto {
+interface OverlayDeskDto {
   token: string;
   paths: { alerts: string; goal: string; nowPlaying: string };
 }
 
 /** The overlay link paths for one token. The desk prefixes the site
  *  origin; the token is the only secret in the URL. */
-export function overlayPaths(token: string): OverlayDeskDto["paths"] {
+function overlayPaths(token: string): OverlayDeskDto["paths"] {
   return {
     alerts: `/overlay/alerts?token=${token}`,
     goal: `/overlay/goal?token=${token}`,

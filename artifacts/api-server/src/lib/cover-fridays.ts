@@ -60,7 +60,7 @@ export const COVER_FRIDAYS_PAST_CROWNS = 8;
 /* ── The week (pure — the ritual's ISO math, covered here so the
  *    layer never reaches into the route file) ──────────────────── */
 
-export interface CoverWeekInfo {
+interface CoverWeekInfo {
   isoYear: number;
   isoWeek: number;
   /** "2026-W41". */
@@ -79,7 +79,7 @@ export interface CoverWeekInfo {
 }
 
 /** ISO week parts (UTC) — the rotation's source of truth. */
-export function coverIsoWeekParts(d: Date): { year: number; week: number } {
+function coverIsoWeekParts(d: Date): { year: number; week: number } {
   const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const day = (t.getUTCDay() + 6) % 7; // Monday = 0
   t.setUTCDate(t.getUTCDate() - day + 3); // Thursday of this ISO week
@@ -89,7 +89,7 @@ export function coverIsoWeekParts(d: Date): { year: number; week: number } {
   return { year: t.getUTCFullYear(), week: 1 + Math.round((t.getTime() - firstThu.getTime()) / (7 * 86_400_000)) };
 }
 
-export function coverWeekKey(isoYear: number, isoWeek: number): string {
+function coverWeekKey(isoYear: number, isoWeek: number): string {
   return `${isoYear}-W${String(isoWeek).padStart(2, "0")}`;
 }
 
@@ -124,7 +124,7 @@ export function coverWeekForDate(d: Date): CoverWeekInfo {
 
 /* ── The published cover themes (pure, fixed) ───────────────────── */
 
-export interface CoverFridayTheme {
+interface CoverFridayTheme {
   title: string;
   hashtag: string;
   /** The assignment, in plain words — what "cover" means this week. */
@@ -396,7 +396,7 @@ export const dbCoverFridaysStore: CoverFridaysStore = {
 
 /* ── The cadence ────────────────────────────────────────────────── */
 
-export interface CoverFridaysDeps {
+interface CoverFridaysDeps {
   palace?: { announce: (announcement: PalaceAnnouncement) => void };
   store?: CoverFridaysStore;
 }
@@ -485,7 +485,7 @@ export class CoverFridaysScheduler {
 /** Rebuild a week's span from its key + stored start (the row is
  *  the record; the span is only needed for its crown-by instant
  *  and ISO week). */
-export function coverWeekSpanOf(weekKey: string, startsAt: Date): CoverWeekInfo {
+function coverWeekSpanOf(weekKey: string, startsAt: Date): CoverWeekInfo {
   const m = /^(\d{4})-W(\d{2})$/.exec(weekKey);
   const monday = new Date(startsAt);
   const friday = new Date(monday);

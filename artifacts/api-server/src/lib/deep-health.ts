@@ -43,16 +43,16 @@ export const PROBE_TIMEOUT_MS = 3_000;
 /** An export job ACTIVE with no stage progress for this long is a
  * hung render, not a slow one: stage writes land at every stage
  * transition and renders are bounded by the 10-minute song tier. */
-export const QUEUE_STUCK_MS = 60 * 60 * 1_000;
+const QUEUE_STUCK_MS = 60 * 60 * 1_000;
 
-export interface DeepHealthCheck {
+interface DeepHealthCheck {
   ok: boolean;
   latencyMs: number;
   detail?: string;
   [fact: string]: unknown;
 }
 
-export interface DeepHealthReport {
+interface DeepHealthReport {
   status: "ok" | "degraded";
   ts: string;
   checks: {
@@ -106,7 +106,7 @@ async function probeQueue(): Promise<Record<string, unknown> & { ok?: boolean }>
   };
 }
 
-export const defaultDeepHealthProbes: DeepHealthProbes = {
+const defaultDeepHealthProbes: DeepHealthProbes = {
   db: probeDb,
   storage: probeStorage,
   queue: probeQueue,

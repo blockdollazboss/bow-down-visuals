@@ -40,7 +40,7 @@ const presenterSchema = z.object({
   prompt: z.string().max(1000).optional(),
 });
 
-export type AvatarJobStatus = "queued" | "processing" | "done" | "failed";
+type AvatarJobStatus = "queued" | "processing" | "done" | "failed";
 
 export interface AvatarJob {
   id: string;
@@ -58,14 +58,8 @@ export interface AvatarJob {
 const jobs = new Map<string, AvatarJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getAvatarJob(id: string): AvatarJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
-export function __clearAvatarJobs(): void {
-  jobs.clear();
-}
 
 /** Test hook: register a job directly (money-path tests drive processAvatarJob). */
 export function __putAvatarJob(job: AvatarJob): void {
@@ -85,7 +79,7 @@ export function __putAvatarJob(job: AvatarJob): void {
      the user is NEVER charged (no upfront charge exists to refund). */
 
 /** Balance gate for POST: returns the 402 payload, or null when funded. */
-export function avatarBalanceGate(balance: number): {
+function avatarBalanceGate(balance: number): {
   error: string;
   message: string;
   creditsNeeded: number;

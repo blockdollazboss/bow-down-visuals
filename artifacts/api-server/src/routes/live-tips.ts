@@ -112,7 +112,7 @@ async function getStreamRow(id: string): Promise<LiveStream | null> {
   return rows[0] ?? null;
 }
 
-export interface LiveTipDto {
+interface LiveTipDto {
   id: string;
   streamId: string;
   tipperUserId: string;

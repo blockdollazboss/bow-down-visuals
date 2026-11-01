@@ -73,7 +73,7 @@ export const UGC_PERSONA_CREDIT_COST =
   Number(process.env["UGC_PERSONA_CREDITS"]) || 100;
 
 export const UGC_STYLES = ["unboxing", "honest-review", "problem-fix", "grwm"] as const;
-export type UgcStyle = (typeof UGC_STYLES)[number];
+type UgcStyle = (typeof UGC_STYLES)[number];
 
 const STYLE_DIRECTION: Record<UgcStyle, string> = {
   unboxing:
@@ -152,7 +152,7 @@ export function normalizeScript(raw: unknown): UgcScript | null {
 
 /* ── Caption burn (injectable for tests, bg-image-client pattern) ───── */
 
-export type CaptionBurner = (
+type CaptionBurner = (
   videoPath: string,
   lines: string[],
   colorHex: string | null,

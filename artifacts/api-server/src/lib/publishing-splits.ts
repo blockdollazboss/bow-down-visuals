@@ -119,7 +119,7 @@ export type PublishingRegistrationState =
    rail (0.01) so 33.33-style entries behave the same site-wide. */
 
 export const SPLIT_SUM_TOLERANCE = 0.01;
-export const MAX_WRITERS_PER_SONG = 20;
+const MAX_WRITERS_PER_SONG = 20;
 
 export function validateWriterSplits(writers: WriterInput[]): void {
   if (!Array.isArray(writers) || writers.length === 0) {
@@ -212,7 +212,7 @@ export function isRegistrationParticipant(reg: PublishingRegistration, userId: s
 
 /* ── Confirm / dispute ─────────────────────────────────────────────────── */
 
-export type WriterAction = "confirm" | "dispute";
+type WriterAction = "confirm" | "dispute";
 
 /** Apply ONE linked writer's action to THEIR OWN row. Pure.
  *  - confirm: from pending or disputed → confirmed (confirming a

@@ -71,16 +71,16 @@ export const BOOKING_REMINDER_JOB_TYPE = "storefront_booking_reminder";
  *  that is a non-issue; the real fix is the bookings lane's already-
  *  named hardening follow-up (a service_bookings table), which would
  *  make the lead window SQL-filterable. */
-export const BOOKING_REMINDER_BATCH = 500;
+const BOOKING_REMINDER_BATCH = 500;
 
 /* Minimal structural runner — the real @workspace/db and the pg-mem
    test db both satisfy it (same raw-SQL convention as storefront.ts). */
-export interface BookingReminderRunner {
+interface BookingReminderRunner {
   execute: (query: SQL) => Promise<{ rows: unknown[] }>;
   transaction?: <T>(fn: (tx: BookingReminderRunner) => Promise<T>) => Promise<T>;
 }
 
-export interface BookingReminderDeps {
+interface BookingReminderDeps {
   runner?: BookingReminderRunner;
   now?: Date;
 }

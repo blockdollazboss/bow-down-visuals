@@ -25,7 +25,7 @@ export const IDENTITY_ANGLES = [
   "full_body",
   "close_up",
 ] as const;
-export type IdentityAngle = (typeof IDENTITY_ANGLES)[number];
+type IdentityAngle = (typeof IDENTITY_ANGLES)[number];
 
 /** Expression vocabulary for identity photos. */
 export const IDENTITY_EXPRESSIONS = [
@@ -38,12 +38,11 @@ export const IDENTITY_EXPRESSIONS = [
   "sad",
   "surprised",
 ] as const;
-export type IdentityExpression = (typeof IDENTITY_EXPRESSIONS)[number];
+type IdentityExpression = (typeof IDENTITY_EXPRESSIONS)[number];
 
 /** Where a set photo came from. 'generated' photos are admitted only
  *  with the label on and are badged everywhere they appear. */
 export const IDENTITY_PHOTO_SOURCES = ["upload", "generated"] as const;
-export type IdentityPhotoSource = (typeof IDENTITY_PHOTO_SOURCES)[number];
 
 /** Max identity photos per character (the set view + selection stay
  *  usable; the route enforces it, the UI shows the count). */
@@ -66,13 +65,13 @@ export interface IdentityCandidate {
 /** What a shot needs, derived from its scene context. Angle/expression
  *  are ACCEPTABLE-EXACT sets (an orbit shot is equally happy with
  *  either profile), in preference order. */
-export interface ShotNeeds {
+interface ShotNeeds {
   angles: IdentityAngle[];
   expression: IdentityExpression | null;
   wardrobe: string | null;
 }
 
-export const ANGLE_LABELS: Record<string, string> = {
+const ANGLE_LABELS: Record<string, string> = {
   front: "front",
   three_quarter_left: "three-quarter (left)",
   three_quarter_right: "three-quarter (right)",
@@ -83,7 +82,7 @@ export const ANGLE_LABELS: Record<string, string> = {
   close_up: "close-up",
 };
 
-export const EXPRESSION_LABELS: Record<string, string> = {
+const EXPRESSION_LABELS: Record<string, string> = {
   neutral: "neutral",
   smile: "smiling",
   laughing: "laughing",
@@ -98,7 +97,7 @@ export function angleLabel(angle: string): string {
   return ANGLE_LABELS[angle] ?? angle.replace(/_/g, " ");
 }
 
-export function expressionLabel(expression: string): string {
+function expressionLabel(expression: string): string {
   return EXPRESSION_LABELS[expression] ?? expression.replace(/_/g, " ");
 }
 
@@ -139,7 +138,7 @@ function wardrobeMatches(photoWardrobe: string | null, wanted: string | null): b
   return tokens(a).some((t) => bt.has(t));
 }
 
-export interface ScoredCandidate {
+interface ScoredCandidate {
   candidate: IdentityCandidate;
   score: number;
   matchedAngle: boolean;
@@ -183,7 +182,7 @@ export function scoreIdentityCandidate(c: IdentityCandidate, needs: ShotNeeds): 
   return { candidate: c, score, matchedAngle, nearAngle, matchedExpression, nearExpression, matchedWardrobe };
 }
 
-export interface IdentitySelection {
+interface IdentitySelection {
   chosen: IdentityCandidate;
   reason: string;
   overridden: boolean;
@@ -292,7 +291,7 @@ export function deriveShotNeeds(ctx: ShotContext): ShotNeeds {
    in plain language. Guidance, never a gate: an uncovered item never
    blocks a generation. */
 
-export interface CoverageItem {
+interface CoverageItem {
   key: string;
   label: string;
   covered: boolean;

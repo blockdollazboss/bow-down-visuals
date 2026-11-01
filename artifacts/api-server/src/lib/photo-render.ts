@@ -91,7 +91,7 @@ export interface PhotoOutputSpec {
   watermark: boolean;
 }
 
-export const DEFAULT_OUTPUT_SPECS: PhotoOutputSpec[] = [
+const DEFAULT_OUTPUT_SPECS: PhotoOutputSpec[] = [
   { id: "wide-png", format: "png", width: 1920, height: 1080, watermark: false },
   { id: "vertical-png", format: "png", width: 1080, height: 1920, watermark: false },
   { id: "square-jpg", format: "jpg", width: 1080, height: 1080, watermark: false },
@@ -140,7 +140,7 @@ export function buildRenderArgs(opts: {
 }
 
 /* ── Batch look-sync: one recipe, many photos, per-photo outcomes ───── */
-export interface BatchPhotoResult {
+interface BatchPhotoResult {
   imageUrl: string;
   ok: boolean;
   url: string | null;

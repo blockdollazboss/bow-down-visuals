@@ -43,7 +43,7 @@ const testMetaSchema = z.object({
 
 /* ── Pure, testable helpers ───────────────────────────────────────────── */
 
-export interface ThumbnailScore {
+interface ThumbnailScore {
   curiosityGap: number;
   readability: number;
   emotionalImpact: number;
@@ -52,7 +52,7 @@ export interface ThumbnailScore {
   overall: number;
 }
 
-export interface ThumbnailAnalysis {
+interface ThumbnailAnalysis {
   index: number;
   scores: ThumbnailScore;
   strengths: string[];
@@ -60,7 +60,7 @@ export interface ThumbnailAnalysis {
   tips: string[];
 }
 
-export interface ThumbnailTestResult {
+interface ThumbnailTestResult {
   analyses: ThumbnailAnalysis[];
   winnerIndex: number;
   confidence: number;

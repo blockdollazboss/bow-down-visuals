@@ -46,13 +46,13 @@ import {
   type PartyQuestion,
 } from "./party-questions";
 
-export const PARTY_MAX_PLAYERS = 8;
-export const PARTY_DUEL_PLAYERS = 2;
-export const PARTY_QUESTION_MS = 15_000;
-export const PARTY_PICK_MS = 6_000;
-export const PARTY_TRIVIA_ROUNDS = [5, 8, 10] as const;
+const PARTY_MAX_PLAYERS = 8;
+const PARTY_DUEL_PLAYERS = 2;
+const PARTY_QUESTION_MS = 15_000;
+const PARTY_PICK_MS = 6_000;
+const PARTY_TRIVIA_ROUNDS = [5, 8, 10] as const;
 export const PARTY_DUEL_ROUNDS_TO_WIN = 3;
-export const PARTY_DUEL_MAX_ROUNDS = 5;
+const PARTY_DUEL_MAX_ROUNDS = 5;
 const MAX_FRAME_CHARS = 8192;
 const IDLE_ROOM_MS = 10 * 60_000;
 const EMPTY_ROOM_MS = 2 * 60_000;
@@ -75,7 +75,7 @@ export interface PartyIdentity {
   profileSlug: string | null;
 }
 
-export interface PartyPlayerDto {
+interface PartyPlayerDto {
   peerId: string;
   displayName: string;
   avatarUrl: string | null;
@@ -108,7 +108,7 @@ export interface PartyRoomDto {
   createdAt: number;
 }
 
-export interface PartyMatchPlayerResult {
+interface PartyMatchPlayerResult {
   userId: string;
   displayName: string;
   placement: number;
@@ -124,7 +124,7 @@ export interface PartyMatchResult {
   players: PartyMatchPlayerResult[];
 }
 
-export interface PartyRoomsDeps {
+interface PartyRoomsDeps {
   now?: () => number;
   schedule?: (fn: () => void, ms: number) => unknown;
   cancel?: (handle: unknown) => void;

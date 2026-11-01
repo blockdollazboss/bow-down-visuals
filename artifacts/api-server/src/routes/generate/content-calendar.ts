@@ -23,7 +23,7 @@ const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
 export type CalendarPlatform = (typeof PLATFORMS)[number];
 
 const FORMATS = ["video", "carousel", "live", "story"] as const;
-export type CalendarFormat = (typeof FORMATS)[number];
+type CalendarFormat = (typeof FORMATS)[number];
 
 export interface CalendarDay {
   date: string; // YYYY-MM-DD

@@ -333,9 +333,9 @@ import { LIVE_TIP_MINIMUM_VB, LIVE_TIP_MAXIMUM_VB } from "./live-config";
 export const WORLD_ROOM_ID = "world:kings-hall";
 export const WORLD_PRESENCE_CAP = 30;
 export const WORLD_VOICE_CAP = 12;
-export const MOVE_MIN_INTERVAL_MS = 90;
-export const SAY_MAX_CHARS = 300;
-export const SAY_MIN_INTERVAL_MS = 800;
+const MOVE_MIN_INTERVAL_MS = 90;
+const SAY_MAX_CHARS = 300;
+const SAY_MIN_INTERVAL_MS = 800;
 const MAX_FRAME_CHARS = 8192;
 
 /* Hall bounds (metres) — the client builds the room to these; the
@@ -435,7 +435,7 @@ export interface WorldCharacterRef {
  *  with the mirrored constants in the web client's figure lib. */
 export const HOUSE_GUARD_ID = "house:palace-guard";
 export const HOUSE_GUARD_FEMALE_ID = "house:palace-guard-female";
-export const HOUSE_CHARACTER_REFS: Record<string, WorldCharacterRef> = {
+const HOUSE_CHARACTER_REFS: Record<string, WorldCharacterRef> = {
   [HOUSE_GUARD_ID]: {
     id: HOUSE_GUARD_ID,
     name: "Palace Guard",
@@ -454,7 +454,7 @@ export const HOUSE_CHARACTER_REFS: Record<string, WorldCharacterRef> = {
  *  character belongs to this user (or their active team) and carry
  *  a portrait or a living loop; return the ref to broadcast, or
  *  null to refuse the pick. */
-export type WorldCharacterResolver = (
+type WorldCharacterResolver = (
   userId: string,
   characterId: string,
 ) => Promise<WorldCharacterRef | null>;
@@ -470,7 +470,7 @@ export interface WorldStageLiveRef {
 
 /** Injected by the route layer: verify a stage claim names the
  *  member's OWN live stream; return its ref, or null to refuse. */
-export type WorldStageStreamResolver = (
+type WorldStageStreamResolver = (
   userId: string,
   streamId: string,
 ) => Promise<WorldStageLiveRef | null>;
@@ -489,7 +489,7 @@ export interface WorldScreenVideoRef {
 /** Injected by the route layer: verify a screen-video pick is a real
  *  playable platform video (the member's own, or public); return the
  *  ref to broadcast, or null to refuse. */
-export type WorldScreenVideoResolver = (
+type WorldScreenVideoResolver = (
   userId: string,
   videoId: string,
 ) => Promise<WorldScreenVideoRef | null>;
@@ -497,7 +497,7 @@ export type WorldScreenVideoResolver = (
 /** What's on the big screen while a stage is held. ("reel" with a
  *  holder = the holder parked the screen on the King's Reel without
  *  giving the stage up.) */
-export type WorldScreenContent =
+type WorldScreenContent =
   | { kind: "reel" }
   | { kind: "live"; streamId: string; title: string }
   | {
@@ -511,7 +511,7 @@ export type WorldScreenContent =
 
 /** The screen state every client renders from — sent in `welcome`
  *  and broadcast as `screen.state` on every change. */
-export interface WorldScreenBroadcast {
+interface WorldScreenBroadcast {
   mode: "reel" | "live" | "video";
   holder: { peerId: string; name: string; slug: string | null } | null;
   title: string | null;
@@ -532,7 +532,7 @@ export interface WorldScreenBroadcast {
 }
 
 /** Where a stage video is right now, from its server anchor. */
-export function screenPositionAt(content: WorldScreenContent, nowMs: number): number {
+function screenPositionAt(content: WorldScreenContent, nowMs: number): number {
   if (content.kind !== "video") return 0;
   const pb = content.playback;
   if (!pb.playing) return pb.anchorPosSec;
@@ -569,7 +569,7 @@ export interface WorldJukeboxTrackRef {
 /** Injected by the route layer: verify a jukebox pick is a real,
  *  published, playable platform track (the member's own, or on a
  *  public profile); return the ref to broadcast, or null to refuse. */
-export type WorldJukeboxTrackResolver = (
+type WorldJukeboxTrackResolver = (
   userId: string,
   trackId: string,
 ) => Promise<WorldJukeboxTrackRef | null>;
@@ -600,7 +600,7 @@ export interface WorldJukeboxEntry {
  *  palace at all when the async track verification lands. The
  *  Music Hall runs the identical checks either way — forwarding
  *  moves the request, never the authority. */
-export interface ForwardedJukeboxAdd {
+interface ForwardedJukeboxAdd {
   userId: string | null;
   guest: boolean;
   admin: boolean;
@@ -613,7 +613,7 @@ export interface ForwardedJukeboxAdd {
 
 /** The jukebox state every client in the Music Hall renders from —
  *  sent in `welcome` and broadcast as `jukebox.state` on change. */
-export interface WorldJukeboxBroadcast {
+interface WorldJukeboxBroadcast {
   /** The song on now, with its position computed from the anchor at
    *  broadcast time (null = the jukebox is idle). */
   current: {
@@ -641,7 +641,7 @@ export interface WorldJukeboxBroadcast {
  * who is standing here, who already claimed, how many claims stand. */
 
 /** The room's standing drop, as every client in the room renders it. */
-export interface WorldDropBroadcast {
+interface WorldDropBroadcast {
   eventId: string;
   title: string;
   roomId: string;
@@ -682,7 +682,7 @@ export interface WorldKingMomentBroadcast {
   claimed: boolean;
 }
 
-export type WorldKingMomentClaimResult =
+type WorldKingMomentClaimResult =
   | { ok: true; amountVb: number }
   | { ok: false; reason: "closed" | "pool" | "already" | "error" };
 
@@ -707,7 +707,7 @@ export type WorldKingMomentClaimer = (
  * failure. A landed tip is WITNESSED: the room sees who tipped,
  * who holds the stage, and the amount. */
 
-export type WorldStageTipResult =
+type WorldStageTipResult =
   | { ok: true }
   | { ok: false; reason: "insufficient" | "disabled" | "error" };
 
@@ -731,7 +731,7 @@ export type WorldStageTipper = (input: {
  * step is the member's current one — the room just witnesses.
  * Fire-and-forget: a tutorial note can never break a frame. */
 
-export type WorldTutorialVerb = "meet-king" | "quest-board" | "applaud";
+type WorldTutorialVerb = "meet-king" | "quest-board" | "applaud";
 
 /** Injected by the route layer: note one tutorial verb for a
  *  member. Called at most once per verb per session per room
@@ -740,7 +740,7 @@ export type WorldTutorialNotifier = (userId: string, verb: WorldTutorialVerb) =>
 
 /** The pace between one member's stage tips in a room — tips are
  *  applause with weight, not a faucet to hold open. */
-export const STAGE_TIP_MIN_INTERVAL_MS = 2_000;
+const STAGE_TIP_MIN_INTERVAL_MS = 2_000;
 
 /* ── Witnessed moments (THE-GAME §5(a)) ────────────────────────────
  * Wins are public, progress is private (owner default, §5 Q3): when
@@ -763,7 +763,7 @@ export interface WorldQuestClaimFact {
 /** Injected by the route layer: the member's most recent recorded
  *  quest claim at or after `sinceMs` (quest_progress claimed rows),
  *  or null when none stands. */
-export type WorldQuestClaimFinder = (
+type WorldQuestClaimFinder = (
   userId: string,
   sinceMs: number,
 ) => Promise<WorldQuestClaimFact | null>;
@@ -772,7 +772,7 @@ export type WorldQuestClaimFinder = (
  *  stars from the level rails (the same read that resolves the
  *  identity's stars at the door), or null when no level is recorded
  *  (the levelup verification then refuses — nothing to witness). */
-export type WorldStarsResolver = (userId: string) => Promise<number | null>;
+type WorldStarsResolver = (userId: string) => Promise<number | null>;
 
 /* ── Palace announcements (Ring 3, THE-GAME §5(b)) ────────────────
  * The palace's public-address system: one announcement shape,
@@ -854,7 +854,7 @@ export const WORLD_ACTIONS = {
 export type WorldActionId = keyof typeof WORLD_ACTIONS;
 
 /** One action frame per peer per ~half second at most. */
-export const ACTION_MIN_INTERVAL_MS = 500;
+const ACTION_MIN_INTERVAL_MS = 500;
 
 /** How long a one-shot action rides the peer DTO (welcome/join
  *  snapshots). The client's longest one-shot is 1.7 s; past this
@@ -863,7 +863,7 @@ export const ACTION_MIN_INTERVAL_MS = 500;
  *  a room where someone bows on loop forever. Toggles never
  *  expire here: they end by frame, or by the walk that clears
  *  them. */
-export const ACTION_SNAPSHOT_MS = 2500;
+const ACTION_SNAPSHOT_MS = 2500;
 
 /**
  * Per-instance room configuration. The King's Hall is the default
@@ -881,7 +881,7 @@ export const ACTION_SNAPSHOT_MS = 2500;
  *  a parity test pins the two tables together. Ground outside
  *  every rect is height 0. Overlapping rects take the MAX height
  *  (the highest surface is the one a body stands on). */
-export interface WorldGroundRect {
+interface WorldGroundRect {
   minX: number;
   maxX: number;
   minZ: number;
@@ -897,8 +897,8 @@ export interface WorldGroundRect {
  *  The tolerances sit a slack step above the client's own step
  *  limits (palace-layout.ts STEP_UP_MAX / STEP_DOWN_MAX, both
  *  0.4) so an honestly easing client mid-climb is never snapped. */
-export const WORLD_STEP_UP_TOLERANCE_M = 0.65;
-export const WORLD_STEP_DOWN_TOLERANCE_M = 0.75;
+const WORLD_STEP_UP_TOLERANCE_M = 0.65;
+const WORLD_STEP_DOWN_TOLERANCE_M = 0.75;
 
 /** Jump envelope (stack300): a claim ABOVE the step band is a
  *  jump, and a jump is a bounded arc, not a new floor. The
@@ -912,15 +912,15 @@ export const WORLD_STEP_DOWN_TOLERANCE_M = 0.75;
  *  limits, and an episode that breaks them snaps to the ground
  *  AND locks (no new episode until a claim lands on the ground),
  *  so a permanent hover dies instead of re-arming. */
-export const WORLD_JUMP_MAX_APEX_M = 2.5;
+const WORLD_JUMP_MAX_APEX_M = 2.5;
 /** Longest believable airborne episode (frame-clock ms). */
-export const WORLD_JUMP_MAX_AIRTIME_MS = 1750;
+const WORLD_JUMP_MAX_AIRTIME_MS = 1750;
 /** Fastest believable climb (m/s): the 7.5 takeoff + slack for
  *  frame-cadence averaging. Descent is bounded separately, by
  *  the fall speed the episode's own peak can honestly produce. */
-export const WORLD_JUMP_MAX_RISE_MPS = 8.5;
+const WORLD_JUMP_MAX_RISE_MPS = 8.5;
 /** A claim this close to the ground is a landing. */
-export const WORLD_JUMP_LAND_EPS_M = 0.08;
+const WORLD_JUMP_LAND_EPS_M = 0.08;
 
 export interface WorldRoomOptions {
   roomId?: string;
@@ -941,7 +941,7 @@ export interface WorldRoomOptions {
  * palace-wide — same peerId, same character, same voice flags — while
  * presence (and its voice mesh) becomes the new room's.
  */
-export interface WorldTransferState {
+interface WorldTransferState {
   identity: WorldIdentity;
   peerId: string;
   character: WorldCharacterRef | null;
@@ -955,7 +955,7 @@ export interface WorldTransferState {
   announcedStars: number;
 }
 
-export interface WorldPeerDto {
+interface WorldPeerDto {
   peerId: string;
   displayName: string;
   avatarUrl: string | null;
@@ -1092,7 +1092,7 @@ function finiteOr(v: unknown, fallback: number): number {
 /** Close code when the host removes a peer (private-use range, the
  *  same family as room_full's 4429): the client shows its honest
  *  "removed by the host" card for it. */
-export const WORLD_REMOVED_CLOSE_CODE = 4413;
+const WORLD_REMOVED_CLOSE_CODE = 4413;
 
 /** Close code when a door refuses a member who is personally
  *  locked out of the room (Lane F, migration 0179): the client
@@ -1119,7 +1119,7 @@ export interface WorldLockChecker {
 
 /** Why a door refused an identity, when it did. `person` carries
  *  the moment the lock lifts; `door` is the room's locked door. */
-export type WorldAdmissionBlock =
+type WorldAdmissionBlock =
   | { kind: "person"; until: number }
   | { kind: "door" };
 

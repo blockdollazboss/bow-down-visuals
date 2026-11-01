@@ -50,7 +50,7 @@ export class AnalyticsProviderError extends Error {
   }
 }
 
-export interface TopContentItem {
+interface TopContentItem {
   id: string;
   caption: string;
   likes: number | null;

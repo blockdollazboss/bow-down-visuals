@@ -117,7 +117,7 @@ const CheckoutSchema = z.object({
   uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
-export function buildGiftCardCheckoutKey(args: {
+function buildGiftCardCheckoutKey(args: {
   userId: string; productId: string; amountCents: number;
   recipientEmail: string; completedCount: number;
 }): string {

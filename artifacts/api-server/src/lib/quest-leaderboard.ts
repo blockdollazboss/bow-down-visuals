@@ -90,7 +90,7 @@ export const dbQuestLeaderboardStore: QuestLeaderboardStore = {
 
 /* ── Aggregation + ranking (pure) ───────────────────────────────── */
 
-export interface QuestMarksStanding {
+interface QuestMarksStanding {
   userId: string;
   /** Marks banked — the sum of the member's claim stamps. */
   marks: number;
@@ -114,7 +114,7 @@ export function aggregateQuestMarks(
   return [...byUser.values()].filter((s) => s.marks > 0);
 }
 
-export interface QuestMarksBoardRow {
+interface QuestMarksBoardRow {
   rank: number;
   userId: string;
   name: string;

@@ -30,7 +30,6 @@ import { logger } from "./logger";
 /** Fixed sentinel UUID of the house account that owns the official
     profile. Never authenticates. MUST match migration 0125. */
 export const THY_CHEAT_CODE_USER_ID = "00000000-0000-4000-8000-000000000001";
-export const THY_CHEAT_CODE_SLUG = "thy-cheat-code";
 
 interface OfficialProfileRef { id: string; userId: string }
 

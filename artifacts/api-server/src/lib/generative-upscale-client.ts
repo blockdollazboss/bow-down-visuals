@@ -41,7 +41,7 @@ function requireConfigured(): void {
 
 export type GenerativeUpscaleTarget = "1080p" | "4k";
 
-export interface GenerativeUpscaleRequest {
+interface GenerativeUpscaleRequest {
   /** Public URL of the source video. */
   sourceVideoUrl: string;
   target: GenerativeUpscaleTarget;
@@ -50,7 +50,7 @@ export interface GenerativeUpscaleRequest {
   userId: string;
 }
 
-export interface GenerativeUpscaleResult {
+interface GenerativeUpscaleResult {
   providerJobId: string;
   status: "queued" | "processing" | "done" | "failed";
   videoUrl?: string;

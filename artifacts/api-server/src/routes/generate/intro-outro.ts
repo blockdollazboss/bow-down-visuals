@@ -36,7 +36,7 @@ const CREDITS_PER_SEC = Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) || INTRO
 const CREDIT_COST = resolveIntroOutroCost(CREDITS_PER_SEC);
 
 /** Supabase Storage bucket for generated brand videos. */
-export const INTRO_OUTRO_BUCKET = "generated-clips";
+const INTRO_OUTRO_BUCKET = "generated-clips";
 
 /**
  * Tracks submitted Seedance intro/outro tasks — credits charged on SUCCEEDED only.
@@ -46,13 +46,7 @@ export const INTRO_OUTRO_BUCKET = "generated-clips";
  * by the house job-map TTL (2h), like the other pending-task maps. */
 const pendingIntroTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number }>());
 /** Test hook — clears the in-memory task map. */
-export function __clearPendingIntroTasks() {
-  pendingIntroTasks.clear();
-}
 /** Test hook — read the pending map size. */
-export function __pendingIntroTaskCount() {
-  return pendingIntroTasks.size;
-}
 
 const introOutroSchema = z.object({
   channelName: z.string().trim().min(1),

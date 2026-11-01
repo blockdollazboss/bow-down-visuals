@@ -52,11 +52,11 @@ import { logger } from "./logger";
    on later sweeps (up to the cap) — the ledger + trigger are complete
    either way; delivery itself needs the provider key configured. */
 
-export const PRESAVE_NOTIFY_MAX_ATTEMPTS =
+const PRESAVE_NOTIFY_MAX_ATTEMPTS =
   Number(process.env["PRESAVE_NOTIFY_MAX_ATTEMPTS"]) || 3;
-export const PRESAVE_NOTIFY_FOLLOW_GRACE_MS =
+const PRESAVE_NOTIFY_FOLLOW_GRACE_MS =
   Number(process.env["PRESAVE_NOTIFY_FOLLOW_GRACE_MS"]) || 24 * 60 * 60 * 1000;
-export const PRESAVE_NOTIFY_STALE_PENDING_MS =
+const PRESAVE_NOTIFY_STALE_PENDING_MS =
   Number(process.env["PRESAVE_NOTIFY_STALE_PENDING_MS"]) || 15 * 60 * 1000;
 const SWEEP_INTERVAL_MS =
   Number(process.env["PRESAVE_NOTIFY_SWEEP_INTERVAL_MS"]) || 15 * 60 * 1000;
@@ -84,7 +84,7 @@ export interface DuePresaveRelease {
   platformLinks: Record<string, string>;
 }
 
-export interface EligibleFollow {
+interface EligibleFollow {
   id: string;
   email: string;
   name: string | null;
@@ -264,7 +264,7 @@ export function createDrizzlePresaveNotifyStore(db: Db = defaultDb): PresaveNoti
   };
 }
 
-export interface PresaveNotifyDeps {
+interface PresaveNotifyDeps {
   store?: PresaveNotifyStore;
   send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
   now?: Date;
@@ -325,7 +325,7 @@ ${links}
   };
 }
 
-export interface PresaveFanoutResult {
+interface PresaveFanoutResult {
   follows: number;
   claimed: number;
   sent: number;
@@ -403,7 +403,7 @@ export async function notifyPresaveFansForRelease(
   return result;
 }
 
-export interface PresaveSweepResult {
+interface PresaveSweepResult {
   releases: number;
   follows: number;
   sent: number;

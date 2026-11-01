@@ -7,7 +7,7 @@
    no verified count is dropped, never estimated. This module is the pure
    scoring/shaping half; routes/trend-radar.ts gathers the raw rows. */
 
-export type RadarSignalKind = "hashtag" | "spike" | "rising_creator" | "sound";
+type RadarSignalKind = "hashtag" | "spike" | "rising_creator" | "sound";
 
 export interface RadarSignalInput {
   kind: RadarSignalKind;
@@ -25,7 +25,7 @@ export interface RadarSignalInput {
   href?: string;
 }
 
-export interface RadarSignal extends RadarSignalInput {
+interface RadarSignal extends RadarSignalInput {
   /** Growth multiple vs baseline, 1 = flat. Capped for display sanity. */
   growth: number;
   /** 0–100 radar score: growth weighted by real volume. */
@@ -120,7 +120,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { logger } from "./logger";
 
-export const TREND_RADAR = {
+const TREND_RADAR = {
   /** Minimum plays in the last 24h for any trend to qualify. */
   minCurrentPlays: 25,
   /** Minimum lift over the item's own baseline daily pace. */

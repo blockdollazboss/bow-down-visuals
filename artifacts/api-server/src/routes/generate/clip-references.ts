@@ -154,7 +154,7 @@ export function sortReferenceSet(refs: SceneReference[]): SceneReference[] {
   );
 }
 
-export interface ClipReferencePlan {
+interface ClipReferencePlan {
   mode: "reference_images" | "single" | "none";
   /** Runway-shaped promptImage: the legacy string for single/legacy paths,
    *  an array of unpositioned {uri} entries for Seedance reference mode.

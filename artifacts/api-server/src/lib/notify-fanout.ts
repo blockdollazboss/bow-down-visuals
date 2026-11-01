@@ -18,7 +18,7 @@ import { db } from "@workspace/db";
  *  endpoint keeps its exact HTTP contract on top.
  */
 
-export interface FollowerFanOutInput {
+interface FollowerFanOutInput {
   /** The creator profile whose followers are notified. */
   profileId: string;
   /** The profile's owner — the fan-out only fires for their own profile. */
@@ -29,7 +29,7 @@ export interface FollowerFanOutInput {
   link?: string;
 }
 
-export type FollowerFanOutResult =
+type FollowerFanOutResult =
   | { ok: true; notified: number }
   | { ok: false; reason: "profile_not_owned" };
 

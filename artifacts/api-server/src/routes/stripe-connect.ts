@@ -222,7 +222,7 @@ router.post("/connect/refresh", requireAuth, publicApiLimiter, async (req, res) 
  * live wins, differences persist, and the caller gets the full state
  * machine + Stripe's action-needed reasons. Falls back to the stored
  * flags (same derivation) when Stripe is unreachable. */
-export async function reconcileConnectState(
+async function reconcileConnectState(
   profileId: string,
   fields: Awaited<ReturnType<typeof getProfileConnectFields>>,
 ): Promise<ConnectAccountState> {

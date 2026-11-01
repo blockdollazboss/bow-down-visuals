@@ -12,10 +12,10 @@ const router = Router();
 /* Platforms the Script Writer optimizes for — keep in sync with the
    frontend /script-writer page. */
 export const SCRIPT_WRITER_PLATFORMS = ["youtube", "tiktok", "reels"] as const;
-export type ScriptWriterPlatform = (typeof SCRIPT_WRITER_PLATFORMS)[number];
+type ScriptWriterPlatform = (typeof SCRIPT_WRITER_PLATFORMS)[number];
 
 export const SCRIPT_WRITER_LENGTHS = ["short", "medium", "long", "deep"] as const;
-export type ScriptWriterLength = (typeof SCRIPT_WRITER_LENGTHS)[number];
+type ScriptWriterLength = (typeof SCRIPT_WRITER_LENGTHS)[number];
 
 export const SCRIPT_WRITER_TONES = [
   "educational",
@@ -23,7 +23,7 @@ export const SCRIPT_WRITER_TONES = [
   "inspirational",
   "controversial",
 ] as const;
-export type ScriptWriterTone = (typeof SCRIPT_WRITER_TONES)[number];
+type ScriptWriterTone = (typeof SCRIPT_WRITER_TONES)[number];
 
 const PLATFORM_DIRECTION: Record<ScriptWriterPlatform, string> = {
   youtube:

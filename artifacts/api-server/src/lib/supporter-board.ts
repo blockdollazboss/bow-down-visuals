@@ -73,17 +73,17 @@ export interface SupporterBoardEntry {
   badge: SupporterBadge | null;
 }
 
-export type SupporterBadgeTier = "front_row" | "top_supporter";
+type SupporterBadgeTier = "front_row" | "top_supporter";
 
-export interface SupporterBadge {
+interface SupporterBadge {
   tier: SupporterBadgeTier;
   label: string;
   rank: number;
 }
 
-export const FRONT_ROW_SEATS = 3;
-export const TOP_SUPPORTER_SEATS = 10;
-export const SUPPORTER_BOARD_LIMIT = 20;
+const FRONT_ROW_SEATS = 3;
+const TOP_SUPPORTER_SEATS = 10;
+const SUPPORTER_BOARD_LIMIT = 20;
 
 export function badgeForRank(rank: number): SupporterBadge | null {
   if (rank >= 1 && rank <= FRONT_ROW_SEATS) {
@@ -97,7 +97,7 @@ export function badgeForRank(rank: number): SupporterBadge | null {
 
 /** Creator-set perks, in their own plain words: trimmed, single-spaced
  *  per line, hard length cap. Empty is honest (no perks stated). */
-export const PERKS_MAX_CHARS = 600;
+const PERKS_MAX_CHARS = 600;
 export function sanitizePerksText(raw: unknown): string {
   if (typeof raw !== "string") return "";
   return raw
@@ -108,7 +108,7 @@ export function sanitizePerksText(raw: unknown): string {
     .slice(0, PERKS_MAX_CHARS);
 }
 
-export interface BuildSupporterBoardInput {
+interface BuildSupporterBoardInput {
   fans: SupporterFanFact[];
   tickets: SupporterTicketFact[];
   /** Account fans with no Fan Graph row can still have attended —
@@ -272,7 +272,6 @@ export const SUPPORTER_BOARD_NOT_READY = {
    all-time board "this month" or the reverse. */
 
 export type SupporterPeriod = "month" | "all";
-export const SUPPORTER_PERIODS: readonly SupporterPeriod[] = ["month", "all"];
 
 export interface SupporterPeriodWindow {
   period: SupporterPeriod;

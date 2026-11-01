@@ -66,7 +66,7 @@ export const KIT_COMPONENT_IDS = [
   "ringtone", "notification-sounds", "sound-scheme", "browser-theme",
   "widget-art", "accent-color", "site-reskin",
 ] as const;
-export const KIT_DEVICE_IDS = ["all", "phone", "tablet", "desktop"] as const;
+const KIT_DEVICE_IDS = ["all", "phone", "tablet", "desktop"] as const;
 const APPROVED_ART_IDS = new Set([
   "pack-ground", "kings-set-throne-phone", "kings-set-plaza-phone",
   "kings-set-stage-desktop", "kings-set-throne-loop", "kings-set-plaza-loop",
@@ -140,7 +140,7 @@ async function isElite(userId: string, plan: unknown): Promise<boolean> {
 /** The entitlement rule, one place: included → everyone; premium →
     owned outright or live Elite; creator packs → creator, purchased,
     or free (price 0) published. */
-export async function kitUnlocked(
+async function kitUnlocked(
   req: { userId?: string; userPlan?: unknown },
   packId: string,
 ): Promise<boolean> {

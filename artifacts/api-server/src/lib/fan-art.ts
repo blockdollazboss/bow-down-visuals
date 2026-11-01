@@ -32,9 +32,9 @@ export const FAN_ART_ACTIONS: readonly FanArtAction[] = ["approve", "reject", "r
  *  creator clearing the queue (approve/reject) frees room. */
 export const MAX_PENDING_PER_ARTIST_PER_CREATOR = 10;
 
-export const FAN_ART_TITLE_MAX = 120;
-export const FAN_ART_NOTE_MAX = 500;
-export const FAN_ART_IMAGE_URL_MAX = 2048;
+const FAN_ART_TITLE_MAX = 120;
+const FAN_ART_NOTE_MAX = 500;
+const FAN_ART_IMAGE_URL_MAX = 2048;
 
 export class FanArtError extends Error {
   code: "not_found" | "validation" | "own_profile" | "forbidden" | "invalid_transition" | "queue_full";
@@ -70,7 +70,7 @@ export interface FanArtPieceRecord {
   updatedAt: string;
 }
 
-export interface FanArtPieceWire extends FanArtPieceRecord {
+interface FanArtPieceWire extends FanArtPieceRecord {
   creatorSlug: string;
   creatorName: string;
   /** Live artist profile link data — present only while the artist
@@ -96,7 +96,7 @@ export interface FanArtStore {
 
 /* ─── Validation ─────────────────────────────────────────────────────── */
 
-export interface FanArtSubmissionInput {
+interface FanArtSubmissionInput {
   title: string;
   imageUrl: string;
   note?: string;
@@ -381,49 +381,3 @@ export const drizzleFanArtStore: FanArtStore = {
 
 /* ─── In-memory store (tests) ────────────────────────────────────────── */
 
-export function createMemoryFanArtStore(seed: {
-  profiles: Array<FanArtProfileRef & { avatarUrl?: string | null }>;
-}): FanArtStore {
-  const profiles = new Map(seed.profiles.map((p) => [p.id, p]));
-  const pieces = new Map<string, FanArtPieceRecord>();
-  let seq = 0;
-  const bySlug = (slug: string) => [...profiles.values()].find((p) => p.slug === slug) ?? null;
-  const byUser = (userId: string) => [...profiles.values()].find((p) => p.userId === userId) ?? null;
-  return {
-    async getProfileBySlug(slug) { return bySlug(slug); },
-    async getProfileByUserId(userId) { return byUser(userId); },
-    async getProfileById(id) { return profiles.get(id) ?? null; },
-    async getArtistProfile(userId) {
-      const p = byUser(userId);
-      return p ? { ...p, avatarUrl: p.avatarUrl ?? null } : null;
-    },
-    async insertPiece(input) {
-      seq += 1;
-      const now = new Date(Date.now() + seq).toISOString();
-      const rec: FanArtPieceRecord = {
-        ...input, id: `piece-${seq}`, reviewedByUserId: null, reviewedAt: null,
-        createdAt: now, updatedAt: now,
-      };
-      pieces.set(rec.id, rec);
-      return rec;
-    },
-    async listPiecesForProfile(creatorProfileId) {
-      return [...pieces.values()]
-        .filter((p) => p.creatorProfileId === creatorProfileId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    },
-    async listPiecesByArtist(artistUserId) {
-      return [...pieces.values()]
-        .filter((p) => p.artistUserId === artistUserId)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    },
-    async getPiece(id) { return pieces.get(id) ?? null; },
-    async updatePiece(id, patch) {
-      const cur = pieces.get(id);
-      if (!cur) return null;
-      const next = { ...cur, ...patch, updatedAt: new Date().toISOString() };
-      pieces.set(id, next);
-      return next;
-    },
-  };
-}

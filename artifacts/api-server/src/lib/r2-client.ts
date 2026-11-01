@@ -13,7 +13,7 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL ?? "";
 
 let client: S3Client | null = null;
 
-export function getR2Client(): S3Client {
+function getR2Client(): S3Client {
   if (client) return client;
   if (!R2_ACCESS_KEY || !R2_SECRET_KEY) {
     throw new Error("R2 credentials not configured (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY)");

@@ -11,7 +11,7 @@ import { logger } from "./logger";
    logged reason — it NEVER pretends a push was sent. Dead endpoints
    (404/410 from the push service) are pruned so the table stays real. */
 
-export interface PushPayload {
+interface PushPayload {
   title: string;
   body: string;
   /** Deep link the notification click opens. */
@@ -19,7 +19,7 @@ export interface PushPayload {
   kind: string;
 }
 
-export interface PushConfig {
+interface PushConfig {
   publicKey: string;
   privateKey: string;
   subject: string;
@@ -36,9 +36,6 @@ export function pushConfig(env: NodeJS.ProcessEnv = process.env): PushConfig | n
   };
 }
 
-export function isPushConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
-  return pushConfig(env) !== null;
-}
 
 export interface PushSendResult {
   sent: number;

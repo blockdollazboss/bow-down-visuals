@@ -42,7 +42,7 @@ export function isFanLinkContentType(v: unknown): v is FanLinkContentType {
    read aloud or retyped survives. Randomness is injected so tests are
    deterministic; the route passes crypto-grade randomness. */
 export const FAN_LINK_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
-export const FAN_LINK_CODE_LENGTH = 8;
+const FAN_LINK_CODE_LENGTH = 8;
 
 export function mintFanLinkCode(rand: () => number): string {
   let out = "";
@@ -78,9 +78,6 @@ export function fanLinkLandingPath(args: {
   return `/artist/${args.creatorSlug}?fan=${args.code}${anchor}`;
 }
 
-export function fanLinkPublicPath(code: string): string {
-  return `/api/f/${code}`;
-}
 
 /* ─── Attribution decisions ─── */
 
@@ -93,7 +90,7 @@ export function playKindForContentType(contentType: string): "track" | "video" |
   return null;
 }
 
-export interface ArrivalFacts {
+interface ArrivalFacts {
   link: { fanUserId: string; contentType: string; contentId: string | null };
   play: { kind: string; mediaId: string; userId: string | null };
 }
@@ -166,7 +163,7 @@ export function statsForLink(linkId: string, events: FanLinkEventRow[]): FanLink
   };
 }
 
-export interface CreatorFanLinkRollup {
+interface CreatorFanLinkRollup {
   totalLinks: number;
   totalClicks: number;
   totalArrivals: number;

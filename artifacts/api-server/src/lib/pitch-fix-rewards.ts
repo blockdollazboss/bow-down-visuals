@@ -45,7 +45,7 @@ import {
 
 export const pitchFixRewardLedgerKey = (submissionId: string) => `pitch-fix-reward:${submissionId}`;
 
-export const pitchFixRewardAction = (sub: Pick<SubmissionWire, "kind">) =>
+const pitchFixRewardAction = (sub: Pick<SubmissionWire, "kind">) =>
   sub.kind === "pitch" ? "Pitch & Fix Reward — Shipped Pitch" : "Pitch & Fix Reward — Fixed Report";
 
 export interface RewardPayDeps {
@@ -111,7 +111,7 @@ export const defaultRewardPayDeps: RewardPayDeps = {
   },
 };
 
-export type PayOutcome = "paid" | "already_claimed" | "failed_released";
+type PayOutcome = "paid" | "already_claimed" | "failed_released";
 
 export async function payQueuedReward(
   store: PitchFixStore,
@@ -158,7 +158,7 @@ export async function payQueuedReward(
   return "paid";
 }
 
-export interface ProcessRewardsResult {
+interface ProcessRewardsResult {
   weekStart: string;
   capVb: number;
   spentVbBefore: number;

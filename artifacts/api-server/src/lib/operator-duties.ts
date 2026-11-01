@@ -81,7 +81,7 @@ import type { WorldContestWinnerDto } from "./world-contests";
 /* ── Constants (build-time, stated here on purpose) ─────────────────── */
 
 /** The duties' watch interval — the king-moment scheduler's shape. */
-export const OPERATOR_DUTIES_TICK_MS = 30_000;
+const OPERATOR_DUTIES_TICK_MS = 30_000;
 
 /** A reminder sounds when a booked event starts within this lead. */
 export const HOST_REMINDER_LEAD_MS = 15 * 60_000;
@@ -89,17 +89,17 @@ export const HOST_REMINDER_LEAD_MS = 15 * 60_000;
 /** Duty announcements (reminders + contest heralds) stand at least
     this far apart palace-wide — the announce channel stays a herald,
     not a horn. */
-export const DUTY_ANNOUNCE_MIN_INTERVAL_MS = 60_000;
+const DUTY_ANNOUNCE_MIN_INTERVAL_MS = 60_000;
 
 /** The trouble-flag window: reports inside it pile up into a signal,
     and one flag per member per window is the cap. */
-export const TROUBLE_FLAG_WINDOW_MS = 24 * 3600_000;
+const TROUBLE_FLAG_WINDOW_MS = 24 * 3600_000;
 
 /** Distinct members who must report the same member inside the
     window before the operator files its one flag. Conservative on
     purpose: one unhappy member is a dispute, three is a pattern a
     human should see. */
-export const TROUBLE_FLAG_MIN_REPORTERS = 3;
+const TROUBLE_FLAG_MIN_REPORTERS = 3;
 
 /** Tool ids on the audit trail. Deliberately NOT in the operator
     tool catalog: duties are not chat-callable tools, the executor
@@ -146,7 +146,7 @@ const DUTY_ENV = {
   trouble_flagging: "OPERATOR_DUTY_TROUBLE_FLAGGING_ENABLED",
 } as const;
 
-export type OperatorDutyName = keyof typeof DUTY_ENV;
+type OperatorDutyName = keyof typeof DUTY_ENV;
 
 /** One duty's switch, under the master: off at either level stills
     the duty. */
@@ -186,7 +186,7 @@ export interface OperatorDutiesStore {
   insertReport(values: InsertContentReport): Promise<ContentReport | null>;
 }
 
-export const dbOperatorDutiesStore: OperatorDutiesStore = {
+const dbOperatorDutiesStore: OperatorDutiesStore = {
   listOpenEvents: () => dbWorldEventStore.listOpenEvents(),
   hostProfile: (userId) => dbWorldEventStore.hostProfile(userId),
 
@@ -366,7 +366,7 @@ function roomPhrase(roomId: string): string | null {
 
 /* ── Duty 1+3: the tick (host reminders + trouble flagging) ──────────── */
 
-export interface OperatorDutiesDeps {
+interface OperatorDutiesDeps {
   palace: { announce: (announcement: PalaceAnnouncement) => void };
   store?: OperatorDutiesStore;
 }

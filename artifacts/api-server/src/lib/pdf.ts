@@ -4,7 +4,7 @@
    invoices without adding a heavy PDF dependency to the api-server bundle.
    Supports multi-page documents via the Page helper's automatic overflow. */
 
-export interface TextOptions {
+interface TextOptions {
   size?: number;
   bold?: boolean;
   /** [r, g, b] in 0..1 */
@@ -119,9 +119,6 @@ export class PdfPage {
   }
 }
 
-export interface PdfDocument {
-  title: string;
-}
 
 export class PdfBuilder {
   private pages: PdfPage[] = [];

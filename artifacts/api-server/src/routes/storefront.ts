@@ -355,7 +355,7 @@ async function presentProduct(p: ProductRow, bumpOffer?: BumpOfferPayload | null
    active, priced (never a $0 lead magnet) and in stock. Anything less
    and the product simply shows no add-on — a seller's stale setting
    must never break or block the main sale. */
-export interface BumpOfferPayload {
+interface BumpOfferPayload {
   productId: string;
   title: string;
   kind: string;
@@ -537,7 +537,7 @@ async function callerProfile(userId: string): Promise<{ id: string; slug: string
    payload rides in the order's fulfillment_note behind the codec in
    lib/booking-note.ts — that module is the format's only owner. */
 
-export const BOOKING_HOLD_TTL_MIN = 30;
+const BOOKING_HOLD_TTL_MIN = 30;
 
 type SqlRunner = Pick<typeof db, "execute">;
 

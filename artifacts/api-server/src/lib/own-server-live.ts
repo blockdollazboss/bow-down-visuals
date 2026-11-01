@@ -37,7 +37,7 @@ import { r2Upload, isR2Configured } from "./r2-client";
    arrives as chunks under mime video/x-flv and rides the identical
    session/HLS/replay path — one engine, two doors in. */
 
-export interface OwnServerConfig {
+interface OwnServerConfig {
   dir: string;
   maxConcurrent: number;
   stallMs: number;
@@ -76,7 +76,7 @@ export interface MediaProcess {
   kill(): void;
 }
 
-export type MediaProcessFactory = (args: {
+type MediaProcessFactory = (args: {
   playlistPath: string;
   segmentPattern: string;
   initName: string;
@@ -86,7 +86,7 @@ export type MediaProcessFactory = (args: {
 
 const FFMPEG_FINISH_TIMEOUT_MS = 15_000;
 
-export const defaultMediaProcessFactory: MediaProcessFactory = (args) => {
+const defaultMediaProcessFactory: MediaProcessFactory = (args) => {
   const child: ChildProcess = spawn(
     "ffmpeg",
     [
@@ -151,7 +151,7 @@ export const defaultMediaProcessFactory: MediaProcessFactory = (args) => {
 
 /* ── Upload (the recording's trip to permanent storage) ────────────────── */
 
-export type LiveUploadFn = (
+type LiveUploadFn = (
   key: string,
   body: fs.ReadStream,
   contentType: string,
@@ -163,7 +163,7 @@ const defaultUpload: LiveUploadFn = async (key, body, contentType) => r2Upload(k
 
 export type StallReason = "stalled" | "no_signal" | "duration" | "full";
 
-export interface OwnServerHandlers {
+interface OwnServerHandlers {
   onStall?: (streamId: string, reason: StallReason) => void;
 }
 
@@ -207,11 +207,11 @@ interface Session {
    END of a stream, never during it). Resolves the MP4 path, or null
    when the remux produced nothing usable — the caller then records
    the recording as not saved, honestly. */
-export type RemuxFlvToMp4Fn = (srcPath: string) => Promise<string | null>;
+type RemuxFlvToMp4Fn = (srcPath: string) => Promise<string | null>;
 
 const REMUX_TIMEOUT_MS = 120_000;
 
-export const defaultRemuxFlvToMp4: RemuxFlvToMp4Fn = (srcPath) => {
+const defaultRemuxFlvToMp4: RemuxFlvToMp4Fn = (srcPath) => {
   const destPath = srcPath.replace(/\.flv$/i, ".mp4");
   return new Promise((resolve) => {
     const child: ChildProcess = spawn(
@@ -334,7 +334,7 @@ export function beginSession(streamId: string): { ok: boolean; code?: "CAPACITY"
 }
 
 /** The recording container for a recorder mime type. Null = unsupported. */
-export function extForMime(mime: string): string | null {
+function extForMime(mime: string): string | null {
   const m = mime.toLowerCase();
   if (m.includes("mp4")) return "mp4";
   if (m.includes("webm")) return "webm";

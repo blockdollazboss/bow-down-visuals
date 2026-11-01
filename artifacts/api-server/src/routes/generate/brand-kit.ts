@@ -96,7 +96,7 @@ router.get("/brand-kit", requireAuth, async (req, res) => {
    the generator's own vocabulary and must be unique within the palette:
    consumers resolve colors BY role (apply-to-theme, the UGC snapshot's
    primary), so two colors claiming one role would be ambiguous. */
-export const BRAND_COLOR_ROLES = ["primary", "secondary", "accent", "neutral", "background"] as const;
+const BRAND_COLOR_ROLES = ["primary", "secondary", "accent", "neutral", "background"] as const;
 
 const brandColorPatchSchema = z.object({
   hex: z.string().regex(/^#[0-9a-fA-F]{6}$/),

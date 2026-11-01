@@ -53,7 +53,7 @@ export interface RankedTitle {
   why: string;
 }
 
-export interface TitleStudioResult {
+interface TitleStudioResult {
   titles: RankedTitle[];
   description: string;
   tags: string[];

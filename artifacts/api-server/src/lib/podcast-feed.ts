@@ -113,7 +113,7 @@ export const APPLE_PODCAST_CATEGORIES: Readonly<Record<string, readonly string[]
   "True Crime": [],
 };
 
-export const DEFAULT_PODCAST_CATEGORY = "Arts";
+const DEFAULT_PODCAST_CATEGORY = "Arts";
 
 /* ── Feed model ──────────────────────────────────────────────────────── */
 
@@ -148,14 +148,14 @@ export interface PodcastFeedEpisode {
 
 /* ── XML helpers ─────────────────────────────────────────────────────── */
 
-export function escapeXmlText(s: string): string {
+function escapeXmlText(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
 
-export function escapeXmlAttr(s: string): string {
+function escapeXmlAttr(s: string): string {
   return escapeXmlText(s).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
@@ -277,7 +277,7 @@ export function mimeTypeForAudio(audioRef: string, headContentType?: string | nu
 }
 
 /** Public CDN base for R2 objects, when one is configured. */
-export function publicCdnBase(): string {
+function publicCdnBase(): string {
   return (
     process.env["R2_PUBLIC_URL"] ??
     process.env["MEDIA_CDN_URL"] ??
@@ -303,7 +303,7 @@ const defaultDeps: EnclosureDeps = {
 
 /** 1-byte Range GET: S3/R2 and Supabase both answer 206 + Content-Range
  *  with the object's total size. Never downloads the episode. */
-export async function probeLengthViaRange(url: string): Promise<number | null> {
+async function probeLengthViaRange(url: string): Promise<number | null> {
   try {
     const res = await fetch(url, {
       headers: { Range: "bytes=0-0" },
@@ -407,7 +407,7 @@ export async function resolveEnclosure(
 
 /* ── Show assembly from a profile row ────────────────────────────────── */
 
-export interface FeedProfileRow {
+interface FeedProfileRow {
   slug: string;
   displayName: string;
   bio: string;

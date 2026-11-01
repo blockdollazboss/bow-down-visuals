@@ -17,10 +17,10 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const UPSCALE_IMAGE_CREDIT_COST = 300;
+const UPSCALE_IMAGE_CREDIT_COST = 300;
 const UPSCALE_IMAGE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
-export type ImageUpscaleFactor = "2x" | "4x";
+type ImageUpscaleFactor = "2x" | "4x";
 const SCALE_FACTORS: Record<ImageUpscaleFactor, number> = {
   "2x": 2,
   "4x": 4,
@@ -50,11 +50,11 @@ const upscaleImageSchema = z.object({
  * a touch of perceived crispness. Like video upscaling this does NOT
  * invent detail — it cannot create information that wasn't in the source.
  */
-export function buildImageScaleFilter(factor: number): string {
+function buildImageScaleFilter(factor: number): string {
   return `scale=iw*${factor}:ih*${factor}:flags=lanczos,unsharp=5:5:0.5:5:5:0.0`;
 }
 
-export function buildImageFfmpegArgs(
+function buildImageFfmpegArgs(
   inputPath: string,
   outputPath: string,
   factor: number,

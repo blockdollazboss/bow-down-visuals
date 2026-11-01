@@ -45,7 +45,7 @@ type Row = Record<string, unknown>;
 
 const MAX_CHAIN_DEPTH = 5;
 
-export interface AnchorMeta {
+interface AnchorMeta {
   anchor: SongAnchor;
   title: string;
   ownerUserId: string;

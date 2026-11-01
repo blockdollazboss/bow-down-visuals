@@ -48,14 +48,14 @@ export const STALE_PROCESSING_MS = 30 * 60 * 1000;
 /* Re-exported for route handlers that record/replay attempt results. */
 export type { PublishAttemptResult };
 
-export interface ClaimInput {
+interface ClaimInput {
   userId: string;
   platform?: string;
   idempotencyKey: string;
   accountId?: string;
 }
 
-export type ClaimOutcome =
+type ClaimOutcome =
   | { outcome: "claimed"; attemptId: string; creditsAlreadyDeducted: boolean }
   | { outcome: "replay"; result: PublishAttemptResult }
   | { outcome: "in_progress" };

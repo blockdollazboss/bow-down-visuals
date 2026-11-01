@@ -38,7 +38,7 @@ export const CINEMATIC_FX_EFFECTS = [
   "True VHS",
   "Film Grain",
 ] as const;
-export type CinematicFxEffect = (typeof CINEMATIC_FX_EFFECTS)[number];
+type CinematicFxEffect = (typeof CINEMATIC_FX_EFFECTS)[number];
 
 const CINEMATIC_FX_COST = Number(process.env["CINEMATIC_FX_CREDITS"]) || 150;
 const FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
@@ -62,7 +62,7 @@ const cinematicFxSchema = z.object({
   attribution: z.boolean().optional().default(false),
 });
 
-export interface CinematicFxChainPlan {
+interface CinematicFxChainPlan {
   /** Filter chain applied to the main video input ([0:v] … [vfx]). */
   mainChain: string;
   /** True when the VHS scanline overlay input is required. */

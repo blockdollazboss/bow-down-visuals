@@ -109,7 +109,7 @@ const router = Router();
 
 /* ── The big screen ─────────────────────────────────────────────────────── */
 
-export interface WorldScreenDto {
+interface WorldScreenDto {
   mode: "live" | "featured" | "video";
   title: string;
   creatorName: string | null;
@@ -169,7 +169,7 @@ export function pickScreenContent(
 /** A stage video (watch party) as the screen DTO: the URL rides the
  *  field matching its kind (file → videoUrl, HLS → hlsUrl), the
  *  playback stamp rides along so a joiner starts where the room is. */
-export function stageVideoScreen(
+function stageVideoScreen(
   video: WorldScreenVideoRef,
   playback: { playing: boolean; positionSec: number },
   holder: { name: string; slug: string | null },
@@ -302,7 +302,7 @@ router.get("/world/screen", publicApiLimiter, async (_req, res) => {
  * Ids only ever identify content — a pick is re-verified and its URL
  * re-derived server-side when it reaches the room (the same rule as
  * character picks: never trust a client-supplied URL). */
-export interface WorldScreenCatalogItem {
+interface WorldScreenCatalogItem {
   id: string;
   title: string;
   creatorName: string | null;
@@ -751,7 +751,7 @@ router.get("/world/screen-catalog", requireAuth, async (req, res) => {
  * member's own and everyone's on a public profile. Ids are the
  * `track:<uuid>` form the jukebox resolver re-verifies at add time,
  * so a catalog row is a pick, never a playable URL. */
-export interface WorldJukeboxCatalogItem {
+interface WorldJukeboxCatalogItem {
   id: string;
   title: string;
   creatorName: string | null;
@@ -833,7 +833,7 @@ router.get("/world/jukebox-catalog", requireAuth, async (req, res) => {
  * no way to ask for anyone else's music. The DTO is camelCase (the
  * world catalogs' house shape); the client normalizes at its boundary
  * in lib/world/shelf.ts (parseMyMusic). */
-export interface WorldMyMusicItem {
+interface WorldMyMusicItem {
   id: string;
   title: string;
   artistName: string | null;
@@ -853,7 +853,7 @@ type ProfileTrackRow = typeof profileTracksTable.$inferSelect;
 /** Pure DTO mapper (exported for route tests): one own-track row →
  *  the world-shaped item. Dates ride as ISO strings, never Date
  *  objects, so the wire shape is the tested shape. */
-export function myMusicItemFromTrack(row: ProfileTrackRow, artistName: string | null): WorldMyMusicItem {
+function myMusicItemFromTrack(row: ProfileTrackRow, artistName: string | null): WorldMyMusicItem {
   return {
     id: row.id,
     title: row.title,
@@ -930,13 +930,13 @@ router.get("/world/my-music", requireAuth, async (req, res) => {
  * transfer that follows always has somewhere to land. The DTOs are
  * camelCase, the world catalogs' house shape; the client parses at
  * its boundary in lib/world/creator-rooms.ts. */
-export interface WorldCreatorRoomTheme {
+interface WorldCreatorRoomTheme {
   primary: string;
   accent: string;
   background: string;
 }
 
-export interface WorldCreatorRoomSummary {
+interface WorldCreatorRoomSummary {
   slug: string;
   displayName: string;
   roomName: string;
@@ -954,7 +954,7 @@ export interface WorldCreatorRoomSummary {
  *  the names are its STAR_TITLES. Null on the DTO when the rank
  *  read failed: an unmeasured room shows no tier at all, never a
  *  fabricated ★1. */
-export interface WorldCreatorRoomEvolution {
+interface WorldCreatorRoomEvolution {
   stars: number;
   tierName: string;
   /** The next rung's name; null at the top of the ladder. */
@@ -986,7 +986,7 @@ async function resolveCreatorRoomEvolution(userId: string): Promise<WorldCreator
   }
 }
 
-export interface WorldCreatorRoomTrack {
+interface WorldCreatorRoomTrack {
   id: string;
   title: string;
   audioUrl: string;
@@ -997,7 +997,7 @@ export interface WorldCreatorRoomTrack {
   commentCount: number;
 }
 
-export interface WorldCreatorRoomVideo {
+interface WorldCreatorRoomVideo {
   id: string;
   title: string;
   videoUrl: string;
@@ -1006,7 +1006,7 @@ export interface WorldCreatorRoomVideo {
   viewCount: number;
 }
 
-export interface WorldCreatorRoomFrontRowMember {
+interface WorldCreatorRoomFrontRowMember {
   position: number;
   profileId: string;
   slug: string;
@@ -1022,7 +1022,7 @@ export interface WorldCreatorRoomFrontRowMember {
  *  the host's body: whether the host is actually standing in the
  *  room is the presence layer's read (occupantCount and the room's
  *  live roster), and nothing here claims it. */
-export interface WorldCreatorRoomOfficeHours {
+interface WorldCreatorRoomOfficeHours {
   id: string;
   title: string;
   note: string | null;
@@ -1031,7 +1031,7 @@ export interface WorldCreatorRoomOfficeHours {
   state: "in-session" | "upcoming";
 }
 
-export interface WorldCreatorRoomDetail {
+interface WorldCreatorRoomDetail {
   roomId: string;
   slug: string;
   displayName: string;
@@ -1061,7 +1061,7 @@ type CreatorProfileRow = typeof creatorProfilesTable.$inferSelect;
 
 /** The house hues a room wears when the creator's theme_config
  *  carries nothing usable — the palace's own gold language. */
-export const CREATOR_ROOM_DEFAULT_THEME: WorldCreatorRoomTheme = {
+const CREATOR_ROOM_DEFAULT_THEME: WorldCreatorRoomTheme = {
   primary: "#d4af37",
   accent: "#f0d488",
   background: "#0d0a04",
@@ -1094,7 +1094,7 @@ export function creatorRoomThemeFromConfig(
 
 /** Pure DTO mapper (exported for route tests): one public profile
  *  row → its creator-room directory row. */
-export function creatorRoomSummaryFromProfile(
+function creatorRoomSummaryFromProfile(
   profile: CreatorProfileRow,
   parts: {
     hasContent: boolean;
@@ -1808,7 +1808,7 @@ async function resolveCreatorRoom(slug: string): Promise<{ displayName: string }
 
 /* ── Presence socket ────────────────────────────────────────────────────── */
 
-export interface WorldWsDeps {
+interface WorldWsDeps {
   verifyToken?: AccessTokenVerifier;
   resolveIdentity?: (userId: string) => Promise<WorldIdentity>;
 }

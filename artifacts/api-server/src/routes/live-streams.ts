@@ -206,7 +206,7 @@ export function countViewers(streamId: string, now: number = Date.now()): number
   return count;
 }
 
-export function clearViewers(streamId: string): void {
+function clearViewers(streamId: string): void {
   viewersByStream.delete(streamId);
   /* The viewer-sample throttle entry dies with the stream (Flag S-4:
      lastViewerSampleAt otherwise only ever grew, one entry per stream
@@ -220,7 +220,7 @@ export function __resetViewerTracker(): void {
 
 /* ── DTOs (explicit, snake_case — the house API shape) ──────────────────── */
 
-export interface LiveCreatorDto {
+interface LiveCreatorDto {
   id: string;
   slug: string;
   display_name: string;
@@ -235,8 +235,8 @@ export interface LiveCreatorDto {
    platform is stored "pending" (or "off" if it arrived off), never
    "active". When fan-out ships, the fan-out worker flips its entries
    live and the publisher (transport.ts) is where they plug in. */
-export type StreamDestinationStatus = "active" | "pending" | "off" | "live" | "error" | "ended";
-export interface StreamDestinationDto {
+type StreamDestinationStatus = "active" | "pending" | "off" | "live" | "error" | "ended";
+interface StreamDestinationDto {
   platform: string;
   label: string;
   status: StreamDestinationStatus;
@@ -302,7 +302,7 @@ function destinationOutcome(
   return out;
 }
 
-export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
+function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
   const entries: RawDestination[] = Array.isArray(raw)
     ? raw.filter((e): e is RawDestination => !!e && typeof e === "object")
     : [];
@@ -335,29 +335,13 @@ export function normalizeDestinations(raw: unknown): StreamDestinationDto[] {
  * pending/off wishes. A client can never mint "live"/"error"/"ended"
  * — those are written only by the fan-out worker (setDestinationStatus).
  */
-export function sanitizeRequestedDestinations(raw: unknown): StreamDestinationDto[] {
+function sanitizeRequestedDestinations(raw: unknown): StreamDestinationDto[] {
   return normalizeDestinations(raw).map((d) =>
     d.platform === "site" ? d : { ...d, status: d.status === "off" ? ("off" as const) : ("pending" as const) },
   );
 }
 
 /** Server-side destination transition (fan-out worker, stream end). */
-export async function setDestinationStatus(
-  streamId: string,
-  platform: string,
-  patch: Partial<Pick<StreamDestinationDto, "status" | "error_reason" | "has_key">>,
-): Promise<void> {
-  const rows = await db.select().from(liveStreamsTable).where(eq(liveStreamsTable.id, streamId)).limit(1);
-  const row = rows[0];
-  if (!row) return;
-  const destinations = normalizeDestinations(row.destinations).map((d) =>
-    d.platform === platform ? { ...d, ...patch } : d,
-  );
-  await db
-    .update(liveStreamsTable)
-    .set({ destinations, updated_at: new Date() })
-    .where(eq(liveStreamsTable.id, streamId));
-}
 
 /** At stream end: relays stop and any 'live' destination honestly ends. */
 export async function closeOutDestinations(streamId: string): Promise<void> {
@@ -427,7 +411,7 @@ function iso(v: unknown): string | null {
   return String(v);
 }
 
-export function toCreatorDto(profile: CreatorProfile | null | undefined): LiveCreatorDto | null {
+function toCreatorDto(profile: CreatorProfile | null | undefined): LiveCreatorDto | null {
   if (!profile) return null;
   return {
     id: profile.id,
@@ -442,7 +426,7 @@ export function toCreatorDto(profile: CreatorProfile | null | undefined): LiveCr
  *  place door standing turns into what a response may carry: no
  *  entry, no playback URLs, no replay URL — on every surface that
  *  uses this builder, lists included. */
-export interface StreamAccess {
+interface StreamAccess {
   door: TicketDoorInfo | null;
   entitled: boolean;
   playbackToken: string | null;
@@ -506,7 +490,7 @@ export function toStreamDto(
   };
 }
 
-export function toOwnerDto(
+function toOwnerDto(
   row: LiveStream,
   profile: CreatorProfile | null | undefined,
   liveViewerCount?: number,
@@ -517,7 +501,7 @@ export function toOwnerDto(
 
 /** Resolve one viewer's door standing for a stream. Free streams
  *  short-circuit (no ticket queries, the pre-#31 behavior exactly). */
-export async function resolveStreamAccess(row: LiveStream, viewerId: string | null): Promise<StreamAccess> {
+async function resolveStreamAccess(row: LiveStream, viewerId: string | null): Promise<StreamAccess> {
   if (!isTicketed(row)) return { door: null, entitled: true, playbackToken: null };
   const sold = await countActiveTickets(row.id);
   const entitled = await canEnterStream(row, viewerId);
@@ -529,7 +513,7 @@ export async function resolveStreamAccess(row: LiveStream, viewerId: string | nu
 }
 
 /** The owner always holds entry to their own stream. */
-export async function resolveOwnerAccess(row: LiveStream): Promise<StreamAccess> {
+async function resolveOwnerAccess(row: LiveStream): Promise<StreamAccess> {
   return resolveStreamAccess(row, row.user_id);
 }
 

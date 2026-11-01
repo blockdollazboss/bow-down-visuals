@@ -31,7 +31,7 @@ export class FanSegmentsUnavailableError extends Error {
   }
 }
 
-export interface SavedFanSegment {
+interface SavedFanSegment {
   id: string;
   name: string;
   rules: FanSegmentRules;

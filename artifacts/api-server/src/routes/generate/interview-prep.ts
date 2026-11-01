@@ -26,7 +26,7 @@ export const INTERVIEW_FEEDBACK_CREDIT_COST = Number(process.env["INTERVIEW_FEED
 export const INTERVIEW_TYPES = ["podcast", "press", "red-carpet", "live-stream"] as const;
 export type InterviewType = (typeof INTERVIEW_TYPES)[number];
 
-export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
+const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
   podcast: "Podcast",
   press: "Press / Media",
   "red-carpet": "Red Carpet",
@@ -42,7 +42,6 @@ export const sessionSchema = z.object({
   audienceSize: z.string().max(50).optional().default(""),
 });
 
-export type SessionRequest = z.infer<typeof sessionSchema>;
 
 export const feedbackSchema = z.object({
   interviewType: z.enum(INTERVIEW_TYPES),
@@ -51,9 +50,8 @@ export const feedbackSchema = z.object({
   answer: z.string().min(10, "Give your answer a real shot — at least a sentence or two.").max(3000),
 });
 
-export type FeedbackRequest = z.infer<typeof feedbackSchema>;
 
-export const QUESTION_CATEGORIES = ["warmup", "craft", "story", "tough", "rapid-fire"] as const;
+const QUESTION_CATEGORIES = ["warmup", "craft", "story", "tough", "rapid-fire"] as const;
 export type QuestionCategory = (typeof QUESTION_CATEGORIES)[number];
 
 export interface InterviewQuestion {

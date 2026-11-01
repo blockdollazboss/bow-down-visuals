@@ -60,7 +60,7 @@ export const auditSchema = z.object({
     .default([]),
 });
 
-export interface AuditDimensionResult {
+interface AuditDimensionResult {
   key: Dimension;
   grade: Grade;
   score: number;
@@ -68,7 +68,7 @@ export interface AuditDimensionResult {
   fix: string;
 }
 
-export interface ParsedAudit {
+interface ParsedAudit {
   overallGrade: Grade;
   overallScore: number;
   verdict: string;

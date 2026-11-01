@@ -39,7 +39,7 @@ export const OPENAI_VOICES = [
 const voiceIds = OPENAI_VOICES.map((v) => v.id) as unknown as [string, ...string[]];
 
 export const PRESETS = ["dark", "hype", "chipmunk", "radio", "epic"] as const;
-export type ProducerTagPreset = (typeof PRESETS)[number];
+type ProducerTagPreset = (typeof PRESETS)[number];
 
 const producerTagSchema = z.object({
   text: z

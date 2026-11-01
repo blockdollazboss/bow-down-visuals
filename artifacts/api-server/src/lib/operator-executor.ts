@@ -48,7 +48,7 @@ import { logger } from "./logger";
 export const OPERATOR_DAILY_CHARGED_CAP = 20;
 
 /** How long a proposal waits for the member's yes before it dies. */
-export const OPERATOR_CONFIRMATION_TTL_MS = 10 * 60 * 1000;
+const OPERATOR_CONFIRMATION_TTL_MS = 10 * 60 * 1000;
 
 /* ── Kill switch ────────────────────────────────────────────────────── */
 
@@ -65,7 +65,7 @@ export function operatorHandsEnabled(): boolean {
 /** Same rule as routes/admin.ts requireAdmin: the session email must
     be on ADMIN_EMAILS; unset allowlist → nobody is an admin. Delegates
     to the one shared predicate in lib/admin.ts. */
-export function isOperatorAdminEmail(email: string | undefined | null): boolean {
+function isOperatorAdminEmail(email: string | undefined | null): boolean {
   return isAdminEmail(email);
 }
 
@@ -87,7 +87,7 @@ export interface ExecutorOutcome {
   priceCharged?: number | null;
 }
 
-export interface ExecuteInput {
+interface ExecuteInput {
   userId: string;
   userEmail?: string;
   toolId: string;
@@ -106,7 +106,7 @@ function canonical(value: unknown): string {
   return `{${keys.map((k) => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`).join(",")}}`;
 }
 
-export function hashOperatorArgs(args: Record<string, unknown>): string {
+function hashOperatorArgs(args: Record<string, unknown>): string {
   return createHash("sha256").update(canonical(args)).digest("hex");
 }
 
@@ -161,7 +161,7 @@ function refusedOutcome(
 
 /* ── Confirmation protocol ──────────────────────────────────────────── */
 
-export type ProposeOutcome =
+type ProposeOutcome =
   | { status: "proposed"; pendingId: string; priceQuoted: number; expiresAt: Date }
   | {
       status: "refused";

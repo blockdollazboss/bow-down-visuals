@@ -20,8 +20,8 @@
  * bk1 trailer.
  */
 
-export type BookingState = "held" | "confirmed" | "cancelled";
-export type BookingRefundState = "refunded" | "refund_failed" | "not_required";
+type BookingState = "held" | "confirmed" | "cancelled";
+type BookingRefundState = "refunded" | "refund_failed" | "not_required";
 
 export interface BookingRecord {
   v: 1;
@@ -148,7 +148,7 @@ export function withBookingState(note: string | null | undefined, rec: BookingRe
 /** Derived, display-grade booking status for lists. 'held' rows are
  *  checkout-in-flight; a confirmed booking is 'upcoming' until its end
  *  passes, then 'done'. Cancelled stays cancelled regardless of the clock. */
-export type BookingStatus = "held" | "upcoming" | "done" | "cancelled";
+type BookingStatus = "held" | "upcoming" | "done" | "cancelled";
 
 export function deriveBookingStatus(
   rec: BookingRecord,

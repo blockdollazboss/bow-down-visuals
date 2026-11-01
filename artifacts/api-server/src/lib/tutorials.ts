@@ -62,7 +62,7 @@ export interface TutorialActor {
 /** The house admin test (routes/admin.ts): ADMIN_EMAILS, comma-
     separated, case-insensitive — unset allowlist means NOBODY is an
     admin (fail closed). */
-export function isTutorialAdmin(email?: string | null): boolean {
+function isTutorialAdmin(email?: string | null): boolean {
   const e = (email ?? "").trim().toLowerCase();
   if (!e) return false;
   return (process.env["ADMIN_EMAILS"] ?? "")
@@ -74,7 +74,7 @@ export function isTutorialAdmin(email?: string | null): boolean {
 
 /* ─── DTOs ───────────────────────────────────────────────────────────── */
 
-export interface TutorialVideoDto {
+interface TutorialVideoDto {
   id: string;
   title: string;
   url: string;
@@ -82,7 +82,7 @@ export interface TutorialVideoDto {
   durationSec: number;
 }
 
-export interface TutorialCardDto {
+interface TutorialCardDto {
   id: string;
   slug: string;
   title: string;
@@ -101,7 +101,7 @@ export interface TutorialCardDto {
   chapterTitles: string[];
 }
 
-export interface TutorialSeriesDto {
+interface TutorialSeriesDto {
   id: string;
   slug: string;
   title: string;
@@ -112,12 +112,12 @@ export interface TutorialSeriesDto {
   tutorials: TutorialCardDto[];
 }
 
-export interface TutorialCatalogDto {
+interface TutorialCatalogDto {
   series: TutorialSeriesDto[];
   standalone: TutorialCardDto[];
 }
 
-export interface TutorialChapterDto {
+interface TutorialChapterDto {
   id: string;
   position: number;
   title: string;
@@ -125,7 +125,7 @@ export interface TutorialChapterDto {
   body: string;
 }
 
-export interface TutorialResourceDto {
+interface TutorialResourceDto {
   id: string;
   chapterId: string | null;
   title: string;
@@ -134,7 +134,7 @@ export interface TutorialResourceDto {
   position: number;
 }
 
-export interface TutorialDetailDto {
+interface TutorialDetailDto {
   id: string;
   slug: string;
   title: string;
@@ -153,7 +153,7 @@ export interface TutorialDetailDto {
   creator: { slug: string; displayName: string } | null;
 }
 
-export interface TutorialProgressDto {
+interface TutorialProgressDto {
   tutorialId: string;
   status: "started" | "in_progress" | "completed";
   completedChapterIds: string[];
@@ -926,7 +926,7 @@ export async function updateTutorial(
   return getTutorialDetail(updated.slug);
 }
 
-export interface ChapterInput {
+interface ChapterInput {
   title: string;
   startSec?: number | null;
   body?: string;
@@ -967,7 +967,7 @@ export async function replaceChapters(
     .map((c) => ({ id: c.id, position: c.position, title: c.title, startSec: c.startSec, body: c.body }));
 }
 
-export interface ResourceInput {
+interface ResourceInput {
   title: string;
   url: string;
   kind?: "download" | "link";
@@ -1060,7 +1060,7 @@ export async function getMyProgress(userId: string): Promise<TutorialProgressDto
   return rows.map(progressDto);
 }
 
-export interface ProgressInput {
+interface ProgressInput {
   /** The chapter the fan is on now (resume point). */
   chapterId?: string | null;
   /** Video position in seconds (resume point). */

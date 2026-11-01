@@ -50,9 +50,9 @@ export const DEFAULT_EVERGREEN_SETTINGS: EvergreenSettings = {
 };
 
 /** A post must rest this long after posting before it counts as back catalog. */
-export const MIN_CATALOG_AGE_DAYS = 14;
+const MIN_CATALOG_AGE_DAYS = 14;
 
-export const EVERGREEN_LIMITS = {
+const EVERGREEN_LIMITS = {
   baseSpacingDays: { min: 1, max: 90 },
   maxCycles: { min: 1, max: 6 },
   perksNone: null,
@@ -118,7 +118,7 @@ export interface EvergreenCandidateInput {
   hasPendingProposal: boolean;
 }
 
-export type EvergreenSkipReason =
+type EvergreenSkipReason =
   | "not_posted"
   | "too_new"
   | "max_cycles"
@@ -192,7 +192,7 @@ export function nextEvergreenSlot(windows: EvergreenWindows, after: Date): Date 
   return null;
 }
 
-export interface EvergreenProposalDraft {
+interface EvergreenProposalDraft {
   sourcePostId: string;
   cycle: number;
   proposedSlot: Date;

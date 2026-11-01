@@ -53,11 +53,11 @@ import { isUndefinedTable } from "./pg-errors";
    try/catch; one bad address or a provider hiccup never blocks the
    rest of the list, and the fan-out as a whole never throws. */
 
-export const PRODUCT_DROP_NOTIFY_MAX_ATTEMPTS =
+const PRODUCT_DROP_NOTIFY_MAX_ATTEMPTS =
   Number(process.env["PRODUCT_DROP_NOTIFY_MAX_ATTEMPTS"]) || 3;
-export const PRODUCT_DROP_NOTIFY_FOLLOW_GRACE_MS =
+const PRODUCT_DROP_NOTIFY_FOLLOW_GRACE_MS =
   Number(process.env["PRODUCT_DROP_NOTIFY_FOLLOW_GRACE_MS"]) || 24 * 60 * 60 * 1000;
-export const PRODUCT_DROP_NOTIFY_STALE_PENDING_MS =
+const PRODUCT_DROP_NOTIFY_STALE_PENDING_MS =
   Number(process.env["PRODUCT_DROP_NOTIFY_STALE_PENDING_MS"]) || 15 * 60 * 1000;
 const SWEEP_INTERVAL_MS =
   Number(process.env["PRODUCT_DROP_NOTIFY_SWEEP_INTERVAL_MS"]) || 15 * 60 * 1000;
@@ -73,7 +73,7 @@ export interface DueProductDrop {
   dropAt: Date;
 }
 
-export interface EligibleCapture {
+interface EligibleCapture {
   id: string;
   email: string;
   name: string | null;
@@ -290,7 +290,7 @@ export function createDrizzleProductDropNotifyStore(db: Db = defaultDb): Product
   };
 }
 
-export interface ProductDropNotifyDeps {
+interface ProductDropNotifyDeps {
   store?: ProductDropNotifyStore;
   send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
   now?: Date;
@@ -343,7 +343,7 @@ ${emailButton(escapeHtml(productUrl), "Get it now")}
   };
 }
 
-export interface ProductDropFanoutResult {
+interface ProductDropFanoutResult {
   captures: number;
   claimed: number;
   sent: number;
@@ -420,7 +420,7 @@ export async function notifyDropFansForDrop(
   return result;
 }
 
-export interface ProductDropSweepResult {
+interface ProductDropSweepResult {
   drops: number;
   captures: number;
   sent: number;

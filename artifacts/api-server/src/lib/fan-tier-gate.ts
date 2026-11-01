@@ -75,7 +75,7 @@ export function effectiveFanMemberStatus(m: FanMemberLike, now: Date = new Date(
 
 /** Access checks admit only these effective statuses (fan-memberships
  *  schema header: "access checks admit only trialing / active"). */
-export const FAN_GATE_ADMITTING_STATUSES: ReadonlySet<string> = new Set(["active", "trialing"]);
+const FAN_GATE_ADMITTING_STATUSES: ReadonlySet<string> = new Set(["active", "trialing"]);
 
 export function fanMembershipAdmits(m: FanMemberLike, now: Date = new Date()): boolean {
   return FAN_GATE_ADMITTING_STATUSES.has(effectiveFanMemberStatus(m, now));
@@ -99,7 +99,7 @@ export function fanTierRank(orderedTiers: readonly FanTierLike[], tierId: string
   return orderedTiers.findIndex((t) => t.id === tierId);
 }
 
-export type TierGateViewerStatus = "not_member" | "below_tier" | "lapsed" | "paused";
+type TierGateViewerStatus = "not_member" | "below_tier" | "lapsed" | "paused";
 
 export interface TierGateEvaluation {
   /** A gate is configured on the channel at all. */
@@ -212,7 +212,7 @@ export interface TierGateKnock {
   history_note: string;
 }
 
-export const TIER_GATE_HISTORY_NOTE =
+const TIER_GATE_HISTORY_NOTE =
   "Your posts are never deleted when a membership ends — your threads and replies stay in the room, under your name.";
 
 export function buildTierGateKnock(opts: {

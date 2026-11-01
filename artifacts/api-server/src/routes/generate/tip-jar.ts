@@ -45,10 +45,10 @@ import {
    from the durable tip_jar_tips rows, counting only rows the rail
    itself flipped to "paid" (see computeFundingProgress). */
 
-export const TIP_CURRENCY = "USD";
+const TIP_CURRENCY = "USD";
 export const TIP_STATUS_PENDING = "pending_payment";
 /** The rail's one real money state: set exactly once by checkout verify. */
-export const TIP_STATUS_PAID = "paid";
+const TIP_STATUS_PAID = "paid";
 export const TIP_MAX_AMOUNT = 10000;
 export const TIP_MIN_AMOUNT = 1;
 export const TIP_MAX_SUGGESTED = 6;
@@ -84,7 +84,7 @@ export interface FundingGoalRecord {
   reachedAt: string;
 }
 
-export interface TipPageSettings {
+interface TipPageSettings {
   userId: string;
   handle: string;
   displayName: string;
@@ -149,7 +149,7 @@ export function normalizeSuggestedAmounts(amounts: number[]): number[] {
   return [...seen].sort((a, b) => a - b);
 }
 
-export const fundingGoalSchema = z.object({
+const fundingGoalSchema = z.object({
   targetAmount: z.number().positive().max(1_000_000),
   label: z.string().trim().max(80).default(""),
 });
@@ -163,7 +163,7 @@ export interface PaidTipRowLike {
   created_at: Date | string | null;
 }
 
-export interface FundingProgress {
+interface FundingProgress {
   /** USD dollars raised toward the goal (paid tips only). */
   raised: number;
   raisedCount: number;
@@ -585,7 +585,7 @@ async function resolveTipPageOwnerId(value: string): Promise<string | undefined>
    The embed widgets (routes/embed.ts) read the SAME store of record
    through these helpers — never a second copy of tip-page truth.
    Only what the public tip page itself shows is returned. */
-export interface PublicTipPageView {
+interface PublicTipPageView {
   handle: string;
   displayName: string;
   message: string;

@@ -180,8 +180,8 @@ router.patch("/content-id/claims/:id", requireAuth, async (req, res) => {
 
 /* ═══ #2 Succession / legacy designation ══════════════════════════════ */
 
-export const LEGACY_INCLUDES = ["catalog", "page"];
-export const LEGACY_EXCLUDES = ["private messages", "payment rails and payout credentials"];
+const LEGACY_INCLUDES = ["catalog", "page"];
+const LEGACY_EXCLUDES = ["private messages", "payment rails and payout credentials"];
 const legacyDto = (r: typeof legacyDesignationsTable.$inferSelect) => ({
   id: r.id, userId: r.user_id, heirUserId: r.heir_user_id, status: r.status, instructions: r.instructions,
   includes: LEGACY_INCLUDES, excludes: LEGACY_EXCLUDES,
@@ -276,7 +276,7 @@ const legacyContactBody = z.object({
   note: z.string().trim().max(1000).optional(),
 });
 
-export type SaveLegacyContactOutcome =
+type SaveLegacyContactOutcome =
   | { kind: "saved"; contact: ReturnType<typeof contactDto>; created: boolean }
   | { kind: "invalid"; issues: z.ZodIssue[] };
 
@@ -469,7 +469,7 @@ export const CATALOG_EXPORT_ROW_CAP = 2000;
 
 const exportCell = (v: unknown): unknown => (v instanceof Date ? v.toISOString() : v ?? null);
 
-export async function buildCatalogExport(userId: string, kind: string, fields: string[]) {
+async function buildCatalogExport(userId: string, kind: string, fields: string[]) {
   const def = CATALOG_EXPORT_KINDS[kind]!;
   const cols = sql.join(fields.map((f) => sql.raw(`${def.fields[f]} AS "${f}"`)), sql`, `);
   const rows = ((await db.execute(sql`SELECT ${cols} FROM ${sql.raw(def.from ?? def.table)} WHERE ${sql.raw(def.ownerColumn ?? "user_id")} = ${userId} ORDER BY ${sql.raw(def.orderBy ?? `"created_at" DESC`)} LIMIT ${sql.raw(String(CATALOG_EXPORT_ROW_CAP + 1))}`)).rows as Record<string, unknown>[])
@@ -847,7 +847,7 @@ router.post("/analytics/retention/heartbeat", requireAuth, async (req, res) => {
   } catch (err) { logger.error({ err }, "[trust] heartbeat failed"); res.status(500).json({ error: "Could not record that heartbeat." }); }
 });
 
-export function retentionCurve(events: Array<{ position_seconds: number; duration_seconds: number; viewer_user_id: string | null }>, buckets = 10) {
+function retentionCurve(events: Array<{ position_seconds: number; duration_seconds: number; viewer_user_id: string | null }>, buckets = 10) {
   const viewers = new Set(events.map((e) => e.viewer_user_id ?? "anon"));
   const maxByViewer = new Map<string, number>();
   for (const e of events) {
@@ -906,7 +906,7 @@ router.get("/analytics/videos/:videoId/retention", requireAuth, async (req, res)
 
 /* ═══ #6 Stage WS registration ════════════════════════════════════════ */
 
-export const stageHub = new RoomHub();
+const stageHub = new RoomHub();
 export function registerStageWs(gateway: LiveWsGateway, deps: { verifyToken?: typeof verifyAccessToken } = {}): void {
   const verifyToken = deps.verifyToken ?? verifyAccessToken;
   gateway.register("/api/stage-rooms/:id/ws", async ({ socket, params, query }) => {

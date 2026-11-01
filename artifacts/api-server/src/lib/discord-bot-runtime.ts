@@ -70,7 +70,7 @@ export function readDiscordBotConfig(
 
 /* ── Gate ───────────────────────────────────────────────────────────────── */
 
-export type DiscordBotGate = { ok: true } | { ok: false; reason: string };
+type DiscordBotGate = { ok: true } | { ok: false; reason: string };
 
 export function discordBotGate(
   env: Record<string, string | undefined> = process.env,
@@ -131,7 +131,7 @@ export function formatDuration(ms: number): string {
 let runningRuntime: DiscordBotRuntime | null = null;
 let sigtermHookRegistered = false;
 
-export type DiscordBotStartResult =
+type DiscordBotStartResult =
   | { started: true }
   | { started: false; reason: string };
 

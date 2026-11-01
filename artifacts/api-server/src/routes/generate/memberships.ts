@@ -202,7 +202,7 @@ export function membershipPeriodEnd(billingPeriod: "monthly" | "annual", from: D
   return d;
 }
 
-export function trialEndDate(from: Date): Date {
+function trialEndDate(from: Date): Date {
   const d = new Date(from);
   d.setDate(d.getDate() + MEMBERSHIP_TRIAL_DAYS);
   return d;
@@ -659,7 +659,7 @@ router.delete("/memberships/members/:id", requireAuth, publicApiLimiter, async (
    the session id, join-trial 409s any existing row. An existing-row
    refresh is a conversion/renewal, not a join, and never bells. */
 
-export type MembershipJoinKind = "paid" | "free" | "trial";
+type MembershipJoinKind = "paid" | "free" | "trial";
 
 export function buildMembershipJoinEvent(opts: {
   creatorUserId: string;

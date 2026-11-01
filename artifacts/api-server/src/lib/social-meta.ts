@@ -262,7 +262,7 @@ export async function exchangeCodeForLongLivedToken(
 }
 
 
-export interface InstagramProfile {
+interface InstagramProfile {
   igUserId: string;
   username: string;
 }
@@ -304,7 +304,7 @@ export async function createReelContainer(
   return res.id;
 }
 
-export type ContainerStatus = "IN_PROGRESS" | "FINISHED" | "ERROR" | "EXPIRED";
+type ContainerStatus = "IN_PROGRESS" | "FINISHED" | "ERROR" | "EXPIRED";
 
 const POLL_INTERVAL_MS = 10_000;
 const POLL_MAX_TRIES = 30; // ~5 minutes
@@ -333,7 +333,7 @@ export async function pollContainerUntilFinished(
   throw new MetaApiError("Instagram is taking too long to process the video. Try again in a few minutes.");
 }
 
-export async function publishContainer(
+async function publishContainer(
   igUserId: string,
   accessToken: string,
   containerId: string,
@@ -348,7 +348,7 @@ export async function publishContainer(
   return res.id;
 }
 
-export async function fetchPermalink(
+async function fetchPermalink(
   mediaId: string,
   accessToken: string,
   fetchImpl: FetchImpl = defaultFetch,
@@ -361,7 +361,7 @@ export async function fetchPermalink(
   return res.permalink ?? "";
 }
 
-export interface PublishReelInput {
+interface PublishReelInput {
   igUserId: string;
   accessToken: string;
   videoUrl: string;
@@ -386,7 +386,7 @@ export async function publishReelToInstagram(
   return { mediaId, permalink };
 }
 
-export interface PublishImageInput {
+interface PublishImageInput {
   igUserId: string;
   accessToken: string;
   imageUrl: string;

@@ -73,14 +73,14 @@ export { WEEKLY_QUEST_POOL_VB };
 export const KING_MOMENT_REWARD_VB = 25;
 
 /** How long after the firing the hall's claim window stands. */
-export const KING_MOMENT_CLAIM_WINDOW_MS = 60 * 60_000;
+const KING_MOMENT_CLAIM_WINDOW_MS = 60 * 60_000;
 
 /** The scheduler's tick. The moment is a daily appointment; a
  *  30 s tick keeps the firing on the minute without a cron. */
 export const KING_MOMENT_TICK_MS = 30_000;
 
 /** Risers named in the herald — the top of the week's board. */
-export const KING_MOMENT_RISERS_NAMED = 3;
+const KING_MOMENT_RISERS_NAMED = 3;
 
 /* ── Dates (the palace day is the UTC day) ──────────────────────── */
 
@@ -99,7 +99,7 @@ export function kingWeekStart(now: Date): string {
 
 /* ── The announcement (pure) ────────────────────────────────────── */
 
-export interface KingMomentMaterial {
+interface KingMomentMaterial {
   kingName: string;
   risers: { name: string; score: number }[];
   tonight: { title: string; roomName: string; startsAt: string }[];
@@ -159,7 +159,7 @@ export interface KingMomentStore {
 
 const ROOM_NAMES = new Map(PALACE_ROOM_DEFS.map((r) => [r.roomId, r.name]));
 
-export const dbKingMomentStore: KingMomentStore = {
+const dbKingMomentStore: KingMomentStore = {
   async getMoment(date) {
     const [row] = await db
       .select()
@@ -351,7 +351,7 @@ export function createKingMomentClaimer(
 
 /* ── The scheduler ──────────────────────────────────────────────── */
 
-export interface KingMomentSchedulerDeps {
+interface KingMomentSchedulerDeps {
   palace: WorldPalace;
   store?: KingMomentStore;
 }

@@ -29,7 +29,7 @@ import { logger } from "./logger";
 
 export type OverlayAlertKind = "tip" | "follow" | "member" | "test";
 
-export interface OverlayAlert {
+interface OverlayAlert {
   kind: OverlayAlertKind;
   /** The line the alert pops with — the same words the bell carries. */
   title: string;

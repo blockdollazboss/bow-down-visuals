@@ -14,13 +14,13 @@ import { RoomHub, WS_OPEN, type WsClientSocket } from "./live-ws";
 
 export const STAGE_SPEAKER_CAP = 8;
 export const STAGE_PRESENCE_CAP = 25;
-export const STAGE_SAY_MAX = 500;
+const STAGE_SAY_MAX = 500;
 
-export interface StageIdentity { userId: string | null; displayName: string }
+interface StageIdentity { userId: string | null; displayName: string }
 interface Peer extends StageIdentity {
   peerId: string; socket: WsClientSocket; role: "host" | "speaker" | "listener"; voice: boolean;
 }
-export interface StagePeerDto { peerId: string; displayName: string; role: Peer["role"]; guest: boolean; voice: boolean }
+interface StagePeerDto { peerId: string; displayName: string; role: Peer["role"]; guest: boolean; voice: boolean }
 /** One person standing in a stage room, as a plain record with
  *  their account id — the shape the Cloud Operator's Tier-4 stage
  *  commands resolve names against (Lane F). The wire DTO above

@@ -14,10 +14,10 @@ import type { CreatorTier } from "./platform-fees";
    First subscribe (no active subscription) is unchanged: it goes
    through Checkout, on the user's one persisted customer.            */
 
-export type StripeSubscriptionChanger = Pick<Stripe, "subscriptions">;
-export type StripeTierChangeClient = Pick<Stripe, "subscriptions" | "invoices">;
+type StripeSubscriptionChanger = Pick<Stripe, "subscriptions">;
+type StripeTierChangeClient = Pick<Stripe, "subscriptions" | "invoices">;
 
-export interface TierChangeResult {
+interface TierChangeResult {
   subscriptionId: string;
   customerId: string | null;
   status: string;

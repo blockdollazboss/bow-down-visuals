@@ -20,7 +20,7 @@
 
 export interface Landmark { h: number; t: number }
 export interface Fingerprint { landmarks: Landmark[]; durationSeconds: number; sampleRate: number }
-export interface MatchResult {
+interface MatchResult {
   matched: boolean;
   offsetSeconds: number;
   confidence: number;
@@ -114,8 +114,8 @@ export function encodePcm16Base64(samples: Float32Array): string {
   return buf.toString("base64");
 }
 
-export const MATCH_MIN_LANDMARKS = 8;
-export const MATCH_MIN_CONFIDENCE = 0.12;
+const MATCH_MIN_LANDMARKS = 8;
+const MATCH_MIN_CONFIDENCE = 0.12;
 
 /**
  * Match a query fingerprint against one reference. A landmark counts

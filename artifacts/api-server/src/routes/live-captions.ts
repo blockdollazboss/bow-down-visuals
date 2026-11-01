@@ -59,9 +59,9 @@ const SEGMENT_MIN_INTERVAL_MS = 400;
 const BACKFILL_COUNT = 10;
 
 /** Sockets subscribed to one (stream, language) caption room. */
-export const liveCaptionsHub = new RoomHub();
+const liveCaptionsHub = new RoomHub();
 
-export function captionRoom(streamId: string, language: string): string {
+function captionRoom(streamId: string, language: string): string {
   return `captions:${streamId}:${language}`;
 }
 
@@ -89,7 +89,7 @@ export function __resetCaptionViewerTracking(): void {
    The same model path the file translator uses (getOpenAI +
    getTextModel), prompted for ONE spoken line: keep it short,
    natural, caption-shaped. Tests inject a fake instead. */
-export const railCaptionTranslator: CaptionTranslator = async (text, targetCode) => {
+const railCaptionTranslator: CaptionTranslator = async (text, targetCode) => {
   const completion = await getOpenAI().chat.completions.create(
     {
       model: getTextModel(),
@@ -120,7 +120,7 @@ export function __setCaptionTranslator(t: CaptionTranslator | null): void {
    and translated once per language that has a socket viewer waiting
    (the store caches it, so poll readers in that language reuse the
    same translation). Returns the languages delivered live. */
-export async function publishCaptionSegment(
+async function publishCaptionSegment(
   seg: LiveCaptionSegment,
   translator: CaptionTranslator = activeTranslator,
 ): Promise<string[]> {

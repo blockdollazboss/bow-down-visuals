@@ -63,7 +63,7 @@ export interface FanSegmentSendDeps {
   loadCampaign: (campaignId: string) => Promise<EmailCampaign | null>;
 }
 
-export function defaultFanSegmentSendDeps(): FanSegmentSendDeps {
+function defaultFanSegmentSendDeps(): FanSegmentSendDeps {
   return {
     loadFans: async (creatorUserId) => (await loadFanGraph(creatorUserId)).fans,
     loadOwnedList: async (creatorUserId, listId) => {
@@ -95,7 +95,7 @@ export function defaultFanSegmentSendDeps(): FanSegmentSendDeps {
   };
 }
 
-export type FanSegmentSendResult =
+type FanSegmentSendResult =
   | {
       ok: true;
       campaign: EmailCampaign;

@@ -50,9 +50,8 @@ export function __setMembershipGiftPushGate(fn: GiftPushGate | null): void {
   _giftPushGate = fn ?? pushIfCategoryEnabled;
 }
 
-export type GiftTier = Exclude<CreatorTier, "free">;
+type GiftTier = Exclude<CreatorTier, "free">;
 
-export const GIFT_TIERS: GiftTier[] = ["pro", "elite"];
 
 /** The lifecycle truth, in the exact words every surface must use. */
 export const GIFT_NO_RENEW_COPY =
@@ -103,7 +102,7 @@ export function computeGiftWindow(
   return { periodStart: start, periodEnd: addMonthsClamped(start, months) };
 }
 
-export interface GiftWindowRow {
+interface GiftWindowRow {
   tier: string;
   status: string;
   periodStart: Date | string;
@@ -143,7 +142,7 @@ export function giftDisplayStatus(
    (profiles.email). A recipient must have a creator profile — the
    gift row's entitlement FK points at it. Unknown → null (the route
    refuses honestly; it never guesses). */
-export interface GiftRecipient {
+interface GiftRecipient {
   userId: string;
   profileId: string;
   slug: string;
@@ -193,7 +192,7 @@ export async function resolveGiftRecipient(lookupRaw: string): Promise<GiftRecip
 }
 
 /* ── Fulfillment: grant exactly once ────────────────────────────────── */
-export interface FulfillGiftInput {
+interface FulfillGiftInput {
   sessionId: string;
   paymentIntentId: string | null;
   amountCents: number | null;

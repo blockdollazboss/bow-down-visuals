@@ -37,7 +37,7 @@ import type { DetectionSample } from "./reframe-tracking";
 
 const execFileAsync = promisify(execFile);
 
-export interface SubjectDetectionResult {
+interface SubjectDetectionResult {
   samples: DetectionSample[];
   width: number;
   height: number;
@@ -81,7 +81,7 @@ async function exists(p: string): Promise<boolean> {
  *  rvm/). Candidates cover the repo checkout (dev/tests run from
  *  artifacts/api-server), the production image layout (cwd=/app),
  *  and an explicit override. */
-export async function resolveEnginesDir(): Promise<string | null> {
+async function resolveEnginesDir(): Promise<string | null> {
   const candidates: string[] = [];
   const override = process.env["REFRAME_ENGINES_DIR"];
   if (override) candidates.push(override);

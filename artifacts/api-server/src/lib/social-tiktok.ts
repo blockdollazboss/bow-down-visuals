@@ -173,7 +173,7 @@ async function oauthToken(
   return body;
 }
 
-export interface TikTokTokens {
+interface TikTokTokens {
   accessToken: string;
   refreshToken: string;
   openId: string;
@@ -241,7 +241,7 @@ export async function fetchTikTokUserInfo(
 
 /* ── Inbox video upload (drafts tier) ──────────────────────────────────── */
 
-export interface InboxInitResult {
+interface InboxInitResult {
   publishId: string;
   uploadUrl: string | null;
 }
@@ -315,14 +315,14 @@ export async function putVideoChunk(
   }
 }
 
-export type InboxStatus =
+type InboxStatus =
   | "PROCESSING_UPLOAD"
   | "PROCESSING_DOWNLOAD"
   | "SEND_TO_USER_INBOX"
   | "PUBLISH_COMPLETE"
   | "FAILED";
 
-export async function fetchInboxStatus(
+async function fetchInboxStatus(
   publishId: string,
   accessToken: string,
   fetchImpl: FetchImpl = defaultFetch,
@@ -363,7 +363,7 @@ export async function pollInboxUntilReady(
   throw new TikTokApiError("TikTok is taking too long to process the video. Check your TikTok inbox in a few minutes.");
 }
 
-export interface UploadDraftInput {
+interface UploadDraftInput {
   accessToken: string;
   videoBytes: Buffer;
 }

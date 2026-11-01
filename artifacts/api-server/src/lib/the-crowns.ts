@@ -83,17 +83,17 @@ export const CROWNS_TICK_MS = 30_000;
 
 /** The first year The Crowns can decide: the year the palace
  *  game layer opened (the court-season epoch year). */
-export const CROWNS_EPOCH_YEAR = 2026;
+const CROWNS_EPOCH_YEAR = 2026;
 
 /** How deep each category's frozen record keeps its court. */
-export const CROWN_CATEGORY_STANDINGS_NAMED = 5;
+const CROWN_CATEGORY_STANDINGS_NAMED = 5;
 
 /** How many winners the deciding herald names at most. */
-export const CROWN_HERALD_NAMED = 7;
+const CROWN_HERALD_NAMED = 7;
 
 /* ── The year (pure) ────────────────────────────────────────────── */
 
-export interface CrownYearInfo {
+interface CrownYearInfo {
   /** 2026 — the record's primary key. */
   year: number;
   /** "crowns-2026". */
@@ -207,7 +207,7 @@ export function crownCategory(key: string): CrownCategory | null {
 
 /* ── Category standings (pure ranking over windowed counts) ─────── */
 
-export interface RankedCrownEntry {
+interface RankedCrownEntry {
   userId: string;
   displayName: string;
   slug: string;
@@ -366,7 +366,7 @@ export const dbCrownsStore: CrownsStore = {
 
 /* ── The deciding ───────────────────────────────────────────────── */
 
-export interface CrownDecideOutcome {
+interface CrownDecideOutcome {
   /** True only for the deciding that inserted the row — the one
    *  that may herald. False = the year was already decided (or a
    *  twin decided it first); the record stands untouched. */
@@ -496,7 +496,7 @@ export function activeCrowns(
 
 /* ── The scheduler ──────────────────────────────────────────────── */
 
-export interface CrownsSchedulerDeps {
+interface CrownsSchedulerDeps {
   palace: { announce: (announcement: PalaceAnnouncement) => void };
   store?: CrownsStore;
 }
@@ -551,14 +551,14 @@ export class CrownsScheduler {
 
 /* ── DTOs (the site read — mirrored by the client) ──────────────── */
 
-export interface CrownCategoryDto {
+interface CrownCategoryDto {
   key: string;
   title: string;
   blurb: string;
   metricLabel: string;
 }
 
-export interface CrownYearDto {
+interface CrownYearDto {
   year: number;
   crownKey: string;
   name: string;
@@ -569,7 +569,7 @@ export interface CrownYearDto {
   heraldText: string;
 }
 
-export interface CrownLeaderDto {
+interface CrownLeaderDto {
   userId: string;
   displayName: string;
   slug: string;

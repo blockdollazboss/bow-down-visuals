@@ -341,14 +341,14 @@ export async function getQuestsEnabled(userId: string): Promise<boolean> {
 
 /* ── READ API (used by routes) ─────────────────────────────────────────── */
 
-export interface MilestoneStatus {
+interface MilestoneStatus {
   days: number;
   reward: number;
   reached: boolean;
   claimed: boolean;
 }
 
-export interface StreakStatus {
+interface StreakStatus {
   enabled: boolean;
   currentStreak: number;
   longestStreak: number;
@@ -385,7 +385,7 @@ export async function getStreakStatus(userId: string): Promise<StreakStatus> {
   };
 }
 
-export interface QuestStatus {
+interface QuestStatus {
   key: string;
   target: number;
   reward: number;
@@ -394,7 +394,7 @@ export interface QuestStatus {
   claimed: boolean;
 }
 
-export interface QuestsStatus {
+interface QuestsStatus {
   enabled: boolean;
   weekStart: string;
   quests: QuestStatus[];

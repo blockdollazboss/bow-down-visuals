@@ -12,7 +12,7 @@
 
 import type { SpikeVerdict } from "./viral-spike";
 
-export type SpikeContentKind = "showcase" | "short";
+type SpikeContentKind = "showcase" | "short";
 
 export interface SpikeContentRef {
   kind: SpikeContentKind;
@@ -22,9 +22,9 @@ export interface SpikeContentRef {
   slug?: string | null;
 }
 
-export type KitStage = "create" | "brand" | "promote" | "money";
+type KitStage = "create" | "brand" | "promote" | "money";
 
-export interface KitStep {
+interface KitStep {
   stage: KitStage;
   /** Stable action key for FE rendering / tests. */
   action: string;

@@ -74,7 +74,7 @@ function getTestStripe(): Stripe {
 }
 
 /** The durable subscription state a tier purchase intent carries. */
-export interface CreatorTierSubscriptionState {
+interface CreatorTierSubscriptionState {
   tier: string;
   status: string;
   currentPeriodEnd: Date | null;

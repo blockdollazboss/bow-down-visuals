@@ -57,7 +57,7 @@ import {
    same pattern as initOwnServerLive. This module never imports a
    route. */
 
-export interface RtmpIngestConfig {
+interface RtmpIngestConfig {
   /** Encoder ingest is OPT-IN per deployment: open only when ops set
    *  LIVE_RTMP_INGEST=on. The RTMP door is a raw-TCP port, and not
    *  every host routes one — on Render only HTTP is routed, so the
@@ -236,7 +236,7 @@ export async function resolveIngestKey(presented: string): Promise<ResolvedInges
 
 /* ══ Row-lifecycle host (registered by the routes layer) ═════════════ */
 
-export interface RtmpIngestHost {
+interface RtmpIngestHost {
   /** Create the live row + engine session for an accepted publish. */
   startStream(input: {
     userId: string;
@@ -280,7 +280,7 @@ export function activeIngestUserIds(): string[] {
 
 /* ══ Publish connection ══════════════════════════════════════════════ */
 
-export interface RtmpSocket {
+interface RtmpSocket {
   write(data: Buffer): boolean;
   destroy(): void;
   pause(): void;
@@ -701,7 +701,7 @@ export class RtmpPublishConnection {
 
 /* ══ Server ══════════════════════════════════════════════════════════ */
 
-export function createRtmpIngestServer(deps: RtmpIngestDeps): net.Server {
+function createRtmpIngestServer(deps: RtmpIngestDeps): net.Server {
   return net.createServer((socket) => {
     socket.setNoDelay(true);
     new RtmpPublishConnection(socket as unknown as RtmpSocket, deps);

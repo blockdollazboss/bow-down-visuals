@@ -33,7 +33,7 @@ const vocalPolishSchema = z.object({
   tempoFactor: z.number().min(0.5).max(2).default(1),
 });
 
-export type VocalPolishFilterPath = "rubberband" | "fallback";
+type VocalPolishFilterPath = "rubberband" | "fallback";
 
 /* ── Pure, testable helpers ─────────────────────────────────────────── */
 
@@ -113,9 +113,6 @@ export async function hasRubberbandFilter(): Promise<boolean> {
 }
 
 /** Test hook: reset the cached probe. */
-export function __resetRubberbandProbe(): void {
-  rubberbandAvailable = null;
-}
 
 /* ── Tuning analysis (python3 + numpy; non-fatal if unavailable) ────── */
 
@@ -127,7 +124,7 @@ const PITCH_SCRIPT = join(
   "pitch-analyze.py",
 );
 
-export interface TuningAnalysis {
+interface TuningAnalysis {
   medianCentsOffset: number | null;
   voicedFrames: number;
   confident: boolean;
@@ -188,9 +185,9 @@ export async function analyzeTuning(inputPath: string): Promise<TuningAnalysis> 
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type VocalPolishJobStatus = "queued" | "processing" | "done" | "failed";
+type VocalPolishJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface VocalPolishJob {
+interface VocalPolishJob {
   id: string;
   userId: string;
   status: VocalPolishJobStatus;
@@ -212,17 +209,11 @@ export interface VocalPolishJob {
 const jobs = new Map<string, VocalPolishJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getVocalPolishJob(id: string): VocalPolishJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
-export function __clearVocalPolishJobs(): void {
-  jobs.clear();
-}
 
 /** Exported for tests. */
-export async function runVocalPolishJob(job: VocalPolishJob): Promise<void> {
+async function runVocalPolishJob(job: VocalPolishJob): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "vocal-polish-"));
   const inputPath = join(workDir, "input.bin");
   const outputPath = join(workDir, "polished.mp3");

@@ -47,7 +47,7 @@ import {
   type ExecutorOutcome,
 } from "./operator-executor";
 
-export interface OperatorTurnResult {
+interface OperatorTurnResult {
   replyText: string;
   action: {
     toolId: string;
@@ -92,7 +92,7 @@ type ExecutorStatus = ExecutorOutcome["status"];
      and a signed-out member's door is a plain link — the site's normal
      sign-in gate answers, exactly like any link. */
 
-export interface OperatorDoor {
+interface OperatorDoor {
   kind: "open" | "guide";
   label: string;
   path: string;
@@ -198,12 +198,12 @@ export function extractActionMarker(
 const CONFIRM_RE = /^(yes|yeah|yep|yup|confirm|confirmed|go|go ahead|do it|please do|sure|ok|okay)[.! ]*$/i;
 const CANCEL_RE = /^(no|nope|cancel|stop|never ?mind|forget it|don't|do not)[.! ]*$/i;
 
-export function isConfirmationMessage(message: string): boolean {
+function isConfirmationMessage(message: string): boolean {
   const t = message.trim();
   return t.length <= 32 && CONFIRM_RE.test(t);
 }
 
-export function isCancellationMessage(message: string): boolean {
+function isCancellationMessage(message: string): boolean {
   const t = message.trim();
   return t.length <= 32 && CANCEL_RE.test(t);
 }
@@ -279,7 +279,7 @@ export async function processOperatorPreTurn(input: {
    order (a detail the member never gave): elicitation belongs to
    the model/marker path, which sees the whole conversation. */
 
-export interface OperatorIntent {
+interface OperatorIntent {
   toolId: string;
   args: Record<string, unknown>;
 }

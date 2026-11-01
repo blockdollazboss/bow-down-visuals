@@ -66,7 +66,7 @@ async function failCampaign(campaignId: string, reason: string): Promise<Dispatc
  *  the provider can take sends at all, the body's distinct links (to
  *  wrap per delivery), and the public base the tracking URLs hang
  *  off. */
-export interface PreparedSend {
+interface PreparedSend {
   providerReady: boolean;
   bodyLinks: string[];
   base: string;
@@ -80,7 +80,7 @@ export function prepareCampaignSend(campaign: { body: string }): PreparedSend {
   };
 }
 
-export type DeliveryOutcome = "sent" | "failed" | "no_provider" | "already_sent" | "raced";
+type DeliveryOutcome = "sent" | "failed" | "no_provider" | "already_sent" | "raced";
 
 /**
  * Send ONE campaign to ONE subscriber through the tracked rail:

@@ -60,16 +60,16 @@ const vocalTuneSchema = z.object({
   tempoFactor: z.coerce.number().min(0.5).max(2).default(1),
 });
 
-export type VocalTuneStyle = "transparent" | "hardtune";
-export type VocalTuneFilterPath = "rubberband" | "fallback";
+type VocalTuneStyle = "transparent" | "hardtune";
+type VocalTuneFilterPath = "rubberband" | "fallback";
 
-export interface TuneNote {
+interface TuneNote {
   start: number;
   end: number;
   shiftCents: number;
 }
 
-export interface TuneSegment {
+interface TuneSegment {
   start: number;
   end: number;
   /** Total pitch shift in semitones (keyShift + quantized correction). */
@@ -91,7 +91,7 @@ function quantize(value: number, step: number): number {
  * quantized — so an unvoiced gap never audibly drifts from the
  * requested key.
  */
-export function buildTuneSegments(
+function buildTuneSegments(
   notes: TuneNote[],
   duration: number,
   keyShift: number,
@@ -162,7 +162,7 @@ function fallbackPitchChain(pitchSemitones: number, sampleRate = 44100): string 
  * Single-segment fast path keeps tiny jobs to one filter. The input pad
  * is explicitly asplit — never rely on implicit fan-out.
  */
-export function buildHardtuneFilterGraph(
+function buildHardtuneFilterGraph(
   segments: TuneSegment[],
   tempoFactor: number,
   useRubberband: boolean,
@@ -210,14 +210,14 @@ const PITCH_TRACK_SCRIPT = join(
   "pitch-track.py",
 );
 
-export interface NoteTracking {
+interface NoteTracking {
   notes: TuneNote[];
   voicedFrames: number;
   confident: boolean;
   skipped: boolean;
 }
 
-export async function trackNotes(inputPath: string): Promise<NoteTracking> {
+async function trackNotes(inputPath: string): Promise<NoteTracking> {
   const python = process.env.DEMUCS_PYTHON || "python3";
   const workDir = await fs.mkdtemp(join(tmpdir(), "vocal-tune-track-"));
   try {
@@ -294,9 +294,9 @@ async function probeDurationSeconds(inputPath: string): Promise<number | null> {
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type VocalTuneJobStatus = "queued" | "processing" | "done" | "failed";
+type VocalTuneJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface VocalTuneJob {
+interface VocalTuneJob {
   id: string;
   userId: string;
   status: VocalTuneJobStatus;
@@ -321,14 +321,8 @@ export interface VocalTuneJob {
 const jobs = new Map<string, VocalTuneJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getVocalTuneJob(id: string): VocalTuneJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
-export function __clearVocalTuneJobs(): void {
-  jobs.clear();
-}
 
 async function runGentlePass(
   job: VocalTuneJob,
@@ -373,7 +367,7 @@ async function runGentlePass(
 }
 
 /** Exported for tests. */
-export async function runVocalTuneJob(job: VocalTuneJob, sourceBuffer: Buffer): Promise<void> {
+async function runVocalTuneJob(job: VocalTuneJob, sourceBuffer: Buffer): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "vocal-tune-"));
   const inputPath = join(workDir, "input.bin");
   const outputPath = join(workDir, "tuned.mp3");

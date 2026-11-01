@@ -21,24 +21,24 @@ export function isArcadeGame(v: unknown): v is ArcadeGame {
 /* Runner construction (client): speed starts 420 px/s, ramps +6 px/s per
    second, hard cap 900 px/s. Score = floor(distancePx / 40) + 25/coin.
    Coins spawn at most once per 1.1s. */
-export const RUNNER_MAX_SPEED_PX_S = 900;
-export const RUNNER_PX_PER_POINT = 40;
-export const RUNNER_COIN_POINTS = 25;
-export const RUNNER_MIN_COIN_INTERVAL_S = 1.1;
+const RUNNER_MAX_SPEED_PX_S = 900;
+const RUNNER_PX_PER_POINT = 40;
+const RUNNER_COIN_POINTS = 25;
+const RUNNER_MIN_COIN_INTERVAL_S = 1.1;
 
 /* Royal Skeet construction (client): fixed 45s round — it replaced
    the Shooter Gallery in the games upgrade with the same scoring
    contract. Plates spawn no faster than every 500ms. A hit scores
    100 + min(streak, 10) * 5, so one hit is worth at most 150. */
-export const SKEET_ROUND_MS = 45_000;
-export const SKEET_MIN_SPAWN_INTERVAL_MS = 500;
-export const SKEET_MAX_HIT_POINTS = 150;
+const SKEET_ROUND_MS = 45_000;
+const SKEET_MIN_SPAWN_INTERVAL_MS = 500;
+const SKEET_MAX_HIT_POINTS = 150;
 
 /* A scored run must last at least this long, and no submission may
    claim more than 20 minutes of play (both games end far sooner:
    runner runs end on collision, skeet rounds are 45s). */
-export const ARCADE_MIN_DURATION_MS = 2_000;
-export const ARCADE_MAX_DURATION_MS = 20 * 60_000;
+const ARCADE_MIN_DURATION_MS = 2_000;
+const ARCADE_MAX_DURATION_MS = 20 * 60_000;
 
 /** Highest score a real run of `durationMs` could possibly reach. */
 export function maxPlausibleScore(game: ArcadeGame, durationMs: number): number {
@@ -52,7 +52,7 @@ export function maxPlausibleScore(game: ArcadeGame, durationMs: number): number 
   return maxTargets * SKEET_MAX_HIT_POINTS;
 }
 
-export type ScoreVerdict =
+type ScoreVerdict =
   | { ok: true }
   | { ok: false; reason: string };
 

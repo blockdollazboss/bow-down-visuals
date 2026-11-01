@@ -3,7 +3,7 @@
  * Kept dependency-free so it can be unit-tested without the server.
  */
 
-export type IntroOutroType = "intro" | "outro";
+type IntroOutroType = "intro" | "outro";
 
 /** Intros/outros are always 5 seconds — the standard sting length. */
 export const INTRO_OUTRO_DURATION_SEC = 5;

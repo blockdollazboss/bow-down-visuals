@@ -56,7 +56,7 @@ import { EVENT_MAX_AHEAD_MS, MUSIC_HALL_ROOM_ID, type BookingPrivilege } from ".
 
 export const THRONE_HALL_ROOM_ID = WORLD_ROOM_ID; // "world:kings-hall"
 
-export const CONTEST_ROOM_IDS: readonly string[] = [THRONE_HALL_ROOM_ID, MUSIC_HALL_ROOM_ID];
+const CONTEST_ROOM_IDS: readonly string[] = [THRONE_HALL_ROOM_ID, MUSIC_HALL_ROOM_ID];
 
 export function isContestRoom(roomId: string): boolean {
   return CONTEST_ROOM_IDS.includes(roomId);
@@ -73,7 +73,7 @@ export function contestPrivilegeForRoom(roomId: string): BookingPrivilege {
 
 /** Entries need real time to gather: a contest runs at least an
  *  hour, at most the events backbone's own 30-day horizon. */
-export const CONTEST_MIN_WINDOW_MS = 3_600_000;
+const CONTEST_MIN_WINDOW_MS = 3_600_000;
 
 export function contestDeadlineError(now: Date, endsAt: Date): string | null {
   const span = endsAt.getTime() - now.getTime();
@@ -168,7 +168,7 @@ export interface WorldContestDto {
 /** One line on the Winners' Circle board: the honor, the work, the
  *  contest it came from, and when it landed. Built to dock onto
  *  the court record (season marks) at integration. */
-export interface WinnersCircleHonorDto {
+interface WinnersCircleHonorDto {
   id: string;
   place: number;
   winnerName: string;
@@ -240,7 +240,7 @@ export function contestWinnersAnnouncement(
  * simply not spoken — the Winners' Circle rows are the durable
  * record either way; the herald is the moment, not the proof.
  */
-export type WorldContestAnnouncer = (announcement: PalaceAnnouncement) => void;
+type WorldContestAnnouncer = (announcement: PalaceAnnouncement) => void;
 
 let announcer: WorldContestAnnouncer | null = null;
 

@@ -50,16 +50,16 @@ export const DEFAULT_SPIKE_CONFIG: SpikeConfig = {
   cooldownHours: 24,
 };
 
-export type InsufficientReason =
+type InsufficientReason =
   | "needs_at_least_two_samples"
   | "recent_span_too_short"
   | "baseline_too_short";
 
-export type NoSpikeReason = "gain_below_minimum" | "velocity_below_multiplier";
+type NoSpikeReason = "gain_below_minimum" | "velocity_below_multiplier";
 
-export type SpikeBasis = "measured_multiplier" | "baseline_silent" | "first_surge";
+type SpikeBasis = "measured_multiplier" | "baseline_silent" | "first_surge";
 
-export interface SpikeNumbers {
+interface SpikeNumbers {
   recentGain: number;
   recentSpanHours: number;
   recentVelocityPerHour: number;

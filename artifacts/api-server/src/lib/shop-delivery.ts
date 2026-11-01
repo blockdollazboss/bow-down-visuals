@@ -28,7 +28,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 
-export interface DeliveryLineInput {
+interface DeliveryLineInput {
   saleEventId: string;
   shopId: string;
   productId: string | null;
@@ -43,7 +43,7 @@ export interface DeliveryLineInput {
   orderId: string;
 }
 
-export interface ShopDeliveryRow {
+interface ShopDeliveryRow {
   sale_event_id: string;
   order_id: string;
   product_id: string | null;
@@ -135,7 +135,7 @@ export async function fetchDeliveriesForSaleEvents(saleEventIds: string[]): Prom
   }
 }
 
-export interface UndeliveredSaleRow {
+interface UndeliveredSaleRow {
   sale_event_id: string;
   order_id: string | null;
   product_id: string | null;

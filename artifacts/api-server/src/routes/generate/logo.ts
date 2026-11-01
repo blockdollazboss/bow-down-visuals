@@ -53,9 +53,6 @@ export const LOGO_BUCKET = "generated-clips";
  * by the house job-map TTL (2h), like the other pending-task maps. */
 const pendingLogoTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number }>());
 /** Test hook — clears the in-memory task map. */
-export function __clearPendingLogoTasks() {
-  pendingLogoTasks.clear();
-}
 
 async function uploadLogoImage(userId: string, buffer: Buffer, ext: string): Promise<{ url: string; path: string }> {
   const filePath = `logos/${userId}/${randomUUID()}.${ext}`;

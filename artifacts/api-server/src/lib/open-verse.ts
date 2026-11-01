@@ -135,8 +135,8 @@ export function openVerseLedgerKey(postId: string): string {
    sum/precision/range rules are identical site-wide. The winner line's
    name is a slot label, never an invented person. */
 
-export const OPEN_VERSE_CREATOR_TERM_NAME = "Song creator";
-export const OPEN_VERSE_WINNER_TERM_NAME = "Winning verse creator";
+const OPEN_VERSE_CREATOR_TERM_NAME = "Song creator";
+const OPEN_VERSE_WINNER_TERM_NAME = "Winning verse creator";
 
 export function buildSplitTerms(winnerSharePct: number): OpenVerseSplitTerm[] {
   if (typeof winnerSharePct !== "number" || !Number.isFinite(winnerSharePct)) {
@@ -188,10 +188,10 @@ export function winnerShareFromTerms(terms: OpenVerseSplitTerm[]): number {
 
 /* ── Post creation ─────────────────────────────────────────────────────── */
 
-export const MAX_BRIEF_CHARS = 1000;
-export const MAX_SLOT_LABEL_CHARS = 80;
+const MAX_BRIEF_CHARS = 1000;
+const MAX_SLOT_LABEL_CHARS = 80;
 
-export interface CreateOpenVerseInput {
+interface CreateOpenVerseInput {
   brief?: string;
   slotLabel?: string;
   winnerSharePct: number;
@@ -223,8 +223,8 @@ export function buildPostTerms(input: CreateOpenVerseInput, now: Date = new Date
 
 /* ── Submissions ───────────────────────────────────────────────────────── */
 
-export const MAX_LYRICS_CHARS = 5000;
-export const MAX_NOTE_CHARS = 500;
+const MAX_LYRICS_CHARS = 5000;
+const MAX_NOTE_CHARS = 500;
 
 export function isPostOpenForSubmissions(post: OpenVersePost, now: Date = new Date()): boolean {
   if (post.status !== "open") return false;
@@ -273,7 +273,7 @@ export function assertCanSubmit(
 
 /* ── Winner pick — the creator-gated, exactly-once heart ───────────────── */
 
-export interface PickWinnerResult {
+interface PickWinnerResult {
   post: OpenVersePost;
   submissions: OpenVerseSubmission[];
   ledger: OpenVerseLedgerDraft;

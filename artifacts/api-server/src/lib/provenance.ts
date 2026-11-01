@@ -31,7 +31,7 @@ export type LicenceId =
   | "cc-by-nc-4.0"
   | "cc0-1.0";
 
-export interface AssetLicence {
+interface AssetLicence {
   id: LicenceId;
   name: string;
   /** Plain-language statement of what the licence means, printed on the certificate. */
@@ -136,7 +136,7 @@ export function toolForHubKind(hubKind: string | null): string {
 }
 
 /* ─── The record ────────────────────────────────────────────────────────── */
-export type ProvenanceMediaKind = "audio" | "video" | "image" | "stems" | "script" | "other";
+type ProvenanceMediaKind = "audio" | "video" | "image" | "stems" | "script" | "other";
 
 export interface ProvenanceRecord {
   /** Library asset id, e.g. "gen:<uuid>" or "hub:<uuid>". */
@@ -168,7 +168,7 @@ export interface ProvenanceRecord {
 
 export const DISCLOSURE_DEFAULT_ENABLED = true;
 
-export interface ProvenanceDerivationInput {
+interface ProvenanceDerivationInput {
   assetId: string;
   title: string;
   mediaKind: ProvenanceMediaKind;
@@ -292,7 +292,7 @@ export function aiDisclosureMetadataText(record: Pick<ProvenanceRecord, "created
    verify its text in the raw bytes — a certificate you cannot read back
    is decoration, not proof. No signature block and no C2PA claim: this
    certificate records the creator's stated terms, nothing more. */
-export interface CertificateContent {
+interface CertificateContent {
   heading: string;
   lines: { label: string; value: string }[];
   licenceName: string;

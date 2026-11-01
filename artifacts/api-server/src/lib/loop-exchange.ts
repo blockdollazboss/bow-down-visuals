@@ -126,14 +126,14 @@ export function loopRoleFor(userId: string, posterUserId: string, builderUserId:
 
 /* ── Sale planning (pure) ────────────────────────────────────────────── */
 
-export interface LoopSaleAllocation {
+interface LoopSaleAllocation {
   userId: string;
   role: "loop_poster" | "builder" | "collaborator";
   sharePct: number;
   amountVb: number;
 }
 
-export interface LoopSalePlan {
+interface LoopSalePlan {
   grossVb: number;
   feeVb: number;
   netVb: number;
@@ -206,7 +206,7 @@ export interface RecordLoopSaleDeps {
   creditRecipient: (userId: string, amountVb: number, creditKey: string) => Promise<void>;
 }
 
-export type RecordLoopSaleOutcome = "recorded" | "already-recorded";
+type RecordLoopSaleOutcome = "recorded" | "already-recorded";
 
 export async function recordLoopSale(
   deps: RecordLoopSaleDeps,

@@ -35,7 +35,7 @@ import { TIER_PLANS, type CreatorTier } from "./platform-fees";
 
 export type PaidTier = Exclude<CreatorTier, "free">;
 
-export interface TierChangeRow {
+interface TierChangeRow {
   tier: string;
   status: string;
   currentPeriodEnd: Date | null;

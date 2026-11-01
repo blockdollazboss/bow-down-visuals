@@ -83,7 +83,7 @@ function fallbackLink(url: string): string {
   return `<p style="margin:14px 0 0;color:${C.muted};font-size:12px;line-height:1.6;">Button not working? Paste this link into your browser:<br><a href="${url}" style="color:${C.goldDeep};word-break:break-all;">${url}</a></p>`;
 }
 
-export interface AuthEmailTemplate {
+interface AuthEmailTemplate {
   /** Dashboard file name (lib/email-templates/<file>). */
   file: string;
   /** Recommended subject line to set in the dashboard. */
@@ -91,7 +91,7 @@ export interface AuthEmailTemplate {
   html: string;
 }
 
-export function confirmSignupTemplate(): AuthEmailTemplate {
+function confirmSignupTemplate(): AuthEmailTemplate {
   const url = "{{ .ConfirmationURL }}";
   return {
     file: "confirm-signup.html",
@@ -107,7 +107,7 @@ ${fallbackLink(url)}
   };
 }
 
-export function resetPasswordTemplate(): AuthEmailTemplate {
+function resetPasswordTemplate(): AuthEmailTemplate {
   const url = "{{ .ConfirmationURL }}";
   return {
     file: "reset-password.html",
@@ -123,7 +123,7 @@ ${fallbackLink(url)}
   };
 }
 
-export function magicLinkTemplate(): AuthEmailTemplate {
+function magicLinkTemplate(): AuthEmailTemplate {
   const url = "{{ .ConfirmationURL }}";
   return {
     file: "magic-link.html",
@@ -140,7 +140,7 @@ ${fallbackLink(url)}
   };
 }
 
-export function inviteTemplate(): AuthEmailTemplate {
+function inviteTemplate(): AuthEmailTemplate {
   const url = "{{ .ConfirmationURL }}";
   return {
     file: "invite.html",
@@ -156,7 +156,7 @@ ${fallbackLink(url)}
   };
 }
 
-export function changeEmailTemplate(): AuthEmailTemplate {
+function changeEmailTemplate(): AuthEmailTemplate {
   const url = "{{ .ConfirmationURL }}";
   return {
     file: "change-email.html",

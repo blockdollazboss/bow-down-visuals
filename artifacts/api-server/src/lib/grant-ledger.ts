@@ -32,7 +32,7 @@ import { logger } from "./logger";
 export const STARTER_GRANT_CREDITS = 300;
 export const TRIAL_GRANT_CREDITS = 1000;
 
-export type GrantKind = "starter" | "trial";
+type GrantKind = "starter" | "trial";
 
 const GRANT_DEFS: Record<
   GrantKind,
@@ -91,7 +91,7 @@ function isDuplicateKeyError(err: unknown): boolean {
   );
 }
 
-export type GrantLedgerOutcome = "recorded" | "already-recorded";
+type GrantLedgerOutcome = "recorded" | "already-recorded";
 
 /**
  * Write the strict ledger row for a starter/trial grant that has ALREADY

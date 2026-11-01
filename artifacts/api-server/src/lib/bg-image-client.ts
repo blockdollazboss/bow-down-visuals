@@ -12,13 +12,13 @@ import { randomUUID } from "crypto";
 import OpenAI from "openai";
 import { r2Upload } from "./r2-client";
 
-export type BgImageProvider = "openai" | "custom";
+type BgImageProvider = "openai" | "custom";
 
 function apiKey(): string | null {
   return process.env["BG_IMAGE_API_KEY"] || process.env["OPENAI_API_KEY"] || null;
 }
 
-export function bgImageProviderName(): BgImageProvider | null {
+function bgImageProviderName(): BgImageProvider | null {
   if (!apiKey()) return null;
   const forced = (process.env["BG_IMAGE_PROVIDER"] || "").toLowerCase();
   return forced === "custom" ? "custom" : "openai";
@@ -39,7 +39,7 @@ export class BgImageNotConfiguredError extends Error {
   }
 }
 
-export class BgImageGenerationError extends Error {
+class BgImageGenerationError extends Error {
   readonly code = "BG_GENERATE_FAILED";
   constructor(message: string) {
     super(message);
@@ -47,13 +47,13 @@ export class BgImageGenerationError extends Error {
   }
 }
 
-export interface BgImageRequest {
+interface BgImageRequest {
   prompt: string;
   style: string;
   userId: string;
 }
 
-export interface BgImageResult {
+interface BgImageResult {
   imageUrl: string;
 }
 
@@ -64,17 +64,17 @@ const STYLE_SUFFIX: Record<string, string> = {
   "beach-sunset": "beach at golden-hour sunset, palm silhouettes, dreamy soft light",
 };
 
-export function bgImageModel(): string {
+function bgImageModel(): string {
   return process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
 }
 
-export function buildBgPrompt(prompt: string, style: string): string {
+function buildBgPrompt(prompt: string, style: string): string {
   const suffix = STYLE_SUFFIX[style] ?? STYLE_SUFFIX["studio"]!;
   return `Empty background plate, no people, no text: ${prompt}. Setting: ${suffix}. Wide 16:9 composition, high detail.`;
 }
 
 /* Injectable seams for tests — production uses the real clients. */
-export interface BgImageDeps {
+interface BgImageDeps {
   generate?: (prompt: string) => Promise<Buffer>;
   upload?: (userId: string, buffer: Buffer) => Promise<string>;
 }

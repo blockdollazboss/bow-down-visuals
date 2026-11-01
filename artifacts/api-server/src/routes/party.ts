@@ -46,7 +46,7 @@ const router = Router();
 
 /* ── Shared room manager (one per process; tests build their own) ───── */
 
-export function createPartyRooms(deps?: ConstructorParameters<typeof PartyRooms>[1]): PartyRooms {
+function createPartyRooms(deps?: ConstructorParameters<typeof PartyRooms>[1]): PartyRooms {
   return new PartyRooms(new RoomHub(), deps);
 }
 
@@ -251,7 +251,7 @@ router.get("/party/leaderboard", requireAuth, publicApiLimiter, async (req: Requ
   }
 });
 
-export interface PartyGameStat {
+interface PartyGameStat {
   game: PartyGame;
   matches: number;
   wins: number;
@@ -297,7 +297,7 @@ router.get("/party/me", requireAuth, publicApiLimiter, async (req: Request, res:
 
 /* ── WebSocket: join + play ─────────────────────────────────────────── */
 
-export interface PartyWsDeps {
+interface PartyWsDeps {
   verifyToken?: AccessTokenVerifier;
   resolveIdentity?: (userId: string, email: string | null) => Promise<PartyIdentity>;
   rooms?: PartyRooms;

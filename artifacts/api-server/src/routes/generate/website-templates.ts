@@ -32,7 +32,7 @@ export const siteFilesSchema = z
     message: "A site build must include index.html and styles.css",
   });
 
-export type SiteFiles = z.infer<typeof siteFilesSchema>;
+type SiteFiles = z.infer<typeof siteFilesSchema>;
 
 /* Creator verticals, mirrored from the AI Page Designer
    (ai-page-designer.ts). The gallery test pins this mirror against the
@@ -48,7 +48,7 @@ export const TEMPLATE_VERTICALS = [
   "education",
   "other",
 ] as const;
-export type TemplateVertical = (typeof TEMPLATE_VERTICALS)[number];
+type TemplateVertical = (typeof TEMPLATE_VERTICALS)[number];
 
 /** The gallery template ids — also template keys for generate/edit. */
 export const WEBSITE_TEMPLATE_IDS = [
@@ -57,9 +57,9 @@ export const WEBSITE_TEMPLATE_IDS = [
   "streamer-hub",
   "showreel-portfolio",
 ] as const;
-export type WebsiteTemplateId = (typeof WEBSITE_TEMPLATE_IDS)[number];
+type WebsiteTemplateId = (typeof WEBSITE_TEMPLATE_IDS)[number];
 
-export interface WebsiteTemplate {
+interface WebsiteTemplate {
   /** Also the template key the generate/edit endpoints accept. */
   id: WebsiteTemplateId;
   /** Display name in plain creator language. */
@@ -1375,6 +1375,3 @@ export const WEBSITE_TEMPLATES: WebsiteTemplate[] = [
   },
 ];
 
-export function getWebsiteTemplate(id: string): WebsiteTemplate | undefined {
-  return WEBSITE_TEMPLATES.find((t) => t.id === id);
-}

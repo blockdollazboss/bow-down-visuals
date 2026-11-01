@@ -38,7 +38,7 @@ function getBaseUrl(req?: Request): string {
   return "http://localhost";
 }
 
-export interface ConnectFields {
+interface ConnectFields {
   accountId: string | null;
   onboarded: boolean;
   chargesEnabled: boolean;
@@ -56,7 +56,7 @@ export interface ConnectFields {
  * Derived in exactly one place (parseConnectAccountState) so the
  * webhook sync, the live status read and the payout gate can never
  * disagree about what a Stripe account object means. */
-export type ConnectState = "not_started" | "pending" | "action_needed" | "verified";
+type ConnectState = "not_started" | "pending" | "action_needed" | "verified";
 
 export interface ConnectAccountState extends ConnectFields {
   state: ConnectState;
@@ -119,7 +119,7 @@ function reasonText(code: string | undefined): string | null {
 /** True when the payload carries ANY capability signal — a payload
  *  with none (a thin v2 event: id only) must never be synced as
  *  "everything disabled". */
-export function connectPayloadHasSignal(acct: ConnectAccountLike): boolean {
+function connectPayloadHasSignal(acct: ConnectAccountLike): boolean {
   const balance = acct.configuration?.recipient?.capabilities?.stripe_balance;
   if (balance?.stripe_transfers?.status || balance?.payouts?.status) return true;
   if (typeof acct.payouts_enabled === "boolean" || typeof acct.charges_enabled === "boolean") return true;
@@ -217,9 +217,6 @@ export function payoutBecameReady(
 type ConnectEventNotifier = (input: UserEventInput) => Promise<unknown>;
 let _connectEventNotifier: ConnectEventNotifier = notifyUserEvent;
 /** Test seam — never used outside tests. */
-export function __setConnectEventNotifier(fn: ConnectEventNotifier | null): void {
-  _connectEventNotifier = fn ?? notifyUserEvent;
-}
 
 export interface PayoutReadyDeps {
   readUserId: (profileId: string) => Promise<string | null>;
@@ -305,7 +302,7 @@ export async function getProfileConnectFields(profileId: string): Promise<Connec
   };
 }
 
-export async function getProfileIdByConnectAccount(accountId: string): Promise<string | null> {
+async function getProfileIdByConnectAccount(accountId: string): Promise<string | null> {
   const r = await db.execute(sql`
     SELECT id FROM creator_profiles WHERE stripe_connect_account_id = ${accountId} LIMIT 1
   `);

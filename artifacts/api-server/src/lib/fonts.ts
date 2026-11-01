@@ -5,7 +5,7 @@
  * vendors these TTFs (docker/fonts/) into the image and refreshes fontconfig, so
  * libass can resolve `Fontname` to the same face the web preview shows.
  */
-export interface BundledFont {
+interface BundledFont {
   /** Short id used by the frontend settings (e.g. "anton"). */
   id: string;
   /** Canonical family name (CSS + ASS Fontname + fontconfig). */
@@ -16,7 +16,7 @@ export interface BundledFont {
   file: string;
 }
 
-export const BUNDLED_CAPTION_FONTS: BundledFont[] = [
+const BUNDLED_CAPTION_FONTS: BundledFont[] = [
   { id: "anton",            family: "Anton",            dir: "anton",           file: "Anton-Regular.ttf" },
   { id: "alfa-slab-one",    family: "Alfa Slab One",    dir: "alfaslabone",     file: "AlfaSlabOne-Regular.ttf" },
   { id: "archivo-black",    family: "Archivo Black",    dir: "archivoblack",    file: "ArchivoBlack-Regular.ttf" },
@@ -32,14 +32,8 @@ export const BUNDLED_CAPTION_FONTS: BundledFont[] = [
 ];
 
 /** Raw google/fonts URL for a bundled font file. */
-export function captionFontUrl(f: BundledFont): string {
-  return `https://github.com/google/fonts/raw/main/ofl/${f.dir}/${encodeURIComponent(f.file)}`;
-}
 
 /** True when the family is one of our bundled fonts (safe for ASS Fontname). */
-export function isBundledCaptionFont(family: string | undefined | null): family is string {
-  return !!family && BUNDLED_CAPTION_FONTS.some((f) => f.family === family);
-}
 
 /**
  * Resolve what the frontend sends (`fontFamily` setting) to a canonical

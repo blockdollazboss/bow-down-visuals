@@ -59,10 +59,10 @@ export function giftGrossCents(priceCents: number, quantity: number): number {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const GIFT_MESSAGE_MAX = 500;
-export const GIFT_MAX_DELIVERY_DAYS = 365;
+const GIFT_MESSAGE_MAX = 500;
+const GIFT_MAX_DELIVERY_DAYS = 365;
 
-export interface GiftInput {
+interface GiftInput {
   recipientEmail: string;
   buyerEmail: string | null;
   giftMessage?: string | null;

@@ -54,7 +54,7 @@ export const defaultSplitPayDeps: SplitPayDeps = {
   },
 };
 
-export type SplitPayOutcome = "paid" | "already_claimed" | "skipped_no_payee" | "failed_released";
+type SplitPayOutcome = "paid" | "already_claimed" | "skipped_no_payee" | "failed_released";
 
 export async function paySplitPayment(store: RemixKingStore, deps: SplitPayDeps, payment: SplitPaymentWire, now: Date = new Date()): Promise<SplitPayOutcome> {
   if (payment.status !== "pending") return "already_claimed";
@@ -82,7 +82,7 @@ export async function paySplitPayment(store: RemixKingStore, deps: SplitPayDeps,
   }
 }
 
-export interface ProcessSplitsResult {
+interface ProcessSplitsResult {
   paidIds: string[];
   paidNowVb: number;
   skippedNoPayeeIds: string[];

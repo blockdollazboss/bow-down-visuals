@@ -10,7 +10,7 @@
  * a dead container.
  */
 
-export class DemucsBusyError extends Error {
+class DemucsBusyError extends Error {
   readonly retryable = true;
   constructor() {
     super(

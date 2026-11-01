@@ -301,7 +301,7 @@ const editOpSchema = z.object({
   reversible: z.boolean().default(true),
 });
 
-export type Wave9bEditOp = z.infer<typeof editOpSchema>;
+type Wave9bEditOp = z.infer<typeof editOpSchema>;
 
 const RECIPE_IDS = ["jumpcut-vlog", "lyric-video", "talking-head"] as const;
 

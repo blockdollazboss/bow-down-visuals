@@ -17,7 +17,7 @@ import { ControlRelay, controlRoomId, type ControllerRole } from "../lib/control
 import { LiveWsGateway, RoomHub, verifyAccessToken, type AccessTokenVerifier } from "../lib/live-ws";
 import { logger } from "../lib/logger";
 
-export interface LiveControlDeps {
+interface LiveControlDeps {
   verifyToken?: AccessTokenVerifier;
 }
 

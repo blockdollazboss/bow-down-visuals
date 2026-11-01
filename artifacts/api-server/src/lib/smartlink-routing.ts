@@ -22,7 +22,7 @@
  *      links it renders today.
  */
 
-export type SmartlinkRouteRule = "territory" | "language";
+type SmartlinkRouteRule = "territory" | "language";
 
 export interface SmartlinkRoutedDestination {
   url: string;
@@ -35,9 +35,9 @@ export interface SmartlinkRoutedDestination {
 
 export type DestinationMap = Record<string, string>;
 
-export const MAX_TERRITORY_DESTINATIONS = 100;
-export const MAX_LANGUAGE_DESTINATIONS = 50;
-export const MAX_DESTINATION_URL_LENGTH = 500;
+const MAX_TERRITORY_DESTINATIONS = 100;
+const MAX_LANGUAGE_DESTINATIONS = 50;
+const MAX_DESTINATION_URL_LENGTH = 500;
 
 /* ─── Normalizers ────────────────────────────────────────────────────── */
 
@@ -122,7 +122,7 @@ export function resolveSmartlinkDestination(input: {
    the WHOLE save — a bent routing table stored silently would send
    fans to the wrong place and lie by omission. */
 
-export type CleanDestinationsResult =
+type CleanDestinationsResult =
   | { ok: true; value: DestinationMap }
   | { ok: false; error: string };
 

@@ -30,7 +30,7 @@
  * per-language here either.
  */
 
-export interface DubCaptionLanguage {
+interface DubCaptionLanguage {
   /** ISO 639-1 code, lowercase — the only form validation accepts. */
   code: string;
   /** English display name. */

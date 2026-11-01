@@ -59,7 +59,7 @@ export const superfanSchema = z.object({
 });
 
 /* ─── Pure helpers (exported for tests) ──────────────────────────────────── */
-export type ModerationVerdict = "ok" | "review" | "remove";
+type ModerationVerdict = "ok" | "review" | "remove";
 
 export interface FlaggedComment {
   index: number;

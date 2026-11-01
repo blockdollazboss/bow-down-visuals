@@ -88,12 +88,12 @@ export const LYRIC_STYLES = [
   "bold-impact",
   "minimal-clean",
 ] as const;
-export type LyricStyle = (typeof LYRIC_STYLES)[number];
+type LyricStyle = (typeof LYRIC_STYLES)[number];
 
-export const LYRIC_ASPECTS = ["16:9", "9:16"] as const;
-export type LyricAspect = (typeof LYRIC_ASPECTS)[number];
+const LYRIC_ASPECTS = ["16:9", "9:16"] as const;
+type LyricAspect = (typeof LYRIC_ASPECTS)[number];
 
-export interface StyleSpec {
+interface StyleSpec {
   label: string;
   blurb: string;
   /** ffmpeg gradients source colors (hex, no alpha). */
@@ -272,7 +272,7 @@ export const STYLE_SPECS: Record<LyricStyle, StyleSpec> = {
    Conventions: words carry class "lv-word", the sung word also gets
    "lv-word-active", lines carry "lv-line" / "lv-line-active". */
 
-export interface LyricStyleCSS {
+interface LyricStyleCSS {
   /** Namespaced container class, e.g. "lv-karaoke-bounce". */
   containerClass: string;
   /** Class applied to the currently-sung word. */
@@ -418,7 +418,7 @@ export interface TranscriptWord {
   end: number; // seconds
 }
 
-export interface AlignedWord {
+interface AlignedWord {
   word: string; // the lyric's original word
   startSec: number;
   endSec: number;
@@ -435,7 +435,7 @@ export interface AlignedLine {
   matched: boolean;
 }
 
-export interface AlignmentResult {
+interface AlignmentResult {
   lines: AlignedLine[];
   /** Fraction of lyric words matched to transcript words (0..1). */
   matchRate: number;
@@ -711,7 +711,7 @@ export function buildAssSubtitles(
 
 /* ── ffmpeg render args: pure, testable ────────────────────────────────── */
 
-export interface RenderArgsOpts {
+interface RenderArgsOpts {
   workDir: string;
   audioPath: string;
   assPath: string;
@@ -774,7 +774,7 @@ export function buildRenderArgs(opts: RenderArgsOpts): string[] {
 }
 
 /** ffprobe: read audio duration in seconds. */
-export async function probeAudioDuration(inputPath: string): Promise<number | null> {
+async function probeAudioDuration(inputPath: string): Promise<number | null> {
   try {
     const { stdout } = await execFileAsync(
       "ffprobe",
@@ -795,9 +795,9 @@ export async function probeAudioDuration(inputPath: string): Promise<number | nu
 
 /* ── Background render jobs (in-memory; not tab-dependent) ─────────────── */
 
-export type LyricRenderJobStatus = "queued" | "processing" | "done" | "failed";
+type LyricRenderJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface LyricRenderJob {
+interface LyricRenderJob {
   id: string;
   userId: string;
   status: LyricRenderJobStatus;
@@ -823,7 +823,7 @@ export function __clearLyricRenderJobs(): void {
   renderJobs.clear();
 }
 
-export interface RenderJobInput {
+interface RenderJobInput {
   audioBuffer: Buffer;
   audioName: string;
   lines: AlignedLine[];
@@ -834,7 +834,7 @@ export interface RenderJobInput {
 }
 
 /** Exported for tests. Runs the full render pipeline for one job. */
-export async function runLyricRenderJob(
+async function runLyricRenderJob(
   job: LyricRenderJob,
   input: RenderJobInput,
 ): Promise<void> {

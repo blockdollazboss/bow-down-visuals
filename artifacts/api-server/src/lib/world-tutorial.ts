@@ -63,9 +63,9 @@ import { logger } from "./logger";
  *  from the shared weekly quest pool. */
 export const TUTORIAL_REWARD_VB = 30;
 
-export type TutorialVerb = "meet-king" | "quest-board" | "applaud";
+type TutorialVerb = "meet-king" | "quest-board" | "applaud";
 
-export interface TutorialStepDef {
+interface TutorialStepDef {
   n: number;
   key: string;
   /** The room hook that completes this step, when it is one. */
@@ -83,7 +83,7 @@ export const TUTORIAL_STEPS: readonly TutorialStepDef[] = [
 ] as const;
 
 /** The step a verb belongs to (null for an unknown verb). */
-export function stepForVerb(verb: TutorialVerb): TutorialStepDef | null {
+function stepForVerb(verb: TutorialVerb): TutorialStepDef | null {
   return TUTORIAL_STEPS.find((s) => s.verb === verb) ?? null;
 }
 
@@ -101,7 +101,7 @@ export interface TutorialFacts {
 
 /** Whether a step's FACT is satisfied; null for verb steps (their
  *  completion is recorded, never derived). */
-export function factSatisfied(step: TutorialStepDef, facts: TutorialFacts): boolean | null {
+function factSatisfied(step: TutorialStepDef, facts: TutorialFacts): boolean | null {
   switch (step.key) {
     case "claim-daily-drop":
       return facts.dailyClaimedToday;
@@ -275,7 +275,7 @@ export const dbTutorialStore: TutorialStore = {
 };
 
 /** Status DTO from a progress row — pure shaping. */
-export function tutorialStatusOf(row: TutorialProgressRow): TutorialStatus {
+function tutorialStatusOf(row: TutorialProgressRow): TutorialStatus {
   const done = new Set(row.completedSteps);
   const completed = row.completedAt !== null;
   return {
@@ -292,7 +292,7 @@ export function tutorialStatusOf(row: TutorialProgressRow): TutorialStatus {
  * completedSteps; fact steps from the facts. Pure — returns the
  * next row state (and whether it changed).
  */
-export function advanceTutorial(
+function advanceTutorial(
   row: TutorialProgressRow,
   facts: TutorialFacts,
   now: Date,
@@ -395,7 +395,7 @@ export function createTutorialActionNotifier(
   };
 }
 
-export type TutorialClaimResult =
+type TutorialClaimResult =
   | { ok: true; amountVb: number }
   | { ok: false; reason: "not-completed" | "already" | "pool" | "error" };
 

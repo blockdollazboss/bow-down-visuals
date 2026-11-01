@@ -24,9 +24,9 @@ import { logger } from "./logger";
  *   job can never attach its video to the project twice.
  */
 
-export type LipSyncJobState = "queued" | "submitting" | "polling" | "done" | "failed";
+type LipSyncJobState = "queued" | "submitting" | "polling" | "done" | "failed";
 
-export interface LipSyncJobParams {
+interface LipSyncJobParams {
   clipUrl: string;
   audioUrl: string;
   sceneStartSec: number;
@@ -49,7 +49,7 @@ export interface LipSyncJobParams {
   preserveArtistLook?: boolean | null;
 }
 
-export interface LipSyncJobError {
+interface LipSyncJobError {
   message: string;
   code?: string;
   providerStatus?: unknown;
@@ -151,7 +151,7 @@ function toLipSyncJob(row: Record<string, unknown>): LipSyncJob {
   };
 }
 
-export interface CreateLipSyncJobInput {
+interface CreateLipSyncJobInput {
   userId: string;
   projectId?: string | null;
   sceneId?: string | null;

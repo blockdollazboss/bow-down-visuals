@@ -88,14 +88,14 @@ export function escapeLikeToken(token: string): string {
 }
 
 /** The %…% ILIKE pattern for one already-folded token. */
-export function likeTokenPattern(token: string): string {
+function likeTokenPattern(token: string): string {
   return `%${escapeLikeToken(token)}%`;
 }
 
 /** One field expression folded for SQL search. The fold maps are
  *  module constants made only of letters (pinned by the test suite),
  *  so they are inlined as SQL literals, never bound parameters. */
-export function foldedField(field: SQL): SQL {
+function foldedField(field: SQL): SQL {
   return sql`translate(lower(${field}), ${sql.raw(`'${SEARCH_FOLD_FROM}'`)}, ${sql.raw(`'${SEARCH_FOLD_TO}'`)})`;
 }
 

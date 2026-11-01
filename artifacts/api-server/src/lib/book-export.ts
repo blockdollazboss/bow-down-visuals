@@ -286,7 +286,7 @@ export function bookFilename(title: string, ext: string): string {
 
 /* ── Print-ready cover PDF ── */
 
-export interface CoverPdfData {
+interface CoverPdfData {
   title: string;
   subtitle?: string | null;
   author_name?: string | null;

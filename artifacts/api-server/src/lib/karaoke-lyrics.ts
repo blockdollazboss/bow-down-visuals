@@ -47,7 +47,7 @@ export function lyricLineMatches(lineText: string, songLyrics: string): boolean 
   return hay.includes(words.join(" "));
 }
 
-export interface TimedLyricsValidation {
+interface TimedLyricsValidation {
   ok: boolean;
   lines: TimedLyricLine[];
   errors: string[];

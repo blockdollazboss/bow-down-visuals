@@ -49,14 +49,9 @@ import {
 export { readBumpConfig };
 export type { BumpConfig };
 
-export type UpsellStatus = "pending" | "accepted" | "declined" | "failed";
+type UpsellStatus = "pending" | "accepted" | "declined" | "failed";
 
 /** States after which an offer must never be shown or charged again. */
-export const UPSELL_TERMINAL_STATUSES: readonly UpsellStatus[] = [
-  "accepted",
-  "declined",
-  "failed",
-];
 
 export function isUpsellTerminal(status: string | null | undefined): boolean {
   return status === "accepted" || status === "declined" || status === "failed";
@@ -85,7 +80,7 @@ export function upsellIdempotencyKey(parentOrderId: string): string {
   return `storefront-upsell:${id}`;
 }
 
-export interface UpsellSnapshot {
+interface UpsellSnapshot {
   upsellProductId: string;
   title: string;
   kind: string;
@@ -126,7 +121,7 @@ export function buildUpsellSnapshot(
   };
 }
 
-export type UpsellEligibility =
+type UpsellEligibility =
   | { ok: true }
   | {
       ok: false;

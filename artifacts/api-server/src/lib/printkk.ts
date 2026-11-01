@@ -59,7 +59,7 @@ export async function uploadImage(
 }
 
 /* Step 2: Create design (async — returns taskId) */
-export async function createDesign(
+async function createDesign(
   productCode: string,
   printAreaCode: string,
   imageId: string,
@@ -89,7 +89,7 @@ export async function createDesign(
 }
 
 /* Step 3: Poll design task until completed */
-export async function pollDesignTask(
+async function pollDesignTask(
   taskId: string,
   maxAttempts = 30,
   intervalMs = 3000
@@ -132,7 +132,7 @@ export async function pollDesignTask(
 }
 
 /* Step 4: Create order */
-export interface PrintKKOrderAddress {
+interface PrintKKOrderAddress {
   firstName: string;
   lastName: string;
   phone: string;
@@ -145,7 +145,7 @@ export interface PrintKKOrderAddress {
   country: string;
 }
 
-export async function createOrder(
+async function createOrder(
   designSpecificationCode: string,
   quantity: number,
   shippingAddress: PrintKKOrderAddress

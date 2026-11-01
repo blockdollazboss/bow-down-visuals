@@ -10,7 +10,7 @@
 
 export type CollabRequestStatus = "pending" | "accepted" | "declined";
 
-export interface IntroView {
+interface IntroView {
   /** The pitch text, or null while the intro is still locked. */
   message: string | null;
   introLocked: boolean;

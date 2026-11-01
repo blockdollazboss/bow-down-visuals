@@ -27,7 +27,7 @@ const DEMUCS_TIMEOUT_MS = Number(process.env["DEMUCS_TIMEOUT_MS"] ?? 600_000);
 /** Ceiling for the fast ffmpeg/ffprobe pre-trim steps (decode-speed work). */
 const TRIM_STEP_TIMEOUT_MS = 120_000;
 
-export interface VocalStems {
+interface VocalStems {
   /** Isolated vocals (wav). */
   vocalsPath: string;
   /** Everything except vocals (wav) — the instrumental bed. */
@@ -36,7 +36,7 @@ export interface VocalStems {
   workdir: string;
 }
 
-export interface SeparateVocalStemsOptions {
+interface SeparateVocalStemsOptions {
   /**
    * Demucs model name for this run. Defaults to DEMUCS_MODEL
    * (mdx_extra_q). Callers on a tight CPU/RAM budget (e.g. the from-song

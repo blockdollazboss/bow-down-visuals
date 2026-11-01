@@ -32,31 +32,18 @@ export const PRODUCT_REVIEW_FLAG_REASONS = [
 ] as const;
 export type ProductReviewFlagReason = (typeof PRODUCT_REVIEW_FLAG_REASONS)[number];
 
-export const PRODUCT_REVIEW_FLAG_REASON_LABELS: Record<ProductReviewFlagReason, string> = {
-  spam: "Spam or advertising",
-  harassment: "Harassment or bullying",
-  hate_speech: "Hate speech",
-  profanity: "Abusive profanity",
-  sexual_content: "Sexual content",
-  violence: "Violence or threats",
-  fraud: "Fraud or scam content",
-  other: "Other abusive content",
-};
 
-export function isProductReviewProductType(v: unknown): v is ProductReviewProductType {
-  return v === "store_product" || v === "shop_product";
-}
 
 export function isProductReviewFlagReason(v: unknown): v is ProductReviewFlagReason {
   return typeof v === "string" && (PRODUCT_REVIEW_FLAG_REASONS as readonly string[]).includes(v);
 }
 
 /** A rating is exactly an integer star count, 1..5. */
-export function isValidRating(v: unknown): v is number {
+function isValidRating(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 5;
 }
 
-export interface ReviewRatingRow {
+interface ReviewRatingRow {
   rating: number;
   moderationStatus: string;
 }

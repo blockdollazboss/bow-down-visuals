@@ -242,9 +242,9 @@ async function notifyMany(
                      with the call that actually pays them.
    - entrants      → the results bell on the first announcement only.
    Zero-prize winners keep the crown copy (no money is ever claimed). */
-export type JudgeWinnerMoneyState = "paid_now" | "already_paid" | "queued";
+type JudgeWinnerMoneyState = "paid_now" | "already_paid" | "queued";
 
-export interface JudgeWinnerNotice {
+interface JudgeWinnerNotice {
   userId: string;
   place: number;
   prizeCredits: number;
@@ -1378,7 +1378,7 @@ export async function totalViewsByChallenge(ids: string[]): Promise<Map<string, 
     so build the payload field-by-field; never spread the camelCase row.
     `status` stays the stored lifecycle value and `effective_status` the
     derived one, exactly as the payload has always carried them. */
-export interface ChallengeCardRow {
+interface ChallengeCardRow {
   id: string;
   slug: string;
   title: string;

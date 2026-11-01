@@ -109,7 +109,7 @@ export interface ClipCandidate {
 
 /** A proposal the creator approved (possibly trimmed): a ClipCandidate
  *  window plus its explicit end. */
-export interface ApprovedClip extends ClipCandidate {
+interface ApprovedClip extends ClipCandidate {
   end: number;
 }
 
@@ -228,22 +228,14 @@ export function pickEnergySegments(
 
 /** The original energy-only detector, kept whole as the fallback path
  *  (probe → scan → pick). Exported for tests. */
-export async function findEnergeticSegments(videoPath: string, count: number, clipDuration: number): Promise<Segment[]> {
-  const duration = await probeDurationSec(videoPath);
-  if (!Number.isFinite(duration) || duration <= clipDuration) {
-    return [{ start: 0, energy: 0 }];
-  }
-  const windows = await scanWindowEnergies(videoPath, duration);
-  return pickEnergySegments(windows, count, clipDuration, duration);
-}
 
 /* ── Candidate selection (exported for tests) ─────────────────────────── */
 
-export type SemanticOutcome = "ok" | "no-speech" | "no-match" | "unavailable";
+type SemanticOutcome = "ok" | "no-speech" | "no-match" | "unavailable";
 
 /** The honest reason an energy fallback pick carries — it always says
  *  energy picked it and why semantics didn't. */
-export function energyFallbackReason(outcome: SemanticOutcome, query?: string): string {
+function energyFallbackReason(outcome: SemanticOutcome, query?: string): string {
   switch (outcome) {
     case "no-speech":
       return "Picked by audio energy — no speech was detected in this video to analyze.";

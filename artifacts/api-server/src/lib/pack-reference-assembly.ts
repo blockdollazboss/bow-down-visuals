@@ -44,7 +44,7 @@ export interface ReferenceAssemblySources {
   bibleLocations: string | null;
 }
 
-export interface ShotReferenceAssembly {
+interface ShotReferenceAssembly {
   referenceSet: PackReference[];
   referenceGaps: string[];
 }

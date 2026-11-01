@@ -30,7 +30,7 @@ import {
   UGC_VIDEO_CREDIT_COST,
 } from "../routes/ugc-ads";
 
-export type OperatorTier = 0 | 1 | 2 | 3 | 4;
+type OperatorTier = 0 | 1 | 2 | 3 | 4;
 
 export interface OperatorToolDef {
   /** Registry id, e.g. "credits.balance". Stable — audit rows carry it. */

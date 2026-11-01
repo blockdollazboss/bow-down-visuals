@@ -31,7 +31,7 @@ function param(req: Request, name: string): string {
   return Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
 }
 
-export interface LiveStreamSummaryDto {
+interface LiveStreamSummaryDto {
   streamId: string;
   title: string;
   status: string;

@@ -105,7 +105,7 @@ type Db = typeof defaultDb;
 /* The store speaks raw SQL through db.execute — the house pattern for
    this neighborhood, and the only dialect the pg-mem verification
    harness executes identically to production. */
-export function createDrizzleStockAlertStore(db: Db = defaultDb): StockAlertStore {
+function createDrizzleStockAlertStore(db: Db = defaultDb): StockAlertStore {
   return {
     async getProduct(productId) {
       const r = await db.execute(sql`
@@ -258,7 +258,7 @@ export function createDrizzleStockAlertStore(db: Db = defaultDb): StockAlertStor
   };
 }
 
-export interface StockAlertDeps {
+interface StockAlertDeps {
   store?: StockAlertStore;
   send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
   now?: Date;
@@ -274,7 +274,7 @@ function deps(depsIn: StockAlertDeps): Required<StockAlertDeps> {
 
 /* ── Subscribe / unsubscribe / read ──────────────────────────────────── */
 
-export type SubscribeResult =
+type SubscribeResult =
   | { ok: true; alreadyWaiting: boolean }
   | { ok: false; reason: "not_found" | "not_sold_out" | "unavailable" };
 
@@ -376,7 +376,7 @@ ${emailButton(productUrl, "Get it while it lasts")}
   return { subject: `It's back: ${product.title} — ${product.creatorName}`, html, text };
 }
 
-export interface RestockFanoutResult {
+interface RestockFanoutResult {
   /** Waiting rows this call claimed (and therefore consumed). */
   claimed: number;
   /** Fans who got the in-app notification. */

@@ -130,9 +130,6 @@ export function dailyTrioForDay(dayKey: string): DailyQuestDef[] {
 }
 
 /** Today's trio for a moment in time. */
-export function dailyTrioFor(now: Date): DailyQuestDef[] {
-  return dailyTrioForDay(dailyQuestDayKey(now));
-}
 
 /** Is this def on the given day's slate? (A completion from a
  *  past day is NOT claimable today — the slate moved on.) */
@@ -369,7 +366,7 @@ export interface DailyQuestStatusRow {
   claimed: boolean;
 }
 
-export interface DailyQuestsStatus {
+interface DailyQuestsStatus {
   /** The palace day this slate belongs to (YYYY-MM-DD, UTC). */
   date: string;
   quests: DailyQuestStatusRow[];

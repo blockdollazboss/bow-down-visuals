@@ -48,8 +48,8 @@ export { FIRST100_MILESTONES };
 export type { First100Milestone };
 
 export const FIRST100_GOAL = 100;
-export const FIRST100_SNOOZE_DAYS = 7;
-export const FIRST100_NOTIFICATION_KIND = "first100_milestone";
+const FIRST100_SNOOZE_DAYS = 7;
+const FIRST100_NOTIFICATION_KIND = "first100_milestone";
 
 /* ─── Raw source shapes (the loader projects rows into these) ────── */
 
@@ -58,7 +58,7 @@ export interface First100FollowRow {
   createdAt: Date;
 }
 
-export interface First100FanCard {
+interface First100FanCard {
   displayName: string;
   slug: string;
   avatarUrl: string | null;
@@ -91,23 +91,23 @@ export interface First100PersistedState {
 
 /* ─── The guided steps ───────────────────────────────────────────── */
 
-export const FIRST100_STEP_KEYS = [
+const FIRST100_STEP_KEYS = [
   "finish_profile",
   "drop_first_work",
   "go_public",
   "work_the_rooms",
   "reach_100",
 ] as const;
-export type First100StepKey = (typeof FIRST100_STEP_KEYS)[number];
+type First100StepKey = (typeof FIRST100_STEP_KEYS)[number];
 
-export interface First100StepDef {
+interface First100StepDef {
   key: First100StepKey;
   title: string;
   blurb: string;
   href: string;
 }
 
-export const FIRST100_STEPS: readonly First100StepDef[] = [
+const FIRST100_STEPS: readonly First100StepDef[] = [
   {
     key: "finish_profile",
     title: "Finish your profile",
@@ -141,7 +141,7 @@ export const FIRST100_STEPS: readonly First100StepDef[] = [
 ] as const;
 
 /** Whether one step's FACT is satisfied — derived, never self-reported. */
-export function stepDone(key: First100StepKey, facts: First100Facts, fanCount: number): boolean {
+function stepDone(key: First100StepKey, facts: First100Facts, fanCount: number): boolean {
   switch (key) {
     case "finish_profile":
       return facts.profileComplete;
@@ -321,7 +321,7 @@ export function buildFirst100Status(input: {
 
 /* ─── Celebration copy (the recognition moment) ──────────────────── */
 
-export function celebrationCopy(milestone: First100Milestone): { title: string; body: string } {
+function celebrationCopy(milestone: First100Milestone): { title: string; body: string } {
   switch (milestone) {
     case 1:
       return {
@@ -440,7 +440,7 @@ async function loadStateFromDb(userId: string): Promise<First100PersistedState> 
   };
 }
 
-export const dbFirst100Store: First100Store = {
+const dbFirst100Store: First100Store = {
   loadSources: loadSourcesFromDb,
   loadState: loadStateFromDb,
   async saveCelebrated(userId, celebrated, completedAt) {

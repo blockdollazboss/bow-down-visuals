@@ -31,13 +31,13 @@ export const NO_PIXELS: CommercePixels = {
 /* Same shapes as the release rail (PIXEL_ID_PATTERNS in
    routes/generate/distribution.ts + the frontend mirror in
    lib/smartlink-pixels.ts) — one truth for what a real ID looks like. */
-export const COMMERCE_PIXEL_ID_PATTERNS = {
+const COMMERCE_PIXEL_ID_PATTERNS = {
   meta: /^\d{6,20}$/,
   tiktok: /^[A-Za-z0-9]{10,32}$/,
   google: /^(?:G|AW|GT|UA)-[A-Za-z0-9-]{4,24}$/,
 } as const;
 
-export type CommercePixelKind = keyof typeof COMMERCE_PIXEL_ID_PATTERNS;
+type CommercePixelKind = keyof typeof COMMERCE_PIXEL_ID_PATTERNS;
 
 const PIXEL_LABELS: Record<CommercePixelKind, string> = {
   meta: "Meta Pixel",

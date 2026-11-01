@@ -43,7 +43,7 @@ import {
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export interface LoadedSupporterBoard {
+interface LoadedSupporterBoard {
   settings: SupporterBoardSettings;
   entries: SupporterBoardEntry[];
   optedOutUserIds: Set<string>;
@@ -66,7 +66,7 @@ export async function loadSupporterSettings(creatorUserId: string): Promise<{ se
   }
 }
 
-export async function loadSupporterOptOuts(creatorUserId: string): Promise<{ optedOutUserIds: Set<string>; ready: boolean }> {
+async function loadSupporterOptOuts(creatorUserId: string): Promise<{ optedOutUserIds: Set<string>; ready: boolean }> {
   try {
     const rows = await db
       .select({ fanUserId: supporterBoardOptOutsTable.fanUserId })

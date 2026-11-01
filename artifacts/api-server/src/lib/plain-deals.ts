@@ -41,11 +41,11 @@ export { CoReleaseError as PlainDealError };
 export const PLAIN_DEAL_ITEM_KINDS = ["release", "product", "store_product", "shop_product", "general"] as const;
 export type PlainDealItemKind = (typeof PLAIN_DEAL_ITEM_KINDS)[number];
 
-export const PLAIN_DEAL_ROLES = ["author", "partner"] as const;
-export type PlainDealRole = (typeof PLAIN_DEAL_ROLES)[number];
+const PLAIN_DEAL_ROLES = ["author", "partner"] as const;
+type PlainDealRole = (typeof PLAIN_DEAL_ROLES)[number];
 
 export const PLAIN_DEAL_SIDE_STATUSES = ["pending", "signed", "declined", "withdrawn"] as const;
-export type PlainDealSideStatus = (typeof PLAIN_DEAL_SIDE_STATUSES)[number];
+type PlainDealSideStatus = (typeof PLAIN_DEAL_SIDE_STATUSES)[number];
 
 /** Which existing rail a signed deal's split was wired into, if any. */
 export type PlainDealSplitAttach =
@@ -97,7 +97,7 @@ export type PlainDealState =
   | "declined" // partner declined before signing; never agreed
   | "cancelled"; // author withdrew before signature; never agreed
 
-export const PLAIN_WORDS_LIMITS = {
+const PLAIN_WORDS_LIMITS = {
   titleMax: 120,
   sideTextMax: 600,
   sideTextMin: 3,
@@ -127,7 +127,7 @@ export function derivePlainDealState(deal: PlainDeal): PlainDealState {
   return "awaiting_signature";
 }
 
-export function dealSideFor(deal: PlainDeal, profileId: string): PlainDealSide | null {
+function dealSideFor(deal: PlainDeal, profileId: string): PlainDealSide | null {
   return deal.sides.find((s) => s.profileId === profileId) ?? null;
 }
 export function dealSideForUser(deal: PlainDeal, userId: string): PlainDealSide | null {
@@ -226,7 +226,7 @@ export function initialPlainDeal(
   };
 }
 
-export type PlainDealAction = "sign" | "decline" | "withdraw";
+type PlainDealAction = "sign" | "decline" | "withdraw";
 
 /** Apply one side's action. Pure; only the acting side changes —
  *  except the sign that completes the pair, which freezes the agreed

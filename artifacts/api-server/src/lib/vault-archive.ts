@@ -31,13 +31,13 @@ export interface VaultMediaItem {
   label: string;
 }
 
-export interface VaultSkipped {
+interface VaultSkipped {
   url: string;
   label: string;
   reason: string;
 }
 
-export interface VaultBuildResult {
+interface VaultBuildResult {
   fileCount: number;
   skipped: VaultSkipped[];
   sizeBytes: number;
@@ -138,7 +138,7 @@ export function collectMediaInventory(
   return items;
 }
 
-export interface VaultArchiveDeps {
+interface VaultArchiveDeps {
   /** Fetch one original's bytes. Throws on any failure. */
   fetchMedia: (url: string) => Promise<Buffer>;
   /** Consume the finished archive stream (upload). Resolves when stored. */

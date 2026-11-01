@@ -12,7 +12,7 @@ const router = Router();
     PNG metadata before download, using exactly this text/tool. The
     server states what was requested and hands over the payload — it
     never claims the stamp itself happened here. */
-export function carouselDisclosurePayload(aiDisclosureEnabled: boolean) {
+function carouselDisclosurePayload(aiDisclosureEnabled: boolean) {
   if (!aiDisclosureEnabled) return null;
   return {
     text: aiDisclosureMetadataText({

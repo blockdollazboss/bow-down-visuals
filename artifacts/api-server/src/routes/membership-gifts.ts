@@ -69,7 +69,7 @@ function unavailable(res: Response) {
   });
 }
 
-export function buildGiftMembershipCheckoutKey(args: {
+function buildGiftMembershipCheckoutKey(args: {
   senderUserId: string;
   recipientProfileId: string;
   tier: string;

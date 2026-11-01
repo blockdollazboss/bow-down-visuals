@@ -75,7 +75,7 @@ async function callerProfile(userId: string): Promise<{ id: string; slug: string
    newlines; files may be CRLF or LF and may start with a BOM (Shopify
    exports from Excel often do). */
 
-export interface CsvTable {
+interface CsvTable {
   headers: string[];
   records: { rowNumber: number; values: Record<string, string> }[];
 }
@@ -120,7 +120,7 @@ export function csvCell(v: unknown): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function toCsv(headers: string[], rows: unknown[][]): string {
+function toCsv(headers: string[], rows: unknown[][]): string {
   const lines = [headers.map(csvCell).join(","), ...rows.map((r) => r.map(csvCell).join(","))];
   return lines.join("\r\n") + "\r\n";
 }
@@ -151,7 +151,7 @@ export function formatMoneyFromCents(cents: number): string {
 }
 
 /** Shopify Body is HTML; Bow Down descriptions are plain text (max 5000). */
-export function stripHtmlToText(html: string): string {
+function stripHtmlToText(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
@@ -177,7 +177,7 @@ function slugifyTitle(title: string): string {
    the same plan and applies it — so what the preview promised is what
    the commit does. */
 
-export interface PlannedListing {
+interface PlannedListing {
   kind: "merch" | "digital";
   title: string;
   description: string;
@@ -188,7 +188,7 @@ export interface PlannedListing {
   isActive: boolean;
 }
 
-export interface ImportRowReport {
+interface ImportRowReport {
   row: number;
   handle: string;
   sku: string | null;
@@ -207,7 +207,7 @@ interface ProductGroup {
 
 const REQUIRED_HEADERS = ["Handle", "Title", "Variant Price"];
 
-export function planShopifyImport(
+function planShopifyImport(
   table: CsvTable,
   existing: { id: string; title: string }[],
 ): { rows: ImportRowReport[]; listings: number } {
@@ -540,7 +540,7 @@ router.post("/storefront/shopify-import/commit", requireAuth, publicApiLimiter, 
 
 /* ═══════════════════════ Export builders ══════════════════════════════ */
 
-export const SHOPIFY_PRODUCT_HEADERS = [
+const SHOPIFY_PRODUCT_HEADERS = [
   "Handle", "Title", "Body (HTML)", "Vendor", "Type", "Tags", "Published",
   "Option1 Name", "Option1 Value", "Variant SKU", "Variant Inventory Tracker",
   "Variant Inventory Qty", "Variant Inventory Policy", "Variant Fulfillment Service",
@@ -548,13 +548,13 @@ export const SHOPIFY_PRODUCT_HEADERS = [
   "Variant Taxable", "Image Src", "Image Position", "Status",
 ];
 
-export interface ExportProduct {
+interface ExportProduct {
   id: string; kind: string; title: string; description: string;
   priceCents: number; compareAtCents: number | null; inventory: number;
   mediaUrls: string[]; isActive: boolean;
 }
 
-export function buildShopifyProductsCsv(products: ExportProduct[]): string {
+function buildShopifyProductsCsv(products: ExportProduct[]): string {
   const rows: unknown[][] = [];
   for (const p of products) {
     const handle = `${slugifyTitle(p.title)}-${p.id.replace(/-/g, "").slice(0, 8)}`;
@@ -583,7 +583,7 @@ export function buildShopifyProductsCsv(products: ExportProduct[]): string {
   return toCsv(SHOPIFY_PRODUCT_HEADERS, rows);
 }
 
-export const SHOPIFY_ORDER_HEADERS = [
+const SHOPIFY_ORDER_HEADERS = [
   "Name", "Email", "Financial Status", "Paid at", "Fulfillment Status",
   "Accepts Marketing", "Currency", "Subtotal", "Shipping", "Taxes", "Total",
   "Discount Code", "Discount Amount", "Created at",
@@ -592,12 +592,12 @@ export const SHOPIFY_ORDER_HEADERS = [
   "Payment Method",
 ];
 
-export interface ExportOrder {
+interface ExportOrder {
   id: string; productTitle: string; productKind: string; quantity: number;
   amountCents: number; discountCode: string | null; status: string; createdAt: string;
 }
 
-export function buildShopifyOrdersCsv(orders: ExportOrder[]): string {
+function buildShopifyOrdersCsv(orders: ExportOrder[]): string {
   const financial = (s: string) =>
     s === "completed" ? "paid" : s === "refunded" ? "refunded" : s === "pending" ? "pending" : s;
   const rows = orders.map((o) => {
@@ -617,15 +617,15 @@ export function buildShopifyOrdersCsv(orders: ExportOrder[]): string {
   return toCsv(SHOPIFY_ORDER_HEADERS, rows);
 }
 
-export const SHOPIFY_CUSTOMER_HEADERS = [
+const SHOPIFY_CUSTOMER_HEADERS = [
   "First Name", "Last Name", "Email", "Accepts Email Marketing", "Company",
   "Address1", "Address2", "City", "Province", "Province Code", "Country",
   "Country Code", "Zip", "Phone", "Total Spent", "Total Orders", "Tags", "Note",
 ];
 
-export interface ExportCustomer { email: string; name: string | null; source: string }
+interface ExportCustomer { email: string; name: string | null; source: string }
 
-export function buildShopifyCustomersCsv(customers: ExportCustomer[]): string {
+function buildShopifyCustomersCsv(customers: ExportCustomer[]): string {
   const rows = customers.map((c) => {
     const parts = (c.name ?? "").trim().split(/\s+/).filter(Boolean);
     const first = parts[0] ?? "";

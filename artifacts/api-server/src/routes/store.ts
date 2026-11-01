@@ -141,16 +141,16 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
    migration this feature needs is written up in
    .lane/f15/migration-needed.md (0205). When it lands, this list
    collapses back to DIGITAL_ITEM_KINDS. */
-export const BUNDLE_KIND = "bundle";
+const BUNDLE_KIND = "bundle";
 const STORE_ITEM_KINDS = [...DIGITAL_ITEM_KINDS, BUNDLE_KIND] as const;
 const ItemKindSchema = z.enum(STORE_ITEM_KINDS);
-export const BUNDLE_PRICE_MIN_CENTS = 50; /* the series card floor */
-export const BUNDLE_PRICE_MAX_CENTS = 100_000_00;
-export const BUNDLE_MIN_COMPONENTS = 2;
-export const BUNDLE_MAX_COMPONENTS = 50;
+const BUNDLE_PRICE_MIN_CENTS = 50; /* the series card floor */
+const BUNDLE_PRICE_MAX_CENTS = 100_000_00;
+const BUNDLE_MIN_COMPONENTS = 2;
+const BUNDLE_MAX_COMPONENTS = 50;
 /** Session-id infix marking a digital_sales row as a bundle component
     grant (see verify). The reversal engine flips these with the sale. */
-export const BUNDLE_GRANT_INFIX = "#grant:";
+const BUNDLE_GRANT_INFIX = "#grant:";
 
 function getStripe(): Stripe {
   /* Fail closed on live keys (Lane V3 F7) via the shared guard. */
@@ -249,7 +249,7 @@ function verifyTokenSignature(token: string): boolean {
 /** One resolved bundle component: a sellable item of the bundle owner's,
     with the list price it would sell for on its own (the honest
     "bought separately" figure the savings math is shown against). */
-export interface BundleComponent {
+interface BundleComponent {
   kind: string;
   id: string;
   title: string;
@@ -276,7 +276,7 @@ interface SellableItem {
 /** A component's standalone list price: fixed items list download_price;
     PWYW items value at the amount a checkout would charge by default
     (max of listed price and the creator's minimum). */
-export function bundleComponentListPriceCents(item: {
+function bundleComponentListPriceCents(item: {
   priceCents: number;
   pwywEnabled: boolean;
   pwywMinCents: number;
@@ -559,7 +559,7 @@ export function storeItemKindNoun(kind: string): string {
    Every read is defensive — absent table/columns mean "no offer", so
    the rail behaves byte-identically until the migration lands. */
 
-export interface DigitalBumpConfig {
+interface DigitalBumpConfig {
   bumpKind: string;
   bumpItemId: string;
   /** 0 = the add-on sells at its listed price. */
@@ -640,7 +640,7 @@ async function resolveDigitalBumpTarget(
   return { ok: true, item };
 }
 
-export interface DigitalBumpOfferPayload {
+interface DigitalBumpOfferPayload {
   kind: string;
   id: string;
   title: string;
@@ -2842,10 +2842,9 @@ router.post("/store/log-to-tracker", requireAuth, async (req, res) => {
      4-6    = full control             (any price, live fee preview)
    Checkout and payout visibility are NEVER gated by level. */
 
-export const STORE_VERTICALS = [
+const STORE_VERTICALS = [
   "music", "video", "gaming", "podcast", "film", "tv", "influencer", "education", "other",
 ] as const;
-export type StoreVertical = (typeof STORE_VERTICALS)[number];
 
 interface PricePoint {
   smart: number;

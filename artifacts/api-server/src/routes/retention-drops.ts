@@ -34,7 +34,7 @@ const router = Router();
 
 export type DailyDropKind = "thumbnail" | "caption" | "video" | "hook";
 
-export interface DailyDropDef {
+interface DailyDropDef {
   key: string;
   kind: DailyDropKind;
   href: string;

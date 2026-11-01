@@ -113,7 +113,7 @@ function cardDto(card: ProfileCardRow | null) {
   };
 }
 
-export interface BattleDto {
+interface BattleDto {
   id: string;
   theme: string;
   status: BattleRow["status"];

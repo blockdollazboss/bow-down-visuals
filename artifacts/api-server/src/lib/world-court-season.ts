@@ -86,19 +86,19 @@ export const COURT_SEASON_TICK_MS = 30_000;
 export const COURT_SEASON_MARKS_NAMED = 10;
 
 /** Names spoken aloud in the settling herald (the wall keeps all). */
-export const COURT_SEASON_HERALD_NAMED = 3;
+const COURT_SEASON_HERALD_NAMED = 3;
 
 /* ── The season calendar (pure) ─────────────────────────────────── */
 
 /** Season I's month: October 2026 (UTC), the month the palace
  *  game layer opened. The epoch is a constant, so the calendar is
  *  derivable on any clock, in any test, forever. */
-export const COURT_SEASON_EPOCH_YEAR = 2026;
-export const COURT_SEASON_EPOCH_MONTH = 10; // October, 1-based
+const COURT_SEASON_EPOCH_YEAR = 2026;
+const COURT_SEASON_EPOCH_MONTH = 10; // October, 1-based
 
 /** The courtly subtitles, in cycle order — season N wears
  *  SUBTITLES[(N − 1) mod 12], deterministically. */
-export const COURT_SEASON_SUBTITLES: readonly string[] = [
+const COURT_SEASON_SUBTITLES: readonly string[] = [
   "of the First Bells",
   "of the Gilded Ledger",
   "of the Long Table",
@@ -143,7 +143,7 @@ export function toRoman(n: number): string {
   return out;
 }
 
-export interface CourtSeasonInfo {
+interface CourtSeasonInfo {
   /** "2026-10" — the settlement table's primary key. */
   seasonKey: string;
   /** 1-based sequence number (Season I = 1). */
@@ -201,7 +201,7 @@ export interface SeasonStandingInput {
   counts: RankCounts;
 }
 
-export interface RankedSeasonEntry {
+interface RankedSeasonEntry {
   userId: string;
   displayName: string;
   slug: string;
@@ -546,7 +546,7 @@ export async function settleCourtSeason(
 
 /* ── The scheduler ──────────────────────────────────────────────── */
 
-export interface CourtSeasonSchedulerDeps {
+interface CourtSeasonSchedulerDeps {
   palace: { announce: (announcement: PalaceAnnouncement) => void };
   store?: CourtSeasonStore;
   /** Lane G's winner-herald gate: when wired, the scheduler asks it
@@ -633,7 +633,7 @@ export class CourtSeasonScheduler {
 
 /* ── DTOs (the wall's read — mirrored by the world client) ──────── */
 
-export interface CourtSeasonDto {
+interface CourtSeasonDto {
   seasonKey: string;
   ordinal: number;
   name: string;
@@ -642,12 +642,8 @@ export interface CourtSeasonDto {
   endsAt: string;
 }
 
-export interface CourtSeasonCurrentDto extends CourtSeasonDto {
-  /** The live top of the court for the running season. */
-  standings: CourtSeasonStanding[];
-}
 
-export interface CourtSeasonSettlementDto extends CourtSeasonDto {
+interface CourtSeasonSettlementDto extends CourtSeasonDto {
   settledAt: string;
   standings: CourtSeasonStanding[];
   heraldText: string;

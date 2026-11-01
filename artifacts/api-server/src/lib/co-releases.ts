@@ -43,14 +43,14 @@
 export const CO_RELEASE_ITEM_KINDS = ["release", "product"] as const;
 export type CoReleaseItemKind = (typeof CO_RELEASE_ITEM_KINDS)[number];
 
-export const CO_RELEASE_ROLES = ["author", "co_author"] as const;
-export type CoReleaseRole = (typeof CO_RELEASE_ROLES)[number];
+const CO_RELEASE_ROLES = ["author", "co_author"] as const;
+type CoReleaseRole = (typeof CO_RELEASE_ROLES)[number];
 
 export const CO_RELEASE_SIDE_STATUSES = ["pending", "accepted", "declined", "withdrawn"] as const;
-export type CoReleaseSideStatus = (typeof CO_RELEASE_SIDE_STATUSES)[number];
+type CoReleaseSideStatus = (typeof CO_RELEASE_SIDE_STATUSES)[number];
 
 /** One side's share: a creator-entered percentage (0–100, ≤2dp). */
-export interface CoReleaseShare {
+interface CoReleaseShare {
   profileId: string;
   sharePct: number;
 }
@@ -186,7 +186,7 @@ export function isCoReleaseVisibleOnProfile(co: CoRelease, profileId: string): b
   return !!side && side.status === "accepted";
 }
 
-export type CoReleaseAction = "accept" | "decline" | "withdraw";
+type CoReleaseAction = "accept" | "decline" | "withdraw";
 
 /** Apply one side's consent action. Pure; only the acting side changes.
  *  Accepting as the second side PUBLISHES: agreedShares freezes to the

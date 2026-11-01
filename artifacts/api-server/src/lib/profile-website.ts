@@ -35,7 +35,7 @@ import { isAdminUserId } from "./admin";
 
 /* ── Block registry ─────────────────────────────────────────────────────── */
 
-export type ProfileBlockSource = "section" | "page";
+type ProfileBlockSource = "section" | "page";
 
 export interface ProfileBlockTypeDef {
   type: string;
@@ -107,7 +107,7 @@ function normalizeBlockConfig(raw: unknown): Record<string, string | number | bo
   return out;
 }
 
-export type LayoutValidation =
+type LayoutValidation =
   | { ok: true; blocks: ProfileBlockDto[] }
   | { ok: false; error: string; message: string };
 
@@ -284,7 +284,7 @@ export function effectiveLayout(profile: ProfileLayoutSource): { blocks: Profile
    the creator approves the draft — approve is the only door from draft
    to the live layout/theme. */
 
-export interface ProfileTemplateDef {
+interface ProfileTemplateDef {
   id: string;
   name: string;
   tagline: string;
@@ -401,7 +401,7 @@ export function recommendedTemplateId(vertical: string): string {
 /** A template instantiated as a layout: registry types only, the
     profile's own stored section titles/visibility win for section
     blocks it already has (content carries across a switch untouched). */
-export function templateLayout(
+function templateLayout(
   template: ProfileTemplateDef,
   sections: Array<Record<string, unknown>> = [],
 ): ProfileBlockDto[] {
@@ -497,7 +497,7 @@ export function draftFromTemplate(
    each recorded in plain words for the creator to read before they
    approve. The designer's output is a DRAFT — it can never publish. */
 
-export interface DesignerSignals {
+interface DesignerSignals {
   vertical: string;
   sectionTypes: string[];
   hasPin: boolean;
@@ -649,7 +649,7 @@ export function designLayout(
    the server writes the resolved values into theme_config. Never raw
    CSS. */
 
-export interface ProfileColorway {
+interface ProfileColorway {
   id: string;
   name: string;
   colors: {
@@ -677,7 +677,6 @@ export const PROFILE_FONT_IDS = [
   "Inter",
 ] as const;
 
-export type ProfileFontId = (typeof PROFILE_FONT_IDS)[number];
 
 export function colorwayById(id: string | null | undefined): ProfileColorway | null {
   return PROFILE_COLORWAYS.find((c) => c.id === id) ?? null;
@@ -715,7 +714,7 @@ function higherTier(a: CreatorTier, b: CreatorTier): CreatorTier {
  * The highest source wins. Never throws: each lookup degrades on its own
  * and any failure reads as "free" (the safe failure mode).
  */
-export async function resolveProfileTier(profileId: string, userId: string): Promise<CreatorTier> {
+async function resolveProfileTier(profileId: string, userId: string): Promise<CreatorTier> {
   let tier: CreatorTier = "free";
   try {
     const [sub] = await db
@@ -761,9 +760,9 @@ export async function resolvePaidPlan(profileId: string, userId: string): Promis
   }
 }
 
-export type HostingEntitlementSource = "hosting" | "elite" | "admin" | null;
+type HostingEntitlementSource = "hosting" | "elite" | "admin" | null;
 
-export interface HostingEntitlement {
+interface HostingEntitlement {
   entitled: boolean;
   status: string | null;
   currentPeriodEnd: Date | null;

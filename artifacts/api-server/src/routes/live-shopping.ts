@@ -90,7 +90,7 @@ export function isLiveStreamStatus(status: unknown): boolean {
   return status === "live";
 }
 
-export const STREAM_NOT_LIVE_ERROR =
+const STREAM_NOT_LIVE_ERROR =
   "This stream has ended — purchases are closed. Live shopping is only available while the stream is live.";
 
 export const productSchema = z.object({
@@ -135,7 +135,7 @@ export const checkoutVerifySchema = z.object({
   sessionId: z.string().min(1).max(200),
 });
 
-export const aiDescriptionSchema = z.object({
+const aiDescriptionSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(120),
   selling_points: z.string().trim().max(1000).optional(),
 });

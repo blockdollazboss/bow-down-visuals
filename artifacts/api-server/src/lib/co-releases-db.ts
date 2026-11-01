@@ -68,31 +68,6 @@ export async function probeCoReleaseTables(): Promise<void> {
 
 /** Guarded batch load for READ paths — degrades to empty on ANY
  *  failure (not migrated yet, test fake, transient error). */
-export async function loadCoReleasesGuarded(
-  ids: string[],
-): Promise<Map<string, { head: CoReleaseRow; co: CoRelease }>> {
-  const out = new Map<string, { head: CoReleaseRow; co: CoRelease }>();
-  if (ids.length === 0) return out;
-  try {
-    const heads = await db.select().from(coReleasesTable).where(inArray(coReleasesTable.id, ids));
-    if (heads.length === 0) return out;
-    const rows = await db
-      .select()
-      .from(coReleaseSidesTable)
-      .where(inArray(coReleaseSidesTable.co_release_id, heads.map((h) => h.id)));
-    for (const head of heads) {
-      const co = rowsToCoRelease(head, rows);
-      if (co) out.set(head.id, { head, co });
-    }
-  } catch (err) {
-    if (isMissingCoReleaseTable(err)) {
-      logger.debug("[co-releases] tables not present yet — serving without co-release data");
-    } else {
-      logger.warn({ err }, "[co-releases] read failed — serving without co-release data");
-    }
-  }
-  return out;
-}
 
 export interface CoReleaseSideSummary {
   profile_id: string;

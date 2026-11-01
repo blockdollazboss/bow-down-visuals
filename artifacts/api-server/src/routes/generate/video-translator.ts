@@ -67,7 +67,7 @@ const execFileAsync = promisify(execFile);
 export const VIDEO_TRANSLATOR_CREDITS_PER_MINUTE =
   Number(process.env["VIDEO_TRANSLATOR_CREDITS_PER_MINUTE"]) || 500;
 
-export const VIDEO_TRANSLATOR_MAX_BYTES = 80 * 1024 * 1024; // 80 MB
+const VIDEO_TRANSLATOR_MAX_BYTES = 80 * 1024 * 1024; // 80 MB
 const WHISPER_MAX_BYTES = 24 * 1024 * 1024; // 24 MB — chunk past this
 const WHISPER_TIMEOUT_MS = 240_000;
 const TTS_TIMEOUT_MS = 180_000;
@@ -100,7 +100,7 @@ export function languageLabel(code: string): string {
 
 /* ── Cost estimation (shared with frontend lib — keep in sync) ───────── */
 
-export interface TranslateEstimate {
+interface TranslateEstimate {
   billableMinutes: number;
   languageCount: number;
   credits: number;
@@ -210,9 +210,6 @@ export interface TranslateJob {
 const jobs = new Map<string, TranslateJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getTranslateJob(id: string): TranslateJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
 export function __clearTranslateJobs(): void {
@@ -339,7 +336,7 @@ async function probeVideoWidth(inputPath: string): Promise<number | null> {
   }
 }
 
-export interface MuxDubbedOpts {
+interface MuxDubbedOpts {
   /** Virality: burn the gold "Made with Bow Down Visuals" tag (opt-in; paid export). */
   attribution?: boolean;
   /** Resolved fontfile for the attribution tag; falls back to no tag when null. */

@@ -70,26 +70,26 @@ export const KW_MAX_RULES_PER_CREATOR = 25;
 /** Sends one rule may fire per rolling hour. */
 export const KW_RULE_HOURLY_SEND_CAP = 60;
 /** Sends one creator's rules may fire per rolling 24h. */
-export const KW_CREATOR_DAILY_SEND_CAP = 500;
+const KW_CREATOR_DAILY_SEND_CAP = 500;
 /** Automation DMs one fan may receive from one creator per rolling 24h. */
 export const KW_FAN_DAILY_CAP = 3;
 /** How long a pending email capture listens for the fan's reply. */
-export const KW_CAPTURE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const KW_CAPTURE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /** The list free-tier cap — mirrors EMAIL_FREE_SUBSCRIBER_LIMIT
  *  (routes/generate/email-list-helpers.ts), enforced by the public
  *  subscribe door the same way. */
-export const KW_LIST_FREE_SUBSCRIBER_LIMIT = 1000;
+const KW_LIST_FREE_SUBSCRIBER_LIMIT = 1000;
 /** Appended to the DM whenever a rule captures email, so the ask is
  *  explicit and identical for every fan. */
 export const KW_CAPTURE_PROMPT =
   "\n\nWant it in your inbox too? Reply here with your email address and I'll add you to my list.";
 
-export type KwSurface = "post" | "media" | "wall" | "live";
+type KwSurface = "post" | "media" | "wall" | "live";
 
 /* ── Pure helpers (pinned directly by tests) ──────────────────────────── */
 
 /** Keywords are single tokens: letters, numbers, underscore, hyphen. */
-export const KEYWORD_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+const KEYWORD_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 
 export function normalizeKeyword(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -183,7 +183,7 @@ async function isMutual(aUserId: string, bUserId: string): Promise<boolean> {
   return aFollowsB && bFollowsA;
 }
 
-export type AutomatedDmResult =
+type AutomatedDmResult =
   | { ok: true; messageId: string; conversationId: string }
   | { ok: false; reason: "blocked" | "request_pending" };
 
@@ -193,7 +193,7 @@ export type AutomatedDmResult =
  *  conversation, and refuse to write into a request thread the FAN
  *  started and the creator hasn't accepted (the rail's own gate —
  *  the automation never silently accepts on the creator's behalf). */
-export async function sendAutomatedDm(
+async function sendAutomatedDm(
   fromUserId: string,
   toUserId: string,
   body: string,
@@ -256,7 +256,7 @@ async function sentCountSince(whereSql: ReturnType<typeof sql>, since: Date): Pr
 
 /* ── The trigger ──────────────────────────────────────────────────────── */
 
-export interface KeywordCommentTrigger {
+interface KeywordCommentTrigger {
   ownerUserId: string;
   commenterUserId: string;
   body: string;
@@ -402,7 +402,7 @@ async function fireRule(
 
 /* ── Email capture (the fan's side of the DM) ─────────────────────────── */
 
-export interface DmCaptureInput {
+interface DmCaptureInput {
   senderUserId: string;
   conversationId: string;
   body: string;

@@ -9,14 +9,14 @@
 
 /* ── Config ── */
 
-export const LULU_SANDBOX_BASE = "https://api.sandbox.lulu.com";
-export const LULU_PROD_BASE = "https://api.lulu.com";
+const LULU_SANDBOX_BASE = "https://api.sandbox.lulu.com";
+const LULU_PROD_BASE = "https://api.lulu.com";
 
-export function isLuluSandbox(): boolean {
+function isLuluSandbox(): boolean {
   return (process.env["LULU_USE_SANDBOX"] ?? "true").toLowerCase() !== "false";
 }
 
-export function luluBase(): string {
+function luluBase(): string {
   return isLuluSandbox() ? LULU_SANDBOX_BASE : LULU_PROD_BASE;
 }
 
@@ -24,7 +24,7 @@ export function isLuluConfigured(): boolean {
   return Boolean(process.env["LULU_CLIENT_KEY"] && process.env["LULU_CLIENT_SECRET"]);
 }
 
-export function assertLuluConfigured(): void {
+function assertLuluConfigured(): void {
   if (!isLuluConfigured()) {
     throw new Error(
       "Lulu Print API is not configured. Set LULU_CLIENT_KEY and LULU_CLIENT_SECRET on Render first."
@@ -41,7 +41,7 @@ export const LULU_SKU_6X9_COLOR_PAPERBACK = "0600X0900FCSTDPB080CW444GXX";
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
 
-export async function getLuluAccessToken(): Promise<string> {
+async function getLuluAccessToken(): Promise<string> {
   assertLuluConfigured();
   const now = Date.now();
   if (cachedToken && now < tokenExpiresAt - 30_000) return cachedToken;
@@ -73,14 +73,10 @@ export async function getLuluAccessToken(): Promise<string> {
 }
 
 /* For tests — force a fresh token next call. */
-export function clearLuluTokenCache(): void {
-  cachedToken = null;
-  tokenExpiresAt = 0;
-}
 
 /* ── Authenticated fetch helper ── */
 
-export interface LuluApiError extends Error {
+interface LuluApiError extends Error {
   status: number;
   body: string;
 }
@@ -115,7 +111,7 @@ async function luluFetch(path: string, init: RequestInit = {}): Promise<any> {
 
 /* ── Types ── */
 
-export interface CoverDimensions {
+interface CoverDimensions {
   width: number; // inches, full spread
   height: number; // inches
   spineWidth: number; // inches
@@ -124,7 +120,7 @@ export interface CoverDimensions {
   [key: string]: unknown;
 }
 
-export interface PrintQuoteLineItem {
+interface PrintQuoteLineItem {
   pod_package_id: string;
   page_count: number;
   quantity: number;
@@ -141,7 +137,7 @@ export interface ShippingAddressInput {
   phone_number: string;
 }
 
-export interface ShippingOption {
+interface ShippingOption {
   id: string;
   label?: string;
   cost_excl_tax?: string;
@@ -228,7 +224,7 @@ export async function validateCover(sourceUrl: string, pageCount: number): Promi
 
 /* ── Print jobs ── */
 
-export interface CreatePrintOrderInput {
+interface CreatePrintOrderInput {
   contactEmail: string;
   externalId: string;
   title: string;
@@ -279,9 +275,6 @@ export async function getOrderStatus(printJobId: number | string): Promise<any> 
   return luluFetch(`/print-jobs/${printJobId}/status/`, { method: "GET" });
 }
 
-export async function getPrintJobCosts(printJobId: number | string): Promise<any> {
-  return luluFetch(`/print-jobs/${printJobId}/costs/`, { method: "GET" });
-}
 
 /* Cancel — only works before the job enters production. */
 export async function cancelPrintOrder(printJobId: number | string): Promise<any> {
@@ -293,15 +286,5 @@ export async function cancelPrintOrder(printJobId: number | string): Promise<any
 
 /* ── Webhooks ── */
 
-export async function registerLuluWebhook(url: string, topics?: string[]): Promise<any> {
-  return luluFetch("/webhooks/", {
-    method: "POST",
-    body: JSON.stringify({ url, ...(topics ? { topics } : {}) }),
-  });
-}
 
-export async function listLuluWebhooks(): Promise<any> {
-  return luluFetch("/webhooks/", { method: "GET" });
-}
 
-export const LULU_INTEGRATION_STATUS = "live" as const;

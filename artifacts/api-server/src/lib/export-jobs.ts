@@ -29,7 +29,7 @@ import { canUseCredits, CreditsDisabledError, refundCredits, deductCreditsDetail
  * but every queued job row is re-enqueued by recovery on boot.
  */
 
-export type ExportJobState = "queued" | "active" | "done" | "failed" | "cancelled";
+type ExportJobState = "queued" | "active" | "done" | "failed" | "cancelled";
 
 export interface ExportJobError {
   message: string;

@@ -19,7 +19,7 @@ import { pushIfCategoryEnabled } from "./push-events";
    path can never double-notify. Push failure never blocks the
    in-app alert, and unset VAPID keys make push a logged no-op. */
 
-export interface GoLiveAlertResult {
+interface GoLiveAlertResult {
   followers: number;
   notified: number;
   /** Followers whose delivery row already existed (a repeat fire). */

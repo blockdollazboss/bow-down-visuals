@@ -208,7 +208,7 @@ const premiereCreateSchema = z.object({
   scheduledAt: z.string().datetime(),
 });
 
-export type PremierePhase = "scheduled" | "live" | "ended" | "cancelled";
+type PremierePhase = "scheduled" | "live" | "ended" | "cancelled";
 export function premierePhase(p: Pick<Premiere, "status" | "scheduled_at" | "duration_seconds">, nowMs: number = Date.now()): PremierePhase {
   if (p.status === "cancelled") return "cancelled";
   const start = new Date(p.scheduled_at).getTime();
@@ -405,7 +405,7 @@ router.post("/reach/premieres/:id/cancel", requireAuth, async (req: Request, res
 /* ════════════════ #3 Raids ════════════════ */
 
 const raidSchema = z.object({ targetStreamId: z.string().uuid() });
-export const RAID_COUNTDOWN_SECONDS = 10;
+const RAID_COUNTDOWN_SECONDS = 10;
 
 router.post("/reach/streams/:id/raid", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -1252,13 +1252,5 @@ router.get("/reach/broadcast/inbox", requireAuth, async (req: Request, res: Resp
 /* Follow lookup used by broadcast discover — followers of a profile
    are the channel's natural audience; kept here so the join surface
    can check without a second router. */
-export async function isFollower(userId: string, profileId: string): Promise<boolean> {
-  const rows = await db
-    .select()
-    .from(followsTable)
-    .where(and(eq(followsTable.followerUserId, userId), eq(followsTable.profileId, profileId)))
-    .limit(1);
-  return !!rows[0];
-}
 
 export default router;

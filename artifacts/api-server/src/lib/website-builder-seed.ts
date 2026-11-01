@@ -28,7 +28,7 @@ import { sql } from "drizzle-orm";
 import { brandKitDto, type StoredBrandKit } from "./brand-record";
 import { logger } from "./logger";
 
-export interface CreatorSeedProfile {
+interface CreatorSeedProfile {
   displayName: string;
   bio: string;
   vertical: string;
@@ -37,26 +37,26 @@ export interface CreatorSeedProfile {
   socialLinks: Record<string, string>;
 }
 
-export interface CreatorSeedSong {
+interface CreatorSeedSong {
   title: string;
   genre: string | null;
   coverArtUrl: string | null;
 }
 
-export interface CreatorSeedVideo {
+interface CreatorSeedVideo {
   title: string;
   thumbnailUrl: string | null;
   videoUrl: string | null;
 }
 
-export interface CreatorSeedProduct {
+interface CreatorSeedProduct {
   title: string;
   kind: string;
   priceCents: number;
   description: string;
 }
 
-export interface CreatorSeedShow {
+interface CreatorSeedShow {
   city: string;
   venue: string;
   date: string; // ISO date (yyyy-mm-dd) — a fact, never rounded or invented
@@ -64,7 +64,7 @@ export interface CreatorSeedShow {
   notes: string | null;
 }
 
-export interface CreatorSeed {
+interface CreatorSeed {
   profile: CreatorSeedProfile | null;
   brandKit: StoredBrandKit | null;
   songs: CreatorSeedSong[];
@@ -223,7 +223,7 @@ export async function loadCreatorSeed(userId: string): Promise<CreatorSeed> {
   return seed;
 }
 
-export interface CreatorSeedSummary {
+interface CreatorSeedSummary {
   profile: boolean;
   brandKit: boolean;
   songs: number;

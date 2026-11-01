@@ -13,7 +13,7 @@ const router = Router();
    version — ready to send to press or save into the user's press kit.
    100 Visual Bucs. */
 
-export const PRESS_RELEASE_CREDITS =
+const PRESS_RELEASE_CREDITS =
   Number(process.env["PRESS_RELEASE_CREDITS"]) || 100;
 
 const ANNOUNCEMENT_TYPES = ["single", "album", "tour", "launch", "milestone"] as const;

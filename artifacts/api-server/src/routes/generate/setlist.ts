@@ -34,7 +34,7 @@ const setlistFlowSchema = z.object({
   showNotes: z.string().max(500).optional().default(""),
 });
 
-export interface SetlistSlot {
+interface SetlistSlot {
   /** Index into the submitted songs array. */
   index: number;
   /** Where this song sits in the arc: opener | build | peak | breather | closer | encore */
@@ -43,7 +43,7 @@ export interface SetlistSlot {
   note: string;
 }
 
-export interface SetlistFlow {
+interface SetlistFlow {
   order: SetlistSlot[];
   flowNotes: string;
 }

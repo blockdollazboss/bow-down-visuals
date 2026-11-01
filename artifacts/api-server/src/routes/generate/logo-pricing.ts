@@ -9,7 +9,7 @@ export type LogoModel = "premium" | "standard";
 export const LOGO_PREMIUM_CREDIT_COST = 200;
 export const LOGO_STANDARD_CREDIT_COST = 100;
 
-export interface LogoPlan {
+interface LogoPlan {
   model: LogoModel;
   /** Site credits charged on success. */
   creditCost: number;

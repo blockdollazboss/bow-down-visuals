@@ -65,7 +65,7 @@ const nicheAnalyzerSchema = z.object({
 /* ── The caller's own niche signals ─────────────────────────────────────
    Every source isolated: one failing read degrades that signal, never
    the analysis. Reads ONLY the caller's rows. */
-export interface CreatorNicheProfile {
+interface CreatorNicheProfile {
   derivedNiche: string | null;
   vertical: string | null;
   mediaKitNiches: string[];
@@ -79,7 +79,7 @@ export interface CreatorNicheProfile {
   signals: string[];
 }
 
-export async function readCreatorNicheProfile(userId: string): Promise<CreatorNicheProfile> {
+async function readCreatorNicheProfile(userId: string): Promise<CreatorNicheProfile> {
   const out: CreatorNicheProfile = {
     derivedNiche: null,
     vertical: null,

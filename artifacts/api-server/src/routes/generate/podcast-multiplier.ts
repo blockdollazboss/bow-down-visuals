@@ -76,7 +76,7 @@ export interface MultiplierSegment {
   text: string;
 }
 
-export interface ShortMoment {
+interface ShortMoment {
   startSec: number;
   endSec: number;
   title: string;
@@ -187,7 +187,7 @@ export function segmentsFromScript(script: string, durationSec: number): Multipl
 
 /* ── Pure: show notes + cover prompt ─────────────────────────────────── */
 
-export interface ShowNotesInput {
+interface ShowNotesInput {
   title: string;
   description: string;
   summary: string;

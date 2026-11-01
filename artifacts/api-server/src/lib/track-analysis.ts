@@ -40,7 +40,7 @@ export const ANALYZER_VERSION = 1;
 
 export type Confidence = "high" | "medium" | "low";
 
-export interface KeyEstimate {
+interface KeyEstimate {
   /** Pitch class 0–11 (0 = C, 9 = A). */
   root: number;
   mode: "major" | "minor";
@@ -53,7 +53,7 @@ export interface KeyEstimate {
   confidence: Confidence;
 }
 
-export interface TrackAnalysis {
+interface TrackAnalysis {
   durationSec: number;
   bpm: number | null;
   bpmConfidence: Confidence | null;
@@ -337,7 +337,7 @@ export function estimateTrackTempo(
 
 /* ── Full pipeline ────────────────────────────────────────────────────── */
 
-export const TRACK_SAMPLE_RATE = 22050;
+const TRACK_SAMPLE_RATE = 22050;
 const MAX_ANALYZE_SECONDS = 150;
 const MAX_INPUT_BYTES = 80 * 1024 * 1024;
 

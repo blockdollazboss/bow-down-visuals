@@ -39,15 +39,15 @@ import { isMissingSchemaError } from "./pg-errors";
    reads treat the feature as not deployed (the routes answer
    503-honest on writes, empty on reads). */
 
-export const PRODUCT_OFFER_TTL_DAYS = 7;
-export const PRODUCT_OFFER_CLAIM_MINUTES = 30;
+const PRODUCT_OFFER_TTL_DAYS = 7;
+const PRODUCT_OFFER_CLAIM_MINUTES = 30;
 
-export type OfferDb = typeof defaultDb;
+type OfferDb = typeof defaultDb;
 export type ProductOfferItemKind = "store_product" | "shop_product";
 export type ProductOfferStatus =
   | "pending" | "countered" | "accepted" | "declined" | "withdrawn" | "expired" | "consumed";
 
-export const OPEN_OFFER_STATUSES: ProductOfferStatus[] = ["pending", "countered", "accepted"];
+const OPEN_OFFER_STATUSES: ProductOfferStatus[] = ["pending", "countered", "accepted"];
 
 /* ── Pure negotiation law (unit-tested without a DB) ────────────────── */
 
@@ -126,7 +126,7 @@ export function currentOfferPriceCents(row: {
 
 /* ── Rows ────────────────────────────────────────────────────────────── */
 
-export interface ProductOfferRow {
+interface ProductOfferRow {
   id: string;
   buyer_user_id: string;
   seller_user_id: string;
@@ -174,7 +174,7 @@ function rowToOffer(r: Record<string, unknown>): ProductOfferRow {
   };
 }
 
-export interface ResolvedOfferItem {
+interface ResolvedOfferItem {
   itemKind: ProductOfferItemKind;
   itemId: string;
   title: string;
@@ -189,7 +189,7 @@ export interface ResolvedOfferItem {
 /** Resolve a product in either catalog: seller, current list price,
  *  buyable state and the buyer-facing link. Null when it does not
  *  exist. Mirrors lib/wishlists.resolveWishlistItem. */
-export async function resolveOfferItem(
+async function resolveOfferItem(
   itemKind: ProductOfferItemKind,
   itemId: string,
   db: OfferDb = defaultDb,
@@ -250,7 +250,7 @@ async function notifySafely(
 }
 
 /** Flip stale open rows to 'expired'. Returns how many flipped. */
-export async function expireStaleOffers(db: OfferDb = defaultDb): Promise<number> {
+async function expireStaleOffers(db: OfferDb = defaultDb): Promise<number> {
   const r = await db.execute(sql`
     UPDATE product_offers SET status = 'expired', updated_at = now()
     WHERE status IN ('pending', 'countered', 'accepted') AND expires_at <= now()
@@ -268,7 +268,7 @@ async function getOfferRow(offerId: string, db: OfferDb): Promise<ProductOfferRo
 
 /* ── Create ──────────────────────────────────────────────────────────── */
 
-export type CreateOfferResult =
+type CreateOfferResult =
   | { ok: true; offer: ProductOfferRow; created: boolean }
   | { ok: false; reason: "item_not_found" | "item_unavailable" | "own_product" | "bad_amount" | "open_offer_exists"; message: string };
 
@@ -326,7 +326,7 @@ export async function createOffer(
 
 /* ── Act (accept / decline / counter / withdraw) ─────────────────────── */
 
-export type ActOnOfferResult =
+type ActOnOfferResult =
   | { ok: true; offer: ProductOfferRow }
   | { ok: false; reason: "not_found" | "forbidden" | "not_open" | "not_allowed" | "bad_amount" | "expired"; message: string };
 
@@ -452,7 +452,7 @@ export async function actOnOffer(
 
 /* ── Lists ───────────────────────────────────────────────────────────── */
 
-export interface OfferListEntry extends ProductOfferRow {
+interface OfferListEntry extends ProductOfferRow {
   title: string;
   currentListPriceCents: number | null;
   available: boolean;
@@ -503,10 +503,6 @@ export async function getOfferForBuyer(
 
 /* ── Checkout claim / consume ────────────────────────────────────────── */
 
-export interface AcceptedOfferForCheckout {
-  offer: ProductOfferRow;
-  agreedAmountCents: number;
-}
 
 /** Resolve the accepted offer a checkout may charge: the caller's own
  *  accepted, unexpired offer for THIS product on THIS surface. When

@@ -26,9 +26,9 @@ const MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same guard as clip uploads
  * (x, y = top-left corner; w, h = size). Converted to pixels after
  * ffprobe reports the actual video dimensions.
  */
-export type WatermarkPreset = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "custom";
+type WatermarkPreset = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "custom";
 
-export interface RegionPct { x: number; y: number; w: number; h: number; }
+interface RegionPct { x: number; y: number; w: number; h: number; }
 
 export const WATERMARK_PRESETS: Record<Exclude<WatermarkPreset, "custom">, RegionPct> = {
   "bottom-right": { x: 80, y: 85, w: 18, h: 12 },
@@ -38,7 +38,7 @@ export const WATERMARK_PRESETS: Record<Exclude<WatermarkPreset, "custom">, Regio
 };
 
 /** Clamp a percentage to [0, 100]. */
-export function clampPct(n: number): number {
+function clampPct(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.min(100, Math.max(0, n));
 }
@@ -111,7 +111,7 @@ const watermarkRemovalSchema = z.object({
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type WatermarkJobStatus = "queued" | "processing" | "done" | "failed";
+type WatermarkJobStatus = "queued" | "processing" | "done" | "failed";
 
 export interface WatermarkJob {
   id: string;
@@ -130,9 +130,6 @@ export interface WatermarkJob {
 const jobs = new Map<string, WatermarkJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getWatermarkJob(id: string): WatermarkJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
 export function __clearWatermarkJobs(): void {
@@ -141,7 +138,7 @@ export function __clearWatermarkJobs(): void {
 
 /* ── ffprobe: read frame dimensions before computing pixel region ────── */
 
-export interface FrameSize { width: number; height: number; }
+interface FrameSize { width: number; height: number; }
 
 async function probeFrameSize(inputPath: string): Promise<FrameSize | null> {
   try {

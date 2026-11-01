@@ -26,7 +26,7 @@ declare global {
    surface, no other user's data — routes read req.userId from here and
    every query they run is scoped to it. */
 
-export type ApiKeyResolver = (plaintext: string) => Promise<ResolvedApiKey | null>;
+type ApiKeyResolver = (plaintext: string) => Promise<ResolvedApiKey | null>;
 
 async function loadBalance(userId: string): Promise<number> {
   try {

@@ -256,7 +256,7 @@ const QUALITY_RESOLUTION_SCALE: Record<string, number> = {
   "4k":    2,
 };
 
-export interface QualityOptions {
+interface QualityOptions {
   enabled: boolean;
   /** "720p" | "1080p" | "4k" */
   resolution: string;
@@ -274,8 +274,7 @@ export interface QualityOptions {
 }
 
 /** Video codec choices on the export rail. "h264" is the legacy default. */
-export const EXPORT_VIDEO_CODECS = ["h264", "prores", "dnxhr"] as const;
-export type ExportVideoCodec = (typeof EXPORT_VIDEO_CODECS)[number];
+const EXPORT_VIDEO_CODECS = ["h264", "prores", "dnxhr"] as const;
 
 export function isProCodec(codec: string | null | undefined): boolean {
   return codec === "prores" || codec === "dnxhr";
@@ -300,7 +299,7 @@ export function proVideoCodecArgs(codec: string | null | undefined): string[] {
  *  linearly from the published 1920×1080@30 anchors (ProRes 422 HQ ≈ 220,
  *  DNxHR HQ ≈ 175). Used only for the size estimate — the codecs themselves
  *  are fixed-bitrate and ignore the x264 VBV budget. */
-export function proCodecBitrateMbps(codec: string, width: number, height: number, fps: number): number {
+function proCodecBitrateMbps(codec: string, width: number, height: number, fps: number): number {
   const anchor = codec === "prores" ? 220 : 175;
   return (anchor * (width * height)) / (1920 * 1080) * (fps / 30);
 }
@@ -336,7 +335,7 @@ export function normalizeQualityOptions(raw: QualityOptions | null | undefined):
   return { enabled: r.enabled === true, resolution, quality, fps, container, codec };
 }
 
-export interface QualityEstimateInput {
+interface QualityEstimateInput {
   aspectRatio?: string;
   resolution?: string;
   quality?: number;
@@ -347,7 +346,7 @@ export interface QualityEstimateInput {
   hasAudio?: boolean;
 }
 
-export interface QualityEstimate {
+interface QualityEstimate {
   bytes: number;
   sizeLabel: string;
   renderSec: number;
@@ -447,7 +446,7 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
  * with a short fade-out. Returns false on any failure (the caller ships
  * the unstamped file — stamping never fails an export).
  */
-export async function stampProducerTagIntoVideo(
+async function stampProducerTagIntoVideo(
   videoPath: string,
   tagPath: string,
   outPath: string,

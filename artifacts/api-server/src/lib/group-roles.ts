@@ -2,7 +2,7 @@
  *  Ladder: owner > admin > moderator > member. Legacy stored "mod"
  *  normalizes to "moderator". Every group action names the minimum
  *  rung it needs; enforcement is `canGroupAction(role, action)`. */
-export type GroupRoleName = "owner" | "admin" | "moderator" | "member";
+type GroupRoleName = "owner" | "admin" | "moderator" | "member";
 export const GROUP_ROLE_RANK: Record<GroupRoleName, number> = { owner: 4, admin: 3, moderator: 2, member: 1 };
 
 export function normalizeGroupRole(v: unknown): GroupRoleName | null {
@@ -11,7 +11,7 @@ export function normalizeGroupRole(v: unknown): GroupRoleName | null {
   return null;
 }
 
-export const GROUP_ACTIONS = {
+const GROUP_ACTIONS = {
   post: "member",
   deletePost: "moderator",       // own posts are handled by authorship, not this ladder
   reviewJoinRequests: "moderator",
@@ -21,7 +21,7 @@ export const GROUP_ACTIONS = {
   transferOwnership: "owner",
   deleteGroup: "owner",
 } as const satisfies Record<string, GroupRoleName>;
-export type GroupAction = keyof typeof GROUP_ACTIONS;
+type GroupAction = keyof typeof GROUP_ACTIONS;
 
 export function canGroupAction(role: unknown, action: GroupAction): boolean {
   const r = normalizeGroupRole(role);

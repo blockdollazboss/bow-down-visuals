@@ -22,7 +22,7 @@ const execFileAsync = promisify(execFile);
 export const UPSCALE_CREDIT_COST = 300;
 const UPSCALE_MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same guard as clip uploads
 
-export type UpscaleTarget = "1080p" | "4k";
+type UpscaleTarget = "1080p" | "4k";
 const TARGET_HEIGHTS: Record<UpscaleTarget, number> = {
   "1080p": 1080,
   "4k": 2160,
@@ -89,7 +89,7 @@ export function buildFfmpegArgs(inputPath: string, outputPath: string, targetHei
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type UpscaleJobStatus = "queued" | "processing" | "done" | "failed";
+type UpscaleJobStatus = "queued" | "processing" | "done" | "failed";
 
 export interface UpscaleJob {
   id: string;

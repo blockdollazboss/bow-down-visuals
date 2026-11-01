@@ -25,7 +25,6 @@ const planSchema = z.object({
   priceBand: z.enum(["budget", "mid", "premium"]),
 });
 
-export type MerchDropPlanRequest = z.infer<typeof planSchema>;
 
 export interface MerchConcept {
   name: string;

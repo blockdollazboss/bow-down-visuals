@@ -62,7 +62,7 @@ const VIBE_DIRECTION: Record<Vibe, string> = {
     "the most heartwarming moments — kindness, gratitude, sweet interactions, feel-good wins, genuine smiles",
 };
 
-export interface ClipHighlight {
+interface ClipHighlight {
   id: string;
   startSec: number;
   endSec: number;
@@ -533,14 +533,11 @@ interface CutJob {
 
 const cutJobs = new Map<string, CutJob>();
 attachJobMapTtl(cutJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
-export function __clearStreamerClipJobs(): void {
-  cutJobs.clear();
-}
 export function getStreamerClipJob(id: string): CutJob | undefined {
   return cutJobs.get(id);
 }
 
-export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
+async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "clipcut-"));
   try {
     job.status = "processing";
@@ -584,7 +581,7 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
   }
 }
 
-export interface StreamerCutJobStart {
+interface StreamerCutJobStart {
   job: CutJob;
   creditsRemaining: number;
   creditsCharged: number;

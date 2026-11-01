@@ -33,8 +33,8 @@ const GRAPH_IG = `https://graph.instagram.com/${GRAPH_VERSION}`;
 const GRAPH_FB = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 /** Hard caps so one scan stays one bounded job, stated in the UI. */
-export const CATALOG_SCAN_PAGE_CAP = 5;
-export const CATALOG_SCAN_ITEM_CAP = 250;
+const CATALOG_SCAN_PAGE_CAP = 5;
+const CATALOG_SCAN_ITEM_CAP = 250;
 
 export class CatalogProviderError extends Error {
   /** Graph error code, when the platform sent one (190 = token expired). */
@@ -49,7 +49,7 @@ export class CatalogProviderError extends Error {
   }
 }
 
-export interface RemoteCatalogItem {
+interface RemoteCatalogItem {
   externalId: string;
   kind: "video";
   /** First line of the caption/description, or a dated fallback. */

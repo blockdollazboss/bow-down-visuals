@@ -142,7 +142,7 @@ const POLL_BATCH = 10;
 /* Test seam: __setPrepareSubmitMedia (via __testHooks) lets the $0
    verification suite stub out FFmpeg/Supabase media prep. Never used in
    production. */
-export type PrepareSubmitMedia = (params: LipSyncJob["params"]) => Promise<{
+type PrepareSubmitMedia = (params: LipSyncJob["params"]) => Promise<{
   segmentUrl: string;
   providerClipUrl: string;
   durationSec: number;

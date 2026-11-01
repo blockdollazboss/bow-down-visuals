@@ -49,7 +49,7 @@ export interface AutomationDefaultCopy {
   delayHours: number;
 }
 
-export interface AutomationCopy {
+interface AutomationCopy {
   labels: Record<EmailAutomationKind, string>;
   triggerNotes: Record<EmailAutomationKind, string>;
   defaults: Record<EmailAutomationKind, AutomationDefaultCopy>;

@@ -577,7 +577,7 @@ export async function saleSplitAdjustments(userId: string): Promise<{
 
 /* ── Read views (routes/sale-splits.ts) ──────────────────────────────── */
 
-export interface SplitEntryView {
+interface SplitEntryView {
   id: string;
   saleKind: SaleSplitKind;
   saleId: string;

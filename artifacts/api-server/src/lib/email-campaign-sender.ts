@@ -142,7 +142,7 @@ const STALE_GATE_BATCH = 25;
 
 /** Welcome-sequence step timing (hours after the previous step):
     step 1 on signup, step 2 +24h, step 3 +72h after step 2. */
-export const WELCOME_STEP_DELAYS_HOURS: Record<number, number> = {
+const WELCOME_STEP_DELAYS_HOURS: Record<number, number> = {
   1: 0,
   2: 24,
   3: 72,
@@ -244,7 +244,7 @@ export function welcomeStepTimes(anchor: Date): Record<number, Date> {
 }
 
 /** Tokens are server-generated; legacy rows were backfilled in 0181. */
-export function ensureUnsubscribeToken(sub: EmailSubscriber): string {
+function ensureUnsubscribeToken(sub: EmailSubscriber): string {
   return sub.unsubscribeToken ?? randomUUID().replace(/-/g, "");
 }
 

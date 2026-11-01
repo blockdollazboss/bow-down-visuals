@@ -26,7 +26,7 @@ export interface MicBandPromo {
   href: string | null;
 }
 
-export interface MicBandOffer {
+interface MicBandOffer {
   name: string;
   priceDollars: number;
   durationDays: number;

@@ -8,14 +8,14 @@
    - Unlock gates verify against recorded graph/action rows, never claims. */
 
 /* ── Money: integer cents, decimal strings at the edges ────────────────── */
-export function legacyToCents(amount: string | number): number {
+function legacyToCents(amount: string | number): number {
   const raw = String(amount);
   const neg = raw.trim().startsWith("-");
   const [whole = "0", frac = ""] = raw.replace("-", "").split(".");
   const cents = parseInt(whole || "0", 10) * 100 + parseInt((frac + "00").slice(0, 2), 10);
   return neg ? -cents : cents;
 }
-export function legacyFromCents(cents: number): string {
+function legacyFromCents(cents: number): string {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(Math.round(cents));
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
@@ -26,7 +26,7 @@ export function legacyFromCents(cents: number): string {
    to a fan's own library (PUT /v1/me/tracks, PUT /v1/me/albums) — that is
    the real pre-save action. Playlists/EPs-as-playlist and other platforms
    have no equivalent public save, so they stay on follow/email capture. */
-export interface SpotifyItem { kind: "track" | "album"; id: string }
+interface SpotifyItem { kind: "track" | "album"; id: string }
 
 export function parseSpotifyItem(link: string | null | undefined): SpotifyItem | null {
   if (!link) return null;
@@ -63,7 +63,7 @@ export function buildSpotifyAuthUrl(clientId: string, state: string): string {
 /* ── #4a Lyrics package: synced timing → .lrc ──────────────────────────── */
 export interface TimedLyricLine { text: string; start: number; end: number }
 
-export function formatLegacyLrcTime(sec: number): string {
+function formatLegacyLrcTime(sec: number): string {
   const s = Math.max(0, Number.isFinite(sec) ? sec : 0);
   const mm = String(Math.floor(s / 60)).padStart(2, "0");
   const ss = String(Math.floor(s % 60)).padStart(2, "0");
@@ -96,12 +96,12 @@ export function validTimedLines(v: unknown): TimedLyricLine[] {
 }
 
 /* ── #3 Splits accounting: per-payee statements from recorded royalties ── */
-export interface StatementEntryInput { songTitle: string; platform: string; periodStart: string; periodEnd: string; grossAmount: string }
-export interface StatementSplitInput { releaseId: string; payeeName: string; sharePct: number; effectiveFrom: string; supersededAt: string | null }
-export interface StatementReleaseInput { id: string; title: string }
-export interface PayeeStatementLine { songTitle: string; platform: string; periodStart: string; periodEnd: string; grossAmount: string; sharePct: number; amount: string }
-export interface PayeeStatement { payeeName: string; releaseId: string; releaseTitle: string; totalAmount: string; entryCount: number; lines: PayeeStatementLine[] }
-export interface UnallocatedEntry { songTitle: string; platform: string; periodStart: string; periodEnd: string; grossAmount: string; releaseId: string; releaseTitle: string; reason: string }
+interface StatementEntryInput { songTitle: string; platform: string; periodStart: string; periodEnd: string; grossAmount: string }
+interface StatementSplitInput { releaseId: string; payeeName: string; sharePct: number; effectiveFrom: string; supersededAt: string | null }
+interface StatementReleaseInput { id: string; title: string }
+interface PayeeStatementLine { songTitle: string; platform: string; periodStart: string; periodEnd: string; grossAmount: string; sharePct: number; amount: string }
+interface PayeeStatement { payeeName: string; releaseId: string; releaseTitle: string; totalAmount: string; entryCount: number; lines: PayeeStatementLine[] }
+interface UnallocatedEntry { songTitle: string; platform: string; periodStart: string; periodEnd: string; grossAmount: string; releaseId: string; releaseTitle: string; reason: string }
 
 function timeOf(v: string): number {
   const t = Date.parse(v);

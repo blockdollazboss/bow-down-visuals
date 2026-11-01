@@ -32,7 +32,7 @@ const TONE_DIRECTION: Record<Tone, string> = {
    A batch is one short GPT-6 Sol completion (a fraction of a cent in
    provider fees), so 1 credit holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
-export const COMMENT_REPLIES_CREDITS =
+const COMMENT_REPLIES_CREDITS =
   Number(process.env["COMMENT_REPLIES_CREDIT_COST"]) || 100;
 
 const MAX_COMMENTS = 10;

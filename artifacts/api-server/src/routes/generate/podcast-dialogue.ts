@@ -79,16 +79,16 @@ export const DIALOGUE_SECONDS_PER_BLOCK = 600;
 /** Explicit approval gate (same pattern as VEO_PRICING_APPROVED). */
 export const DIALOGUE_PRICING_APPROVED = false;
 /** Bump when the proposed rate changes, so an approval is tied to a version. */
-export const DIALOGUE_PRICING_VERSION = "2026-10-11-placeholder";
+const DIALOGUE_PRICING_VERSION = "2026-10-11-placeholder";
 
 /** Hard cap on script length (~40 minutes of audio). */
-export const MAX_DIALOGUE_SCRIPT_CHARS = 36_000;
+const MAX_DIALOGUE_SCRIPT_CHARS = 36_000;
 
 /** Max characters per text-to-dialogue input (chunked at sentence bounds). */
-export const DIALOGUE_INPUT_CHARS = 2_000;
+const DIALOGUE_INPUT_CHARS = 2_000;
 
 /** Max dialogue turns per request (provider-side sanity cap). */
-export const MAX_DIALOGUE_TURNS = 60;
+const MAX_DIALOGUE_TURNS = 60;
 
 /** Max speakers per dialogue (keeps the voice-assignment UI sane). */
 export const MAX_DIALOGUE_SPEAKERS = 8;
@@ -128,7 +128,7 @@ export function estimateDialogueCost(script: string): DialogueEstimate {
 
 /* ── Script parsing ──────────────────────────────────────────────────── */
 
-export interface DialogueTurn {
+interface DialogueTurn {
   speaker: string;
   text: string;
 }
@@ -141,7 +141,7 @@ const SPEAKER_TAG_RE = /^([A-Za-z][A-Za-z0-9 _-]{0,29}):\s*(.+)$/;
  * (the UI warns about them) — dialogue needs explicit speaker tags so the
  * right voice reads every line.
  */
-export function parseDialogueScript(script: string): {
+function parseDialogueScript(script: string): {
   turns: DialogueTurn[];
   speakers: string[];
   untaggedLines: number;
@@ -254,9 +254,9 @@ const dialogueSchema = z.object({
 
 /* ── Gate status (powers the frontend disabled banner) ───────────────── */
 
-export type DialogueGateReason = "ok" | "pricing_pending" | "key_missing";
+type DialogueGateReason = "ok" | "pricing_pending" | "key_missing";
 
-export function dialogueGateStatus(): {
+function dialogueGateStatus(): {
   enabled: boolean;
   reason: DialogueGateReason;
   pricingApproved: boolean;

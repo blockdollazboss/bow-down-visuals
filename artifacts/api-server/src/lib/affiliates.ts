@@ -58,7 +58,7 @@ export function isValidCommissionBps(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 10_000;
 }
 
-export interface AffiliateCodeRow {
+interface AffiliateCodeRow {
   id: string;
   code: string;
   affiliate_user_id: string;
@@ -69,7 +69,7 @@ export interface AffiliateCodeRow {
   created_at: string;
 }
 
-export interface AffiliateProductSetting {
+interface AffiliateProductSetting {
   enabled: boolean;
   commissionBps: number | null;
   sellerUserId: string;
@@ -140,7 +140,7 @@ export async function fetchAffiliateCode(code: string): Promise<AffiliateCodeRow
   return (r.rows[0] as unknown as AffiliateCodeRow | undefined) ?? null;
 }
 
-export type AffiliateValidation =
+type AffiliateValidation =
   | { ok: true; code: AffiliateCodeRow; commissionBps: number; setting: AffiliateProductSetting }
   | { ok: false; reason: string };
 
@@ -232,7 +232,7 @@ export function affiliateSharePath(surface: AffiliateSurface, setting: Affiliate
   return `/storefront/product/${productId}`;
 }
 
-export type RecordAffiliateSaleResult =
+type RecordAffiliateSaleResult =
   | { recorded: true; commissionCents: number; saleId: string }
   | { recorded: false; reason: "no_code" | "inactive_code" | "product_mismatch" | "affiliates_disabled" | "self_referral" | "self_dealing" | "zero_commission" | "duplicate" };
 

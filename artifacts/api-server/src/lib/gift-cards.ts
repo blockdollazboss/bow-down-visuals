@@ -68,7 +68,7 @@ export function generateGiftCardCode(): string {
 }
 
 /** Normalize a holder-typed code to canonical form (case/space-insensitive). */
-export function normalizeGiftCardCode(raw: string): string {
+function normalizeGiftCardCode(raw: string): string {
   const cleaned = String(raw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   const body = cleaned.startsWith("BDV") ? cleaned.slice(3) : cleaned;
   if (body.length !== 16) return cleaned; // hash of garbage simply won't match a card
@@ -242,7 +242,7 @@ export async function issueGiftCard(args: {
 
 /* ── Reservations: hold at checkout, settle at verify ─────────────── */
 
-export const RESERVATION_TTL_MINUTES = 30;
+const RESERVATION_TTL_MINUTES = 30;
 
 export interface ReservationRow extends Record<string, unknown> {
   id: string;

@@ -20,7 +20,7 @@ export function __setBookingEventNotifier(fn: BookingEventNotifier | null): void
   _bookingEventNotifier = fn ?? notifyUserEvent;
 }
 
-export interface BookingEventInput {
+interface BookingEventInput {
   userId: string;
   /** The job_notifications job_type doubles as the bell kind. */
   kind: string;

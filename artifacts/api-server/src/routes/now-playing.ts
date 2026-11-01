@@ -167,7 +167,7 @@ router.delete("/live/:id/now-playing", requireAuth, async (req: Request, res: Re
   }
 });
 
-export interface OverlayNowPlayingDto {
+interface OverlayNowPlayingDto {
   nowPlaying: NowPlayingDto | null;
 }
 

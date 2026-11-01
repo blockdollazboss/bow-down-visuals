@@ -20,7 +20,7 @@
  *  end-frame look to land on, both, or nothing beyond the prompt. */
 export type EffectNeeds = "none" | "start-frame" | "end-frame" | "both";
 
-export type EffectEnergy = "calm" | "punchy" | "wild";
+type EffectEnergy = "calm" | "punchy" | "wild";
 
 export interface EffectRecipe {
   id: string;
@@ -48,7 +48,7 @@ export interface EffectRecipe {
 /** Canonical camera moves recognized by the conflict rule. The first five
  *  are the Wave 9D planner's enum; the rest cover the free-text camera
  *  directions creators write on scenes. */
-export type CanonicalMove =
+type CanonicalMove =
   | "dolly-in"
   | "orbit"
   | "crane-up"
@@ -430,7 +430,7 @@ export const CAMERA_MOVE_KEYWORDS: Array<{ move: CanonicalMove; keywords: string
   { move: "aerial", keywords: ["drone", "fpv", "aerial"] },
 ];
 
-export const CAMERA_MOVE_LABELS: Record<CanonicalMove, string> = {
+const CAMERA_MOVE_LABELS: Record<CanonicalMove, string> = {
   "dolly-in": "a dolly-in (camera pushing closer)",
   orbit: "an orbiting camera",
   "crane-up": "a crane-up",
@@ -499,7 +499,7 @@ export interface TrendSignal {
   earlySignals?: string[];
 }
 
-export interface EffectSceneContext {
+interface EffectSceneContext {
   promptText?: string;
   action?: string;
   mood?: string;

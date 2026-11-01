@@ -62,7 +62,7 @@ export interface BumpProductFacts {
   inventory: number;
 }
 
-export type BumpTargetVerdict =
+type BumpTargetVerdict =
   | { ok: true }
   | { ok: false; code: "BUMP_SELF" | "BUMP_OTHER_SELLER" | "BUMP_INACTIVE" | "BUMP_FREE" | "BUMP_SOLD_OUT"; reason: string };
 
@@ -107,13 +107,13 @@ export function bumpUnitCents(listPriceCents: number, percentOff: number): numbe
   return Math.max(1, Math.round((list * (100 - pct)) / 100));
 }
 
-export interface OrderLineSplit {
+interface OrderLineSplit {
   grossCents: number;
   feeCents: number;
   creatorCents: number;
 }
 
-export interface BumpTotals {
+interface BumpTotals {
   main: OrderLineSplit;
   bump: OrderLineSplit | null;
   totalGrossCents: number;

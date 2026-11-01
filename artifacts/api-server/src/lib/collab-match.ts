@@ -66,7 +66,7 @@ function fmtFollowers(n: number): string {
   return `${n}`;
 }
 
-export interface PairScore {
+interface PairScore {
   score: number; // 0-100
   reasons: string[];
 }
@@ -136,10 +136,10 @@ export function canonicalPair(a: string, b: string): [string, string] {
 /* ─── Side-mark state machine ───
    A suggestion row carries a_status / b_status (pending | interested |
    passed) and the overall status (open | connected | closed). */
-export type SuggestionSideStatus = "pending" | "interested" | "passed";
-export type SuggestionStatus = "open" | "connected" | "closed";
+type SuggestionSideStatus = "pending" | "interested" | "passed";
+type SuggestionStatus = "open" | "connected" | "closed";
 
-export interface SuggestionSides {
+interface SuggestionSides {
   aStatus: SuggestionSideStatus;
   bStatus: SuggestionSideStatus;
   status: SuggestionStatus;
@@ -183,7 +183,7 @@ export function applySideMark(
    pairKey (any existing row — open, connected, or closed — blocks the
    pair forever). */
 export const SUGGESTION_OPEN_TARGET = 3;
-export const SUGGESTION_CADENCE_DAYS = 7;
+const SUGGESTION_CADENCE_DAYS = 7;
 export const SUGGESTION_MIN_SCORE = 30;
 
 export function generationDue(facts: {
@@ -197,7 +197,7 @@ export function generationDue(facts: {
   return ageMs >= SUGGESTION_CADENCE_DAYS * 24 * 60 * 60 * 1000;
 }
 
-export interface RankedPair {
+interface RankedPair {
   other: CollabProfileFacts;
   score: number;
   reasons: string[];

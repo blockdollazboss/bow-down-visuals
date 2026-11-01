@@ -33,7 +33,7 @@ import { ZipArchive } from "archiver";
 
 export type KitMode = "light" | "dark";
 
-export interface ServerPack {
+interface ServerPack {
   id: string;
   name: string;
   tier: "included" | "premium";
@@ -125,7 +125,7 @@ export function appIconSitePath(packId: string, mode: KitMode): string {
 
 /** The whole-logo master for a mode — ships as its own file; kit
     wallpapers stay clean. */
-export function logoSitePath(mode: KitMode): string {
+function logoSitePath(mode: KitMode): string {
   return mode === "dark" ? "/logo-static.webp" : "/logo-light.webp";
 }
 
@@ -136,7 +136,7 @@ export const WALLPAPER_DEVICES = [
   { id: "tablet", label: "Tablet", width: 1640, height: 2360 },
   { id: "desktop", label: "Desktop", width: 1920, height: 1080 },
 ] as const;
-export type WallpaperDeviceId = (typeof WALLPAPER_DEVICES)[number]["id"];
+type WallpaperDeviceId = (typeof WALLPAPER_DEVICES)[number]["id"];
 
 /** Site path of the per-device crop-to-fill render of a pack ground
     (clean — no logo composited). Home and lock share the pack's one
@@ -148,14 +148,14 @@ export function deviceWallpaperSitePath(packId: string, mode: KitMode, device: W
 
 /* ─── Sound library (single source of truth, by role) ───────────────── */
 
-export const SOUND_ROLES = [
+const SOUND_ROLES = [
   "notification", "message", "success", "error", "royal-sting", "ringtone",
 ] as const;
-export type SoundRoleName = (typeof SOUND_ROLES)[number];
+type SoundRoleName = (typeof SOUND_ROLES)[number];
 
 /** The library file name for a role — manifest name, shared by site,
     app, extension, World and every theme pack. */
-export function soundLibraryFileName(role: SoundRoleName): string {
+function soundLibraryFileName(role: SoundRoleName): string {
   return `signature-${role}.wav`;
 }
 export function soundLibrarySitePath(role: SoundRoleName): string {
@@ -181,7 +181,7 @@ function hexToRgb(hex: string): [number, number, number] {
 
 /* ─── Asset resolution (approved library on disk) ───────────────────── */
 
-export function assetRoots(): string[] {
+function assetRoots(): string[] {
   const roots: string[] = [];
   if (process.env["THEME_KIT_ASSET_DIR"]) roots.push(process.env["THEME_KIT_ASSET_DIR"]);
   // Monorepo layouts (dev worktrees + the Docker image's FE dist tree).

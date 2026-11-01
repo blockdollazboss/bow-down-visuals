@@ -37,7 +37,7 @@ import { logger } from "../../lib/logger";
 export const BEST_TIME_CREDIT_COST = Number(process.env["BEST_TIME_CREDITS"]) || 75;
 
 export const BEST_TIME_PLATFORMS = ["tiktok", "instagram", "youtube", "x"] as const;
-export type BestTimePlatform = (typeof BEST_TIME_PLATFORMS)[number];
+type BestTimePlatform = (typeof BEST_TIME_PLATFORMS)[number];
 
 export const PLATFORM_LABELS: Record<BestTimePlatform, string> = {
   tiktok: "TikTok",
@@ -46,7 +46,7 @@ export const PLATFORM_LABELS: Record<BestTimePlatform, string> = {
   x: "X",
 };
 
-export const BENCHMARK_NOTE =
+const BENCHMARK_NOTE =
   "Platform benchmarks compiled from 2025 published reports (Hootsuite, Buffer, Sprout Social). " +
   "General audience patterns — not guarantees. Your own data beats benchmarks every time.";
 
@@ -167,7 +167,7 @@ export function daysInTimezone(tz: string): DayInfo[] {
 }
 
 /** Current hour (0-23) and today's date in the creator's timezone — for filtering out past slots. */
-export function nowInTimezone(tz: string): { date: string; hour: number } {
+function nowInTimezone(tz: string): { date: string; hour: number } {
   let timeZone = tz;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
@@ -187,7 +187,7 @@ export function nowInTimezone(tz: string): { date: string; hour: number } {
   return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) % 24 };
 }
 
-export interface NicheWindow {
+interface NicheWindow {
   platform: BestTimePlatform;
   weekday: number;
   startHour: number;

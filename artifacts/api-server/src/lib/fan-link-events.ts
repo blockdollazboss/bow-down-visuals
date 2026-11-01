@@ -69,36 +69,6 @@ async function mediaOwnerUserId(kind: "track" | "video", mediaId: string): Promi
    only when a row landed. Creator-level links (no content id) require
    the played media to actually belong to the link's creator — proven
    by ownership, never assumed. */
-export async function recordFanLinkArrival(args: {
-  code: string;
-  kind: string;
-  mediaId: string;
-  userId: string | null;
-}): Promise<boolean> {
-  try {
-    const link = await loadFanLinkByCode(args.code);
-    if (!link) return false;
-    const kind = playKindForContentType(link.content_type);
-    if (!kind || args.kind !== kind) return false;
-    if (!link.content_id) {
-      const owner = await mediaOwnerUserId(kind, args.mediaId);
-      if (!owner || owner !== link.creator_user_id) return false;
-    }
-    const ok = shouldRecordArrival({
-      link: { fanUserId: link.fan_user_id, contentType: link.content_type, contentId: link.content_id },
-      play: { kind: args.kind, mediaId: args.mediaId, userId: args.userId },
-    });
-    if (!ok) return false;
-    await db.insert(fanLinkEventsTable).values({
-      fan_link_id: link.id,
-      kind: "arrival",
-      visitor_user_id: args.userId,
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /* Attribute the caller's signup to a fan link. Exactly-once per new
    account is enforced by the fan_link_events_signup_once_uidx partial

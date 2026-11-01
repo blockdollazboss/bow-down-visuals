@@ -84,7 +84,7 @@ const CRITICAL_CONFIRM_TICKS = 2;
 
 const mb = (bytes: number) => Math.round((bytes / 1024 / 1024) * 10) / 10;
 
-export interface MemoryWatchdogFields {
+interface MemoryWatchdogFields {
   rssMb: number;
   heapUsedMb: number;
   heapTotalMb: number;
@@ -95,7 +95,7 @@ export interface MemoryWatchdogFields {
   heapRatio: number;
 }
 
-export function sampleMemoryFields(): MemoryWatchdogFields {
+function sampleMemoryFields(): MemoryWatchdogFields {
   const m = process.memoryUsage();
   const heapLimitBytes = getHeapStatistics().heap_size_limit;
   return {
@@ -129,14 +129,14 @@ export function sampleMemoryFields(): MemoryWatchdogFields {
  * trigger or the critical line. The restart policy stays exactly the
  * one the 2026-10-25 diagnosis tuned (Node heap ratio / Node RSS) —
  * widening the watchdog's eyes must not silently widen its teeth. */
-export interface ProcTableRow {
+interface ProcTableRow {
   pid: number;
   ppid: number;
   rssMb: number;
   comm: string;
 }
 
-export interface ChildTreeSample {
+interface ChildTreeSample {
   childCount: number;
   childRssMb: number;
   childTopName: string | null;
@@ -217,7 +217,7 @@ export function readProcTable(): ProcTableRow[] {
 }
 
 /** One child-tree sample for the watchdog tick. */
-export function sampleChildTree(rootPid: number = process.pid): ChildTreeSample {
+function sampleChildTree(rootPid: number = process.pid): ChildTreeSample {
   return aggregateChildTree(readProcTable(), rootPid);
 }
 

@@ -50,7 +50,7 @@ export const DISCOVERY_AFFINITY_WEIGHTS = {
   repost: 3, // a repost of the creator's track (reposts)
 } as const;
 
-export type DiscoverySignalKind = keyof typeof DISCOVERY_AFFINITY_WEIGHTS;
+type DiscoverySignalKind = keyof typeof DISCOVERY_AFFINITY_WEIGHTS;
 
 export interface DiscoveryAffinityCounts {
   play: number;
@@ -110,9 +110,9 @@ export const GENRE_AFFINITY_CAP = 20;
 export const GENRE_WEIGHT = 0.5;
 export const DISCOVERY_CREATOR_THRESHOLD = 3;
 export const DISCOVERY_GENRE_THRESHOLD = 12;
-export const DISCOVERY_SHARE = 0.25;
+const DISCOVERY_SHARE = 0.25;
 
-export interface DiscoveryRankSignals {
+interface DiscoveryRankSignals {
   isFollowed: boolean;
   /** Viewer's weighted affinity for the item's creator (uncapped). */
   creatorAffinity: number;
@@ -148,14 +148,14 @@ export function discoveryCap(limit: number): number {
   return Math.floor(limit * DISCOVERY_SHARE);
 }
 
-export type DiscoveryWhyKind = "affinity-creator" | "affinity-genre";
+type DiscoveryWhyKind = "affinity-creator" | "affinity-genre";
 
-export interface DiscoveryWhy {
+interface DiscoveryWhy {
   kind: DiscoveryWhyKind;
   label: string;
 }
 
-export interface DiscoveryWhyInput {
+interface DiscoveryWhyInput {
   /** Surfaced non-followed item — always explained. */
   isDiscovery: boolean;
   /** Followed item whose final rank beat its pure-recency rank —

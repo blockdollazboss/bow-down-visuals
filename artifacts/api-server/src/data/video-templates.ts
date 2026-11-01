@@ -33,9 +33,9 @@ export const TEMPLATE_TRANSITION_KEYS = [
   "hblur",
 ] as const;
 
-export type TemplateTransitionKey = (typeof TEMPLATE_TRANSITION_KEYS)[number];
+type TemplateTransitionKey = (typeof TEMPLATE_TRANSITION_KEYS)[number];
 
-export interface TemplateSlot {
+interface TemplateSlot {
   /** stable slot id used by the frontend slot-mapping UI */
   key: string;
   /** short label shown on the slot card */
@@ -46,7 +46,7 @@ export interface TemplateSlot {
   durationSec: number;
 }
 
-export interface TemplateOverlay {
+interface TemplateOverlay {
   /** default text — the user can edit every overlay before applying */
   text: string;
   /** 0-based index into slots[] */

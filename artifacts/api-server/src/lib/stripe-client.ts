@@ -15,7 +15,7 @@
 import { createHash } from "node:crypto";
 import Stripe from "stripe";
 
-export function assertStripeTestModeKey(key: string | undefined): string {
+function assertStripeTestModeKey(key: string | undefined): string {
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
   if (!key.startsWith("sk_test_")) {
     throw new Error("Live payment keys are not enabled — test mode only.");

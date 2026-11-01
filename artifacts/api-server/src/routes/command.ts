@@ -74,7 +74,7 @@ function rowsOf(r: unknown): any[] {
    Off-platform: latest follower snapshot per connected platform plus
    the delta against the previous snapshot — real rows only. */
 
-export async function commandAudience(userId: string) {
+async function commandAudience(userId: string) {
   const since = weekAgo();
 
   const followers = await settleSource("audience", "followers", userId, async () => {
@@ -171,7 +171,7 @@ export async function commandAudience(userId: string) {
    which /api/earnings does not carry. All-time per rail. Tips stay in
    Visual Bucs and are NEVER folded into the USD total. */
 
-export async function beatsRail(userId: string) {
+async function beatsRail(userId: string) {
   const r = await db.execute(sql`
     SELECT COALESCE(SUM(price_cents - commission_cents), 0)::int AS cents, COUNT(*)::int AS n
     FROM beat_licenses
@@ -181,7 +181,7 @@ export async function beatsRail(userId: string) {
   return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) };
 }
 
-export async function commandRevenue(userId: string) {
+async function commandRevenue(userId: string) {
   const store = await settleSource("revenue", "storeSales", userId, () => storeSales(userId));
   const memb = await settleSource("revenue", "memberships", userId, () => memberships(userId));
   const deals = await settleSource("revenue", "brandDeals", userId, () => brandDeals(userId));
@@ -226,7 +226,7 @@ export async function commandRevenue(userId: string) {
    video by the play/view counts the profile rails already keep.
    No profile yet is an honest ABSENT, not an error and not zeros. */
 
-export async function commandContent(userId: string) {
+async function commandContent(userId: string) {
   const profile = await settleSource("content", "profile", userId, async () => {
     const r = await db.execute(sql`
       SELECT id, slug, total_plays, follower_count
@@ -302,7 +302,7 @@ export async function commandContent(userId: string) {
    at purchase with per-kind fulfillment notes — so no order item is
    invented here.) A failed count is omitted + partial, never a 0. */
 
-export async function commandActions(userId: string) {
+async function commandActions(userId: string) {
   const unread = await settleSource("actions", "unreadMessages", userId, async () => {
     const r = await db.execute(sql`
       SELECT COUNT(*)::int AS n
@@ -356,7 +356,7 @@ export async function commandActions(userId: string) {
    allowlisted kind — the model's href is never trusted — and nothing
    in this endpoint sends, posts, charges, or writes. */
 
-export const COMMAND_MOVE_HREFS: Record<string, string> = {
+const COMMAND_MOVE_HREFS: Record<string, string> = {
   post: "/scheduler",
   winback: "/memberships",
   reply: "/messages",
@@ -364,9 +364,9 @@ export const COMMAND_MOVE_HREFS: Record<string, string> = {
   price_check: "/earnings",
   create: "/create",
 };
-export const COMMAND_MOVE_KINDS = Object.keys(COMMAND_MOVE_HREFS);
+const COMMAND_MOVE_KINDS = Object.keys(COMMAND_MOVE_HREFS);
 
-export async function buildCommandDigest(userId: string) {
+async function buildCommandDigest(userId: string) {
   const [audience, revenue, content, actions] = await Promise.all([
     commandAudience(userId).catch(() => null),
     commandRevenue(userId).catch(() => null),

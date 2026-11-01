@@ -46,8 +46,8 @@ export const FEEDBACK_PROMPT_CAP_MS = 7 * 24 * 60 * 60 * 1000;
 /** Chance a qualifying moment becomes a prompt (before cap/suppression). */
 export const FEEDBACK_PROMPT_CHANCE = 0.25;
 
-export type SubmissionKind = "pitch" | "fix" | "feedback";
-export type ModerationStatus = "pending" | "approved" | "rejected";
+type SubmissionKind = "pitch" | "fix" | "feedback";
+type ModerationStatus = "pending" | "approved" | "rejected";
 
 export interface SubmissionWire {
   id: string;
@@ -266,14 +266,14 @@ export function rewardAmountFor(sub: Pick<SubmissionWire, "kind" | "severity">):
 /** Monday (UTC) of the week containing `now`, as YYYY-MM-DD — the
  *  same anchor lib/quest-pool uses, reimplemented so this envelope
  *  stays independent of the quest pool's module and funds. */
-export function pitchFixWeekStart(now: Date): string {
+function pitchFixWeekStart(now: Date): string {
   const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
   day.setUTCDate(day.getUTCDate() - dow);
   return day.toISOString().slice(0, 10);
 }
 
-export interface RewardPoolState {
+interface RewardPoolState {
   weekStart: string;
   capVb: number;
   spentVb: number;
@@ -303,7 +303,7 @@ export async function getRewardPoolState(store: PitchFixStore, now: Date = new D
 /** Title fingerprint for duplicate detection: case/punctuation/
  *  whitespace-insensitive, so "Export spins!" and "export  spins"
  *  are the same report. */
-export function normalizeTitle(title: string): string {
+function normalizeTitle(title: string): string {
   return title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
 }
 
@@ -412,7 +412,7 @@ export async function submitFeedback(
 
 /* ─── Public boards (approved only — the moderation gate) ──────────── */
 
-export interface PublicBoard {
+interface PublicBoard {
   pitches: SubmissionWire[];
   fixes: SubmissionWire[];
   shipped: SubmissionWire[];
@@ -511,7 +511,7 @@ export async function setSubmissionStatus(
 
 /* ─── Feedback Pop-Up prefs + cap ──────────────────────────────────── */
 
-export const DEFAULT_FEEDBACK_PREFS: FeedbackPrefsRow = { enabled: true, lastPromptedAt: null, promptCount: 0 };
+const DEFAULT_FEEDBACK_PREFS: FeedbackPrefsRow = { enabled: true, lastPromptedAt: null, promptCount: 0 };
 
 export async function getFeedbackPrefs(store: PitchFixStore, userId: string): Promise<FeedbackPrefsRow> {
   return (await store.getFeedbackPrefs(userId)) ?? { ...DEFAULT_FEEDBACK_PREFS };
@@ -524,7 +524,7 @@ export async function setFeedbackEnabled(store: PitchFixStore, userId: string, e
   return next;
 }
 
-export interface FeedbackEligibility {
+interface FeedbackEligibility {
   enabled: boolean;
   eligible: boolean;
   reason: "ok" | "disabled" | "capped";

@@ -32,12 +32,12 @@ export { PROXY_MAX_EDGE };
 /* ── Heavy thresholds ─────────────────────────────────────────────────
    A clip is heavy when ANY signal trips. Thresholds are deliberately
    conservative: a 720p phone clip stays on its original. */
-export const HEAVY_MIN_LONG_EDGE = 1920;
-export const HEAVY_MIN_BYTES = 25_000_000;
-export const HEAVY_MIN_DURATION_SEC = 300;
-export const HEAVY_CODECS = new Set(["hevc", "h265", "av1", "vp9", "prores", "dnxhd", "dnxhr"]);
+const HEAVY_MIN_LONG_EDGE = 1920;
+const HEAVY_MIN_BYTES = 25_000_000;
+const HEAVY_MIN_DURATION_SEC = 300;
+const HEAVY_CODECS = new Set(["hevc", "h265", "av1", "vp9", "prores", "dnxhd", "dnxhr"]);
 
-export interface ClipProbeInput {
+interface ClipProbeInput {
   width?: number | null;
   height?: number | null;
   bytes?: number | null;
@@ -45,7 +45,7 @@ export interface ClipProbeInput {
   codec?: string | null;
 }
 
-export interface HeavinessVerdict {
+interface HeavinessVerdict {
   isHeavy: boolean;
   reasons: string[];
 }
@@ -92,7 +92,7 @@ export function buildProxyFfmpegArgs(inputPath: string, outputPath: string, dims
 }
 
 /* ── Wire shape ───────────────────────────────────────────────────── */
-export type ProxyStatusWire = "pending" | "generating" | "ready" | "failed";
+type ProxyStatusWire = "pending" | "generating" | "ready" | "failed";
 export interface ProxyMediaWire {
   id: string;
   project_id: string | null;
@@ -111,7 +111,7 @@ export interface ProxyMediaWire {
 export const PROXY_PREVIEW_LABEL = "Proxy — preview only. Export always uses the full-res original.";
 export const ORIGINAL_PREVIEW_LABEL = "Original — full-res. This is exactly what export uses.";
 
-export interface PreviewSource {
+interface PreviewSource {
   url: string;
   is_proxy: boolean;
   label: string;
@@ -212,7 +212,7 @@ export const drizzleProxyStore: ProxyStore = {
 };
 
 /* ── Request flow (on demand only) ────────────────────────────────── */
-export type RequestProxyOutcome =
+type RequestProxyOutcome =
   | { outcome: "disabled" }
   | { outcome: "not_heavy"; verdict: HeavinessVerdict }
   | { outcome: "queued" | "existing"; row: ProxyMediaWire };
@@ -245,7 +245,7 @@ export async function resolveExportSources(store: ProxyStore, userId: string, cl
 }
 
 /* ── Generation runner (injectable generator for tests) ───────────── */
-export type ProxyGenerator = (row: ProxyMediaWire) => Promise<{ proxyUrl: string; proxyWidth: number | null; proxyHeight: number | null }>;
+type ProxyGenerator = (row: ProxyMediaWire) => Promise<{ proxyUrl: string; proxyWidth: number | null; proxyHeight: number | null }>;
 
 export async function runProxyGeneration(store: ProxyStore, userId: string, id: string, generate: ProxyGenerator): Promise<ProxyMediaWire> {
   const rows = await store.listByUser(userId);

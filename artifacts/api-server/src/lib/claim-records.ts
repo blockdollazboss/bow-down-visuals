@@ -26,7 +26,7 @@
 import { db, retentionClaimRecordsTable } from "@workspace/db";
 import { logger } from "./logger";
 
-export type RetentionClaimKind = "daily_drop" | "streak_milestone";
+type RetentionClaimKind = "daily_drop" | "streak_milestone";
 
 export async function recordRetentionClaim(input: {
   userId: string;

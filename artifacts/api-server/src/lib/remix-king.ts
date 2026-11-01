@@ -34,7 +34,7 @@ import {
 } from "@workspace/db";
 import { and, eq, sql } from "drizzle-orm";
 
-export type EventStatus = (typeof REMIX_KING_EVENT_STATUSES)[number];
+type EventStatus = (typeof REMIX_KING_EVENT_STATUSES)[number];
 
 export interface EventWire {
   id: string;
@@ -467,7 +467,7 @@ export async function selectWinner(store: RemixKingStore, eventId: string, entry
 
 /* ─── Public view ──────────────────────────────────────────────────── */
 
-export interface PublicEventView {
+interface PublicEventView {
   event: EventWire;
   entries: EntryWire[];
   release: ReleaseWire | null;

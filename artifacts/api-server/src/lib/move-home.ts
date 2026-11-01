@@ -99,7 +99,7 @@ export class MoveHomeError extends Error {
 
 /* ─── Context: only what is real ─────────────────────────────────────── */
 
-export interface MoveHomeAccount {
+interface MoveHomeAccount {
   platform: "instagram" | "tiktok" | "facebook";
   accountId: string;
   username: string | null;
@@ -162,7 +162,7 @@ function accountLabel(
   };
 }
 
-export async function loadMoveHomeContext(
+async function loadMoveHomeContext(
   userId: string,
   locale: ServerLocale = "en",
 ): Promise<MoveHomeContext> {
@@ -435,7 +435,7 @@ export function buildDrafts(
    leaves the assembled drafts standing and copySource stays
    "assembled" — the flow never blocks on the AI rail. */
 
-export type CopyPolish = (drafts: MoveHomeDrafts, ctx: MoveHomeContext) => Promise<MoveHomeDrafts | null>;
+type CopyPolish = (drafts: MoveHomeDrafts, ctx: MoveHomeContext) => Promise<MoveHomeDrafts | null>;
 
 export const aiCopyPolish: CopyPolish = async (drafts, ctx) => {
   try {
@@ -498,7 +498,7 @@ export const aiCopyPolish: CopyPolish = async (drafts, ctx) => {
 
 const nowIso = () => new Date().toISOString();
 
-export async function getOrCreateProgress(userId: string): Promise<MoveHomeProgress> {
+async function getOrCreateProgress(userId: string): Promise<MoveHomeProgress> {
   const [existing] = await db
     .select()
     .from(moveHomeProgressTable)
@@ -556,7 +556,7 @@ function completionPatch(
   return { completedAt: done ? new Date() : null };
 }
 
-export interface MoveHomeStatus {
+interface MoveHomeStatus {
   answers: MoveHomeAnswers;
   drafts: MoveHomeDrafts;
   steps: Array<{

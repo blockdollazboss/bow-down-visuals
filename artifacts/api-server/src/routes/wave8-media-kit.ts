@@ -18,13 +18,12 @@ const router = Router();
 
    Pricing: 100 Visual Bucs per generated kit. */
 
-export const MEDIA_KIT_GENERATE_CREDIT_COST = Number(process.env["MEDIA_KIT_GENERATE_CREDIT_COST"]) || 100;
+const MEDIA_KIT_GENERATE_CREDIT_COST = Number(process.env["MEDIA_KIT_GENERATE_CREDIT_COST"]) || 100;
 
 const generateSchema = z.object({
   vaultId: z.string().uuid().optional(),
 });
 
-export type MediaKitGenerateRequest = z.infer<typeof generateSchema>;
 
 export interface MediaKitRate {
   tier: string;
@@ -62,7 +61,7 @@ function clampRate(value: unknown): MediaKitRate | null {
 }
 
 /** Parse + sanitize the model's JSON output. Returns null when unusable (triggers refund). */
-export function parseMediaKit(raw: string, fallbackName: string): MediaKit | null {
+function parseMediaKit(raw: string, fallbackName: string): MediaKit | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

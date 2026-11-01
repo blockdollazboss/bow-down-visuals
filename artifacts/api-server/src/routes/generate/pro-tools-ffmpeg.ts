@@ -52,7 +52,7 @@ export interface ProToolsColorCorrection {
   exposure: number;
 }
 
-export interface ProToolsChromaKey {
+interface ProToolsChromaKey {
   enabled: boolean;
   color: string;
   similarity: number;
@@ -60,7 +60,7 @@ export interface ProToolsChromaKey {
   bgColor: string;
 }
 
-export interface ProToolsCrop {
+interface ProToolsCrop {
   enabled: boolean;
   aspect: "16:9" | "9:16" | "1:1" | "4:5" | "free";
   x: number;
@@ -69,9 +69,9 @@ export interface ProToolsCrop {
   h: number;
 }
 
-export interface CurvePointInput { x: number; y: number }
+interface CurvePointInput { x: number; y: number }
 
-export interface ColorCurvesInput {
+interface ColorCurvesInput {
   rgb: { all: CurvePointInput[]; r: CurvePointInput[]; g: CurvePointInput[]; b: CurvePointInput[] };
   hsl: { h: CurvePointInput[]; s: CurvePointInput[]; l: CurvePointInput[] };
 }
@@ -348,7 +348,7 @@ export function buildSpeedCurveFilter(curve: SpeedCurvePoint[], durationSec: num
 
 /* ─── Custom speed segments (Stack 5 #4) ──────────────────────────────── */
 
-export interface SpeedSegmentInput { startT: number; endT: number; speed: number }
+interface SpeedSegmentInput { startT: number; endT: number; speed: number }
 
 /** Normalize segments into a tiling of [0,1] — mirrors the editor model
  *  (frontend lib/motion-pro.ts normalizeSpeedSegments). */
@@ -405,7 +405,7 @@ export function buildSpeedSegmentsFilter(
 
 /* ─── Keyframes ───────────────────────────────────────────────────────── */
 
-export interface KeyframePoint {
+interface KeyframePoint {
   id: string;
   time: number;
   x: number;

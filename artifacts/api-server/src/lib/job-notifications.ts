@@ -29,11 +29,11 @@ import { notifyUserEvent, type UserEventInput } from "./push-events";
  * - `none`    — stored but never delivered.
  */
 
-export type JobType = "lip_sync" | "export" | "sale";
-export type JobCompletionStatus = "completed" | "failed";
-export type NotifyChannel = "relay" | "discord" | "log" | "none";
+type JobType = "lip_sync" | "export" | "sale";
+type JobCompletionStatus = "completed" | "failed";
+type NotifyChannel = "relay" | "discord" | "log" | "none";
 
-export interface JobNotificationInput {
+interface JobNotificationInput {
   jobType: JobType;
   jobId: string;
   userId: string;
@@ -44,7 +44,7 @@ export interface JobNotificationInput {
   videoUrl?: string | null;
 }
 
-export interface JobNotification extends JobNotificationInput {
+interface JobNotification extends JobNotificationInput {
   id: string;
   deliveredAt: number | null;
   deliveryChannel: string | null;

@@ -48,7 +48,7 @@ export function buildSponsorEvent(input: {
 }
 
 /** Fire one sponsor tell. Best-effort: never throws into a money path. */
-export async function tellSponsorParty(input: {
+async function tellSponsorParty(input: {
   userId: string;
   dealId: string;
   kind: string;
@@ -162,7 +162,7 @@ interface DealRow {
   created_at: string;
 }
 
-export interface DealDto {
+interface DealDto {
   id: string;
   brandName: string;
   budgetMin: number;
@@ -667,7 +667,7 @@ const FULL_DEAL_COLS = `
   creator_payout_cents, accepted_application_id, accepted_user_id, paid_at
 `;
 
-export interface FullDealDto extends DealDto {
+interface FullDealDto extends DealDto {
   postedBy: string;
   agreedAmountCents: number | null;
   escrowStatus: string;
@@ -680,7 +680,7 @@ export interface FullDealDto extends DealDto {
   myApplicationStatus: string | null;
 }
 
-export function toFullDealDto(r: FullDealRow, applicationCount: number, myApplicationStatus: string | null): FullDealDto {
+function toFullDealDto(r: FullDealRow, applicationCount: number, myApplicationStatus: string | null): FullDealDto {
   return {
     ...toDealDto(r),
     postedBy: r.posted_by,
@@ -785,7 +785,7 @@ router.get("/sponsors/deals/:id/applications", requireAuth, publicApiLimiter, as
   }
 });
 
-export const reviewApplicationSchema = z.object({
+const reviewApplicationSchema = z.object({
   action: z.enum(["accept", "reject"]),
   /* Agreed payout in cents — required when accepting. Must sit inside the
      deal's posted budget range so brands can't bait-and-switch. */
@@ -922,7 +922,7 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
   }
 });
 
-export const fundSchema = z.object({
+const fundSchema = z.object({
   amountCents: z.number().int().min(100).max(100000000),
 });
 
@@ -1359,7 +1359,7 @@ router.post("/sponsors/deals/:id/release", requireAuth, publicApiLimiter, async 
    The creator's consent step is Start: funded money only moves when the
    creator starts the work and delivers. */
 
-export const directSponsorSchema = z.object({
+const directSponsorSchema = z.object({
   amountCents: z.number().int().min(100).max(100000000),
   brandName: z.string().trim().min(1, "Tell the creator who is sponsoring them.").max(120),
   deliverables: z.string().trim().min(1, "Say what this sponsorship covers.").max(500),
@@ -1648,7 +1648,7 @@ router.post("/sponsors/deals/:id/fund-intent", requireAuth, publicApiLimiter, as
   }
 });
 
-export const escrowVerifySchema = z.object({
+const escrowVerifySchema = z.object({
   dealId: z.string().uuid(),
   paymentIntentId: z.string().min(1).max(200),
 });
@@ -1783,7 +1783,7 @@ router.get("/sponsors/dashboard", requireAuth, publicApiLimiter, async (req, res
    POST   /api/sponsors/pipeline/deals/:id/mark-paid — mark paid + ledger post
    POST   /api/sponsors/pipeline/followup         — 50 VB: AI follow-up draft */
 
-export const SPONSOR_FOLLOWUP_CREDIT_COST = 50;
+const SPONSOR_FOLLOWUP_CREDIT_COST = 50;
 const PIPELINE_STAGES = ["pitched", "negotiating", "closed", "paid"] as const;
 
 const pipelineDealSchema = z.object({

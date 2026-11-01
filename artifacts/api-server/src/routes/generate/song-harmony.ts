@@ -51,8 +51,8 @@ const execFileAsync = promisify(execFile);
 const router = Router();
 
 /** Flat prices (x100 Visual Bucs scale). The AI path burns real provider dollars. */
-export const HARMONY_CREDIT_COST_CLASSIC = 300;
-export const HARMONY_CREDIT_COST_AI = 600;
+const HARMONY_CREDIT_COST_CLASSIC = 300;
+const HARMONY_CREDIT_COST_AI = 600;
 const BUCKET = "audio-stems";
 const MAX_LENGTH_MS = 600_000; // 10 minutes — bounds server work per request
 
@@ -63,7 +63,7 @@ const STS_MODEL = process.env["ELEVENLABS_STS_MODEL"] ?? "eleven_english_sts_v2"
 const STS_TIMEOUT_MS = 300_000;
 
 /** Harmony styles → fixed-interval parts (semitones). */
-export const HARMONY_STYLES = {
+const HARMONY_STYLES = {
   "thirds": {
     label: "Thirds up",
     blurb: "A harmony voice a major third above the lead — the classic pop stack.",

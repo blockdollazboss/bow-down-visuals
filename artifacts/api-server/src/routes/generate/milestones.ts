@@ -79,7 +79,7 @@ export function tierRank(tier: string): number {
 
 export type MilestoneVertical = "streams" | "followers" | "earnings" | "releases";
 
-export interface MilestoneLadderStep {
+interface MilestoneLadderStep {
   at: number;
   tier: string;
   tierLabel: string;

@@ -160,7 +160,7 @@ router.get("/arcade/leaderboard", requireAuth, publicApiLimiter, async (req: Req
   }
 });
 
-export interface ArcadeGameStat {
+interface ArcadeGameStat {
   game: ArcadeGame;
   best: number | null;
   plays: number;

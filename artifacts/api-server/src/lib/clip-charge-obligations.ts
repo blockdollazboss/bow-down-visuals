@@ -52,7 +52,7 @@ import { logger } from "./logger";
    window is one refund call wide, the claim is logged with the
    amount, and the row stays in the table for reconciliation. */
 
-export const CLIP_CHARGE_STALE_MS =
+const CLIP_CHARGE_STALE_MS =
   Number(process.env["CLIP_CHARGE_STALE_MS"]) || 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS =
   Number(process.env["CLIP_CHARGE_SWEEP_INTERVAL_MS"]) || 10 * 60 * 1000;
@@ -90,7 +90,7 @@ export interface ClipChargeStore {
 
 type Db = typeof defaultDb;
 
-export function createDrizzleClipChargeStore(db: Db = defaultDb): ClipChargeStore {
+function createDrizzleClipChargeStore(db: Db = defaultDb): ClipChargeStore {
   const T = clipChargeObligationsTable;
   return {
     async recordPending(input) {
@@ -158,7 +158,7 @@ export function createDrizzleClipChargeStore(db: Db = defaultDb): ClipChargeStor
   };
 }
 
-export interface ClipChargeDeps {
+interface ClipChargeDeps {
   store?: ClipChargeStore;
   refund?: typeof refundCredits;
   staleMs?: number;
@@ -196,7 +196,7 @@ export async function markClipChargeDelivered(
   return store.markDelivered(taskId, "saved");
 }
 
-export interface SaveFailureRefundResult {
+interface SaveFailureRefundResult {
   refunded: boolean;
   credits: number;
   /** 'durable' when the obligation row carried the refund, 'memory'
@@ -257,7 +257,7 @@ export async function refundClipChargeOnSaveFailure(
   return { refunded: false, credits: 0, source: null };
 }
 
-export interface ClipChargeSweepResult {
+interface ClipChargeSweepResult {
   scanned: number;
   delivered: number;
   refunded: number;

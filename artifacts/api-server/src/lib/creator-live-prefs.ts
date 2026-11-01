@@ -37,7 +37,7 @@ export const DEFAULT_LIVE_PREFS: LivePrefsWire = {
   stage_manager_link_rules: [],
 };
 
-export type LivePrefsPatch = Partial<LivePrefsWire>;
+type LivePrefsPatch = Partial<LivePrefsWire>;
 
 /* ── Link rules ──────────────────────────────────────────────────────────
    Creator-authored, so they are sanitized at the write seam: at most

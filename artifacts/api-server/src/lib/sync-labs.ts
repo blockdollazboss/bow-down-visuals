@@ -137,7 +137,7 @@ export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "sync-3";
 const SYNC_POLL_INTERVAL_MS = 5_000;
 const SYNC_MAX_POLLS = 144; // 144 × 5s = 12 minutes max — provider queues can be slow; the client recovers directly past this
 
-export interface SyncLabsJob {
+interface SyncLabsJob {
   id: string;
   /** Raw provider status — Sync.so reports COMPLETED in uppercase. */
   status: string;
@@ -161,7 +161,7 @@ export class SyncLabsError extends Error {
 }
 
 /** How a submit failure should be treated by the background poller. */
-export type SubmitErrorKind =
+type SubmitErrorKind =
   /** 429 / plan-concurrency / 5xx: wait with long backoff, don't burn attempts. */
   | "transient"
   /** Network timeout / DNS / reset: may not have reached the provider; re-queue normally. */
@@ -418,7 +418,7 @@ export async function probeVideoDimensions(
   }
 }
 
-export interface LipSyncResolutionMeta {
+interface LipSyncResolutionMeta {
   inputWidth: number | null;
   inputHeight: number | null;
   outputWidth: number | null;

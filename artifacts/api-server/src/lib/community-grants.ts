@@ -110,7 +110,7 @@ export interface CandidateWire {
   createdAt: string;
 }
 
-export interface CandidateWithVotes extends CandidateWire {
+interface CandidateWithVotes extends CandidateWire {
   /** Fresh COUNT of vote rows — computed on every read, never stored. */
   votes: number;
   isWinner: boolean;
@@ -118,7 +118,7 @@ export interface CandidateWithVotes extends CandidateWire {
   reportBackOwed: boolean;
 }
 
-export interface RoundSurface {
+interface RoundSurface {
   round: RoundWire;
   phase: GrantPhase;
   candidates: CandidateWithVotes[];
@@ -127,7 +127,7 @@ export interface RoundSurface {
   myVoteCandidateId: string | null;
 }
 
-export interface GrantsSurface {
+interface GrantsSurface {
   /** The current (most recently created) round, or null — the honest
    *  "no round is open right now" state. */
   current: RoundSurface | null;
@@ -513,7 +513,7 @@ export async function getGrantsSurface(
 /* ─── Settle: result + exactly-once VB payout ──────────────────────── */
 
 export const communityGrantLedgerKey = (roundId: string) => `community-grant:${roundId}`;
-export const COMMUNITY_GRANT_LEDGER_ACTION = "Community Grant";
+const COMMUNITY_GRANT_LEDGER_ACTION = "Community Grant";
 
 export interface GrantPayDeps {
   addCredits(userId: string, amount: number): Promise<void>;

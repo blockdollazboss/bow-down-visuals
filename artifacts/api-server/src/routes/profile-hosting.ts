@@ -53,7 +53,7 @@ function getTestStripe(): Stripe {
 }
 
 /** The durable hosting state a hosting purchase intent carries. */
-export interface HostingSubscriptionState {
+interface HostingSubscriptionState {
   status: string;
   currentPeriodEnd: Date | null;
   stripeSubscriptionId: string | null;
@@ -80,7 +80,7 @@ export function buildHostingCheckoutKey(args: {
   });
 }
 
-export interface HostingPlanDto {
+interface HostingPlanDto {
   name: string;
   tagline: string;
   features: Array<{ label: string; detailsUrl: string }>;
@@ -92,7 +92,7 @@ export interface HostingPlanDto {
   available: boolean;
 }
 
-export function hostingPlanDto(): HostingPlanDto {
+function hostingPlanDto(): HostingPlanDto {
   const configured = hostingPriceConfigured();
   return {
     name: HOSTING_PLAN.name,

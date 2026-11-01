@@ -114,7 +114,7 @@ export const DISTRIBUTION_PLATFORMS = [
   "tidal",
   "correctional",
 ] as const;
-export type DistributionPlatform = (typeof DISTRIBUTION_PLATFORMS)[number];
+type DistributionPlatform = (typeof DISTRIBUTION_PLATFORMS)[number];
 
 export const PLATFORM_LABEL: Record<DistributionPlatform, string> = {
   spotify: "Spotify",
@@ -129,7 +129,6 @@ export const PLATFORM_LABEL: Record<DistributionPlatform, string> = {
 };
 
 export const RELEASE_STATUSES = ["draft", "packaged"] as const;
-export type ReleaseStatus = (typeof RELEASE_STATUSES)[number];
 
 /* ─── Schemas ────────────────────────────────────────────────────────────── */
 
@@ -208,8 +207,8 @@ export function isValidUpc(v: string | undefined | null): boolean {
   return false;
 }
 
-export const UPC_KINDS = ["internal", "official"] as const;
-export const TERRITORY_MODES = ["worldwide", "include", "exclude"] as const;
+const UPC_KINDS = ["internal", "official"] as const;
+const TERRITORY_MODES = ["worldwide", "include", "exclude"] as const;
 
 const territoryCodes = z
   .array(z.string().regex(/^[A-Z]{2}$/, "Territory codes must be ISO 3166-1 alpha-2 (e.g. US).").max(2))
@@ -356,7 +355,6 @@ export interface ChecklistItem {
 
 /* Canonical collaborator roles for a split agreement (DistroKid parity). */
 export const SPLIT_ROLES = ["artist", "producer", "writer", "featured"] as const;
-export type SplitRole = (typeof SPLIT_ROLES)[number];
 
 export interface RoyaltySplit {
   id?: string;

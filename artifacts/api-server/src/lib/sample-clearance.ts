@@ -32,9 +32,9 @@ import {
 } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 
-export type FlagLevel = "none" | "caution" | "high";
+type FlagLevel = "none" | "caution" | "high";
 
-export interface RiskFlag {
+interface RiskFlag {
   level: FlagLevel;
   /** One plain-words headline a creator understands at a glance. */
   headline: string;
@@ -296,7 +296,7 @@ export const drizzleSampleClearanceStore: SampleClearanceStore = {
 
 /* ─── Business logic ───────────────────────────────────────────────── */
 
-export interface DeclareInput {
+interface DeclareInput {
   sourceDescription: string;
   useKind: SampleUseKind;
   clearanceStatus: SampleClearanceStatus;
@@ -421,7 +421,7 @@ export async function acknowledgeDeclaration(
    What the credits layer renders for a track: one line per declared
    sample, each labelled creator-declared, plus the worst flag level.
    Honest absence: no declarations → samplesDeclared: false, lines: []. */
-export interface CreditsSummary {
+interface CreditsSummary {
   songId: string;
   samplesDeclared: boolean;
   lines: Array<{
@@ -529,7 +529,7 @@ export async function getAlternatives(
    the release's tracks that the creator hasn't acknowledged stops the
    ship with the flags in plain words (409 upstream). Acknowledged or
    unflagged declarations never stop a ship. */
-export interface PreShipResult {
+interface PreShipResult {
   ok: boolean;
   blocking: DeclarationWire[];
   warnings: DeclarationWire[];

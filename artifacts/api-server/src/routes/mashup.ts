@@ -48,7 +48,7 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /** Visual Bucs for one mashup (x100 scale). */
-export const MASHUP_CREDIT_COST = 400;
+const MASHUP_CREDIT_COST = 400;
 
 const BLEND_STYLES = {
   "crossfade": {

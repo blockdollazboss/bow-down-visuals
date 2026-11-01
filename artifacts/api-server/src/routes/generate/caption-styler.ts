@@ -39,9 +39,9 @@ const upload = createAdminAwareUpload({
 
 /* ── Pure, testable helpers ─────────────────────────────────────────── */
 
-export type CaptionStyleKey = "hormozi" | "minimal" | "karaoke" | "neon" | "luxury-gold";
-export type CaptionPosition = "top" | "middle" | "bottom";
-export type CaptionFontSize = "small" | "medium" | "large";
+type CaptionStyleKey = "hormozi" | "minimal" | "karaoke" | "neon" | "luxury-gold";
+type CaptionPosition = "top" | "middle" | "bottom";
+type CaptionFontSize = "small" | "medium" | "large";
 
 export const CAPTION_STYLES: Record<CaptionStyleKey, { label: string; blurb: string }> = {
   "hormozi": { label: "Hormozi", blurb: "Bold pop — big words, active word highlighted" },
@@ -69,7 +69,7 @@ export interface WordTiming {
   end: number;
 }
 
-export interface CaptionChunk {
+interface CaptionChunk {
   words: WordTiming[];
   start: number;
   end: number;
@@ -266,7 +266,7 @@ export function buildFfmpegArgs(inputPath: string, assPath: string, outputPath: 
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type CaptionStylerJobStatus = "queued" | "transcribing" | "rendering" | "done" | "failed";
+type CaptionStylerJobStatus = "queued" | "transcribing" | "rendering" | "done" | "failed";
 
 export interface CaptionStylerJob {
   id: string;

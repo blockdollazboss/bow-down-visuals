@@ -60,17 +60,17 @@ export const DEVERB_CREDIT_COST =
   Number(process.env["DEVERB_CREDIT_COST"]) || 1000;
 
 /** Explicit approval gate (same pattern as VEO_PRICING_APPROVED). */
-export const DEVERB_PRICING_APPROVED = false;
+const DEVERB_PRICING_APPROVED = false;
 /** Bump when the proposed rate changes, so an approval is tied to a version. */
-export const DEVERB_PRICING_VERSION = "2026-10-11-placeholder";
+const DEVERB_PRICING_VERSION = "2026-10-11-placeholder";
 
 /** Provider gate: which env var must hold a live key before jobs can run. */
-export const DEVERB_PROVIDER_KEY_ENV = "DEVERB_API_KEY";
+const DEVERB_PROVIDER_KEY_ENV = "DEVERB_API_KEY";
 
 /** Max upload: deverb jobs run on a remote AI provider, keep them small. */
 const DEVERB_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
-export type DeverbMode = "dialogue" | "vocal";
+type DeverbMode = "dialogue" | "vocal";
 const MODES: DeverbMode[] = ["dialogue", "vocal"];
 
 const MODE_LABELS: Record<DeverbMode, string> = {
@@ -86,7 +86,7 @@ function deverbProviderKey(): string | undefined {
 
 export type DeverbGateReason = "ok" | "provider_not_configured" | "pricing_pending";
 
-export function deverbGateStatus(): {
+function deverbGateStatus(): {
   enabled: boolean;
   reason: DeverbGateReason;
   pricingApproved: boolean;
@@ -143,7 +143,7 @@ const deverbSchema = z.object({
  * is true AND DEVERB_API_KEY is set — the POST route enforces both
  * before this function is ever reached.
  */
-export async function callDeverbProvider(
+async function callDeverbProvider(
   inputPath: string,
   _mode: DeverbMode,
   _outputPath: string,
@@ -159,7 +159,7 @@ export async function callDeverbProvider(
 
 export type DeverbJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface DeverbJob {
+interface DeverbJob {
   id: string;
   userId: string;
   status: DeverbJobStatus;
@@ -175,17 +175,11 @@ export interface DeverbJob {
 const jobs = new Map<string, DeverbJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getDeverbJob(id: string): DeverbJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
-export function __clearDeverbJobs(): void {
-  jobs.clear();
-}
 
 /** Exported for tests. */
-export async function runDeverbJob(
+async function runDeverbJob(
   job: DeverbJob,
   uploadedPath: string,
   originalName: string,

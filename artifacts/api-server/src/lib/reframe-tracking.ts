@@ -13,7 +13,7 @@
    Nothing here ever dresses a centre crop up as tracking. */
 
 /** Person matte bounding box, normalized 0..1 against the source frame. */
-export interface SubjectBox {
+interface SubjectBox {
   x: number;
   y: number;
   w: number;
@@ -36,18 +36,18 @@ export interface CropKeyframe {
   cy: number;
 }
 
-export interface CropWindow {
+interface CropWindow {
   w: number;
   h: number;
 }
 
-export type TrackRejectReason =
+type TrackRejectReason =
   | "no-samples"
   | "no-subject"
   | "low-coverage"
   | "low-confidence";
 
-export type TrackPlan =
+type TrackPlan =
   | {
       ok: true;
       filter: string;
@@ -64,12 +64,12 @@ export type TrackPlan =
    subject (or a matte glitch) can never yank the frame across. */
 export const MAX_TRACK_SPEED_RATIO_PER_SEC = 0.45;
 
-export const TRACK_MIN_SAMPLES = 3;
-export const TRACK_MIN_TRACKED_RATIO = 0.5;
+const TRACK_MIN_SAMPLES = 3;
+const TRACK_MIN_TRACKED_RATIO = 0.5;
 /* A trustworthy person matte covers a sane share of the frame:
    specks are detector noise, a near-full-frame matte is a blowout. */
-export const TRACK_MIN_MATTE_SHARE = 0.004;
-export const TRACK_MAX_MATTE_SHARE = 0.92;
+const TRACK_MIN_MATTE_SHARE = 0.004;
+const TRACK_MAX_MATTE_SHARE = 0.92;
 
 /** Crop window size for a target aspect — the same math the v1
  *  ffmpeg expression computed inline (`ih*ratio` wide when cropping

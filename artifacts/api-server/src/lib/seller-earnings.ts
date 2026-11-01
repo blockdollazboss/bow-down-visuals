@@ -53,7 +53,6 @@ import { saleSplitAdjustments } from "./sale-splits";
  * its released-and-unsettled total alongside instead of duplicating it.
  */
 
-export const PENDING_PAYOUT_ACTIVE_STATUSES = ["processing", "pending", "paid"] as const;
 
 /* ── Ledger sync ─────────────────────────────────────────────────────────
  * One INSERT … SELECT per rail per entry type. Each statement is
@@ -62,7 +61,7 @@ export const PENDING_PAYOUT_ACTIVE_STATUSES = ["processing", "pending", "paid"] 
  * on every read. Returns how many rows were inserted per statement —
  * a second run over unchanged sources inserts 0 everywhere. */
 
-export interface LedgerSyncResult {
+interface LedgerSyncResult {
   inserted: Record<string, number>;
   totalInserted: number;
 }
@@ -231,7 +230,7 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
  *     the same adjustment routes/earnings.ts applies applies here)
  * floored at 0. Rows are the seller's ledger entries, newest first. */
 
-export interface PendingPayoutLedgerRow {
+interface PendingPayoutLedgerRow {
   id: string;
   sourceKind: string;
   sourceId: string;
@@ -351,7 +350,7 @@ export async function readPendingPayoutForSeller(
  * its ledger accrual net there. Refunded sales are excluded everywhere
  * (their money is not earnings; the ledger shows accrual + reversal). */
 
-export interface SellerEarningsSummary {
+interface SellerEarningsSummary {
   sellerUserId: string;
   currency: "USD";
   totalCents: number;
@@ -476,10 +475,3 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
 
 /* Best-effort sync hook for sale-completion callers: never let a ledger
  * hiccup break a checkout/verify response — the read path re-syncs. */
-export async function syncPendingPayoutLedgerQuietly(userId: string): Promise<void> {
-  try {
-    await syncPendingPayoutLedgerForSeller(userId);
-  } catch (err) {
-    logger.warn({ err, userId }, "[seller-earnings] ledger sync failed (read path re-syncs)");
-  }
-}

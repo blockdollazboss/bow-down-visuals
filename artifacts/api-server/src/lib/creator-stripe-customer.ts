@@ -25,7 +25,7 @@ import { logger } from "./logger";
    once and the mapping updated; any other Stripe error propagates so
    checkout fails closed instead of minting a duplicate.               */
 
-export type StripeCustomerClient = Pick<Stripe, "customers">;
+type StripeCustomerClient = Pick<Stripe, "customers">;
 
 async function storedCustomerId(userId: string): Promise<string | null> {
   const [row] = await db

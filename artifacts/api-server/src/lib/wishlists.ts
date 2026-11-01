@@ -33,13 +33,13 @@ import { isUndefinedTable } from "./pg-errors";
    seller's price change. Pre-migration (table absent) it reads as
    "feature not deployed yet" and returns zero. */
 
-export const WISHLIST_PRICE_DROP_KIND = "wishlist_price_drop";
+const WISHLIST_PRICE_DROP_KIND = "wishlist_price_drop";
 
-export type WishlistDb = typeof defaultDb;
+type WishlistDb = typeof defaultDb;
 
 export type WishlistItemKind = "store_product" | "shop_product";
 
-export interface ResolvedWishlistItem {
+interface ResolvedWishlistItem {
   itemKind: WishlistItemKind;
   itemId: string;
   title: string;
@@ -113,7 +113,7 @@ export async function resolveWishlistItem(
   };
 }
 
-export type AddWishlistResult =
+type AddWishlistResult =
   | { ok: true; wishlist: WishlistRow; created: boolean }
   | { ok: false; reason: "item_not_found" | "item_unavailable" };
 
@@ -187,7 +187,7 @@ export async function removeWishlistItem(
   return r.rows.length > 0;
 }
 
-export interface WishlistListEntry {
+interface WishlistListEntry {
   id: string;
   itemKind: WishlistItemKind;
   itemId: string;

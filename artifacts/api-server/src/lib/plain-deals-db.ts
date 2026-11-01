@@ -82,31 +82,6 @@ export async function probePlainDealTables(): Promise<void> {
 
 /** Guarded batch load for READ paths — degrades to empty on ANY
  *  failure (not migrated yet, test fake, transient error). */
-export async function loadPlainDealsGuarded(
-  ids: string[],
-): Promise<Map<string, { head: PlainDealHeadRow; deal: PlainDeal }>> {
-  const out = new Map<string, { head: PlainDealHeadRow; deal: PlainDeal }>();
-  if (ids.length === 0) return out;
-  try {
-    const heads = await db.select().from(plainDealsTable).where(inArray(plainDealsTable.id, ids));
-    if (heads.length === 0) return out;
-    const rows = await db
-      .select()
-      .from(plainDealSidesTable)
-      .where(inArray(plainDealSidesTable.plain_deal_id, heads.map((h) => h.id)));
-    for (const head of heads) {
-      const deal = rowsToPlainDeal(head, rows);
-      if (deal) out.set(head.id, { head, deal });
-    }
-  } catch (err) {
-    if (isMissingPlainDealTable(err)) {
-      logger.debug("[plain-deals] tables not present yet — serving without deal data");
-    } else {
-      logger.warn({ err }, "[plain-deals] read failed — serving without deal data");
-    }
-  }
-  return out;
-}
 
 export interface PlainDealSideSummary {
   profile_id: string;

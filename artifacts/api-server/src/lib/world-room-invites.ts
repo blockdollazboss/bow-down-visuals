@@ -34,7 +34,7 @@ import { logger } from "./logger";
 
 export const ROOM_INVITE_PENDING = "pending";
 export const ROOM_INVITE_ACCEPTED = "accepted";
-export const ROOM_INVITE_DECLINED = "declined";
+const ROOM_INVITE_DECLINED = "declined";
 
 export type RoomInviteStatus =
   | typeof ROOM_INVITE_PENDING
@@ -43,7 +43,7 @@ export type RoomInviteStatus =
 
 /* ── The wire DTO ──────────────────────────────────────────────────── */
 
-export interface WorldRoomInviteDto {
+interface WorldRoomInviteDto {
   id: string;
   roomId: string;
   slug: string;
@@ -57,7 +57,7 @@ export interface WorldRoomInviteDto {
   respondedAt: string | null;
 }
 
-export interface RoomInviteRowLike {
+interface RoomInviteRowLike {
   id: string;
   roomId: string;
   roomSlug: string;
@@ -68,7 +68,7 @@ export interface RoomInviteRowLike {
   respondedAt: Date | null;
 }
 
-export interface RoomInviteHostFacts {
+interface RoomInviteHostFacts {
   displayName: string;
   avatarUrl: string | null;
 }
@@ -101,7 +101,7 @@ export function roomInviteDto(
 
 /* ── The decisions ─────────────────────────────────────────────────── */
 
-export type RoomInviteDecision = { ok: true } | { ok: false; status: number; error: string };
+type RoomInviteDecision = { ok: true } | { ok: false; status: number; error: string };
 
 /**
  * May this caller send this invite? The order matters: the room

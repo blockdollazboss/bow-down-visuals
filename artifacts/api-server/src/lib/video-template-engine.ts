@@ -48,7 +48,7 @@ export interface SlotPlan {
   label: string;
 }
 
-export interface FilterBuild {
+interface FilterBuild {
   filter: string;
   maps: string[];
   totalSec: number;

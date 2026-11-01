@@ -38,8 +38,8 @@ import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const MIX_MASTER_CREDIT_COST = 800;
-export const MIX_STEMS_CREDIT_COST = 1500;
+const MIX_MASTER_CREDIT_COST = 800;
+const MIX_STEMS_CREDIT_COST = 1500;
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB per file
 const MAX_STEMS = 12;
 const FFMPEG_TIMEOUT_MS = 900_000; // 15 min cap per pass (stem mixes are heavy)
@@ -97,10 +97,10 @@ function fieldsUpload(fields: multer.Field[]) {
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type MixMasterJobKind = "master" | "mix";
-export type MixMasterJobStatus = "queued" | "processing" | "done" | "failed";
+type MixMasterJobKind = "master" | "mix";
+type MixMasterJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface MixMasterJob {
+interface MixMasterJob {
   id: string;
   userId: string;
   kind: MixMasterJobKind;
@@ -134,14 +134,11 @@ export interface MixMasterJob {
 const jobs = new Map<string, MixMasterJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getMixMasterJob(id: string): MixMasterJob | undefined {
+function getMixMasterJob(id: string): MixMasterJob | undefined {
   return jobs.get(id);
 }
 
 /** Test hook: clear the in-memory job store. */
-export function __clearMixMasterJobs(): void {
-  jobs.clear();
-}
 
 /* ── ffmpeg passes ─────────────────────────────────────────────────── */
 
@@ -293,7 +290,7 @@ async function refundJob(job: MixMasterJob, err: unknown): Promise<void> {
 
 /* ── Background workers ────────────────────────────────────────────── */
 
-export async function runMasterJob(
+async function runMasterJob(
   job: MixMasterJob,
   inputPath: string,
   referencePath: string | null,
@@ -354,7 +351,7 @@ export async function runMasterJob(
   }
 }
 
-export async function runMixJob(
+async function runMixJob(
   job: MixMasterJob,
   stemPaths: string[],
   referencePath: string | null,

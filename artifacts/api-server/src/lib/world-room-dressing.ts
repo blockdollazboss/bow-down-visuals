@@ -176,7 +176,7 @@ export interface WorldRoomDressingDto {
   picked: boolean;
 }
 
-export function roomDressingDto(variant: RoomDressingVariant, picked: boolean): WorldRoomDressingDto {
+function roomDressingDto(variant: RoomDressingVariant, picked: boolean): WorldRoomDressingDto {
   return {
     variantId: variant.id,
     band: variant.band,
@@ -205,7 +205,7 @@ export function resolveRoomDressing(input: {
 
 /* ── The write decision (the room-authority rule, pure) ─────────────── */
 
-export type RoomDressingWriteDecision =
+type RoomDressingWriteDecision =
   | { ok: true; variant: RoomDressingVariant }
   | { ok: false; status: number; error: string };
 

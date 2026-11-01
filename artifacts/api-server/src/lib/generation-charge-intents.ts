@@ -45,7 +45,7 @@ import { logger } from "./logger";
    returns the balance WITHOUT charging again, and the row is marked
    'charged'. No double charge, no lost charge. */
 
-export const GEN_CHARGE_IDEMPOTENCY_PREFIX = "gen-charge:";
+const GEN_CHARGE_IDEMPOTENCY_PREFIX = "gen-charge:";
 
 export const GEN_CHARGE_RETRY_AFTER_MS =
   Number(process.env["GEN_CHARGE_RETRY_AFTER_MS"]) || 2 * 60 * 1000;
@@ -86,7 +86,7 @@ export interface GenerationChargeIntentStore {
 
 type Db = typeof defaultDb;
 
-export function createDrizzleGenerationChargeIntentStore(db: Db = defaultDb): GenerationChargeIntentStore {
+function createDrizzleGenerationChargeIntentStore(db: Db = defaultDb): GenerationChargeIntentStore {
   const T = generationChargeIntentsTable;
   return {
     async recordIntent(input) {
@@ -219,7 +219,7 @@ export async function markGenerationIntentFailed(
 
 /* ── Settle ─────────────────────────────────────────────────────────── */
 
-export interface ResolvedPendingCharge {
+interface ResolvedPendingCharge {
   userId: string;
   credits: number;
   projectId: string | null;
@@ -355,7 +355,7 @@ export async function settleGenerationCharge(
 
 /* ── Sweeper ────────────────────────────────────────────────────────── */
 
-export interface GenerationChargeSweepDeps {
+interface GenerationChargeSweepDeps {
   store?: GenerationChargeIntentStore;
   chargeFn?: ChargeFn;
   now?: () => number;

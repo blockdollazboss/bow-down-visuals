@@ -7,13 +7,13 @@ import { getSupabaseAdmin } from "./supabase-admin";
  * Plan tiers: 1=Street Punk, 2=Hustler, 3=Gangster, 4=Shot Caller, 5=Crime Boss, 6=Kingpin.
  * Teams require Shot Caller (4) or higher.
  */
-export const SHOT_CALLER_TIER = 4;
+const SHOT_CALLER_TIER = 4;
 
 /**
  * Returns the user's plan tier (1-6), or null if not set.
  * Reads from Supabase profiles.plan_tier.
  */
-export async function getUserPlanTier(userId: string): Promise<number | null> {
+async function getUserPlanTier(userId: string): Promise<number | null> {
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase

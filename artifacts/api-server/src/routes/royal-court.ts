@@ -29,7 +29,7 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 /* ── DTOs ───────────────────────────────────────────────────────────────── */
 
-export interface CourtMemberDto {
+interface CourtMemberDto {
   position: number;
   profileId: string;
   slug: string;
@@ -39,7 +39,7 @@ export interface CourtMemberDto {
   isPublic: boolean;
 }
 
-export interface CourtCandidateDto {
+interface CourtCandidateDto {
   profileId: string;
   slug: string;
   displayName: string;

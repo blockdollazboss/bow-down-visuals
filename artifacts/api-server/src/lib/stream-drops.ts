@@ -34,7 +34,7 @@ export const STREAM_DROP_WEEKLY_CAP_VB = 1000;
    use the plain db. */
 type SpendReader = Pick<typeof db, "select">;
 
-export async function streamDropWeekSpendVb(
+async function streamDropWeekSpendVb(
   weekStart: string = currentWeekStart(),
   reader: SpendReader = db,
 ): Promise<number> {
@@ -95,7 +95,7 @@ export async function combinedDropWeekSpendVb(
   return streamSpent + regular;
 }
 
-export interface DropAwardResult {
+interface DropAwardResult {
   awarded: Array<{ thresholdSeconds: number; amountVb: number }>;
   /** True when a crossed threshold could not pay because the weekly
    *  stream-drop budget is spent. */

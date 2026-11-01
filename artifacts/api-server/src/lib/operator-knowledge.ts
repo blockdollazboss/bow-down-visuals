@@ -22,7 +22,7 @@ import kbJson from "./operator-knowledge.json" with { type: "json" };
     the price for anything up to `upToSeconds` long. Sourced at
     generation time from the exported tier table the charging function
     derives from — never hand-typed knowledge. */
-export interface OperatorPriceTier {
+interface OperatorPriceTier {
   upToSeconds: number;
   vb: number;
 }
@@ -33,13 +33,13 @@ export interface OperatorPriceTier {
     constant the rail charges for that variant. `vb` on the parent
     price stays the registry's base price — neither overwrites the
     other, because they are different facts about one endpoint. */
-export interface OperatorPriceVariant {
+interface OperatorPriceVariant {
   feature: string;
   vb: number;
   source: string;
 }
 
-export interface OperatorPrice {
+interface OperatorPrice {
   feature: string;
   vb: number;
   endpoint: string;
@@ -59,7 +59,7 @@ export interface OperatorPrice {
     live here, NEVER in `prices` — that array is Visual Bucs only, and
     the two moneys never mix in one field. Sourced at generation time
     from the lib/db *_OFFER constant the offer endpoint serves. */
-export interface OperatorOffer {
+interface OperatorOffer {
   priceDollars: number;
   durationDays: number;
   surfaces: string[];
@@ -91,7 +91,7 @@ export interface OperatorFeature {
  * buildServerSurface). `unseen` names the endpoints no feature
  * carries; a family with nothing visible also carries its reviewed
  * classification from the generator's SERVER_FAMILY_CLASSIFICATIONS. */
-export interface OperatorServerFamily {
+interface OperatorServerFamily {
   file: string;
   endpoints: number;
   visible: number;
@@ -99,7 +99,7 @@ export interface OperatorServerFamily {
   classification?: { surface: string; reason: string };
 }
 
-export interface OperatorKnowledge {
+interface OperatorKnowledge {
   generatedBy: string;
   baseCommit: string;
   generatedAt: string;

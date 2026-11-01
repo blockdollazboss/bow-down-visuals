@@ -41,7 +41,7 @@ const router = Router();
 export const LABEL_PITCH_CREDIT_COST =
   Number(process.env["LABEL_PITCH_CREDIT_COST"]) || 300;
 
-export const DEMO_KIT_DISCLAIMER =
+const DEMO_KIT_DISCLAIMER =
   "Labels rarely sign from cold demos — this gives you the most professional " +
   "package possible, but relationships, buzz, and timing matter most. " +
   "Build your audience, get your music heard, and let the package open doors " +
@@ -63,7 +63,7 @@ export interface LabelEntry {
   starter: true;
 }
 
-export const LABEL_GENRE_FILTERS = [
+const LABEL_GENRE_FILTERS = [
   "all",
   "hip-hop",
   "r&b",
@@ -74,9 +74,8 @@ export const LABEL_GENRE_FILTERS = [
   "afrobeats",
   "edm",
 ] as const;
-export type LabelGenreFilter = (typeof LABEL_GENRE_FILTERS)[number];
 
-export const LABEL_STARTER_LIST: LabelEntry[] = [
+const LABEL_STARTER_LIST: LabelEntry[] = [
   /* ── The Big Three ── */
   {
     id: "umg",
@@ -212,7 +211,7 @@ export const LABEL_STARTER_LIST: LabelEntry[] = [
   },
 ];
 
-export function getLabelsByGenre(genre: string): LabelEntry[] {
+function getLabelsByGenre(genre: string): LabelEntry[] {
   const g = genre.trim().toLowerCase();
   if (!g || g === "all") return LABEL_STARTER_LIST;
   return LABEL_STARTER_LIST.filter((l) =>
@@ -239,7 +238,7 @@ const demoKitSchema = z.object({
   autoTarget: z.boolean().optional().default(false),
 });
 
-export interface DemoSongAnalysis {
+interface DemoSongAnalysis {
   genre: string;
   mood: string;
   energy: number;
@@ -257,7 +256,7 @@ export interface DemoKit {
   disclaimer: string;
 }
 
-export function buildDemoKitPrompt(input: z.infer<typeof demoKitSchema>): string {
+function buildDemoKitPrompt(input: z.infer<typeof demoKitSchema>): string {
   const lines: string[] = [
     `Song title: "${input.songTitle}"`,
   ];
@@ -324,7 +323,7 @@ function cleanStrArr(v: unknown, max: number): string[] {
     .slice(0, max);
 }
 
-export function parseDemoKitResponse(raw: string): DemoKit {
+function parseDemoKitResponse(raw: string): DemoKit {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

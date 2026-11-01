@@ -35,15 +35,14 @@ export const outreachSchema = z.object({
   contactName: z.string().max(100).optional().default(""),
 });
 
-export type OutreachRequest = z.infer<typeof outreachSchema>;
 
-export interface FollowUp {
+interface FollowUp {
   day: number;
   subject: string;
   body: string;
 }
 
-export interface OutreachKit {
+interface OutreachKit {
   pitchEmail: { subject: string; body: string };
   dmVersion: string;
   mediaKitSummary: string;

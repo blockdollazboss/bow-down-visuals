@@ -30,9 +30,9 @@ const generativeUpscaleSchema = z.object({
   creativity: z.number().min(0).max(100).optional(),
 });
 
-export type GenerativeUpscaleJobStatus = "queued" | "processing" | "done" | "failed";
+type GenerativeUpscaleJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface GenerativeUpscaleJob {
+interface GenerativeUpscaleJob {
   id: string;
   userId: string;
   status: GenerativeUpscaleJobStatus;
@@ -47,9 +47,6 @@ export interface GenerativeUpscaleJob {
 const jobs = new Map<string, GenerativeUpscaleJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getGenerativeUpscaleJob(id: string): GenerativeUpscaleJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
 export function __clearGenerativeUpscaleJobs(): void {

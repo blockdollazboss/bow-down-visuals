@@ -36,7 +36,7 @@ import { createHash } from "crypto";
  * (see routes/priority-dms.ts), tests supply fakes.
  */
 
-export const PRIORITY_DM_GATE_ENV = "PRIORITY_DM_ENABLED";
+const PRIORITY_DM_GATE_ENV = "PRIORITY_DM_ENABLED";
 
 /** Platform gate: OPEN (owner ruling 2026-10-27). Only the exact
  *  kill-switch value "false" closes it; unset means open. */
@@ -48,16 +48,16 @@ export function isPriorityDmPlatformEnabled(
 
 /* ── Creator-stated values (validated, never invented) ───────────────── */
 
-export const PRIORITY_DM_MIN_PRICE_VB = 1;
-export const PRIORITY_DM_MAX_PRICE_VB = 1_000_000;
-export const PRIORITY_DM_MIN_WINDOW_HOURS = 12;
-export const PRIORITY_DM_MAX_WINDOW_HOURS = 168; // one week, stated plainly
-export const PRIORITY_DM_BODY_MAX = 2000;
+const PRIORITY_DM_MIN_PRICE_VB = 1;
+const PRIORITY_DM_MAX_PRICE_VB = 1_000_000;
+const PRIORITY_DM_MIN_WINDOW_HOURS = 12;
+const PRIORITY_DM_MAX_WINDOW_HOURS = 168; // one week, stated plainly
+const PRIORITY_DM_BODY_MAX = 2000;
 
 /** A creator price is sellable only when the creator typed a whole
  *  number of Visual Bucs in range. Anything else (null, 0, fractional,
  *  text) means "no price set" — never substituted with a default. */
-export function isValidCreatorPrice(v: unknown): v is number {
+function isValidCreatorPrice(v: unknown): v is number {
   return (
     typeof v === "number" &&
     Number.isInteger(v) &&
@@ -66,7 +66,7 @@ export function isValidCreatorPrice(v: unknown): v is number {
   );
 }
 
-export function isValidReplyWindowHours(v: unknown): v is number {
+function isValidReplyWindowHours(v: unknown): v is number {
   return (
     typeof v === "number" &&
     Number.isInteger(v) &&
@@ -84,7 +84,7 @@ export interface PriorityDmSettingsLike {
 
 /* ── The ruled platform price (owner ruling 2026-10-27) ────────────── */
 
-export const PRIORITY_DM_PRICE_ENV = "PRIORITY_DM_PRICE_VB";
+const PRIORITY_DM_PRICE_ENV = "PRIORITY_DM_PRICE_VB";
 
 /** THE price: 100 VB per priority message. This is the only price a
  *  fan is ever charged or shown for a priority DM. */
@@ -100,7 +100,7 @@ export function priorityDmPriceVb(
   return isValidCreatorPrice(v) ? v : PRIORITY_DM_PRICE_VB;
 }
 
-export type PriorityDmSellable =
+type PriorityDmSellable =
   | { sellable: true; priceVb: number; replyWindowHours: number }
   | { sellable: false; reason: "gate_off" | "not_opted_in" | "no_price" | "bad_window" };
 
@@ -144,7 +144,7 @@ export interface PriorityConversationLike {
   status: string; // "inbox" | "request" | "blocked"
 }
 
-export interface PriorityDmStore {
+interface PriorityDmStore {
   getSettings(creatorUserId: string): Promise<PriorityDmSettingsLike | null>;
   findByIdempotencyKey(key: string): Promise<PriorityDmRow | null>;
   insertPriorityDm(input: {
@@ -174,7 +174,7 @@ export interface PriorityDmStore {
   creatorReplyAt(conversationId: string, creatorUserId: string, since: Date): Promise<Date | null>;
 }
 
-export interface PriorityDmCredits {
+interface PriorityDmCredits {
   /** Throws on insufficient balance. Idempotent per key (rail-level). */
   charge(userId: string, amountVb: number, idempotencyKey: string): Promise<void>;
   refund(userId: string, amountVb: number, rowId: string): Promise<void>;
@@ -234,7 +234,7 @@ export function buildPriorityDmKey(senderUserId: string, clientKey: unknown, int
   return `priority-dm:${senderUserId}:${hash}`;
 }
 
-export function replyDeadlineFor(now: Date, replyWindowHours: number): Date {
+function replyDeadlineFor(now: Date, replyWindowHours: number): Date {
   return new Date(now.getTime() + replyWindowHours * 3600 * 1000);
 }
 
@@ -244,7 +244,7 @@ export function isExpired(row: Pick<PriorityDmRow, "status" | "replyDeadline">, 
 
 /* ── Send ────────────────────────────────────────────────────────────── */
 
-export type SendPriorityDmOutcome =
+type SendPriorityDmOutcome =
   | { kind: "gate_off" }
   | { kind: "invalid"; message: string }
   | { kind: "not_available"; reason: "not_opted_in" | "no_price" | "bad_window" }
@@ -351,7 +351,7 @@ export async function sendPriorityDm(
 
 /* ── Settle (reply payout / expiry refund / block refund) ────────────── */
 
-export interface SettleSummary {
+interface SettleSummary {
   replied: number;
   refundedExpired: number;
   refundedBlocked: number;
@@ -411,7 +411,7 @@ export async function settlePriorityDms(
 
 /* ── Settings validation (creator controls) ──────────────────────────── */
 
-export type UpdateSettingsOutcome =
+type UpdateSettingsOutcome =
   | { ok: true; settings: { optedIn: boolean; minPriceVb: number | null; replyWindowHours: number } }
   | { ok: false; message: string };
 

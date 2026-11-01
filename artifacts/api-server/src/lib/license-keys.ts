@@ -54,9 +54,6 @@ export function generateLicenseKey(): string {
   return `BDV-${groups.join("-")}`;
 }
 
-export function isLicenseKeyShape(raw: string): boolean {
-  return LICENSE_KEY_RE.test(String(raw ?? "").trim().toUpperCase());
-}
 
 export function hashLicenseKey(key: string): string {
   return createHash("sha256").update(String(key).trim().toUpperCase()).digest("hex");
@@ -134,12 +131,12 @@ export interface LicenseKeyRow extends Record<string, unknown> {
   created_at: string;
 }
 
-export interface LicenseSettings {
+interface LicenseSettings {
   licenseKeysEnabled: boolean;
   maxDownloads: number | null;
 }
 
-export const LICENSE_SETTINGS_OFF: LicenseSettings = { licenseKeysEnabled: false, maxDownloads: null };
+const LICENSE_SETTINGS_OFF: LicenseSettings = { licenseKeysEnabled: false, maxDownloads: null };
 export const MAX_DOWNLOADS_CEILING = 100000;
 
 const KEY_COLUMNS = `id, sale_id, profile_id, buyer_user_id, item_kind, item_id,
@@ -228,7 +225,7 @@ export async function setLicenseSettings(
 }
 
 /* ── Issuance ──────────────────────────────────────────────────────────── */
-export interface IssueLicenseKeyArgs {
+interface IssueLicenseKeyArgs {
   saleId: string;
   buyerUserId: string;
   profileId: string;
@@ -279,7 +276,7 @@ export async function ensureLicenseKeyForItem(args: IssueLicenseKeyArgs): Promis
   }
 }
 
-export async function getLicenseKeyForPurchase(
+async function getLicenseKeyForPurchase(
   saleId: string,
   itemKind: string,
   itemId: string,

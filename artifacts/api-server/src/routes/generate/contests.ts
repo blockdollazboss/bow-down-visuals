@@ -36,7 +36,7 @@ const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5";
 export const DRAW_ALGORITHM = "fan-contests-draw-v1";
 
 export const ENTRY_METHODS = ["follow", "comment", "share", "purchase"] as const;
-export type EntryMethod = (typeof ENTRY_METHODS)[number];
+type EntryMethod = (typeof ENTRY_METHODS)[number];
 
 export const ENTRY_METHOD_LABELS: Record<EntryMethod, string> = {
   follow: "Follow",
@@ -45,7 +45,7 @@ export const ENTRY_METHOD_LABELS: Record<EntryMethod, string> = {
   purchase: "Purchase",
 };
 
-export const CONTEST_STATUSES = ["draft", "active", "ended"] as const;
+const CONTEST_STATUSES = ["draft", "active", "ended"] as const;
 
 /* ─── Pure helpers (unit-tested) ──────────────────────────────────────── */
 
@@ -79,7 +79,7 @@ export function mulberry32(seedHex: string): () => number {
   };
 }
 
-export interface DrawResult {
+interface DrawResult {
   winnerEntryId: string;
   winnerIndex: number;
   seed: string;

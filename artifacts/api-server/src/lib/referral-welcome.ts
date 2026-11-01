@@ -137,7 +137,7 @@ function defaultDeps(): ReferralWelcomeDeps {
   };
 }
 
-export type PendingWelcomeReason =
+type PendingWelcomeReason =
   | "granted"
   | "no_referral"
   | "already_granted"
@@ -146,7 +146,7 @@ export type PendingWelcomeReason =
   | "duplicate_mailbox"
   | "error";
 
-export interface PendingWelcomeResult {
+interface PendingWelcomeResult {
   granted: boolean;
   amount: number;
   reason: PendingWelcomeReason;

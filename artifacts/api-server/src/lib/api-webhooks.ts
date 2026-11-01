@@ -41,9 +41,9 @@ import { logger } from "./logger";
 /* ─── Event types ─────────────────────────────────────────────────────── */
 
 export const WEBHOOK_EVENT_TYPES = ["new-sale", "new-follower", "new-member"] as const;
-export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
+type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 
-export function isWebhookEventType(value: string): value is WebhookEventType {
+function isWebhookEventType(value: string): value is WebhookEventType {
   return (WEBHOOK_EVENT_TYPES as readonly string[]).includes(value);
 }
 
@@ -67,14 +67,14 @@ export function parseEventTypes(stored: string): WebhookEventType[] {
 
 /* ─── Signing secret (API-key handling pattern) ───────────────────────── */
 
-export const WEBHOOK_SECRET_PREFIX = "whsec_";
+const WEBHOOK_SECRET_PREFIX = "whsec_";
 const SECRET_DISPLAY_PREFIX_LEN = WEBHOOK_SECRET_PREFIX.length + 4;
 
 export function hashWebhookSecret(plaintext: string): string {
   return createHash("sha256").update(plaintext, "utf8").digest("hex");
 }
 
-export interface GeneratedWebhookSecret {
+interface GeneratedWebhookSecret {
   /** Shown to the creator exactly once. Never persisted anywhere. */
   plaintext: string;
   secretPrefix: string;
@@ -147,7 +147,7 @@ export function verifyWebhookSignature(args: {
    Residual: fetch re-resolves after the check (classic TOCTOU); noted in
    the lane report — the check still kills the realistic SSRF surface. */
 
-export type DnsResolver = (hostname: string) => Promise<string[]>;
+type DnsResolver = (hostname: string) => Promise<string[]>;
 
 const defaultResolver: DnsResolver = async (hostname) => {
   const rows = await lookup(hostname, { all: true, verbatim: true });
@@ -228,7 +228,7 @@ export async function validateWebhookUrl(
 
 export const MAX_ATTEMPTS = 5;
 export const RETRY_DELAYS_MS = [30_000, 300_000, 1_800_000, 7_200_000] as const;
-export const ATTEMPT_TIMEOUT_MS = 10_000;
+const ATTEMPT_TIMEOUT_MS = 10_000;
 export const WEBHOOK_DISABLE_AFTER_CONSECUTIVE_FAILURES = 5;
 
 /* ─── Store (injectable for tests; drizzle implementation below) ─────── */
@@ -246,7 +246,7 @@ export interface WebhookEndpointRow {
   disabledAt: Date | null;
 }
 
-export interface WebhookDeliveryRow {
+interface WebhookDeliveryRow {
   id: string;
   webhookId: string;
   eventId: string;
@@ -383,7 +383,7 @@ export const drizzleWebhookStore: WebhookStore = {
 
 /* ─── Delivery engine (fetch / sleep / clock injectable for tests) ────── */
 
-export type FetchFn = (
+type FetchFn = (
   url: string,
   init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal },
 ) => Promise<{ status: number }>;
@@ -407,7 +407,7 @@ const defaultSleep = (ms: number) =>
     t.unref?.();
   });
 
-export function defaultDeliveryDeps(): DeliveryDeps {
+function defaultDeliveryDeps(): DeliveryDeps {
   return {
     store: drizzleWebhookStore,
     fetchFn: defaultFetch,
@@ -417,7 +417,7 @@ export function defaultDeliveryDeps(): DeliveryDeps {
   };
 }
 
-export interface WebhookEventEnvelope {
+interface WebhookEventEnvelope {
   id: string; // stable event id — receivers dedupe on it
   type: WebhookEventType;
   createdAt: string; // ISO
@@ -599,7 +599,7 @@ export function emitNewMemberWebhook(
 
 /* ─── Management (owner-scoped; secrets never leave create) ───────────── */
 
-export interface WebhookEndpointPublic {
+interface WebhookEndpointPublic {
   id: string;
   url: string;
   events: WebhookEventType[];

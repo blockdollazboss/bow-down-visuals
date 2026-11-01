@@ -28,7 +28,7 @@ export interface MonthWrappedPrefsWire {
   enabled: boolean;
 }
 
-export const DEFAULT_MONTH_WRAPPED_PREFS: MonthWrappedPrefsWire = { enabled: true };
+const DEFAULT_MONTH_WRAPPED_PREFS: MonthWrappedPrefsWire = { enabled: true };
 
 export interface MonthWrappedPrefsStore {
   getRow(userId: string): Promise<MonthWrappedPrefsWire | null>;
@@ -131,7 +131,7 @@ export function isFutureMonth(key: string, now: Date): boolean {
    no source for this" and the metric is OMITTED from the recap (the
    key is absent, not zero). Zero is a real measured value and shows. */
 
-export interface MonthWrappedMediaPlay {
+interface MonthWrappedMediaPlay {
   kind: "track" | "video";
   mediaId: string;
   title: string;
@@ -252,7 +252,7 @@ export function buildMonthWrappedShareText(recap: MonthWrappedRecap): string {
    failing the whole recap — except the profile lookup itself: no
    creator profile = no recap. */
 
-export interface MonthWrappedDataSource {
+interface MonthWrappedDataSource {
   loadRaw(userId: string, month: string): Promise<MonthWrappedRaw | null>;
 }
 

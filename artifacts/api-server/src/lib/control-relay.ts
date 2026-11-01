@@ -33,7 +33,7 @@ export function controlRoomId(userId: string): string {
   return `control:${userId}`;
 }
 
-export interface ControlPresence {
+interface ControlPresence {
   stageConnected: boolean;
   stageCount: number;
 }

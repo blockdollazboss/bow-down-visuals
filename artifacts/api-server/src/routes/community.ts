@@ -223,10 +223,10 @@ const dmStartSchema = z.object({ user_id: uuidSchema });
    message — a beat (audio), a cover (image) or a clip (video). The size
    caps mirror the site's own upload rules (routes/publish.ts): images
    10 MB, audio/video 80 MB. */
-export const DM_ATTACHMENT_TYPES = ["audio", "image", "video"] as const;
+const DM_ATTACHMENT_TYPES = ["audio", "image", "video"] as const;
 export type DmAttachmentType = (typeof DM_ATTACHMENT_TYPES)[number];
-export const DM_ATTACHMENT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-export const DM_ATTACHMENT_MAX_BYTES = 80 * 1024 * 1024;
+const DM_ATTACHMENT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const DM_ATTACHMENT_MAX_BYTES = 80 * 1024 * 1024;
 
 const dmAttachmentSchema = z.object({
   /* A permanent storage ref from POST /dm/attachments/upload, or an
@@ -250,7 +250,7 @@ const dmSendSchema = z.object({
  *  A storage-ref attachment is only ever accepted when it sits under
  *  the SENDER's own prefix — nobody can pass off someone else's upload
  *  (or an unrelated site file) as their hand-off. */
-export function dmUploadPrefix(userId: string): string {
+function dmUploadPrefix(userId: string): string {
   return `dm/${userId}/`;
 }
 
@@ -259,7 +259,7 @@ export function dmUploadPrefix(userId: string): string {
  *  sender's own uploads; external http(s) URLs are mirrored into
  *  permanent storage under the sender (mirror-on-save law) and the
  *  mirrored ref is what persists. Anything else is rejected. */
-export async function settleDmAttachment(
+async function settleDmAttachment(
   attachment: z.infer<typeof dmAttachmentSchema>,
   userId: string,
 ): Promise<{ ref: string } | { error: string }> {
@@ -1983,7 +1983,7 @@ async function clearOwnDraft(conversationId: string, userId: string) {
     ));
 }
 
-export type SaveDmDraftOutcome =
+type SaveDmDraftOutcome =
   | { kind: "saved"; draft: { body: string; updated_at: Date } }
   | { kind: "cleared" }
   | { kind: "not_found"; status: 404 | 403 }

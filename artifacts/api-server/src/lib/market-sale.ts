@@ -27,7 +27,7 @@ import { findReservation, redeemReservation } from "./gift-cards";
 import { consumeOfferByClaimRef, releaseOfferClaimByRef } from "./product-offers";
 import { logger } from "./logger";
 
-export interface MarketSaleRow {
+interface MarketSaleRow {
   id: string;
   shop_id: string;
   user_id: string;
@@ -113,7 +113,7 @@ export function marketSaleIsPaid(rows: MarketSaleRow[]): boolean {
   return rows.length > 0 && rows.every((r) => r.event_type === "sale");
 }
 
-export interface StorefrontSaleNoticeLine {
+interface StorefrontSaleNoticeLine {
   productName: string | null;
   amountCents: number;
   platformFeeCents: number;

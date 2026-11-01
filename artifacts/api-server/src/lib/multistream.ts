@@ -30,7 +30,7 @@ import { logger } from "./logger";
    memory on its way into the ffmpeg argument list, is never logged
    (relay targets are redacted for logs), and no DTO returns it. */
 
-export interface DestinationKeyMaterial {
+interface DestinationKeyMaterial {
   platform: string;
   ingestUrl: string;
   streamKey: string;
@@ -66,7 +66,7 @@ export function redactRtmpTarget(target: string): string {
   return `${target.slice(0, idx + 1)}•••`;
 }
 
-export type RelayVerdict =
+type RelayVerdict =
   | { ok: true; args: string[]; target: string }
   | { ok: false; reason: string; code: "CODEC_UNSUPPORTED" | "NO_SOURCE" | "BAD_INGEST" | "WRONG_TRANSPORT" };
 
@@ -138,9 +138,9 @@ export interface RelayProcess {
   kill(): void;
   onExit(cb: (code: number | null) => void): void;
 }
-export type RelayProcessFactory = (args: string[]) => RelayProcess;
+type RelayProcessFactory = (args: string[]) => RelayProcess;
 
-export const defaultRelayFactory: RelayProcessFactory = (args) => {
+const defaultRelayFactory: RelayProcessFactory = (args) => {
   const child: ChildProcess = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
   let tail = "";
   child.stderr?.on("data", (d: Buffer) => {

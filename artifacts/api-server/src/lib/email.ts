@@ -69,7 +69,7 @@ export function isEmailConfigured(): boolean {
   return RESEND_API_KEY.length > 0;
 }
 
-export interface SendEmailOpts {
+interface SendEmailOpts {
   to: string | string[];
   subject: string;
   html: string;
@@ -194,7 +194,7 @@ const EMAIL_SERIF = "Georgia,'Times New Roman',Times,serif";
 const EMAIL_SANS =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
-export interface EmailShellOpts {
+interface EmailShellOpts {
   /**
    * Sign-off rendered under the body. Defaults to the King's sign-off —
    * pass a string to override it, or `false` for internal mail (admin

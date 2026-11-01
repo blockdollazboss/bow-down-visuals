@@ -70,7 +70,7 @@ export interface TimedTranscription {
 }
 
 /** Raw ElevenLabs Scribe response (only the fields this seam reads). */
-export interface ScribeTranscriptionResponse {
+interface ScribeTranscriptionResponse {
   text?: string;
   language_code?: string;
   audio_duration_secs?: number;

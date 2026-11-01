@@ -73,7 +73,7 @@ export interface KitBanner {
   createLink: string;
 }
 
-export interface DropDayKitPayload {
+interface DropDayKitPayload {
   teaser: KitTeaser | null;
   banners: KitBanner[];
   countdown: { presaveUrl: string | null; releaseDate: string | null };
@@ -196,9 +196,9 @@ export interface AnnounceState {
   posted: number;
 }
 
-export type KitChecklistState = "done" | "todo" | "action";
+type KitChecklistState = "done" | "todo" | "action";
 
-export interface KitChecklistStep {
+interface KitChecklistStep {
   id: "audio" | "artwork" | "release_date" | "presave_page" | "teaser" | "banners" | "announce" | "heads_up";
   label: string;
   state: KitChecklistState;
@@ -270,7 +270,7 @@ export function assembleChecklist(input: {
 
 /* ── Store ──────────────────────────────────────────────────────────── */
 
-export interface DropDayKitStore {
+interface DropDayKitStore {
   getByRelease(releaseId: string): Promise<Record<string, unknown> | null>;
   listKitsByUser(userId: string): Promise<Array<Record<string, unknown>>>;
   upsertKit(row: { userId: string; releaseId: string; kit: DropDayKitPayload }): Promise<{ id: string }>;

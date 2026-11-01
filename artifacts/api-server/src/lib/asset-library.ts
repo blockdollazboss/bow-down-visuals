@@ -38,7 +38,7 @@ const HUB_KIND_TO_MEDIA: Record<string, LibraryMediaKind> = {
   other: "other",
 };
 
-export function hubKindToMediaKind(kind: string): LibraryMediaKind {
+function hubKindToMediaKind(kind: string): LibraryMediaKind {
   return HUB_KIND_TO_MEDIA[kind] ?? "other";
 }
 

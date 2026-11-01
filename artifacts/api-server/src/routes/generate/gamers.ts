@@ -14,7 +14,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    auto-refunded when generation fails — the academy refund pattern. */
 
 export const CONTENT_TYPES = ["stream", "video", "shorts"] as const;
-export type GamersContentType = (typeof CONTENT_TYPES)[number];
+type GamersContentType = (typeof CONTENT_TYPES)[number];
 
 const CONTENT_TYPE_DIRECTION: Record<GamersContentType, string> = {
   stream: "a live stream — the titles must work as clickable Twitch/YouTube/Kick stream titles",
@@ -34,7 +34,6 @@ export const gamersIdeasSchema = z.object({
   contentType: z.enum(CONTENT_TYPES),
 });
 
-export type GamersIdeasRequest = z.infer<typeof gamersIdeasSchema>;
 
 const router = Router();
 

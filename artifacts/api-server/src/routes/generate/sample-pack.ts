@@ -29,11 +29,11 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /** Supabase Storage bucket for generated samples. */
-export const SAMPLE_BUCKET = "generated-clips";
+const SAMPLE_BUCKET = "generated-clips";
 
 const MUSIC_MODEL = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
 
-export interface GeneratedSample {
+interface GeneratedSample {
   id: string;
   name: string;
   type: SampleTypeKey;

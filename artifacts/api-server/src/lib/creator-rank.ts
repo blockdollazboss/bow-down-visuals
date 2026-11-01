@@ -52,7 +52,7 @@ import { sweepTtlIfLarge, capMapSize } from "./sweep-map";
 
 /* ── The ladder ─────────────────────────────────────────────────────────── */
 
-export type RankSourceKey =
+type RankSourceKey =
   | "publishedTracks"
   | "publishedVideos"
   | "exports"
@@ -62,14 +62,14 @@ export type RankSourceKey =
   | "sales"
   | "membershipsSold";
 
-export interface RankSourceDef {
+interface RankSourceDef {
   key: RankSourceKey;
   label: string;
   pointsPerUnit: number;
   pointsCap: number;
 }
 
-export const RANK_SOURCES: readonly RankSourceDef[] = [
+const RANK_SOURCES: readonly RankSourceDef[] = [
   { key: "publishedTracks", label: "Published tracks", pointsPerUnit: 10, pointsCap: 300 },
   { key: "publishedVideos", label: "Published videos", pointsPerUnit: 15, pointsCap: 300 },
   { key: "exports", label: "Completed exports", pointsPerUnit: 5, pointsCap: 150 },
@@ -81,7 +81,7 @@ export const RANK_SOURCES: readonly RankSourceDef[] = [
 ] as const;
 
 /** Points required to HOLD each star level (index 0 = ★1). */
-export const STAR_POINT_THRESHOLDS: readonly number[] = [0, 25, 100, 300, 700, 1400] as const;
+const STAR_POINT_THRESHOLDS: readonly number[] = [0, 25, 100, 300, 700, 1400] as const;
 
 /** The ladder's names (index 0 = ★1) — the one place they are
  *  written. Every surface that names a rank (nameplates, the
@@ -106,7 +106,7 @@ export function starTitle(stars: number): string {
 
 /** Non-points gates per star level (index 0 = ★1). Business results =
  *  sales + memberships sold; published works = tracks + videos. */
-export const STAR_GATES: ReadonlyArray<{
+const STAR_GATES: ReadonlyArray<{
   businessResults?: number;
   publishedWorks?: number;
 }> = [
@@ -131,7 +131,7 @@ export const EMPTY_RANK_COUNTS: RankCounts = {
   membershipsSold: 0,
 };
 
-export interface RankGateStatus {
+interface RankGateStatus {
   key: "businessResults" | "publishedWorks";
   label: string;
   have: number;
@@ -353,11 +353,3 @@ export async function getCreatorRank(userId: string): Promise<RankResult> {
 }
 
 /** Earned stars only — the drop-in truth behind every stars read. */
-export async function getCreatorStars(userId: string): Promise<number> {
-  try {
-    return (await getCreatorRank(userId)).stars;
-  } catch (err) {
-    logger.warn({ err, userId }, "[creator-rank] stars computation failed — reading as ★1");
-    return 1;
-  }
-}

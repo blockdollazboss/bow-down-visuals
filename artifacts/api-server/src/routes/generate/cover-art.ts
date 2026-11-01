@@ -73,7 +73,6 @@ export const COVER_ART_STYLES = [
       "element, restrained color palette, clean confident composition",
   },
 ] as const;
-export type CoverArtStyleKey = (typeof COVER_ART_STYLES)[number]["key"];
 
 /* ─── Aspect ratios ───────────────────────────────────────────────────────── */
 export const COVER_ART_RATIOS = [
@@ -81,7 +80,6 @@ export const COVER_ART_RATIOS = [
   { key: "16:9", label: "Wide 16:9", blurb: "YouTube banner", size: "1536x1024" },
   { key: "9:16", label: "Story 9:16", blurb: "Stories & Shorts", size: "1024x1536" },
 ] as const;
-export type CoverArtRatioKey = (typeof COVER_ART_RATIOS)[number]["key"];
 
 export function resolveCoverArtSize(ratio: string): "1024x1024" | "1536x1024" | "1024x1536" {
   const found = COVER_ART_RATIOS.find((r) => r.key === ratio);
@@ -117,9 +115,9 @@ export const coverArtSchema = z.object({
   /** Virality: opt-in "Made with Bow Down Visuals" corner credit burned post-generation (paid export → opt-in). */
   attribution: attributionOptIn(),
 });
-export type CoverArtInput = z.infer<typeof coverArtSchema>;
+type CoverArtInput = z.infer<typeof coverArtSchema>;
 
-export interface ArtDirection {
+interface ArtDirection {
   concept: string;
   typography: string;
   palette: string[];
@@ -200,7 +198,7 @@ export function buildCoverImagePrompt(input: CoverArtInput, art: ArtDirection): 
 /* ─── Reusable image generation (lyric-stories + friends) ─────────────────
    Standalone wrapper around the same GPT Image pipeline this route uses, so
    other routes can generate artwork without duplicating provider code. */
-export interface CoverImageJob {
+interface CoverImageJob {
   prompt: string;
   ratio: "1:1" | "16:9" | "9:16";
   tier: "standard" | "premium";

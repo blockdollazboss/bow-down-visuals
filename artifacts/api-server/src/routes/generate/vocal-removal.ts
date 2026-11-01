@@ -26,7 +26,7 @@ const MAX_BYTES = 25 * 1024 * 1024;
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type VocalRemovalJobStatus = "queued" | "processing" | "done" | "failed";
+type VocalRemovalJobStatus = "queued" | "processing" | "done" | "failed";
 
 export interface KaraokeWord {
   word: string;
@@ -55,9 +55,6 @@ export interface VocalRemovalJob {
 const jobs = new Map<string, VocalRemovalJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getVocalRemovalJob(id: string): VocalRemovalJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
 export function __clearVocalRemovalJobs(): void {

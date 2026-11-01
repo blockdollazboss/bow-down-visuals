@@ -16,7 +16,7 @@ const router = Router();
    BEFORE the model call and REFUNDED on model failure, using the same
    pre-check + chargeCredits + refundCredits pattern as the paid routes. */
 
-export const WAVE8_HOOK_REWRITE_CREDITS =
+const WAVE8_HOOK_REWRITE_CREDITS =
   Number(process.env["WAVE8_HOOK_REWRITE_CREDITS"]) || 50;
 
 const rewriteSchema = z.object({

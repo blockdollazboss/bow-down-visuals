@@ -139,9 +139,6 @@ export function planLandedCopy(kind: string, tier: string | null | undefined): {
 type TierEventNotifier = (input: UserEventInput) => Promise<unknown>;
 let _tierEventNotifier: TierEventNotifier = notifyUserEvent;
 /** Test seam — never used outside tests. */
-export function __setTierEventNotifier(fn: TierEventNotifier | null): void {
-  _tierEventNotifier = fn ?? notifyUserEvent;
-}
 
 export interface PlanLandedDeps {
   readUserId: (profileId: string) => Promise<string | null>;
@@ -186,7 +183,7 @@ export async function maybeNotifyPlanLanded(
   }
 }
 
-export async function recordSubscriptionReceipt(values: {
+async function recordSubscriptionReceipt(values: {
   profileId: string;
   kind: string;
   tier?: string | null;

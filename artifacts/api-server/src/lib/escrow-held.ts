@@ -42,7 +42,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 
-export interface EscrowHeld {
+interface EscrowHeld {
   /** Cents the platform still holds and may release (0..gross). */
   heldCents: number;
   /** Cents of the charge already returned to the payer, per the union of both sources. */

@@ -88,7 +88,7 @@ export const MAX_CAPTION_CHARS = 300;
  *  ~14k raw; captions only matter near-live, so the tail is kept). */
 export const MAX_SEGMENTS_PER_STREAM = 600;
 /** Segments older than this are pruned on read (matches MAX_LIVE_MS). */
-export const CAPTION_STREAM_TTL_MS = 12 * 60 * 60 * 1000;
+const CAPTION_STREAM_TTL_MS = 12 * 60 * 60 * 1000;
 
 export interface LiveCaptionSegment {
   /** Per-stream sequence number, 1-based, gapless. */
@@ -117,7 +117,7 @@ export interface TranslatedCaption {
   createdAt: number;
 }
 
-export interface LiveCaptionSettings {
+interface LiveCaptionSettings {
   streamId: string;
   /** The broadcaster's switch: no caption track exists until the
    *  streamer turns captions on for the stream. */

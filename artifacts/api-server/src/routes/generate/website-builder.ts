@@ -120,7 +120,7 @@ export const generateSchema = z.object({
   clientRef: clientRefSchema.optional(),
 });
 
-export type GenerateInput = z.infer<typeof generateSchema>;
+type GenerateInput = z.infer<typeof generateSchema>;
 
 const SYSTEM_PROMPT = `You are an expert web designer and front-end developer building complete static websites for creators (musicians, podcasters, streamers, video creators, and more). You output a full multi-page static site as JSON.
 
@@ -797,7 +797,7 @@ const filesSchema = z
     message: "site payload too large",
   });
 
-export const saveProjectSchema = z.object({
+const saveProjectSchema = z.object({
   projectId: z.string().uuid().optional(),
   clientRef: clientRefSchema.optional(),
   template: z.enum(TEMPLATES),

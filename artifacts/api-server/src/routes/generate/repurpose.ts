@@ -61,7 +61,7 @@ const CLIP_LENGTH_SEC = 30;
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
-export interface RepurposeMoment {
+interface RepurposeMoment {
   id: string;
   startSec: number;
   endSec: number;
@@ -82,7 +82,7 @@ export interface PlatformDescriptions {
   x: string;
 }
 
-export interface RepurposeAnalysis {
+interface RepurposeAnalysis {
   videoTitle: string;
   summary: string;
   moments: RepurposeMoment[];
@@ -477,7 +477,7 @@ interface JobThumb {
   imageRef: string | null;
 }
 
-export interface RepurposeJob {
+interface RepurposeJob {
   id: string;
   userId: string;
   kind: "clips" | "thumbnails";
@@ -492,14 +492,8 @@ export interface RepurposeJob {
 
 const repurposeJobs = new Map<string, RepurposeJob>();
 attachJobMapTtl(repurposeJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
-export function __clearRepurposeJobs(): void {
-  repurposeJobs.clear();
-}
-export function getRepurposeJob(id: string): RepurposeJob | undefined {
-  return repurposeJobs.get(id);
-}
 
-export async function runClipJob(job: RepurposeJob, videoRef: string): Promise<void> {
+async function runClipJob(job: RepurposeJob, videoRef: string): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "repcut-"));
   try {
     job.status = "processing";
@@ -537,7 +531,7 @@ export async function runClipJob(job: RepurposeJob, videoRef: string): Promise<v
   }
 }
 
-export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
+async function runThumbnailJob(job: RepurposeJob): Promise<void> {
   try {
     job.status = "processing";
     for (const [i, thumb] of job.thumbnails.entries()) {
@@ -770,7 +764,7 @@ router.post(
    post, an Instagram caption, a 30s TikTok script, and a blog post outline.
    Refunds when transcription finds no speech or the model output is unusable. */
 
-export const REPURPOSE_TEXT_CREDITS =
+const REPURPOSE_TEXT_CREDITS =
   Number(process.env["REPURPOSE_TEXT_CREDITS"]) || 200;
 
 const repurposeTextSchema = z

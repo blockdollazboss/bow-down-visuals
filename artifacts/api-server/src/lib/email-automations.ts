@@ -170,7 +170,7 @@ export async function ensureAutomationsForList(
 
 /* ── Stats (measured only) ──────────────────────────────────────────── */
 
-export interface AutomationStats {
+interface AutomationStats {
   sent: number;
   failed: number;
   noProvider: number;
@@ -207,7 +207,7 @@ export async function automationStats(automationId: string): Promise<AutomationS
   };
 }
 
-export interface AutomationDto extends AutomationStats {
+interface AutomationDto extends AutomationStats {
   id: string;
   kind: EmailAutomationKind;
   label: string;
@@ -248,14 +248,14 @@ export async function automationDto(
 /** The slice of a Stripe Checkout Session this rail reads. The
  *  central webhook passes the real session object; tests pass plain
  *  fixtures in the same shape. */
-export interface ExpiredCheckoutSessionLike {
+interface ExpiredCheckoutSessionLike {
   id: string;
   payment_status?: string | null;
   amount_total?: number | null;
   metadata?: Record<string, string> | null;
 }
 
-export interface AbandonedCheckoutClassification {
+interface AbandonedCheckoutClassification {
   rail: AbandonedCheckoutRail;
   profileId: string;
   buyerUserId: string;
@@ -327,7 +327,7 @@ export async function recordAbandonedStripeCheckout(
 
 /* ── Trigger collection ─────────────────────────────────────────────── */
 
-export interface AutomationTrigger {
+interface AutomationTrigger {
   /** Dedupe key (stored on the claim row). */
   ref: string;
   /** Lowercased recipient address. */
@@ -348,7 +348,7 @@ export interface AutomationTrigger {
   body?: string;
 }
 
-export interface AutomationDeps {
+interface AutomationDeps {
   now: () => Date;
   resolveUserEmail: (userId: string) => Promise<string | null>;
 }
@@ -640,7 +640,7 @@ async function collectTriggers(
    the stale-pending discipline the presave / product-drop ledgers run
    (their STALE_PENDING_MS constants). A live run settles each claim
    seconds after claiming it, so the window cannot catch real work. */
-export const AUTOMATION_CLAIM_STALE_MS =
+const AUTOMATION_CLAIM_STALE_MS =
   Number(process.env["EMAIL_AUTOMATION_CLAIM_STALE_MS"]) || 15 * 60 * 1000;
 
 async function reapStaleClaims(automationId: string, now: Date): Promise<number> {
@@ -680,7 +680,7 @@ async function reapStaleClaims(automationId: string, now: Date): Promise<number>
 
 /* ── The runner ─────────────────────────────────────────────────────── */
 
-export interface AutomationRunSummary {
+interface AutomationRunSummary {
   candidates: number;
   sent: number;
   failed: number;
@@ -732,7 +732,7 @@ async function settleCarrier(
 /** Evaluate ONE enabled automation: collect its triggers, apply the
  *  enabled-at + delay gates, claim each surviving trigger exactly
  *  once, and send through the tracked rail. */
-export async function runAutomation(
+async function runAutomation(
   automation: EmailAutomation,
   list: EmailList,
   depsIn: Partial<AutomationDeps> = {},

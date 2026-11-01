@@ -31,7 +31,7 @@ export const STREAM_PACK_CREDIT_COST =
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5";
 
-export interface StreamPackTheme {
+interface StreamPackTheme {
   id: string;
   name: string;
   blurb: string;
@@ -99,7 +99,7 @@ export const STREAM_PACK_THEMES: StreamPackTheme[] = [
   },
 ];
 
-export interface StreamPackAsset {
+interface StreamPackAsset {
   key: string;
   label: string;
   group: "Overlays" | "Alerts" | "Panels" | "Screens";
@@ -242,7 +242,7 @@ export const STREAM_PACK_ASSETS: StreamPackAsset[] = [
   },
 ];
 
-export interface StreamPackPlan {
+interface StreamPackPlan {
   theme: StreamPackTheme;
   asset: StreamPackAsset;
   channelName: string;
@@ -296,7 +296,7 @@ export function buildStreamPackPrompt(plan: StreamPackPlan): string {
    tray both read these records, so applying on either surface shows on
    the other. */
 
-export const STREAM_PACK_GENERATION_KIND = "stream-pack";
+const STREAM_PACK_GENERATION_KIND = "stream-pack";
 
 export interface StreamPackAssetRecord {
   id: string;

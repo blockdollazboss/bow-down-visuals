@@ -508,7 +508,7 @@ export function buildConcatArgs(
 
 /* ─── Server-owned background jobs (in-memory; not tab-dependent) ─────── */
 
-export type FillerAnalyzeStatus =
+type FillerAnalyzeStatus =
   | "queued"
   | "downloading"
   | "extracting-audio"
@@ -517,7 +517,7 @@ export type FillerAnalyzeStatus =
   | "done"
   | "failed";
 
-export interface FillerAnalyzeJob {
+interface FillerAnalyzeJob {
   id: string;
   userId: string;
   status: FillerAnalyzeStatus;
@@ -538,7 +538,7 @@ export interface FillerAnalyzeJob {
   createdAt: number;
 }
 
-export type FillerRenderStatus =
+type FillerRenderStatus =
   | "queued"
   | "downloading"
   | "cutting"
@@ -546,7 +546,7 @@ export type FillerRenderStatus =
   | "done"
   | "failed";
 
-export interface FillerRenderJob {
+interface FillerRenderJob {
   id: string;
   userId: string;
   status: FillerRenderStatus;
@@ -566,13 +566,7 @@ attachJobMapTtl(analyzeJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-s
 const renderJobs = new Map<string, FillerRenderJob>();
 attachJobMapTtl(renderJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getFillerAnalyzeJob(id: string): FillerAnalyzeJob | undefined {
-  return analyzeJobs.get(id);
-}
 
-export function getFillerRenderJob(id: string): FillerRenderJob | undefined {
-  return renderJobs.get(id);
-}
 
 /** Test hook: clear the in-memory job stores. */
 export function __clearFillerRemovalJobs(): void {
@@ -593,7 +587,7 @@ async function refundJob(
 }
 
 /** Exported for tests / reuse. */
-export async function runFillerAnalyzeJob(job: FillerAnalyzeJob): Promise<void> {
+async function runFillerAnalyzeJob(job: FillerAnalyzeJob): Promise<void> {
   const workDir = await fs.mkdtemp(join(tmpdir(), "filler-"));
   const inputPath = join(workDir, "input");
   const audioPath = join(workDir, "audio.mp3");
@@ -645,7 +639,7 @@ export async function runFillerAnalyzeJob(job: FillerAnalyzeJob): Promise<void> 
 }
 
 /** Exported for tests / reuse. */
-export async function runFillerRenderJob(
+async function runFillerRenderJob(
   job: FillerRenderJob,
   analyzeJob: FillerAnalyzeJob,
 ): Promise<void> {

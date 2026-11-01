@@ -57,8 +57,6 @@ export const LIFESTYLE_PRESETS = {
   "cozy-home": "Stylish modern home interior, soft natural daylight, the product styled on a wooden table with plants nearby, warm lifestyle product photography.",
 } as const;
 
-export type PackshotPresetId = keyof typeof PACKSHOT_PRESETS;
-export type LifestylePresetId = keyof typeof LIFESTYLE_PRESETS;
 
 /* ── AI autopilot: picks the fitting scene from the product kind ── */
 const AUTOPILOT_SCENES: Record<string, string> = {

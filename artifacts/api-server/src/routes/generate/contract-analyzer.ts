@@ -51,7 +51,6 @@ export const analyzeSchema = z.object({
   context: z.string().max(1000).optional().default(""),
 });
 
-export type AnalyzeInput = z.infer<typeof analyzeSchema>;
 
 const SYSTEM_PROMPT = `You are an expert entertainment-contract analyst working for an AI creator platform. Your job is to read a creator's contract and explain it in plain English — no legalese.
 

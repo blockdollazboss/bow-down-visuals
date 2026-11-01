@@ -44,7 +44,6 @@ export const conceptSchema = z.object({
   episodeCount: z.number().int().min(1).max(24).optional().default(8),
 });
 
-export type ConceptInput = z.infer<typeof conceptSchema>;
 
 const CONCEPT_SYSTEM_PROMPT = `You are an expert film & TV development executive working for an AI creator platform. Your job is to take a creator's raw movie or web series idea and turn it into a professional development package.
 
@@ -139,7 +138,7 @@ router.post("/concept", requireAuth, publicApiLimiter, async (req, res) => {
   }
 });
 
-export const clipDetectSchema = z.object({
+const clipDetectSchema = z.object({
   streamUrl: z
     .string()
     .url("Paste a valid stream/VOD URL.")
@@ -154,7 +153,6 @@ export const clipDetectSchema = z.object({
   clipCount: z.number().int().min(1).max(20).optional().default(8),
 });
 
-export type ClipDetectInput = z.infer<typeof clipDetectSchema>;
 
 const CLIP_DETECT_SYSTEM_PROMPT = `You are an expert short-form content strategist for streamers. Your job is to look at a description of a stream VOD and identify the most clip-worthy highlight moments — the ones that would pop off as TikToks, Reels, and Shorts.
 

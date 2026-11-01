@@ -12,7 +12,7 @@
    where it belongs: the operator path carries its own gates instead
    (session-resolved identity, confirmation, daily charged cap). */
 
-export interface RailLog {
+interface RailLog {
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;

@@ -67,13 +67,13 @@ export async function probeOpenVerseTables(): Promise<void> {
   await db.execute(sql`SELECT id FROM open_verse_split_ledger LIMIT 1`);
 }
 
-export async function loadOpenVersePost(id: string): Promise<OpenVersePost | null> {
+async function loadOpenVersePost(id: string): Promise<OpenVersePost | null> {
   const rows = await db.execute(sql`SELECT * FROM open_verse_posts WHERE id = ${id} LIMIT 1`);
   const row = rows.rows[0] as Row | undefined;
   return row ? toPost(row) : null;
 }
 
-export async function loadOpenVerseSubmissions(postId: string): Promise<OpenVerseSubmission[]> {
+async function loadOpenVerseSubmissions(postId: string): Promise<OpenVerseSubmission[]> {
   const rows = await db.execute(sql`
     SELECT * FROM open_verse_submissions WHERE post_id = ${postId} ORDER BY created_at ASC LIMIT 500
   `);

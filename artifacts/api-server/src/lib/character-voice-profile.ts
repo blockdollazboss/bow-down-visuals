@@ -15,7 +15,7 @@
  * null (neutral), and no caller ever trusts raw JSONB.
  */
 
-export interface CharacterVoiceEqBandStored {
+interface CharacterVoiceEqBandStored {
   type: string;
   freqHz: number;
   gainDb: number;

@@ -45,7 +45,7 @@ import { THY_CHEAT_CODE_USER_ID } from "../lib/kings-welcome";
 
 /** Stack 10 #4: record a moderation action in the unified console log.
  *  Best-effort by design — logging must never fail the action itself. */
-export async function logModAction(entry: { profileId: string; streamId: string; actorUserId: string | null; targetUserId: string | null; action: string; reason: string; rule?: string | null; messageBody?: string | null }): Promise<void> {
+async function logModAction(entry: { profileId: string; streamId: string; actorUserId: string | null; targetUserId: string | null; action: string; reason: string; rule?: string | null; messageBody?: string | null }): Promise<void> {
   try {
     await db.insert(chatModActionsTable).values({
       profile_id: entry.profileId, stream_id: entry.streamId, actor_user_id: entry.actorUserId,
@@ -91,7 +91,7 @@ const MAX_LIVE_MS = 12 * 60 * 60 * 1000; // matches live-streams' lifecycle cap
    tip's paid pin — paid pins always outrank it and the two never
    fight: the co-host only pins when no paid pin is up). */
 
-export interface StagePinDto {
+interface StagePinDto {
   message: LiveChatMessageDto;
   pinnedUntil: string;
 }
@@ -166,7 +166,7 @@ async function runStageManager(
 }
 
 /** Fire-and-forget after a chat message lands (from the POST route). */
-export function stageManagerChatFollowUp(stream: StageStreamRef, row: LiveChatMessage): void {
+function stageManagerChatFollowUp(stream: StageStreamRef, row: LiveChatMessage): void {
   void runStageManager(stream, (gate, mem) =>
     evaluateChatMessage(
       gate,
@@ -291,7 +291,7 @@ async function authorCards(userIds: string[]): Promise<Map<string, AuthorCard>> 
   return out;
 }
 
-export interface LiveChatMessageDto {
+interface LiveChatMessageDto {
   id: string;
   streamId: string;
   userId: string;
@@ -335,7 +335,7 @@ function toDto(row: LiveChatMessage, cards: Map<string, AuthorCard>): LiveChatMe
 }
 
 /** Project a chat DTO into the unified feed model (lib/unified-live-chat). */
-export function toUnifiedMessage(dto: LiveChatMessageDto): UnifiedChatMessage {
+function toUnifiedMessage(dto: LiveChatMessageDto): UnifiedChatMessage {
   return {
     id: dto.id,
     streamId: dto.streamId,
@@ -351,7 +351,7 @@ export function toUnifiedMessage(dto: LiveChatMessageDto): UnifiedChatMessage {
   };
 }
 
-export interface LiveChatPinDto {
+interface LiveChatPinDto {
   message: LiveChatMessageDto;
   pinnedUntil: string;
 }

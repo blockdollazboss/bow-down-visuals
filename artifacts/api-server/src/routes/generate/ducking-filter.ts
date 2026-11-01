@@ -15,7 +15,7 @@
  * attack/release keep the proven route defaults (200ms / 500ms).
  */
 
-export interface DuckingParams {
+interface DuckingParams {
   threshold: number;
   ratio: number;
   attackMs: number;

@@ -39,11 +39,11 @@ import {
   type EmailSubscriber,
 } from "@workspace/db";
 
-export const AUTO_TAGS = ["presave", "member", "buyer", "opened", "clicked", "engaged"] as const;
-export type AutoTag = (typeof AUTO_TAGS)[number];
+const AUTO_TAGS = ["presave", "member", "buyer", "opened", "clicked", "engaged"] as const;
+type AutoTag = (typeof AUTO_TAGS)[number];
 
-export const ENGAGEMENT_STATES = ["any", "opened", "clicked", "engaged", "none"] as const;
-export type EngagementState = (typeof ENGAGEMENT_STATES)[number];
+const ENGAGEMENT_STATES = ["any", "opened", "clicked", "engaged", "none"] as const;
+type EngagementState = (typeof ENGAGEMENT_STATES)[number];
 
 export interface SegmentCriteria {
   tags: string[];
@@ -52,7 +52,7 @@ export interface SegmentCriteria {
   engagement: EngagementState;
 }
 
-export const EMPTY_CRITERIA: SegmentCriteria = { tags: [], autoTags: [], sources: [], engagement: "any" };
+const EMPTY_CRITERIA: SegmentCriteria = { tags: [], autoTags: [], sources: [], engagement: "any" };
 
 const KNOWN_SOURCES = new Set(["landing", "embed", "import", "presave"]);
 
@@ -95,7 +95,7 @@ export function parseStoredCriteria(stored: string): SegmentCriteria {
 
 /* ─── Facts ───────────────────────────────────────────────────────────── */
 
-export interface SubscriberFacts {
+interface SubscriberFacts {
   source: string;
   manualTags: Set<string>;
   isMember: boolean;
@@ -115,7 +115,7 @@ export function autoTagsFor(facts: SubscriberFacts, source: string): AutoTag[] {
   return out;
 }
 
-export function matchesCriteria(
+function matchesCriteria(
   sub: { source: string },
   facts: SubscriberFacts,
   criteria: SegmentCriteria,

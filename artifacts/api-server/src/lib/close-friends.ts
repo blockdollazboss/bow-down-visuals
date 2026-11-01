@@ -44,7 +44,7 @@ export interface AudienceContext {
 /** Everything a members-post gate decision needs for one author: the
  *  author's fan-club ladder (lowest first) and the viewer's membership
  *  rows with that author (empty for non-members / anonymous). */
-export interface MemberGateData {
+interface MemberGateData {
   tiers: FanTierLike[];
   members: FanMemberLike[];
 }
@@ -83,7 +83,7 @@ export function audienceVisible(
    means ANY admitting member of the author, so it is evaluated here
    rather than through evaluateTierGate's ungated branch. */
 
-export type MemberPostEvaluation = TierGateEvaluation;
+type MemberPostEvaluation = TierGateEvaluation;
 
 export function evaluateMemberPost(
   gate: MemberGateData,
@@ -189,11 +189,3 @@ export async function circleAuthorIdsFor(viewerUserId: string | null): Promise<S
 }
 
 /** Is `friendUserId` in `ownerUserId`'s circle? */
-export async function isInCircle(ownerUserId: string, friendUserId: string): Promise<boolean> {
-  if (ownerUserId === friendUserId) return true;
-  const rows = await db
-    .select({ f: closeFriendsTable.friend_user_id })
-    .from(closeFriendsTable)
-    .where(eq(closeFriendsTable.owner_user_id, ownerUserId));
-  return rows.some((r) => r.f === friendUserId);
-}

@@ -95,7 +95,7 @@ export const WORLD_PRESENCE_SWEEP_MS = 15_000;
  *  plaza, halls) are not creator rooms and are never demolished. */
 export const CREATOR_ROOM_IDLE_MS = 30 * 60_000;
 
-export interface PalaceRoomDef extends WorldRoomOptions {
+interface PalaceRoomDef extends WorldRoomOptions {
   roomId: string;
   name: string;
 }
@@ -381,7 +381,7 @@ export interface PalaceDirectoryEntry {
 /** One room in a presence snapshot (WorldPalace.presenceSnapshot):
  *  `count` is DISTINCT present people (see the snapshot's note),
  *  `members` their display names, capped like the directory's. */
-export interface PalacePresenceRoom {
+interface PalacePresenceRoom {
   id: string;
   name: string;
   count: number;
@@ -390,7 +390,7 @@ export interface PalacePresenceRoom {
 
 /** The palace-wide presence snapshot: per-room distinct counts
  *  plus the palace total (itself deduplicated across rooms). */
-export interface PalacePresenceSnapshot {
+interface PalacePresenceSnapshot {
   total: number;
   rooms: PalacePresenceRoom[];
 }
@@ -418,7 +418,7 @@ export interface PalacePresenceSnapshot {
  *    stays where they stand (the transfer never happens). */
 export const CREATOR_ROOM_PREFIX = "creator:";
 export const CREATOR_ROOM_BOUNDS = { minX: 2.4, maxX: 16.6, minZ: 26.2, maxZ: 38.2 };
-export const CREATOR_ROOM_SPAWN = { x: 9.5, z: 28.6 };
+const CREATOR_ROOM_SPAWN = { x: 9.5, z: 28.6 };
 
 export function creatorRoomIdForSlug(slug: string): string {
   return `${CREATOR_ROOM_PREFIX}${slug}`;
@@ -436,7 +436,7 @@ export function creatorRoomName(displayName: string): string {
   return `${name}'s Room`;
 }
 
-export interface CreatorRoomResolution {
+interface CreatorRoomResolution {
   displayName: string;
 }
 

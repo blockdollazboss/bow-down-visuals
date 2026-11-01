@@ -36,7 +36,7 @@ function requireConfigured(): void {
   if (!singingVoiceConfigured()) throw new SingingVoiceNotConfiguredError();
 }
 
-export interface SingingVoice {
+interface SingingVoice {
   id: string;
   name: string;
   /** e.g. "Soulful R&B", "Raspy rock", "Smooth Afrobeats". */
@@ -58,7 +58,7 @@ export const SINGING_VOICE_PLACEHOLDER_CATALOG: SingingVoice[] = [
   { id: "sing-gospel", name: "Sunday Choir", style: "Powerful gospel vocal", providerVoiceId: null },
 ];
 
-export interface SingingConversionRequest {
+interface SingingConversionRequest {
   /** Catalog voice id (see SINGING_VOICE_PLACEHOLDER_CATALOG). */
   voiceId: string;
   /** Public URL of the source audio (song or isolated vocal). */
@@ -70,7 +70,7 @@ export interface SingingConversionRequest {
   userId: string;
 }
 
-export interface SingingConversionResult {
+interface SingingConversionResult {
   providerJobId: string;
   status: "queued" | "processing" | "done" | "failed";
   audioUrl?: string;

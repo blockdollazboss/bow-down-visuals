@@ -148,7 +148,7 @@ export function drawBattleTheme(random: () => number = Math.random): string {
   return BATTLE_THEMES[idx]!;
 }
 
-export function battleWindowMs(b: Pick<BattleRow, "roundCount" | "roundSeconds">): number {
+function battleWindowMs(b: Pick<BattleRow, "roundCount" | "roundSeconds">): number {
   return b.roundCount * b.roundSeconds * 1000;
 }
 
@@ -502,7 +502,7 @@ export const dbLiveBattleStore: LiveBattleStore = {
 
 /* ─── Service ────────────────────────────────────────────────────── */
 
-export interface LiveBattleDeps {
+interface LiveBattleDeps {
   now?: () => Date;
   random?: () => number;
   /** Speak the win in the World. Default: the palace announcement
@@ -784,6 +784,5 @@ export function createLiveBattleService(
   };
 }
 
-export type LiveBattleService = ReturnType<typeof createLiveBattleService>;
 
 export const liveBattleService = createLiveBattleService();

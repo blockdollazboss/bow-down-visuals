@@ -217,12 +217,6 @@ router.post("/distribution/presave/:slug/account-presave", requireAuth, async (r
 });
 
 /* Descriptor the public landing uses to decide its headline action. */
-export function accountPresaveDescriptor(platformLinks: Record<string, string> | null | undefined) {
-  const item = parseSpotifyItem(platformLinks?.["spotify"]);
-  return item
-    ? { platform: "spotify" as const, supported: true, itemKind: item.kind, actionLabel: "Save on Spotify" }
-    : { platform: "spotify" as const, supported: false, reason: "No Spotify track or album link on this release yet — email pre-save is the action.", actionLabel: null };
-}
 
 /* ═══ #3 Splits accounting depth: per-payee statements ══════════════════ */
 router.get("/distribution/splits/statements", requireAuth, async (req, res) => {

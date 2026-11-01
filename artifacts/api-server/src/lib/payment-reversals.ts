@@ -73,7 +73,7 @@ export interface ReversalCharge {
   currency: string | null;
 }
 
-export type ReversalOutcome =
+type ReversalOutcome =
   | { outcome: "reversed"; rail: string; creditsClawed: number; shortfallCredits: number }
   | { outcome: "duplicate" }
   | { outcome: "inflight" }
@@ -498,7 +498,7 @@ interface DebitResult {
  * never a throw for insufficiency. Throws only on real IO failure,
  * so the caller can mark the reversal failed and let Stripe retry.
  */
-export async function debitCreditsUpTo(userId: string, amount: number): Promise<DebitResult> {
+async function debitCreditsUpTo(userId: string, amount: number): Promise<DebitResult> {
   if (!Number.isFinite(amount) || amount <= 0) return { debited: 0, shortfall: 0 };
   const admin = getSupabaseAdmin();
   const { data: profile, error: readErr } = await admin
@@ -930,7 +930,7 @@ async function lookupReferralAward(sessionId: string): Promise<ReferralAward | n
  * clawback uses, and it only ever moves forward — a replayed partial
  * event can never downgrade a row already marked "refunded". */
 
-export function purchaseRowStatusForReversal(fullReversal: boolean): "refunded" | "partially_refunded" {
+function purchaseRowStatusForReversal(fullReversal: boolean): "refunded" | "partially_refunded" {
   return fullReversal ? "refunded" : "partially_refunded";
 }
 
@@ -1264,9 +1264,9 @@ export async function processStripeChargeReversal(input: {
  * parked for the next human attempt.
  */
 
-export type ReversalResolutionDecision = "complete" | "dismiss";
+type ReversalResolutionDecision = "complete" | "dismiss";
 
-export interface ReversalResolutionRecord {
+interface ReversalResolutionRecord {
   id: string;
   reversalId: string;
   stripeChargeId: string;
@@ -1277,7 +1277,7 @@ export interface ReversalResolutionRecord {
   createdAt: string;
 }
 
-export type ResolveReversalOutcome =
+type ResolveReversalOutcome =
   | { outcome: "resolved"; row: Row; resolution: ReversalResolutionRecord }
   | { outcome: "already_resolved"; row: Row; resolution: ReversalResolutionRecord }
   | { outcome: "conflict"; status: string }

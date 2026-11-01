@@ -22,7 +22,7 @@ const router: IRouter = Router();
  * boundary wraps guest routes too. Nothing is stored: the server log
  * line IS the record (Render log search: "[client-error]").
  */
-export const clientErrorSchema = z.object({
+const clientErrorSchema = z.object({
   route: z.string().min(1).max(200),
   errorName: z.string().min(1).max(100),
   errorMessage: z.string().max(500),

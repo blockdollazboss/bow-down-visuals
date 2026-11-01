@@ -43,7 +43,7 @@ export function normalizeCommentStatus(v: unknown): CommentStatus {
   return v === "held" || v === "hidden" ? v : "public";
 }
 
-export function normalizeHoldMode(v: unknown): CommentHoldMode {
+function normalizeHoldMode(v: unknown): CommentHoldMode {
   return v === "all" || v === "first_time" ? v : "off";
 }
 
@@ -77,9 +77,9 @@ export function findBlockedWord(body: string, blockedWords: string[]): string | 
   return null;
 }
 
-export type HeldReason = "blocked_word" | "hold_all" | "first_time_commenter";
+type HeldReason = "blocked_word" | "hold_all" | "first_time_commenter";
 
-export interface HoldDecision {
+interface HoldDecision {
   status: "public" | "held";
   /** Why the comment was held — null when public. Shown to creator + author. */
   reason: HeldReason | null;

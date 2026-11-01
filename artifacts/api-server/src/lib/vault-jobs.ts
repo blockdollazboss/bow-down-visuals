@@ -19,9 +19,9 @@ import { logger } from "./logger";
  *   small instance never holds two full archives in flight.
  */
 
-export type VaultJobState = "queued" | "active" | "done" | "failed";
+type VaultJobState = "queued" | "active" | "done" | "failed";
 
-export interface VaultJobResult {
+interface VaultJobResult {
   r2Key: string;
   fileName: string;
   sizeBytes: number;

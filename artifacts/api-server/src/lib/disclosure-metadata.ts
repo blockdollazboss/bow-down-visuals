@@ -78,7 +78,7 @@ export function crc32(buf: Buffer): number {
 }
 
 /* ─── Format detection ──────────────────────────────────────────────────── */
-export type ImageFormat = "jpeg" | "png" | "webp";
+type ImageFormat = "jpeg" | "png" | "webp";
 
 export function detectImageFormat(buf: Buffer): ImageFormat | null {
   if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpeg";
@@ -148,7 +148,7 @@ export function injectXmpIntoWebp(buf: Buffer, xmp: string): Buffer {
 }
 
 /* ─── Image dispatcher ──────────────────────────────────────────────────── */
-export interface StampResult {
+interface StampResult {
   buffer: Buffer;
   applied: boolean;
   format: ImageFormat | null;

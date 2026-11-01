@@ -10,7 +10,6 @@ import { z } from "zod";
    own branding. */
 
 export const ATTRIBUTION_TEXT = "Made with Bow Down Visuals";
-export const ATTRIBUTION_SITE = "bowdownvisuals.com";
 
 /** Coerce FormData-style "true"/"false" strings so multipart callers (thumbnails) work too. */
 const coerceAttributionFlag = (v: unknown): unknown =>
@@ -54,7 +53,7 @@ export function escapeDrawtext(text: string): string {
     .replace(/%/g, "%%");
 }
 
-export interface AttributionTagOpts {
+interface AttributionTagOpts {
   /** Explicit font size in px. Defaults to max(14, round(width / 40)). */
   fontSize?: number;
   /** Gold tag color+alpha, e.g. "0xFFD75E@0.75". */

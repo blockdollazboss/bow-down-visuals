@@ -76,7 +76,7 @@ export const MUSIC_HALL_ROOM_ID = "world:music-hall";
 
 /** A contest's theme is a headline, not a speech — the same cap
  *  the palace herald carries (lib/world-palace HERALD_MAX_CHARS). */
-export const CONTEST_THEME_MAX_CHARS = 140;
+const CONTEST_THEME_MAX_CHARS = 140;
 
 /** How often the scheduler looks at the calendar. One indexed select
  *  per tick against a small, ephemeral table — deliberately cheap. */
@@ -86,7 +86,7 @@ export const WORLD_EVENT_TICK_MS = 10_000;
 
 export type BookingPrivilege = "member" | "front-row-or-admin" | "admin";
 
-export interface BookingRule {
+interface BookingRule {
   /** The one room this kind may be booked into (null = any palace room). */
   requiredRoomId: string | null;
   privilege: BookingPrivilege;
@@ -121,7 +121,7 @@ export function bookingRuleFor(kind: WorldEventKind): BookingRule {
 const CATALOG_VIDEO_ID = /^(video|replay):[0-9a-f-]{36}$/i;
 const CATALOG_TRACK_ID = /^track:[0-9a-f-]{36}$/i;
 
-export type PayloadResult =
+type PayloadResult =
   | { ok: true; payload: Record<string, unknown> }
   | { ok: false; error: string };
 
@@ -200,8 +200,8 @@ export function sanitizeEventPayload(kind: WorldEventKind, raw: unknown): Payloa
 }
 
 /** Booking window rules: a real slot, not a monument or a blink. */
-export const EVENT_MIN_DURATION_MS = 5 * 60_000;
-export const EVENT_MAX_DURATION_MS = 4 * 3600_000;
+const EVENT_MIN_DURATION_MS = 5 * 60_000;
+const EVENT_MAX_DURATION_MS = 4 * 3600_000;
 export const EVENT_MAX_AHEAD_MS = 30 * 24 * 3600_000;
 
 export function windowError(startsAt: Date, endsAt: Date, now: Date): string | null {
@@ -424,7 +424,7 @@ export const dbWorldEventStore: WorldEventStore = {
   },
 };
 
-export interface WorldEventSchedulerDeps {
+interface WorldEventSchedulerDeps {
   palace: WorldPalace;
   store?: WorldEventStore;
   /** The route layer's verified resolvers (id-only, exactly as the
@@ -441,7 +441,7 @@ export interface WorldEventSchedulerDeps {
 }
 
 /** The directory slate never carries more than this per room. */
-export const SLATE_PER_ROOM = 3;
+const SLATE_PER_ROOM = 3;
 
 export class WorldEventScheduler {
   private store: WorldEventStore;

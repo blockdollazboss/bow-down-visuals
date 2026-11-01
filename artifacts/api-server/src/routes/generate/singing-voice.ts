@@ -17,7 +17,7 @@ const router = Router();
  * PLACEHOLDER price — Visual Bucs. NOT final: the user must approve the
  * real price (and the provider + key) before this goes live.
  */
-export const SINGING_VOICE_CREDIT_COST = 800; // PLACEHOLDER — needs user price approval
+const SINGING_VOICE_CREDIT_COST = 800; // PLACEHOLDER — needs user price approval
 
 const conversionSchema = z.object({
   voiceId: z.string().min(1).max(80),
@@ -26,9 +26,9 @@ const conversionSchema = z.object({
   keepInstrumental: z.boolean().optional(),
 });
 
-export type SingingJobStatus = "queued" | "processing" | "done" | "failed";
+type SingingJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface SingingJob {
+interface SingingJob {
   id: string;
   userId: string;
   status: SingingJobStatus;
@@ -43,14 +43,8 @@ export interface SingingJob {
 const jobs = new Map<string, SingingJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getSingingJob(id: string): SingingJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
-export function __clearSingingJobs(): void {
-  jobs.clear();
-}
 
 /* ── Routes ─────────────────────────────────────────────────────────── */
 

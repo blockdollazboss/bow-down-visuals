@@ -37,7 +37,7 @@ export function isClassStream(stream: Pick<LiveStream, "is_class" | "ticket_pric
   return stream.is_class === true && typeof stream.ticket_price_vb === "number" && stream.ticket_price_vb > 0;
 }
 
-export interface ClassRosterEntry {
+interface ClassRosterEntry {
   user_id: string;
   display_name: string;
   slug: string | null;
@@ -45,7 +45,7 @@ export interface ClassRosterEntry {
   price_vb: number;
 }
 
-export interface ClassRoster {
+interface ClassRoster {
   stream_id: string;
   enrolled: number;
   entries: ClassRosterEntry[];

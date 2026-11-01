@@ -42,9 +42,8 @@
 
 export type UnifiedChatSourceId = "site" | "twitch" | "youtube";
 
-export const UNIFIED_CHAT_SOURCES: readonly UnifiedChatSourceId[] = ["site", "twitch", "youtube"];
 
-export const EXTERNAL_SOURCES: readonly Exclude<UnifiedChatSourceId, "site">[] = ["twitch", "youtube"];
+const EXTERNAL_SOURCES: readonly Exclude<UnifiedChatSourceId, "site">[] = ["twitch", "youtube"];
 
 /** One message in the unified feed — the shape stream chat renders
  *  from, whatever source it arrived through. */
@@ -68,7 +67,7 @@ export interface UnifiedChatMessage {
 
 /* -------------------------------------------------------- config gate */
 
-export interface SourceGate {
+interface SourceGate {
   source: Exclude<UnifiedChatSourceId, "site">;
   /** The owner/config switch is on (flag set AND credential present). */
   configured: boolean;
@@ -127,7 +126,7 @@ export function evaluateSourceGate(
   };
 }
 
-export function evaluateAllSourceGates(
+function evaluateAllSourceGates(
   env: Record<string, string | undefined>,
 ): SourceGate[] {
   return EXTERNAL_SOURCES.map((s) => evaluateSourceGate(s, env));
@@ -229,7 +228,7 @@ export function mergeUnifiedFeed(adapters: readonly UnifiedChatAdapter[]): Unifi
 
 /* --------------------------------------------------------- source state */
 
-export interface UnifiedSourceState {
+interface UnifiedSourceState {
   source: UnifiedChatSourceId;
   /** Messages from this source really reach the feed. */
   ingestionLive: boolean;
@@ -271,7 +270,7 @@ export function unifiedSourceStates(args: {
 
 /* ------------------------------------------------------------- presence */
 
-export interface SourcePresence {
+interface SourcePresence {
   source: UnifiedChatSourceId;
   /** Real measured presence, or null when this source's presence is
    *  not measured. Null is the honest value — never a fabricated 0
@@ -279,7 +278,7 @@ export interface SourcePresence {
   viewers: number | null;
 }
 
-export interface UnifiedPresence {
+interface UnifiedPresence {
   perSource: SourcePresence[];
   /** Sum of the KNOWN sources only. */
   totalKnown: number;

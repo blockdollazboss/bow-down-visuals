@@ -95,7 +95,7 @@ const VEO_CREDITS_PER_SEC =
 /** Feed-format delivery tracked per task (#30): when delivery is "reframe",
  *  the poller Smart-Reframes the generated clip to reframeTarget before
  *  delivery and reports the exact notice — never a silent crop. */
-export interface PendingFormatDelivery {
+interface PendingFormatDelivery {
   format: ClipFormat;
   delivery: "native" | "reframe";
   reframeTarget: "1:1" | "4:5" | null;

@@ -29,13 +29,13 @@ import { eq, and, desc } from "drizzle-orm";
    Pricing: 150 VB per generated one-sheet (AI compute). Briefs, matching,
    and the tracker are free — pure data, no compute. */
 
-export const SYNC_ONE_SHEET_CREDIT_COST =
+const SYNC_ONE_SHEET_CREDIT_COST =
   Number(process.env["SYNC_ONE_SHEET_CREDIT_COST"]) || 150;
 
 export const SYNC_PROJECT_TYPES = ["tv", "film", "ad", "game"] as const;
 export const SYNC_PITCH_STATUSES = ["sent", "pending", "placed", "dead"] as const;
 
-export const SYNC_DISCLAIMER =
+const SYNC_DISCLAIMER =
   "Sync pitching improves your odds — it never guarantees a placement. " +
   "Music supervisors say yes based on fit, timing, and taste; no AI can promise a slot. " +
   "Always confirm you own (or control) 100% of the master and publishing before pitching.";
@@ -61,7 +61,7 @@ const oneSheetInputSchema = z.object({
   contactEmail: z.string().max(200).optional().default(""),
 });
 
-export type SyncOneSheetContent = {
+type SyncOneSheetContent = {
   logline: string;
   moodTags: string[];
   soundsLike: string;
@@ -72,7 +72,7 @@ export type SyncOneSheetContent = {
   disclaimer: string;
 };
 
-export function buildSyncOneSheetPrompt(input: z.infer<typeof oneSheetInputSchema>): string {
+function buildSyncOneSheetPrompt(input: z.infer<typeof oneSheetInputSchema>): string {
   const lines: string[] = [`Song title: "${input.songTitle}"`];
   if (input.artistName.trim()) lines.push(`Artist: "${input.artistName.trim()}"`);
   if (input.genre.trim()) lines.push(`Genre: "${input.genre.trim()}"`);
@@ -122,7 +122,7 @@ function cleanStrArr(v: unknown, max: number): string[] {
     .slice(0, max);
 }
 
-export function parseSyncOneSheetResponse(raw: string): Omit<SyncOneSheetContent, "disclaimer"> {
+function parseSyncOneSheetResponse(raw: string): Omit<SyncOneSheetContent, "disclaimer"> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

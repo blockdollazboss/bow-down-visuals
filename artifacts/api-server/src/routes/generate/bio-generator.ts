@@ -40,7 +40,7 @@ export const bioSchema = z.object({
   handle: z.string().trim().min(1).max(60).optional(),
 });
 
-export interface PlatformBio {
+interface PlatformBio {
   platform: string;
   bio: string;
   charCount: number;
@@ -57,7 +57,7 @@ router.get("/bio-platforms", requireAuth, (_req, res) => {
   });
 });
 
-export interface BioGenerationResult {
+interface BioGenerationResult {
   bios: PlatformBio[];
   creditsRemaining: number;
 }

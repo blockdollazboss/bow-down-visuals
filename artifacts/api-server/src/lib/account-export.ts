@@ -33,7 +33,7 @@ import { getSupabaseAdmin } from "./supabase-admin";
 type SupabaseAdmin = ReturnType<typeof getSupabaseAdmin>;
 
 /** Fetch one Supabase table's rows for a user; THROWS on error. */
-export async function fetchUserRows(
+async function fetchUserRows(
   supabase: SupabaseAdmin,
   table: string,
   userId: string,
@@ -47,7 +47,7 @@ export async function fetchUserRows(
   return data ?? [];
 }
 
-export interface AccountExportPayload {
+interface AccountExportPayload {
   exportedAt: string;
   profile: unknown;
   projects: unknown[];

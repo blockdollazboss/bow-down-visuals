@@ -21,7 +21,7 @@ import { randomBytes } from "node:crypto";
 
 /* ══ AMF0 ════════════════════════════════════════════════════════════ */
 
-export type AmfValue =
+type AmfValue =
   | number
   | boolean
   | string
@@ -115,7 +115,7 @@ function encodeInto(value: AmfValue, parts: Buffer[]): void {
   parts.push(Buffer.from([0, 0, AMF.OBJECT_END]));
 }
 
-export interface AmfDecoded {
+interface AmfDecoded {
   value: AmfValue;
   bytesRead: number;
 }
@@ -497,7 +497,7 @@ export function commandMessage(messageStreamId: number, values: AmfValue[]): Buf
 
 /* ══ Handshake ═══════════════════════════════════════════════════════ */
 
-export const RTMP_VERSION = 3;
+const RTMP_VERSION = 3;
 export const HANDSHAKE_BYTES = 1536;
 
 /** S0+S1 for a received C0 version byte; S2 is the echo of C1. */

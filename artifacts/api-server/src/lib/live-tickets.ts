@@ -96,7 +96,7 @@ export function __setLiveTicketEventNotifier(fn: LiveTicketEventNotifier | null)
    dressed up as success. */
 
 /** The slice of a stream row the door logic reads. */
-export type TicketDoorStream = Pick<
+type TicketDoorStream = Pick<
   LiveStream,
   "id" | "user_id" | "profile_id" | "title" | "ticket_price_vb" | "ticket_capacity"
 >;
@@ -217,7 +217,7 @@ export function verifyPlaybackToken(streamId: string, token: string | null | und
 
 /* ── The purchase ──────────────────────────────────────────────────────── */
 
-export type BuyTicketResult =
+type BuyTicketResult =
   | { ok: true; ticket: LiveStreamTicket; alreadyHad: boolean }
   | { ok: false; status: number; code: string; error: string };
 

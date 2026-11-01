@@ -2,7 +2,7 @@
 
 import { resolveCaptionFontFamily } from "./fonts";
 
-export interface CaptionWordTiming {
+interface CaptionWordTiming {
   word: string;
   /** Seconds, relative to the start of the parent line. */
   start: number;

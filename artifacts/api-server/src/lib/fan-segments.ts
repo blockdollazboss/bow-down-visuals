@@ -32,7 +32,7 @@
  */
 import type { FanRecord, FanSourceKind } from "./fan-graph";
 
-export const FAN_SOURCE_KINDS: readonly FanSourceKind[] = [
+const FAN_SOURCE_KINDS: readonly FanSourceKind[] = [
   "follow",
   "subscriber",
   "member",
@@ -43,8 +43,8 @@ export const FAN_SOURCE_KINDS: readonly FanSourceKind[] = [
   "tips",
 ] as const;
 
-export type TriState = "yes" | "no" | "any";
-export type MemberState = "any" | "active" | "member" | "none";
+type TriState = "yes" | "no" | "any";
+type MemberState = "any" | "active" | "member" | "none";
 
 export interface FanSegmentRules {
   /** follows the creator. */
@@ -232,7 +232,7 @@ export function previewFanSegment(
 
 /* ─── Presets ─────────────────────────────────────────────────────── */
 
-export interface FanSegmentPreset {
+interface FanSegmentPreset {
   id: string;
   name: string;
   description: string;
@@ -266,7 +266,7 @@ export function fanSegmentPreset(id: string): FanSegmentPreset | null {
 
 /* ─── Mailable-audience resolution (the desk-side question) ──────── */
 
-export interface SegmentSubscriberRow {
+interface SegmentSubscriberRow {
   id: string;
   email: string;
   unsubscribedAt: Date | string | null;

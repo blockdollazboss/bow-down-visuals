@@ -25,7 +25,7 @@
 import { db, songsTable } from "@workspace/db";
 import { logger } from "./logger";
 
-export interface LibrarySongInput {
+interface LibrarySongInput {
   userId: string;
   title: string;
   audioUrl: string;

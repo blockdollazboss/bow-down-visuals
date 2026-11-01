@@ -20,7 +20,7 @@ import { inflateSync } from "zlib";
 
 /* ─── Minimal PNG decoder ─────────────────────────────────────────────── */
 
-export interface DecodedImage {
+interface DecodedImage {
   width: number;
   height: number;
   /** Row-major RGBA. */
@@ -314,18 +314,18 @@ export function logoToMask(img: DecodedImage, gridSize: number): Uint8Array {
 /* ─── Pendant mesh → binary STL ───────────────────────────────────────── */
 
 export const PENDANT_DISC_R_MM = 17.5;
-export const PENDANT_BASE_T_MM = 2.2;
-export const PENDANT_RELIEF_H_MM = 1.2;
-export const NFC_POCKET_R_MM = 12.75; // fits a standard 25mm NTAG213/215 coin tag
-export const NFC_POCKET_DEPTH_MM = 1.0;
+const PENDANT_BASE_T_MM = 2.2;
+const PENDANT_RELIEF_H_MM = 1.2;
+const NFC_POCKET_R_MM = 12.75; // fits a standard 25mm NTAG213/215 coin tag
+const NFC_POCKET_DEPTH_MM = 1.0;
 const MESH_GRID = 128;
 
-export interface PendantBuildOptions {
+interface PendantBuildOptions {
   /** Carve the NFC tag cavity into the back. */
   nfcPocket: boolean;
 }
 
-export interface PendantBuild {
+interface PendantBuild {
   stl: Buffer;
   facetCount: number;
   /** mm³ */

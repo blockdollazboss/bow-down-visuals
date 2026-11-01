@@ -30,7 +30,7 @@ const COMPETITOR_CREDITS = Number(process.env["COMPETITOR_CREDITS"]) || 200;
 export { COMPETITOR_CREDITS };
 
 /* Exported for tests. */
-export const competitorSchema = z
+const competitorSchema = z
   .object({
     competitorName: z.string().trim().max(120).default(""),
     channelUrl: z.string().trim().max(2048).default(""),
@@ -47,7 +47,7 @@ export interface ContentPillar {
   whatTheyPost: string;
 }
 
-export interface TopFormat {
+interface TopFormat {
   format: string;
   whyItWorks: string;
 }
@@ -57,12 +57,12 @@ export interface Opportunity {
   howToExploit: string;
 }
 
-export interface PostingCadence {
+interface PostingCadence {
   assessment: string;
   estimatedPostsPerWeek: number | null;
 }
 
-export interface ParsedCompetitorAnalysis {
+interface ParsedCompetitorAnalysis {
   competitorName: string;
   niche: string;
   contentPillars: ContentPillar[];
@@ -111,7 +111,7 @@ function clampPostsPerWeek(v: unknown): number | null {
 }
 
 /* Parse + sanitize the model's JSON. Exported for tests. */
-export function parseCompetitorJson(raw: string, fallbackName: string, niche: string): ParsedCompetitorAnalysis {
+function parseCompetitorJson(raw: string, fallbackName: string, niche: string): ParsedCompetitorAnalysis {
   const empty: ParsedCompetitorAnalysis = {
     competitorName: cleanText(fallbackName, 120),
     niche: cleanText(niche, 120),

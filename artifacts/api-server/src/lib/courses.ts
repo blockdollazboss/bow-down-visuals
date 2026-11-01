@@ -105,7 +105,7 @@ export function courseProgressPct(totalLessons: number, completedLessons: number
 
 /* ─── DTOs ───────────────────────────────────────────────────────────── */
 
-export interface CourseProductDto {
+interface CourseProductDto {
   id: string;
   title: string;
   description: string;
@@ -119,7 +119,7 @@ export interface CourseProductDto {
   buyUrl: string;
 }
 
-export interface CourseLessonOutlineDto {
+interface CourseLessonOutlineDto {
   id: string;
   title: string;
   position: number;
@@ -130,7 +130,7 @@ export interface CourseLessonOutlineDto {
   durationSec: number | null;
 }
 
-export interface CourseSectionDto<L = CourseLessonOutlineDto> {
+interface CourseSectionDto<L = CourseLessonOutlineDto> {
   id: string;
   title: string;
   position: number;
@@ -145,7 +145,7 @@ export interface CourseOutlineDto {
   sections: CourseSectionDto[];
 }
 
-export interface CourseLessonLearnDto extends CourseLessonOutlineDto {
+interface CourseLessonLearnDto extends CourseLessonOutlineDto {
   locked: boolean;
   lockReason: LessonLockReason;
   unlockAt: string | null;
@@ -156,13 +156,13 @@ export interface CourseLessonLearnDto extends CourseLessonOutlineDto {
   progress: { status: string; lastPositionSec: number; completedAt: string | null } | null;
 }
 
-export interface CourseLearnDto extends Omit<CourseOutlineDto, "sections"> {
+interface CourseLearnDto extends Omit<CourseOutlineDto, "sections"> {
   sections: CourseSectionDto<CourseLessonLearnDto>[];
   completedLessons: number;
   progressPct: number;
 }
 
-export interface MyCourseDto {
+interface MyCourseDto {
   product: CourseProductDto;
   access: CourseAccess;
   lessonCount: number;
@@ -239,7 +239,7 @@ async function earliestCompletedOrderAt(userId: string, productId: string): Prom
   return rows[0]?.createdAt ?? null;
 }
 
-export async function accessFor(
+async function accessFor(
   product: StoreProduct,
   userId: string | null,
 ): Promise<{ access: CourseAccess; purchasedAt: Date | string | null }> {
@@ -605,7 +605,7 @@ export interface CurriculumSectionInput {
   lessons: CurriculumLessonInput[];
 }
 
-export interface CreatedCurriculumDto {
+interface CreatedCurriculumDto {
   sections: Array<{
     id: string;
     title: string;
@@ -733,14 +733,14 @@ export async function replaceCurriculum(
 
 /* ─── progress ───────────────────────────────────────────────────────── */
 
-export interface LessonProgressDto {
+interface LessonProgressDto {
   lessonId: string;
   status: "started" | "in_progress" | "completed";
   lastPositionSec: number;
   completedAt: string | null;
 }
 
-export interface LessonProgressInput {
+interface LessonProgressInput {
   positionSec?: number;
   complete?: boolean;
   uncomplete?: boolean;

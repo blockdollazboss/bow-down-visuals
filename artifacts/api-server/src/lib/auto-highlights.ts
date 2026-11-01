@@ -34,13 +34,13 @@ import { getStreamerClipJob, startStreamerCutJob } from "../routes/generate/stre
 import { OutOfCreditsError } from "./credits";
 import { logger } from "./logger";
 
-export const HIGHLIGHT_BUCKET_SEC = 30;
-export const HIGHLIGHT_CLIP_SEC = 45;
-export const HIGHLIGHT_MAX_PROPOSALS = 3;
+const HIGHLIGHT_BUCKET_SEC = 30;
+const HIGHLIGHT_CLIP_SEC = 45;
+const HIGHLIGHT_MAX_PROPOSALS = 3;
 
 /* ── Signal math (pure) ──────────────────────────────────────────────── */
 
-export interface SignalBucket {
+interface SignalBucket {
   index: number;
   startSec: number;
   chatCount: number;
@@ -50,7 +50,7 @@ export interface SignalBucket {
   score: number;
 }
 
-export interface HighlightCandidate {
+interface HighlightCandidate {
   startSec: number;
   endSec: number;
   title: string;
@@ -70,9 +70,9 @@ export interface StreamSignals {
 /** Chat counts heaviest per message, a tipped Buc counts once per
  *  Buc, and a watching viewer counts once — the weights are printed
  *  here so the score is auditable, not a black box. */
-export const SCORE_CHAT_WEIGHT = 10;
-export const SCORE_TIP_WEIGHT = 1;
-export const SCORE_VIEWER_WEIGHT = 1;
+const SCORE_CHAT_WEIGHT = 10;
+const SCORE_TIP_WEIGHT = 1;
+const SCORE_VIEWER_WEIGHT = 1;
 
 export function bucketizeSignals(signals: StreamSignals): SignalBucket[] {
   const duration = Math.max(0, Math.floor(signals.durationSec));
@@ -116,7 +116,7 @@ function mmss(totalSec: number): string {
 }
 
 /** Render the honest provenance of a pick from its own numbers. */
-export function describeBucket(b: SignalBucket): { title: string; reason: string } {
+function describeBucket(b: SignalBucket): { title: string; reason: string } {
   const parts: string[] = [];
   if (b.chatCount > 0) parts.push(`a chat spike (${b.chatCount} messages in ${HIGHLIGHT_BUCKET_SEC}s)`);
   if (b.tipVb > 0) parts.push(`a ${b.tipVb} VB tip`);
@@ -324,7 +324,7 @@ export const streamerClipsCutRail: HighlightCutRail = {
 
 /* ── Orchestration ───────────────────────────────────────────────────── */
 
-export interface HighlightStreamRow {
+interface HighlightStreamRow {
   id: string;
   user_id: string;
   started_at: Date | string | null;
@@ -369,7 +369,7 @@ export async function generateHighlightProposals(
   return inserted;
 }
 
-export type ProposalDecision = "approved" | "dismissed";
+type ProposalDecision = "approved" | "dismissed";
 
 /**
  * The creator disposes: approve starts the cut on the Streamer Clips

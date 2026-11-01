@@ -18,7 +18,7 @@ import { isStreamConfigured } from "./cloudflare-stream";
    Selection is read from env at call time (never cached) so tests and
    ops can flip it without a code change. */
 
-export type LiveTransportKind = "own" | "cloudflare";
+type LiveTransportKind = "own" | "cloudflare";
 
 export function selectedLiveTransport(env: NodeJS.ProcessEnv = process.env): LiveTransportKind {
   return env["LIVE_TRANSPORT"]?.trim().toLowerCase() === "cloudflare" ? "cloudflare" : "own";

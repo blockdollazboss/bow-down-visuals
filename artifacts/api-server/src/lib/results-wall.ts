@@ -52,9 +52,9 @@ import { logger } from "./logger";
 export const RESULTS_WALL_KIND_SET: ReadonlySet<string> = new Set(RESULTS_WALL_KINDS);
 
 /** A scan younger than this is fresh; older scans re-derive lazily. */
-export const RESULTS_WALL_FRESH_MS = 6 * 60 * 60 * 1000;
+const RESULTS_WALL_FRESH_MS = 6 * 60 * 60 * 1000;
 /** Public wall page size — a wall, not an infinite firehose. */
-export const RESULTS_WALL_PUBLIC_LIMIT = 50;
+const RESULTS_WALL_PUBLIC_LIMIT = 50;
 
 /* ── Pure derivation ─────────────────────────────────────────────────────
    These functions are the honesty law in code: given ONLY timestamps /
@@ -62,7 +62,7 @@ export const RESULTS_WALL_PUBLIC_LIMIT = 50;
    milestone events those records prove — nothing else can produce an
    event, and absent records produce absent events. */
 
-export interface DerivedEvent {
+interface DerivedEvent {
   kind: ResultsWallKind;
   threshold: number;
   value: number;
@@ -112,7 +112,7 @@ export function firstSaleEvent(saleTimestampsAsc: Date[]): DerivedEvent | null {
   };
 }
 
-export interface VbLedgerRow {
+interface VbLedgerRow {
   creditsUsed: number;
   createdAt: Date;
 }

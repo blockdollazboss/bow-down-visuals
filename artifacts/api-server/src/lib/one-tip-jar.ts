@@ -15,7 +15,7 @@
    routes/generate/tip-jar.ts where the jar lives) feeds it rows. */
 
 export type TipDoor = "tip_page" | "live_stream" | "world_stage";
-export type TipUnit = "USD" | "VB";
+type TipUnit = "USD" | "VB";
 
 export interface JarActivityEntry {
   door: TipDoor;
@@ -28,7 +28,7 @@ export interface JarActivityEntry {
   at: string;
 }
 
-export interface JarTotals {
+interface JarTotals {
   /** Paid tip-page money, integer cents — the only USD figure. */
   usdCentsPaid: number;
   usdTipsCount: number;

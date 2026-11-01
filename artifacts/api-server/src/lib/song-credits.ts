@@ -61,7 +61,7 @@ export const SONG_CREDIT_ROLES = [
 ] as const;
 export type SongCreditRole = (typeof SONG_CREDIT_ROLES)[number];
 
-export const SONG_CREDIT_ROLE_LABELS: Record<SongCreditRole, string> = {
+const SONG_CREDIT_ROLE_LABELS: Record<SongCreditRole, string> = {
   featured_artist: "Featured artist",
   producer: "Producer",
   sample: "Sample",
@@ -111,7 +111,7 @@ export interface SongAnchor {
   id: string;
 }
 
-export interface CreditEntryInput {
+interface CreditEntryInput {
   role: SongCreditRole;
   name: string;
   userId?: string | null;
@@ -129,9 +129,9 @@ export interface CreditEntry {
   sortOrder: number;
 }
 
-export type CreditShareSource = "publishing" | "master" | "co_release";
+type CreditShareSource = "publishing" | "master" | "co_release";
 
-export interface CanonicalCredit {
+interface CanonicalCredit {
   /* Stable merge key: the same person credited on several rails is ONE
      credit with several roles/shares, not three rows. */
   key: string;
@@ -166,7 +166,7 @@ export interface CanonicalSongCredits {
 
 /* ── Entry validation ──────────────────────────────────────────────────── */
 
-export const MAX_CREDIT_ENTRIES_PER_SONG = 40;
+const MAX_CREDIT_ENTRIES_PER_SONG = 40;
 
 export function validateCreditEntries(entries: CreditEntryInput[]): void {
   if (!Array.isArray(entries)) {

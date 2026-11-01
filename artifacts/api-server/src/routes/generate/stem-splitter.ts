@@ -53,7 +53,7 @@ export const STEM_KEYS: StemKey[] = ["vocals", "drums", "bass", "other"];
  *   second Demucs pass (--two-stems would re-run the whole heavy model) and
  *   more reliable than trying to skip stems Demucs always computes anyway.
  */
-export type StemSplitMode = "full" | "instrumental";
+type StemSplitMode = "full" | "instrumental";
 export const STEM_SPLIT_MODES: StemSplitMode[] = ["full", "instrumental"];
 
 export function parseStemSplitMode(value: unknown): StemSplitMode | null {
@@ -68,7 +68,7 @@ export function parseStemSplitMode(value: unknown): StemSplitMode | null {
  * Same endpoint, same 400 VB charge as the classic full split.
  * Requested as `stems=pro` (query or multipart field, mirroring `mode`).
  */
-export type StemTier = "standard" | "pro";
+type StemTier = "standard" | "pro";
 
 export function parseStemTier(value: unknown): StemTier | null {
   if (value === undefined || value === null || value === "" || value === "standard") return "standard";
@@ -84,7 +84,7 @@ export const STEM_LABELS: Record<StemKey, string> = {
 };
 
 /** The two extra stems only the Pro tier's model emits. */
-export type ProStemKey = "guitar" | "piano";
+type ProStemKey = "guitar" | "piano";
 export type AnyStemKey = StemKey | ProStemKey;
 export const PRO_STEM_KEYS: ProStemKey[] = ["guitar", "piano"];
 /** Every stem key a job can produce: classic 4, then the Pro extras. */
@@ -205,7 +205,7 @@ export function buildRemixArgs(
 }
 
 /** The three stems that make up an instrumental mix (everything but vocals). */
-export const INSTRUMENTAL_STEM_KEYS = ["drums", "bass", "other"] as const;
+const INSTRUMENTAL_STEM_KEYS = ["drums", "bass", "other"] as const;
 
 /**
  * Build the ffmpeg filter for the instrumental preset: sum drums+bass+other
@@ -240,9 +240,9 @@ export function buildInstrumentalMixArgs(
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type StemJobStatus = "queued" | "processing" | "done" | "failed";
+type StemJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface StemUrls {
+interface StemUrls {
   vocals: string;
   drums: string;
   bass: string;
@@ -486,7 +486,7 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
  * itself is a deterministic ffmpeg sum, so it costs nothing extra.
  * Exported for tests.
  */
-export async function runRemixJob(
+async function runRemixJob(
   job: StemJob,
   levels: Partial<Record<AnyStemKey, number>>,
 ): Promise<{ url: string; ref: string }> {

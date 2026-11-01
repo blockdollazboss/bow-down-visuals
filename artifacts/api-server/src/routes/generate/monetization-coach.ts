@@ -43,7 +43,7 @@ const COACH_CREDITS = Number(process.env["MONETIZATION_COACH_CREDIT_COST"]) || 1
    /api/earnings view shows — from the creator's OWN rows only.
    Every source is isolated: one failing read degrades that field to
    zero, never the whole plan. */
-export interface CreatorState {
+interface CreatorState {
   songs: number;
   latestSongTitle: string | null;
   releases: number;
@@ -181,7 +181,7 @@ export function nextActionForState(state: CreatorState): CoachNextAction {
 
 /* The catalog facts as prompt lines — stated as facts about THIS
    creator's business, like the Money Tracker snapshot. */
-export function creatorStateLines(state: CreatorState): string[] {
+function creatorStateLines(state: CreatorState): string[] {
   const dollars = (c: number) => `$${(c / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   const lines = [
     `Song library: ${state.songs} song${state.songs === 1 ? "" : "s"}${state.latestSongTitle ? ` (latest: “${state.latestSongTitle}”)` : ""}.`,

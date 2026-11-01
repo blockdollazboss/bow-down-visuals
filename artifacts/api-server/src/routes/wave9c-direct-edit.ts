@@ -98,7 +98,6 @@ const directEditResponseSchema = z.object({
   ops: z.array(editOpSchema).min(1).max(8),
 });
 
-export type DirectEditOp = z.infer<typeof editOpSchema>;
 export type DirectEditPlan = z.infer<typeof directEditResponseSchema>;
 
 /* ── Request ──────────────────────────────────────────────────────────────── */

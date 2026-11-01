@@ -45,7 +45,6 @@ export const invoiceRequestSchema = z.object({
   notes: z.string().trim().max(1000).optional().default(""),
 });
 
-export type InvoiceRequest = z.infer<typeof invoiceRequestSchema>;
 
 function sanitizeRow(inv: Invoice) {
   return {

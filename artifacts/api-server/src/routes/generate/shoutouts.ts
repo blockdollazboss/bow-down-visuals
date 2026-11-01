@@ -77,7 +77,7 @@ async function mailShoutoutFan(email: ShoutoutFanEmail): Promise<void> {
   }
 }
 
-export function buildShoutoutDeliveredEmail(input: {
+function buildShoutoutDeliveredEmail(input: {
   fanName: string;
   fanEmail: string;
   creatorName: string;

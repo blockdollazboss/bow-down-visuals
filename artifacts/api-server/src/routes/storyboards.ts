@@ -158,7 +158,7 @@ export async function createStoryboardBoard(userId: string, title?: string) {
   return row!;
 }
 
-export type AppendStoryboardPanelOutcome =
+type AppendStoryboardPanelOutcome =
   | { kind: "added"; board: typeof storyboardsTable.$inferSelect; panel: StoryboardPanel }
   | { kind: "not_found" }
   | { kind: "invalid"; issues: z.ZodIssue[] }

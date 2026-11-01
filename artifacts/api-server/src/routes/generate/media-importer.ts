@@ -55,9 +55,9 @@ const DIRECT_MEDIA_EXTENSIONS = new Set([
   "mp3", "mp4", "m4a", "wav", "webm", "mov", "ogg", "oga", "flac", "aac", "opus",
 ]);
 
-export type ImportSource = "platform" | "direct";
+type ImportSource = "platform" | "direct";
 
-export interface ValidatedUrl {
+interface ValidatedUrl {
   source: ImportSource;
   /** Canonical URL string safe to pass to the downloader. */
   url: string;
@@ -184,7 +184,7 @@ export function sanitizeFileName(name: string): string {
     .slice(0, 120) || "import";
 }
 
-export type MediaImportJobStatus = "queued" | "processing" | "done" | "failed";
+type MediaImportJobStatus = "queued" | "processing" | "done" | "failed";
 
 export interface MediaImportJob {
   id: string;

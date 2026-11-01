@@ -32,7 +32,7 @@ import {
 import type { WorldLockChecker } from "./world-room";
 import { logger } from "./logger";
 
-export interface WorldPersonLockState {
+interface WorldPersonLockState {
   roomId: string;
   userId: string;
   displayName: string;
@@ -42,7 +42,7 @@ export interface WorldPersonLockState {
   expiresAt: number;
 }
 
-export interface WorldDoorLockState {
+interface WorldDoorLockState {
   roomId: string;
   lockedByUserId: string;
   lockedByEmail: string | null;

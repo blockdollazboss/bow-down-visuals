@@ -23,9 +23,9 @@ const PEXELS_API_KEY = () => process.env["PEXELS_API_KEY"]?.trim() || "";
    StockProvider normalizes any stock source (Pexels today, others later)
    into one item shape the editor consumes. */
 
-export type StockMediaType = "video" | "photo";
+type StockMediaType = "video" | "photo";
 
-export interface StockSearchParams {
+interface StockSearchParams {
   q: string;
   type: StockMediaType;
   page: number;
@@ -50,7 +50,7 @@ export interface StockItem {
   sourceUrl: string;
 }
 
-export interface StockSearchResult {
+interface StockSearchResult {
   items: StockItem[];
   totalResults: number;
   page: number;
@@ -58,7 +58,7 @@ export interface StockSearchResult {
   provider: string;
 }
 
-export interface StockProvider {
+interface StockProvider {
   readonly name: string;
   search(params: StockSearchParams): Promise<StockSearchResult>;
 }

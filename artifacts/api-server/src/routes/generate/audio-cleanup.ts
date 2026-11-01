@@ -19,10 +19,10 @@ import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const AUDIO_CLEANUP_CREDIT_COST = 300;
+const AUDIO_CLEANUP_CREDIT_COST = 300;
 const AUDIO_CLEANUP_MAX_BYTES = 50 * 1024 * 1024; // 50 MB upload cap
 
-export type AudioCleanupMode = "voice" | "music" | "denoise";
+type AudioCleanupMode = "voice" | "music" | "denoise";
 const MODES: AudioCleanupMode[] = ["voice", "music", "denoise"];
 
 const MODE_LABELS: Record<AudioCleanupMode, string> = {
@@ -66,7 +66,7 @@ const audioCleanupSchema = z.object({
  * aggressive settings can introduce light artifacts. The UI copy must
  * never promise "studio quality" from a noisy phone recording.
  */
-export function buildDenoiseFilter(mode: AudioCleanupMode): string {
+function buildDenoiseFilter(mode: AudioCleanupMode): string {
   switch (mode) {
     case "voice":
       // Podcasts / voiceovers / stream clips: kill rumble, moderate
@@ -106,7 +106,7 @@ export function buildFfmpegArgs(inputPath: string, filter: string, outputPath: s
  * an estimate, not a lab measurement, and the UI must label it as one.
  * Returns null when the measurement is not meaningful.
  */
-export function estimateNoiseReductionDb(rmsBeforeDb: number, rmsAfterDb: number): number | null {
+function estimateNoiseReductionDb(rmsBeforeDb: number, rmsAfterDb: number): number | null {
   if (!Number.isFinite(rmsBeforeDb) || !Number.isFinite(rmsAfterDb)) return null;
   const removedFraction = 1 - Math.pow(10, (rmsAfterDb - rmsBeforeDb) / 10);
   if (removedFraction <= 0 || removedFraction >= 1) return null;
@@ -115,7 +115,7 @@ export function estimateNoiseReductionDb(rmsBeforeDb: number, rmsAfterDb: number
   return Math.round(Math.abs(db) * 10) / 10;
 }
 
-export function parseRmsLevelDb(ffmpegStderr: string): number | null {
+function parseRmsLevelDb(ffmpegStderr: string): number | null {
   const match = ffmpegStderr.match(/RMS level dB:\s*(-?[\d.]+)/);
   if (!match) return null;
   const v = parseFloat(match[1]);
@@ -124,9 +124,9 @@ export function parseRmsLevelDb(ffmpegStderr: string): number | null {
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
 
-export type AudioCleanupJobStatus = "queued" | "processing" | "done" | "failed";
+type AudioCleanupJobStatus = "queued" | "processing" | "done" | "failed";
 
-export interface AudioCleanupJob {
+interface AudioCleanupJob {
   id: string;
   userId: string;
   status: AudioCleanupJobStatus;
@@ -147,9 +147,6 @@ export interface AudioCleanupJob {
 const jobs = new Map<string, AudioCleanupJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getAudioCleanupJob(id: string): AudioCleanupJob | undefined {
-  return jobs.get(id);
-}
 
 /** Test hook: clear the in-memory job store. */
 export function __clearAudioCleanupJobs(): void {
@@ -170,7 +167,7 @@ async function measureRmsDb(filePath: string): Promise<number | null> {
 }
 
 /** Exported for tests. */
-export async function runAudioCleanupJob(
+async function runAudioCleanupJob(
   job: AudioCleanupJob,
   uploadedPath: string,
   originalName: string,

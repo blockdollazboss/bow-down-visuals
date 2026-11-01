@@ -56,7 +56,7 @@ export interface PlatformStatusEntry {
   updatedAt: string;
 }
 
-export interface AggregatorTrack {
+interface AggregatorTrack {
   title: string;
   isrc?: string;
   audioUrl: string;
@@ -81,7 +81,7 @@ export interface AggregatorReleasePayload {
   platforms: string[];
 }
 
-export interface AggregatorSubmission {
+interface AggregatorSubmission {
   /** Aggregator's native release id for status polling. */
   aggregatorReleaseId: string;
   raw?: unknown;

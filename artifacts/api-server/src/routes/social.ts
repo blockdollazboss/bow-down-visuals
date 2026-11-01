@@ -1854,7 +1854,7 @@ export async function notifyMention(userId: string, title: string, body: string,
  *  post's own page (/post/:id, backed by GET /posts/:id) — never the
  *  feed's front door. Every post-alert kind links the post that
  *  carries the action the alert describes. */
-export function postNotificationLink(postId: string): string {
+function postNotificationLink(postId: string): string {
   return `/post/${postId}`;
 }
 
@@ -3002,7 +3002,7 @@ async function replyDraftParent(req: Request, res: Response) {
   return parent;
 }
 
-export type SaveReplyDraftOutcome =
+type SaveReplyDraftOutcome =
   | { kind: "saved"; draft: { body: string; tone: string; updated_at: Date } }
   | { kind: "cleared" }
   | { kind: "invalid_id" }

@@ -5,7 +5,7 @@ import { logger } from "./logger";
 import { isUniqueViolation } from "./pg-errors";
 import { notifyUserEvent, type UserEventInput } from "./push-events";
 
-export interface PaymentRecord {
+interface PaymentRecord {
   stripeSessionId: string;
   stripePaymentIntentId?: string | null;
   userId: string;
@@ -81,7 +81,7 @@ export async function getStripePaymentStatus(stripeSessionId: string): Promise<s
  * grant to the record (see the claim-pin there): the row, not
  * whichever delivery happens to retry, says what the payment bought.
  */
-export async function getStripePaymentRecord(
+async function getStripePaymentRecord(
   stripeSessionId: string,
 ): Promise<{ userId: string; creditsAmount: number; status: string } | null> {
   const rows = await db
@@ -370,7 +370,7 @@ export async function getCreditUsage(userId: string) {
 
 /* ── Generation History ── */
 
-export interface GenerationHistoryInput {
+interface GenerationHistoryInput {
   userId: string;
   generationType: string;
   prompt?: string;
@@ -462,7 +462,7 @@ export async function markGenerationHistoryRefunded(id: string): Promise<number>
   }
 }
 
-export interface RunwayClipHistoryInput {
+interface RunwayClipHistoryInput {
   userId:       string;
   projectId?:   string | null;
   sceneId?:     string | null;
@@ -504,7 +504,7 @@ export async function recordRunwayClipHistory(input: RunwayClipHistoryInput): Pr
   }
 }
 
-export interface LipSyncHistoryInput {
+interface LipSyncHistoryInput {
   userId:      string;
   projectId?:  string | null;
   sceneId?:    string | null;
@@ -542,7 +542,7 @@ export async function recordLipSyncHistory(input: LipSyncHistoryInput): Promise<
   }
 }
 
-export interface ThumbnailHistoryInput {
+interface ThumbnailHistoryInput {
   userId:           string;
   prompt?:          string | null;
   content:          string;
@@ -582,7 +582,7 @@ export async function recordThumbnailHistory(input: ThumbnailHistoryInput): Prom
   }
 }
 
-export interface CanvasHistoryInput {
+interface CanvasHistoryInput {
   userId:      string;
   videoUrl:    string;
   creditsUsed: number;
@@ -651,7 +651,7 @@ export interface CreditPurchase {
   currency?: string | null;
 }
 
-export type FulfillOutcome =
+type FulfillOutcome =
   | { outcome: "granted"; newCredits: number }
   | { outcome: "duplicate" }
   | { outcome: "inflight" };

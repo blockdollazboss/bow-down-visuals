@@ -60,7 +60,7 @@ export const PLATFORM_LABELS: Record<string, string> = {
   discord: "Discord",
 };
 
-export const MATCH_SYSTEM_PROMPT =
+const MATCH_SYSTEM_PROMPT =
   `You are a creator-collaboration strategist for Bow Down Visuals. Given two ` +
   `creator profiles, score their collaboration compatibility and explain it like ` +
   `a sharp talent manager — concrete, no fluff.\n\n` +
@@ -109,7 +109,7 @@ const respondSchema = z.object({
   action: z.enum(["accepted", "declined"]),
 });
 
-export interface MatchProfileSummary {
+interface MatchProfileSummary {
   displayName: string;
   niche: string;
   platforms: { platform: string; followers: number }[];

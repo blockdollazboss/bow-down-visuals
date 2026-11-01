@@ -74,7 +74,7 @@ export function buildStageTipEvent(input: { toUserId: string; amountVb: number }
   };
 }
 
-export type StageTipResult =
+type StageTipResult =
   | { ok: true }
   | { ok: false; reason: "insufficient" | "disabled" | "error" };
 
@@ -109,7 +109,7 @@ export interface StageTipStore {
   voidKey(key: string): Promise<void>;
 }
 
-export const dbStageTipStore: StageTipStore = {
+const dbStageTipStore: StageTipStore = {
   async findTipByKey(key) {
     const rows = await db
       .select({ id: worldStageTipsTable.id, creatorCreditedAt: worldStageTipsTable.creatorCreditedAt })
@@ -308,4 +308,3 @@ export function createStageTipper(store: StageTipStore = dbStageTipStore) {
   };
 }
 
-export type StageTipper = ReturnType<typeof createStageTipper>;

@@ -36,7 +36,7 @@ export type SemanticVibe = (typeof SEMANTIC_VIBES)[number];
 
 /* Same direction text the streamer rail uses for its presets — ported so
    a vibe means the same thing on both rails. */
-export const SEMANTIC_VIBE_DIRECTION: Record<SemanticVibe, string> = {
+const SEMANTIC_VIBE_DIRECTION: Record<SemanticVibe, string> = {
   funny:
     "the funniest moments — jokes that land, fails, unexpected chaos, genuine laugh-out-loud reactions",
   hype:
@@ -48,7 +48,7 @@ export const SEMANTIC_VIBE_DIRECTION: Record<SemanticVibe, string> = {
 const DEFAULT_DIRECTION =
   "the most clip-worthy moments — strong hooks in the first seconds, punchlines, surprising claims, emotional peaks, quotable lines, and clear payoffs a viewer would share";
 
-export type SemanticModelCall = (
+type SemanticModelCall = (
   messages: Array<{ role: string; content: string }>,
 ) => Promise<string>;
 

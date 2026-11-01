@@ -69,7 +69,7 @@ const masteringSchema = z.object({
   sourceSongId: z.string().max(64).optional(),
 });
 
-export type MasteringJobStatus = "queued" | "processing" | "done" | "failed";
+type MasteringJobStatus = "queued" | "processing" | "done" | "failed";
 
 export interface MasteringJob {
   id: string;
@@ -99,7 +99,7 @@ export interface MasteringJob {
 const jobs = new Map<string, MasteringJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
-export function getMasteringJob(id: string): MasteringJob | undefined {
+function getMasteringJob(id: string): MasteringJob | undefined {
   return jobs.get(id);
 }
 

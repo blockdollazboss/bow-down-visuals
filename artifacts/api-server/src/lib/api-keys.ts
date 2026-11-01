@@ -28,12 +28,12 @@ export const API_KEY_SCOPES = [
 
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
-export const API_KEY_PREFIX = "bdv_live_";
+const API_KEY_PREFIX = "bdv_live_";
 
 /** Non-secret display fragment length (prefix + first random chars). */
 const DISPLAY_PREFIX_LEN = API_KEY_PREFIX.length + 4;
 
-export function isApiKeyScope(value: string): value is ApiKeyScope {
+function isApiKeyScope(value: string): value is ApiKeyScope {
   return (API_KEY_SCOPES as readonly string[]).includes(value);
 }
 
@@ -63,7 +63,7 @@ export function isApiKeyFormat(value: string): boolean {
   return value.startsWith(API_KEY_PREFIX) && value.length >= API_KEY_PREFIX.length + 32;
 }
 
-export interface GeneratedApiKey {
+interface GeneratedApiKey {
   /** Shown to the creator exactly once. Never persisted anywhere. */
   plaintext: string;
   keyPrefix: string;

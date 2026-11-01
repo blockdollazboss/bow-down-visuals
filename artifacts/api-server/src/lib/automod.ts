@@ -2,13 +2,13 @@
  *  a message + the creator's configured rules → allow or flag with the
  *  exact rule that fired. No silent shadow actions: every flag carries
  *  a human-readable reason the affected chatter can see. */
-export interface AutomodRules {
+interface AutomodRules {
   blockLinks: boolean;
   blockedWords: string[];
   capsPercent: number | null;
   capsMinLength: number;
 }
-export interface AutomodVerdict { action: "allow" | "flag"; rule: string | null; reason: string | null }
+interface AutomodVerdict { action: "allow" | "flag"; rule: string | null; reason: string | null }
 
 const LINK_RE = /(https?:\/\/|www\.)\S+/i;
 

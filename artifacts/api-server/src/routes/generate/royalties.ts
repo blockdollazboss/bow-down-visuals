@@ -68,7 +68,7 @@ export function platformLabel(p: string): string {
   return (ROYALTY_PLATFORM_LABELS as Record<string, string>)[p] ?? p;
 }
 
-export const INSIGHTS_SYSTEM_PROMPT =
+const INSIGHTS_SYSTEM_PROMPT =
   `You are a music-revenue analyst for independent creators. Given a summary of ` +
   `their streaming royalty data (totals, per-song earnings, per-platform earnings, ` +
   `monthly trend), write 3-5 short, specific, actionable insights. Name the actual ` +
@@ -215,7 +215,7 @@ export function fromCents(cents: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
-export interface RoyaltySummary {
+interface RoyaltySummary {
   totalCents: number;
   totalStreams: number;
   entryCount: number;

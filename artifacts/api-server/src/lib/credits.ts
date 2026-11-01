@@ -59,7 +59,7 @@ export interface TemporaryCreditGrant {
  * This is a DISPLAY/read model only — it never changes charge or spend
  * behaviour; deductions still draw the bonus pool first.
  */
-export interface CreditBalanceComposition {
+interface CreditBalanceComposition {
   /** Permanent + live temporary — identical to spendableBalance(). */
   total: number;
   permanentCredits: number;
@@ -265,7 +265,7 @@ export interface CreditPoolSplit {
   bonusExpiresAt: string | null;
 }
 
-export interface DeductCreditsResult {
+interface DeductCreditsResult {
   /** Spendable balance after the deduction (credits + remaining live bonus). */
   balance: number;
   split: CreditPoolSplit;
@@ -421,12 +421,12 @@ export async function restoreCreditsSplit(
   return { restoredToBonus: fromBonus };
 }
 
-export interface ChargeLedgerRecord {
+interface ChargeLedgerRecord {
   action: string;
   projectId?: string | null;
 }
 
-export interface ChargeCreditsOpts {
+interface ChargeCreditsOpts {
   rollbackOnLedgerFailure?: boolean;
   /**
    * Idempotency key for this charge. If a credit_usage row already exists
@@ -819,7 +819,7 @@ async function findRefundChargeSplit(
   }
 }
 
-export interface RefundCreditsOpts {
+interface RefundCreditsOpts {
   /**
    * The pool split of the charge being refunded, when the caller holds
    * it durably (the export rail records it on the job row). Wins over

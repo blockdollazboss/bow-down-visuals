@@ -36,12 +36,9 @@ export function getWaveSpeedApiKey(): string | null {
   return key && key.length > 0 ? key : null;
 }
 
-export function isWaveSpeedConfigured(): boolean {
-  return getWaveSpeedApiKey() !== null;
-}
 
 /** WaveSpeed API base URL (overridable via WAVESPEED_BASE_URL for staging/tests). */
-export function getWaveSpeedBase(): string {
+function getWaveSpeedBase(): string {
   return process.env["WAVESPEED_BASE_URL"] ?? "https://api.wavespeed.ai/api/v3";
 }
 
@@ -50,7 +47,7 @@ export function getLatentSyncModel(): string {
   return process.env["LIP_SYNC_LATENTSYNC_MODEL"] || "bytedance/latentsync";
 }
 
-export interface WaveSpeedJob {
+interface WaveSpeedJob {
   /** Raw provider status: created | processing | completed | failed | cancelled | timeout | deleted. */
   status: string;
   outputUrl?: string;
@@ -68,7 +65,7 @@ export class WaveSpeedError extends Error {
 }
 
 /** How a WaveSpeed submit failure should be treated by the background poller. */
-export type WaveSpeedSubmitErrorKind =
+type WaveSpeedSubmitErrorKind =
   /** Provider answered 429 / 5xx: no task was issued; wait with backoff and resubmit later. */
   | "transient"
   /** No response at all: the submit may or may not have created a billed task — NEVER resubmit blind. */

@@ -55,7 +55,7 @@ async function collectSalesAndSplits(userId: string): Promise<Record<string, unk
   }
 }
 
-export async function runVaultJob(job: VaultJob): Promise<void> {
+async function runVaultJob(job: VaultJob): Promise<void> {
   const claimed = await claimVaultJobForRun(job.id);
   if (!claimed) return; // another worker (or a terminal state) owns it
   const userId = claimed.userId;

@@ -36,13 +36,13 @@ const router = Router();
 
 /* ── plan-numbers math (pure — the endpoint tests drive this directly) ── */
 
-export interface LedgerEntryLike {
+interface LedgerEntryLike {
   entry_type: string;
   amount_cents: number;
   entry_date: string; // YYYY-MM-DD
 }
 
-export interface PlanNumbersInput {
+interface PlanNumbersInput {
   entries: LedgerEntryLike[];
   earningsCents: number;
   tipsVb: number;
@@ -51,7 +51,7 @@ export interface PlanNumbersInput {
   now: Date;
 }
 
-export interface PlanNumbers {
+interface PlanNumbers {
   asOf: string;
   currentMonth: { key: string; incomeCents: number; expenseCents: number; netCents: number };
   /** Averages over the most recent COMPLETE months that have ledger

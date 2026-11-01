@@ -39,7 +39,7 @@ export const INTENSITY_DIRECTION: Record<CameraIntensity, string> = {
 
 export const MAX_STACK = 3;
 
-export type CameraCategoryId =
+type CameraCategoryId =
   | "dolly"
   | "orbit"
   | "crane"
@@ -64,7 +64,7 @@ export const CAMERA_CATEGORIES: { id: CameraCategoryId; label: string }[] = [
   { id: "special", label: "Special" },
 ];
 
-export interface CameraPreset {
+interface CameraPreset {
   id: string;
   name: string;
   category: CameraCategoryId;
@@ -334,7 +334,7 @@ export const CAMERA_PRESETS: CameraPreset[] = [
 
 /** The original Wave 9D five — kept as a named set for legacy checks. */
 export const LEGACY_MOVE_IDS = ["dolly-in", "orbit", "crane-up", "handheld", "static-wide"] as const;
-export type LegacyMoveId = (typeof LEGACY_MOVE_IDS)[number];
+type LegacyMoveId = (typeof LEGACY_MOVE_IDS)[number];
 
 const PRESET_BY_ID = new Map(CAMERA_PRESETS.map((p) => [p.id, p]));
 
@@ -342,9 +342,6 @@ export function getCameraPreset(id: string): CameraPreset | undefined {
   return PRESET_BY_ID.get(id);
 }
 
-export function isLegacyMove(id: string): id is LegacyMoveId {
-  return (LEGACY_MOVE_IDS as readonly string[]).includes(id);
-}
 
 /* ─── Conflict rules ────────────────────────────────────────────────────────
    Explicit opposite/rig pairs. `why` is written for the creator and is
@@ -425,7 +422,7 @@ export function conflictsWith(id: string): string[] {
 
 /* ─── Stack resolution / composition ─────────────────────────────────────── */
 
-export interface CameraStackEntryInput {
+interface CameraStackEntryInput {
   preset: string;
   intensity?: CameraIntensity | null;
 }
@@ -436,7 +433,7 @@ export interface ResolvedCameraEntry {
   intensity: CameraIntensity | null;
 }
 
-export type StackResolution =
+type StackResolution =
   | { ok: true; entries: ResolvedCameraEntry[] }
   | { ok: false; error: string };
 

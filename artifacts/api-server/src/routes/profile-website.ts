@@ -89,7 +89,7 @@ const NO_PROFILE = {
 
 /* ═══ #2 — Block layout model ═══════════════════════════════════════════ */
 
-export interface LayoutResponseDto {
+interface LayoutResponseDto {
   layout: ProfileBlockDto[];
   isDefault: boolean;
   blockTypes: typeof PROFILE_BLOCK_TYPES;
@@ -163,7 +163,7 @@ router.get("/creator-profiles/:slug/layout", publicApiLimiter, async (req, res) 
 
 /* ═══ #3 — Theme settings data ══════════════════════════════════════════ */
 
-export interface ThemeSettingsDto {
+interface ThemeSettingsDto {
   colorway: string | null;
   headingFont: string | null;
   bodyFont: string | null;
@@ -804,7 +804,7 @@ router.get("/creator-profiles/:slug/party-tables", publicApiLimiter, async (req,
 
 /* ═══ #5 — Spotlight pin ════════════════════════════════════════════════ */
 
-export interface SpotlightPinDto {
+interface SpotlightPinDto {
   kind: "track" | "video";
   itemId: string;
   title: string;
@@ -819,7 +819,7 @@ export interface SpotlightPinDto {
 /** Resolve a profile's pin to its content. A pin whose content was
     unpublished or deleted resolves to null (the section hides) — the
     stored pin survives, so re-publishing restores it. */
-export async function loadSpotlightPin(profile: ProfileRow): Promise<SpotlightPinDto | null> {
+async function loadSpotlightPin(profile: ProfileRow): Promise<SpotlightPinDto | null> {
   if (!profile.pinnedKind || !profile.pinnedItemId) return null;
   if (profile.pinnedKind === "track") {
     const [t] = await db.select().from(profileTracksTable)
@@ -945,7 +945,7 @@ router.put("/creator-profiles/me/spotlight", requireAuth, publicApiLimiter, asyn
 
 /* ═══ #6 — Fan collections ══════════════════════════════════════════════ */
 
-export interface CollectionItemDto {
+interface CollectionItemDto {
   kind: "track" | "video" | "product";
   itemId: string;
   title: string;
@@ -957,7 +957,7 @@ export interface CollectionItemDto {
   purchasedAt: Date;
 }
 
-export interface CollectionDto {
+interface CollectionDto {
   fan: { slug: string; displayName: string; avatarUrl: string | null; profileUrl: string };
   visibility: "public" | "private";
   items: CollectionItemDto[];
@@ -967,7 +967,7 @@ export interface CollectionDto {
     store rail) + completed store_orders (products via the storefront
     rail), newest first. Titles/artwork resolve from the catalog rows;
     a deleted catalog item falls back to the order's stored title. */
-export async function buildCollection(fanProfile: ProfileRow): Promise<CollectionItemDto[]> {
+async function buildCollection(fanProfile: ProfileRow): Promise<CollectionItemDto[]> {
   const [sales, orders] = await Promise.all([
     db.select().from(digitalSalesTable)
       .where(eq(digitalSalesTable.buyerUserId, fanProfile.userId))

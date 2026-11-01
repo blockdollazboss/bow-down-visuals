@@ -43,7 +43,6 @@ type SqlRunner = Pick<typeof db, "execute">;
 
 /* ═══════════════ Migration SQL (single source; see MIGRATION-NEEDED) ═══ */
 
-export const SERVICE_BOOKINGS_EXTENSION_SQL = `CREATE EXTENSION IF NOT EXISTS btree_gist;`;
 
 /** Table DDL WITHOUT the extension + exclusion clause — this exact text
  *  is what the pg-mem harness applies (pg-mem 3.0.14 cannot parse
@@ -168,7 +167,7 @@ export function __resetServiceBookingsProbe(): void {
 
 /* ═══════════════════════ Write path ══════════════════════════════════ */
 
-export interface ServiceBookingWrite {
+interface ServiceBookingWrite {
   orderId: string;
   productId: string;
   profileId: string;
@@ -289,7 +288,7 @@ export async function cancelServiceBooking(run: SqlRunner, orderId: string): Pro
 
 /* ═══════════════════════ Read / reconciliation ═══════════════════════ */
 
-export interface ServiceBookingRange {
+interface ServiceBookingRange {
   orderId: string;
   startUtc: string;
   endUtc: string;

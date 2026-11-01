@@ -63,7 +63,7 @@ export const CHAT_SPEAK_CREDITS =
 export const MAX_SPEAK_TEXT_CHARS = 2_000;
 
 /** Thy Cheat Code's ElevenLabs voice id — unset = still being cast. */
-export function kingVoiceId(): string | undefined {
+function kingVoiceId(): string | undefined {
   return process.env["THY_CHEAT_CODE_VOICE_ID"] || undefined;
 }
 
@@ -72,7 +72,7 @@ function elevenKey(): string | undefined {
 }
 
 /** Readiness = the voice is cast AND the voice service is configured. */
-export function chatSpeakReady(): boolean {
+function chatSpeakReady(): boolean {
   return Boolean(kingVoiceId() && elevenKey());
 }
 

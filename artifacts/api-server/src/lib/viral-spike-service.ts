@@ -47,11 +47,11 @@ import {
 
 /* ── Wire shapes ─────────────────────────────────────────────────────── */
 
-export interface ViralSpikePrefsWire {
+interface ViralSpikePrefsWire {
   enabled: boolean;
 }
 
-export const DEFAULT_VIRAL_SPIKE_PREFS: ViralSpikePrefsWire = { enabled: true };
+const DEFAULT_VIRAL_SPIKE_PREFS: ViralSpikePrefsWire = { enabled: true };
 
 export interface ViralSpikeContentRow extends SpikeContentRef {
   /** The content's real cumulative view counter, read just now. */
@@ -68,7 +68,7 @@ export interface StoredSpikeAlert {
   detectedAtMs: number;
 }
 
-export type ViralSpikeCheckResult =
+type ViralSpikeCheckResult =
   | { status: "disabled"; sampled: 0; kits: ViralSpikeKit[]; measuring: 0 }
   | { status: "ok"; sampled: number; kits: ViralSpikeKit[]; measuring: number };
 
@@ -315,7 +315,7 @@ export function kitFromStoredAlert(alert: StoredSpikeAlert): ViralSpikeKit | nul
 
 /* ── The check: sample → detect → (maybe) fire ───────────────────────── */
 
-export interface ViralSpikeCheckOptions {
+interface ViralSpikeCheckOptions {
   nowMs?: number;
   config?: SpikeConfig;
 }
@@ -400,7 +400,7 @@ const SWEEP_STARTUP_DELAY_MS =
 const SWEEP_USER_LIMIT =
   Number(process.env["VIRAL_SPIKE_SWEEP_USER_LIMIT"]) || 200;
 
-export interface ViralSpikeSweepResult {
+interface ViralSpikeSweepResult {
   users: number;
   kitsVisible: number;
   skippedDisabled: number;

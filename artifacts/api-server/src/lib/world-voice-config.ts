@@ -53,7 +53,7 @@
 
 import { createHmac } from "crypto";
 
-export interface WorldVoiceConfigDto {
+interface WorldVoiceConfigDto {
   /** TURN relay servers for the mesh; empty until the owner stands
    *  a relay up and sets the env above. STUN is the client's own
    *  built-in default and is deliberately not served from here. */
@@ -67,7 +67,7 @@ type EnvLike = Record<string, string | undefined>;
  *  worthless within the hour. */
 export const TURN_CREDENTIAL_TTL_SECONDS = 3600;
 
-export interface WorldVoiceConfigOptions {
+interface WorldVoiceConfigOptions {
   /** The signed-in member the credentials are minted for (the route
    *  passes the session's user id). Rides inside the signed
    *  username so a relay log can attribute usage; never trusted by

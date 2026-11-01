@@ -4,10 +4,9 @@
  */
 
 export type ClipModel = "gen4.5" | "seedance2_5" | "veo3_1";
-export type ClipResolution = "720p" | "1080p";
 /** The Seedance 2.5 ratios this route ever requests (incl. 480p drafts and
  *  the feed-format ratios: native square + nearest-3:4 for 4:5 delivery). */
-export type SeedanceRatio =
+type SeedanceRatio =
   | "1280:720" | "720:1280" | "1920:1080" | "1080:1920" | "854:480" | "480:854"
   | "640:640" | "960:960" | "1440:1440"
   | "560:752" | "834:1112" | "1248:1664";
@@ -31,7 +30,6 @@ export const SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT = 600;
 export const SEEDANCE_DRAFT_CREDITS_PER_SEC_DEFAULT = 200;
 /** Legacy flat fallback (pre-resolution-aware pricing). Kept exported so old
     imports keep compiling; do not use for new code. */
-export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 150;
 export const SEEDANCE_MIN_DURATION_SEC = 3;
 export const SEEDANCE_MAX_DURATION_SEC = 30;
 
@@ -107,14 +105,8 @@ export function modelSupportsEndFrame(model: ClipModel): boolean {
    silent crop, never labelled native. Format NEVER changes the price:
    credit cost is computed exactly as before for every ratio. */
 export type ClipFormat = "16:9" | "9:16" | "1:1" | "4:5";
-export type FormatDelivery = "native" | "reframe";
+type FormatDelivery = "native" | "reframe";
 
-export const CLIP_FORMATS: { format: ClipFormat; label: string; blurb: string }[] = [
-  { format: "16:9", label: "Wide", blurb: "YouTube, TV, widescreen players" },
-  { format: "9:16", label: "Vertical", blurb: "TikTok, Reels, Shorts" },
-  { format: "1:1", label: "Square", blurb: "Instagram / Facebook feed posts" },
-  { format: "4:5", label: "Feed portrait", blurb: "Instagram / Facebook portrait feed" },
-];
 
 /** Client-facing pixel ratio for a format (720p-tier naming, as before). */
 export const FORMAT_TO_RATIO: Record<ClipFormat, string> = {
@@ -134,7 +126,7 @@ export function formatFromRatio(ratio?: string | null): ClipFormat {
   }
 }
 
-export interface FormatSupport {
+interface FormatSupport {
   /** Exact provider ratio when the model emits the format natively, else null. */
   nativeRatio: string | null;
 }
@@ -159,7 +151,7 @@ export function formatSupport(
   return { nativeRatio: null }; // veo3_1
 }
 
-export interface FormatResolution {
+interface FormatResolution {
   format: ClipFormat;
   delivery: FormatDelivery;
   /** Ratio actually sent to the provider (Runway pixel ratio, or Veo aspect). */
@@ -221,7 +213,7 @@ export function resolveFormatDelivery(opts: {
   };
 }
 
-export interface ClipPlan {
+interface ClipPlan {
   model: ClipModel;
   useSeedance: boolean;
   /** True for the Google Veo 3.1 path. */

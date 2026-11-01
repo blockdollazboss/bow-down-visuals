@@ -56,7 +56,7 @@ export function buildPerformanceEvent(input: {
 }
 
 /** Fire one booking tell. Best-effort: never throws into a money path. */
-export async function tellBookingParty(input: {
+async function tellBookingParty(input: {
   userId: string;
   kind: string;
   title: string;
@@ -219,7 +219,7 @@ function parseTerms(raw: PerformanceBookingTerms | string): PerformanceBookingTe
   return raw;
 }
 
-export function toBookingDto(r: BookingRow, viewerUserId: string | null): PerformanceBookingDto {
+function toBookingDto(r: BookingRow, viewerUserId: string | null): PerformanceBookingDto {
   return {
     id: r.id,
     profileId: r.profile_id,

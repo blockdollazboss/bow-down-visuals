@@ -115,7 +115,7 @@ const generateSchema = z.object({
   speed: z.number().min(0.7).max(1.2).default(1.0),
 });
 
-export interface TtsRequestBody {
+interface TtsRequestBody {
   text: string;
   model_id: string;
   voice_settings: {

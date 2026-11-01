@@ -39,9 +39,9 @@ import { signTurnCredentials } from "./world-voice-config";
    token verify) refuses them before this predicate is even reached.
    A self-call is never a call. */
 
-export type ConversationCallStatus = "inbox" | "request" | "blocked" | string;
+type ConversationCallStatus = "inbox" | "request" | "blocked" | string;
 
-export interface CallGateResult {
+interface CallGateResult {
   allowed: boolean;
   /** Machine code for the client to render honestly; null when allowed. */
   code: "blocked" | "not_accepted" | "self_call" | "not_participant" | null;
@@ -97,7 +97,7 @@ export const CALL_STATUSES = [
 ] as const;
 export type CallStatus = (typeof CALL_STATUSES)[number];
 
-export const TERMINAL_CALL_STATUSES: readonly CallStatus[] = [
+const TERMINAL_CALL_STATUSES: readonly CallStatus[] = [
   "declined", "missed", "cancelled", "busy", "blocked", "failed", "ended",
 ];
 
@@ -120,7 +120,7 @@ export type CallAction =
   | "accept" | "decline" | "cancel" | "hangup"
   | "timeout" | "block" | "busy" | "fail" | "disconnect";
 
-export interface CallTransition {
+interface CallTransition {
   status: CallStatus;
   endReason: string;
 }
@@ -269,9 +269,9 @@ export function callHistoryLabel(entry: CallHistoryEntry, viewerUserId: string):
 
 export const MAX_SIGNAL_FRAME_BYTES = 32 * 1024;
 
-export type SignalKind = "offer" | "answer" | "ice";
+type SignalKind = "offer" | "answer" | "ice";
 
-export type CallClientFrame =
+type CallClientFrame =
   | { type: "call.signal"; callId: string; data: { kind: SignalKind; sdp?: string; candidate?: unknown } }
   | { type: "call.ping" };
 
@@ -340,13 +340,13 @@ export function callPeerOf(call: { callerUserId: string; calleeUserId: string },
    serves NO relay, and the client falls back to STUN-only with
    honest copy rather than a silently broken TURN entry. */
 
-export interface VideoCallIceConfig {
+interface VideoCallIceConfig {
   iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }>;
   /** True when a TURN relay made it into the config. */
   relayConfigured: boolean;
 }
 
-export const DEFAULT_STUN_URLS = ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
+const DEFAULT_STUN_URLS = ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"];
 
 type EnvLike = Record<string, string | undefined>;
 

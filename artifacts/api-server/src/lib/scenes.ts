@@ -39,7 +39,7 @@ export function slugToCityKey(slug: string): string {
   return slug.trim().toLowerCase().replace(/-+/g, " ").replace(/\s+/g, " ");
 }
 
-export interface SceneDirectoryEntry {
+interface SceneDirectoryEntry {
   slug: string;
   name: string;
   creator_count: number;

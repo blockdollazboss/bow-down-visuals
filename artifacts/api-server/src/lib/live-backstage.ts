@@ -52,7 +52,7 @@ export function guestTokensMatch(a: string, b: string): boolean {
 
 export type BackstageGuestState = "backstage" | "on_stage";
 
-export interface BackstageIdentity {
+interface BackstageIdentity {
   kind: "host" | "guest";
   userId: string | null;
   guestSessionId: string | null;
@@ -66,7 +66,7 @@ interface Peer extends BackstageIdentity {
   media: boolean;
 }
 
-export interface BackstagePeerDto {
+interface BackstagePeerDto {
   peerId: string;
   kind: "host" | "guest";
   guest: boolean;
@@ -260,7 +260,7 @@ export class BackstageRoom {
 }
 
 /** Live backstage rooms by stream id (process-local presence). */
-export const backstageRooms = new Map<string, BackstageRoom>();
+const backstageRooms = new Map<string, BackstageRoom>();
 export function getOrCreateBackstageRoom(hub: RoomHub, streamId: string, hostUserId: string): BackstageRoom {
   let r = backstageRooms.get(streamId);
   if (!r) {

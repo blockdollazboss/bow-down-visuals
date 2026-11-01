@@ -39,7 +39,7 @@ export const objectStorageClient = new Storage({
   projectId: "",
 });
 
-export class ObjectNotFoundError extends Error {
+class ObjectNotFoundError extends Error {
   constructor() {
     super("Object not found");
     this.name = "ObjectNotFoundError";
@@ -47,174 +47,6 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
-export class ObjectStorageService {
-  constructor() {}
-
-  getPublicObjectSearchPaths(): Array<string> {
-    const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
-    const paths = Array.from(
-      new Set(
-        pathsStr
-          .split(",")
-          .map((path) => path.trim())
-          .filter((path) => path.length > 0)
-      )
-    );
-    if (paths.length === 0) {
-      throw new Error(
-        "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
-      );
-    }
-    return paths;
-  }
-
-  getPrivateObjectDir(): string {
-    const dir = process.env.PRIVATE_OBJECT_DIR || "";
-    if (!dir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
-      );
-    }
-    return dir;
-  }
-
-  async searchPublicObject(filePath: string): Promise<File | null> {
-    for (const searchPath of this.getPublicObjectSearchPaths()) {
-      const fullPath = `${searchPath}/${filePath}`;
-
-      const { bucketName, objectName } = parseObjectPath(fullPath);
-      const bucket = objectStorageClient.bucket(bucketName);
-      const file = bucket.file(objectName);
-
-      const [exists] = await file.exists();
-      if (exists) {
-        return file;
-      }
-    }
-
-    return null;
-  }
-
-  async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
-    const [metadata] = await file.getMetadata();
-    const aclPolicy = await getObjectAclPolicy(file);
-    const isPublic = aclPolicy?.visibility === "public";
-
-    const nodeStream = file.createReadStream();
-    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
-
-    const headers: Record<string, string> = {
-      "Content-Type": (metadata.contentType as string) || "application/octet-stream",
-      "Cache-Control": `${isPublic ? "public" : "private"}, max-age=${cacheTtlSec}`,
-    };
-    if (metadata.size) {
-      headers["Content-Length"] = String(metadata.size);
-    }
-
-    return new Response(webStream, { headers });
-  }
-
-  async getObjectEntityUploadURL(): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
-      );
-    }
-
-    const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
-
-    const { bucketName, objectName } = parseObjectPath(fullPath);
-
-    return signObjectURL({
-      bucketName,
-      objectName,
-      method: "PUT",
-      ttlSec: 900,
-    });
-  }
-
-  async getObjectEntityFile(objectPath: string): Promise<File> {
-    if (!objectPath.startsWith("/objects/")) {
-      throw new ObjectNotFoundError();
-    }
-
-    const parts = objectPath.slice(1).split("/");
-    if (parts.length < 2) {
-      throw new ObjectNotFoundError();
-    }
-
-    const entityId = parts.slice(1).join("/");
-    let entityDir = this.getPrivateObjectDir();
-    if (!entityDir.endsWith("/")) {
-      entityDir = `${entityDir}/`;
-    }
-    const objectEntityPath = `${entityDir}${entityId}`;
-    const { bucketName, objectName } = parseObjectPath(objectEntityPath);
-    const bucket = objectStorageClient.bucket(bucketName);
-    const objectFile = bucket.file(objectName);
-    const [exists] = await objectFile.exists();
-    if (!exists) {
-      throw new ObjectNotFoundError();
-    }
-    return objectFile;
-  }
-
-  normalizeObjectEntityPath(rawPath: string): string {
-    if (!rawPath.startsWith("https://storage.googleapis.com/")) {
-      return rawPath;
-    }
-
-    const url = new URL(rawPath);
-    const rawObjectPath = url.pathname;
-
-    let objectEntityDir = this.getPrivateObjectDir();
-    if (!objectEntityDir.endsWith("/")) {
-      objectEntityDir = `${objectEntityDir}/`;
-    }
-
-    if (!rawObjectPath.startsWith(objectEntityDir)) {
-      return rawObjectPath;
-    }
-
-    const entityId = rawObjectPath.slice(objectEntityDir.length);
-    return `/objects/${entityId}`;
-  }
-
-  async trySetObjectEntityAclPolicy(
-    rawPath: string,
-    aclPolicy: ObjectAclPolicy
-  ): Promise<string> {
-    const normalizedPath = this.normalizeObjectEntityPath(rawPath);
-    if (!normalizedPath.startsWith("/")) {
-      return normalizedPath;
-    }
-
-    const objectFile = await this.getObjectEntityFile(normalizedPath);
-    await setObjectAclPolicy(objectFile, aclPolicy);
-    return normalizedPath;
-  }
-
-  async canAccessObjectEntity({
-    userId,
-    objectFile,
-    requestedPermission,
-  }: {
-    userId?: string;
-    objectFile: File;
-    requestedPermission?: ObjectPermission;
-  }): Promise<boolean> {
-    return canAccessObject({
-      userId,
-      objectFile,
-      requestedPermission: requestedPermission ?? ObjectPermission.READ,
-    });
-  }
-}
 
 function parseObjectPath(path: string): {
   bucketName: string;
@@ -247,7 +79,7 @@ const GCS_SIGNED_URL_PREFIX = "https://storage.googleapis.com/";
  * with a fresh 7-day expiry on every read. Non-GCS URLs (or URLs that fail to
  * parse/sign) are returned unchanged so callers never see a hard failure.
  */
-export async function refreshSignedGcsUrl(url: string): Promise<string> {
+async function refreshSignedGcsUrl(url: string): Promise<string> {
   if (typeof url !== "string" || !url.startsWith(GCS_SIGNED_URL_PREFIX)) {
     return url;
   }
@@ -372,13 +204,13 @@ async function signObjectURL({
 export const SUPABASE_CLIPS_BUCKET = "generated-clips";
 
 /** Stable storage-ref URI scheme persisted in the DB for Supabase-hosted media. */
-export const SUPABASE_STORAGE_REF_PREFIX = `supabase://${SUPABASE_CLIPS_BUCKET}/`;
+const SUPABASE_STORAGE_REF_PREFIX = `supabase://${SUPABASE_CLIPS_BUCKET}/`;
 
 /** Stable storage-ref URI scheme persisted in the DB for R2-hosted media
  *  (Cloudflare R2 migration, 2026-10-09 — zero egress fees). New writes use
  *  `r2://<bucket>/<objectPath>`; old `supabase://` refs keep working via the
  *  dual-stack ref parser below. */
-export const R2_STORAGE_REF_PREFIX = "r2://";
+const R2_STORAGE_REF_PREFIX = "r2://";
 
 /** True when the value is one of our stable storage refs (either scheme). */
 export function isStorageRef(value: unknown): value is string {
@@ -389,7 +221,7 @@ export function isStorageRef(value: unknown): value is string {
 }
 
 /** Signed-URL TTL minted at read time (1 day). */
-export const SUPABASE_SIGNED_URL_TTL_SEC = 24 * 60 * 60;
+const SUPABASE_SIGNED_URL_TTL_SEC = 24 * 60 * 60;
 
 const LEGACY_GCS_URL_PREFIX = "https://storage.googleapis.com/";
 
@@ -761,7 +593,7 @@ const PUBLIC_STORAGE_BUCKETS: readonly string[] = [
   SHOP_PRODUCTS_BUCKET,
 ];
 
-export interface ParsedStorageRef {
+interface ParsedStorageRef {
   bucket: string;
   objectPath: string;
   /** True when the stored value arrived as a public-bucket URL
@@ -995,7 +827,7 @@ export async function downloadStorageObjectBuffer(
 }
 
 /** True when the string is a legacy Replit-owned GCS URL. */
-export function isLegacyGcsUrl(value: string): boolean {
+function isLegacyGcsUrl(value: string): boolean {
   return typeof value === "string" && value.startsWith(LEGACY_GCS_URL_PREFIX);
 }
 

@@ -8,7 +8,7 @@
 
 export type DuelCover = "a" | "b";
 
-export interface DuelCounts {
+interface DuelCounts {
   viewsA: number;
   viewsB: number;
   clicksA: number;
@@ -22,7 +22,7 @@ export function pickDuelCover(counts: Pick<DuelCounts, "viewsA" | "viewsB">): Du
   return counts.viewsA <= counts.viewsB ? "a" : "b";
 }
 
-export interface DuelOutcome {
+interface DuelOutcome {
   resolved: boolean;
   winner: DuelCover | null;
   totalViews: number;

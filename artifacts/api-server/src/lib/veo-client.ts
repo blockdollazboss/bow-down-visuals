@@ -18,7 +18,7 @@ function geminiKey(): string {
   return key;
 }
 
-export interface VeoSubmitOpts {
+interface VeoSubmitOpts {
   prompt: string;
   /** 16:9 or 9:16 — the only two Veo aspect ratios. */
   aspectRatio: "16:9" | "9:16";
@@ -75,7 +75,7 @@ export async function submitVeoVideo(opts: VeoSubmitOpts): Promise<string> {
   return json.name;
 }
 
-export interface VeoPollResult {
+interface VeoPollResult {
   done: boolean;
   /** Hosted MP4 URI (2-day retention) once done. */
   videoUri?: string;
@@ -112,14 +112,6 @@ export async function pollVeoOperation(operationName: string): Promise<VeoPollRe
 }
 
 /** Downloads a Veo-hosted MP4 (the Files API URI needs the API key). */
-export async function downloadVeoVideo(videoUri: string): Promise<Buffer> {
-  const sep = videoUri.includes("?") ? "&" : "?";
-  const res = await fetch(`${videoUri}${sep}key=${geminiKey()}`, {
-    signal: AbortSignal.timeout(300_000),
-  });
-  if (!res.ok) throw new Error(`Veo download failed (${res.status})`);
-  return Buffer.from(await res.arrayBuffer());
-}
 
 /**
  * Streaming variant of downloadVeoVideo — writes the MP4 straight to

@@ -35,10 +35,10 @@ import {
 import { baseUrlForEmail, emailShell, EMAIL_COLORS, escapeHtml } from "./email";
 import { logger } from "./logger";
 
-export type EngagementKind = "open" | "click" | "bounce" | "complaint";
-export type EngagementSource = "pixel" | "redirect" | "resend_webhook";
+type EngagementKind = "open" | "click" | "bounce" | "complaint";
+type EngagementSource = "pixel" | "redirect" | "resend_webhook";
 
-export interface EngagementInput {
+interface EngagementInput {
   deliveryId: string;
   campaignId: string;
   subscriberId: string;
@@ -126,7 +126,7 @@ export function newTrackingToken(): string {
   return randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 }
 
-export interface TrackedHtmlOpts {
+interface TrackedHtmlOpts {
   body: string;
   deliveryToken: string;
   /** Map of target URL → wrapped tracking URL for this delivery. */

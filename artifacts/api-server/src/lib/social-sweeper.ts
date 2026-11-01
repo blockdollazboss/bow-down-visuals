@@ -53,7 +53,7 @@ const SWEEP_STALE_MS = Number(process.env["SOCIAL_SWEEP_STALE_MS"]) || STALE_PRO
 const SWEEP_STARTUP_DELAY_MS =
   Number(process.env["SOCIAL_SWEEP_STARTUP_DELAY_MS"]) || 30 * 1000;
 
-export interface SweepDeps {
+interface SweepDeps {
   store?: AttemptStore;
   refundCredits?: (userId: string, amount: number) => Promise<void>;
   creditCost?: number;
@@ -61,7 +61,7 @@ export interface SweepDeps {
   now?: Date;
 }
 
-export interface SweepResult {
+interface SweepResult {
   claimed: number;
   refunded: number;
   refundFailures: number;

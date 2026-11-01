@@ -44,13 +44,13 @@ export const DUNNING_GRACE_DAYS = 7;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 
-export type DunningStepKey =
+type DunningStepKey =
   | "payment_failed_notice"
   | "payment_reminder"
   | "card_update_nudge"
   | "final_warning";
 
-export interface DunningStep {
+interface DunningStep {
   key: DunningStepKey;
   /** Hours after the failure when this step comes due. */
   offsetHours: number;
@@ -112,7 +112,7 @@ export const DUNNING_STEPS: readonly DunningStep[] = [
   },
 ] as const;
 
-export const DUNNING_STEP_COUNT = DUNNING_STEPS.length;
+const DUNNING_STEP_COUNT = DUNNING_STEPS.length;
 
 /* ── Member shape this module reads (a fan_members row slice) ──────── */
 
@@ -163,7 +163,7 @@ export function dunningDaysLeft(m: DunningMemberLike, now: Date = new Date()): n
 
 /* ── Sequence triggers ─────────────────────────────────────────────── */
 
-export interface DunningTrigger {
+interface DunningTrigger {
   /** Claim-ledger dedupe ref (unique per member + episode + step). */
   ref: string;
   email: string;
@@ -175,7 +175,7 @@ export interface DunningTrigger {
 }
 
 /** The dedupe-ref prefix for one member's one failure episode. */
-export function dunningEpisodeRef(memberId: string, since: Date): string {
+function dunningEpisodeRef(memberId: string, since: Date): string {
   return `member:${memberId}:past_due:${since.toISOString()}`;
 }
 
@@ -229,20 +229,20 @@ export function dunningTriggersForMember(
 
 /* ── Recovery state (the creator Recovery view's derivation) ───────── */
 
-export type DunningRecoveryState =
+type DunningRecoveryState =
   | "in_grace" /* past due, chase running, access not yet ended */
   | "recovered" /* was chased, the row is active again */
   | "access_ended" /* grace ran out (or the seat was ended) unpaid */
   | "ended_other"; /* canceled by fan/creator during or after a chase */
 
-export interface DunningSendLike {
+interface DunningSendLike {
   triggerRef: string;
   status: string; /* sent | failed | no_provider | skipped_unsubscribed | queued */
   sentAt?: Date | string | null;
   createdAt?: Date | string | null;
 }
 
-export interface DunningRecovery {
+interface DunningRecovery {
   state: DunningRecoveryState;
   pastDueSince: string | null;
   graceEndsAt: string | null;
