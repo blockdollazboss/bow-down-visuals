@@ -25,6 +25,7 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { isAdminEmail } from "../../lib/admin";
+import { searchTextCondition } from "../../lib/search-match";
 import { logger } from "../../lib/logger";
 import { isUniqueViolation, isUndefinedTable, pgErrorText } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -2021,9 +2022,15 @@ async function getOwnedShopFull(shopId: string, userId: string) {
 router.get("/storefronts", async (req, res) => {
   const q = (Array.isArray(req.query.q) ? req.query.q[0] : req.query.q ?? "").toString().trim().slice(0, 60);
   const limit = Math.min(Math.max(Number(req.query.limit) || 60, 1), 100);
-  const where = q
-    ? sql`WHERE (s.name ILIKE ${"%" + q + "%"} OR s.handle ILIKE ${"%" + q + "%"} OR COALESCE(s.tagline, '') ILIKE ${"%" + q + "%"})`
-    : sql``;
+  /* Token-AND search (lib/search-match): every meaningful word must
+     hit name, handle, tagline or description, accent-folded. The old
+     form matched the whole string as one phrase over three fields —
+     and left LIKE wildcards in the query live, so q="%" listed every
+     shop on the platform. */
+  const text = q
+    ? searchTextCondition([sql`s.name`, sql`s.handle`, sql`s.tagline`, sql`s.description`], q)
+    : undefined;
+  const where = text ? sql`WHERE ${text}` : sql``;
   const result = await db.execute(sql`
     SELECT s.id, s.name, s.handle, s.tagline, s.description,
            s.banner_color, s.accent_color, s.banner_image_url,
