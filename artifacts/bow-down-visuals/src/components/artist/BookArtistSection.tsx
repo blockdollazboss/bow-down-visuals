@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { CalendarPlus, ShieldCheck, Loader2, ScrollText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import type { CreatorProfile } from "@/lib/artist-profiles";
 import {
   createPerformanceBooking,
@@ -47,6 +48,10 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sandboxSessions, setSandboxSessions] = useState<Record<string, string>>({});
+  /* Embedded escrow funding per booking: the payment form mounts in
+     the booking card (owner law 2026-10-26: never leave the site);
+     the hosted page is only the fallback. */
+  const [fundSecrets, setFundSecrets] = useState<Record<string, string>>({});
   const isOwner = !!user && user.id === profile.user_id;
 
   const refresh = useCallback(async () => {
@@ -127,7 +132,14 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
         );
         setBookings((list) => (list ?? []).map((b) => (b.id === fresh.id ? fresh : b)));
       } else if (actionId === "fund") {
-        const r = await fundPerformanceBooking(getAccessToken, booking.id);
+        const r = await fundPerformanceBooking(
+          getAccessToken, booking.id, hasStripePublishableKey() ? "embedded" : undefined,
+        );
+        if (!r.sandbox && r.clientSecret) {
+          setFundSecrets((s) => ({ ...s, [booking.id]: r.clientSecret! }));
+          setNotice("Finish funding the escrow right here in this card — the booking locks in the moment the payment lands.");
+          return;
+        }
         if (!r.sandbox && r.checkoutUrl) {
           window.location.href = r.checkoutUrl;
           return;
@@ -337,6 +349,18 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
                     >
                       Confirm sandbox funding
                     </button>
+                  )}
+                  {fundSecrets[b.id] && (
+                    <div className="mt-3 space-y-2" data-testid="performance-booking-embedded-checkout">
+                      <EmbeddedSessionCheckout clientSecret={fundSecrets[b.id]!} />
+                      <button
+                        type="button"
+                        onClick={() => setFundSecrets((s) => { const next = { ...s }; delete next[b.id]; return next; })}
+                        className="text-xs opacity-60 hover:opacity-100"
+                      >
+                        Close — the escrow stays unfunded until a payment completes
+                      </button>
+                    </div>
                   )}
                 </div>
               </article>

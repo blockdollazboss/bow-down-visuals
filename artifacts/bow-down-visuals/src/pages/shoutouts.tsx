@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useTranslation } from "react-i18next";
 
 /* ─── Fan Shoutouts ─────────────────────────────────────────────────────────
@@ -111,6 +112,9 @@ export default function Shoutouts() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  /* Embedded checkout: a priced request's payment form mounts here
+     instead of sending the fan off-site. */
+  const [paySecret, setPaySecret] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -290,13 +294,25 @@ export default function Shoutouts() {
         return;
       }
       /* Priced requests go straight to checkout (0142): the fan pays
-         now and the request lands as accepted on return. If checkout
-         can't start (payments unconfigured), the request still stands
-         — the panel below explains the manual path. */
+         now and the request lands as accepted on return. Embedded
+         first (owner law 2026-10-26: never leave the site): when this
+         device can mount the payment form, the server answers a
+         clientSecret and the fan pays right here; the hosted page is
+         only the fallback. If checkout can't start (payments
+         unconfigured), the request still stands — the panel below
+         explains the manual path. */
       if (j.paymentsLive && j.request?.id && (j.request?.priceCents ?? 0) > 0) {
         try {
-          const co = await fetch(`/api/shoutouts/requests/${j.request.id}/checkout`, { method: "POST" });
+          const co = await fetch(`/api/shoutouts/requests/${j.request.id}/checkout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
+          });
           const coJson = await co.json().catch(() => null);
+          if (co.ok && typeof coJson?.clientSecret === "string" && coJson.clientSecret) {
+            setPaySecret(coJson.clientSecret as string);
+            return;
+          }
           if (co.ok && coJson?.checkoutUrl) {
             window.location.href = coJson.checkoutUrl as string;
             return;
@@ -525,6 +541,18 @@ export default function Shoutouts() {
                     <span className="inline-flex items-center gap-1 mt-3 text-sm text-[#E3C566] font-semibold">{t("shoutouts.requestButton")} <Send className="w-3.5 h-3.5" /></span>
                   </button>
                 ))}
+              </div>
+            ) : paySecret ? (
+              <div className="max-w-xl mx-auto rounded-2xl border border-[#C9A84C]/40 bg-[#14100a] p-6" data-testid="shoutouts-embedded-checkout">
+                <h2 className="text-xl font-bold mb-2">Your request is in — finish paying right here</h2>
+                <p className="text-white/50 text-sm mb-4">
+                  {selected.displayName} gets your shoutout request the moment this payment lands — it confirms on this page, no new tab, no leaving the site. If you close this form instead, the request stays saved as unpaid and the creator can still arrange it with you.
+                </p>
+                <EmbeddedSessionCheckout clientSecret={paySecret} />
+                <button onClick={() => { setPaySecret(null); setSelected(null); setFanName(""); setFanEmail(""); setMessage(""); }}
+                  className="mt-4 px-5 py-2 rounded-lg border border-white/15 text-sm hover:border-yellow-500/40">
+                  {t("shoutouts.requestAnother")}
+                </button>
               </div>
             ) : submitted ? (
               <div className="max-w-xl mx-auto text-center py-12 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-8">

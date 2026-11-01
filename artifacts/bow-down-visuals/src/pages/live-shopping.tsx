@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { buildAlertText } from "@/lib/live-shopping";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
@@ -415,24 +416,41 @@ export default function LiveShopping() {
 
   const pinned = products.find((p) => p.id === activeStream?.pinned_product_id) ?? null;
 
-  /* Native checkout (default buy path): start the on-platform checkout
-     and send the viewer to it. The sale only exists once the payment
-     verifies on return (see the session_id effect below). */
+  /* Native checkout (default buy path): start the on-platform checkout.
+     Embedded first (owner law 2026-10-26: never leave the site): when
+     this device can mount the payment form, the server answers a
+     clientSecret and the form renders right here; the hosted page is
+     only the fallback. Either way the sale only exists once the
+     payment verifies on return (see the session_id effect below). */
   const [buying, setBuying] = useState(false);
   const [buyMsg, setBuyMsg] = useState<string | null>(null);
+  const [buySecret, setBuySecret] = useState<string | null>(null);
   const buyPinned = async () => {
     if (!pinned) return;
     setBuying(true);
     setBuyMsg(null);
+    setBuySecret(null);
     try {
       const headers = await authHeaders();
       const res = await fetch("/api/live-shopping/checkout", {
         method: "POST",
         headers,
-        body: JSON.stringify({ product_id: pinned.id, stream_id: activeStream?.id, quantity: 1 }),
+        body: JSON.stringify({
+          product_id: pinned.id,
+          stream_id: activeStream?.id,
+          quantity: 1,
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Checkout failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout failed."));
+      if (typeof data.clientSecret === "string" && data.clientSecret) {
+        setBuySecret(data.clientSecret);
+        setBuyMsg("Finish paying right here — your purchase confirms the moment the payment lands.");
+        setBuying(false);
+        return;
+      }
+      if (!data.url) throw new Error(apiErrorMessage(data, "Checkout failed."));
       window.location.href = data.url as string;
     } catch (e) {
       setBuyMsg(plainErrorText(e, "Checkout failed."));
@@ -702,6 +720,14 @@ export default function LiveShopping() {
                           <p className="mt-3 text-xs text-white/40">
                             {t("liveShopping.obsHint")}
                           </p>
+                          {buySecret && (
+                            <div className="mt-3 space-y-2" data-testid="live-shopping-embedded-checkout">
+                              <EmbeddedSessionCheckout clientSecret={buySecret} />
+                              <button onClick={() => setBuySecret(null)} className="text-xs text-white/40 hover:text-white">
+                                Close — nothing is charged until you finish paying
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* controls */}

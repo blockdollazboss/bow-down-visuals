@@ -155,11 +155,26 @@ export async function respondToPerformanceBooking(
 export async function fundPerformanceBooking(
   getAccessToken: TokenGetter,
   bookingId: string,
-): Promise<{ sandbox: boolean; sessionId: string; checkoutUrl?: string; message?: string }> {
+  uiMode?: "embedded" | "hosted",
+): Promise<{
+  sandbox: boolean;
+  sessionId: string;
+  checkoutUrl?: string | null;
+  /* Embedded presentation (owner law 2026-10-26: never leave the
+     site): the server answers a clientSecret instead of a hosted
+     URL when the caller asks and the kill switch is on. */
+  clientSecret?: string;
+  uiMode?: string;
+  message?: string;
+}> {
   return apiJson(
     getAccessToken,
     `/api/performance-bookings/${bookingId}/fund`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(uiMode ? { uiMode } : {}),
+    },
   );
 }
 
