@@ -709,4 +709,4 @@ router.post(
 export default router;
 
 /* Named export for tests that need the zod schemas without the router. */
-export { aiBodySchema, platformStatsSchema };
+export { aiBodySchema };

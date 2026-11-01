@@ -369,5 +369,5 @@ router.post("/ugc-briefs/:id/close", requireAuth, publicApiLimiter, async (req, 
   }
 });
 
-export { BRIEF_STATUSES };
+
 export default router;

@@ -196,4 +196,3 @@ export function SoundPrefsSettings() {
   );
 }
 
-export { ALL_KEYS as SOUND_PREF_KEYS };

@@ -27,7 +27,7 @@ const router = Router();
    buy, in line with the other paid analysis routes. */
 const COMPETITOR_CREDITS = Number(process.env["COMPETITOR_CREDITS"]) || 200;
 /* Exported for tests. */
-export { COMPETITOR_CREDITS };
+
 
 /* Exported for tests. */
 const competitorSchema = z
