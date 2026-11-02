@@ -197,7 +197,6 @@ import {
 } from "@/lib/world/games-lobby";
 import type { StationPanelTarget } from "@/components/world/StationPanel";
 import ControllerMapPanel from "@/components/world/ControllerMapPanel";
-import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk, LiveScheduleDesk, LiveControllerDesk, LiveWatchDesk, LivePremiereDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
 import { fetchPublicCourt } from "@/lib/royal-court";
@@ -398,6 +397,35 @@ function StationPanelFallback({ isLight, label }: { isLight: boolean; label: str
         isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"
       }`}
       data-testid="world-station-panel-loading"
+      role="status"
+      aria-label={label}
+    >
+      <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {label}
+      </span>
+    </div>
+  );
+}
+
+/* The Screen panel's Go-Live desks load on FIRST OPEN too
+ * (world-perf round 2, stack1200): the seven Live desks render
+ * only inside that panel (screenPanelOpen), so their module —
+ * LiveDesk.tsx and its go-live rails — rides its own chunk
+ * behind this lazy door instead of the /world first-load graph.
+ * Same pattern as the station panel above; the desks, their
+ * order and their props are untouched (LiveDesksPanel passes
+ * down exactly what this page used to render inline). */
+const LiveDesksPanel = lazy(() => import("@/components/world/native/LiveDesksPanel"));
+
+/* What stands in the desks' place while their chunk lands: the
+ * desks' own frame (the same border-t strip the loaded block
+ * opens with) with a spinner — a first open on a slow line reads
+ * as "opening", never a dead tap or a blank hole. */
+function LiveDesksFallback({ isLight, label }: { isLight: boolean; label: string }) {
+  return (
+    <div
+      className={`mt-4 border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-[#d4af37]/20"}`}
+      data-testid="world-live-desks-loading"
       role="status"
       aria-label={label}
     >
@@ -4418,24 +4446,17 @@ export default function WorldPage() {
             </div>
           )}
 
-          {/* Live Wave I (stack-100 #85–#87): the Go Live studio,
-              its guests & backstage, and the guest door — in-world,
-              on the 2D studio's own rails. This panel is members-only
-              (!isGuest above), so palace guests never reach these
-              desks and gain no voice from them. */}
-          <div className={`mt-4 space-y-5 border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-[#d4af37]/20"}`} data-testid="world-live-desks">
-            <LiveStudioDesk isLight={isLight} onStreamChange={() => void loadStageTools()} />
-            <LiveBackstageDesk isLight={isLight} />
-            <LiveGuestJoinDesk isLight={isLight} />
-            {/* Live Wave II (stack-100 #88–#91): scheduling, the
-                Stream Controller deck, live-watch parity for the
-                stream on the big screen, and premiere scheduling —
-                same members-only panel, same real rails. */}
-            <LiveScheduleDesk isLight={isLight} />
-            <LiveControllerDesk isLight={isLight} />
-            <LiveWatchDesk isLight={isLight} screen={stageScreen ? { mode: stageScreen.mode, streamId: stageScreen.streamId } : null} />
-            <LivePremiereDesk isLight={isLight} />
-          </div>
+          {/* The Go-Live desks (Live Wave I + II) ride their own
+              chunk behind the LiveDesksPanel lazy door — they
+              render only inside this members-only panel, so they
+              load on first open, not with the room. */}
+          <Suspense fallback={<LiveDesksFallback isLight={isLight} label={t("common.loading")} />}>
+            <LiveDesksPanel
+              isLight={isLight}
+              screen={stageScreen ? { mode: stageScreen.mode, streamId: stageScreen.streamId } : null}
+              onStreamChange={() => void loadStageTools()}
+            />
+          </Suspense>
         </div>
       )}
 

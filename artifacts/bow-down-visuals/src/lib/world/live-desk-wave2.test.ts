@@ -37,6 +37,7 @@ import {
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const deskSrc = read("../../components/world/native/LiveDesk.tsx");
+const livePanelSrc = read("../../components/world/native/LiveDesksPanel.tsx");
 const worldSrc = read("../../pages/world.tsx");
 const reachApiSrc = read("../reach-api.ts");
 const controllerSrc = read("../stream-controller.ts");
@@ -223,10 +224,13 @@ describe("#91 premiere scheduling — SchedulePremiereForm's rails via reachApi"
 
 describe("law — wave II docks in the same members-only panel, free rails only", () => {
   it("all four desks mount inside world-live-desks (the !isGuest Screen panel)", () => {
-    expect(worldSrc).toContain("<LiveScheduleDesk");
-    expect(worldSrc).toContain("<LiveControllerDesk");
-    expect(worldSrc).toContain("<LiveWatchDesk");
-    expect(worldSrc).toContain("<LivePremiereDesk");
+    /* Desks render inside LiveDesksPanel (world-perf round 2 lazy
+       split) — mount pins read the wrapper; the gate and the
+       screen hand-off stay pinned on world.tsx. */
+    expect(livePanelSrc).toContain("<LiveScheduleDesk");
+    expect(livePanelSrc).toContain("<LiveControllerDesk");
+    expect(livePanelSrc).toContain("<LiveWatchDesk");
+    expect(livePanelSrc).toContain("<LivePremiereDesk");
     expect(worldSrc).toContain("screenPanelOpen && inHall && !isGuest");
     expect(worldSrc).toContain("streamId: stageScreen.streamId");
   });
