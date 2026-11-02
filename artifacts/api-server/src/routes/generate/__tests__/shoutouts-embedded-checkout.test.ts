@@ -239,7 +239,7 @@ describe("shoutout embedded checkout (sweep)", () => {
     expect(params.cancel_url).toBeUndefined();
   });
 
-  it("embedded and hosted create the identical session but for presentation (same key, amount, metadata)", async () => {
+  it("embedded and hosted create the identical session but for presentation (same amount + metadata; different idempotency key — stack1300)", async () => {
     const request = await createRequest();
     await call("POST", `/shoutouts/requests/${request.id}/checkout`, { uiMode: "embedded" });
     /* Same still-pending request, hosted shape: the durable intent
@@ -255,7 +255,10 @@ describe("shoutout embedded checkout (sweep)", () => {
     expect(emb!.params.metadata).toEqual({ type: "shoutout_request", requestId: request.id });
     expect(host!.params.success_url).toContain("/shoutouts?request=");
     expect(emb!.options.idempotencyKey).toBeTruthy();
-    expect(emb!.options.idempotencyKey).toBe(host!.options.idempotencyKey);
+    /* Different presentations = different Stripe requests; the key
+       fingerprints the exact parameters, so they must NOT share one
+       (a shared key is what Stripe refused on staging). */
+    expect(emb!.options.idempotencyKey).not.toBe(host!.options.idempotencyKey);
   });
 
   it("hosted stays the default and the explicit shape", async () => {

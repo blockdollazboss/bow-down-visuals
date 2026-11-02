@@ -211,7 +211,7 @@ describe("sponsor escrow fund — embedded checkout (sweep)", () => {
     expect(row.escrow_status).toBe("funding");
   });
 
-  it("embedded and hosted create the identical session but for presentation (same key, amount, metadata)", async () => {
+  it("embedded and hosted create the identical session but for presentation (same amount + metadata; different idempotency key — stack1300)", async () => {
     const dealId = await seedFundableDeal();
     await req("POST", `/sponsors/deals/${dealId}/fund`, { amountCents: 50000, uiMode: "embedded" });
     /* Reset to unfunded so the same durable funding act can be
@@ -230,7 +230,10 @@ describe("sponsor escrow fund — embedded checkout (sweep)", () => {
       sponsor_escrow: "true",
       amount_cents: "50000",
     });
-    expect(emb!.options.idempotencyKey).toBe(host!.options.idempotencyKey);
+    /* Different presentations = different Stripe requests; the key
+       fingerprints the exact parameters, so they must NOT share one
+       (a shared key is what Stripe refused on staging). */
+    expect(emb!.options.idempotencyKey).not.toBe(host!.options.idempotencyKey);
   });
 
   it("hosted stays the default and the explicit shape", async () => {
