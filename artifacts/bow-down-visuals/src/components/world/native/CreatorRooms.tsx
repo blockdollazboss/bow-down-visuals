@@ -1067,6 +1067,7 @@ function OfficeHoursBlock({
               maxLength={120}
               className={inputCls}
               data-testid="world-office-hours-title"
+              aria-label="Office hours title"
             />
             <input
               type="text"
@@ -1076,6 +1077,7 @@ function OfficeHoursBlock({
               maxLength={140}
               className={inputCls}
               data-testid="world-office-hours-note"
+              aria-label="What the hour is for (optional)"
             />
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -1088,6 +1090,7 @@ function OfficeHoursBlock({
                     : "border-[#d4af37]/25 bg-white/5 text-white"
                 }`}
                 data-testid="world-office-hours-start"
+                aria-label="Office hours start time"
               />
               <span className="inline-flex gap-1">
                 {OFFICE_HOURS_DURATIONS_MIN.map((m) => (
@@ -2203,6 +2206,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                     onChange={(e) => setBuyerEmail(e.target.value)}
                     type="email"
                     placeholder="Email for your receipt (optional)"
+                    aria-label="Email for your receipt (optional)"
                     className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                   />
                   {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}

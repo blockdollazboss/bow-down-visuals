@@ -544,6 +544,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_160px]">
                 <input
                   data-testid="world-coach-niche-idea"
+                  aria-label="Content idea"
                   className={inputCls(isLight)}
                   value={idea}
                   maxLength={500}
@@ -552,6 +553,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
                 />
                 <select
                   data-testid="world-coach-niche-idea-platform"
+                  aria-label="Platform for this idea"
                   className={inputCls(isLight)}
                   style={{ colorScheme: isLight ? "light" : "dark" }}
                   value={ideaPlatform}
@@ -1170,6 +1172,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                                 <span className="inline-flex flex-wrap items-center gap-2">
                                   <select
                                     data-testid="world-coach-money-link-select"
+                                    aria-label="Link this income to a release"
                                     className={`${inputCls(isLight)} w-auto py-1 text-xs`}
                                     style={{ colorScheme: isLight ? "light" : "dark" }}
                                     defaultValue=""
@@ -1320,6 +1323,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input
                       data-testid="world-coach-tracker-goal-input"
+                      aria-label="Monthly goal, in dollars"
                       className={`${inputCls(isLight)} w-36`}
                       inputMode="decimal"
                       value={goalInput}
@@ -1424,6 +1428,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
                   data-testid="world-coach-tracker-add-input"
+                  aria-label="Add your own move"
                   className={`${inputCls(isLight)} min-w-0 flex-1`}
                   value={newTitle}
                   maxLength={300}
