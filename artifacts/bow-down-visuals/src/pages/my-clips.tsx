@@ -168,7 +168,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
         scene?: { index: number; section: string | null };
       };
       if (!res.ok || !json.success) {
-        const errMsg = json.error ?? `Server error ${res.status}`;
+        const errMsg = apiErrorMessage(json, t("myClips.errorAttachFailed"));
         setAttachError(errMsg);
         toast({ title: t("myClips.errorAttach"), description: errMsg, variant: "destructive" });
         return;
@@ -537,7 +537,7 @@ function SeoScoreModal({ clip, onClose }: { clip: GeneratedClip; onClose: () => 
         return;
       }
       if (!res.ok || !data.result) {
-        throw new Error(apiErrorMessage(data, `Server error ${res.status}`));
+        throw new Error(apiErrorMessage(data, "SEO score failed."));
       }
       setResult(data.result);
       refreshProfile();

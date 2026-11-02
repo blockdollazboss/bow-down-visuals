@@ -1,4 +1,4 @@
-import { plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -704,7 +704,7 @@ export function MakeVideoModule() {
           refreshProfile();
           toast({ title: t("makeVideo.toastRefundedTitle"), description: t("makeVideo.toastRefundedDesc"), variant: "destructive" });
         } else {
-          const msg = body.error ?? `Save failed (HTTP ${res.status})`;
+          const msg = apiErrorMessage(body, t("makeVideo.saveFailedRetry"));
           setSaveError(msg);
           toast({ title: t("makeVideo.toastSaveFailedTitle"), description: msg, variant: "destructive" });
         }

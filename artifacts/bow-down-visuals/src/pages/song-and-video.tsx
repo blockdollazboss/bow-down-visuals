@@ -1091,7 +1091,7 @@ export function SongAndVideoModule() {
           refreshProfile();
           toast({ title: t("songAndVideo.toastRefundedTitle"), description: t("songAndVideo.toastRefundedDesc"), variant: "destructive" });
         } else {
-          const msg = body.error ?? t("songAndVideo.errorSaveHttp", { status: res.status });
+          const msg = apiErrorMessage(body, t("songAndVideo.errorSaveFailed"));
           setSaveError(msg);
           toast({ title: t("songAndVideo.toastSaveFailedTitle"), description: msg, variant: "destructive" });
         }

@@ -1808,7 +1808,7 @@ export default function VideoEditor() {
         scenes?: SceneData[];
       };
       if (!res.ok) {
-        const errMsg = json.error ?? `Server error ${res.status}`;
+        const errMsg = apiErrorMessage(json, "Sync failed — please try again.");
         setSyncState("error");
         setSyncMsg(errMsg);
         toast({ title: t("videoEditor.syncFailedTitle"), description: errMsg, variant: "destructive" });
