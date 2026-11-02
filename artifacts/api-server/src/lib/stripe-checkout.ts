@@ -10,8 +10,14 @@
  * my site"): hosted is the default and stays byte-identical for
  * existing callers. A caller that passes uiMode: "embedded" (gated on
  * lib/embedded-checkout's kill switch, like every other rail) gets
- * the SAME session in embedded_page ui_mode and its clientSecret
+ * the same purchase in embedded_page ui_mode and its clientSecret
  * back, for the on-page/in-World <EmbeddedSessionCheckout> mount.
+ * The two presentations are DIFFERENT Stripe requests (ui_mode +
+ * return_url vs success/cancel URLs), so they carry different
+ * idempotency keys — the key fingerprints the exact parameters (see
+ * buildCheckoutSessionIdempotencyKey). Sharing one key across the
+ * shapes was the stack1300 defect: Stripe permanently refused the
+ * second shape under the first shape's key.
  *
  * TEST MODE ONLY (standing owner rule for this stack): if the configured
  * key is not a test key, every call fails closed. Live mode needs its own
@@ -22,6 +28,7 @@ import Stripe from "stripe";
 import {
   buildCheckoutSessionIdempotencyKey,
   createGuardedStripeClient,
+  fingerprintStripeRequestParams,
   isStripeTestModeKey,
   type CheckoutSessionIdempotencyScope,
 } from "./stripe-client";
@@ -63,12 +70,14 @@ export interface PaymentCheckoutInput {
   /** Member + rail + purchase-intent scope for the Stripe create key. */
   idempotency: CheckoutSessionIdempotencyScope;
   /**
-   * Presentation mode. "embedded" creates the SAME session in
+   * Presentation mode. "embedded" creates the session in
    * embedded_page ui_mode and answers its clientSecret instead of a
-   * hosted URL — same amount, metadata and idempotency key; only the
-   * presentation differs. Absent/"hosted" keeps the legacy hosted
-   * shape exactly. Callers gate "embedded" on the
-   * lib/embedded-checkout kill switch and their own key presence.
+   * hosted URL — same amount, metadata and purchase intent; the
+   * request parameters (and therefore the idempotency key, which
+   * fingerprints them) differ, because to Stripe they are different
+   * requests. Absent/"hosted" keeps the legacy hosted shape exactly.
+   * Callers gate "embedded" on the lib/embedded-checkout kill switch
+   * and their own key presence.
    */
   uiMode?: "embedded" | "hosted";
   /**
@@ -99,9 +108,8 @@ export async function createPaymentCheckout(
     throw new Error("Checkout amount must be a positive integer of cents");
   }
   const stripe = getCheckoutStripe();
-  const idempotencyKey = buildCheckoutSessionIdempotencyKey(input.idempotency);
   const embedded = input.uiMode === "embedded";
-  const session = await stripe.checkout.sessions.create({
+  const params: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
     ...stripeTaxSessionFields(),
     line_items: [
@@ -135,7 +143,20 @@ export async function createPaymentCheckout(
           cancel_url: input.cancelUrl,
         }),
     metadata: input.metadata,
-  }, { idempotencyKey });
+  };
+  /* The key identifies THIS request: the caller's purchase intent
+     (which carries the completed-purchase sequence, so a genuinely
+     new purchase after completion still gets a fresh key) folded
+     together with a fingerprint of the exact parameters above. A
+     duplicate submission of the identical request reproduces the
+     identical key and dedupes to the original session; any
+     parameter change — presentation included — is a new request
+     with a new key, never a Stripe idempotency refusal. */
+  const idempotencyKey = buildCheckoutSessionIdempotencyKey({
+    ...input.idempotency,
+    requestFingerprint: fingerprintStripeRequestParams(params),
+  });
+  const session = await stripe.checkout.sessions.create(params, { idempotencyKey });
   if (embedded) {
     /* An embedded session without a client secret cannot be mounted
        anywhere — treat it exactly like a failed creation so callers

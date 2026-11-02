@@ -24,7 +24,7 @@
  *
  * Money here is REAL dollars via Stripe — never Visual Bucs.
  */
-import { buildCheckoutSessionIdempotencyKey } from "./stripe-client";
+import { buildCheckoutSessionIdempotencyKey, fingerprintStripeRequestParams } from "./stripe-client";
 import type { PerformanceBookingTerms } from "@workspace/db";
 
 /* ═══════════════ Fee split (sponsors escrow rate) ═══════════════════ */
@@ -179,10 +179,17 @@ export function buildPerformanceEscrowCheckoutKey(args: {
   promoterUserId: string;
   bookingId: string;
   feeCents: number;
+  /** The exact session parameters this key guards (presentation mode
+   *  included), folded in as a fingerprint: the key identifies the
+   *  request, not just the booking — a parameter change under a
+   *  reused key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.promoterUserId,
     rail: "performance-escrow",
     purchaseIntent: { bookingId: args.bookingId, feeCents: args.feeCents },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }

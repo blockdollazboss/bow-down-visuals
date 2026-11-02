@@ -1,11 +1,14 @@
 /**
  * createPaymentCheckout embedded mode (World money-parity server
- * lane): uiMode: "embedded" must create the SAME session in
- * embedded_page ui_mode — same amount, metadata and idempotency key —
- * and answer its clientSecret instead of demanding a hosted URL.
- * Hosted stays the default and byte-identical for existing callers
- * (memberships, beat licenses, live shopping). Stripe is faked at the
- * module boundary; the captured create params are the contract.
+ * lane): uiMode: "embedded" must create the session in embedded_page
+ * ui_mode — same amount and metadata — and answer its clientSecret
+ * instead of demanding a hosted URL. The idempotency key DIFFERS
+ * across modes on purpose (stack1300 embedded-checkout fix): the two
+ * presentations are different Stripe requests, and a shared key made
+ * Stripe permanently refuse the second shape. Hosted stays the
+ * default and byte-identical for existing callers (memberships, beat
+ * licenses, live shopping). Stripe is faked at the module boundary;
+ * the captured create params are the contract.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -137,11 +140,19 @@ describe("createPaymentCheckout embedded mode", () => {
     );
   });
 
-  it("carries the identical idempotency key and metadata across modes", async () => {
+  it("carries identical metadata and line items across modes, but a different idempotency key", async () => {
     await createPaymentCheckout(input());
     await createPaymentCheckout(input({ uiMode: "embedded" }));
     const [hostedCall, embeddedCall] = h.createCalls;
-    expect(embeddedCall!.options.idempotencyKey).toBe(hostedCall!.options.idempotencyKey);
+    /* The purchase is the same; the Stripe request is not (ui_mode +
+       return_url vs success/cancel URLs). The key fingerprints the
+       exact request, so the modes MUST NOT share one — the previous
+       version of this pin demanded a shared key, which is precisely
+       what Stripe rejected live on staging ("Keys for idempotent
+       requests can only be used with the same parameters they were
+       first used with"). */
+    expect(embeddedCall!.options.idempotencyKey).not.toBe(hostedCall!.options.idempotencyKey);
+    expect(embeddedCall!.options.idempotencyKey).toMatch(/^checkout:beat-license:member-1:[0-9a-f]{32}$/);
     expect(embeddedCall!.params.metadata).toEqual(hostedCall!.params.metadata);
     expect(embeddedCall!.params.line_items).toEqual(hostedCall!.params.line_items);
   });

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import type Stripe from "stripe";
 import { z } from "zod";
 import OpenAI from "openai";
 import { randomUUID } from "crypto";
@@ -9,7 +10,7 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, canUseCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { escrowHeldCents } from "../../lib/escrow-held";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
@@ -947,6 +948,11 @@ export function buildSponsorEscrowCheckoutKey(args: {
   dealId: string;
   acceptedApplicationId: string;
   amountCents: number;
+  /** The exact session parameters this key guards (presentation mode
+   *  included), folded in as a fingerprint: the key identifies the
+   *  request, not just the funding act — a parameter change under a
+   *  reused key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.brandUserId,
@@ -956,6 +962,8 @@ export function buildSponsorEscrowCheckoutKey(args: {
       acceptedApplicationId: args.acceptedApplicationId,
       amountCents: args.amountCents,
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -1023,20 +1031,16 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
     const stripe = createGuardedStripeClient();
     const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
     const baseUrl = domain ? `https://${domain}` : "http://localhost";
-    const idempotencyKey = buildSponsorEscrowCheckoutKey({
-      brandUserId: req.userId!,
-      dealId,
-      acceptedApplicationId: deal.accepted_application_id,
-      amountCents,
-    });
     const embeddedRequested =
       parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
     const successUrl = `${baseUrl}/sponsors/${dealId}?funded=1`;
-    /* Session, metadata, idempotency key and amount are identical
-       either way — only the presentation differs. An embedded
-       session takes a return_url (the same funded landing) instead
-       of success/cancel URLs; funding still lands via the webhook. */
-    const session = await stripe.checkout.sessions.create({
+    /* The amount and metadata are identical either way; the
+       presentation makes it a different Stripe request, so the
+       idempotency key fingerprints the exact parameters below. An
+       embedded session takes a return_url (the same funded landing)
+       instead of success/cancel URLs; funding still lands via the
+       webhook. */
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [
@@ -1061,7 +1065,15 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
       ...(embeddedRequested
         ? { ui_mode: "embedded_page" as const, return_url: successUrl }
         : { success_url: successUrl, cancel_url: `${baseUrl}/sponsors/${dealId}?funded=0` }),
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildSponsorEscrowCheckoutKey({
+      brandUserId: req.userId!,
+      dealId,
+      acceptedApplicationId: deal.accepted_application_id,
+      amountCents,
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     if (embeddedRequested && !session.client_secret) {
       /* An embedded session without a client secret cannot be
          mounted — throwing lands in the catch below, which resets
@@ -1556,6 +1568,9 @@ export function buildSponsorEscrowPaymentIntentKey(args: {
   dealId: string;
   acceptedApplicationId: string;
   amountCents: number;
+  /** The exact PaymentIntent parameters this key guards, folded in
+   *  as a fingerprint (same discipline as the checkout key above). */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.brandUserId,
@@ -1565,6 +1580,8 @@ export function buildSponsorEscrowPaymentIntentKey(args: {
       acceptedApplicationId: args.acceptedApplicationId,
       amountCents: args.amountCents,
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -1642,13 +1659,7 @@ router.post("/sponsors/deals/:id/fund-intent", requireAuth, publicApiLimiter, as
     await db.execute(sql`
       UPDATE sponsor_deals SET escrow_status = 'funding' WHERE id = ${dealId}
     `);
-    const idempotencyKey = buildSponsorEscrowPaymentIntentKey({
-      brandUserId: req.userId!,
-      dealId,
-      acceptedApplicationId: deal.accepted_application_id,
-      amountCents,
-    });
-    const pi = await stripe.paymentIntents.create({
+    const piParams: Stripe.PaymentIntentCreateParams = {
       amount: amountCents,
       currency: "usd",
       automatic_payment_methods: { enabled: true, allow_redirects: "never" },
@@ -1660,7 +1671,15 @@ router.post("/sponsors/deals/:id/fund-intent", requireAuth, publicApiLimiter, as
         brand_user_id: req.userId!,
         amount_cents: String(amountCents),
       },
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildSponsorEscrowPaymentIntentKey({
+      brandUserId: req.userId!,
+      dealId,
+      acceptedApplicationId: deal.accepted_application_id,
+      amountCents,
+      requestParams: piParams,
+    });
+    const pi = await stripe.paymentIntents.create(piParams, { idempotencyKey });
     await db.execute(sql`
       UPDATE sponsor_deals SET stripe_payment_intent_id = ${pi.id} WHERE id = ${dealId}
     `);

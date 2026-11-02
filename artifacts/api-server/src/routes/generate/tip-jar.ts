@@ -7,7 +7,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { createJobNotification } from "../../lib/job-notifications";
 import { notifyUserEvent } from "../../lib/push-events";
@@ -853,11 +853,21 @@ function getStripe(): Stripe {
  * a retry of the same tip's session creation reuses the original
  * session, and every genuinely new tip is a new row with a fresh key.
  */
-export function buildTipCheckoutKey(args: { pageOwnerId: string; tipId: string }): string {
+export function buildTipCheckoutKey(args: {
+  pageOwnerId: string;
+  tipId: string;
+  /** The exact session parameters this key guards (presentation mode
+   *  included): folded in as a fingerprint so the key identifies the
+   *  request, not just the tip row — a parameter change under a
+   *  reused key is what Stripe refuses. */
+  requestParams?: unknown;
+}): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.pageOwnerId,
     rail: "tip-jar",
     purchaseIntent: { tipId: args.tipId },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -901,9 +911,10 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
   }
   const { amount, fanName, message } = parsed.data;
   /* Embedded presentation is asked for per-request and honored only
-     while the EMBEDDED_CHECKOUT kill switch is on — same session,
-     same metadata, same idempotency key; only the presentation
-     differs (mirrors routes/storefront.ts). */
+     while the EMBEDDED_CHECKOUT kill switch is on — same tip, same
+     metadata; the presentation makes it a different Stripe request,
+     so the idempotency key fingerprints the exact parameters
+     (mirrors routes/storefront.ts). */
   const embeddedRequested = parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   const amountCents = Math.round(amount * 100);
   const [tip] = await db
@@ -926,8 +937,7 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
        not ride on this — the webhook settles the tip regardless of
        where (or whether) the browser returns. */
     const landingPath = resolveTipReturnPath(parsed.data.returnPath, `/tips/${page.handle}`);
-    const idempotencyKey = buildTipCheckoutKey({ pageOwnerId: ownerId, tipId: tip!.id });
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       line_items: [
         {
@@ -954,7 +964,13 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
             success_url: `${base}${landingPath}?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${base}${landingPath}`,
           }),
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildTipCheckoutKey({
+      pageOwnerId: ownerId,
+      tipId: tip!.id,
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     /* An embedded session without a client secret cannot be mounted
        in the panel — fail the creation so the catch below drops the
        orphan tip row exactly like any other failed session. */

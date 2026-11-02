@@ -15,7 +15,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    refreshSupabaseStorageUrl mints a fresh 1-day signed URL. */
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
 import { sendEmail, emailShell, emailButton, escapeHtml } from "../../lib/email";
@@ -255,11 +255,18 @@ export function buildShoutoutCheckoutKey(args: {
   creatorUserId: string;
   requestId: string;
   priceCents: number;
+  /** The exact session parameters this key guards (presentation mode
+   *  included), folded in as a fingerprint: the key identifies the
+   *  request, not just the shoutout row — a parameter change under a
+   *  reused key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.creatorUserId,
     rail: "shoutout-request",
     purchaseIntent: { requestId: args.requestId, priceCents: args.priceCents },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -440,19 +447,15 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
     return;
   }
   const base = getBaseUrl(req);
-  const idempotencyKey = buildShoutoutCheckoutKey({
-    creatorUserId: request.creator_user_id,
-    requestId: request.id,
-    priceCents: request.price_cents,
-  });
   const embeddedRequested =
     parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   const successUrl = `${base}/shoutouts?request=${request.id}&session_id={CHECKOUT_SESSION_ID}`;
-  /* Session, metadata, idempotency key and amount are identical
-     either way — only the presentation differs. An embedded session
-     takes a return_url (the same verify-on-return landing) instead
-     of success/cancel URLs. */
-  const session = await stripe.checkout.sessions.create({
+  /* The amount and metadata are identical either way; the
+     presentation makes it a different Stripe request, so the
+     idempotency key fingerprints the exact parameters below. An
+     embedded session takes a return_url (the same verify-on-return
+     landing) instead of success/cancel URLs. */
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
     line_items: [
       {
@@ -468,7 +471,14 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
     ...(embeddedRequested
       ? { ui_mode: "embedded_page" as const, return_url: successUrl }
       : { success_url: successUrl, cancel_url: `${base}/shoutouts` }),
-  }, { idempotencyKey });
+  };
+  const idempotencyKey = buildShoutoutCheckoutKey({
+    creatorUserId: request.creator_user_id,
+    requestId: request.id,
+    priceCents: request.price_cents,
+    requestParams: sessionParams,
+  });
+  const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
   if (embeddedRequested && !session.client_secret) {
     /* An embedded session without a client secret cannot be mounted
        anywhere — fail like a failed creation (mirrors the house

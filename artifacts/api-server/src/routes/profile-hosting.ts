@@ -8,7 +8,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { HOSTING_PLAN, HOSTING_INCLUDED_WITH_TIER, hostingPriceUsdPerMonth, hostingPriceConfigured } from "../lib/platform-fees";
 import { resolveHostingEntitlement, resolvePaidPlan } from "../lib/profile-website";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
 import { stripeTaxSessionFields } from "../lib/stripe-tax";
 
@@ -69,6 +69,12 @@ export function buildHostingCheckoutKey(args: {
   userId: string;
   priceId: string;
   current: HostingSubscriptionState | null;
+  /** The exact session parameters this key guards (the success /
+   *  cancel URLs carry the caller's returnTo), folded in as a
+   *  fingerprint: the key identifies the request, not just the
+   *  hosting state — a parameter change under a reused key is what
+   *  Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -77,6 +83,8 @@ export function buildHostingCheckoutKey(args: {
       priceId: args.priceId,
       currentHosting: args.current,
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -242,14 +250,11 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     res.status(500).json({ error: "Checkout couldn't start — try again in a moment." });
     return;
   }
-  const idempotencyKey = buildHostingCheckoutKey({
-    userId: req.userId!,
-    priceId,
-    current: currentHosting,
-  });
-
   /* One Stripe customer per user (payfix upgrade-path): hosting shares
-     the SAME customer as the tier subscription — never a second one. */
+     the SAME customer as the tier subscription — never a second one.
+     The customer is part of the session parameters, so it is resolved
+     before the parameters — and therefore before the idempotency key
+     that fingerprints them — are built. */
   let customerId: string;
   try {
     customerId = await getOrCreateStripeCustomerForUser(stripe, {
@@ -266,7 +271,7 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
   const back = parsed.data.returnTo ?? "/creator-pricing";
   const baseUrl = getBaseUrl(req);
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       customer: customerId,
       /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
@@ -278,7 +283,14 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
       cancel_url: `${baseUrl}/creator-pricing?hosting=cancelled&returnTo=${encodeURIComponent(back)}`,
       metadata: { kind: "creator_hosting", user_id: req.userId!, profile_id: profile.id },
       subscription_data: { metadata: { kind: "creator_hosting", user_id: req.userId!, profile_id: profile.id } },
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildHostingCheckoutKey({
+      userId: req.userId!,
+      priceId,
+      current: currentHosting,
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     logger.info({ userId: req.userId, sessionId: session.id }, "hosting checkout session created");
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {

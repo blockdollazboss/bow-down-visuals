@@ -147,7 +147,7 @@ import {
   refundOfficeHoursBooking,
   officeHoursChargeLanded,
 } from "../lib/office-hours";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import {
   applyStripeTaxToPriceData,
@@ -448,6 +448,12 @@ export function buildStorefrontCheckoutKey(args: {
    *  add-on, so bump-free purchase intents keep their historic keys. */
   bumpProductId?: string | null;
   bumpLineCents?: number;
+  /** The exact session parameters this key guards (presentation mode,
+   *  gift-card tender split, affiliate/offer metadata and any
+   *  booking-hold expiry included), folded in as a fingerprint: the
+   *  key identifies the request, not just the purchase sequence — a
+   *  parameter change under a reused key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -463,6 +469,8 @@ export function buildStorefrontCheckoutKey(args: {
         ? { bumpProductId: args.bumpProductId, bumpLineCents: args.bumpLineCents ?? 0 }
         : {}),
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -2436,21 +2444,13 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
     const completedOrderCount = Number(
       (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
     );
-    const idempotencyKey = buildStorefrontCheckoutKey({
-      userId: req.userId!,
-      productId,
-      quantity,
-      unitCents,
-      lineTotalCents: lineTotal,
-      discountCode,
-      completedOrderCount,
-      bumpProductId: bump?.target.id ?? null,
-      bumpLineCents: bump?.grossCents ?? 0,
-    });
     const baseUrl = getBaseUrl(req);
-    let session: Stripe.Checkout.Session;
-    try {
-      session = await stripe.checkout.sessions.create({
+    /* The session parameters are built BEFORE the idempotency key:
+       the key fingerprints these exact parameters (below), so any
+       parameter change — presentation, gift-card tender, affiliate /
+       offer metadata, a booking hold's fresh expiry — is a new
+       request with a new key, never a Stripe same-key refusal. */
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
          is off; line items below gain tax fields only when it is on. */
@@ -2505,9 +2505,10 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
             ]
           : []),
       ],
-      /* Embedded ui_mode (owner law 2026-10-26): same session, same
-         metadata, same idempotency key — only the presentation
-         differs. An embedded session takes return_url (our own
+      /* Embedded ui_mode (owner law 2026-10-26): same purchase, same
+         metadata — the presentation makes it a different Stripe
+         request, so the idempotency key fingerprints these
+         parameters. An embedded session takes return_url (our own
          /store/success page — the same success page as the digital
          store; it falls back to /api/storefront/verify for storefront
          sessions, see MOUNT.md) instead of success/cancel URLs, and
@@ -2556,7 +2557,22 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
            verify never trusts a metadata price. */
         offer_id: offerClaim?.offerId ?? "",
       },
-      }, { idempotencyKey });
+    };
+    const idempotencyKey = buildStorefrontCheckoutKey({
+      userId: req.userId!,
+      productId,
+      quantity,
+      unitCents,
+      lineTotalCents: lineTotal,
+      discountCode,
+      completedOrderCount,
+      bumpProductId: bump?.target.id ?? null,
+      bumpLineCents: bump?.grossCents ?? 0,
+      requestParams: sessionParams,
+    });
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
       /* An embedded session without a client secret cannot be mounted
          on the page — treat it exactly like a failed creation so the
          booking hold / gift-card reservation / offer claim release

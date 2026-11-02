@@ -233,19 +233,27 @@ describe("QC-200 Q152 — deterministic checkout key", () => {
 
     const first = await call("POST", `/shoutouts/requests/${request.id}/checkout`);
     expect(first.status).toBe(200);
-    const expected = buildShoutoutCheckoutKey({
+    /* stack1300: the route's key is the builder's derivation WITH the
+       exact session parameters fingerprinted in — same builder, same
+       rail/member shape, but not the bare intent-only key (that key
+       is what Stripe refused whenever parameters changed under it). */
+    const legacy = buildShoutoutCheckoutKey({
       creatorUserId: CREATOR_USER_ID,
       requestId: request.id,
       priceCents: 2500,
     });
-    expect(h.sessionKeys).toEqual([expected]);
+    expect(h.sessionKeys).toHaveLength(1);
+    const used = h.sessionKeys[0] as string;
+    expect(used).toMatch(/^checkout:shoutout-request:.+:[0-9a-f]{32}$/);
+    expect(used).not.toBe(legacy);
 
     /* Still pending (nobody paid yet): a double-click / lost response
-       retries the checkout — same intent, same key, so Stripe hands
-       back the original session instead of a second payable one. */
+       retries the checkout — same intent, same parameters, same key,
+       so Stripe hands back the original session instead of a second
+       payable one. */
     const again = await call("POST", `/shoutouts/requests/${request.id}/checkout`);
     expect(again.status).toBe(200);
-    expect(h.sessionKeys).toEqual([expected, expected]);
+    expect(h.sessionKeys).toEqual([used, used]);
     expect(h.requests[0]!.status).toBe("pending_payment");
   });
 

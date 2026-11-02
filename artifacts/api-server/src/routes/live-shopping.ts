@@ -656,8 +656,10 @@ router.post(
       const baseUrl = checkoutBaseUrl(req);
       const embeddedRequested =
         parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
-      /* Session, metadata, idempotency key and amounts are identical
-         either way — only the presentation differs (mirrors beats). */
+      /* Metadata and amounts are identical either way — only the
+         presentation differs, and the helper's idempotency key
+         fingerprints the exact parameters, so each presentation is
+         its own request (mirrors beats). */
       const checkoutInput: PaymentCheckoutInput = {
         amountCents: totalCents,
         productName: row.name,

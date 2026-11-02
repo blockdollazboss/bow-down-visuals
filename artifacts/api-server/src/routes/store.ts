@@ -63,7 +63,7 @@ import { logger } from "../lib/logger";
 import { STOREFRONT_PLATFORM_FEE_BPS } from "./generate/storefronts";
 import { createJobNotification } from "../lib/job-notifications";
 import { notifyUserEvent } from "../lib/push-events";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import {
   applyStripeTaxToPriceData,
@@ -176,6 +176,12 @@ export function buildStoreCheckoutKey(args: {
   bumpKind?: string | null;
   bumpItemId?: string | null;
   bumpLineCents?: number;
+  /** The exact session parameters this key guards (presentation mode,
+   *  gift-card tender split and refreshed artwork URLs included),
+   *  folded in as a fingerprint: the key identifies the request, not
+   *  just the purchase sequence — a parameter change under a reused
+   *  key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -189,6 +195,8 @@ export function buildStoreCheckoutKey(args: {
         ? { bumpKind: args.bumpKind ?? "", bumpItemId: args.bumpItemId, bumpLineCents: args.bumpLineCents ?? 0 }
         : {}),
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -1311,16 +1319,6 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     const completedSaleCount = Number(
       (countResult.rows[0] as { c?: number } | undefined)?.c ?? 0,
     );
-    const idempotencyKey = buildStoreCheckoutKey({
-      userId: req.userId!,
-      kind,
-      itemId: id,
-      amountCents: totalCents,
-      completedSaleCount,
-      bumpKind: bump?.item.itemKind ?? null,
-      bumpItemId: bumpCfg?.bumpItemId ?? null,
-      bumpLineCents: bump?.grossCents ?? 0,
-    });
     const baseUrl = getBaseUrl(req);
     /* Same stored artwork value flows to Stripe as the checkout image:
        an r2:// / supabase:// ref is unfetchable by Stripe, so refresh
@@ -1331,9 +1329,12 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
     const bumpArtworkUrl = bump?.item.artworkUrl
       ? await refreshSupabaseStorageUrl(bump.item.artworkUrl)
       : null;
-    let session: Stripe.Checkout.Session;
-    try {
-      session = await stripe.checkout.sessions.create({
+    /* The session parameters are built BEFORE the idempotency key:
+       the key fingerprints these exact parameters (below), so any
+       parameter change — presentation, gift-card tender, refreshed
+       artwork URL — is a new request with a new key, never a Stripe
+       same-key refusal. */
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
          is off; line items below gain tax fields only when it is on. */
@@ -1377,11 +1378,12 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
             ]
           : []),
       ],
-      /* Embedded ui_mode (2026-10-26): same session, same metadata,
-         same idempotency key — only the presentation differs. An
-         embedded session takes return_url (our own /store/success
-         page, which runs the existing verify rail) instead of
-         success/cancel URLs, and Stripe renders the form on our page.
+      /* Embedded ui_mode (2026-10-26): same purchase, same metadata —
+         the presentation makes it a different Stripe request, so the
+         idempotency key fingerprints these parameters. An embedded
+         session takes return_url (our own /store/success page, which
+         runs the existing verify rail) instead of success/cancel
+         URLs, and Stripe renders the form on our page.
          EMBEDDED_CHECKOUT=off forces the legacy hosted shape. */
       ...(parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled()
         ? {
@@ -1408,7 +1410,21 @@ router.post("/store/checkout", requireAuth, publicApiLimiter, async (req, res) =
         bump_item_id: bumpCfg?.bumpItemId ?? "",
         bump_amount_cents: String(bump?.grossCents ?? 0),
       },
-      }, { idempotencyKey });
+    };
+    const idempotencyKey = buildStoreCheckoutKey({
+      userId: req.userId!,
+      kind,
+      itemId: id,
+      amountCents: totalCents,
+      completedSaleCount,
+      bumpKind: bump?.item.itemKind ?? null,
+      bumpItemId: bumpCfg?.bumpItemId ?? null,
+      bumpLineCents: bump?.grossCents ?? 0,
+      requestParams: sessionParams,
+    });
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     } catch (sessionErr) {
       if (giftReservationId) await releaseReservation(giftReservationId).catch(() => undefined);
       throw sessionErr;

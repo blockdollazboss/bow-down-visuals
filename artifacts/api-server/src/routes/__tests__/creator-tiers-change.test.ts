@@ -116,6 +116,10 @@ vi.mock("../../lib/stripe-client", () => {
        intent → same key; any difference → different key. */
     buildCheckoutSessionIdempotencyKey: (args: any) =>
       `idem|${args.memberId}|${args.rail}|${JSON.stringify(args.purchaseIntent)}`,
+    /* The tier-change lib folds this into the effective update key;
+       identity here keeps this route suite focused on the route's own
+       key (the fold itself is pinned in the lib suites). */
+    withCheckoutRequestFingerprint: (baseKey: string) => baseKey,
     createGuardedStripeClient: () => ({
       subscriptions: {
         retrieve: async (id: string) => {

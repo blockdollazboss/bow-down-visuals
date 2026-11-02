@@ -29,7 +29,7 @@ import Stripe from "stripe";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import {
   GIFT_NO_RENEW_COPY,
   GIFT_COLLISION_COPY,
@@ -75,6 +75,11 @@ function buildGiftMembershipCheckoutKey(args: {
   tier: string;
   months: number;
   completedCount: number;
+  /** The exact session parameters this key guards (the return path
+   *  carries the caller's returnTo), folded in as a fingerprint: the
+   *  key identifies the request, not just the gift sequence — a
+   *  parameter change under a reused key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.senderUserId,
@@ -85,6 +90,8 @@ function buildGiftMembershipCheckoutKey(args: {
       months: args.months,
       completedGiftCount: args.completedCount,
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -185,46 +192,45 @@ router.post("/membership-gifts/checkout", requireAuth, publicApiLimiter, async (
     return;
   }
 
-  const idempotencyKey = buildGiftMembershipCheckoutKey({
-    senderUserId: req.userId!,
-    recipientProfileId: recipient.profileId,
-    tier,
-    months,
-    completedCount,
-  });
   const back = returnTo ?? "/creator-pricing";
   const baseUrl = getBaseUrl(req);
   try {
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: "payment",
-        ui_mode: "embedded",
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              unit_amount: amountCents,
-              product_data: {
-                name: `${giftTierName(tier)} membership gift — ${months} month${months === 1 ? "" : "s"} for ${recipient.displayName}`,
-                description: `A one-time gift of Bow Down Visuals ${giftTierName(tier)} for @${recipient.slug}. ${GIFT_NO_RENEW_COPY}`,
-              },
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: "payment",
+      ui_mode: "embedded",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: amountCents,
+            product_data: {
+              name: `${giftTierName(tier)} membership gift — ${months} month${months === 1 ? "" : "s"} for ${recipient.displayName}`,
+              description: `A one-time gift of Bow Down Visuals ${giftTierName(tier)} for @${recipient.slug}. ${GIFT_NO_RENEW_COPY}`,
             },
-            quantity: 1,
           },
-        ],
-        return_url: `${baseUrl}/creator-pricing?gift=return&session_id={CHECKOUT_SESSION_ID}&returnTo=${encodeURIComponent(back)}`,
-        metadata: {
-          kind: "membership_gift",
-          sender_user_id: req.userId!,
-          recipient_user_id: recipient.userId,
-          recipient_profile_id: recipient.profileId,
-          tier,
-          months: String(months),
-          amount_cents: String(amountCents),
+          quantity: 1,
         },
+      ],
+      return_url: `${baseUrl}/creator-pricing?gift=return&session_id={CHECKOUT_SESSION_ID}&returnTo=${encodeURIComponent(back)}`,
+      metadata: {
+        kind: "membership_gift",
+        sender_user_id: req.userId!,
+        recipient_user_id: recipient.userId,
+        recipient_profile_id: recipient.profileId,
+        tier,
+        months: String(months),
+        amount_cents: String(amountCents),
       },
-      { idempotencyKey },
-    );
+    };
+    const idempotencyKey = buildGiftMembershipCheckoutKey({
+      senderUserId: req.userId!,
+      recipientProfileId: recipient.profileId,
+      tier,
+      months,
+      completedCount,
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     if (!session.client_secret) throw new Error("Embedded checkout session did not return a client secret");
     logger.info(
       { sender: req.userId, recipientProfileId: recipient.profileId, tier, months, sessionId: session.id },

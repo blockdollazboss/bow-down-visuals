@@ -859,8 +859,9 @@ router.get("/memberships/directory", publicApiLimiter, async (_req, res) => {
    checkout entirely and activate immediately (no payment to verify).
    Presentation: embedded on the site by default when the caller asks
    (uiMode "embedded" + the EMBEDDED_CHECKOUT kill switch on) — the
-   session, metadata, idempotency key and amount are identical to the
-   legacy hosted shape; only where the fan pays differs. */
+   metadata and amount are identical to the legacy hosted shape; only
+   where the fan pays differs (and the idempotency key fingerprints
+   the exact request, so the two presentations never share one). */
 router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -950,9 +951,10 @@ router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, 
   }
 
   /* Embedded presentation is asked for per-request and honored only
-     while the EMBEDDED_CHECKOUT kill switch is on — the session,
-     metadata, idempotency key and every money figure are identical
-     either way; only the presentation differs. */
+     while the EMBEDDED_CHECKOUT kill switch is on — the metadata and
+     every money figure are identical either way; only the
+     presentation differs (the helper's idempotency key fingerprints
+     the exact parameters, so each presentation is its own request). */
   const embeddedRequested =
     parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
 

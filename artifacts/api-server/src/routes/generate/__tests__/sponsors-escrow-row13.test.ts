@@ -250,13 +250,17 @@ describe("row 13 — Stripe-configured escrow funding (item 10)", () => {
       brand_user_id: BRAND,
       amount_cents: "100000",
     });
-    /* The idempotency key is the deterministic one for this funding act. */
+    /* The idempotency key is the deterministic one for this funding
+       act AND this exact request: the builder's derivation with the
+       session parameters fingerprinted in (stack1300 — the bare
+       intent key is what Stripe refused when parameters changed). */
     expect(options.idempotencyKey).toBe(
       buildSponsorEscrowCheckoutKey({
         brandUserId: BRAND,
         dealId,
         acceptedApplicationId: appId,
         amountCents: 100000,
+        requestParams: params,
       }),
     );
 

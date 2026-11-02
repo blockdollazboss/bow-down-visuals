@@ -10,7 +10,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
 import { changeCreatorTierSubscription, previewCreatorTierChange } from "../lib/creator-tier-upgrade";
 import {
@@ -92,6 +92,12 @@ export function buildCreatorTierCheckoutKey(args: {
   tier: string;
   priceId: string;
   current: CreatorTierSubscriptionState | null;
+  /** The exact session parameters this key guards (the success /
+   *  cancel URLs carry the caller's returnTo), folded in as a
+   *  fingerprint: the key identifies the request, not just the
+   *  subscription state — a parameter change under a reused key is
+   *  what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -101,6 +107,8 @@ export function buildCreatorTierCheckoutKey(args: {
       priceId: args.priceId,
       currentSubscription: args.current,
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -711,17 +719,13 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
     return;
   }
 
-  const idempotencyKey = buildCreatorTierCheckoutKey({
-    userId: req.userId!,
-    tier,
-    priceId,
-    current: currentSub,
-  });
-
   /* One Stripe customer per user (payfix upgrade-path): resolve/persist
      the customer BEFORE any session exists. Without this, Stripe minted
      a fresh customer per checkout and an "upgrade" became a second
-     subscription on a second customer (Pass 1, Oct 26: $41/mo billed). */
+     subscription on a second customer (Pass 1, Oct 26: $41/mo billed).
+     The customer is part of the session parameters, so it is resolved
+     before the parameters — and therefore before the idempotency key
+     that fingerprints them — are built. */
   let customerId: string;
   try {
     customerId = await getOrCreateStripeCustomerForUser(stripe, {
@@ -738,7 +742,7 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
   const back = returnTo ?? "/dashboard";
   const baseUrl = getBaseUrl(req);
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       customer: customerId,
       /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
@@ -750,7 +754,15 @@ router.post("/creator-tiers/checkout", requireAuth, publicApiLimiter, async (req
       cancel_url: `${baseUrl}/creator-pricing?upgrade=cancelled&returnTo=${encodeURIComponent(back)}`,
       metadata: { kind: "creator_tier", tier, user_id: req.userId!, profile_id: profileId },
       subscription_data: { metadata: { kind: "creator_tier", tier, user_id: req.userId!, profile_id: profileId } },
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildCreatorTierCheckoutKey({
+      userId: req.userId!,
+      tier,
+      priceId,
+      current: currentSub,
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     logger.info({ userId: req.userId, tier, sessionId: session.id }, "creator tier checkout session created");
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {

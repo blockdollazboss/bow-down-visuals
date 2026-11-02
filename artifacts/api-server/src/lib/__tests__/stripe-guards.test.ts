@@ -192,7 +192,11 @@ describe("checkout session idempotency keys (D4)", () => {
     expect(packSrc).toContain("{ idempotencyKey }");
 
     const helperSrc = readFileSync(new URL("../stripe-checkout.ts", import.meta.url), "utf8");
-    expect(helperSrc).toContain("buildCheckoutSessionIdempotencyKey(input.idempotency)");
+    /* stack1300: the helper folds a fingerprint of the exact session
+       parameters into the key (the intent-only key was refused by
+       Stripe whenever the parameters changed under it). */
+    expect(helperSrc).toContain("...input.idempotency");
+    expect(helperSrc).toContain("requestFingerprint: fingerprintStripeRequestParams(params)");
     expect(helperSrc).toContain("{ idempotencyKey }");
   });
 });

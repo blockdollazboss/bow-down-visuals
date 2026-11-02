@@ -39,7 +39,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
 import {
@@ -120,6 +120,12 @@ const CheckoutSchema = z.object({
 function buildGiftCardCheckoutKey(args: {
   userId: string; productId: string; amountCents: number;
   recipientEmail: string; completedCount: number;
+  /** The exact session parameters this key guards (presentation mode
+   *  and the free-text metadata included), folded in as a
+   *  fingerprint: the key identifies the request, not just the
+   *  purchase sequence — a parameter change under a reused key is
+   *  what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
@@ -130,6 +136,8 @@ function buildGiftCardCheckoutKey(args: {
       recipientEmail: args.recipientEmail.toLowerCase(),
       completedOrderCount: args.completedCount,
     },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -188,11 +196,8 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
       return;
     }
 
-    const idempotencyKey = buildGiftCardCheckoutKey({
-      userId: req.userId!, productId, amountCents, recipientEmail, completedCount,
-    });
     const baseUrl = getBaseUrl(req);
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       line_items: [
         {
@@ -207,17 +212,17 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
           quantity: 1,
         },
       ],
-      /* Embedded ui_mode (owner law 2026-10-26): same session, same
-         metadata, same idempotency key — only the presentation
-         differs. An embedded session takes return_url instead of
-         success/cancel URLs, and Stripe renders the form on the
-         product page. The return path is the hosted success path —
-         fixed server-side, built only from the product row (no
-         client input reaches it, so there is no open-redirect
-         surface) — so the page's existing verify-on-return effect
-         issues the card after an embedded payment exactly as after
-         a hosted one. EMBEDDED_CHECKOUT=off forces the legacy
-         hosted shape. */
+      /* Embedded ui_mode (owner law 2026-10-26): same purchase, same
+         metadata — but a different Stripe request, so the idempotency
+         key (built after these parameters) fingerprints them. An
+         embedded session takes return_url instead of success/cancel
+         URLs, and Stripe renders the form on the product page. The
+         return path is the hosted success path — fixed server-side,
+         built only from the product row (no client input reaches it,
+         so there is no open-redirect surface) — so the page's
+         existing verify-on-return effect issues the card after an
+         embedded payment exactly as after a hosted one.
+         EMBEDDED_CHECKOUT=off forces the legacy hosted shape. */
       ...(embeddedRequested
         ? {
             ui_mode: "embedded_page" as const,
@@ -242,7 +247,12 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
         platform_fee_cents: "0",
         creator_amount_cents: "0",
       },
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildGiftCardCheckoutKey({
+      userId: req.userId!, productId, amountCents, recipientEmail, completedCount,
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     /* An embedded session without a client secret cannot be mounted
        on the page — fail through the catch below exactly like a
        failed creation instead of answering a secret-less "embedded"

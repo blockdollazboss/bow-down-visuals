@@ -257,12 +257,15 @@ describe("gift-card checkout: embedded presentation", () => {
     expect(params.cancel_url).toBeUndefined();
   });
 
-  it("embedded ask: session metadata + idempotency key are identical to the hosted shape, fee stays zero", async () => {
+  it("embedded ask: session metadata is identical to the hosted shape, fee stays zero — the idempotency key differs (stack1300)", async () => {
     await call("POST", "/gift-cards/checkout", { ...CHECKOUT_BODY });
     await call("POST", "/gift-cards/checkout", { ...CHECKOUT_BODY, uiMode: "embedded" });
     const [hosted, embedded] = h.creates;
     expect(embedded!.params.metadata).toEqual(hosted!.params.metadata);
-    expect(embedded!.opts.idempotencyKey).toBe(hosted!.opts.idempotencyKey);
+    /* The two presentations are different Stripe requests; the key
+       fingerprints the exact parameters, so they must NOT share one
+       (a shared key is what Stripe refused on staging). */
+    expect(embedded!.opts.idempotencyKey).not.toBe(hosted!.opts.idempotencyKey);
     expect(embedded!.params.metadata.platform_fee_cents).toBe("0");
     expect(embedded!.params.metadata.creator_amount_cents).toBe("0");
     expect(embedded!.params.line_items[0].price_data.unit_amount).toBe(5000);

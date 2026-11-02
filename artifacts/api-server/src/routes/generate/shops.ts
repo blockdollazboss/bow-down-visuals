@@ -2861,11 +2861,13 @@ router.post("/storefronts/checkout", publicApiLimiter, async (req, res) => {
            consumes by checkout_group_id, never by a trusted price. */
         offer_id: parsed.data.offerId ?? "",
       },
-      /* Embedded ui_mode (JOIN2): same session, same metadata, same
-         idempotency key — only the presentation differs. An embedded
-         session takes return_url (back to the World, where the stand's
-         own verify-on-return rail settles the order) instead of
-         success/cancel URLs. EMBEDDED_CHECKOUT=off forces hosted. */
+      /* Embedded ui_mode (JOIN2): same purchase, same metadata — only
+         the presentation differs. (The idempotency key is the fresh
+         per-attempt checkout group id, so it never outlives this one
+         request shape.) An embedded session takes return_url (back
+         to the World, where the stand's own verify-on-return rail
+         settles the order) instead of success/cancel URLs.
+         EMBEDDED_CHECKOUT=off forces hosted. */
       ...(embeddedRequested
         ? {
             ui_mode: "embedded_page" as const,
