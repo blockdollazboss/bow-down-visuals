@@ -297,6 +297,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   const [dashboard, setDashboard] = useState<BeatDashboard | null>(null);
   const [dashFailed, setDashFailed] = useState(false);
   const [templates, setTemplates] = useState<BeatLicenseTemplate[] | null>(null);
+  const [tplLoadFailed, setTplLoadFailed] = useState(false);
   const [tplForm, setTplForm] = useState<BeatTemplateForm | null>(null);
   const [tplEditingId, setTplEditingId] = useState<string | null>(null);
   const [tplSaving, setTplSaving] = useState(false);
@@ -313,8 +314,10 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
     } catch { setDashFailed(true); }
     try {
       const res = await fetch("/api/beats/license-templates/mine", { headers: await authHeaders() });
-      if (res.ok) setTemplates(parseMyTemplates(await res.json()));
-    } catch { /* templates degrade alone — the dashboard above already settled */ }
+      if (!res.ok) throw new Error("templates");
+      setTemplates(parseMyTemplates(await res.json()));
+      setTplLoadFailed(false);
+    } catch { setTplLoadFailed(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest]);
 
@@ -761,7 +764,14 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
 
           <NativeCard isLight={isLight} title="Your custom licenses">
             <p className={`text-[11px] ${muted}`}>Define named offers with your own price and terms — they appear on all your beats next to the fixed tiers. Editing or deleting changes future sales only; a sold license keeps its snapshot.</p>
-            {templates === null ? (
+            {templates === null && tplLoadFailed ? (
+              <p className={`mt-2 text-xs ${muted}`}>
+                Couldn't load your custom licenses.{" "}
+                <button type="button" onClick={() => void loadDashboard()} className="font-bold underline underline-offset-2" data-testid="world-beats-templates-retry">
+                  Try again
+                </button>
+              </p>
+            ) : templates === null ? (
               <p className={`mt-2 text-xs ${muted}`}>Reading your templates…</p>
             ) : templates.length === 0 && !tplForm ? (
               <p className={`mt-2 text-xs ${muted}`}>No custom licenses yet.</p>

@@ -1369,6 +1369,7 @@ function MerchTab() {
 
   /* ── Store state ── */
   const [designs, setDesigns] = useState<MerchStoreDesign[]>([]);
+  const [designsError, setDesignsError] = useState(false);
   const [storeLoading, setStoreLoading] = useState(false);
   const [priceEdits, setPriceEdits] = useState<Record<string, string>>({});
   const [orderMsg, setOrderMsg] = useState<string | null>(null);
@@ -1378,12 +1379,14 @@ function MerchTab() {
     setStoreLoading(true);
     try {
       const res = await fetch("/api/merch/designs");
-      if (res.ok) {
-        const data = await res.json();
-        setDesigns(data.designs ?? []);
-      }
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setDesigns(data.designs ?? []);
+      setDesignsError(false);
     } catch {
-      /* store stays empty on network error */
+      /* A failed load is NOT an empty store — the error state below
+         renders instead of "no designs." */
+      setDesignsError(true);
     } finally {
       setStoreLoading(false);
     }
@@ -1731,7 +1734,23 @@ function MerchTab() {
             </div>
           )}
 
-          {!storeLoading && designs.length === 0 && (
+          {!storeLoading && designsError && (
+            <div className="rounded-2xl border border-dashed border-white/[0.12] px-6 py-12 text-center">
+              <Store className="h-8 w-8 text-white/25 mx-auto mb-3" />
+              <p className="font-bold text-white/70">{t("merch.designsLoadError")}</p>
+              <p className="text-sm text-white/40 mt-1">{t("merch.designsLoadErrorBody")}</p>
+              <button
+                type="button"
+                onClick={() => void loadStore()}
+                className="mt-4 text-sm font-semibold text-primary hover:underline"
+                data-testid="btn-retry-designs"
+              >
+                {t("merch.retryLoad")}
+              </button>
+            </div>
+          )}
+
+          {!storeLoading && !designsError && designs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-white/[0.12] px-6 py-12 text-center">
               <Store className="h-8 w-8 text-white/25 mx-auto mb-3" />
               <p className="font-bold text-white/70">{t("merch.noDesigns")}</p>
