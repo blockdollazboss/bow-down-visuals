@@ -1,4 +1,10 @@
-import jsPDF from "jspdf";
+/* jsPDF is deliberately NOT imported at module top: it is a
+ * ~400 KB library needed only at the moment a member clicks
+ * "Download PDF". A static import dragged it into the first
+ * load of every route that renders an export button (create,
+ * my-projects, coach, press-kit, …). downloadPdf loads it on
+ * demand instead — the click pays for the library, not the
+ * page view. (site-perf, stack1300) */
 
 const BRAND  = "BOW DOWN VISUALS";
 const SLOGAN = "Create the Song. Create the Video. Promote the Release.";
@@ -56,7 +62,8 @@ export function downloadTxt(meta: ExportMeta): void {
 }
 
 /* ─── PDF ─── */
-export function downloadPdf(meta: ExportMeta): void {
+export async function downloadPdf(meta: ExportMeta): Promise<void> {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW   = doc.internal.pageSize.getWidth();
   const pageH   = doc.internal.pageSize.getHeight();

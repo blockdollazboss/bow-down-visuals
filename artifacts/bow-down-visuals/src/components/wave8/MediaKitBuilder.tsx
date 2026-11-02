@@ -6,7 +6,12 @@ import { useTranslation } from "react-i18next";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { slugifyHandle } from "@/lib/press-kit";
-import jsPDF from "jspdf";
+import type { jsPDF as JsPDFDoc } from "jspdf";
+
+/* jsPDF itself loads on demand inside buildMediaKitPdf — a static
+   import dragged the ~400 KB library into the first load of every
+   page that docks this builder (press-kit, the coach money panel).
+   The type-only import above costs no runtime bytes. (site-perf) */
 
 /* ─── Wave 8: AI Media Kit Builder ─────────────────────────────────────────
    Docked on the press kit page. AI writes a punchy 150-word bio in the
@@ -41,7 +46,8 @@ const KIT_COST = 100;
 const GOLD: [number, number, number] = [212, 175, 55];
 
 /** Build a clean one-page media kit PDF: black background, gold headings. */
-function buildMediaKitPdf(kit: MediaKit): jsPDF {
+async function buildMediaKitPdf(kit: MediaKit): Promise<JsPDFDoc> {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210;
   const H = 297;
@@ -224,9 +230,9 @@ export default function MediaKitBuilder() {
     }
   }
 
-  function downloadPdf() {
+  async function downloadPdf() {
     if (!kit) return;
-    const doc = buildMediaKitPdf(kit);
+    const doc = await buildMediaKitPdf(kit);
     doc.save(`${slugifyHandle(kit.artistName) || "media-kit"}-media-kit.pdf`);
   }
 

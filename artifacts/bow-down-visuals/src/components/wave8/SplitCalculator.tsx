@@ -7,7 +7,11 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
-import jsPDF from "jspdf";
+
+/* jsPDF loads on demand inside buildSplitPdf — a static import
+   dragged the ~400 KB library into the first load of /coach (via
+   MoneyTrackerPanel) for a click most visits never make.
+   (site-perf, stack1300) */
 
 /* ─── Royalty Split Calculator (Wave 8) ───────────────────────────────────
    Docked as the "Split Sheets" view inside MoneyTrackerPanel (the Money
@@ -85,7 +89,8 @@ function splitCents(totalCents: number, pcts: number[]): number[] {
 
 /* Gold-on-black split-sheet PDF. Plain ASCII-safe text only (no em dashes)
    so the stock helvetica font renders cleanly. */
-function buildSplitPdf(data: FinalizedSheet): void {
+async function buildSplitPdf(data: FinalizedSheet): Promise<void> {
+  const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210;
   const GOLD: [number, number, number] = [212, 175, 55];
@@ -363,7 +368,7 @@ export default function SplitCalculator() {
       };
       if (res.status === 402) throw new Error(t("wave8.splits.outOfCredits"));
       if (!res.ok) throw new Error(apiErrorMessage(data, t("wave8.splits.errorPdf")));
-      buildSplitPdf(data);
+      await buildSplitPdf(data);
     } catch (err) {
       setCardError((prev) => ({
         ...prev,

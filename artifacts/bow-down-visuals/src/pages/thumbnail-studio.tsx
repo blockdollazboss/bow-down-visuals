@@ -1,5 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
-import { useState, useRef, useEffect } from "react";
+import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -1170,9 +1170,26 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BrowseLibraryButton } from "@/pages/library";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
-import { PhotoEnhance } from "@/components/photo/PhotoEnhance";
-import { BgStudio } from "@/components/photo/BgStudio";
-import { PhotoCanvasEditor } from "@/components/photo/PhotoCanvasEditor";
+/* The three photo desks ride lazy doors (site-perf, stack1300):
+   each renders only on its own tab (enhance / background /
+   editor), so none of them rides the studio's first load — the
+   default tab is the in-file generator. Each desk chunk fetches
+   on first tab selection and is cached for later switches. */
+const PhotoEnhance = lazy(() => import("@/components/photo/PhotoEnhance").then((m) => ({ default: m.PhotoEnhance })));
+const BgStudio = lazy(() => import("@/components/photo/BgStudio").then((m) => ({ default: m.BgStudio })));
+const PhotoCanvasEditor = lazy(() => import("@/components/photo/PhotoCanvasEditor").then((m) => ({ default: m.PhotoCanvasEditor })));
+
+/* The tab stage's loading frame: gold spinner, same stage — a
+   tab switch reads as "opening", never a blank hole. */
+function ThumbDeskFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[240px] items-center justify-center gap-3 text-white/50" role="status">
+      <Loader2 className="h-5 w-5 animate-spin text-[#d4a017]" />
+      <span className="text-sm">{t("common.loading")}</span>
+    </div>
+  );
+}
 
 /* ─── Thumbnail A/B Tester ────────────────────────────────────────────────
    Upload 2-4 thumbnail variants, AI predicts which one gets the most clicks
@@ -1964,9 +1981,11 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
 
         {tab === "generate" && <ThumbnailMakerModule />}
         {tab === "abtest" && <ThumbnailAbTester />}
-        {tab === "enhance" && <PhotoEnhance />}
-        {tab === "background" && <BgStudio />}
-        {tab === "editor" && <PhotoCanvasEditor />}
+        <Suspense fallback={<ThumbDeskFallback />}>
+          {tab === "enhance" && <PhotoEnhance />}
+          {tab === "background" && <BgStudio />}
+          {tab === "editor" && <PhotoCanvasEditor />}
+        </Suspense>
         {tab === "library" && <ThumbnailLibrary onGoGenerate={() => switchTab("generate")} />}
       </div>
     </div>
