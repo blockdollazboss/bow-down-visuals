@@ -4635,7 +4635,9 @@
     "untitledSong": "Canción sin título",
     "yourSong": "Tu canción",
     "distributeThisSong": "Distribuir esta canción",
-    "scheduleAnnouncement": "Programar anuncio"
+    "scheduleAnnouncement": "Programar anuncio",
+    "labelsLoadError": "No pudimos cargar el directorio de sellos",
+    "labelsLoadErrorBody": "El directorio de sellos está a salvo — esta página simplemente no pudo acceder a él. Revisa tu conexión e inténtalo de nuevo."
   },
   "liveShopping": {
     "addProduct": "Agregar producto",
@@ -9033,7 +9035,15 @@
     "packetTitle": "Paquete de presentación",
     "packetAudioLabel": "Audio de la canción",
     "packetProfileLabel": "Perfil del artista",
-    "packetPresaveLabel": "Preguardado / smartlink"
+    "packetPresaveLabel": "Preguardado / smartlink",
+    "curatorsLoadError": "No pudimos cargar el directorio de curadores",
+    "curatorsLoadErrorBody": "El directorio de curadores está a salvo — esta página simplemente no pudo acceder a él. Revisa tu conexión e inténtalo de nuevo.",
+    "releasesLoadError": "No pudimos cargar tus lanzamientos",
+    "releasesLoadErrorBody": "Tus lanzamientos están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "deadlinesLoadError": "No pudimos cargar tus plazos",
+    "deadlinesLoadErrorBody": "Tus plazos están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "packetLoadError": "No pudimos cargar este paquete",
+    "packetLoadErrorBody": "El registro del lanzamiento está a salvo — esta página simplemente no pudo acceder a él. Revisa tu conexión e inténtalo de nuevo."
   },
   "refundPolicy": {
     "nav": {
@@ -9575,7 +9585,10 @@
     "errorDeleteDesignFailed": "No se pudo eliminar ese diseño — inténtalo de nuevo.",
     "confirmDelete": "¿Eliminar este diseño? Esto no se puede deshacer.",
     "checkoutSoon": "El pago llegará pronto.",
-    "myShopLink": "Vender esto en mi tienda"
+    "myShopLink": "Vender esto en mi tienda",
+    "designsLoadError": "No pudimos cargar tus diseños",
+    "designsLoadErrorBody": "Tus diseños están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo"
   },
   "podcast": {
     "publish": {
@@ -11508,7 +11521,15 @@
     "publicCta": "Propón tu propia música para TV, cine, anuncios y juegos",
     "publicCtaDesc": "Bow Down Visuals escribe la hoja, empareja tus canciones con los briefs y rastrea cada propuesta, en minutos.",
     "publicCtaButton": "Crear mi hoja de sync",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "No pudimos cargar tus hojas",
+    "sheetsLoadErrorBody": "Tus hojas guardadas están a salvo — esta página simplemente no pudo acceder a ellas. Revisa tu conexión e inténtalo de nuevo.",
+    "briefsLoadError": "No pudimos cargar el tablero de briefs",
+    "briefsLoadErrorBody": "Tus briefs están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "trackerLoadError": "No se pudo cargar tu registro de pitches",
+    "trackerLoadErrorBody": "Tus pitches registrados están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "matchesLoadError": "No pudimos cargar las coincidencias para este brief",
+    "retryLoad": "Intentar de nuevo"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals en cifras",

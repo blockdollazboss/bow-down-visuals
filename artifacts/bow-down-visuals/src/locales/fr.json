@@ -4793,7 +4793,9 @@
     "untitledSong": "Chanson sans titre",
     "yourSong": "Ta chanson",
     "distributeThisSong": "Distribuer cette chanson",
-    "scheduleAnnouncement": "Programmer une annonce"
+    "scheduleAnnouncement": "Programmer une annonce",
+    "labelsLoadError": "Impossible de charger l'annuaire des labels",
+    "labelsLoadErrorBody": "L'annuaire des labels est en sécurité — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez."
   },
   "liveShopping": {
     "addProduct": "Ajouter un produit",
@@ -9325,7 +9327,15 @@
     "packetProfileLabel": "Profil de l'artiste",
     "packetPresaveLabel": "Pré-enregistrement / smartlink",
     "notesPlaceholder": "Notes pour le curateur (optionnel)",
-    "tabPlaylists": "Playlists"
+    "tabPlaylists": "Playlists",
+    "curatorsLoadError": "Impossible de charger l'annuaire des curateurs",
+    "curatorsLoadErrorBody": "L'annuaire des curateurs est en sécurité — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez.",
+    "releasesLoadError": "Impossible de charger vos sorties",
+    "releasesLoadErrorBody": "Vos sorties sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "deadlinesLoadError": "Impossible de charger vos échéances",
+    "deadlinesLoadErrorBody": "Vos échéances sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "packetLoadError": "Impossible de charger ce dossier",
+    "packetLoadErrorBody": "La fiche de la sortie est en sécurité — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez."
   },
   "refundPolicy": {
     "nav": {
@@ -9867,7 +9877,10 @@
     "errorDeleteDesignFailed": "Impossible de supprimer ce design — veuillez réessayer.",
     "confirmDelete": "Supprimer ce design ? Cette action est irréversible.",
     "checkoutSoon": "Le paiement arrive bientôt.",
-    "myShopLink": "Vendre ceci dans ma boutique"
+    "myShopLink": "Vendre ceci dans ma boutique",
+    "designsLoadError": "Impossible de charger vos designs",
+    "designsLoadErrorBody": "Vos designs sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer"
   },
   "podcast": {
     "publish": {
@@ -11981,7 +11994,15 @@
     "publicCta": "Pitchez votre propre musique pour la TV, le cinéma, les pubs et les jeux",
     "publicCtaDesc": "Bow Down Visuals écrit le one-sheet, compare vos chansons aux briefs et suit chaque pitch — en quelques minutes.",
     "publicCtaButton": "Créer mon one-sheet sync",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "Impossible de charger vos one-sheets",
+    "sheetsLoadErrorBody": "Vos one-sheets enregistrés sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "briefsLoadError": "Impossible de charger le tableau des briefs",
+    "briefsLoadErrorBody": "Vos briefs sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "trackerLoadError": "Impossible de charger votre suivi de pitches",
+    "trackerLoadErrorBody": "Vos pitches enregistrés sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "matchesLoadError": "Impossible de charger les correspondances pour ce brief",
+    "retryLoad": "Réessayer"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals en chiffres",

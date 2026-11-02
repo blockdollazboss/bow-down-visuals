@@ -4626,7 +4626,9 @@
     "untitledSong": "Song ohne Titel",
     "yourSong": "Dein Song",
     "distributeThisSong": "Diesen Song distribuieren",
-    "scheduleAnnouncement": "Ankündigung planen"
+    "scheduleAnnouncement": "Ankündigung planen",
+    "labelsLoadError": "Das Label-Verzeichnis konnte nicht geladen werden",
+    "labelsLoadErrorBody": "Das Label-Verzeichnis ist sicher — diese Seite konnte es nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut."
   },
   "liveShopping": {
     "addProduct": "Produkt hinzufügen",
@@ -9019,7 +9021,15 @@
     "packetProfileLabel": "Künstlerprofil",
     "packetPresaveLabel": "Pre-Save / Smartlink",
     "notesPlaceholder": "Notizen für den Kurator (optional)",
-    "tabPlaylists": "Playlists"
+    "tabPlaylists": "Playlists",
+    "curatorsLoadError": "Das Kuratoren-Verzeichnis konnte nicht geladen werden",
+    "curatorsLoadErrorBody": "Das Kuratoren-Verzeichnis ist sicher — diese Seite konnte es nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "releasesLoadError": "Deine Releases konnten nicht geladen werden",
+    "releasesLoadErrorBody": "Deine Releases sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "deadlinesLoadError": "Deine Fristen konnten nicht geladen werden",
+    "deadlinesLoadErrorBody": "Deine Fristen sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "packetLoadError": "Dieses Paket konnte nicht geladen werden",
+    "packetLoadErrorBody": "Der Release-Datensatz ist sicher — diese Seite konnte ihn nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut."
   },
   "refundPolicy": {
     "nav": {
@@ -9561,7 +9571,10 @@
     "errorDeleteDesignFailed": "Dieses Design konnte nicht gelöscht werden — bitte versuche es erneut.",
     "confirmDelete": "Dieses Design löschen? Das kann nicht rückgängig gemacht werden.",
     "checkoutSoon": "Checkout kommt bald.",
-    "myShopLink": "In meinem Shop verkaufen"
+    "myShopLink": "In meinem Shop verkaufen",
+    "designsLoadError": "Deine Designs konnten nicht geladen werden",
+    "designsLoadErrorBody": "Deine Designs sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen"
   },
   "podcast": {
     "publish": {
@@ -11485,7 +11498,15 @@
     "publicCta": "Pitche deine eigene Musik für TV, Film, Werbung & Spiele",
     "publicCtaDesc": "Bow Down Visuals schreibt das One-Sheet, gleicht deine Songs mit Briefs ab und verfolgt jeden Pitch — in Minuten.",
     "publicCtaButton": "Mein Sync One-Sheet erstellen",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "Deine One-Sheets konnten nicht geladen werden",
+    "sheetsLoadErrorBody": "Deine gespeicherten One-Sheets sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "briefsLoadError": "Deine Briefs konnten nicht geladen werden",
+    "briefsLoadErrorBody": "Deine Briefs sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "trackerLoadError": "Dein Pitch-Tracker konnte nicht geladen werden",
+    "trackerLoadErrorBody": "Deine erfassten Pitches sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "matchesLoadError": "Matches für dieses Brief konnten nicht geladen werden",
+    "retryLoad": "Erneut versuchen"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals in Zahlen",

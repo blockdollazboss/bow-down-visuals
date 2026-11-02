@@ -4635,7 +4635,9 @@
     "untitledSong": "Música sem título",
     "yourSong": "Sua música",
     "distributeThisSong": "Distribuir esta música",
-    "scheduleAnnouncement": "Agendar anúncio"
+    "scheduleAnnouncement": "Agendar anúncio",
+    "labelsLoadError": "Não foi possível carregar o diretório de gravadoras",
+    "labelsLoadErrorBody": "O diretório de gravadoras está seguro — esta página apenas não conseguiu acessá-lo. Verifique sua conexão e tente novamente."
   },
   "liveShopping": {
     "addProduct": "Adicionar produto",
@@ -8940,7 +8942,15 @@
     "packetTitle": "Pacote de pitch",
     "packetAudioLabel": "Áudio da faixa",
     "packetProfileLabel": "Perfil do artista",
-    "packetPresaveLabel": "Pré-save / smartlink"
+    "packetPresaveLabel": "Pré-save / smartlink",
+    "curatorsLoadError": "Não foi possível carregar o diretório de curadores",
+    "curatorsLoadErrorBody": "O diretório de curadores está seguro — esta página apenas não conseguiu acessá-lo. Verifique sua conexão e tente novamente.",
+    "releasesLoadError": "Não foi possível carregar seus lançamentos",
+    "releasesLoadErrorBody": "Seus lançamentos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "deadlinesLoadError": "Não foi possível carregar seus prazos",
+    "deadlinesLoadErrorBody": "Seus prazos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "packetLoadError": "Não foi possível carregar este pacote",
+    "packetLoadErrorBody": "O registro do lançamento está seguro — esta página apenas não conseguiu acessá-lo. Verifique sua conexão e tente novamente."
   },
   "refundPolicy": {
     "nav": {
@@ -10596,7 +10606,15 @@
     "publicCta": "Proponha sua própria música para TV, cinema, anúncios e games",
     "publicCtaDesc": "O Bow Down Visuals escreve o one-sheet, combina suas músicas com briefs e acompanha cada proposta — em minutos.",
     "publicCtaButton": "Fazer meu one-sheet de sync",
-    "madeWith": "Feito com o Bow Down Visuals"
+    "madeWith": "Feito com o Bow Down Visuals",
+    "sheetsLoadError": "Não foi possível carregar seus one-sheets",
+    "sheetsLoadErrorBody": "Seus one-sheets salvos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "briefsLoadError": "Não foi possível carregar o quadro de briefs",
+    "briefsLoadErrorBody": "Seus briefs estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "trackerLoadError": "Não foi possível carregar seu rastreador de pitches",
+    "trackerLoadErrorBody": "Seus pitches registrados estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "matchesLoadError": "Não foi possível carregar as combinações para este brief",
+    "retryLoad": "Tentar novamente"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals em números",
@@ -12935,7 +12953,10 @@
     "title": "Designer de Merch",
     "titlePlaceholder": "ex.: Camiseta da Turnê Shark King",
     "unlist": "Retirar do ar",
-    "yourProfit": "Seu lucro"
+    "yourProfit": "Seu lucro",
+    "designsLoadError": "Não foi possível carregar seus designs",
+    "designsLoadErrorBody": "Seus designs estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente"
   },
   "moneyTracker": {
     "addEntry": "Adicionar lançamento",

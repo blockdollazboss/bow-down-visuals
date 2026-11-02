@@ -4626,7 +4626,9 @@
     "untitledSong": "제목 없는 노래",
     "yourSong": "내 노래",
     "distributeThisSong": "이 노래 유통하기",
-    "scheduleAnnouncement": "발표 예약하기"
+    "scheduleAnnouncement": "발표 예약하기",
+    "labelsLoadError": "레이블 디렉토리를 불러오지 못했습니다",
+    "labelsLoadErrorBody": "레이블 디렉토리는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요."
   },
   "liveShopping": {
     "addProduct": "상품 추가",
@@ -8927,7 +8929,15 @@
     "packetTitle": "피치 패킷",
     "packetAudioLabel": "트랙 오디오",
     "packetProfileLabel": "아티스트 프로필",
-    "packetPresaveLabel": "사전 저장 / 스마트링크"
+    "packetPresaveLabel": "사전 저장 / 스마트링크",
+    "curatorsLoadError": "큐레이터 디렉토리를 불러오지 못했습니다",
+    "curatorsLoadErrorBody": "큐레이터 디렉토리는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "releasesLoadError": "릴리스를 불러오지 못했습니다",
+    "releasesLoadErrorBody": "내 릴리스는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "deadlinesLoadError": "마감을 불러오지 못했습니다",
+    "deadlinesLoadErrorBody": "내 마감은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "packetLoadError": "이 패킷을 불러오지 못했습니다",
+    "packetLoadErrorBody": "릴리스 기록은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요."
   },
   "refundPolicy": {
     "nav": {
@@ -10576,7 +10586,15 @@
     "publicCta": "내 음악을 TV, 영화, 광고 & 게임에 피칭하세요",
     "publicCtaDesc": "Bow Down Visuals는 원시트를 작성하고, 노래를 브리프에 매칭하고, 모든 피치를 몇 분 만에 추적합니다.",
     "publicCtaButton": "내 싱크 원시트 만들기",
-    "madeWith": "Bow Down Visuals로 제작"
+    "madeWith": "Bow Down Visuals로 제작",
+    "sheetsLoadError": "원시트를 불러오지 못했습니다",
+    "sheetsLoadErrorBody": "저장한 원시트는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "briefsLoadError": "브리프 보드를 불러오지 못했습니다",
+    "briefsLoadErrorBody": "내 브리프는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "trackerLoadError": "피치 트래커를 불러오지 못했습니다",
+    "trackerLoadErrorBody": "기록한 피치는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "matchesLoadError": "이 브리프의 매치를 불러오지 못했습니다",
+    "retryLoad": "다시 시도"
   },
   "socialProof": {
     "ariaLabel": "숫자로 보는 Bow Down Visuals",
@@ -12915,7 +12933,10 @@
     "errorDeleteDesignFailed": "해당 디자인을 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "confirmDelete": "이 디자인을 삭제할까요? 되돌릴 수 없습니다.",
     "checkoutSoon": "결제는 곧 출시됩니다.",
-    "myShopLink": "내 샵에서 판매하기"
+    "myShopLink": "내 샵에서 판매하기",
+    "designsLoadError": "디자인을 불러오지 못했습니다",
+    "designsLoadErrorBody": "내 디자인은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도"
   },
   "moneyTracker": {
     "title": "머니 트래커",

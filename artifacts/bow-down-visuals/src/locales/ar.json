@@ -4662,7 +4662,9 @@
     "untitledSong": "أغنية بدون عنوان",
     "yourSong": "أغنيتك",
     "distributeThisSong": "توزيع هذه الأغنية",
-    "scheduleAnnouncement": "جدولة إعلان"
+    "scheduleAnnouncement": "جدولة إعلان",
+    "labelsLoadError": "تعذّر تحميل دليل الشركات",
+    "labelsLoadErrorBody": "دليل الشركات آمن — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً."
   },
   "liveShopping": {
     "addProduct": "إضافة منتج",
@@ -9075,7 +9077,15 @@
     "packetProfileLabel": "ملف الفنان",
     "packetPresaveLabel": "الحفظ المسبق / الرابط الذكي",
     "notesPlaceholder": "ملاحظات للقيم (اختياري)",
-    "tabPlaylists": "قوائم التشغيل"
+    "tabPlaylists": "قوائم التشغيل",
+    "curatorsLoadError": "تعذّر تحميل دليل القيّمين",
+    "curatorsLoadErrorBody": "دليل القيّمين آمن — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً.",
+    "releasesLoadError": "تعذّر تحميل إصداراتك",
+    "releasesLoadErrorBody": "إصداراتك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "deadlinesLoadError": "تعذّر تحميل مواعيدك النهائية",
+    "deadlinesLoadErrorBody": "مواعيدك النهائية آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "packetLoadError": "تعذّر تحميل هذه الحزمة",
+    "packetLoadErrorBody": "سجل الإصدار آمن — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً."
   },
   "refundPolicy": {
     "nav": {
@@ -9617,7 +9627,10 @@
     "errorDeleteDesignFailed": "تعذر حذف ذلك التصميم — حاول مرة أخرى.",
     "confirmDelete": "حذف هذا التصميم؟ لا يمكن التراجع عن هذا.",
     "checkoutSoon": "إتمام الشراء قادم قريباً.",
-    "myShopLink": "بِع هذا في متجري"
+    "myShopLink": "بِع هذا في متجري",
+    "designsLoadError": "تعذّر تحميل تصاميمك",
+    "designsLoadErrorBody": "تصاميمك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً"
   },
   "podcast": {
     "publish": {
@@ -11577,7 +11590,15 @@
     "publicCta": "اعرض موسيقاك الخاصة للتلفاز والفيلم والإعلانات والألعاب",
     "publicCtaDesc": "Bow Down Visuals يكتب الورقة الواحدة، ويطابق أغانيك مع الموجزات، ويتتبع كل عرض — في دقائق.",
     "publicCtaButton": "اصنع ورقة المزامنة الواحدة الخاصة بي",
-    "madeWith": "صُنع بـ Bow Down Visuals"
+    "madeWith": "صُنع بـ Bow Down Visuals",
+    "sheetsLoadError": "تعذّر تحميل أوراقك الواحدة",
+    "sheetsLoadErrorBody": "أوراقك الواحدة المحفوظة آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "briefsLoadError": "تعذّر تحميل لوحة الموجزات",
+    "briefsLoadErrorBody": "موجزاتك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "trackerLoadError": "تعذّر تحميل متعقّب عروضك",
+    "trackerLoadErrorBody": "عروضك المسجّلة آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "matchesLoadError": "تعذّر تحميل المطابقات لهذا الموجز",
+    "retryLoad": "حاول مجدداً"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals بالأرقام",

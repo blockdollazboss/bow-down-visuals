@@ -4626,7 +4626,9 @@
     "untitledSong": "無題の曲",
     "yourSong": "あなたの曲",
     "distributeThisSong": "この曲を配信する",
-    "scheduleAnnouncement": "発表をスケジュール"
+    "scheduleAnnouncement": "発表をスケジュール",
+    "labelsLoadError": "レーベルディレクトリを読み込めませんでした",
+    "labelsLoadErrorBody": "レーベルディレクトリは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。"
   },
   "liveShopping": {
     "addProduct": "商品を追加",
@@ -8926,7 +8928,15 @@
     "packetTitle": "ピッチパケット",
     "packetAudioLabel": "トラック音声",
     "packetProfileLabel": "アーティストプロフィール",
-    "packetPresaveLabel": "プリセーブ / スマートリンク"
+    "packetPresaveLabel": "プリセーブ / スマートリンク",
+    "curatorsLoadError": "キュレーターディレクトリを読み込めませんでした",
+    "curatorsLoadErrorBody": "キュレーターディレクトリは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "releasesLoadError": "あなたのリリースを読み込めませんでした",
+    "releasesLoadErrorBody": "あなたのリリースは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "deadlinesLoadError": "あなたの締切を読み込めませんでした",
+    "deadlinesLoadErrorBody": "あなたの締切は安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "packetLoadError": "このパケットを読み込めませんでした",
+    "packetLoadErrorBody": "リリースの記録は安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。"
   },
   "refundPolicy": {
     "nav": {
@@ -10573,7 +10583,15 @@
     "publicCta": "あなたの音楽をTV、映画、広告＆ゲームにピッチしよう",
     "publicCtaDesc": "Bow Down Visualsはワンシートを書き、あなたの曲をブリーフにマッチさせ、すべてのピッチを追跡します — 数分で。",
     "publicCtaButton": "私のシンクワンシートを作る",
-    "madeWith": "Bow Down Visualsで作成"
+    "madeWith": "Bow Down Visualsで作成",
+    "sheetsLoadError": "ワンシートを読み込めませんでした",
+    "sheetsLoadErrorBody": "保存したワンシートは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "briefsLoadError": "ブリーフボードを読み込めませんでした",
+    "briefsLoadErrorBody": "あなたのブリーフは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "trackerLoadError": "ピッチトラッカーを読み込めませんでした",
+    "trackerLoadErrorBody": "記録したピッチは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "matchesLoadError": "このブリーフのマッチを読み込めませんでした",
+    "retryLoad": "もう一度試す"
   },
   "socialProof": {
     "ariaLabel": "数字で見る Bow Down Visuals",
@@ -12912,7 +12930,10 @@
     "errorDeleteDesignFailed": "そのデザインを削除できませんでした — もう一度お試しください。",
     "confirmDelete": "このデザインを削除しますか？元に戻せません。",
     "checkoutSoon": "チェックアウトは近日公開です。",
-    "myShopLink": "マイショップで販売する"
+    "myShopLink": "マイショップで販売する",
+    "designsLoadError": "あなたのデザインを読み込めませんでした",
+    "designsLoadErrorBody": "あなたのデザインは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す"
   },
   "moneyTracker": {
     "title": "マネートラッカー",

@@ -4903,7 +4903,9 @@
     "untitledSong": "Untitled song",
     "yourSong": "Your song",
     "distributeThisSong": "Distribute this song",
-    "scheduleAnnouncement": "Schedule announcement"
+    "scheduleAnnouncement": "Schedule announcement",
+    "labelsLoadError": "We couldn't load the label directory",
+    "labelsLoadErrorBody": "The label directory is safe — this page just couldn't reach it. Check your connection and try again."
   },
   "liveShopping": {
     "addProduct": "Add product",
@@ -9526,7 +9528,15 @@
     "packetTitle": "Pitch packet",
     "packetAudioLabel": "Track audio",
     "packetProfileLabel": "Artist profile",
-    "packetPresaveLabel": "Pre-save / smartlink"
+    "packetPresaveLabel": "Pre-save / smartlink",
+    "curatorsLoadError": "We couldn't load the curator directory",
+    "curatorsLoadErrorBody": "The curator directory is safe — this page just couldn't reach it. Check your connection and try again.",
+    "releasesLoadError": "We couldn't load your releases",
+    "releasesLoadErrorBody": "Your releases are safe — this page just couldn't reach them. Check your connection and try again.",
+    "deadlinesLoadError": "We couldn't load your deadlines",
+    "deadlinesLoadErrorBody": "Your deadlines are safe — this page just couldn't reach them. Check your connection and try again.",
+    "packetLoadError": "We couldn't load this packet",
+    "packetLoadErrorBody": "The release record is safe — this page just couldn't reach it. Check your connection and try again."
   },
   "refundPolicy": {
     "nav": {
@@ -10068,7 +10078,10 @@
     "errorDeleteDesignFailed": "Couldn't delete that design — try again.",
     "confirmDelete": "Delete this design? This can't be undone.",
     "checkoutSoon": "Checkout is coming soon.",
-    "myShopLink": "Sell this in my shop"
+    "myShopLink": "Sell this in my shop",
+    "designsLoadError": "We couldn't load your designs",
+    "designsLoadErrorBody": "Your designs are safe — this page just couldn't reach them. Check your connection and try again.",
+    "retryLoad": "Try again"
   },
   "podcast": {
     "publish": {
@@ -12569,7 +12582,15 @@
     "publicCta": "Pitch your own music for TV, film, ads & games",
     "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
     "publicCtaButton": "Make my sync one-sheet",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "We couldn't load your one-sheets",
+    "sheetsLoadErrorBody": "Your saved one-sheets are safe — this page just couldn't reach them. Check your connection and try again.",
+    "briefsLoadError": "We couldn't load the brief board",
+    "briefsLoadErrorBody": "Your briefs are safe — this page just couldn't reach them. Check your connection and try again.",
+    "trackerLoadError": "We couldn't load your pitch tracker",
+    "trackerLoadErrorBody": "Your logged pitches are safe — this page just couldn't reach them. Check your connection and try again.",
+    "matchesLoadError": "We couldn't load matches for this brief",
+    "retryLoad": "Try again"
   },
   "milestones": {
     "loadFailed": "Couldn't load milestones.",

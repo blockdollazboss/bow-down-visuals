@@ -4626,7 +4626,9 @@
     "untitledSong": "बिना शीर्षक वाला गाना",
     "yourSong": "आपका गाना",
     "distributeThisSong": "इस गाने को डिस्ट्रिब्यूट करें",
-    "scheduleAnnouncement": "घोषणा शेड्यूल करें"
+    "scheduleAnnouncement": "घोषणा शेड्यूल करें",
+    "labelsLoadError": "label डायरेक्टरी लोड नहीं हो सकी",
+    "labelsLoadErrorBody": "label डायरेक्टरी सुरक्षित है — यह पेज बस उस तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।"
   },
   "liveShopping": {
     "addProduct": "प्रोडक्ट जोड़ें",
@@ -8927,7 +8929,15 @@
     "packetTitle": "पिच पैकेट",
     "packetAudioLabel": "ट्रैक ऑडियो",
     "packetProfileLabel": "कलाकार प्रोफ़ाइल",
-    "packetPresaveLabel": "प्री-सेव / स्मार्टलिंक"
+    "packetPresaveLabel": "प्री-सेव / स्मार्टलिंक",
+    "curatorsLoadError": "क्यूरेटर डायरेक्टरी लोड नहीं हो सकी",
+    "curatorsLoadErrorBody": "क्यूरेटर डायरेक्टरी सुरक्षित है — यह पेज बस उस तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "releasesLoadError": "आपकी रिलीज़ लोड नहीं हो सकीं",
+    "releasesLoadErrorBody": "आपकी रिलीज़ सुरक्षित हैं — यह पेज बस उन तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "deadlinesLoadError": "आपकी समय-सीमाएं लोड नहीं हो सकीं",
+    "deadlinesLoadErrorBody": "आपकी समय-सीमाएं सुरक्षित हैं — यह पेज बस उन तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "packetLoadError": "यह पैकेट लोड नहीं हो सका",
+    "packetLoadErrorBody": "रिलीज़ रिकॉर्ड सुरक्षित है — यह पेज बस उस तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।"
   },
   "refundPolicy": {
     "nav": {
@@ -10576,7 +10586,15 @@
     "publicCta": "अपने संगीत को TV, फ़िल्म, विज्ञापनों और गेम के लिए पिच करें",
     "publicCtaDesc": "Bow Down Visuals one-sheet लिखता है, आपके गानों को briefs से मिलाता है, और हर pitch को ट्रैक करता है — मिनटों में।",
     "publicCtaButton": "मेरी sync one-sheet बनाएं",
-    "madeWith": "Bow Down Visuals के साथ बनाया गया"
+    "madeWith": "Bow Down Visuals के साथ बनाया गया",
+    "sheetsLoadError": "आपके one-sheet लोड नहीं हो सके",
+    "sheetsLoadErrorBody": "आपके सहेजे गए one-sheet सुरक्षित हैं — यह पेज बस उन तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "briefsLoadError": "brief बोर्ड लोड नहीं हो सका",
+    "briefsLoadErrorBody": "आपके brief सुरक्षित हैं — यह पेज बस उन तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "trackerLoadError": "आपका पिच ट्रैकर लोड नहीं हो सका",
+    "trackerLoadErrorBody": "आपके दर्ज किए गए पिच सुरक्षित हैं — यह पेज बस उन तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "matchesLoadError": "इस brief के लिए मैच लोड नहीं हो सके",
+    "retryLoad": "फिर से कोशिश करें"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals संख्याओं में",
@@ -12915,7 +12933,10 @@
     "errorDeleteDesignFailed": "वह डिज़ाइन हटाया नहीं जा सका — फिर से कोशिश करें।",
     "confirmDelete": "इस डिज़ाइन को डिलीट करें? यह वापस नहीं होगा।",
     "checkoutSoon": "चेकआउट जल्द आ रहा है।",
-    "myShopLink": "इसे मेरी दुकान में बेचें"
+    "myShopLink": "इसे मेरी दुकान में बेचें",
+    "designsLoadError": "आपके डिज़ाइन लोड नहीं हो सके",
+    "designsLoadErrorBody": "आपके डिज़ाइन सुरक्षित हैं — यह पेज बस उन तक पहुँच नहीं सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+    "retryLoad": "फिर से कोशिश करें"
   },
   "moneyTracker": {
     "title": "मनी ट्रैकर",

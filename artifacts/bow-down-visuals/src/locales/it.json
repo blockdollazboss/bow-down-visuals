@@ -4635,7 +4635,9 @@
     "untitledSong": "Canzone senza titolo",
     "yourSong": "La tua canzone",
     "distributeThisSong": "Distribuisci questa canzone",
-    "scheduleAnnouncement": "Programma l'annuncio"
+    "scheduleAnnouncement": "Programma l'annuncio",
+    "labelsLoadError": "Impossibile caricare l'elenco delle label",
+    "labelsLoadErrorBody": "L'elenco delle label è al sicuro — questa pagina non è riuscita a raggiungerlo. Controlla la connessione e riprova."
   },
   "liveShopping": {
     "addProduct": "Aggiungi prodotto",
@@ -8940,7 +8942,15 @@
     "packetTitle": "Pacchetto pitch",
     "packetAudioLabel": "Audio della traccia",
     "packetProfileLabel": "Profilo artista",
-    "packetPresaveLabel": "Pre-salvataggio / smartlink"
+    "packetPresaveLabel": "Pre-salvataggio / smartlink",
+    "curatorsLoadError": "Impossibile caricare l'elenco dei curatori",
+    "curatorsLoadErrorBody": "L'elenco dei curatori è al sicuro — questa pagina non è riuscita a raggiungerlo. Controlla la connessione e riprova.",
+    "releasesLoadError": "Impossibile caricare le tue pubblicazioni",
+    "releasesLoadErrorBody": "Le tue pubblicazioni sono al sicuro — questa pagina non è riuscita a raggiungerle. Controlla la connessione e riprova.",
+    "deadlinesLoadError": "Impossibile caricare le tue scadenze",
+    "deadlinesLoadErrorBody": "Le tue scadenze sono al sicuro — questa pagina non è riuscita a raggiungerle. Controlla la connessione e riprova.",
+    "packetLoadError": "Impossibile caricare questo pacchetto",
+    "packetLoadErrorBody": "Il registro della pubblicazione è al sicuro — questa pagina non è riuscita a raggiungerlo. Controlla la connessione e riprova."
   },
   "refundPolicy": {
     "nav": {
@@ -10596,7 +10606,15 @@
     "publicCta": "Proponi la tua musica per TV, film, pubblicità e giochi",
     "publicCtaDesc": "Bow Down Visuals scrive la scheda, abbina le tue canzoni ai brief e monitora ogni proposta — in pochi minuti.",
     "publicCtaButton": "Crea la mia scheda sync",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "Impossibile caricare le tue schede",
+    "sheetsLoadErrorBody": "Le tue schede salvate sono al sicuro — questa pagina non è riuscita a raggiungerle. Controlla la connessione e riprova.",
+    "briefsLoadError": "Impossibile caricare la bacheca dei brief",
+    "briefsLoadErrorBody": "I tuoi brief sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "trackerLoadError": "Impossibile caricare il tuo tracker dei pitch",
+    "trackerLoadErrorBody": "I tuoi pitch registrati sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "matchesLoadError": "Impossibile caricare le corrispondenze per questo brief",
+    "retryLoad": "Riprova"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals in numeri",
@@ -12935,7 +12953,10 @@
     "title": "Designer di merch",
     "titlePlaceholder": "es. Maglietta del Tour dello Shark King",
     "unlist": "Rimuovi dalla vendita",
-    "yourProfit": "Il tuo profitto"
+    "yourProfit": "Il tuo profitto",
+    "designsLoadError": "Impossibile caricare i tuoi design",
+    "designsLoadErrorBody": "I tuoi design sono al sicuro — questa pagina non è riuscita a raggiungerli. Controlla la connessione e riprova.",
+    "retryLoad": "Riprova"
   },
   "moneyTracker": {
     "addEntry": "Aggiungi voce",
