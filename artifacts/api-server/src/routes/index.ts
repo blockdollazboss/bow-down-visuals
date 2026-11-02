@@ -393,6 +393,7 @@ import fanArtRouter from "./fan-art";
 import profileHostingRouter from "./profile-hosting";
 import worldRouter from "./world";
 import worldEventsRouter from "./world-events";
+import worldShowInvitesRouter from "./world-show-invites";
 import worldCourtSeasonRouter from "./world-court-season";
 import theCrownsRouter from "./the-crowns";
 import worldContestsRouter from "./world-contests";
@@ -795,7 +796,8 @@ router.use(profileWebsiteRouter);           // /api/creator-profiles layout/them
 router.use(fanArtRouter);                   // /api/creator-profiles/:slug/fan-art, /me/fan-art, /api/fan-art/mine (Fan Art Wall, #157)
 router.use(profileHostingRouter);           // /api/creator-hosting/* (Stack 3 Hosting plan)
 router.use(worldRouter);                      // /api/world/screen (The World — King's Hall big screen)
-router.use(worldEventsRouter);                // /api/world/events (World Events — the palace calendar, 0145)
+router.use(worldEventsRouter);
+router.use(worldShowInvitesRouter);                // /api/world/events (World Events — the palace calendar, 0145)
 router.use(worldCourtSeasonRouter);           // /api/world/court-season (Court seasons — the Season Marks Wall read, 0153)
 router.use(theCrownsRouter);                  // /api/crowns + /api/crowns/worn/:userId (The Crowns — yearly house awards read, N8/9999)
 router.use(worldContestsRouter);              // /api/world/contests + /api/world/winners-circle (World Contests, 0158)
