@@ -11,6 +11,7 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, canUseCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
+import { checkoutBaseUrl } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { escrowHeldCents } from "../../lib/escrow-held";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
@@ -967,6 +968,33 @@ export function buildSponsorEscrowCheckoutKey(args: {
   });
 }
 
+/**
+ * Base URL for the escrow funding session's return/success/cancel
+ * landings. This route used to derive the base from REPLIT_DOMAINS
+ * alone with an "http://localhost" fallback — on Render (where
+ * REPLIT_DOMAINS is unset) every deployed funding session sent the
+ * brand's browser to localhost after paying, killing the funded
+ * landing (Gate #5, Nov 2). Settlement never depended on that
+ * landing — it is webhook-owned — but the brand who just paid
+ * landed on a dead page. The house helper derives the way the
+ * other checkout rails do — explicit env domain first, then the
+ * request's own forwarded host — and on a deployed runtime a
+ * loopback base is refused outright: an honest "could not start
+ * funding" beats a checkout that strands a paid deal.
+ */
+export function sponsorEscrowBaseUrl(req: Request): string {
+  const base = checkoutBaseUrl(req);
+  const deployed =
+    process.env["NODE_ENV"] === "production" || !!process.env["RENDER"];
+  const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/.test(base);
+  if (deployed && isStripeConfigured() && loopback) {
+    throw new Error(
+      "Refusing to build a checkout return URL on a loopback base — no public base URL is configured for this deployment",
+    );
+  }
+  return base;
+}
+
 /* POST /api/sponsors/deals/:id/fund — brand funds the escrow.
    With STRIPE_SECRET_KEY configured: returns a real Stripe Checkout
    URL — or, when the page asks for the embedded presentation, the
@@ -1029,8 +1057,13 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
     }
 
     const stripe = createGuardedStripeClient();
-    const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
-    const baseUrl = domain ? `https://${domain}` : "http://localhost";
+    const baseUrl = sponsorEscrowBaseUrl(req);
+    const idempotencyKey = buildSponsorEscrowCheckoutKey({
+      brandUserId: req.userId!,
+      dealId,
+      acceptedApplicationId: deal.accepted_application_id,
+      amountCents,
+    });
     const embeddedRequested =
       parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
     const successUrl = `${baseUrl}/sponsors/${dealId}?funded=1`;
@@ -1116,12 +1149,23 @@ export async function markEscrowFunded(dealId: string, sessionId: string, paymen
   }
   /* The flip claims the from-states: concurrent webhook + poller +
      verify calls for the same funding land it exactly once, and only
-     the lander tells the creator (fan-out truth, stack1100 Y3). */
+     the lander tells the creator (fan-out truth, stack1100 Y3).
+     The flip also stamps the funded split (15% of the agreed amount)
+     so the deal page prints the fee / creator figures the moment the
+     money lands — until now those columns were only written at
+     release, so a funded deal showed "—" for both (Gate #5, Nov 2).
+     Release still recomputes the split over what is actually held
+     (post-refund) and overwrites these. */
+  const fundedSplit = deal.agreed_amount_cents
+    ? sponsorFeeSplit(deal.agreed_amount_cents)
+    : null;
   const flipped = await db.execute(sql`
     UPDATE sponsor_deals
     SET escrow_status = 'funded', status = 'funded',
         stripe_session_id = ${sessionId},
-        stripe_payment_intent_id = ${paymentIntentId}
+        stripe_payment_intent_id = ${paymentIntentId},
+        platform_fee_cents = COALESCE(${fundedSplit?.feeCents ?? null}, platform_fee_cents),
+        creator_payout_cents = COALESCE(${fundedSplit?.netCents ?? null}, creator_payout_cents)
     WHERE id = ${dealId} AND escrow_status IN ('funding', 'unfunded')
     RETURNING id
   `);
