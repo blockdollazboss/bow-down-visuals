@@ -34,6 +34,9 @@ import {
   type PaymentCheckoutInput,
 } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
+import { createJobNotification } from "../../lib/job-notifications";
+import { notifyUserEvent } from "../../lib/push-events";
+import { logger } from "../../lib/logger";
 
 /* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
    re-hosted into permanent storage at listing time; reads serve fresh
@@ -754,9 +757,11 @@ router.delete("/beats/:id", requireAuth, async (req, res) => {
    Beat license payments (0132, TEST-mode checkout).
    POST /api/beats/:id/license creates a pending_payment license + a
    checkout session for the tier's listed price (displayed = charged).
-   POST /api/beats/licenses/verify is the ONLY path to 'completed': it
+   Completion runs through settleBeatLicenseSession (below): verify
    re-retrieves the session, requires payment_status 'paid', the buyer
-   to match, and the paid total to equal the license's locked price.
+   to match, and the paid total to equal the license's locked price;
+   the Stripe webhook settles the same session when the buyer never
+   returns (WEBHOOK-SETTLE, stack1200).
 ───────────────────────────────────────────────────────────────────────────── */
 
 type BeatLicenseRow = typeof beatLicensesTable.$inferSelect;
@@ -802,33 +807,99 @@ const licenseVerifySchema = z.object({
   sessionId: z.string().min(1).max(200),
 });
 
-router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
-  const parsed = licenseVerifySchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "sessionId is required" });
-    return;
-  }
-  const { sessionId } = parsed.data;
+/* ─── Beat-license settle (WEBHOOK-SETTLE, stack1200) ─────────────────
+   ONE settle path takes a paid beat-license session to a completed
+   license. Both completion paths run through it: the buyer's
+   return-verify (below) and the Stripe webhook (stripe-webhook.ts,
+   keyed on purchase_kind "beat_license"). Before the webhook door
+   existed, verify was the ONLY path to 'completed' — the webhook
+   had no branch for these sessions, so a paid license fell through
+   the dispatch to the credit-grant tail's "missing user_id"
+   warning, and a producer who closed the tab after paying kept a
+   pending_payment license forever: money taken, no download, no
+   stems. Exactly-once: the exclusive tier is serialized by its
+   atomic beat-row claim, and the completion flip is now guarded on
+   status 'pending_payment' — a racing settle's loser flips nothing
+   and answers as the duplicate it is. Amounts, tiers and delivery
+   are unchanged — the settle returns the very { status, body }
+   verify always answered. */
 
-  let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+/* The producer tell (BEATS-SETTLE, stack1200) — the notify-census
+   lane's fix #5 in the shape THIS lineage needs. That lane wired
+   the tell into its own verify-local completion (its finding #4
+   recorded that beats had no webhook settle — true on its base,
+   already fixed here by WEBHOOK-SETTLE). On this branch completion
+   lives in the shared settle below, so the tell hangs off the
+   settle's completion-flip win and fires identically from the
+   webhook door (buyer closed the tab) and the verify door. Same
+   claim-first shape as the storefront sale finale
+   (lib/market-sale.ts): the claim (jobType "sale", jobId
+   `beat-license:<id>`) lands on the unique (job_type, job_id)
+   key — only its winner fires the door, so racing doors and
+   replays tell exactly once. Copy names the TRUE money: the
+   producer's net from the row's own price − commission, never
+   the gross. Best-effort: a tell failure never fails the
+   buyer's completion. */
+async function notifyBeatSaleSafely(license: {
+  id: string;
+  producer_id: string;
+  price_cents: number;
+  commission_cents: number;
+  tier: string;
+}, beatTitle: string): Promise<void> {
+  const title = "Your beat just sold 👑";
+  const message = `${beatTitle} (${license.tier}) — net $${((license.price_cents - license.commission_cents) / 100).toFixed(2)} to you. See it in your beat dashboard.`;
   try {
-    session = await retrieveCheckoutSession(sessionId);
-  } catch {
-    res.status(400).json({ error: "Could not retrieve this checkout session." });
-    return;
+    const claimed = await createJobNotification({
+      jobType: "sale",
+      jobId: `beat-license:${license.id}`,
+      userId: license.producer_id,
+      projectId: null,
+      status: "completed",
+      title,
+      message,
+    });
+    if (!claimed) return; // a twin request already claimed the tell
+    await notifyUserEvent({
+      userId: license.producer_id,
+      category: "money",
+      kind: "beat_sale",
+      title,
+      body: message,
+      link: "/beats",
+    });
+  } catch (err) {
+    logger.warn({ err, licenseId: license.id }, "[beats] producer sale tell failed (sale stands)");
   }
+}
+
+export interface BeatLicenseSettleResult {
+  httpStatus: number;
+  body: Record<string, unknown>;
+}
+
+/** Settle a paid beat-license checkout session. The caller asserts
+    the session is paid (verify asks Stripe; the webhook trusts the
+    signature-verified event) and names the buyer (verify: the
+    signed-in user; the webhook: the session metadata's buyer —
+    the ownership check below then trivially holds). */
+export async function settleBeatLicenseSession(
+  session: Awaited<ReturnType<typeof retrieveCheckoutSession>>,
+  opts: { buyerUserId: string },
+): Promise<BeatLicenseSettleResult> {
+  const sessionId = session.id;
+  /* The settle owns the paid invariant: no caller (verify or
+     webhook) can complete a license off an unpaid session, even
+     though both already check before calling. */
   if (session.payment_status !== "paid") {
-    res.status(400).json({ error: "Payment has not been completed." });
-    return;
+    return { httpStatus: 400, body: { error: "Payment has not been completed." } };
   }
   const meta = session.metadata ?? {};
   if (meta["purchase_kind"] !== "beat_license" || !meta["license_id"]) {
-    res.status(400).json({ error: "This session isn't a beat license purchase." });
-    return;
+    return { httpStatus: 400, body: { error: "This session isn't a beat license purchase." } };
   }
-  if (meta["buyer_user_id"] !== req.userId) {
-    res.status(403).json({ error: "This purchase doesn't belong to you." });
-    return;
+  if (meta["buyer_user_id"] !== opts.buyerUserId) {
+    return { httpStatus: 403, body: { error: "This purchase doesn't belong to you." } };
   }
 
   try {
@@ -839,12 +910,10 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
       .limit(1);
     const license = rows[0];
     if (!license || license.id !== meta["license_id"]) {
-      res.status(400).json({ error: "License for this session not found." });
-      return;
+      return { httpStatus: 400, body: { error: "License for this session not found." } };
     }
     if ((session.amount_total ?? 0) !== license.price_cents) {
-      res.status(400).json({ error: "The paid amount doesn't match the license price." });
-      return;
+      return { httpStatus: 400, body: { error: "The paid amount doesn't match the license price." } };
     }
     const beatRows = await db.select().from(beatsTable).where(eq(beatsTable.id, license.beat_id)).limit(1);
     const beat = beatRows[0];
@@ -853,24 +922,73 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
          can NEVER be recorded (Lane V3 F3). Refund automatically;
          the claim is made only when the refund landed. */
       const refunded = await refundCheckoutSessionPayment(session);
-      res.status(400).json({
-        error: refunded
-          ? "The beat for this license no longer exists — your payment has been refunded in full."
-          : "The beat for this license no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
-        refunded,
-      });
-      return;
+      return {
+        httpStatus: 400,
+        body: {
+          error: refunded
+            ? "The beat for this license no longer exists — your payment has been refunded in full."
+            : "The beat for this license no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+          refunded,
+        },
+      };
     }
     const presented = await presentBeat(beat);
     if (license.status === "completed") {
-      res.json({
-        success: true,
-        duplicate: true,
-        license: toLicenseJson(license),
-        downloadUrl: presented.audio_url,
-        stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
-      });
-      return;
+      return {
+        httpStatus: 200,
+        body: {
+          success: true,
+          duplicate: true,
+          license: toLicenseJson(license),
+          downloadUrl: presented.audio_url,
+          stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
+        },
+      };
+    }
+    /* A paid session this settle refuses for a reason that can
+       NEVER clear on retry — a rival COMPLETED the exclusive, or
+       this license's market was closed by a completed exclusive —
+       is fulfillment-impossible in exactly the Lane V3 F3 sense the
+       beat-deleted path above already auto-refunds. Refund it here
+       too: the claim is made only when the refund landed, and the
+       helper's per-session refund idempotency key
+       (lib/stripe-checkout) keeps a replayed refusal from
+       double-refunding. A refusal that CAN still clear — a rival
+       merely pending behind a dangling flag — stays a plain
+       retryable 409 below with no refund. (Gate #5 beats-fail lane:
+       before this, the losing exclusive buyer was 409'd with their
+       money kept, and an in-flight non-exclusive checkout paid after
+       the exclusive completed settled anyway, breaching the
+       exclusive buyer's "producer stops selling this beat" terms.) */
+    const refuseWithRefund = async (error: string): Promise<BeatLicenseSettleResult> => {
+      const refunded = await refundCheckoutSessionPayment(session);
+      return {
+        httpStatus: 409,
+        body: {
+          error: refunded
+            ? `${error} Your payment has been refunded in full.`
+            : `${error} Your payment couldn't be refunded automatically — contact support and we'll make it right.`,
+          refunded,
+        },
+      };
+    };
+    if (license.tier !== "exclusive" && beat.exclusive_sold) {
+      /* An exclusive sale closes the WHOLE market (stack1100 X4) —
+         the creation rail and the offers shelf already close, but an
+         in-flight checkout started before the sale could still
+         settle after it, re-selling in slices what the exclusive
+         buyer paid to own outright. The settle is the last door:
+         when a COMPLETED exclusive exists for this beat, a pending
+         non-exclusive license can never be fulfilled. A dangling
+         flag with no completed exclusive is a crashed attempt, not
+         a sale (the C2 philosophy) — it does not strand this buyer. */
+      const exclusives = await db
+        .select()
+        .from(beatLicensesTable)
+        .where(and(eq(beatLicensesTable.beat_id, beat.id), eq(beatLicensesTable.tier, "exclusive")));
+      if (exclusives.some((l) => l.status === "completed")) {
+        return refuseWithRefund("This beat was sold exclusively before this purchase could complete.");
+      }
     }
     /* Exclusive completion is an ATOMIC CLAIM, not check-then-set
        (Lane V3 F5): the old flow read exclusive_sold, completed the
@@ -905,9 +1023,17 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
           .where(and(eq(beatLicensesTable.beat_id, beat.id), eq(beatLicensesTable.tier, "exclusive")));
         const rivalCompleted = others.some((l) => l.id !== license.id && l.status === "completed");
         const rivalPending = others.some((l) => l.id !== license.id && l.status === "pending_payment");
-        if (rivalCompleted || rivalPending) {
-          res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
-          return;
+        if (rivalCompleted) {
+          /* Definitive loss: this paid session can never complete —
+             refund it like every other fulfillment-impossible paid
+             session on this rail. */
+          return refuseWithRefund("This beat's exclusive license was sold to someone else first.");
+        }
+        if (rivalPending) {
+          /* Not yet a loss: the rival has not paid to completion and
+             its claim may still be released (refunded rivals already
+             don't count above) — plain retryable 409, no refund. */
+          return { httpStatus: 409, body: { error: "This beat's exclusive license was sold to someone else first." } };
         }
         await db
           .update(beatsTable)
@@ -918,8 +1044,9 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
         claimedExclusive = await claim();
       }
       if (!claimedExclusive) {
-        res.status(409).json({ error: "This beat's exclusive license was sold to someone else first." });
-        return;
+        /* The atomic claim went to a racing settle — this paid
+           session lost the beat for good; refund it. */
+        return refuseWithRefund("This beat's exclusive license was sold to someone else first.");
       }
     }
     let updated: typeof license | undefined;
@@ -927,7 +1054,7 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
       [updated] = await db
         .update(beatLicensesTable)
         .set({ status: "completed" })
-        .where(eq(beatLicensesTable.id, license.id))
+        .where(and(eq(beatLicensesTable.id, license.id), eq(beatLicensesTable.status, "pending_payment")))
         .returning();
     } catch (err) {
       /* Completion failed after the claim: free the beat so the paid
@@ -941,17 +1068,68 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
       }
       throw err;
     }
-    res.json({
-      success: true,
-      duplicate: false,
-      license: toLicenseJson(updated ?? { ...license, status: "completed" }),
-      downloadUrl: presented.audio_url,
-      stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
-    });
+    if (!updated) {
+      /* The completion flip matched nothing: a racing settle (the
+         webhook against this verify, or two of either) completed
+         the license in the awaits above. The beat is delivered —
+         answer as the duplicate this call now is. */
+      return {
+        httpStatus: 200,
+        body: {
+          success: true,
+          duplicate: true,
+          license: toLicenseJson({ ...license, status: "completed" }),
+          downloadUrl: presented.audio_url,
+          stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
+        },
+      };
+    }
+    /* The sale just landed — this flip is its one landing, and
+       only the winner reaches this line (the loser answered
+       duplicate above), so the producer tell fires here, inside
+       the shared settle, whichever door carried the payment home.
+       The helper never throws. */
+    await notifyBeatSaleSafely(updated, beat.title);
+    return {
+      httpStatus: 200,
+      body: {
+        success: true,
+        duplicate: false,
+        license: toLicenseJson(updated),
+        downloadUrl: presented.audio_url,
+        stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
+      },
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to verify license";
-    res.status(500).json({ error: msg });
+    return { httpStatus: 500, body: { error: msg } };
   }
+}
+/* POST /api/beats/licenses/verify — the buyer's return path from
+   paid checkout to a completed license; the Stripe webhook settles
+   the same session through the same settle when the buyer never
+   returns. */
+router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
+  const parsed = licenseVerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  const { sessionId } = parsed.data;
+
+  let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+  try {
+    session = await retrieveCheckoutSession(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    res.status(400).json({ error: "Payment has not been completed." });
+    return;
+  }
+  const result = await settleBeatLicenseSession(session, { buyerUserId: req.userId! });
+  res.status(result.httpStatus).json(result.body);
 });
 
 router.post("/beats/:id/license", requireAuth, async (req, res) => {

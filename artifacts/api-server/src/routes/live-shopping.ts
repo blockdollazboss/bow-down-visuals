@@ -46,8 +46,11 @@ import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
    Checkout (0132, never fake a transaction):
    - The default buy path is ON-platform: POST /live-shopping/checkout
      starts a TEST-mode checkout at the product's listed price, and
-     POST /live-shopping/verify records the sale (status 'paid') only
-     after the session verifies as paid. Displayed = charged.
+     the sale (status 'paid') is recorded by settleLiveShopSession —
+     reached from POST /live-shopping/verify on the buyer's return
+     AND from the Stripe webhook when the buyer never returns
+     (WEBHOOK-SETTLE, stack1200) — only for a paid session.
+     Displayed = charged.
    - `external_url` stays as the creator's own off-platform link — a
      secondary option, never the default buy path.
    - Q150: a purchase tied to a stream is only possible while that
@@ -707,36 +710,44 @@ router.post(
   },
 );
 
-router.post(
-  "/live-shopping/verify",
-  requireAuth,
-  publicApiLimiter,
-  async (req: Request, res: Response) => {
-    const parsed = checkoutVerifySchema.safeParse(req.body ?? {});
-    if (!parsed.success) {
-      res.status(400).json({ error: "sessionId is required" });
-      return;
-    }
-    const { sessionId } = parsed.data;
-    let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
-    try {
-      session = await retrieveCheckoutSession(sessionId);
-    } catch {
-      res.status(400).json({ error: "Could not retrieve this checkout session." });
-      return;
-    }
-    if (session.payment_status !== "paid") {
-      res.status(400).json({ error: "Payment has not been completed." });
-      return;
-    }
+/* ─── Live-shop settle (WEBHOOK-SETTLE, stack1200) ────────────────────
+   ONE settle path takes a paid live-shop session to a recorded
+   sale. Both completion paths run through it: the buyer's
+   return-verify (below) and the Stripe webhook (stripe-webhook.ts,
+   keyed on purchase_kind "live_shop"). Before the webhook door
+   existed, verify was the ONLY path — the webhook had no branch
+   for these sessions, so a paid purchase fell through the dispatch
+   to the credit-grant tail's "missing user_id" warning, and a
+   viewer who closed the tab after paying was charged with no sale
+   recorded: no delivery record, no overlay alert. Exactly-once is
+   the stripe_session_id unique index + the read-back below; the
+   Q150 stream-ended refusal keeps its exact scope (UNRECORDED
+   sessions only — a sale recorded while the stream was live stays
+   a duplicate no-op even if the stream has since ended). Amounts
+   stay checkout-locked; the settle returns the very { status,
+   body } verify always answered. */
+
+export interface LiveShopSettleResult {
+  httpStatus: number;
+  body: Record<string, unknown>;
+}
+
+/** Settle a paid live-shop checkout session. The caller asserts the
+    session is paid (verify asks Stripe; the webhook trusts the
+    signature-verified event) and names the buyer (verify: the
+    signed-in user; the webhook: the session metadata's buyer — the
+    ownership check below then trivially holds). */
+export async function settleLiveShopSession(
+  session: Awaited<ReturnType<typeof retrieveCheckoutSession>>,
+  opts: { buyerUserId: string },
+): Promise<LiveShopSettleResult> {
+  const sessionId = session.id;
     const meta = session.metadata ?? {};
     if (meta["purchase_kind"] !== "live_shop" || !meta["product_id"] || !meta["seller_user_id"]) {
-      res.status(400).json({ error: "This session isn't a live shopping purchase." });
-      return;
+      return { httpStatus: 400, body: { error: "This session isn't a live shopping purchase." } };
     }
-    if (meta["buyer_user_id"] !== req.userId) {
-      res.status(403).json({ error: "This purchase doesn't belong to you." });
-      return;
+    if (meta["buyer_user_id"] !== opts.buyerUserId) {
+      return { httpStatus: 403, body: { error: "This purchase doesn't belong to you." } };
     }
     try {
       /* Idempotency: the unique session index + this read-back make a
@@ -758,13 +769,15 @@ router.post(
            the claim is made only when the refund landed. */
         const refunded = await refundCheckoutSessionPayment(session);
         logger.error({ sessionId, refunded }, "[live-shopping] verify: product deleted after payment");
-        res.status(400).json({
-          error: refunded
-            ? "The product for this purchase no longer exists — your payment has been refunded in full."
-            : "The product for this purchase no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
-          refunded,
-        });
-        return;
+        return {
+          httpStatus: 400,
+          body: {
+            error: refunded
+              ? "The product for this purchase no longer exists — your payment has been refunded in full."
+              : "The product for this purchase no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+            refunded,
+          },
+        };
       }
       /* Q150: the stream may have ended (or been removed) between
          checkout and verify. A sale tied to a stream that is not live
@@ -791,14 +804,16 @@ router.post(
             { sessionId, streamId: meta["stream_id"], streamStatus: streamRow?.status ?? null, refunded },
             "[live-shopping] verify: stream not live at verify — sale refused",
           );
-          res.status(409).json({
-            error: !streamRow
-              ? "The stream for this purchase no longer exists — your payment has been refunded in full."
-              : STREAM_NOT_LIVE_ERROR,
-            code: "STREAM_NOT_LIVE",
-            refunded,
-          });
-          return;
+          return {
+            httpStatus: 409,
+            body: {
+              error: !streamRow
+                ? "The stream for this purchase no longer exists — your payment has been refunded in full."
+                : STREAM_NOT_LIVE_ERROR,
+              code: "STREAM_NOT_LIVE",
+              refunded,
+            },
+          };
         }
       }
       const quantity = Math.max(1, Number(meta["quantity"] ?? "1") || 1);
@@ -812,22 +827,23 @@ router.post(
       const totalCents = hasLock ? lockedTotal : row.price_cents * quantity;
       const unitPriceCents = hasLock ? lockedUnit : row.price_cents;
       if ((session.amount_total ?? 0) !== totalCents) {
-        res.status(400).json({ error: "The paid amount doesn't match the product price." });
-        return;
+        return { httpStatus: 400, body: { error: "The paid amount doesn't match the product price." } };
       }
       if (existing[0]) {
-        res.json({
-          success: true,
-          duplicate: true,
-          sale: {
-            id: existing[0].id,
-            productId: existing[0].product_id,
-            quantity: existing[0].quantity,
-            totalCents: existing[0].price_cents * existing[0].quantity,
-            status: existing[0].status,
+        return {
+          httpStatus: 200,
+          body: {
+            success: true,
+            duplicate: true,
+            sale: {
+              id: existing[0].id,
+              productId: existing[0].product_id,
+              quantity: existing[0].quantity,
+              totalCents: existing[0].price_cents * existing[0].quantity,
+              status: existing[0].status,
+            },
           },
-        });
-        return;
+        };
       }
       const feeCents = platformFeeCents(totalCents);
       const [sale] = await db
@@ -839,7 +855,7 @@ router.post(
           quantity,
           price_cents: unitPriceCents,
           platform_fee_cents: feeCents,
-          buyer_user_id: req.userId!,
+          buyer_user_id: opts.buyerUserId,
           stripe_session_id: sessionId,
           status: "paid",
         })
@@ -857,26 +873,54 @@ router.post(
         });
       }
       logger.info({ sessionId, saleId: sale!.id, totalCents }, "[live-shopping] paid sale recorded");
-      res.json({
-        success: true,
-        duplicate: false,
-        sale: {
-          id: sale!.id,
-          productId: row.id,
-          productName: row.name,
-          quantity,
-          totalCents,
-          total: formatPrice(totalCents),
-          platformFeeCents: feeCents,
-          creatorPayoutCents: totalCents - feeCents,
-          status: "paid",
+      return {
+        httpStatus: 200,
+        body: {
+          success: true,
+          duplicate: false,
+          sale: {
+            id: sale!.id,
+            productId: row.id,
+            productName: row.name,
+            quantity,
+            totalCents,
+            total: formatPrice(totalCents),
+            platformFeeCents: feeCents,
+            creatorPayoutCents: totalCents - feeCents,
+            status: "paid",
+          },
+          testMode: isCheckoutTestMode(),
         },
-        testMode: isCheckoutTestMode(),
-      });
+      };
     } catch (err) {
       logger.error({ err, sessionId }, "[live-shopping] verify failed");
-      res.status(500).json({ error: "Payment confirmed but the sale couldn't be recorded. Contact support." });
+      return { httpStatus: 500, body: { error: "Payment confirmed but the sale couldn't be recorded. Contact support." } };
     }
+}
+router.post(
+  "/live-shopping/verify",
+  requireAuth,
+  publicApiLimiter,
+  async (req: Request, res: Response) => {
+    const parsed = checkoutVerifySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "sessionId is required" });
+      return;
+    }
+    const { sessionId } = parsed.data;
+    let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+    try {
+      session = await retrieveCheckoutSession(sessionId);
+    } catch {
+      res.status(400).json({ error: "Could not retrieve this checkout session." });
+      return;
+    }
+    if (session.payment_status !== "paid") {
+      res.status(400).json({ error: "Payment has not been completed." });
+      return;
+    }
+    const result = await settleLiveShopSession(session, { buyerUserId: req.userId! });
+    res.status(result.httpStatus).json(result.body);
   },
 );
 

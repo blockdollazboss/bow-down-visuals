@@ -7,6 +7,7 @@ import {
   HandCoins, Loader2, Heart, BadgeAlert, Check, PiggyBank, ChevronLeft, Trophy,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── Public tip page — /tips/:handle ──────────────────────────────────────
    Fans land here from a creator's shared link, pick an amount, and tip.
@@ -73,6 +74,10 @@ export default function TipPage() {
   const [sent, setSent] = useState(false);
   /* Set when a real checkout payment verifies on return (0142). */
   const [paidAmount, setPaidAmount] = useState<number | null>(null);
+  /* Embedded checkout (TIP-TRUTH, stack1200): when the API answers
+     with a client secret, the payment form mounts right here — the
+     fan never leaves the site for a hosted checkout page. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   /* Back from checkout: verify the session once and show the paid state. */
@@ -131,6 +136,7 @@ export default function TipPage() {
     }
     setSending(true);
     setError(null);
+    setEmbeddedSecret(null);
     try {
       /* Real checkout first (0142). A 503 means payments aren't
          configured in this environment — fall back to recording the
@@ -138,10 +144,28 @@ export default function TipPage() {
       const co = await fetch(`/api/tips/${encodeURIComponent(handle)}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: effectiveAmount, fanName, message }),
+        body: JSON.stringify({
+          amount: effectiveAmount,
+          fanName,
+          message,
+          /* TIP-TRUTH (stack1200): ask for the embedded session
+             whenever the publishable key is configured — checkout
+             happens ON this page, never on a hosted page (owner
+             law, Oct 26; the store and the World tip card already
+             ride this rail). */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       if (co.ok) {
         const coJson = await co.json().catch(() => null);
+        /* The clientSecret branch precedes the hosted redirect: an
+           embedded answer mounts the payment form below and the fan
+           never leaves the site. The hosted URL survives only as
+           the fallback when no secret came back. */
+        if (coJson?.clientSecret) {
+          setEmbeddedSecret(coJson.clientSecret as string);
+          return;
+        }
         if (coJson?.checkoutUrl) {
           window.location.href = coJson.checkoutUrl as string;
           return;
@@ -290,6 +314,19 @@ export default function TipPage() {
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />}
                 {t("tipPage.sendTipButton", { amount: effectiveAmount && effectiveAmount > 0 ? effectiveAmount.toFixed(2) : "0.00" })}
               </button>
+
+              {embeddedSecret && (
+                <div className="mt-4 space-y-3 text-left" data-testid="tip-embedded-checkout">
+                  <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
+                    Your payment form is right here — the tip lands the moment the payment confirms.
+                  </p>
+                  <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+                  <button type="button" onClick={() => setEmbeddedSecret(null)}
+                    className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/[0.06]">
+                    Close — nothing is charged until you complete the form
+                  </button>
+                </div>
+              )}
 
               <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 text-left text-xs text-amber-200/85">
                 <BadgeAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />

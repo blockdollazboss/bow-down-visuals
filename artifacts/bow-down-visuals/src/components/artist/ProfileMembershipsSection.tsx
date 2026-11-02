@@ -15,14 +15,22 @@ import {
 import { fetchMyProfile } from "@/lib/artist-profiles";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiJson } from "@/lib/social-api";
+import {
+  EmbeddedSessionCheckout,
+  hasStripePublishableKey,
+} from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── Memberships — public profile section ────────────────────────────────
    The creator's fan membership tiers, sold right on the profile under
    the Store (GET /memberships/public/:creatorUserId). Join runs the
-   real checkout: a free tier activates on the spot; a paid tier hands
-   off to the checkout page for exactly the price shown. Guests are
-   asked to sign in first. No tiers hides the block for visitors; the
-   owner gets the set-up invitation; a failed load is an honest error. */
+   real checkout for exactly the price shown: a free tier activates on
+   the spot; a paid tier mounts the embedded checkout right here on the
+   profile (never-leave-the-site law) and completion returns to
+   /memberships, whose verify-on-return activates the seat. The hosted
+   payment page remains only as the fallback when the embedded form
+   can't mount on this device. Guests are asked to sign in first. No
+   tiers hides the block for visitors; the owner gets the set-up
+   invitation; a failed load is an honest error. */
 
 type BillingPeriod = "monthly" | "annual";
 
@@ -42,6 +50,9 @@ export default function ProfileMembershipsSection({
   const [busyTier, setBusyTier] = useState<string | null>(null);
   const [joined, setJoined] = useState<Set<string>>(new Set());
   const [joinError, setJoinError] = useState<string | null>(null);
+  /* The in-flight embedded join: the server answered a clientSecret
+     instead of a hosted URL, so the payment form mounts right here. */
+  const [embedded, setEmbedded] = useState<{ tierName: string; clientSecret: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,21 +97,36 @@ export default function ProfileMembershipsSection({
   const join = async (tier: MembershipTierDto) => {
     setBusyTier(tier.id);
     setJoinError(null);
+    setEmbedded(null);
     try {
       const usePeriod: BillingPeriod =
         period === "annual" && membershipAnnualLabel(tier) !== null ? "annual" : "monthly";
-      const res = await apiJson<{ free?: boolean; url?: string }>(
+      const res = await apiJson<{ free?: boolean; url?: string | null; clientSecret?: string | null }>(
         getAccessToken,
         "/api/memberships/checkout",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tierId: tier.id, billingPeriod: usePeriod }),
+          body: JSON.stringify({
+            tierId: tier.id,
+            billingPeriod: usePeriod,
+            /* Ask for the embedded presentation when this device can
+               mount it (publishable key configured) — the server
+               answers a clientSecret instead of a hosted URL and the
+               fan pays right here on the profile. */
+            ...(hasStripePublishableKey() ? { uiMode: "embedded" } : {}),
+          }),
         },
       );
       if (res.free) {
         setJoined((prev) => new Set(prev).add(tier.id));
+      } else if (res.clientSecret && hasStripePublishableKey()) {
+        /* Embedded: mount the payment form in this section. The seat
+           activates when the return to /memberships verifies the
+           session — exactly as after a hosted payment. */
+        setEmbedded({ tierName: tier.name, clientSecret: res.clientSecret });
       } else if (res.url) {
+        /* Fallback rail only: the embedded form can't mount here. */
         window.location.assign(res.url);
       } else {
         setJoinError("Checkout didn't start — try again in a moment.");
@@ -285,6 +311,24 @@ export default function ProfileMembershipsSection({
               );
             })}
           </div>
+          {embedded && (
+            <div className="mt-4" data-testid="profile-memberships-embedded-checkout">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-bold" style={{ color: "var(--ap-text)" }}>
+                  Finish joining {embedded.tierName} — pay right here, you never leave this page.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEmbedded(null)}
+                  className="text-[11px] font-semibold underline"
+                  style={{ color: "var(--ap-muted)" }}
+                >
+                  Close
+                </button>
+              </div>
+              <EmbeddedSessionCheckout clientSecret={embedded.clientSecret} />
+            </div>
+          )}
           {joinError && (
             <p className="mt-3 text-center text-xs font-semibold text-red-400">{joinError}</p>
           )}

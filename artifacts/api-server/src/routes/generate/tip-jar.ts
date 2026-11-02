@@ -9,6 +9,8 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
+import { createJobNotification } from "../../lib/job-notifications";
+import { notifyUserEvent } from "../../lib/push-events";
 import {
   canonicalJarUrl,
   jarQrTarget,
@@ -37,6 +39,14 @@ import {
    they remain the fallback when payments aren't configured, and the
    earnings view reads them as pending, as before.
 
+   TIP-TRUTH (stack1200): the Stripe webhook settles tip sessions
+   through the same guarded flip (settleTipBySessionId below), so a
+   tip lands even when the fan never returns to the page; the flip's
+   winner fires the creator's money notification exactly once (tips
+   carry NO platform fee — 100% reaches the creator); and the
+   dashboard totals/feed derive from the durable paid rows — the
+   same rows the jar summary reads — never from the intent map.
+
    FUNDING GOALS (Stack-100 #3): a creator may run ONE active funding
    goal on their tip page (target + what it's for). The goal definition
    rides this same settings object — no new table — extended with a
@@ -47,8 +57,9 @@ import {
 
 const TIP_CURRENCY = "USD";
 export const TIP_STATUS_PENDING = "pending_payment";
-/** The rail's one real money state: set exactly once by checkout verify. */
-const TIP_STATUS_PAID = "paid";
+/** The rail's one real money state: set exactly once by the settle
+    paths (return-verify and the Stripe webhook share the flip). */
+export const TIP_STATUS_PAID = "paid";
 export const TIP_MAX_AMOUNT = 10000;
 export const TIP_MIN_AMOUNT = 1;
 export const TIP_MAX_SUGGESTED = 6;
@@ -187,7 +198,7 @@ function rowTimeMs(row: PaidTipRowLike): number {
  *
  * A row counts only when ALL of these hold (the rail's own money-state
  * conventions):
- *   - status is exactly "paid" — the state checkout verify sets once.
+ *   - status is exactly "paid" — the state the settle paths set once.
  *     pending_payment / refunded / anything else never counts, and tip
  *     intents never reach this table at all;
  *   - currency matches the rail's USD;
@@ -938,6 +949,104 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
   }
 });
 
+/* ─── Tip settle (TIP-TRUTH, stack1200) ──────────────────────────────
+   ONE guarded flip takes a durable tip row pending_payment → paid,
+   and only the caller that lands the flip fires the creator's money
+   notification. Both completion paths — the fan's return-verify and
+   the Stripe webhook (settleTipBySessionId) — run through it, so a
+   tip counts once, tells once, and still lands when the fan closes
+   the tab after paying. Callers invoke the flip only for sessions
+   already known paid (verify asks Stripe; the webhook trusts the
+   signature-verified event) — the flip itself never re-checks.
+   Tips carry NO platform fee (standing ruling): 100% of the tip
+   reaches the creator, and the notification copy says so. */
+
+type TipRow = typeof tipJarTipsTable.$inferSelect;
+
+/** The creator tell for a landed tip, through the one notification
+    door every money family uses: the job_notifications exactly-once
+    claim first (jobId `tip:<id>`), the settings-gated bell + push
+    (notifyUserEvent) only behind a landed claim. Best-effort by
+    contract — a notification failure never fails a payment. */
+async function notifyTipReceivedSafely(tip: TipRow): Promise<void> {
+  try {
+    const dollars = (tip.amount_cents / 100).toFixed(2);
+    const fan = tip.fan_name?.trim() ? tip.fan_name.trim() : "A fan";
+    const title = "You just got tipped 👑";
+    const message = `${fan} tipped you $${dollars} — the full amount is yours (tips carry no platform fee).`;
+    const landed = await createJobNotification({
+      jobType: "sale",
+      jobId: `tip:${tip.id}`,
+      userId: tip.page_user_id,
+      status: "completed",
+      title,
+      message,
+    });
+    if (!landed) return;
+    await notifyUserEvent({
+      userId: tip.page_user_id,
+      category: "money",
+      kind: "tip_received",
+      title,
+      body: message,
+      link: "/tips",
+    });
+  } catch (err) {
+    logger.error({ err, tipId: tip.id }, "[tip-jar] tip-received notification failed");
+  }
+}
+
+/** Flip one tip row to "paid" exactly once (guarded UPDATE …
+    RETURNING). Only the caller whose UPDATE lands a row — the
+    transition's winner — tells the creator. Returns the updated
+    row, or null when another path settled the tip first. */
+async function markTipPaid(tip: TipRow): Promise<TipRow | null> {
+  const [row] = await db
+    .update(tipJarTipsTable)
+    .set({ status: TIP_STATUS_PAID, paid_at: new Date() })
+    .where(
+      and(
+        eq(tipJarTipsTable.id, tip.id),
+        eq(tipJarTipsTable.status, TIP_STATUS_PENDING),
+      ),
+    )
+    .returning();
+  if (!row) return null;
+  await notifyTipReceivedSafely(row);
+  return row;
+}
+
+export interface TipSettleResult {
+  found: boolean;
+  status: string;
+  /** True only for the caller that landed the pending → paid flip. */
+  transitioned: boolean;
+  tip?: TipRow;
+}
+
+/** Settle a tip from its checkout session id — the Stripe webhook's
+    door (checkout.session.completed with metadata.type "tip_jar",
+    payment_status "paid"). Exactly-once falls out of the guarded
+    flip: webhook retries and a racing return-verify land the money
+    — and the creator tell — one time. */
+export async function settleTipBySessionId(sessionId: string): Promise<TipSettleResult> {
+  const [tip] = await db
+    .select()
+    .from(tipJarTipsTable)
+    .where(eq(tipJarTipsTable.stripe_session_id, sessionId));
+  if (!tip) return { found: false, status: "not_found", transitioned: false };
+  if (tip.status === TIP_STATUS_PAID) {
+    return { found: true, status: TIP_STATUS_PAID, transitioned: false, tip };
+  }
+  const row = await markTipPaid(tip);
+  return {
+    found: true,
+    status: row ? TIP_STATUS_PAID : tip.status,
+    transitioned: !!row,
+    tip: row ?? tip,
+  };
+}
+
 /* POST /api/tips/checkout/verify { sessionId } — the fan is back from
    Checkout: flip the tip to "paid" exactly once (guarded UPDATE). */
 router.post("/tips/checkout/verify", publicApiLimiter, async (req, res) => {
@@ -970,25 +1079,67 @@ router.post("/tips/checkout/verify", publicApiLimiter, async (req, res) => {
     res.json({ status: tip.status, paid: false });
     return;
   }
-  await db
-    .update(tipJarTipsTable)
-    .set({ status: "paid", paid_at: new Date() })
-    .where(
-      and(
-        eq(tipJarTipsTable.id, tip.id),
-        eq(tipJarTipsTable.status, "pending_payment"),
-      ),
-    );
+  /* The shared settle: guarded flip + the creator's one tell. A
+     racing webhook may land the flip first — the tip is paid either
+     way and the response is unchanged. */
+  await markTipPaid(tip);
   res.json({ status: "paid", amountCents: tip.amount_cents, handle: tip.handle });
 });
 
 /* GET /api/tips/dashboard → my totals + tip feed. Auth. */
 router.get("/tips/dashboard", requireAuth, publicApiLimiter, async (req, res) => {
   const settings = tipPages.get(req.userId!);
+  /* TIP-TRUTH (stack1200): totals and the feed's paid entries derive
+     from the DURABLE paid rows — the same rows the jar summary
+     reads. The old read summed only in-memory intents, so a real
+     paid tip never reached the totals (Gate #5, Nov 1: $5.00 paid,
+     dashboard $0.00 / 0 tips / "No tips yet", while the jar summary
+     on the same page showed $5.00 · 1 PAID). Intents are not money:
+     they stay visible in the feed as pending, but only paid rows
+     move the totals. A failed durable read leaves the paid side
+     empty rather than failing the whole page — the intent feed
+     still renders. */
+  let paidRows: TipRow[] = [];
+  try {
+    paidRows = await db
+      .select()
+      .from(tipJarTipsTable)
+      .where(
+        and(
+          eq(tipJarTipsTable.page_user_id, req.userId!),
+          eq(tipJarTipsTable.status, TIP_STATUS_PAID),
+        ),
+      )
+      .limit(500);
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "[tip-jar] dashboard paid-tip read failed");
+  }
+  const paidCents = paidRows.reduce((s, r) => s + r.amount_cents, 0);
+  const stats = {
+    total: Math.round(paidCents) / 100,
+    count: paidRows.length,
+    average: paidRows.length === 0 ? 0 : Math.round(paidCents / paidRows.length) / 100,
+  };
+  const paidFeed = paidRows.map((r) => {
+    const when = r.paid_at ?? r.created_at;
+    return {
+      id: r.id,
+      pageUserId: r.page_user_id,
+      handle: r.handle,
+      amount: r.amount_cents / 100,
+      currency: r.currency,
+      fanName: r.fan_name,
+      message: r.message,
+      status: TIP_STATUS_PAID,
+      createdAt: when instanceof Date ? when.toISOString() : new Date(when ?? 0).toISOString(),
+    };
+  });
   const intents = [...tipIntents.values()]
     .filter((t) => t.pageUserId === req.userId)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  const stats = sumTipIntents(intents);
+  const feed = [...paidFeed, ...intents]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 50);
   const goal = settings ? await fundingGoalView(settings) : null;
   res.json({
     hasPage: !!settings,
@@ -1001,7 +1152,7 @@ router.get("/tips/dashboard", requireAuth, publicApiLimiter, async (req, res) =>
     goalProgress: goal?.progress ?? null,
     goal,
     goalHistory: settings?.goalHistory ?? [],
-    feed: intents.slice(0, 50),
+    feed,
     paymentsLive: false,
   });
 });

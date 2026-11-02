@@ -492,6 +492,83 @@ router.post("/shoutouts/requests/:id/checkout", publicApiLimiter, async (req, re
   res.json({ checkoutUrl: session.url });
 });
 
+/* ─── Shoutout settle (WEBHOOK-SETTLE, stack1200) ─────────────────────
+   ONE guarded flip takes a request pending_payment → accepted, and
+   only the caller that lands the flip fires the creator's paid tell.
+   Both completion paths — the fan's return-verify and the Stripe
+   webhook (settleShoutoutBySessionId) — run through it, so a paid
+   shoutout counts once, tells once, and still lands when the fan
+   closes the tab after paying. Before the webhook door existed, a
+   paid session settled ONLY if the fan's browser returned for
+   verify: the webhook had no branch for type "shoutout_request", so
+   the session fell through to the credit-grant tail's "missing
+   user_id" warning and the request sat in pending_payment forever —
+   the fan paid, the creator never heard, nothing was owed a record.
+   Callers invoke the flip only for sessions already known paid
+   (verify asks Stripe; the webhook trusts the signature-verified
+   event) — the flip itself never re-checks. */
+
+type ShoutoutRequestRow = typeof shoutoutRequestsTable.$inferSelect;
+
+/** Flip one shoutout request to "accepted" exactly once (guarded
+    UPDATE … RETURNING). Only the caller whose UPDATE lands a row —
+    the transition's winner — tells the creator. Returns the updated
+    row, or null when another path settled the request first. */
+async function markShoutoutPaid(request: ShoutoutRequestRow): Promise<ShoutoutRequestRow | null> {
+  const [updated] = await db
+    .update(shoutoutRequestsTable)
+    .set({ status: "accepted", paid_at: new Date(), updated_at: new Date() })
+    .where(
+      and(
+        eq(shoutoutRequestsTable.id, request.id),
+        eq(shoutoutRequestsTable.status, "pending_payment"),
+      ),
+    )
+    .returning();
+  if (!updated) return null;
+  /* The paid flip landed (a racing verify/webhook gets no row back)
+     — the creator hears the sale now, naming what the fan paid. */
+  await tellShoutoutCreator({
+    userId: request.creator_user_id,
+    kind: "shoutout_paid",
+    title: "New paid shoutout",
+    body: `${request.fan_name} paid ${usd(request.price_cents)} for a shoutout (${request.occasion}). It's in your requests — record it when ready.`,
+  });
+  return updated;
+}
+
+export interface ShoutoutSettleResult {
+  found: boolean;
+  status: string;
+  /** True only for the caller that landed the pending → accepted flip. */
+  transitioned: boolean;
+  request?: ShoutoutRequestRow;
+}
+
+/** Settle a shoutout from its checkout session id — the Stripe
+    webhook's door (checkout.session.completed with metadata.type
+    "shoutout_request", payment_status "paid"). Exactly-once falls
+    out of the guarded flip: webhook retries and a racing
+    return-verify land the acceptance — and the creator tell — one
+    time. */
+export async function settleShoutoutBySessionId(sessionId: string): Promise<ShoutoutSettleResult> {
+  const [request] = await db
+    .select()
+    .from(shoutoutRequestsTable)
+    .where(eq(shoutoutRequestsTable.stripe_session_id, sessionId));
+  if (!request) return { found: false, status: "not_found", transitioned: false };
+  if (request.status !== "pending_payment") {
+    return { found: true, status: request.status, transitioned: false, request };
+  }
+  const row = await markShoutoutPaid(request);
+  return {
+    found: true,
+    status: row ? "accepted" : request.status,
+    transitioned: !!row,
+    request: row ?? request,
+  };
+}
+
 /* POST /api/shoutouts/requests/:id/checkout/verify { sessionId } —
    the fan is back from Checkout: if the session is paid, flip the
    request pending_payment → accepted exactly once (the guarded
@@ -526,26 +603,10 @@ router.post("/shoutouts/requests/:id/checkout/verify", publicApiLimiter, async (
     res.json({ status: request.status, paid: false });
     return;
   }
-  const [updated] = await db
-    .update(shoutoutRequestsTable)
-    .set({ status: "accepted", paid_at: new Date(), updated_at: new Date() })
-    .where(
-      and(
-        eq(shoutoutRequestsTable.id, request.id),
-        eq(shoutoutRequestsTable.status, "pending_payment"),
-      ),
-    )
-    .returning();
-  /* The paid flip landed (a racing verify gets no row back) — the
-     creator hears the sale now, naming what the fan paid. */
-  if (updated) {
-    await tellShoutoutCreator({
-      userId: request.creator_user_id,
-      kind: "shoutout_paid",
-      title: "New paid shoutout",
-      body: `${request.fan_name} paid ${usd(request.price_cents)} for a shoutout (${request.occasion}). It's in your requests — record it when ready.`,
-    });
-  }
+  /* The shared settle: guarded flip + the creator's one tell. A
+     racing webhook may land the flip first — the request is accepted
+     either way and the response is unchanged. */
+  const updated = await markShoutoutPaid(request);
   res.json({ status: updated?.status ?? "accepted", paid: true });
 });
 

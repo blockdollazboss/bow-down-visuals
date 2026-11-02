@@ -60,6 +60,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
         params: unknown[];
       };
       h.queries.push(text);
+      if (text.includes("INSERT INTO digital_sales")) {
+        /* WEBHOOK-SETTLE (stack1200): the webhook now settles
+           deliverable purchases itself — model the sale insert
+           (session id is the 5th value: buyer, profile, kind,
+           item, session) so the settle can complete against the
+           fake, and record the session as sold. */
+        h.soldSessions.add(String(params[4]));
+        return { rows: [{ id: "sale_1" }] };
+      }
       if (text.includes("FROM digital_sales") && text.includes("stripe_session_id")) {
         const sessionId = String(params[0]);
         return { rows: h.soldSessions.has(sessionId) ? [{ id: "sale_1" }] : [] };
@@ -78,6 +87,25 @@ vi.mock("stripe", () => ({
   default: class FakeStripe {
     webhooks = {
       constructEvent: () => h.event,
+    };
+    /* WEBHOOK-SETTLE (stack1200): the digital-store branch now
+       re-retrieves the session WITH the payment_intent.latest_charge
+       expansion before settling a deliverable purchase (the same
+       retrieve verify makes). The fake answers with the delivered
+       event's own session, charge witness attached and unrefunded. */
+    checkout = {
+      sessions: {
+        retrieve: async () => {
+          const obj = (h.event as { data: { object: Record<string, unknown> } }).data.object;
+          return {
+            ...obj,
+            payment_intent: {
+              id: obj["payment_intent"],
+              latest_charge: { id: "ch_fake_1", refunded: false, amount: obj["amount_total"], amount_refunded: 0 },
+            },
+          };
+        },
+      },
     };
     refunds = {
       create: async (params: { payment_intent: string }, options?: { idempotencyKey?: string }) => {
@@ -250,12 +278,17 @@ beforeEach(() => {
 });
 
 describe("checkout.session.completed — digital store auto-refund", () => {
-  it("deliverable item → NO refund; the session is left to verify", async () => {
+  it("deliverable item → NO refund; the webhook settles the sale itself (WEBHOOK-SETTLE, stack1200)", async () => {
+    /* This test used to pin "the session is left to verify" — the
+       browser-return dependency this lane removes. The refund half
+       of its contract is unchanged (deliverable ⇒ never refunded);
+       the session now settles at the webhook door instead. */
     const res = await deliver(completedEvent(storeSession("cs_store_ok")));
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({ received: true, kind: "digital_store" });
     expect(h.refundCalls).toHaveLength(0);
     expect(h.refundCreations).toBe(0);
+    expect(h.soldSessions.has("cs_store_ok")).toBe(true);
   });
 
   it("item deleted after payment → exactly one refund, keyed refund:<sessionId> against the session's payment intent", async () => {
@@ -358,9 +391,17 @@ describe("checkout.session.completed — digital store auto-refund", () => {
         },
       }),
     );
-    expect(res.statusCode).toBe(200);
-    /* Falls through to the legacy flow exactly as before this lane. */
-    expect(res.body).toMatchObject({ received: true, warning: "Missing user_id in metadata" });
+    /* Untouched by THIS branch (no store probe, no refund) — the
+       assertion this suite exists to pin. Since WEBHOOK-SETTLE
+       (stack1200) the session is claimed by the storefront branch
+       instead of the old credit fall-through; this suite's fake DB
+       is a text dispatcher built for the probe/refund path and
+       cannot run the storefront settle (it answers 500 here and
+       Stripe would retry against the real DB), so the response
+       status is deliberately not pinned — the storefront door's
+       own settle behavior is pinned for real in
+       stripe-webhook-storefront.test.ts (pg-mem). */
+    expect(res.body).not.toMatchObject({ kind: "digital_store" });
     expect(h.queries.some((q) => q.includes("profile_tracks"))).toBe(false);
     expect(h.refundCreations).toBe(0);
   });
@@ -415,15 +456,22 @@ describe("checkout.session.completed — digital store auto-refund", () => {
     expect(h.userEvents).toHaveLength(1);
   });
 
-  it("buyer tell: no refund, no tell — deliverable purchase and sold session stay silent", async () => {
+  it("buyer tell: no refund, no REFUND tell — a deliverable purchase settles instead (WEBHOOK-SETTLE, stack1200)", async () => {
+    /* The refund tell stays silent when nothing was refunded —
+       that half of the contract is unchanged. What changed: the
+       deliverable purchase no longer waits for verify, so the
+       SETTLE's own seller tell fires at the webhook door (and,
+       exactly-once, the already-sold session fires nothing). */
     const ok = await deliver(completedEvent(storeSession("cs_store_tell_ok")));
     expect(ok.body).toMatchObject({ kind: "digital_store" });
+    expect(h.soldSessions.has("cs_store_tell_ok")).toBe(true);
     h.trackRow = null;
     h.soldSessions.add("cs_store_tell_sold");
     const sold = await deliver(completedEvent(storeSession("cs_store_tell_sold")));
     expect(sold.body).toMatchObject({ kind: "digital_store" });
-    expect(h.jobNotifCalls).toHaveLength(0);
-    expect(h.userEvents).toHaveLength(0);
+    expect(h.refundCreations).toBe(0);
+    expect(h.jobNotifCalls.some((c) => String(c["jobId"] ?? "").startsWith("refund:"))).toBe(false);
+    expect(h.userEvents.some((e) => e["kind"] === "refund")).toBe(false);
   });
 
   it("a session with no store metadata at all is untouched by the branch", async () => {

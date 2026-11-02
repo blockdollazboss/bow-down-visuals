@@ -486,15 +486,24 @@ async function resolveSellableItem(
    A deliverable item answers FALSE — fulfillment stays with verify,
    untouched. Throws on DB failure: the caller must treat a throw as
    "unknown" and never refund on a guess. */
+/** Has this checkout session already produced a recorded sale?
+    (WEBHOOK-SETTLE, stack1200: the webhook's settle gate reads it
+    directly — a delivered purchase must never re-enter the settle,
+    whose item re-resolution would refund a since-deleted item
+    before its own duplicate read-back could answer.) */
+export async function storeSessionSaleExists(sessionId: string): Promise<boolean> {
+  const sold = await db.execute(sql`
+    SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
+  `);
+  return sold.rows.length > 0;
+}
+
 export async function isStoreSessionAutoRefundDue(
   sessionId: string,
   kind: string,
   itemId: string
 ): Promise<boolean> {
-  const sold = await db.execute(sql`
-    SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
-  `);
-  if (sold.rows.length > 0) return false;
+  if (await storeSessionSaleExists(sessionId)) return false;
   const item = await resolveSellableItem(kind, itemId);
   return "notForSale" in item || "notWired" in item;
 }
@@ -1444,51 +1453,57 @@ const VerifySchema = z.object({
   sessionId: z.string().min(1).max(200),
 });
 
-router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = VerifySchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "sessionId is required" });
-    return;
-  }
-  const { sessionId } = parsed.data;
+/* ─── Digital-store settle (WEBHOOK-SETTLE, stack1200) ────────────────
+   ONE settle path takes a paid digital-store session to a recorded
+   sale. Both completion paths run through it: the buyer's
+   return-verify (below) and the Stripe webhook (stripe-webhook.ts —
+   its digital-store branch used to run ONLY the auto-refund probe
+   and leave deliverable purchases to verify). Before the webhook
+   door existed, a buyer who closed the tab after paying had no
+   sale recorded: no download link, no license keys, no bundle
+   grants, no seller tell, no receipt. Exactly-once is the
+   digital_sales stripe_session_id ON CONFLICT claim + the
+   existing-sale read-back at the top of the settle; the seller tell
+   and the receipt email fire only for the non-duplicate winner.
+   The refunded-payment guard keeps both witnesses — the caller
+   hands in the session EXPANDED with payment_intent.latest_charge
+   (verify retrieves it that way; the webhook retrieves it that way
+   too before settling). Amounts, splits and delivery are
+   unchanged — the settle returns the very { status, body } verify
+   always answered. */
 
+export interface DigitalStoreSettleResult {
+  httpStatus: number;
+  body: Record<string, unknown>;
+}
+
+/** Settle a paid digital-store checkout session (already retrieved
+    WITH the payment_intent.latest_charge expansion). The caller
+    asserts the session is paid and names the buyer (verify: the
+    signed-in user + their account email for the receipt; the
+    webhook: the session metadata's buyer, receipt addressed to
+    the checkout email on the session). */
+export async function settleDigitalStoreSession(
+  session: Stripe.Checkout.Session,
+  opts: { userId: string; email?: string | null },
+): Promise<DigitalStoreSettleResult> {
+  const sessionId = session.id;
   let stripe: Stripe;
   try {
     stripe = getStripe();
   } catch {
-    res.status(500).json({ error: "Payments are not configured yet." });
-    return;
+    return { httpStatus: 500, body: { error: "Payments are not configured yet." } };
   }
-
-  let session: Stripe.Checkout.Session;
-  try {
-    /* Expand the payment intent's latest charge (money-hardening
-       round 2): the refunded-payment guard below reads the charge's
-       refund state from this same object — no extra Stripe call. */
-    session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent.latest_charge"],
-    });
-  } catch {
-    res.status(400).json({ error: "Could not retrieve this checkout session." });
-    return;
-  }
-  if (session.payment_status !== "paid") {
-    res.status(400).json({ error: "Payment has not been completed." });
-    return;
-  }
-
   const meta = session.metadata ?? {};
-  if (meta["buyer_user_id"] !== req.userId) {
-    logger.error({ sessionId, reqUserId: req.userId }, "[store] verify: buyer mismatch");
-    res.status(403).json({ error: "This purchase doesn't belong to you." });
-    return;
+  if (meta["buyer_user_id"] !== opts.userId) {
+    logger.error({ sessionId, reqUserId: opts.userId }, "[store] verify: buyer mismatch");
+    return { httpStatus: 403, body: { error: "This purchase doesn't belong to you." } };
   }
   const kind = meta["item_kind"] ?? "";
   const itemId = meta["item_id"] ?? "";
   const profileId = meta["profile_id"] ?? "";
   if (!kind || !itemId || !profileId) {
-    res.status(400).json({ error: "This session isn't a digital-store purchase." });
-    return;
+    return { httpStatus: 400, body: { error: "This session isn't a digital-store purchase." } };
   }
 
   let fileUrl: string;
@@ -1513,13 +1528,15 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
         }
       }
       logger.error({ sessionId, refunded }, "[store] verify: item no longer deliverable after payment");
-      res.status(400).json({
-        error: refunded
-          ? "This content is no longer for sale — your payment has been refunded in full."
-          : "This content is no longer for sale. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
-        refunded,
-      });
-      return;
+      return {
+        httpStatus: 400,
+        body: {
+          error: refunded
+            ? "This content is no longer for sale — your payment has been refunded in full."
+            : "This content is no longer for sale. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+          refunded,
+        },
+      };
     }
     fileUrl = item.fileUrl;
     itemTitle = item.title;
@@ -1528,8 +1545,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
     bundleDef = item.bundle;
   } catch (err) {
     logger.error({ err, sessionId }, "[store] verify: item re-resolve failed");
-    res.status(500).json({ error: "Could not locate the purchased file." });
-    return;
+    return { httpStatus: 500, body: { error: "Could not locate the purchased file." } };
   }
 
   /* Gift-card tender: the session charged only the amount still due;
@@ -1557,8 +1573,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       bumpAmountCents <= 0 ||
       bumpAmountCents >= amountCents)
   ) {
-    res.status(400).json({ error: "This session's add-on details don't add up." });
-    return;
+    return { httpStatus: 400, body: { error: "This session's add-on details don't add up." } };
   }
   const splits = splitOrderAmounts(amountCents, bumpAmountCents, PLATFORM_FEE_BPS);
   const feeCents = splits.totalFeeCents;
@@ -1663,11 +1678,13 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
           { sessionId, paymentIntentId: piId },
           "[store] verify: refusing delivery — the payment was already refunded in full",
         );
-        res.status(400).json({
-          error: "This payment was refunded in full, so there's nothing left to deliver. If you didn't ask for the refund, contact support and we'll sort it out.",
-          refunded: true,
-        });
-        return;
+        return {
+          httpStatus: 400,
+          body: {
+            error: "This payment was refunded in full, so there's nothing left to deliver. If you didn't ask for the refund, contact support and we'll sort it out.",
+            refunded: true,
+          },
+        };
       }
       const inserted = splits.bump
         ? await db.execute(sql`
@@ -1676,7 +1693,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
                amount_cents, platform_fee_cents, creator_amount_cents,
                bump_item_kind, bump_item_id, bump_title, bump_amount_cents,
                bump_platform_fee_cents, bump_creator_amount_cents)
-            VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
+            VALUES (${opts.userId}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
                     ${amountCents}, ${feeCents}, ${creatorCents},
                     ${bumpKind}, ${bumpItemId}, ${bumpTitle}, ${splits.bump.grossCents},
                     ${splits.bump.feeCents}, ${splits.bump.creatorCents})
@@ -1687,7 +1704,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
             INSERT INTO digital_sales
               (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
                amount_cents, platform_fee_cents, creator_amount_cents)
-            VALUES (${req.userId!}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
+            VALUES (${opts.userId}, ${profileId}, ${kind}, ${itemId}, ${sessionId},
                     ${amountCents}, ${feeCents}, ${creatorCents})
             ON CONFLICT (stripe_session_id) DO NOTHING
             RETURNING id
@@ -1701,8 +1718,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
           SELECT id FROM digital_sales WHERE stripe_session_id = ${sessionId} LIMIT 1
         `);
         if (existing.rows.length === 0) {
-          res.status(500).json({ error: "Sale could not be recorded." });
-          return;
+          return { httpStatus: 500, body: { error: "Sale could not be recorded." } };
         }
         saleId = String((existing.rows[0] as Record<string, unknown>)["id"]);
         duplicate = true;
@@ -1760,7 +1776,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
               INSERT INTO digital_sales
                 (buyer_user_id, profile_id, item_kind, item_id, stripe_session_id,
                  amount_cents, platform_fee_cents, creator_amount_cents)
-              VALUES (${req.userId!}, ${profileId}, 'series', ${comp.id},
+              VALUES (${opts.userId}, ${profileId}, 'series', ${comp.id},
                       ${`${sessionId}${BUNDLE_GRANT_INFIX}series:${comp.id}`}, 0, 0, 0)
               ON CONFLICT (stripe_session_id) DO NOTHING
             `);
@@ -1813,13 +1829,13 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
       if (licSaleStatus !== "refunded") {
         if (kind !== "series" && kind !== BUNDLE_KIND) {
           mainLicense = await ensureLicenseKeyForItem({
-            saleId, buyerUserId: req.userId!, profileId,
+            saleId, buyerUserId: opts.userId, profileId,
             itemKind: kind, itemId, itemTitle, fileUrl,
           });
         }
         if (bumpDeliverable && bumpKind && bumpItemId && bumpFileUrl) {
           bumpLicense = await ensureLicenseKeyForItem({
-            saleId, buyerUserId: req.userId!, profileId,
+            saleId, buyerUserId: opts.userId, profileId,
             itemKind: bumpKind, itemId: bumpItemId, itemTitle: bumpTitle, fileUrl: bumpFileUrl,
           });
         }
@@ -1827,7 +1843,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
           for (const comp of bundleDef.components) {
             if (comp.kind === "series") continue;
             const compKey = await ensureLicenseKeyForItem({
-              saleId, buyerUserId: req.userId!, profileId,
+              saleId, buyerUserId: opts.userId, profileId,
               itemKind: comp.kind, itemId: comp.id, itemTitle: comp.title, fileUrl: comp.fileUrl,
             });
             if (compKey) bundleLicenses.set(comp.id, compKey);
@@ -1849,7 +1865,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
         SELECT user_id, display_name FROM creator_profiles WHERE id = ${profileId} LIMIT 1
       `);
       const crow = creator.rows[0] as Record<string, unknown> | undefined;
-      if (crow && String(crow["user_id"]) !== req.userId) {
+      if (crow && String(crow["user_id"]) !== opts.userId) {
         const sellerId = String(crow["user_id"]);
         const saleTitle = "You just got paid 👑";
         const saleMessage = `“${itemTitle}” just sold for ${money(amountCents)} — ${money(creatorCents)} is now in your pending payout. The cheat code works.${splits.bump ? ` Includes the “${bumpTitle}” add-on (${money(splits.bump.grossCents)}).` : ""}`;
@@ -1886,7 +1902,7 @@ router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => 
        (non-duplicate) verify so a double-verify never double-sends. ───── */
     if (!duplicate) {
       const buyerEmail =
-        req.userEmail ?? session.customer_details?.email ?? undefined;
+        opts.email ?? session.customer_details?.email ?? undefined;
       if (buyerEmail) {
         /* Bundles itemize the receipt: every component with its own
            list price, the bought-separately total, and the saving. */
@@ -1940,7 +1956,9 @@ ${emailButton(`${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` :
       }
     }
 
-    res.json({
+    return {
+      httpStatus: 200,
+      body: {
       success: true,
       duplicate,
       sale: {
@@ -2026,11 +2044,51 @@ ${emailButton(`${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` :
       bundle: kind === BUNDLE_KIND
         ? { downloads: bundleDownloads, unlockedSeries: bundleUnlockedSeries }
         : null,
-    });
+      },
+    };
   } catch (err) {
     logger.error({ err, sessionId }, "[store] verify: sale recording failed");
-    res.status(500).json({ error: "Payment confirmed but the sale couldn't be recorded. Contact support." });
+    return { httpStatus: 500, body: { error: "Payment confirmed but the sale couldn't be recorded. Contact support." } };
   }
+}
+router.post("/store/verify", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = VerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  const { sessionId } = parsed.data;
+
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch {
+    res.status(500).json({ error: "Payments are not configured yet." });
+    return;
+  }
+
+  let session: Stripe.Checkout.Session;
+  try {
+    /* Expand the payment intent's latest charge (money-hardening
+       round 2): the refunded-payment guard in the settle reads the
+       charge's refund state from this same object — no extra
+       Stripe call. */
+    session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent.latest_charge"],
+    });
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    res.status(400).json({ error: "Payment has not been completed." });
+    return;
+  }
+  const result = await settleDigitalStoreSession(session, {
+    userId: req.userId!,
+    email: req.userEmail,
+  });
+  res.status(result.httpStatus).json(result.body);
 });
 
 /* ── Branded download page (gold/black luxury) ─────────────────────────── */
