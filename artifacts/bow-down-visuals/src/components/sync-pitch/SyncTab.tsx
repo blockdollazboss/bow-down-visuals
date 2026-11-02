@@ -188,11 +188,13 @@ export default function SyncTab({
   /* ── one-sheet library state ── */
   const [sheets, setSheets] = useState<OneSheet[]>([]);
   const [sheetsLoading, setSheetsLoading] = useState(false);
+  const [sheetsError, setSheetsError] = useState(false);
   const [viewSheetId, setViewSheetId] = useState<string | null>(null);
 
   /* ── brief board state ── */
   const [briefs, setBriefs] = useState<SyncBrief[]>([]);
   const [briefsLoading, setBriefsLoading] = useState(false);
+  const [briefsError, setBriefsError] = useState(false);
   const [showBriefForm, setShowBriefForm] = useState(false);
   const [newBrief, setNewBrief] = useState({
     title: "", projectType: "tv", mood: "", budgetRange: "", deadline: "", notes: "",
@@ -200,10 +202,12 @@ export default function SyncTab({
   const [matchBriefId, setMatchBriefId] = useState<string | null>(null);
   const [matches, setMatches] = useState<BriefMatch[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState(false);
 
   /* ── tracker state ── */
   const [pitches, setPitches] = useState<SyncPitch[]>([]);
   const [trackerLoading, setTrackerLoading] = useState(false);
+  const [trackerError, setTrackerError] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPitch, setNewPitch] = useState({ songTitle: "", targetName: "", notes: "" });
   const [referralCode, setReferralCode] = useState("");
@@ -235,8 +239,14 @@ export default function SyncTab({
     setSheetsLoading(true);
     try {
       const { res, data } = await authedFetch(getAccessToken, "/api/sync-pitch/one-sheets");
-      if (res.ok) setSheets((data as { oneSheets: OneSheet[] }).oneSheets ?? []);
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setSheets((data as { oneSheets: OneSheet[] }).oneSheets ?? []);
+      setSheetsError(false);
+    } catch {
+      /* A failed load is NOT an empty library — the error state below
+         renders instead of "No one-sheets yet." */
+      setSheetsError(true);
+    }
     finally { setSheetsLoading(false); }
   }
 
@@ -244,8 +254,14 @@ export default function SyncTab({
     setBriefsLoading(true);
     try {
       const { res, data } = await authedFetch(getAccessToken, "/api/sync-pitch/briefs");
-      if (res.ok) setBriefs((data as { briefs: SyncBrief[] }).briefs ?? []);
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setBriefs((data as { briefs: SyncBrief[] }).briefs ?? []);
+      setBriefsError(false);
+    } catch {
+      /* A failed load is NOT an empty board — the error state below
+         renders instead of "No briefs yet." */
+      setBriefsError(true);
+    }
     finally { setBriefsLoading(false); }
   }
 
@@ -253,8 +269,14 @@ export default function SyncTab({
     setTrackerLoading(true);
     try {
       const { res, data } = await authedFetch(getAccessToken, "/api/sync-pitch/tracker");
-      if (res.ok) setPitches((data as { pitches: SyncPitch[] }).pitches ?? []);
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setPitches((data as { pitches: SyncPitch[] }).pitches ?? []);
+      setTrackerError(false);
+    } catch {
+      /* A failed load is NOT an empty tracker — the error state below
+         renders instead of "No sync pitches logged yet." */
+      setTrackerError(true);
+    }
     finally { setTrackerLoading(false); }
   }
 
@@ -377,13 +399,20 @@ export default function SyncTab({
 
   async function loadMatches(briefId: string) {
     setMatchBriefId(briefId);
+    setMatches([]);
     setMatchesLoading(true);
     try {
       const { res, data } = await authedFetch(
         getAccessToken, `/api/sync-pitch/briefs/${briefId}/matches`,
       );
-      if (res.ok) setMatches((data as { matches: BriefMatch[] }).matches ?? []);
-    } catch { setMatches([]); }
+      if (!res.ok) throw new Error();
+      setMatches((data as { matches: BriefMatch[] }).matches ?? []);
+      setMatchesError(false);
+    } catch {
+      /* A failed match load is NOT "no matches" — the error line below
+         renders instead of the no-matches line. */
+      setMatchesError(true);
+    }
     finally { setMatchesLoading(false); }
   }
 
@@ -787,7 +816,22 @@ export default function SyncTab({
                   )}
                 </div>
               ))}
-              {!sheetsLoading && sheets.length === 0 && (
+              {!sheetsLoading && sheetsError && sheets.length === 0 && (
+                <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
+                  <FileText className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
+                  <p className="mt-3 text-sm font-semibold text-white/60">{t("syncPitch.sheetsLoadError")}</p>
+                  <p className="mt-1 text-sm text-white/40">{t("syncPitch.sheetsLoadErrorBody")}</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadSheets()}
+                    className="mt-4 text-sm font-semibold text-primary hover:underline"
+                    data-testid="btn-retry-sheets"
+                  >
+                    {t("syncPitch.retryLoad")}
+                  </button>
+                </div>
+              )}
+              {!sheetsLoading && !sheetsError && sheets.length === 0 && (
                 <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
                   <FileText className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
                   <p className="mt-3 text-sm text-white/50">{t("syncPitch.noSheets")}</p>
@@ -963,7 +1007,20 @@ export default function SyncTab({
                           ))}
                         </div>
                       )}
-                      {!matchesLoading && matches.length === 0 && (
+                      {!matchesLoading && matchesError && (
+                        <div className="py-6 text-center">
+                          <p className="text-sm font-semibold text-white/60">{t("syncPitch.matchesLoadError")}</p>
+                          <button
+                            type="button"
+                            onClick={() => void loadMatches(b.id)}
+                            className="mt-2 text-sm font-semibold text-primary hover:underline"
+                            data-testid="btn-retry-matches"
+                          >
+                            {t("syncPitch.retryLoad")}
+                          </button>
+                        </div>
+                      )}
+                      {!matchesLoading && !matchesError && matches.length === 0 && (
                         <p className="py-6 text-center text-sm text-white/40">{t("syncPitch.noMatches")}</p>
                       )}
                     </div>
@@ -971,7 +1028,22 @@ export default function SyncTab({
                 </div>
               );
             })}
-            {!briefsLoading && briefs.length === 0 && (
+            {!briefsLoading && briefsError && briefs.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
+                <Briefcase className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
+                <p className="mt-3 text-sm font-semibold text-white/60">{t("syncPitch.briefsLoadError")}</p>
+                <p className="mt-1 text-sm text-white/40">{t("syncPitch.briefsLoadErrorBody")}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadBriefs()}
+                  className="mt-4 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-briefs"
+                >
+                  {t("syncPitch.retryLoad")}
+                </button>
+              </div>
+            )}
+            {!briefsLoading && !briefsError && briefs.length === 0 && (
               <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
                 <Briefcase className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
                 <p className="mt-3 text-sm text-white/50">{t("syncPitch.noBriefs")}</p>
@@ -1126,7 +1198,22 @@ export default function SyncTab({
                 </div>
               );
             })}
-            {!trackerLoading && pitches.length === 0 && (
+            {!trackerLoading && trackerError && pitches.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
+                <ClipboardList className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
+                <p className="mt-3 text-sm font-semibold text-white/60">{t("syncPitch.trackerLoadError")}</p>
+                <p className="mt-1 text-sm text-white/40">{t("syncPitch.trackerLoadErrorBody")}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadTracker()}
+                  className="mt-4 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-sync-tracker"
+                >
+                  {t("syncPitch.retryLoad")}
+                </button>
+              </div>
+            )}
+            {!trackerLoading && !trackerError && pitches.length === 0 && (
               <div className="rounded-3xl border border-dashed border-white/15 p-10 text-center">
                 <ClipboardList className="mx-auto h-8 w-8 text-white/25" aria-hidden="true" />
                 <p className="mt-3 text-sm text-white/50">{t("syncPitch.noPitches")}</p>
