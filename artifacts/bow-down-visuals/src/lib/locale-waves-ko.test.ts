@@ -158,6 +158,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // brand currency / placeholder-only / punctuation
     "headshotStudio.visualBucs", "makeVideo.priceBadge", "makeVideo.unknownStep",
     "makeVideo.refundedNoticeSuffix", "songAndVideo.costBadge", "harmony.buttonCost",
+    "makeVideo.soundAttachFailed",
     "harmony.vb", "harmony.partsLine", "lrcExport.aiCost",
     // genre / format / platform names
     "makeVideo.genreRB", "makeVideo.platformTiktok", "songAndVideo.genreRB",

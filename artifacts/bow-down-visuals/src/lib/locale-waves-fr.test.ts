@@ -279,6 +279,7 @@ const W3_LEGIT: ReadonlySet<string> = new Set([
   "lrcExport.aiCost",
   "lrcExport.pause",
   "lrcExport.tapButton",
+  "makeVideo.soundAttachFailed",
   "makeVideo.clipFallback",
   "makeVideo.genreAfrobeats",
   "makeVideo.genreCountry",
