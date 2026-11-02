@@ -640,7 +640,7 @@ export function LipSyncSection({
       });
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        throw new Error(apiErrorMessage(data, `Upload failed: HTTP ${res.status}`));
+        throw new Error(apiErrorMessage(data, "Upload failed."));
       }
       updateLipSync({ uploadedVocalStemUrl: data.url, audioSource: "vocals" });
     } catch (err) {
@@ -715,8 +715,8 @@ export function LipSyncSection({
         signal:  AbortSignal.timeout(30_000),
       });
       if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`Check failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
+        const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        throw new Error(apiErrorMessage(body, "We couldn't check that job — please try again."));
       }
       const data = await res.json() as { status: string; outputUrl?: string; error?: string; provider?: string | null };
       const normalStatus = data.status.toLowerCase();
@@ -735,14 +735,14 @@ export function LipSyncSection({
       if (normalStatus === "failed") {
         updateClipEdit(selectedScene.id, {
           lipSyncStatus: "failed",
-          lipSyncError:  data.error ?? "Lip sync job failed.",
+          lipSyncError:  plainErrorText(data.error, "Lip sync job failed."),
         });
         /* Do NOT setApplyError — shown in checkJobResult panel */
       }
       /* "completed": do NOT auto-save — user chooses via buttons in the panel.
          "processing" / "pending": leave status as-is, never mark failed. */
     } catch (err) {
-      setApplyError(plainErrorText(err, String(err)));
+      setApplyError(plainErrorText(err, "We couldn't check that job — please try again."));
     } finally {
       setCheckJobLoading(false);
     }
@@ -846,11 +846,11 @@ export function LipSyncSection({
     const check = await checkInputs(effectiveAudioUrl!, selectedScene.demoClipUrl!);
     if (check) {
       if (!check.audio.found) {
-        setApplyError(`Audio URL check failed: ${check.audio.error ?? "not reachable"} (type: ${check.audio.sourceType})`);
+        setApplyError("The audio file couldn't be reached — check it and try again.");
         return;
       }
       if (!check.clip.found) {
-        setApplyError(`Clip URL check failed: ${check.clip.error ?? "not reachable"}`);
+        setApplyError("The scene clip couldn't be reached — try again, or pick a different clip.");
         return;
       }
     }
@@ -1151,12 +1151,11 @@ export function LipSyncSection({
       const res = await fetch("/api/lip-sync/account-check");
       const ct  = res.headers.get("content-type") ?? "";
       if (!ct.includes("application/json")) {
-        const preview = (await res.text()).slice(0, 120);
         setAccountCheck({
           keyPresent: false, activeKeyVar: null, activeKeyLast4: null,
           multipleKeysFound: false, providerEndpointConfigured: false,
           accountStatusAvailable: false, billingBlocked: null,
-          httpStatus: res.status, lastError: `Non-JSON response: ${preview}`,
+          httpStatus: res.status, lastError: "The check came back unreadable — try again in a moment.",
           message: "Account check failed", checkedAt: new Date().toLocaleTimeString(),
         });
         return;
@@ -1478,8 +1477,8 @@ export function LipSyncSection({
       if (!startRes) { setSceneTestRunning(false); return; } // user cancelled the credit confirmation
 
       if (!startRes.ok) {
-        const errBody = await startRes.json().catch(() => ({ error: `HTTP ${startRes.status}` })) as { error?: string };
-        throw new Error(apiErrorMessage(errBody, `Scene test route returned HTTP ${startRes.status}`));
+        const errBody = await startRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(apiErrorMessage(errBody, "The scene test could not start — please try again."));
       }
 
       const { jobId } = (await startRes.json()) as { jobId: string };
@@ -1532,12 +1531,12 @@ export function LipSyncSection({
             if (isTransientPollHttpStatus(pollRes.status) && pollBudget.noteTransientFailure()) {
               continue;
             }
-            throw new Error(`Poll failed: HTTP ${pollRes.status}`);
+            throw new Error("Poll failed — the scene test status couldn't be checked. Please try again.");
           }
           job = (await pollRes.json()) as typeof job;
           pollBudget.noteSuccess();
         } catch (err) {
-          if (err instanceof Error && err.message.startsWith("Poll failed: HTTP")) throw err;
+          if (err instanceof Error && err.message.startsWith("Poll failed")) throw err;
           if (!pollBudget.noteTransientFailure()) {
             throw new Error(
               "Status checks kept failing — the scene test may still be rendering on the server. Please try again in a bit.",
@@ -2797,7 +2796,7 @@ export function LipSyncSection({
                               <StatusRow label="master player using"  value={isInPlayer ? "yes" : "no"} ok={isInPlayer ? true : false} />
                             </>
                           )}
-                          {cjr.providerError && <StatusRow label="provider error" value={cjr.providerError} ok={false} />}
+                          {cjr.providerError && <StatusRow label="provider error" value={plainErrorText(cjr.providerError, "The lip sync service reported a failure.")} ok={false} />}
                         </div>
 
                         {/* ── Completed: not attached yet warning ── */}
@@ -2855,7 +2854,7 @@ export function LipSyncSection({
                         {isFailed && (
                           <div className="flex items-start gap-2 px-2.5 py-2 rounded-lg border border-red-500/25 bg-red-500/[0.06] text-red-400 text-[10px] font-semibold leading-snug">
                             <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                            <span>Provider returned failure{cjr.providerError ? `: ${cjr.providerError}` : "."}<br />
+                            <span>Provider returned failure.<br />
                               <span className="font-normal text-red-400/70">Do not retry automatically — use Submit New Lip Sync Job after reviewing the details.</span>
                             </span>
                           </div>
@@ -4176,7 +4175,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
 
   const startData = await startRes.json() as { jobId?: string; error?: string; code?: string };
   if (!startRes.ok || !startData.jobId) {
-    throw new Error(apiErrorMessage(startData, `Lip sync failed: HTTP ${startRes.status}`));
+    throw new Error(apiErrorMessage(startData, "Lip sync failed to start — please try again."));
   }
 
   const { jobId } = startData;
@@ -4207,14 +4206,14 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
         if (isTransientPollHttpStatus(pollRes.status) && pollBudget.noteTransientFailure()) {
           continue;
         }
-        const body = await pollRes.text().catch(() => "");
-        throw new Error(`Job polling failed: HTTP ${pollRes.status} — ${body.slice(0, 200)}`);
+        const body = (await pollRes.json().catch(() => ({}))) as { error?: string; message?: string };
+        throw new Error(`Job polling failed — ${apiErrorMessage(body, "please try again in a moment.")}`);
       }
 
       job = await pollRes.json() as typeof job;
       pollBudget.noteSuccess();
     } catch (err) {
-      if (err instanceof Error && err.message.startsWith("Job polling failed: HTTP")) throw err;
+      if (err instanceof Error && err.message.startsWith("Job polling failed")) throw err;
       if (!pollBudget.noteTransientFailure()) {
         throw new Error(
           "Job status checks kept failing — the lip sync job may still be running on the server. Use 'Check Job Status' to follow up.",
