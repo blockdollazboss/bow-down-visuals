@@ -994,7 +994,7 @@ describe("admin — full parity, no untranslated English residue, single-brace t
     expect(ADMIN_KEYS.length).toBe(542);
     for (const locale of ALL) {
       const count = Object.keys(CATALOGS[locale]!).filter((k) => k.startsWith("admin.")).length;
-      expect(count, `${locale} admin leaf count`).toBe(505);
+      expect(count, `${locale} admin leaf count`).toBe(542);
     }
   });
 
