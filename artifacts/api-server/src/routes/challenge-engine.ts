@@ -603,6 +603,47 @@ router.get("/challenges/live-now", async (req, res) => {
   }
 });
 
+/* ── Admin: the bench list — every challenge, any state ──────────────────
+   The /admin Challenges bench's spine (stack1200 admin-benches lane):
+   the public lists only ever show upcoming/live, so challenges in
+   judging or already crowned had NO list read — the admin verbs below
+   (prizes / lifecycle / judge) were unreachable from any page. One row
+   per challenge with the figures the bench decides from; the detail
+   (prizes, entries) rides the public GET /challenges/:slug. */
+router.get("/admin/challenges", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(challengesTable)
+      .orderBy(desc(challengesTable.createdAt))
+      .limit(100);
+    const winnerRows = await db
+      .select({ challengeId: challengeWinnersTable.challengeId, n: sql<number>`count(*)::int` })
+      .from(challengeWinnersTable)
+      .groupBy(challengeWinnersTable.challengeId);
+    const winnersByChallenge = new Map(winnerRows.map((r) => [r.challengeId, Number(r.n ?? 0)]));
+    res.json({
+      challenges: rows.map((ch) => ({
+        slug: ch.slug,
+        title: ch.title,
+        hashtag: ch.hashtag,
+        status: ch.status,
+        effective_status: effectiveStatus(ch),
+        starts_at: ch.startsAt,
+        ends_at: ch.endsAt,
+        judging_ends_at: ch.judgingEndsAt,
+        entry_count: ch.entryCount,
+        prize_pool_credits: ch.prizePoolCredits,
+        winners_announced: (winnersByChallenge.get(ch.id) ?? 0) > 0,
+        created_at: ch.createdAt,
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin challenge list error");
+    res.status(500).json({ error: "Couldn't load the challenges." });
+  }
+});
+
 /* ── Admin: configure the prize pool ──────────────────────────────────────
    Replaces the whole pool (idempotent). Locked once winners are announced.
    Visual Bucs x100: every prize must be a multiple of 100. */
