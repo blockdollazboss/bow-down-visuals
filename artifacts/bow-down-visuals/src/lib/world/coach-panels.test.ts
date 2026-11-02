@@ -45,12 +45,36 @@ import {
   parseLedgerEntries,
   parseNicheAnalysisResponse,
   parsePlanNumbers,
+  ROYALTY_INSIGHTS_COST_VISUAL_BUCS,
+  SPLIT_SHEET_PDF_COST_VISUAL_BUCS,
+  buildPublishingAmendPayload,
+  buildPublishingDisputePayload,
+  buildPublishingRegisterPayload,
+  buildRoyaltyPayoutPayload,
+  buildSplitLedgerPostBody,
+  buildWave8SheetPayload,
+  parseFinalizedSheet,
+  parsePublishingMine,
+  parseRoyaltyInsights,
+  parseSplitsOverview,
+  parseWave8Sheets,
+  publishingWritersFromRows,
+  royaltyBarPct,
+  royaltyMoneyLabel,
+  royaltyMonthlyBarHeight,
+  splitCentsLargestRemainder,
+  splitSheetSlug,
+  validateRoyaltyPayoutDraft,
+  validateWave8Draft,
+  wave8DraftTotalPct,
   shiftLedgerMonthKey,
   validateIdeaInput,
   validateLedgerEntryDraft,
   validateNicheInputs,
   type LedgerEntryDraft,
   type NicheAnalysis,
+  type RoyaltyPayoutDraft,
+  type Wave8DraftRow,
 } from "./coach-panels";
 
 const ANALYSIS: NicheAnalysis = {
@@ -382,5 +406,306 @@ describe("action tracker — plan numbers parse, never re-derive", () => {
     const item = { id: "1", title: "t", source: "custom" as const, done: false, completedAt: null, createdAt: null };
     expect(buildActionItemTogglePayload(item)).toEqual({ done: true });
     expect(buildActionItemTogglePayload({ ...item, done: true })).toEqual({ done: false });
+  });
+});
+
+/* ─── Ring 4 #6: the Money Tracker's splits / split-sheets /
+   royalties sub-views, on the page's own rails ───────────────────── */
+
+describe("splits overview — the server's accounting, parsed never recomputed", () => {
+  const WIRE = {
+    releases: [
+      {
+        id: "rel-1",
+        title: "Midnight Crown",
+        artistName: "Thy Cheat Code",
+        totalIncomeCents: 20000,
+        collaboratorTotals: [
+          { name: "Thy Cheat Code", role: "artist", totalCents: 15000 },
+          { name: "Wave Maker", role: "producer", totalCents: 5000 },
+        ],
+        entries: [
+          {
+            id: "e-1",
+            entryDate: "2026-10-03",
+            note: "Sync fee",
+            amountCents: 20000,
+            agreementVersion: 2,
+            shares: [
+              { name: "Thy Cheat Code", role: "artist", sharePct: 75, amountCents: 15000 },
+              { name: "Wave Maker", role: "producer", sharePct: 25, amountCents: 5000 },
+            ],
+          },
+        ],
+        activeSplits: [
+          { name: "Thy Cheat Code", role: "artist", sharePct: 75, agreementVersion: 2 },
+          { name: "Wave Maker", role: "producer", sharePct: 25, agreementVersion: 2 },
+        ],
+      },
+    ],
+    collaboratorTotals: [{ name: "Thy Cheat Code", role: "artist", totalCents: 15000 }],
+    unlinkedIncomeCents: 4200,
+    unlinkedIncomeCount: 3,
+    disclaimer: "Split accounting for your logged income — automatic store payouts need a distribution partner.",
+  };
+
+  it("a full payload rides verbatim, disclaimer included", () => {
+    const parsed = parseSplitsOverview(WIRE);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.disclaimer).toBe(WIRE.disclaimer);
+    expect(parsed!.releases[0]).toMatchObject({ id: "rel-1", title: "Midnight Crown", totalIncomeCents: 20000 });
+    expect(parsed!.releases[0]!.entries[0]!.shares[1]).toEqual({
+      name: "Wave Maker", role: "producer", sharePct: 25, amountCents: 5000,
+    });
+    expect(parsed!.releases[0]!.activeSplits[0]).toMatchObject({ sharePct: 75, agreementVersion: 2 });
+    expect(parsed!.collaboratorTotals).toEqual([{ name: "Thy Cheat Code", role: "artist", totalCents: 15000 }]);
+    expect(parsed!.unlinkedIncomeCents).toBe(4200);
+    expect(parsed!.unlinkedIncomeCount).toBe(3);
+  });
+
+  it("an empty releases list is a real empty; a missing spine is a failure", () => {
+    expect(parseSplitsOverview({ ...WIRE, releases: [] })).toMatchObject({ releases: [] });
+    expect(parseSplitsOverview({ collaboratorTotals: [] })).toBeNull();
+    expect(parseSplitsOverview({ releases: [] })).toBeNull(); // no disclaimer — not the rail's shape
+    expect(parseSplitsOverview(null)).toBeNull();
+  });
+
+  it("nameless rows drop; the survivors never invent", () => {
+    const parsed = parseSplitsOverview({
+      ...WIRE,
+      releases: [
+        { title: "no id — drops" },
+        {
+          id: "rel-2", title: "Second", artistName: "A", totalIncomeCents: 100,
+          collaboratorTotals: [{ role: "artist", totalCents: 1 }],
+          entries: [{ note: "no id — drops" }, { id: "e-9", entryDate: "2026-10-01", note: "", amountCents: 100, agreementVersion: 1, shares: [{ sharePct: 50 }] }],
+          activeSplits: [],
+        },
+      ],
+    });
+    expect(parsed!.releases).toHaveLength(1);
+    expect(parsed!.releases[0]!.collaboratorTotals).toEqual([]);
+    expect(parsed!.releases[0]!.entries).toHaveLength(1);
+    expect(parsed!.releases[0]!.entries[0]!.shares).toEqual([]);
+  });
+});
+
+describe("publishing registry — the shared contract's wire, tolerated", () => {
+  const ITEM = {
+    id: "reg-1",
+    song_kind: "release",
+    song_id: "rel-1",
+    song_title: "Midnight Crown",
+    is_owner: true,
+    state: "awaiting_confirmations",
+    has_dispute: false,
+    collection_status: "registered",
+    collection_notice: "Registered — collection activates when publishing administration is connected.",
+    my_share_pct: 60,
+    my_writer_status: null,
+    writers: [
+      { name: "Thy Cheat Code", profile_id: null, user_id: "u-1", is_linked: true, is_me: true, share_pct: 60, confirmation_status: "confirmed", dispute_note: null, confirmed_at: "2026-10-01T00:00:00Z", disputed_at: null },
+      { name: "Wave Maker", profile_id: null, user_id: null, is_linked: false, is_me: false, share_pct: 40, confirmation_status: "unlinked", dispute_note: null, confirmed_at: null, disputed_at: null },
+    ],
+    created_at: "2026-10-01T00:00:00Z",
+    updated_at: "2026-10-01T00:00:00Z",
+  };
+
+  it("registrations ride in the contract's own shape; the ready flag reads true-only", () => {
+    const parsed = parsePublishingMine({ registrations: [ITEM], registry_ready: true });
+    expect(parsed).not.toBeNull();
+    expect(parsed!.registryReady).toBe(true);
+    expect(parsed!.registrations[0]).toMatchObject({ id: "reg-1", song_title: "Midnight Crown", my_share_pct: 60 });
+    expect(parsed!.registrations[0]!.writers).toHaveLength(2);
+    expect(parsePublishingMine({ registrations: [], registry_ready: false })!.registryReady).toBe(false);
+    expect(parsePublishingMine({ registrations: [] })!.registryReady).toBe(false);
+  });
+
+  it("no registrations list is a failure; id-less or writer-less rows drop", () => {
+    expect(parsePublishingMine({})).toBeNull();
+    expect(parsePublishingMine(null)).toBeNull();
+    const parsed = parsePublishingMine({
+      registrations: [{ song_title: "no id" }, { id: "x", writers: "nope" }, ITEM],
+      registry_ready: true,
+    });
+    expect(parsed!.registrations.map((r) => r.id)).toEqual(["reg-1"]);
+  });
+
+  it("form rows read the page's way: blanks drop, profile nulls, shares numeric", () => {
+    expect(
+      publishingWritersFromRows([
+        { name: "  Thy Cheat Code ", profileId: " ", sharePct: "60" },
+        { name: "", profileId: "", sharePct: "" },
+        { name: "Wave Maker", profileId: " prof-2 ", sharePct: "40" },
+        { name: "", profileId: "", sharePct: "0" },
+      ]),
+    ).toEqual([
+      { name: "Thy Cheat Code", profile_id: null, share_pct: 60 },
+      { name: "Wave Maker", profile_id: "prof-2", share_pct: 40 },
+      { name: "", profile_id: null, share_pct: 0 },
+    ]);
+  });
+
+  it("register / amend / dispute payloads are the rails' bodies", () => {
+    const writers = [{ name: "A", profile_id: null, share_pct: 100 }];
+    expect(buildPublishingRegisterPayload({ songKind: "song", songId: "s-1", writers })).toEqual({
+      song_kind: "song", song_id: "s-1", writers,
+    });
+    expect(buildPublishingAmendPayload(writers)).toEqual({ writers });
+    expect(buildPublishingDisputePayload("not my share")).toEqual({ note: "not my share" });
+  });
+});
+
+describe("split sheets — parse, validate, and the cent-exact ledger split", () => {
+  it("the PDF finalize quotes the registry's 50", () => {
+    expect(SPLIT_SHEET_PDF_COST_VISUAL_BUCS).toBe(50);
+  });
+
+  it("sheets parse; a missing list is a failure, an empty list is empty", () => {
+    const parsed = parseWave8Sheets({
+      sheets: [
+        { id: "sh-1", songTitle: "Midnight Crown", collaborators: [{ name: "A", role: "Artist", pct: 60 }, { name: "B", pct: 40 }], createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z" },
+        { songTitle: "no id — drops" },
+      ],
+    });
+    expect(parsed).toHaveLength(1);
+    expect(parsed![0]!.collaborators).toEqual([
+      { name: "A", role: "Artist", pct: 60 },
+      { name: "B", role: "", pct: 40 },
+    ]);
+    expect(parseWave8Sheets({ sheets: [] })).toEqual([]);
+    expect(parseWave8Sheets({})).toBeNull();
+    expect(parseWave8Sheets(null)).toBeNull();
+  });
+
+  it("the finalized payload needs its spine — title, collaborators, code", () => {
+    expect(
+      parseFinalizedSheet({
+        songTitle: "Midnight Crown",
+        collaborators: [{ name: "A", role: "Artist", pct: 100 }],
+        totalPct: 100,
+        finalizedAt: "2026-10-05T00:00:00Z",
+        sheetCode: "SS-2026-0001",
+        creditsRemaining: 950,
+      }),
+    ).toMatchObject({ songTitle: "Midnight Crown", sheetCode: "SS-2026-0001", creditsRemaining: 950 });
+    expect(parseFinalizedSheet({ songTitle: "X", collaborators: [] })).toBeNull();
+    expect(parseFinalizedSheet({})).toBeNull();
+  });
+
+  it("largest-remainder: floors first, leftovers to the biggest fractions, total exact", () => {
+    expect(splitCentsLargestRemainder(100, [50, 50])).toEqual([50, 50]);
+    expect(splitCentsLargestRemainder(101, [50, 50])).toEqual([51, 50]);
+    const thirds = splitCentsLargestRemainder(1000, [33.33, 33.33, 33.34]);
+    expect(thirds.reduce((a, b) => a + b, 0)).toBe(1000);
+    expect(thirds).toEqual([333, 333, 334]);
+    expect(splitCentsLargestRemainder(0, [100])).toEqual([0]);
+  });
+
+  it("the draft refuses in the page's words; a clean draft passes", () => {
+    const rows = (over: Partial<Wave8DraftRow>[] = []): Wave8DraftRow[] => [
+      { name: "A", role: "Artist", pct: "60", ...(over[0] ?? {}) },
+      { name: "B", role: "", pct: "40", ...(over[1] ?? {}) },
+    ];
+    expect(validateWave8Draft("Midnight Crown", rows())).toBeNull();
+    expect(wave8DraftTotalPct(rows())).toBe(100);
+    expect(validateWave8Draft("  ", rows())).toContain("song title");
+    expect(validateWave8Draft("X", [])).toContain("at least one collaborator");
+    expect(validateWave8Draft("X", rows([{ name: " " }]))).toContain("needs a name");
+    expect(validateWave8Draft("X", rows([{ pct: "140" }]))).toContain("between 0% and 100%");
+    expect(validateWave8Draft("X", rows([{ pct: "30" }]))).toContain("add up to exactly 100%");
+  });
+
+  it("payload + ledger-post bodies are the page's shapes, caps included", () => {
+    expect(
+      buildWave8SheetPayload("  Midnight Crown ", [
+        { name: " A ", role: " Artist ", pct: "60" },
+        { name: "B", role: "", pct: "40" },
+      ]),
+    ).toEqual({
+      songTitle: "Midnight Crown",
+      collaborators: [
+        { name: "A", role: "Artist", pct: 60 },
+        { name: "B", role: "", pct: 40 },
+      ],
+    });
+    const body = buildSplitLedgerPostBody({
+      sheetTitle: "Midnight Crown",
+      collaborator: { name: "Wave Maker", role: "Producer", pct: 25 },
+      amountCents: 5000,
+      date: "2026-10-05",
+    });
+    expect(body).toEqual({
+      type: "income",
+      category: "Royalties — Midnight Crown",
+      amountCents: 5000,
+      note: "Wave Maker 25% split",
+      date: "2026-10-05",
+    });
+    const longBody = buildSplitLedgerPostBody({
+      sheetTitle: "T".repeat(100),
+      collaborator: { name: "N".repeat(300), role: "", pct: 10 },
+      amountCents: 1,
+      date: "2026-10-05",
+    });
+    expect((longBody["category"] as string).length).toBe(60);
+    expect((longBody["note"] as string).length).toBe(280);
+    expect(splitSheetSlug("Midnight Crown (VIP Mix)")).toBe("midnight-crown-vip-mix");
+    expect(splitSheetSlug("!!!")).toBe("split-sheet");
+  });
+});
+
+describe("royalties — insights + payouts on the page's rails", () => {
+  it("insights quote the server's 100", () => {
+    expect(ROYALTY_INSIGHTS_COST_VISUAL_BUCS).toBe(100);
+  });
+
+  it("insights parse with titles; a missing list is a failure", () => {
+    expect(
+      parseRoyaltyInsights({ insights: [{ title: "Chase the Crown", detail: "It earns." }, { detail: "no title — drops" }] }),
+    ).toEqual([{ title: "Chase the Crown", detail: "It earns." }]);
+    expect(parseRoyaltyInsights({ insights: [] })).toEqual([]);
+    expect(parseRoyaltyInsights({})).toBeNull();
+    expect(parseRoyaltyInsights(null)).toBeNull();
+  });
+
+  it("amounts print the page's figures: USD as $, other currencies keep their code", () => {
+    expect(royaltyMoneyLabel("1234.5")).toBe("$1,234.50");
+    expect(royaltyMoneyLabel("99", "EUR")).toBe("EUR 99.00");
+    expect(royaltyMoneyLabel("not-a-number")).toBe("$0.00");
+  });
+
+  it("bars clamp to the biggest row; the month bar floors at 8px", () => {
+    expect(royaltyBarPct(50, 200)).toBe(25);
+    expect(royaltyBarPct(300, 200)).toBe(100);
+    expect(royaltyBarPct(10, 0)).toBe(0);
+    expect(royaltyMonthlyBarHeight(200, 200)).toBe(120);
+    expect(royaltyMonthlyBarHeight(1, 10000)).toBe(8);
+    expect(royaltyMonthlyBarHeight(0, 0)).toBe(8);
+  });
+
+  it("the payout form owes distributor, dates and an expected amount", () => {
+    const draft = (over: Partial<RoyaltyPayoutDraft> = {}): RoyaltyPayoutDraft => ({
+      distributor: "DistroKid",
+      periodStart: "2026-09-01",
+      periodEnd: "2026-09-30",
+      expected: "125.50",
+      received: "",
+      status: "expected",
+      ...over,
+    });
+    expect(validateRoyaltyPayoutDraft(draft())).toBeNull();
+    expect(validateRoyaltyPayoutDraft(draft({ distributor: " " }))).toContain("are required");
+    expect(validateRoyaltyPayoutDraft(draft({ periodEnd: "" }))).toContain("are required");
+    expect(validateRoyaltyPayoutDraft(draft({ expected: "" }))).toContain("are required");
+    expect(buildRoyaltyPayoutPayload(draft())).toEqual({
+      distributor: "DistroKid",
+      period_start: "2026-09-01",
+      period_end: "2026-09-30",
+      expected_amount: "125.50",
+      received_amount: undefined,
+      status: "expected",
+    });
+    expect(buildRoyaltyPayoutPayload(draft({ received: " 100 " })).received_amount).toBe("100");
   });
 });
