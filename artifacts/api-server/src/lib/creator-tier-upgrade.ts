@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type { CreatorTier } from "./platform-fees";
+import { withCheckoutRequestFingerprint } from "./stripe-client";
 
 /* ── Upgrade/downgrade = subscription UPDATE (payfix upgrade-path) ───────
    Pass 1 (Oct 26): choosing Elite while on Pro opened a brand-new
@@ -143,8 +144,10 @@ export async function changeCreatorTierSubscription(
     /** Pin the proration instant (from previewCreatorTierChange) so the
         generated invoice matches the preview the member confirmed. */
     prorationDate?: number;
-    /** Stripe idempotency key: a double-click / concurrent retry of the
-        same change replays THIS update instead of executing twice. */
+    /** Stripe idempotency key for the change: a retry of the same
+        change replays THIS update instead of executing twice. The
+        effective key sent to Stripe also fingerprints the exact
+        update parameters (see the update call below). */
     idempotencyKey?: string;
     /** A member who changes tiers is staying — a pending
         cancel_at_period_end is cleared as part of the change. */
@@ -187,10 +190,23 @@ export async function changeCreatorTierSubscription(
   };
   if (args.prorationDate) updateParams.proration_date = args.prorationDate;
   if (args.clearPendingCancel) updateParams.cancel_at_period_end = false;
+  /* The caller's key names the change (subscription + from/to +
+     period); the EFFECTIVE key also fingerprints the exact update
+     parameters built here, so the key identifies this request: a
+     re-previewed retry (a fresh proration instant) is a new request
+     whose safety comes from the already-on-that-price guard above,
+     while a byte-identical retry of THIS request still dedupes.
+     Without the fold, a later same-period change back to the same
+     tier could replay the first update's response under the shared
+     key and never execute — and a parameter change under the key is
+     exactly what Stripe refuses outright. */
+  const requestKey = args.idempotencyKey
+    ? withCheckoutRequestFingerprint(args.idempotencyKey, { subscriptionId: sub.id, updateParams })
+    : undefined;
   const updated = await stripe.subscriptions.update(
     sub.id,
     updateParams,
-    args.idempotencyKey ? { idempotencyKey: args.idempotencyKey } : undefined,
+    requestKey ? { idempotencyKey: requestKey } : undefined,
   );
   const updatedItem = updated.items?.data?.[0];
   const cpe = updatedItem?.current_period_end;

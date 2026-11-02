@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type Stripe from "stripe";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
@@ -551,17 +552,14 @@ router.post("/performance-bookings/:id/fund", requireAuth, publicApiLimiter, asy
     const stripe = createGuardedStripeClient();
     const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
     const baseUrl = domain ? `https://${domain}` : "http://localhost";
-    const idempotencyKey = buildPerformanceEscrowCheckoutKey({
-      promoterUserId: req.userId!,
-      bookingId: row.id,
-      feeCents: Number(row.fee_cents),
-    });
     const successUrl = `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=1`;
-    /* Session, metadata, idempotency key and amount are identical
-       either way — only the presentation differs. An embedded
-       session takes a return_url (the same funded landing) instead
-       of success/cancel URLs; funding still lands via the webhook. */
-    const session = await stripe.checkout.sessions.create({
+    /* The amount and metadata are identical either way; the
+       presentation makes it a different Stripe request, so the
+       idempotency key fingerprints the exact parameters below. An
+       embedded session takes a return_url (the same funded landing)
+       instead of success/cancel URLs; funding still lands via the
+       webhook. */
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [
@@ -589,7 +587,14 @@ router.post("/performance-bookings/:id/fund", requireAuth, publicApiLimiter, asy
             success_url: successUrl,
             cancel_url: `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=0`,
           }),
-    }, { idempotencyKey });
+    };
+    const idempotencyKey = buildPerformanceEscrowCheckoutKey({
+      promoterUserId: req.userId!,
+      bookingId: row.id,
+      feeCents: Number(row.fee_cents),
+      requestParams: sessionParams,
+    });
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     if (embeddedRequested && !session.client_secret) {
       /* An embedded session without a client secret cannot be
          mounted — throwing lands in the catch below, which resets

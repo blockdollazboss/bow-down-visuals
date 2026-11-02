@@ -6,7 +6,7 @@ import { db, creatorSubscriptionsTable } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import {
   EMBEDDED_CHECKOUT_SOURCE,
   buildEmbeddedIntentIdempotencyKey,
@@ -525,16 +525,22 @@ router.post("/embedded-checkout/subscription/intent", requireAuth, publicApiLimi
          must replay THAT customer — an unkeyed create minted a fresh
          customer per attempt (the Oct 26 two-customers defect family).
          The key is stable per member, so Stripe returns the same
-         customer for every retry of this member's first purchase. */
+         customer for every retry of this member's first purchase —
+         with the exact create parameters fingerprinted in, so a retry
+         carrying different parameters (e.g. the member's email
+         changed between attempts) mints under a fresh key instead of
+         hitting Stripe's same-key/different-parameters refusal. */
+      const customerParams: Stripe.CustomerCreateParams = {
+        ...(req.userEmail ? { email: req.userEmail } : {}),
+        metadata: { kind: "creator_tier", user_id: req.userId!, profile_id: profileId },
+      };
       const customerKey = buildCheckoutSessionIdempotencyKey({
         memberId: req.userId!,
         rail: "creator-tier-customer",
         purchaseIntent: { profileId },
+        requestFingerprint: fingerprintStripeRequestParams(customerParams),
       });
-      const customer = await stripe.customers.create({
-        ...(req.userEmail ? { email: req.userEmail } : {}),
-        metadata: { kind: "creator_tier", user_id: req.userId!, profile_id: profileId },
-      }, { idempotencyKey: customerKey });
+      const customer = await stripe.customers.create(customerParams, { idempotencyKey: customerKey });
       customerId = customer.id;
     }
 

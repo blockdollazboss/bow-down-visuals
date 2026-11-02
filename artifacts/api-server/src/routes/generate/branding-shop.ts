@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type Stripe from "stripe";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -23,7 +24,7 @@ import {
 } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { r2Upload } from "../../lib/r2-client";
 import {
@@ -505,11 +506,18 @@ export function buildBrandingOrderCheckoutKey(args: {
   userId: string;
   orderId: string;
   totalCents: number;
+  /** The exact session parameters this key guards (line items and
+   *  presentation mode included), folded in as a fingerprint: the
+   *  key identifies the request, not just the order — a parameter
+   *  change under a reused key is what Stripe refuses. */
+  requestParams?: unknown;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.userId,
     rail: "branding-order",
     purchaseIntent: { orderId: args.orderId, totalCents: args.totalCents },
+    requestFingerprint:
+      args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
 }
 
@@ -602,17 +610,13 @@ router.post("/branding-shop/checkout", requireAuth, publicApiLimiter, async (req
   const stripe = createGuardedStripeClient(stripeKey);
   const baseUrl = getBaseUrl(req);
   /* Embedded presentation is asked for per-request and honored only
-     while the EMBEDDED_CHECKOUT kill switch is on — the session,
-     metadata, idempotency key and the server-recomputed total are
-     identical either way; only the presentation differs. (The demo
-     path above never reaches Stripe and is unchanged.) */
+     while the EMBEDDED_CHECKOUT kill switch is on — the metadata and
+     the server-recomputed total are identical either way; the
+     presentation makes it a different Stripe request, so the
+     idempotency key fingerprints the exact parameters below. (The
+     demo path above never reaches Stripe and is unchanged.) */
   const embeddedRequested = uiMode === "embedded" && isEmbeddedCheckoutEnabled();
-  const idempotencyKey = buildBrandingOrderCheckoutKey({
-    userId: req.userId!,
-    orderId: order.id,
-    totalCents: order.total_cents,
-  });
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
     customer_email: order.email,
     line_items: order.items.map((item) => {
@@ -646,7 +650,14 @@ router.post("/branding-shop/checkout", requireAuth, publicApiLimiter, async (req
           success_url: `${baseUrl}/branding-shop?order=${order.id}&paid=1`,
           cancel_url: `${baseUrl}/branding-shop?order=${order.id}`,
         }),
-  }, { idempotencyKey });
+  };
+  const idempotencyKey = buildBrandingOrderCheckoutKey({
+    userId: req.userId!,
+    orderId: order.id,
+    totalCents: order.total_cents,
+    requestParams: sessionParams,
+  });
+  const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
   /* An embedded session without a client secret cannot be mounted
      anywhere — refuse before binding the session to the order, so

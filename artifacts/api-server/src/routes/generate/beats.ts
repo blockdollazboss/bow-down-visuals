@@ -1229,9 +1229,10 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
     const license = inserted[0]!;
 
     /* Embedded presentation is asked for per-request and honored only
-       while the EMBEDDED_CHECKOUT kill switch is on — the session,
-       metadata, idempotency key and every money figure are identical
-       either way; only the presentation differs. */
+       while the EMBEDDED_CHECKOUT kill switch is on — the metadata and
+       every money figure are identical either way; only the
+       presentation differs (the helper's idempotency key fingerprints
+       the exact parameters, so each presentation is its own request). */
     const embeddedRequested =
       parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
 
