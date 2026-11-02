@@ -193,11 +193,11 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           {showCreate && !isGuest && (
             <NativeCard isLight={isLight}>
               <div className="flex flex-col gap-2" data-testid="world-groups-create-form">
-                <input data-testid="world-groups-create-name" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Group name" maxLength={80} className={inputCls(isLight)} />
+                <input data-testid="world-groups-create-name" aria-label="Group name" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Group name" maxLength={80} className={inputCls(isLight)} />
                 {cName.trim() && (
                   <p className={`text-xs ${muted}`}>Its palace address: <span className="font-bold">/groups/{cSlug || "…"}</span></p>
                 )}
-                <textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} placeholder="What's this crew about?" rows={2} maxLength={2000} className={inputCls(isLight)} />
+                <textarea value={cDesc} aria-label="What's this crew about?" onChange={(e) => setCDesc(e.target.value)} placeholder="What's this crew about?" rows={2} maxLength={2000} className={inputCls(isLight)} />
                 <label className={`inline-flex items-center gap-2 text-xs font-semibold bdv-touch-target ${muted}`}>
                   <input type="checkbox" checked={cPublic} onChange={(e) => setCPublic(e.target.checked)} />
                   {cPublic ? "Public — anyone can browse and join" : "Private — only members see inside"}
@@ -443,6 +443,7 @@ function GroupFeed({
         <div className="flex items-start gap-2 px-1">
           <textarea
             data-testid="world-group-feed-composer"
+            aria-label="Say it to the crew"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Say it to the crew…"
@@ -663,12 +664,12 @@ function GroupForum({
       {caps.can_manage_channels && !isGuest && (
         <div className="flex flex-col gap-2 px-1" data-testid="world-forum-channel-create">
           <div className="flex gap-2">
-            <input value={chName} onChange={(e) => setChName(e.target.value)} placeholder="New channel name" maxLength={60} className={inputCls(isLight)} />
+            <input value={chName} aria-label="New channel name" onChange={(e) => setChName(e.target.value)} placeholder="New channel name" maxLength={60} className={inputCls(isLight)} />
             <button type="button" data-testid="world-forum-channel-create-submit" disabled={!chName.trim() || chBusy} onClick={() => void createChannel()} className={goldBtn}>
               <Plus className="h-3.5 w-3.5" /> Open channel
             </button>
           </div>
-          <input value={chDesc} onChange={(e) => setChDesc(e.target.value)} placeholder="What's this channel for? (optional)" maxLength={500} className={inputCls(isLight)} />
+          <input value={chDesc} aria-label="What's this channel for? (optional)" onChange={(e) => setChDesc(e.target.value)} placeholder="What's this channel for? (optional)" maxLength={500} className={inputCls(isLight)} />
           <select value={chGate} onChange={(e) => setChGate(e.target.value)} className={inputCls(isLight)} aria-label="Who can enter this channel" data-testid="world-forum-channel-gate">
             <option value="">Open to everyone the group admits</option>
             {gateOptions.map((t) => (
@@ -783,9 +784,9 @@ function ForumChannelView({
           )}
           {caps?.can_post && !isGuest && (
             <div className="flex flex-col gap-2 px-1" data-testid="world-forum-thread-create">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Thread title" maxLength={120} className={inputCls(isLight)} />
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Open the conversation…" rows={3} maxLength={5000} className={inputCls(isLight)} />
-              <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags, comma-separated (optional)" className={inputCls(isLight)} />
+              <input value={title} aria-label="Thread title" onChange={(e) => setTitle(e.target.value)} placeholder="Thread title" maxLength={120} className={inputCls(isLight)} />
+              <textarea value={body} aria-label="Open the conversation" onChange={(e) => setBody(e.target.value)} placeholder="Open the conversation…" rows={3} maxLength={5000} className={inputCls(isLight)} />
+              <input value={tags} aria-label="Tags, comma-separated (optional)" onChange={(e) => setTags(e.target.value)} placeholder="Tags, comma-separated (optional)" className={inputCls(isLight)} />
               <button type="button" data-testid="world-forum-thread-create-submit" disabled={!title.trim() || !body.trim() || busy} onClick={() => void startThread()} className={`${goldBtn} self-start`}>
                 <Plus className="h-3.5 w-3.5" /> Start thread
               </button>
@@ -942,6 +943,7 @@ function ForumThreadView({
         <div className="flex items-start gap-2 px-1">
           <textarea
             data-testid="world-forum-reply-composer"
+            aria-label="Reply to the thread"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Reply to the thread…"
