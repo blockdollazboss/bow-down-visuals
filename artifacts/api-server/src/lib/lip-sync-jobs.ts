@@ -27,14 +27,65 @@ import { logger } from "./logger";
 type LipSyncJobState = "queued" | "submitting" | "polling" | "done" | "failed";
 
 /**
- * The up-front charge every job in this table carries, in Visual Bucs.
- * POST /lip-sync/preview and each run-all scene charge exactly this via
- * chargeCredits BEFORE the job row exists (routes/lip-sync.ts keeps the
- * route-side constant LIP_SYNC_PREVIEW_CREDIT_COST — the two are pinned
- * equal by lip-sync-failure-refund.test.ts). A job that terminally
- * fails refunds exactly this amount, exactly once (charge_refunded).
+ * The BASE up-front charge a job in this table carries, in Visual Bucs
+ * (owner ruling, stack1400): a clip of ≤50s costs 300 VB. POST
+ * /lip-sync/preview and each run-all scene charge via
+ * lipSyncChargeForDurationSec BEFORE the job row exists
+ * (routes/lip-sync.ts keeps the route-side constant
+ * LIP_SYNC_PREVIEW_CREDIT_COST at this same base figure — the two are
+ * pinned equal by lip-sync-failure-refund.test.ts). A job that
+ * terminally fails refunds exactly the amount IT was charged, exactly
+ * once (charge_refunded) — see lipSyncChargeForJob.
  */
 export const LIP_SYNC_JOB_CHARGE_CREDITS = 300;
+
+/** Long-clip tier (owner ruled 2026-11-02): a clip longer than 50s and
+ *  no longer than 60s (the provider limit, PROVIDER_LIMIT_SEC) costs
+ *  600 VB — WaveSpeed is ~$1.80/min, so the flat 300 VB breaks even at
+ *  exactly 50.0s. Clips over 60s keep the pre-tier behaviour: the
+ *  preview rail charges the base amount and the poller then fails the
+ *  job over the provider limit (refunding that base charge), and
+ *  run-all skips over-limit scenes before any charge. */
+export const LIP_SYNC_LONG_CLIP_THRESHOLD_SEC = 50;
+export const LIP_SYNC_LONG_CLIP_MAX_SEC = 60;
+export const LIP_SYNC_LONG_CLIP_CREDIT_COST = 600;
+
+/**
+ * The honest up-front lip-sync charge for a clip of `durationSec`
+ * seconds (the real window being synced: sceneEndSec − sceneStartSec
+ * on the preview rail, the scene window on run-all):
+ *   duration ≤ 50s          → 300 VB
+ *   50s < duration ≤ 60s    → 600 VB
+ *   duration > 60s / invalid → 300 VB (existing behaviour, unchanged)
+ */
+export function lipSyncChargeForDurationSec(durationSec: unknown): number {
+  const d = typeof durationSec === "number" ? durationSec : Number(durationSec);
+  if (!Number.isFinite(d)) return LIP_SYNC_JOB_CHARGE_CREDITS;
+  if (d > LIP_SYNC_LONG_CLIP_THRESHOLD_SEC && d <= LIP_SYNC_LONG_CLIP_MAX_SEC) {
+    return LIP_SYNC_LONG_CLIP_CREDIT_COST;
+  }
+  return LIP_SYNC_JOB_CHARGE_CREDITS;
+}
+
+/**
+ * The amount a specific job was actually charged — the figure its
+ * failure refund must restore and its failure tell must name. New
+ * jobs record the charge in params.creditsCharged at enqueue (the
+ * tier makes the amount duration-dependent, so no single constant is
+ * truthful any more). Jobs created before the tier carry no record:
+ * they were all charged the flat base amount, so the fallback is
+ * LIP_SYNC_JOB_CHARGE_CREDITS — never a re-computed tier, which would
+ * over-refund a legacy 55s job that only ever paid 300.
+ */
+export function lipSyncChargeForJob(
+  job: Pick<LipSyncJob, "params"> | { params: LipSyncJobParams },
+): number {
+  const recorded = job.params?.creditsCharged;
+  if (typeof recorded === "number" && Number.isFinite(recorded) && recorded > 0) {
+    return recorded;
+  }
+  return LIP_SYNC_JOB_CHARGE_CREDITS;
+}
 
 interface LipSyncJobParams {
   clipUrl: string;
@@ -57,6 +108,11 @@ interface LipSyncJobParams {
   strength?: string | null;
   preserveFaceIdentity?: boolean | null;
   preserveArtistLook?: boolean | null;
+  /* The exact Visual Bucs charged for THIS job at enqueue, computed
+     from the clip's real duration by lipSyncChargeForDurationSec
+     (stack1400 duration tier). The failure refund restores exactly
+     this amount via lipSyncChargeForJob. Absent on pre-tier jobs. */
+  creditsCharged?: number | null;
 }
 
 interface LipSyncJobError {
