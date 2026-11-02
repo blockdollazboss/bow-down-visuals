@@ -1,4 +1,4 @@
--- 0313: Court gatherings — a sixth palace-calendar kind
+-- 0314: Court gatherings — a sixth palace-calendar kind
 -- (UPGRADE-PROGRAM 3.6, stack1300). A court gathering is a scheduled
 -- occasion in the Royal Court Chamber: at the hour the court is
 -- called, the Front Row honors are presented, and the moment is

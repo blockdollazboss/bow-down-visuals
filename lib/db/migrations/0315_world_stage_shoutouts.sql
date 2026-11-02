@@ -1,4 +1,4 @@
--- 0313: World stage shoutouts (Ring 3, program item 3.3 remainder).
+-- 0315: World stage shoutouts (Ring 3, program item 3.3 remainder).
 --
 -- The ledger of Visual Bucs shoutouts bought from a seat for the
 -- stage performer inside a World room — the paid half of the stage

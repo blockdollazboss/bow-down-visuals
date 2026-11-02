@@ -35,7 +35,7 @@ import { sql } from "drizzle-orm";
  *                       the status; the session is the room standing
  *                       open under its host's name on the calendar.
  *  - royal_court      — a court gathering in the Royal Court
- *                       Chamber (migration 0313, UPGRADE-PROGRAM
+ *                       Chamber (migration 0314, UPGRADE-PROGRAM
  *                       3.6): room_id is the Chamber
  *                       ("world:royal-court"), payload { note? } is
  *                       an optional occasion line. Booked by the
@@ -89,7 +89,7 @@ export const worldEventsTable = pgTable(
     /* Migration 0145: kinds and statuses are closed sets.
      * Migration 0158 admits 'contest' (World Contests, 2.24);
      * migration 0159 admits 'office_hours' (3.7) and keeps 'contest';
-     * migration 0313 admits 'royal_court' (3.6) and keeps all five. */
+     * migration 0314 admits 'royal_court' (3.6) and keeps all five. */
     check(
       "world_events_kind_check",
       sql`${t.kind} IN ('stage_show', 'listening_party', 'drop', 'contest', 'office_hours', 'royal_court')`,
