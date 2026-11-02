@@ -131,6 +131,51 @@ describe("KingdomBoardBlocks — a failed palace-events load is not an empty sla
     expect(todayBlock.slice(errAt, retryAt)).toContain("setRestFailed(false)");
     expect(src).toMatch(/\}, \[tick\]\);/);
   });
+
+  it("(5) before the REST leg settles, the empty claim does not render — the loading state stands in its place", () => {
+    // The settled sentinel exists and starts unsettled.
+    expect(src).toMatch(/const \[restSettled, setRestSettled\] = useState\(false\)/);
+    // It is set on BOTH settle paths of the REST effect (success + catch).
+    const effectAt = src.indexOf("fetchWorldEvents");
+    const effectEnd = src.indexOf("}, [tick]);", effectAt);
+    expect(effectAt).toBeGreaterThan(-1);
+    expect(effectEnd).toBeGreaterThan(effectAt);
+    const effect = src.slice(effectAt, effectEnd);
+    expect(effect.match(/setRestSettled\(true\)/g)?.length).toBeGreaterThanOrEqual(2);
+    // The Today block carries a loading branch gated on the unsettled
+    // sentinel, rendering the house loading state, ordered BEFORE the
+    // empty claim so the claim can never flash during the first load.
+    const loadingAt = todayBlock.indexOf("today.length === 0 && !restSettled");
+    const emptyAt = todayBlock.indexOf("Nothing on today's slate at the palace.");
+    expect(loadingAt).toBeGreaterThan(-1);
+    expect(todayBlock.slice(loadingAt, emptyAt)).toContain("NativeLoadingState");
+    expect(emptyAt).toBeGreaterThan(loadingAt);
+  });
+
+  it("(6) after a successful settle with a genuinely empty slate, the empty claim DOES render", () => {
+    // Success settles the sentinel and clears the failure flag, so the
+    // render falls past the failure and loading branches to the empty
+    // branch the parent lane pinned (gate unchanged, ordered after both).
+    const effectAt = src.indexOf("fetchWorldEvents");
+    const successAt = src.indexOf("setRestEvents(normalizeWorldEventSlate(events))", effectAt);
+    const successSlice = src.slice(successAt, src.indexOf("catch", successAt));
+    expect(successSlice).toContain("setRestSettled(true)");
+    expect(successSlice).toContain("setRestFailed(false)");
+    const loadingAt = todayBlock.indexOf("today.length === 0 && !restSettled");
+    const emptyGateAt = todayBlock.indexOf("today.length === 0 && !kingLine");
+    expect(loadingAt).toBeGreaterThan(-1);
+    expect(emptyGateAt).toBeGreaterThan(loadingAt);
+    expect(todayBlock.slice(emptyGateAt)).toContain("Nothing on today's slate at the palace.");
+  });
+
+  it("(7) after a failed settle, the failure branch still wins over both loading and empty", () => {
+    const errAt = todayBlock.indexOf("today.length === 0 && restFailed");
+    const loadingAt = todayBlock.indexOf("today.length === 0 && !restSettled");
+    const emptyGateAt = todayBlock.indexOf("today.length === 0 && !kingLine");
+    expect(errAt).toBeGreaterThan(-1);
+    expect(loadingAt).toBeGreaterThan(errAt);
+    expect(emptyGateAt).toBeGreaterThan(errAt);
+  });
 });
 
 describe("PurchasesPanel — the failure branch carries a working Retry", () => {
