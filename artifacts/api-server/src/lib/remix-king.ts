@@ -33,6 +33,8 @@ import {
   type RemixKingSplit,
 } from "@workspace/db";
 import { and, eq, sql } from "drizzle-orm";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
+import { logger } from "./logger";
 
 type EventStatus = (typeof REMIX_KING_EVENT_STATUSES)[number];
 
@@ -435,6 +437,30 @@ export async function shortlistEntry(store: RemixKingStore, entryId: string, sho
 
 /* ─── Winner → official release ────────────────────────────────────── */
 
+/* ─── The winner tell (notification census, stack1200) ──────────────
+   Crowning a winner used to happen in total silence — the release
+   existed and the winner heard nothing. The tell rides the one door
+   (category "money": the crowning opens the release's money path)
+   and claims NO landed money — the splits pay later, when the
+   release payments run, and that landing carries its own tell
+   (remix-king-payments). Exactly-once by construction: this fires
+   only on the fresh-decision path below; a re-call returns the
+   existing release before reaching it. */
+type RemixKingEventNotifier = (input: UserEventInput) => Promise<unknown>;
+let _remixKingEventNotifier: RemixKingEventNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setRemixKingEventNotifier(fn: RemixKingEventNotifier | null): void {
+  _remixKingEventNotifier = fn ?? notifyUserEvent;
+}
+
+async function notifyWinnerCrownedSafely(input: UserEventInput): Promise<void> {
+  try {
+    await _remixKingEventNotifier(input);
+  } catch (err) {
+    logger.warn({ err, userId: input.userId }, "[remix-king] winner tell failed (crowning stands)");
+  }
+}
+
 /** Pick the winner (judging only). Creates the ONE official release for
  *  the event, snapshotting the published splits with the winner role
  *  bound to the winning member. Idempotent: re-calling after a decision
@@ -462,6 +488,14 @@ export async function selectWinner(store: RemixKingStore, eventId: string, entry
     await store.updateEntry(e.id, { status: e.id === entryId ? "winner" : "not_selected" });
   }
   const updated = (await store.updateEvent(eventId, { status: "decided", winnerEntryId: entryId }))!;
+  await notifyWinnerCrownedSafely({
+    userId: entry.userId,
+    category: "money",
+    kind: "remix_king_winner",
+    title: "You won Remix the King 👑",
+    body: `Your remix “${entry.remixTitle}” is the official release for “${event.title}”. Your winner's split pays when the release payments run — that landing gets its own word.`,
+    link: "/remix",
+  });
   return { event: updated, release };
 }
 

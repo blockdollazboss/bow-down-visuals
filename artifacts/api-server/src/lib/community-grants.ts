@@ -41,6 +41,10 @@
           the unique key makes any replay "already-recorded".
        4. FAILURE — claw back any credits that moved, release the
           claim, report failed_released; a later settle retries.
+       5. TELL — on the paid outcome only, the winner is told through
+          the one door (category "money", kind community_grant_won):
+          a prize landing is a money event, and before the stack1200
+          census the winner heard nothing at all.
      Visual Bucs ONLY — no cash path exists anywhere in this feature.
    - REPORT-BACK: the funded creator posts a report-back in their own
      words on their candidate; the public surface shows it, or shows
@@ -56,6 +60,7 @@ import {
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { recordCreditUsageStrict } from "./payment-record";
 import { isUniqueViolation, isUndefinedTable } from "./pg-errors";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 import { logger } from "./logger";
 
 export class CommunityGrantError extends Error {
@@ -523,6 +528,12 @@ export interface GrantPayDeps {
     creditsUsed: number;
     idempotencyKey: string;
   }): Promise<"recorded" | "already-recorded">;
+  /** The winner tell (notification census, stack1200). Optional:
+   *  production rides defaultGrantPayDeps (the one door); tests
+   *  inject a recorder. Fired ONLY on the paid outcome, after the
+   *  ledger lands — a replayed settle returns already_settled and
+   *  never reaches it, so the tell is exactly-once by the claim. */
+  notify?(input: UserEventInput): Promise<unknown>;
 }
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -550,6 +561,9 @@ export const defaultGrantPayDeps: GrantPayDeps = {
       if (isDuplicateKeyError(err)) return "already-recorded";
       throw err;
     }
+  },
+  async notify(input) {
+    await notifyUserEvent(input);
   },
 };
 
@@ -606,7 +620,6 @@ export async function settleRound(
       creditsUsed: -round.poolVb,
       idempotencyKey: communityGrantLedgerKey(roundId),
     });
-    return { outcome: "paid", winnerCandidateId: winner.id, amountVb: round.poolVb };
   } catch (err) {
     if (granted) {
       await deps.addCredits(winner.creatorUserId, -round.poolVb).catch(() => {});
@@ -615,6 +628,30 @@ export async function settleRound(
     logger.error({ err, roundId }, "[community-grants] settle failed after claim — claim released, pool unpaid");
     return { outcome: "failed_released" };
   }
+  /* 5. TELL — the winner hears the prize landed (notification
+     census, stack1200). This is the ONLY settle outcome that fires
+     it: the claim above makes this line reachable exactly once per
+     round (a replay reads resultStatus 'winner' and returns
+     already_settled long before here), and it sits AFTER the grant
+     try/catch on purpose — the money has landed, so a tell failure
+     must never claw it back or re-label the outcome. The copy names
+     exactly the pool that moved. Best-effort: notifyUserEvent never
+     throws, and the catch keeps an injected dep honest too. */
+  if (deps.notify) {
+    try {
+      await deps.notify({
+        userId: winner.creatorUserId,
+        category: "money",
+        kind: "community_grant_won",
+        title: "You won the Community Grant 🏆",
+        body: `${round.poolVb.toLocaleString("en-US")} Visual Bucs just landed in your balance for “${winner.title}” — the community picked your project.`,
+        link: "/community-grants",
+      });
+    } catch (err) {
+      logger.warn({ err, roundId }, "[community-grants] winner tell failed (grant stands)");
+    }
+  }
+  return { outcome: "paid", winnerCandidateId: winner.id, amountVb: round.poolVb };
 }
 
 /** Admin resolution path for a tied round: extend the voting window;

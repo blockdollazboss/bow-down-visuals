@@ -21,12 +21,18 @@ import { db, creditUsageTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { recordCreditUsageStrict } from "./payment-record";
 import { isUniqueViolation } from "./pg-errors";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 import { logger } from "./logger";
 import { splitLedgerKey, type RemixKingStore, type SplitPaymentWire } from "./remix-king";
 
 export interface SplitPayDeps {
   addCredits(userId: string, amount: number): Promise<void>;
   recordLedger(record: { userId: string; action: string; creditsUsed: number; idempotencyKey: string }): Promise<"recorded" | "already-recorded">;
+  /** The payee tell (notification census, stack1200). Optional:
+   *  production rides defaultSplitPayDeps (the one door); tests
+   *  inject a recorder. Fired ONLY on the paid outcome, after the
+   *  ledger lands — the claim flip makes that exactly-once. */
+  notify?(input: UserEventInput): Promise<unknown>;
 }
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -52,6 +58,9 @@ export const defaultSplitPayDeps: SplitPayDeps = {
       throw err;
     }
   },
+  async notify(input) {
+    await notifyUserEvent(input);
+  },
 };
 
 type SplitPayOutcome = "paid" | "already_claimed" | "skipped_no_payee" | "failed_released";
@@ -72,7 +81,6 @@ export async function paySplitPayment(store: RemixKingStore, deps: SplitPayDeps,
       creditsUsed: -payment.amountVb,
       idempotencyKey: splitLedgerKey(payment.id),
     });
-    return "paid";
   } catch (err) {
     if (granted) await deps.addCredits(payment.payeeUserId, -payment.amountVb).catch(() => {});
     await store.releasePaymentClaim(payment.id);
@@ -80,6 +88,27 @@ export async function paySplitPayment(store: RemixKingStore, deps: SplitPayDeps,
       "[remix-king] split payout failed after claim — credits clawed back, claim released for retry");
     return "failed_released";
   }
+  /* The payee tell (notification census, stack1200): the money has
+     landed, so the payee hears it through the one door. Reachable
+     exactly once per payment — the claim flip above gates it, and a
+     replay returns already_claimed before here. After the grant
+     try/catch on purpose: a tell failure never claws back a landed
+     split. The copy names exactly the amount that moved. */
+  if (deps.notify) {
+    try {
+      await deps.notify({
+        userId: payment.payeeUserId,
+        category: "money",
+        kind: "remix_king_split_paid",
+        title: "Your Remix the King split just paid 👑",
+        body: `${payment.amountVb.toLocaleString("en-US")} Visual Bucs just landed in your balance — your ${payment.period} official-release split.`,
+        link: "/remix",
+      });
+    } catch (err) {
+      logger.warn({ err, paymentId: payment.id }, "[remix-king] split tell failed (payment stands)");
+    }
+  }
+  return "paid";
 }
 
 interface ProcessSplitsResult {

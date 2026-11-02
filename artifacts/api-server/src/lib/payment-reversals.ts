@@ -60,6 +60,8 @@ import { getSupabaseAdmin } from "./supabase-admin";
 import { isUniqueViolation } from "./pg-errors";
 import { revokeLicenseKeysForSales } from "./license-keys";
 import { reverseSplitEntriesForSession } from "./sale-splits";
+import { createJobNotification } from "./job-notifications";
+import { notifyUserEvent } from "./push-events";
 
 /* ── Shapes ──────────────────────────────────────────────────────────── */
 
@@ -280,7 +282,7 @@ async function identifyRail(
     },
     async () => {
       const r = await db.execute(sql`
-        SELECT id, user_id FROM shop_events
+        SELECT id, user_id, buyer_user_id FROM shop_events
         WHERE stripe_session_id = ${sid} AND event_type IN ('sale', 'pending_sale')
         ORDER BY created_at ASC LIMIT 1
       `);
@@ -291,7 +293,16 @@ async function identifyRail(
         userId: String(row["user_id"]),
         sessionId: sid,
         grantedCredits: 0,
-        details: { sellerUserId: String(row["user_id"]), firstLineId: String(row["id"]) },
+        /* On this rail userId is the SELLER (shop_events.user_id)
+           and the seller tell depends on it — the buyer id (migration
+           0297; null on guest checkouts, which keep the email key)
+           rides in details from the session's first sale line, and
+           the buyer tell reads it from there, never from userId. */
+        details: {
+          sellerUserId: String(row["user_id"]),
+          firstLineId: String(row["id"]),
+          buyerUserId: (row["buyer_user_id"] as string | null) ?? null,
+        },
       };
     },
     async () => {
@@ -956,6 +967,188 @@ async function markPurchaseRowRefunded(input: {
 
 /* ── The engine ─────────────────────────────────────────────────────── */
 
+/* ── Party tells (notification census, stack1200) ───────────────────
+   A landed reversal used to change balances, referral earnings,
+   entitlements and seller ledgers in TOTAL silence — the only
+   creator tells lived inside reverseEntitlement, for the sponsor
+   and performance rails alone. These tells fire at the completion
+   point, each gated on what THIS run actually did (a run that
+   debited nothing and revoked nothing tells nothing), and each
+   claimed on job_notifications (jobType "sale") so a replay or a
+   top-up run can never double-tell:
+     · pack claw      → the buyer, naming THIS run's debited amount;
+       the claim key carries the run's new clawed total, so a
+       completing run's second claw is a second, distinct tell.
+     · referral claw  → the referrer, same discipline.
+     · entitlement    → the buyer, where the rail's identification
+       names one (membership fan, beat buyer, live-shop buyer,
+       digital buyer, storefront buyer, marketplace buyer).
+       Digital buyers always carry an account identity
+       (digital_sales.buyer_user_id is NOT NULL and the probe names
+       it in userId); storefront buyers carry one when they checked
+       out signed in (store_orders.buyer_user_id is nullable —
+       guest orders name nobody and no tell is faked for them);
+       marketplace idents name the SELLER in userId, so that rail's
+       buyer id rides in details (shop_events.buyer_user_id, from
+       the session's first sale line; null on guest lines) and the
+       buyer tell reads it from there. Shoutout fans carry no
+       account id by design (free-form fan identity in v1), so no
+       shoutout buyer tell exists.
+     · seller ledger  → the seller, EXCLUDING sponsor/performance
+       (already told inside reverseEntitlement). The copy names NO
+       amount: this engine never computes the seller-ledger figure,
+       and a tell never invents one.
+   Best-effort by construction: a tell failure never fails, blocks
+   or re-labels a landed reversal. */
+const REVERSAL_BUYER_LINKS: Record<string, string> = {
+  membership: "/memberships",
+  beat_license: "/beats",
+  live_shop_sale: "/library",
+  digital_sale: "/library",
+  storefront_order: "/library",
+  marketplace_shop: "/library",
+};
+const REVERSAL_SELLER_LINKS: Record<string, string> = {
+  membership: "/memberships",
+  beat_license: "/beats",
+  marketplace_shop: "/earnings",
+  live_shop_sale: "/earnings",
+  digital_sale: "/earnings",
+  storefront_order: "/earnings",
+  tip_jar_tip: "/tips",
+  shoutout_request: "/shoutouts",
+};
+
+async function tellReversalParty(input: {
+  userId: string | null;
+  claimJobId: string;
+  kind: string;
+  title: string;
+  body: string;
+  link: string;
+}): Promise<void> {
+  if (!input.userId) return;
+  try {
+    const claimed = await createJobNotification({
+      jobType: "sale",
+      jobId: input.claimJobId,
+      userId: input.userId,
+      projectId: null,
+      status: "completed",
+      title: input.title,
+      message: input.body,
+    });
+    if (!claimed) return; // the tell was already claimed by a twin run
+    await notifyUserEvent({
+      userId: input.userId,
+      category: "money",
+      kind: input.kind,
+      title: input.title,
+      body: input.body,
+      link: input.link,
+    });
+  } catch (err) {
+    logger.warn({ err, claimJobId: input.claimJobId }, "[payment-reversals] party tell failed (reversal stands)");
+  }
+}
+
+async function resolveProfileOwnerUserId(profileId: unknown): Promise<string | null> {
+  if (typeof profileId !== "string" || !profileId) return null;
+  try {
+    const r = await db.execute(sql`
+      SELECT user_id FROM creator_profiles WHERE id = ${profileId} LIMIT 1
+    `);
+    const row = firstRow(r);
+    return (row?.["user_id"] as string | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+interface ReversalLegOutcomes {
+  packDebited: number;
+  packClawedTotal: number;
+  referralDebited: number;
+  referralClawedTotal: number;
+  referrerUserId: string | null;
+  entitlementRevoked: boolean;
+  sellerReversed: boolean;
+}
+
+async function tellReversalParties(
+  ident: IdentifiedRail,
+  chargeId: string,
+  legs: ReversalLegOutcomes,
+): Promise<void> {
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  if (legs.packDebited > 0) {
+    await tellReversalParty({
+      userId: ident.userId,
+      claimJobId: `rev:${chargeId}:pack:${legs.packClawedTotal}`,
+      kind: "reversal_pack_clawback",
+      title: "Pack Bucs were taken back",
+      body: `${fmt(legs.packDebited)} of the Visual Bucs from a reversed credit-pack payment were taken back. Your balance reflects it now.`,
+      link: "/credit-history",
+    });
+  }
+  if (legs.referralDebited > 0 && legs.referrerUserId) {
+    await tellReversalParty({
+      userId: legs.referrerUserId,
+      claimJobId: `rev:${chargeId}:referral:${legs.referralClawedTotal}`,
+      kind: "reversal_referral_clawback",
+      title: "Referral earnings were adjusted",
+      body: `A purchase you earned referral Bucs on was reversed — ${fmt(legs.referralDebited)} Visual Bucs were taken back.`,
+      link: "/referrals",
+    });
+  }
+  if (legs.entitlementRevoked) {
+    const link = REVERSAL_BUYER_LINKS[ident.rail];
+    if (link) {
+      /* Recipient per rail: ident.userId IS the buyer on the
+         membership / beat / live-shop / digital / storefront rails
+         (null for a storefront guest order — tellReversalParty
+         no-ops on a null recipient, and no tell is faked). On the
+         marketplace rail ident.userId is the SELLER, so the buyer
+         is the id the probe carried in details (null on a guest
+         line — same no-op). */
+      const buyerId =
+        ident.rail === "marketplace_shop"
+          ? ((ident.details["buyerUserId"] as string | null) ?? null)
+          : ident.userId;
+      await tellReversalParty({
+        userId: buyerId,
+        claimJobId: `rev:${chargeId}:entitlement`,
+        kind: "reversal_purchase_refunded",
+        title: "Your purchase was reversed",
+        body: "The payment was reversed, so the purchase is undone and access was removed. Any refund rides your card statement.",
+        link,
+      });
+    }
+  }
+  if (legs.sellerReversed) {
+    const link = REVERSAL_SELLER_LINKS[ident.rail];
+    if (link) {
+      let sellerId: string | null = null;
+      if (ident.rail === "membership") sellerId = (ident.details["creatorUserId"] as string | null) ?? null;
+      else if (ident.rail === "beat_license") sellerId = (ident.details["producerId"] as string | null) ?? null;
+      else if (ident.rail === "marketplace_shop") sellerId = (ident.details["sellerUserId"] as string | null) ?? ident.userId;
+      else if (ident.rail === "live_shop_sale") sellerId = (ident.details["sellerUserId"] as string | null) ?? null;
+      else if (ident.rail === "tip_jar_tip" || ident.rail === "shoutout_request") sellerId = ident.userId;
+      else if (ident.rail === "digital_sale" || ident.rail === "storefront_order") {
+        sellerId = await resolveProfileOwnerUserId(ident.details["profileId"]);
+      }
+      await tellReversalParty({
+        userId: sellerId,
+        claimJobId: `rev:${chargeId}:seller`,
+        kind: "reversal_sale_reversed",
+        title: "A sale was reversed",
+        body: "A payment reversal undid one of your sales and removed what it gave access to. Your earnings records reflect it now.",
+        link,
+      });
+    }
+  }
+}
+
 export async function processChargeReversal(input: {
   stripe: Stripe;
   eventId: string;
@@ -1080,11 +1273,21 @@ export async function processChargeReversal(input: {
         : {};
     const details: Record<string, unknown> = { ...prevDetails, ...ident.details };
 
+    /* This run's own leg outcomes — the party tells below key off
+       these, never the row's cumulative flags, so a retry that moves
+       nothing tells nothing. */
+    let packDebitedThisRun = 0;
+    let referralDebitedThisRun = 0;
+    let referrerUserIdThisRun: string | null = null;
+    let entitlementRevokedThisRun = false;
+    let sellerReversedThisRun = false;
+
     if (ident.rail === "credit_pack" && ident.userId) {
       const target = Math.floor(ident.grantedCredits * fraction);
       const delta = target - creditsClawed;
       if (delta > 0) {
         const { debited, shortfall: stepShortfall } = await debitCreditsUpTo(ident.userId, delta);
+        packDebitedThisRun = debited;
         creditsClawed += debited;
         shortfall += stepShortfall;
         await db.execute(sql`
@@ -1115,6 +1318,8 @@ export async function processChargeReversal(input: {
           details["referralAwarded"] = award.awarded;
           if (refDelta > 0) {
             const { debited, shortfall: refShortfall } = await debitCreditsUpTo(award.referrerId, refDelta);
+            referralDebitedThisRun = debited;
+            referrerUserIdThisRun = award.referrerId;
             referralClawed += debited;
             shortfall += refShortfall;
             await db.execute(sql`
@@ -1163,6 +1368,8 @@ export async function processChargeReversal(input: {
 
     if (fullReversal && ident.grantedCredits === 0) {
       const rev = await reverseEntitlement(ident);
+      entitlementRevokedThisRun = rev.entitlement;
+      sellerReversedThisRun = rev.seller;
       entitlementRevoked = entitlementRevoked || rev.entitlement;
       sellerReversed = sellerReversed || rev.seller;
       details["entitlementRevokedNow"] = rev.entitlement;
@@ -1190,6 +1397,19 @@ export async function processChargeReversal(input: {
       { chargeId: charge.id, rail: ident.rail, creditsClawed, referralClawed, shortfall, status: finalStatus },
       "payment reversal: applied",
     );
+    /* Party tells (notification census, stack1200): the reversal has
+       landed — the people it took money or access from hear it now.
+       After the final UPDATE on purpose, keyed to this run's own
+       outcomes, and claim-gated inside the helper. */
+    await tellReversalParties(ident, charge.id, {
+      packDebited: packDebitedThisRun,
+      packClawedTotal: creditsClawed,
+      referralDebited: referralDebitedThisRun,
+      referralClawedTotal: referralClawed,
+      referrerUserId: referrerUserIdThisRun,
+      entitlementRevoked: entitlementRevokedThisRun,
+      sellerReversed: sellerReversedThisRun,
+    });
     return { outcome: "reversed", rail: ident.rail, creditsClawed, shortfallCredits: shortfall };
   } catch (err) {
     await db
@@ -1408,6 +1628,7 @@ export async function resolvePaymentReversal(input: {
 
     try {
       let rev = { entitlement: false, seller: false };
+      let parkedIdent: IdentifiedRail | null = null;
       if (decision === "complete") {
         /* The engine's own completion legs, fed by the identification
            the row recorded when it parked — never a re-guess. */
@@ -1422,6 +1643,7 @@ export async function resolvePaymentReversal(input: {
           grantedCredits: 0,
           details: parkedDetails,
         };
+        parkedIdent = ident;
         rev = await reverseEntitlement(ident);
       }
       const prevDetails =
@@ -1471,6 +1693,22 @@ export async function resolvePaymentReversal(input: {
         { reversalId, chargeId: row["stripe_charge_id"], decision, adminEmail: input.adminEmail },
         "payment reversal: manual review resolved",
       );
+      /* Party tells (notification census, stack1200): a 'complete'
+         resolution lands the same legs an auto-reversal lands, so
+         the same people hear it. Parked rows never carry a VB
+         grant, so the claw tells receive zeros and stay silent; a
+         'dismiss' decision ran no legs and tells nothing. */
+      if (decision === "complete" && parkedIdent) {
+        await tellReversalParties(parkedIdent, String(row["stripe_charge_id"] ?? ""), {
+          packDebited: 0,
+          packClawedTotal: 0,
+          referralDebited: 0,
+          referralClawedTotal: 0,
+          referrerUserId: null,
+          entitlementRevoked: rev.entitlement,
+          sellerReversed: rev.seller,
+        });
+      }
       return { outcome: "resolved", row: landed, resolution };
     } catch (err) {
       /* A leg failed: release the claim so the row stays parked and

@@ -107,8 +107,9 @@ async function upsertSubscription(values: {
    landed. Exactly-once comes from the receipt row itself — its
    idempotency_key is UNIQUE and the insert is ON CONFLICT DO NOTHING,
    so only a receipt that actually LANDS fires; a replayed webhook can
-   never re-ping. Bad-news kinds (payment_failed, canceled,
-   status_changed) deliberately do not ride this rail. */
+   never re-ping. Bad-news kinds (payment_failed, canceled) ride
+   the sibling rail below (planBadNewsCopy / maybeNotifyPlanBadNews,
+   stack1200 census); status_changed stays silent by design. */
 const PLAN_LANDED_KINDS: ReadonlySet<string> = new Set(["subscribed", "renewed", "tier_changed"]);
 
 export function planLandedCopy(kind: string, tier: string | null | undefined): { title: string; body: string } | null {
@@ -130,6 +131,35 @@ export function planLandedCopy(kind: string, tier: string | null | undefined): {
       return {
         title: `Your plan is now ${name} 👑`,
         body: "The switch is done — same subscription, new tier, effective right away.",
+      };
+    default:
+      return null;
+  }
+}
+
+/* ── Plan bad-news tell (notification census, stack1200) ─────────────
+   The rail above carries only good news BY DESIGN — but for creator
+   plans nothing else carried the bad news either: no dunning email
+   exists for creator tiers (fan memberships have one; plans did
+   not), so a failed payment or a cancellation told the member
+   nothing at all. These kinds ride the same door on the same
+   landing discipline (the receipt's UNIQUE idempotency key is the
+   exactly-once claim). Copy is honest: a failed payment says past
+   due and names the fix; it never claims money moved. The
+   status_changed kind stays silent — it is an internal sync mirror
+   (pause/resume bookkeeping) with no concrete member meaning. */
+export function planBadNewsCopy(kind: string, tier: string | null | undefined): { title: string; body: string } | null {
+  const name = tier && tier !== "free" ? tier.charAt(0).toUpperCase() + tier.slice(1) : null;
+  switch (kind) {
+    case "payment_failed":
+      return {
+        title: "Your plan payment didn't go through",
+        body: `Your latest ${name ? `${name} ` : ""}plan payment failed, so your plan is past due. Update your payment method in Settings to keep your plan and everything it unlocks.`,
+      };
+    case "canceled":
+      return {
+        title: name ? `Your ${name} plan has ended` : "Your plan has ended",
+        body: "Your paid plan was canceled and has ended — your studio is on the free plan now. You can restart a plan any time in Settings.",
       };
     default:
       return null;
@@ -183,6 +213,32 @@ export async function maybeNotifyPlanLanded(
   }
 }
 
+/** Fire the plan bad-news tell for a receipt that just landed.
+ *  Best-effort: never throws into the entitlement sync. */
+export async function maybeNotifyPlanBadNews(
+  values: { profileId: string; kind: string; tier?: string | null },
+  deps: PlanLandedDeps = realPlanLandedDeps,
+): Promise<boolean> {
+  const copy = planBadNewsCopy(values.kind, values.tier);
+  if (!copy) return false;
+  try {
+    const userId = await deps.readUserId(values.profileId);
+    if (!userId) return false;
+    await deps.notify({
+      userId,
+      category: "money",
+      kind: `plan_${values.kind}`,
+      title: copy.title,
+      body: copy.body,
+      link: "/settings",
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ err, profileId: values.profileId, kind: values.kind }, "tier-sync: plan bad-news notification failed (non-fatal)");
+    return false;
+  }
+}
+
 async function recordSubscriptionReceipt(values: {
   profileId: string;
   kind: string;
@@ -219,6 +275,7 @@ async function recordSubscriptionReceipt(values: {
        (the checkout welcome email gates on it). */
     if (landed[0]) {
       await maybeNotifyPlanLanded(values);
+      await maybeNotifyPlanBadNews(values);
     }
     return landed[0] != null;
   } catch (err) {
