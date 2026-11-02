@@ -124,7 +124,7 @@ function PaymentFormInner({
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-4" data-testid="embedded-payment-form">
       <PaymentElement options={{ layout: "tabs" }} />
-      {error && <p className="text-xs text-red-400 leading-snug">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-400 leading-snug">{error}</p>}
       <button
         type="submit"
         disabled={!stripe || !elements || paying}

@@ -762,6 +762,26 @@ export function SchedulerDeskSection({
                     setEditing(null);
                     setInitialDraft({ ...emptySchedulerCompose(), whenLocal: composeWhenForDay(cell.date!) });
                   }}
+                  role={isPast ? undefined : "button"}
+                  tabIndex={isPast ? undefined : 0}
+                  aria-label={
+                    isPast
+                      ? undefined
+                      : `Start a post on ${new Date(`${cell.date}T12:00:00`).toLocaleDateString(undefined, {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                        })}`
+                  }
+                  onKeyDown={(e) => {
+                    if (isPast) return;
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setEditing(null);
+                      setInitialDraft({ ...emptySchedulerCompose(), whenLocal: composeWhenForDay(cell.date!) });
+                    }
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDragOverDay(cell.date);
