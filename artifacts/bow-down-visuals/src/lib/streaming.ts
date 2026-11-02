@@ -1,4 +1,5 @@
 import { apiErrorMessage } from "./api-error";
+import { currentFanCode, playPathWithFanCode } from "./upg-fans";
 import { mediaUrl } from "@/lib/media-cdn";
 import type { StemDescriptor } from "@/lib/stems-player";
 
@@ -304,10 +305,17 @@ export async function fetchMoreFromArtist(
   return [];
 }
 
-/** Fire-and-forget play count. Safe to call blindly — never throws. */
+/** Fire-and-forget play count. Safe to call blindly — never throws.
+    N17: when the page was arrived at through a fan link, the play
+    hands the ?fan= code back so the server can record the arrival;
+    with no code in the URL the call is byte-identical to before. */
 export function recordPlay(kind: MediaKind, id: string): void {
   try {
-    fetch(`/api/media/${kind}/${encodeURIComponent(id)}/play`, { method: "POST" }).catch(() => {});
+    const path = playPathWithFanCode(
+      `/api/media/${kind}/${encodeURIComponent(id)}/play`,
+      currentFanCode(),
+    );
+    fetch(path, { method: "POST" }).catch(() => {});
   } catch { /* noop */ }
 }
 

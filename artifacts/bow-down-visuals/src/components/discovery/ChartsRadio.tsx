@@ -11,6 +11,7 @@ import {
   type RadioStationPayload,
 } from "@/lib/charts-radio";
 import { formatCount } from "@/lib/streaming";
+import { currentFanCode } from "@/lib/upg-fans";
 
 /* ─── Charts Radio (Stack-200 #156) ───────────────────────────────────
    The house's 24/7 station, docked where listeners already are: the
@@ -127,11 +128,18 @@ export function ChartsRadioPanel({
         void rememberTunedIn();
         /* A real listen counts on the real rail — the same play
            endpoint the chart rows use, so station spins feed the
-           charts they came from. */
+           charts they came from. N17: a listen from a fan-link
+           landing hands the code back as the body's fanCode, so the
+           server can record the arrival; no code, no field. */
+        const fanCode = currentFanCode();
         void fetch("/api/discovery/play", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: "track", mediaId: entry.trackId }),
+          body: JSON.stringify({
+            kind: "track",
+            mediaId: entry.trackId,
+            ...(fanCode ? { fanCode } : {}),
+          }),
         }).catch(() => undefined);
       })
       .catch(() => setPlaying(false));
