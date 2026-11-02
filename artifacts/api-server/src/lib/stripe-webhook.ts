@@ -742,6 +742,52 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── STOREFRONT SETTLE (WEBHOOK-SETTLE, stack1200) ────────────────
+  // Storefront sessions (routes/storefront.ts checkout stamps
+  // metadata type "storefront_purchase" + product_id; digital-store
+  // sessions never match — they were handled by the branch above)
+  // used to fall through this dispatch untouched: the order recorded
+  // ONLY if the buyer's browser returned and the page called
+  // /storefront/verify. A buyer who closed the tab after paying had
+  // no order recorded — no delivery, no download token, no seller
+  // tell, no co-seller splits. Now the webhook runs verify's own
+  // settle (settleStorefrontSession), exactly-once via the
+  // stripe_session_id UNIQUE index + the existing-order read-back:
+  // a replayed delivery returns the recorded order with no new side
+  // effects. Business rejections (buyer/amount/add-on mismatches)
+  // are terminal: warned 200. The SOLD_OUT 409 is likewise terminal
+  // here — its buyer-facing refund/restock conversation belongs to
+  // the buyer's own verify return, and Stripe retries cannot restock
+  // an item. A 500-shaped settle (recording failure) 500s so Stripe
+  // retries; nothing here falls through to the credit logic.
+  if (session.metadata?.["type"] === "storefront_purchase") {
+    if (session.payment_status !== "paid") {
+      res.status(200).json({ received: true, kind: "storefront_purchase", warning: "session not paid" });
+      return;
+    }
+    try {
+      const { settleStorefrontSession } = await import("../routes/storefront");
+      const settled = await settleStorefrontSession(session, {
+        buyerUserId: session.metadata?.["buyer_user_id"] ?? "",
+      });
+      if (settled.httpStatus === 500) {
+        logger.error({ sessionId: session.id }, "Stripe webhook: storefront settle failed");
+        res.status(500).json({ error: "Storefront settle failed, retry later" });
+        return;
+      }
+      if (settled.httpStatus !== 200) {
+        logger.warn({ sessionId: session.id, httpStatus: settled.httpStatus }, "Stripe webhook: storefront session did not settle");
+      }
+      res.status(200).json({ received: true, kind: "storefront_purchase" });
+    } catch (storefrontErr: unknown) {
+      const msg = (storefrontErr as { message?: string })?.message ?? "unknown";
+      logger.error({ err: storefrontErr, msg, sessionId: session.id }, "Stripe webhook: storefront settle failed");
+      res.status(500).json({ error: "Storefront settle failed, retry later" });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const userId = session.metadata?.user_id;
   const creditPack = session.metadata?.credit_pack ?? "unknown";
   const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);
