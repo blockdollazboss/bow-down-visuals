@@ -1372,6 +1372,7 @@ function MerchTab() {
   const [storeLoading, setStoreLoading] = useState(false);
   const [priceEdits, setPriceEdits] = useState<Record<string, string>>({});
   const [orderMsg, setOrderMsg] = useState<string | null>(null);
+  const [designMsg, setDesignMsg] = useState<string | null>(null);
 
   async function loadStore() {
     setStoreLoading(true);
@@ -1436,6 +1437,7 @@ function MerchTab() {
   }
 
   async function saveToStore(m: MerchMockup) {
+    setDesignMsg(null);
     try {
       const res = await fetch("/api/merch/designs", {
         method: "POST",
@@ -1455,32 +1457,47 @@ function MerchTab() {
         const data = await res.json();
         setSavedIds((s) => new Set(s).add(m.url));
         void data;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setDesignMsg(apiErrorMessage(data, t("merch.errorSaveDesignFailed")));
       }
     } catch {
-      /* silent — user can retry */
+      setDesignMsg(t("merch.errorSaveDesignFailed"));
     }
   }
 
   async function updateDesign(id: string, patch: { priceCents?: number | null; status?: string; title?: string }) {
+    setDesignMsg(null);
     try {
       const res = await fetch(`/api/merch/designs/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (res.ok) void loadStore();
+      if (res.ok) {
+        void loadStore();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setDesignMsg(apiErrorMessage(data, t("merch.errorUpdateDesignFailed")));
+      }
     } catch {
-      /* silent */
+      setDesignMsg(t("merch.errorUpdateDesignFailed"));
     }
   }
 
   async function deleteDesign(id: string) {
     if (!window.confirm(t("merch.confirmDelete"))) return;
+    setDesignMsg(null);
     try {
       const res = await fetch(`/api/merch/designs/${id}`, { method: "DELETE" });
-      if (res.ok) void loadStore();
+      if (res.ok) {
+        void loadStore();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setDesignMsg(apiErrorMessage(data, t("merch.errorDeleteDesignFailed")));
+      }
     } catch {
-      /* silent */
+      setDesignMsg(t("merch.errorDeleteDesignFailed"));
     }
   }
 
@@ -1647,6 +1664,9 @@ function MerchTab() {
                   {t("merch.mockupsReady")}{batchMeta ? <> — {t("merch.suggestedRetail", { price: fmtCents(batchMeta.suggestedPriceCents) })}</> : null}
                 </p>
               </div>
+              {designMsg && (
+                <p className="mb-3 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">{designMsg}</p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {mockups.map((m) => (
                   <div key={m.url} className={`rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -1698,6 +1718,10 @@ function MerchTab() {
               <ShoppingBag className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-white/75">{orderMsg}</p>
             </div>
+          )}
+
+          {designMsg && (
+            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">{designMsg}</p>
           )}
 
           {storeLoading && (
