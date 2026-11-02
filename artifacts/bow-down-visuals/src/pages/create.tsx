@@ -1,22 +1,44 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Layers, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, Image as ImageIcon, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Layers, Loader2, Mic2, Music, Video, Clapperboard, Disc3, Users, Link2, Play, Sparkles, ScanSearch, Image as ImageIcon, type LucideIcon } from "lucide-react";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { getLibraryTemplate, type LibraryTemplate } from "@/data/library-templates";
 import { CreateRedirect } from "@/components/create-redirect";
-import { MakeSongModule } from "./make-song";
-import { MakeVideoModule } from "./make-video";
-import CartoonStudio from "@/pages/cartoon-studio";
-import CoverArt from "@/pages/cover-art";
-import DreamCollabPanel from "@/components/create/DreamCollabPanel";
-import LinkToHitPanel from "@/components/create/LinkToHitPanel";
-import CoverInMotionPanel from "@/components/create/CoverInMotionPanel";
-import { SongAndVideoModule } from "./song-and-video";
-import { HubModule } from "./hub";
-import { WallpapersDesk } from "@/components/wallpapers/WallpapersDesk";
+
+/* The ten mode panels ride lazy doors (site-perf, stack1300): the
+   shell renders exactly ONE panel at a time, so the other nine
+   panels' weight — whole sibling pages (cartoon-studio, cover-art),
+   the song/video wizards, the hub — no longer rides /create's
+   first load. Each panel chunk fetches on first selection and is
+   cached for every later switch, exactly like a route chunk.
+   Mount semantics are unchanged: inactive panels still unmount,
+   so each wizard's mount logic (draft restore, deep-link intake)
+   runs fresh. */
+const MakeSongModule = lazy(() => import("./make-song").then((m) => ({ default: m.MakeSongModule })));
+const MakeVideoModule = lazy(() => import("./make-video").then((m) => ({ default: m.MakeVideoModule })));
+const CartoonStudio = lazy(() => import("@/pages/cartoon-studio"));
+const CoverArt = lazy(() => import("@/pages/cover-art"));
+const DreamCollabPanel = lazy(() => import("@/components/create/DreamCollabPanel"));
+const LinkToHitPanel = lazy(() => import("@/components/create/LinkToHitPanel"));
+const CoverInMotionPanel = lazy(() => import("@/components/create/CoverInMotionPanel"));
+const SongAndVideoModule = lazy(() => import("./song-and-video").then((m) => ({ default: m.SongAndVideoModule })));
+const HubModule = lazy(() => import("./hub").then((m) => ({ default: m.HubModule })));
+const WallpapersDesk = lazy(() => import("@/components/wallpapers/WallpapersDesk").then((m) => ({ default: m.WallpapersDesk })));
+
+/* The panel area's loading frame: same stage, gold spinner — a
+   panel switch reads as "opening", never a blank hole. */
+function CreatePanelFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[280px] items-center justify-center gap-3 text-white/50" role="status">
+      <Loader2 className="h-5 w-5 animate-spin text-[#d4a017]" />
+      <span className="text-sm">{t("common.loading")}</span>
+    </div>
+  );
+}
 
 /* Re-exported for App.tsx's convenience — the implementation lives in
    components/create-redirect.tsx so importing it never pulls this page's
@@ -254,16 +276,18 @@ export default function Create() {
           tabIndex={0}
           className={`mx-auto w-full ${panel === "hub" ? "max-w-7xl" : panel === "song-video" ? "max-w-3xl" : "max-w-4xl"}`}
         >
-          {panel === "song-video" && <SongAndVideoModule />}
-          {panel === "song" && <MakeSongModule />}
-          {panel === "video" && <MakeVideoModule />}
-          {panel === "cartoon" && <CartoonStudio initialTab="video" />}
-          {panel === "coverart" && <CoverArt />}
-          {panel === "dream-collab" && <DreamCollabPanel />}
-          {panel === "link-to-hit" && <LinkToHitPanel />}
-          {panel === "cover-motion" && <CoverInMotionPanel />}
-          {panel === "wallpapers" && <WallpapersDesk />}
-          {panel === "hub" && <HubModule />}
+          <Suspense fallback={<CreatePanelFallback />}>
+            {panel === "song-video" && <SongAndVideoModule />}
+            {panel === "song" && <MakeSongModule />}
+            {panel === "video" && <MakeVideoModule />}
+            {panel === "cartoon" && <CartoonStudio initialTab="video" />}
+            {panel === "coverart" && <CoverArt />}
+            {panel === "dream-collab" && <DreamCollabPanel />}
+            {panel === "link-to-hit" && <LinkToHitPanel />}
+            {panel === "cover-motion" && <CoverInMotionPanel />}
+            {panel === "wallpapers" && <WallpapersDesk />}
+            {panel === "hub" && <HubModule />}
+          </Suspense>
         </div>
 
         {/* Phase 3 orphan rescue: the Media Detector's only inbound path
