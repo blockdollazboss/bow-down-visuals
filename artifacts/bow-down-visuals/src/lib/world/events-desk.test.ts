@@ -160,7 +160,9 @@ describe("the desk is mounted in the Hall and rides the seam", () => {
     expect(hallAt).toBeGreaterThan(-1);
     expect(deskAt).toBeGreaterThan(hallAt);
     expect(deskAt).toBeLessThan(gamesAt);
-    expect(panelSrc).toContain('import { EventsDesk } from "@/components/world/native/EventsDesk"');
+    /* world-perf round 2: the desk rides its own chunk behind the
+       panel's lazy door — the door is the wiring now. */
+    expect(panelSrc).toContain('lazy(() => import("@/components/world/native/EventsDesk")');
   });
 
   it("the desk renders honest states and lands its verbs on the seam's rails", () => {

@@ -22,6 +22,16 @@
  * fixture stand-ins (no second, origin-only download of the two
  * guard PNGs), and the fixture stand-ins still share ONE walk
  * per art per build (sharedStandins).
+ *
+ * Round 2 (stack1200) adds:
+ *  D. The Screen panel's seven Go-Live desks ride their own
+ *     chunk behind a lazy door (LiveDesksPanel), with the
+ *     desks'-frame Suspense fallback — they render only inside
+ *     that panel, so they load on first open, not with the room.
+ *  E. Inside the station panel, the heavy desks ride PER-DESK
+ *     chunks behind DeskDoor (Suspense + the house loading
+ *     state): opening one station fetches only its desk plus
+ *     the shared frame, not the whole desk universe.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -136,6 +146,122 @@ describe("world-perf C — creator-room portraits load once per scene", () => {
     const dispose = methodSlice(scene, "for (const entry of creatorPortraitCache.values())", 200);
     expect(dispose).toContain("entry.tex.dispose()");
     expect(dispose).toContain("creatorPortraitCache.clear()");
+  });
+});
+
+describe("world-perf round 2 D — the Live desks ride their own chunk", () => {
+  const livePanel = read("../../components/world/native/LiveDesksPanel.tsx");
+
+  it("world.tsx no longer imports LiveDesk statically", () => {
+    expect(worldPage).not.toContain('from "@/components/world/native/LiveDesk"');
+    expect(worldPage).not.toContain("<LiveStudioDesk");
+    expect(worldPage).not.toContain("<LivePremiereDesk");
+  });
+
+  it("the desks sit behind a lazy dynamic import of the wrapper", () => {
+    expect(worldPage).toContain(
+      'const LiveDesksPanel = lazy(() => import("@/components/world/native/LiveDesksPanel"));',
+    );
+  });
+
+  it("the mount stays inside the members-only Screen panel, wrapped in Suspense", () => {
+    expect(worldPage).toContain("screenPanelOpen && inHall && !isGuest");
+    const mount = methodSlice(worldPage, "<LiveDesksPanel", 400);
+    expect(mount).toContain("streamId: stageScreen.streamId");
+    expect(mount).toContain("onStreamChange={() => void loadStageTools()}");
+    expect(worldPage).toContain("<LiveDesksFallback");
+  });
+
+  it("the fallback carries the desks' own frame, not a blank hole", () => {
+    const fallback = methodSlice(worldPage, "function LiveDesksFallback", 900);
+    expect(fallback).toContain('data-testid="world-live-desks-loading"');
+    expect(fallback).toContain("animate-spin");
+    expect(fallback).toContain("border-t");
+  });
+
+  it("the wrapper renders the seven desks, in order, under the old testid", () => {
+    expect(livePanel).toContain('data-testid="world-live-desks"');
+    const order = [
+      "<LiveStudioDesk",
+      "<LiveBackstageDesk",
+      "<LiveGuestJoinDesk",
+      "<LiveScheduleDesk",
+      "<LiveControllerDesk",
+      "<LiveWatchDesk",
+      "<LivePremiereDesk",
+    ];
+    let at = -1;
+    for (const desk of order) {
+      const next = livePanel.indexOf(desk);
+      expect(next, `expected ${desk} in LiveDesksPanel`).toBeGreaterThan(at);
+      at = next;
+    }
+  });
+});
+
+describe("world-perf round 2 E — desks inside the panel ride per-desk chunks", () => {
+  const panel = read("../../components/world/StationPanel.tsx");
+
+  /* The split set: the round-1 panel chunk's heavy modules that
+   * serve one station (or one station stack) each. */
+  const splitDoors: Array<[string, string]> = [
+    ["SocialDesk", "PostOfficeDesk"],
+    ["SocialDesk", "CommunityHallBoard"],
+    ["SocialWave2", "ExploreDesk"],
+    ["SocialWave2", "MyProfileDesk"],
+    ["GroupsDesk", "GroupsDesk"],
+    ["EventsDesk", "EventsDesk"],
+    ["CollabsDesk", "CollabsDesk"],
+    ["GamesPanels", "GamesPanel"],
+    ["CreatorRooms", "CreatorRoomsDirectory"],
+    ["CreatorRooms", "CreatorRoomStation"],
+    ["boards/ChartsBoard", "ChartsBoard"],
+    ["boards/EarningsBoard", "EarningsBoard"],
+    ["boards/StudioBoard", "StudioBoard"],
+    ["JewelryBench", "JewelryBench"],
+    ["SmartCardsStand", "SmartCardsStand"],
+    ["MerchBench", "MerchBench"],
+    ["TailDesks", "AccountDesk"],
+    ["TailDesks", "GiveawayContestsDesk"],
+    ["TailDesks", "JackpotDesk"],
+    ["WinnersCirclePanel", "WinnersCirclePanel"],
+    ["BeatsDesk", "BeatsDesk"],
+  ];
+
+  it("every split desk is a lazy door and no static import of it survives", () => {
+    for (const [mod, name] of splitDoors) {
+      expect(panel, `${name} lazy door`).toContain(
+        `const ${name} = lazy(() => import("@/components/world/native/${mod}")`,
+      );
+      expect(panel, `${name} static import gone`).not.toMatch(
+        new RegExp(`^import \\{[^}]*\\b${name}\\b[^}]*\\} from "@/components/world/native/${mod}";$`, "m"),
+      );
+    }
+  });
+
+  it("lazy desks render behind DeskDoor — the house loading state, never a blank hole", () => {
+    const door = methodSlice(panel, "function DeskDoor", 300);
+    expect(door).toContain("<Suspense");
+    expect(door).toContain("<NativeLoadingState");
+    const wraps = panel.split("<DeskDoor").length - 1;
+    expect(wraps).toBeGreaterThanOrEqual(20);
+  });
+
+  it("representative render sites kept their desks, now doored", () => {
+    expect(panel).toContain("<PostOfficeDesk");
+    expect(panel).toContain("<BeatsDesk");
+    expect(panel).toContain("<CreatorRoomStation");
+    expect(panel).toContain("<EarningsBoard");
+  });
+
+  it("the stay-static calls hold: small doors and world-chunk families are not lazied", () => {
+    expect(panel).not.toContain('from "@/components/world/native/boards";');
+    expect(panel).toContain('import { PacksDesk } from "@/components/world/native/PacksDesk";');
+    expect(panel).toContain(
+      'import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";',
+    );
+    expect(panel).not.toContain('lazy(() => import("@/components/world/native/BusinessDesks")');
+    expect(panel).not.toContain('lazy(() => import("@/components/world/native/PacksDesk")');
   });
 });
 

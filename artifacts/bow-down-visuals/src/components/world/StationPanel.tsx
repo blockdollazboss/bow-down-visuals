@@ -24,6 +24,7 @@ import {
 } from "@/lib/world/station-panel";
 import {
   CreateDeskPanel,
+  NativeLoadingState,
   NativePlaceholder,
   TransferFooter,
   ListeningBooth,
@@ -32,23 +33,9 @@ import {
   useShelfPlayer,
   type ShelfPlayerController,
 } from "@/components/world/native";
-import { ChartsBoard, EarningsBoard, StudioBoard } from "@/components/world/native/boards";
-import { PostOfficeDesk, CommunityHallBoard } from "@/components/world/native/SocialDesk";
-import { GroupsDesk } from "@/components/world/native/GroupsDesk";
-import { EventsDesk } from "@/components/world/native/EventsDesk";
-import { CollabsDesk } from "@/components/world/native/CollabsDesk";
-import { ExploreDesk, MyProfileDesk } from "@/components/world/native/SocialWave2";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
-import {
-  CreatorRoomsDirectory,
-  CreatorRoomStation,
-} from "@/components/world/native/CreatorRooms";
 import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
-import { GamesPanel } from "@/components/world/native/GamesPanels";
 import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
-import { JewelryBench } from "@/components/world/native/JewelryBench";
-import { SmartCardsStand } from "@/components/world/native/SmartCardsStand";
-import { MerchBench } from "@/components/world/native/MerchBench";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import {
   buildListeningPartyBody,
@@ -71,13 +58,10 @@ import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { DailyDropCard } from "@/components/DailyDropCard";
 import { DailyDropCatalog } from "@/components/world/native/DailyDropCatalog";
 import { PacksDesk } from "@/components/world/native/PacksDesk";
-import { BeatsDesk } from "@/components/world/native/BeatsDesk";
 import QuestsWidget from "@/components/QuestsWidget";
 import { TreasuryQuestDepths } from "@/components/world/native/TreasuryQuestDepths";
 import { KingdomBoardBlocks } from "@/components/world/native/KingdomBoardBlocks";
 import { SeasonMarksWall } from "@/components/world/native/SeasonMarksWall";
-import { WinnersCirclePanel } from "@/components/world/native/WinnersCirclePanel";
-import { AccountDesk, GiveawayContestsDesk, JackpotDesk } from "@/components/world/native/TailDesks";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
@@ -203,6 +187,48 @@ const KING_COURT_SLUG = "thy-cheat-code";
    below). The old in-panel page router (PANEL_PAGES + PanelRouter
    + the miss card) was deleted at plan Step 8. */
 const PanelEditor = lazy(() => import("@/pages/video-editor"));
+
+/* ─── Per-desk lazy doors (world-perf round 2, stack1200) ──────
+   Round 1 moved the whole panel behind one lazy door, so a first
+   station open fetched every desk at once. The heavy desks now
+   ride their OWN chunks behind these doors: opening one station
+   fetches only its desk (plus the shared frame that stays in this
+   module — the sheet, the in-file boards, the kit). Ranked by
+   rendered weight in the round-1 panel chunk and split where a
+   desk serves one station (or one station stack) and stands
+   independent of the panel's own state. Desks whose modules
+   already ride the /world chunk (the Create/Shop/Business
+   families) and the small doors (PacksDesk, SeasonMarksWall)
+   stay static — a lazy door there would save nothing at open. */
+const PostOfficeDesk = lazy(() => import("@/components/world/native/SocialDesk").then((m) => ({ default: m.PostOfficeDesk })));
+const CommunityHallBoard = lazy(() => import("@/components/world/native/SocialDesk").then((m) => ({ default: m.CommunityHallBoard })));
+const ExploreDesk = lazy(() => import("@/components/world/native/SocialWave2").then((m) => ({ default: m.ExploreDesk })));
+const MyProfileDesk = lazy(() => import("@/components/world/native/SocialWave2").then((m) => ({ default: m.MyProfileDesk })));
+const GroupsDesk = lazy(() => import("@/components/world/native/GroupsDesk").then((m) => ({ default: m.GroupsDesk })));
+const EventsDesk = lazy(() => import("@/components/world/native/EventsDesk").then((m) => ({ default: m.EventsDesk })));
+const CollabsDesk = lazy(() => import("@/components/world/native/CollabsDesk").then((m) => ({ default: m.CollabsDesk })));
+const GamesPanel = lazy(() => import("@/components/world/native/GamesPanels").then((m) => ({ default: m.GamesPanel })));
+const CreatorRoomsDirectory = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomsDirectory })));
+const CreatorRoomStation = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomStation })));
+const ChartsBoard = lazy(() => import("@/components/world/native/boards/ChartsBoard").then((m) => ({ default: m.ChartsBoard })));
+const EarningsBoard = lazy(() => import("@/components/world/native/boards/EarningsBoard").then((m) => ({ default: m.EarningsBoard })));
+const StudioBoard = lazy(() => import("@/components/world/native/boards/StudioBoard").then((m) => ({ default: m.StudioBoard })));
+const JewelryBench = lazy(() => import("@/components/world/native/JewelryBench").then((m) => ({ default: m.JewelryBench })));
+const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsStand").then((m) => ({ default: m.SmartCardsStand })));
+const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
+const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
+const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
+const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
+const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
+const BeatsDesk = lazy(() => import("@/components/world/native/BeatsDesk").then((m) => ({ default: m.BeatsDesk })));
+
+/* The Suspense door a lazy desk renders behind: while its chunk
+   lands, the desk's own loading state stands in its place — the
+   house "Opening the desk…" line, never a blank hole or a fake
+   empty (the empty-lie rule). */
+function DeskDoor({ isLight, children }: { isLight: boolean; children: ReactNode }) {
+  return <Suspense fallback={<NativeLoadingState isLight={isLight} />}>{children}</Suspense>;
+}
 
 /** A panel page that failed to load or render: said plainly, with
  *  a retry — never a blank frame dressed as a door. */
@@ -1738,25 +1764,37 @@ export default function StationPanel(props: StationPanelProps) {
           return (
             <PanelBoundary isLight={isLight} resetKey={station.id}>
               {station.id === "post-office" ? (
-                <PostOfficeDesk isLight={isLight} />
+                <DeskDoor isLight={isLight}>
+                  <PostOfficeDesk isLight={isLight} />
+                </DeskDoor>
               ) : station.id === "community-hall" ? (
                 <div className="flex flex-col gap-6">
-                  <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                  <DeskDoor isLight={isLight}>
+                    <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
+                  </DeskDoor>
                   {/* Explore + creator/work search (stack-100 #81):
                       the blended scene and the discovery box, on the
                       /api/explore + /api/discovery/search rails. */}
-                  <ExploreDesk isLight={isLight} />
+                  <DeskDoor isLight={isLight}>
+                    <ExploreDesk isLight={isLight} />
+                  </DeskDoor>
                   {/* Groups + forums (stack-100 #76/#77): the Hall's
                       promised crews, on the /api/groups rails. */}
-                  <GroupsDesk isLight={isLight} isGuest={isGuest} />
+                  <DeskDoor isLight={isLight}>
+                    <GroupsDesk isLight={isLight} isGuest={isGuest} />
+                  </DeskDoor>
                   {/* Events (stack1100 parity): the Hall slate's
                       promised third — browse / RSVP / host on the
                       /api/events rails, in the room. */}
-                  <EventsDesk isLight={isLight} isGuest={isGuest} />
+                  <DeskDoor isLight={isLight}>
+                    <EventsDesk isLight={isLight} isGuest={isGuest} />
+                  </DeskDoor>
                   {/* Collabs (stack1100 parity): creator cards, the
                       100-Buc match report and requests on the
                       /api/collabs rails, in the room. */}
-                  <CollabsDesk isLight={isLight} isGuest={isGuest} />
+                  <DeskDoor isLight={isLight}>
+                    <CollabsDesk isLight={isLight} isGuest={isGuest} />
+                  </DeskDoor>
                 </div>
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
@@ -1767,7 +1805,9 @@ export default function StationPanel(props: StationPanelProps) {
         if (resolution.pattern === "games") {
           return (
             <PanelBoundary isLight={isLight} resetKey={station.id}>
-              <GamesPanel stationId={station.id} isLight={isLight} partyInvite={props.partyInvite ?? null} />
+              <DeskDoor isLight={isLight}>
+                <GamesPanel stationId={station.id} isLight={isLight} partyInvite={props.partyInvite ?? null} />
+              </DeskDoor>
             </PanelBoundary>
           );
         }
@@ -1785,39 +1825,55 @@ export default function StationPanel(props: StationPanelProps) {
             ) : resolution.pattern === "shop" ? (
               <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
-              <ChartsBoard
-                isLight={isLight}
-                isGuest={isGuest}
-                jukeboxDenied={props.jukeboxDenied}
-                onPlayTrack={props.onJukeboxAdd}
-                shelfPlayer={shelfPlayer}
-              />
+              <DeskDoor isLight={isLight}>
+                <ChartsBoard
+                  isLight={isLight}
+                  isGuest={isGuest}
+                  jukeboxDenied={props.jukeboxDenied}
+                  onPlayTrack={props.onJukeboxAdd}
+                  shelfPlayer={shelfPlayer}
+                />
+              </DeskDoor>
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
-              <EarningsBoard isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <EarningsBoard isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <div className="flex flex-col gap-6">
-                <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+                <DeskDoor isLight={isLight}>
+                  <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+                </DeskDoor>
                 {/* My public page (stack-100 #83/#84): view as a
                     visitor + the profile editor, on the creator-
                     profile rails. Members only — a guest never
                     reaches the board pattern (guest-pitch instead). */}
-                <MyProfileDesk isLight={isLight} />
+                <DeskDoor isLight={isLight}>
+                  <MyProfileDesk isLight={isLight} />
+                </DeskDoor>
                 {/* Account settings (stack-100 #94): fields, cursor,
                     preference switches and the danger zone — export
                     completes here; deletion hands off to the 2D
                     settings confirmations by design. */}
-                <AccountDesk isLight={isLight} />
+                <DeskDoor isLight={isLight}>
+                  <AccountDesk isLight={isLight} />
+                </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
               <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
               <PressKitDesk isLight={isLight} isGuest={isGuest} />
             ) : resolution.pattern === "business" && station.id === "jewelry-bench" ? (
-              <JewelryBench isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <JewelryBench isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "smart-cards-stand" ? (
-              <SmartCardsStand isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <SmartCardsStand isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "merch-bench" ? (
-              <MerchBench isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <MerchBench isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "promote-room" ? (
               <PromoteDesk isLight={isLight} isGuest={isGuest} />
             ) : (
@@ -1844,15 +1900,21 @@ export default function StationPanel(props: StationPanelProps) {
           case "winners-circle":
             return (
               <div className="flex flex-col gap-6">
-                <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />
+                <DeskDoor isLight={isLight}>
+                  <WinnersCirclePanel isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
                 {/* Giveaway contests (stack-100 #95): the 2D fan
                     giveaways (/api/contests) — a separate system from
                     World Contests above — on their own rails. */}
-                <GiveawayContestsDesk isLight={isLight} isGuest={isGuest} />
+                <DeskDoor isLight={isLight}>
+                  <GiveawayContestsDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
                 {/* The cheat-code jackpot (stack-100 #96): player
                     entry on the attempt rail + the admin creation
                     surface, fail-closed, on the cheat-code rails. */}
-                <JackpotDesk isLight={isLight} isGuest={isGuest} />
+                <DeskDoor isLight={isLight}>
+                  <JackpotDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
               </div>
             );
           case "treasury-daily":
@@ -1864,16 +1926,22 @@ export default function StationPanel(props: StationPanelProps) {
           case "treasury-packs":
             return <PacksDesk isLight={isLight} />;
           case "beats-desk":
-            return <BeatsDesk isLight={isLight} isGuest={isGuest} />;
+            return (
+              <DeskDoor isLight={isLight}>
+                <BeatsDesk isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
+            );
           case "jukebox":
             return <JukeboxPanel {...props} />;
           case "creator-rooms":
             return (
-              <CreatorRoomsDirectory
-                isLight={isLight}
-                mySlug={props.mySlug ?? null}
-                onEnterCreatorRoom={props.onEnterCreatorRoom ?? (() => undefined)}
-              />
+              <DeskDoor isLight={isLight}>
+                <CreatorRoomsDirectory
+                  isLight={isLight}
+                  mySlug={props.mySlug ?? null}
+                  onEnterCreatorRoom={props.onEnterCreatorRoom ?? (() => undefined)}
+                />
+              </DeskDoor>
             );
           case "creator-music":
           case "creator-screen":
@@ -1892,17 +1960,19 @@ export default function StationPanel(props: StationPanelProps) {
               );
             }
             return (
-              <CreatorRoomStation
-                stationId={resolution.id}
-                slug={slug}
-                isLight={isLight}
-                isGuest={isGuest}
-                isOwnRoom={(props.mySlug ?? null) === slug}
-                onDressingChanged={props.onRoomDressingChanged}
-                mySlug={props.mySlug ?? null}
-                shelfPlayer={shelfPlayer}
-                onPlayTrack={props.onJukeboxAdd}
-              />
+              <DeskDoor isLight={isLight}>
+                <CreatorRoomStation
+                  stationId={resolution.id}
+                  slug={slug}
+                  isLight={isLight}
+                  isGuest={isGuest}
+                  isOwnRoom={(props.mySlug ?? null) === slug}
+                  onDressingChanged={props.onRoomDressingChanged}
+                  mySlug={props.mySlug ?? null}
+                  shelfPlayer={shelfPlayer}
+                  onPlayTrack={props.onJukeboxAdd}
+                />
+              </DeskDoor>
             );
           }
           default:
