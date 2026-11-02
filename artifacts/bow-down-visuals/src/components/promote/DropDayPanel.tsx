@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
-  Package, Loader2, Check, Circle, ArrowRight, AlertTriangle, ChevronDown,
+  Package, Loader2, Check, Circle, ArrowRight, AlertTriangle, ChevronDown, Download,
 } from "lucide-react";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,8 +19,11 @@ import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-hand
 
    Honesty rules, same as the kit's own:
    - the panel renders only what the server derived — no step is
-     ticked here; steps the kit cannot verify (renders in Create)
-     arrive as 'action' and stay that way;
+     ticked here; steps the kit cannot verify (the teaser renders
+     in Create) arrive as 'action' and stay that way; the banner
+     step arrives 'done' only when the server's stored kit proves
+     all four assembly renders, and its links then download the
+     renders themselves;
    - the announcement step goes through the Scheduler's own door
      (buildSchedulerHref — the DE-4 protocol, release-attributed);
      this panel never posts, sends, or schedules anything itself;
@@ -28,7 +31,7 @@ import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-hand
      never a demo release. */
 
 interface KitTeaserWire { createLink: string; durationSec: number }
-interface KitBannerWire { size: string; width: number; height: number; createLink: string }
+interface KitBannerWire { size: string; width: number; height: number; createLink: string; imageUrl?: string | null }
 interface KitPayloadWire {
   teaser: KitTeaserWire | null;
   banners: KitBannerWire[];
@@ -184,15 +187,25 @@ export function DropDayPanel() {
         </a>
       );
     }
-    if (step.id === "banners" && step.state === "action" && kit.kit && kit.kit.banners.length > 0) {
+    if (step.id === "banners" && (step.state === "action" || step.state === "done") && kit.kit && kit.kit.banners.length > 0) {
+      /* A rendered banner downloads straight from the kit; a
+         spec-only banner keeps its Create door. On a 'done' step
+         every banner carries a render — the server only ticks the
+         step when the stored payload proves all four. */
       return (
         <span>
           {kit.kit.banners.map((b, i) => (
             <span key={b.size}>
               {i > 0 && " · "}
-              <a href={b.createLink} className={linkClass}>
-                {b.size} {b.width}×{b.height}
-              </a>
+              {b.imageUrl ? (
+                <a href={b.imageUrl} download className={linkClass}>
+                  {b.size} {b.width}×{b.height} <Download className="inline h-3 w-3" />
+                </a>
+              ) : (
+                <a href={b.createLink} className={linkClass}>
+                  {b.size} {b.width}×{b.height}
+                </a>
+              )}
             </span>
           ))}
         </span>

@@ -12,8 +12,10 @@ import { Package, Loader2, Check, AlertTriangle, Clapperboard, LayoutTemplate, T
    the creator reviews it here and activates it; activation is
    refused (by the server, named blockers shown) while the release
    has no date or no presave page. Nothing here posts, sends, or
-   publishes: the teaser and banners open in Create pre-loaded, and
-   the heads-up email is the presave sweeper's, exactly once. */
+   publishes: the banners arrive RENDERED from the release's own art
+   (downloadable here; Restyle reopens one in Create), the teaser
+   opens in Create pre-loaded, and the heads-up email is the
+   presave sweeper's, exactly once. */
 
 interface KitTeaser {
   createLink: string;
@@ -24,6 +26,10 @@ interface KitBanner {
   width: number;
   height: number;
   createLink: string;
+  /** The assembly render's fresh URL, minted server-side from the
+   *  stored ref on every read; null = still a spec (render failed
+   *  or an older kit) — the Create link is its door. */
+  imageUrl?: string | null;
 }
 interface KitView {
   id: string;
@@ -119,6 +125,10 @@ export function DropDayKitPanel(props: { releaseId: string; authFetch: AuthFetch
     }
   }
 
+  const banners = view?.kit.banners ?? [];
+  const renderedBanners = banners.filter((b) => b.imageUrl);
+  const unrenderedBanners = banners.filter((b) => !b.imageUrl);
+
   const goldBtn =
     "inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50";
   const ghostBtn =
@@ -184,22 +194,68 @@ export function DropDayKitPanel(props: { releaseId: string; authFetch: AuthFetch
               <p className="flex-1 text-xs text-white/40">Teaser short — not assembled (no track audio yet).</p>
             )}
           </div>
-          {/* Banners */}
-          <div className="flex items-center gap-3">
-            <LayoutTemplate className="h-4 w-4 shrink-0 text-primary" />
-            {view.kit.banners.length > 0 ? (
-              <p className="flex-1 text-xs text-white/70">
-                <span className="font-bold text-white">Banner set</span> —{" "}
-                {view.kit.banners.map((b, i) => (
-                  <span key={b.size}>
-                    {i > 0 && " · "}
-                    <a href={b.createLink} className="font-bold text-primary hover:brightness-110">
-                      {b.size} {b.width}×{b.height}
-                    </a>
-                  </span>
-                ))}{" "}
-                — each pre-loaded with your cover art.
-              </p>
+          {/* Banners — rendered at assembly from the release's own
+              art; any banner without a render keeps its Create
+              link as the door, exactly as before. */}
+          <div className="flex items-start gap-3">
+            <LayoutTemplate className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            {banners.length > 0 ? (
+              <div className="flex-1">
+                {renderedBanners.length > 0 && (
+                  <p className="text-xs text-white/70">
+                    <span className="font-bold text-white">Banner set</span> —{" "}
+                    {renderedBanners.length === banners.length
+                      ? "rendered from your cover art, ready to download."
+                      : `${renderedBanners.length} of ${banners.length} rendered from your cover art — the rest open in Create.`}
+                  </p>
+                )}
+                {renderedBanners.length > 0 && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {renderedBanners.map((b) => (
+                      <figure key={b.size}>
+                        <img
+                          src={b.imageUrl!}
+                          alt={`${b.size} drop-day banner, ${b.width} by ${b.height}`}
+                          loading="lazy"
+                          className="w-full rounded-lg border border-white/10 object-cover"
+                          style={{ aspectRatio: `${b.width} / ${b.height}` }}
+                        />
+                        <figcaption className="mt-1 flex items-center justify-between gap-1 text-[10px] text-white/45">
+                          <span>
+                            {b.size} {b.width}×{b.height}
+                          </span>
+                          <span className="flex shrink-0 gap-2">
+                            <a href={b.imageUrl!} download className="font-bold text-primary hover:brightness-110">
+                              Download
+                            </a>
+                            <a href={b.createLink} className="font-bold text-primary hover:brightness-110">
+                              Restyle
+                            </a>
+                          </span>
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
+                {unrenderedBanners.length > 0 && (
+                  <p className="mt-1.5 text-xs text-white/70">
+                    {renderedBanners.length === 0 && (
+                      <>
+                        <span className="font-bold text-white">Banner set</span> —{" "}
+                      </>
+                    )}
+                    {unrenderedBanners.map((b, i) => (
+                      <span key={b.size}>
+                        {i > 0 && " · "}
+                        <a href={b.createLink} className="font-bold text-primary hover:brightness-110">
+                          {b.size} {b.width}×{b.height}
+                        </a>
+                      </span>
+                    ))}
+                    {renderedBanners.length === 0 && " — each pre-loaded with your cover art."}
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="flex-1 text-xs text-white/40">Banner set — not assembled (no cover art yet).</p>
             )}
