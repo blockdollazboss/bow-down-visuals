@@ -19,6 +19,7 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { createClient } from "@supabase/supabase-js";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { isUniqueViolation, pgErrorText } from "../lib/pg-errors";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 
@@ -222,6 +223,51 @@ async function notifyMany(
       })),
     );
   } catch { /* notifications are non-critical */ }
+}
+
+/* ── Judge delivery (notification census, stack1200) ────────────────
+   notifyMany writes bell rows directly — the bell lands, but no
+   device push can ever fire, because the one door (notifyUserEvent)
+   is never entered and the Settings gate never gets a say. A prize
+   LANDING is a money event (the same species as Pitch & Fix rewards,
+   which ride the door), so the notes for winners THIS call actually
+   paid are delivered through the door at category "money" — bell +
+   gated push, same copy, same link. The rest keep the L4 bell-only
+   design: the queued crown (no money has landed — its paid_now
+   door-bell arrives with the call that pays), the zero-prize crown
+   (no money exists), and the entrants' results bell. Exactly-once
+   rides the payout claim: a winner row is paid_now for exactly one
+   judge call, so the door is entered at most once per prize. */
+export interface JudgeDeliveryDeps {
+  door: (input: UserEventInput) => Promise<unknown>;
+  bell: (items: Array<{ userId: string; kind: string; title: string; body?: string; link?: string }>) => Promise<void>;
+}
+
+const realJudgeDeliveryDeps: JudgeDeliveryDeps = {
+  door: (input) => notifyUserEvent(input),
+  bell: (items) => notifyMany(items),
+};
+
+export async function deliverJudgeNotifications(
+  notes: Array<{ userId: string; kind: string; title: string; body?: string; link?: string }>,
+  paidNowUserIds: ReadonlySet<string>,
+  deps: JudgeDeliveryDeps = realJudgeDeliveryDeps,
+): Promise<void> {
+  const doorNotes = notes.filter((n) => n.kind === "challenge_win" && paidNowUserIds.has(n.userId));
+  const bellNotes = notes.filter((n) => !(n.kind === "challenge_win" && paidNowUserIds.has(n.userId)));
+  for (const n of doorNotes) {
+    try {
+      await deps.door({
+        userId: n.userId,
+        category: "money",
+        kind: n.kind,
+        title: n.title,
+        body: n.body ?? "",
+        link: n.link ?? "",
+      });
+    } catch { /* the door never throws; a tell failure never fails judging */ }
+  }
+  await deps.bell(bellNotes);
 }
 
 /* ── Judge notifications (notification-truth audit, stack900 L4) ────────
@@ -947,7 +993,16 @@ router.post("/admin/challenges/:slug/judge", requireAuth, requireAdmin, adminWri
         })),
       entrantUserIds: (entrants.rows as Record<string, unknown>[]).map((r) => String(r["user_id"])),
     });
-    await notifyMany(notes);
+    /* Delivery partition (notification census, stack1200): winners
+       this call PAID get the door (bell + gated push — a prize
+       landing is a money event); every other note keeps the
+       bell-only batch. paidNowIds holds winner ROW ids from this
+       call's payout pass, and zero-prize rows never enter it, so
+       the door set is exactly the money landings. */
+    const paidNowUserIds = new Set(
+      winnerRows.filter((w) => paidNowIds.has(w.id)).map((w) => w.userId!),
+    );
+    await deliverJudgeNotifications(notes, paidNowUserIds);
 
     req.log.info(
       { admin: req.userEmail, slug: ch.slug, paid, alreadyPaid, errors: payoutErrors.length, budgetCapped: budgetCapped.length },
