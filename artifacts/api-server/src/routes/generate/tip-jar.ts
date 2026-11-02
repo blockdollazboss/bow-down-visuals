@@ -636,7 +636,7 @@ router.post("/tips/settings", requireAuth, publicApiLimiter, async (req, res) =>
      goal lifecycle so a save can start / edit / archive / clear the
      goal without resetting its progress basis. */
   const goalState = await transitionFundingGoal(
-    prev,
+    prev ?? undefined,
     { targetAmount: goalAmount, label: goalLabel },
     now,
   );
