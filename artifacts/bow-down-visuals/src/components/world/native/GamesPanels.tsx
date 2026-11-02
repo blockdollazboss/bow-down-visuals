@@ -1111,6 +1111,7 @@ function MarbleTablePanel({
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && join()}
             placeholder="ABC234"
+            aria-label="Join code"
             maxLength={6}
             data-testid="world-party-join-input"
             className={`w-36 rounded-xl border px-3 py-2 text-center text-sm font-black uppercase tracking-[0.25em] bdv-touch-target ${

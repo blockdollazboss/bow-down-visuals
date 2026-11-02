@@ -218,6 +218,7 @@ function AddToPlaylistPicker({
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void createAndAdd(); }}
           placeholder="New playlist name…"
+          aria-label="New playlist name"
           maxLength={80}
           data-testid="world-shelf-playlist-new-name"
           className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
@@ -576,6 +577,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
           placeholder="New playlist name…"
           maxLength={80}
           data-testid="world-shelf-playlist-start-name"
+          aria-label="New playlist name"
           className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
             isLight
               ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"

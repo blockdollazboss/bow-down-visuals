@@ -749,6 +749,7 @@ export function NowPlayingCard({
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") void onPost(); }}
                   placeholder="Say something about what's playing…"
+                  aria-label="Say something about what's playing"
                   maxLength={500}
                   data-testid="world-shelf-comment-input"
                   className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${

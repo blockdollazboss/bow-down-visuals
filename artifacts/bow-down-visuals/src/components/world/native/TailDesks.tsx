@@ -594,10 +594,10 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
 
         {showBuilder && (
           <div className="mt-3 space-y-2" data-testid="world-giveaway-builder">
-            <input value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder="Contest title" maxLength={120} className={inputCls(isLight)} data-testid="world-giveaway-title" />
-            <input value={cPrize} onChange={(e) => setCPrize(e.target.value)} placeholder="Prize — what the winner takes" maxLength={200} className={inputCls(isLight)} data-testid="world-giveaway-prize" />
-            <textarea value={cDescription} onChange={(e) => setCDescription(e.target.value)} placeholder="Description" maxLength={2000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-description" />
-            <textarea value={cRules} onChange={(e) => setCRules(e.target.value)} placeholder="Rules" maxLength={4000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-rules" />
+            <input value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder="Contest title" maxLength={120} className={inputCls(isLight)} data-testid="world-giveaway-title" aria-label="Contest title" />
+            <input value={cPrize} onChange={(e) => setCPrize(e.target.value)} placeholder="Prize — what the winner takes" maxLength={200} className={inputCls(isLight)} data-testid="world-giveaway-prize" aria-label="Prize — what the winner takes" />
+            <textarea value={cDescription} onChange={(e) => setCDescription(e.target.value)} placeholder="Description" maxLength={2000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-description" aria-label="Giveaway description" />
+            <textarea value={cRules} onChange={(e) => setCRules(e.target.value)} placeholder="Rules" maxLength={4000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-rules" aria-label="Giveaway rules" />
             <div className="flex flex-wrap gap-1.5">
               {ENTRY_METHOD_CATALOG.map((m) => (
                 <button
@@ -709,8 +709,8 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                           )}
                           {detail.contest.status !== "ended" && (
                             <div className="flex flex-wrap gap-2">
-                              <input value={eHandle} onChange={(ev) => setEHandle(ev.target.value)} placeholder="Entrant handle" maxLength={80} className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-handle" />
-                              <input value={eEmail} onChange={(ev) => setEEmail(ev.target.value)} placeholder="Email (optional)" className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-email" />
+                              <input value={eHandle} onChange={(ev) => setEHandle(ev.target.value)} placeholder="Entrant handle" maxLength={80} className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-handle" aria-label="Entrant handle" />
+                              <input value={eEmail} onChange={(ev) => setEEmail(ev.target.value)} placeholder="Email (optional)" className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-email" aria-label="Entrant email (optional)" />
                               <select value={eMethod} onChange={(ev) => setEMethod(ev.target.value)} className={`${inputCls(isLight)} w-auto`} data-testid="world-giveaway-entry-method" aria-label="Entry method">
                                 {(detail.contest.entryMethods.length ? detail.contest.entryMethods : ["follow"]).map((m) => (
                                   <option key={m} value={m}>{m}</option>
@@ -1057,7 +1057,7 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
               <ShieldCheck className="h-3.5 w-3.5" /> Set the next code — admin only
             </p>
             <div className="mt-2 space-y-2">
-              <input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Event name" maxLength={120} className={inputCls(isLight)} data-testid="world-jackpot-admin-name" />
+              <input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Event name" maxLength={120} className={inputCls(isLight)} data-testid="world-jackpot-admin-name" aria-label="Event name" />
               <div className="flex flex-wrap gap-2">
                 <label className={`flex-1 text-xs ${muted}`}>
                   Prize (Visual Bucs, 100–1,000,000)

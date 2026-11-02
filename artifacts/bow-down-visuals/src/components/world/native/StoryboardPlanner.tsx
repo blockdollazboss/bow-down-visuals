@@ -398,6 +398,7 @@ export function StoryboardPlanner(props: {
         {boards.length > 1 ? (
           <select
             data-testid="world-storyboard-planner-open"
+            aria-label="Open a storyboard"
             value={board?.id ?? ""}
             onChange={(e) => {
               const next = boards.find((b) => b.id === e.target.value) ?? null;
@@ -431,6 +432,7 @@ export function StoryboardPlanner(props: {
           <div className="flex flex-wrap items-center gap-2">
             <input
               data-testid="world-storyboard-planner-title"
+              aria-label="Storyboard title"
               value={boardTitleDraft}
               onChange={(e) => setBoardTitleDraft(e.target.value)}
               onBlur={() => void renameBoard()}
@@ -477,6 +479,7 @@ export function StoryboardPlanner(props: {
 
                     <input
                       data-testid="world-storyboard-panel-title"
+                      aria-label="Panel title"
                       value={draft.title}
                       onChange={(e) => setDrafts((d) => ({ ...d, [panel.id]: { title: e.target.value, notes: draft.notes } }))}
                       onBlur={() => void savePanelWords(panel)}
@@ -485,6 +488,7 @@ export function StoryboardPlanner(props: {
                     />
                     <textarea
                       data-testid="world-storyboard-panel-notes"
+                      aria-label="Panel notes"
                       value={draft.notes}
                       onChange={(e) => setDrafts((d) => ({ ...d, [panel.id]: { title: draft.title, notes: e.target.value } }))}
                       onBlur={() => void savePanelWords(panel)}
