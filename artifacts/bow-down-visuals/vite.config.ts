@@ -139,9 +139,19 @@ export default defineConfig({
             // dependencies imports a member. Keep CreateDeskShared
             // (ResultChips) OUT: it imports the Release/Scheduler
             // desks on purpose and must stay parked with them.
+            // World-perf round 4 adds lib/voiceover: a zero-import
+            // pure leaf (cost constants + the estimator) that
+            // audio-benches imports for one function. Unpinned it
+            // was parked inside the song-library chunk (the
+            // ArrangementStudio chain, ~54 kB file), so the kit —
+            // and with it EVERY first station open — statically
+            // dragged that chunk plus the audio-stems / audio-engine
+            // chain behind it (~144 kB raw of frame for a 1.2 kB
+            // leaf). Pinned here, the leaf rides the kit and the
+            // audio chain is paid only by the surfaces that use it.
             {
               name: "world-kit",
-              test: /[\\/]src[\\/](?:components[\\/]world[\\/]native[\\/](?:NativeBoard|NativeCard|NativePlaceholder|NativeShelf|NativeStates|CreateDeskLeaf|CreateResultLeaf|CreatorProfileCreate)\.tsx|lib[\\/]world[\\/](?:create-desks|audio-benches|audio-ab|money-desks|shop-stands|creator-profile-create)\.ts)$/,
+              test: /[\\/]src[\\/](?:components[\\/]world[\\/]native[\\/](?:NativeBoard|NativeCard|NativePlaceholder|NativeShelf|NativeStates|CreateDeskLeaf|CreateResultLeaf|CreatorProfileCreate)\.tsx|lib[\\/]world[\\/](?:create-desks|audio-benches|audio-ab|money-desks|shop-stands|creator-profile-create)\.ts|lib[\\/]voiceover\.ts)$/,
               priority: 0,
               includeDependenciesRecursively: false,
             },
