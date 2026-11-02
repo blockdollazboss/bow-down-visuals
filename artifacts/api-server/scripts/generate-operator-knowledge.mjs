@@ -1756,6 +1756,10 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "world",
     reason: "World court-season rail (THE-GAME Ring 4) — read inside the World; no page of its own.",
   },
+  "artifacts/api-server/src/routes/world-show-invites.ts": {
+    surface: "world",
+    reason: "World show-invite rails (invite / mine / accept / decline, Ring 3.8) — sent and answered inside the World's Kingdom Board show-invite panels; no page of its own.",
+  },
   "artifacts/api-server/src/routes/the-crowns.ts": {
     surface: "world",
     reason: "The Crowns rails (list + worn) — crown state read across profiles and the World; no page of its own.",
@@ -1776,10 +1780,6 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
   "artifacts/api-server/src/routes/evergreen.ts": {
     surface: "social",
     reason: "Evergreen content-recycling rails (candidates / proposals / approve / settings) — behind the promote surfaces; no page of its own.",
-  },
-  "artifacts/api-server/src/routes/upg-fans.ts": {
-    surface: "social",
-    reason: "Fan rails (fan links + attribution, collab match, audience room, short fan links) — behind the social/promote surfaces; no page of its own.",
   },
   "artifacts/api-server/src/routes/supporter-board.ts": {
     surface: "social",

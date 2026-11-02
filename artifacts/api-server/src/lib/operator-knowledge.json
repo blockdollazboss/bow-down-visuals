@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "503c61f05cc423067057ac87fd73ef3a893fb78e",
+  "baseCommit": "e33e31d5dcfcbe7aee4378b5a1e9739df4934f57",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -21,9 +21,9 @@
     "takeoverOffers": 2,
     "withDescriptions": 251,
     "withoutDescriptions": 0,
-    "serverRouteFiles": 429,
-    "serverEndpoints": 1724,
-    "serverEndpointsVisible": 1061,
+    "serverRouteFiles": 430,
+    "serverEndpoints": 1728,
+    "serverEndpointsVisible": 1066,
     "serverFilesClassified": 100
   },
   "packs": [
@@ -11411,9 +11411,14 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/audience-room",
         "/api/challenges/trending",
+        "/api/collab-match",
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
+        "/api/fan-links",
+        "/api/fan-links/for-me",
+        "/api/fan-links/mine",
         "/api/media/video/:param/comments",
         "/api/media/video/:param/play",
         "/api/referrals/apply",
@@ -20573,21 +20578,12 @@
       {
         "file": "artifacts/api-server/src/routes/upg-fans.ts",
         "endpoints": 8,
-        "visible": 0,
+        "visible": 5,
         "unseen": [
-          "/api/audience-room",
-          "/api/collab-match",
           "/api/collab-match/:id/mark",
           "/api/f/:code",
-          "/api/fan-links",
-          "/api/fan-links/attribute-signup",
-          "/api/fan-links/for-me",
-          "/api/fan-links/mine"
-        ],
-        "classification": {
-          "surface": "social",
-          "reason": "Fan rails (fan links + attribution, collab match, audience room, short fan links) — behind the social/promote surfaces; no page of its own."
-        }
+          "/api/fan-links/attribute-signup"
+        ]
       },
       {
         "file": "artifacts/api-server/src/routes/upload-watermark.ts",
@@ -20796,6 +20792,21 @@
         "classification": {
           "surface": "plumbing",
           "reason": "Telemetry beacon: the World's 3D-fixture load-failure reports land here; no member surface."
+        }
+      },
+      {
+        "file": "artifacts/api-server/src/routes/world-show-invites.ts",
+        "endpoints": 4,
+        "visible": 0,
+        "unseen": [
+          "/api/world/events/:eventId/invites",
+          "/api/world/show-invites/:id/accept",
+          "/api/world/show-invites/:id/decline",
+          "/api/world/show-invites/mine"
+        ],
+        "classification": {
+          "surface": "world",
+          "reason": "World show-invite rails (invite / mine / accept / decline, Ring 3.8) — sent and answered inside the World's Kingdom Board show-invite panels; no page of its own."
         }
       },
       {
