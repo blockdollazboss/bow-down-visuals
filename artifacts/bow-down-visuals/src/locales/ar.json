@@ -15509,6 +15509,24 @@
       "vbNote": "لا تُحوَّل Visual Bucs أبدًا — مبالغ Visual Bucs هي نفسها في كل مكان.",
       "ratesNote": "الأسعار لقطة ثابتة تقريبية، وليست أسعار صرف مباشرة."
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "البطاقات المباعة في متجرك",
+    "soldAllTime": "المبيعات (الإجمالي)",
+    "soldCount": "{{count}} بطاقة",
+    "stillOutThere": "ما زالت متداولة (التزام)",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "كيف تحصل على أموالك",
+    "soldAgainst": "بيعت في متجرك",
+    "soldEmpty": "لا توجد بطاقات هدايا مباعة في متجرك بعد — عندما يشتري شخص بطاقة من جناحك، ستظهر هنا.",
+    "soldLoading": "جارٍ تحميل بطاقاتك المباعة…",
+    "soldLoadFailed": "تعذر تحميل بطاقاتك المباعة — متجرك وبطاقاتك لم تتغير.",
+    "tryAgain": "حاول مرة أخرى",
+    "refundUnspent": "استرداد الرصيد غير المنفق",
+    "refunding": "جارٍ الاسترداد…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "تعذر استرداد هذه البطاقة."
+  },
   "worldPlansDesk": {
     "title": "خطة موقعك",
     "loadFailed": "تعذّر فتح قائمة الخطط — خطتك لم تتغير.",

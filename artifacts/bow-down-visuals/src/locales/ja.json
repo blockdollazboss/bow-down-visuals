@@ -15413,6 +15413,24 @@
       "vbNote": "Visual Bucs は換算されません — Visual Bucs の金額はどこでも同じです。",
       "ratesNote": "レートは概算の静的なスナップショットであり、ライブの為替レートではありません。"
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "あなたのストアで売れたカード",
+    "soldAllTime": "販売合計",
+    "soldCount": "{{count}}枚",
+    "stillOutThere": "まだ利用可能（負債）",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "受け取りの仕組み",
+    "soldAgainst": "あなたのストアでの販売",
+    "soldEmpty": "あなたのストアで売れたギフトカードはまだありません — 誰かがあなたのスタンドで買うと、ここに表示されます。",
+    "soldLoading": "売れたカードを読み込み中…",
+    "soldLoadFailed": "売れたカードを読み込めませんでした — ストアとカードに変更はありません。",
+    "tryAgain": "もう一度試す",
+    "refundUnspent": "未使用分を返金",
+    "refunding": "返金中…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "このカードは返金できませんでした。"
+  },
   "worldPlansDesk": {
     "title": "あなたのサイトプラン",
     "loadFailed": "プラン一覧を開けませんでした — プランに変更はありません。",

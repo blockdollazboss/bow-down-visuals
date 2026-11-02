@@ -15423,6 +15423,24 @@
       "vbNote": "Visual Bucs are never converted — Visual Bucs amounts are the same everywhere.",
       "ratesNote": "Rates are an approximate static snapshot, not live exchange rates."
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "Cards sold at your store",
+    "soldAllTime": "Sold (all time)",
+    "soldCount": "{{count}} cards",
+    "stillOutThere": "Still out there (liability)",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "How you get paid",
+    "soldAgainst": "Sold against your store",
+    "soldEmpty": "No gift cards sold against your store yet — when someone buys one at your stand, it shows here.",
+    "soldLoading": "Loading your sold cards…",
+    "soldLoadFailed": "Couldn't load your sold cards — your store and your cards are unchanged.",
+    "tryAgain": "Try again",
+    "refundUnspent": "Refund unspent",
+    "refunding": "Refunding…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "Couldn't refund that card."
+  },
   "worldPlansDesk": {
     "title": "Your site plan",
     "loadFailed": "The plan catalog wouldn't open — your plan is unchanged.",

@@ -15440,6 +15440,24 @@
       "vbNote": "I Visual Bucs non vengono mai convertiti: gli importi in Visual Bucs sono gli stessi ovunque.",
       "ratesNote": "I tassi sono un'istantanea statica approssimativa, non tassi di cambio in tempo reale."
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "Carte vendute nel tuo negozio",
+    "soldAllTime": "Venduto (in totale)",
+    "soldCount": "{{count}} carte",
+    "stillOutThere": "Ancora in circolazione (passività)",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "Come vieni pagato",
+    "soldAgainst": "Vendute nel tuo negozio",
+    "soldEmpty": "Nessuna carta regalo ancora venduta nel tuo negozio — quando qualcuno ne comprerà una al tuo stand, apparirà qui.",
+    "soldLoading": "Caricamento delle tue carte vendute…",
+    "soldLoadFailed": "Impossibile caricare le tue carte vendute — il tuo negozio e le tue carte non sono cambiati.",
+    "tryAgain": "Riprova",
+    "refundUnspent": "Rimborsa il saldo non speso",
+    "refunding": "Rimborso in corso…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "Impossibile rimborsare questa carta."
+  },
   "worldPlansDesk": {
     "title": "Il tuo piano del sito",
     "loadFailed": "Il catalogo dei piani non si è aperto — il tuo piano è invariato.",

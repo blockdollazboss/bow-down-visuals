@@ -15417,6 +15417,24 @@
       "vbNote": "Visual Bucs는 절대 환산되지 않습니다 — Visual Bucs 금액은 어디에서나 같습니다.",
       "ratesNote": "환율은 대략적인 고정 스냅샷이며 실시간 환율이 아닙니다."
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "내 스토어에서 판매된 카드",
+    "soldAllTime": "판매 합계",
+    "soldCount": "카드 {{count}}장",
+    "stillOutThere": "아직 사용 가능 (부채)",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "정산 방식",
+    "soldAgainst": "내 스토어에서 판매됨",
+    "soldEmpty": "아직 내 스토어에서 판매된 기프트 카드가 없습니다 — 누군가 내 스탠드에서 구매하면 여기에 표시됩니다.",
+    "soldLoading": "판매된 카드를 불러오는 중…",
+    "soldLoadFailed": "판매된 카드를 불러오지 못했습니다 — 스토어와 카드는 변경되지 않았습니다.",
+    "tryAgain": "다시 시도",
+    "refundUnspent": "미사용 금액 환불",
+    "refunding": "환불 중…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "이 카드는 환불할 수 없었습니다."
+  },
   "worldPlansDesk": {
     "title": "내 사이트 플랜",
     "loadFailed": "플랜 목록을 열 수 없습니다 — 플랜은 그대로입니다.",
