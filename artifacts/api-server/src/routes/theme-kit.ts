@@ -42,7 +42,9 @@ import { THEME_PACK_KNOWN_IDS, THEME_PACK_PREMIUM_IDS, THEME_PACK_PRICE_VB } fro
      desk still passes the widget / Chrome-manifest / share-card
      text builders it owns.
    - GET/PUT /theme-packs/customizations/:packId — the customization
-     capstone storage: every component, per device.
+     capstone storage: every component, per device. A PUT with an
+     empty mix is the reset-to-pure-pack: it clears the caller's saved
+     rows for that pack.
    - Creator packs: POST /theme-packs/creator-packs (design from a
      base + mix), POST …/:id/publish, GET /theme-packs/creator-packs
      (store list), POST …/:id/purchase — charges the creator-set VB
@@ -292,6 +294,18 @@ router.put("/theme-packs/customizations/:packId", requireAuth, async (req, res) 
   try {
     if (!(await kitUnlocked(req, packId))) {
       res.status(403).json({ error: "PACK_LOCKED", message: "Customize unlocks with the pack — previews stay free." });
+      return;
+    }
+    /* Reset-to-pure-pack (QC-200 Q140): an empty mix is the reset —
+       every saved customization row for this pack is cleared, so the
+       pack returns to its pure, as-designed state. Before this leg an
+       empty PUT was a silent no-op and a saved mix could never be
+       undone. Scoped to the caller's rows for this one pack. */
+    if (Object.keys(clean.value).length === 0) {
+      await db.execute(sql`
+        DELETE FROM theme_pack_customizations
+        WHERE user_id = ${req.userId!} AND pack_id = ${packId}`);
+      res.json({ saved: true, reset: true, packId });
       return;
     }
     for (const [component, perDevice] of Object.entries(clean.value)) {
