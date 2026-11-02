@@ -11,6 +11,7 @@
  * - a failed generation refunds in full and never double-charges;
  * - out-of-credits aborts BEFORE the provider is ever called.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } = vi.hoisted(() => {
@@ -69,6 +70,17 @@ function mockFetchOk() {
 describe("BIO_COST — the rail's own constant", () => {
   it("is 100 Visual Bucs (the published Bio Generator price)", () => {
     expect(BIO_COST).toBe(100);
+  });
+
+  it("the bio-generator header comment names BIO_COST at 100, not the stale 50", () => {
+    const src = readFileSync(
+      new URL("../generate/bio-generator.ts", import.meta.url),
+      "utf8",
+    );
+    const header = src.slice(0, src.indexOf("PLATFORM_LIMITS"));
+    expect(header).not.toContain("50 Visual Bucs");
+    expect(header).toContain("100 Visual Bucs");
+    expect(header).toContain("BIO_COST");
   });
 });
 
