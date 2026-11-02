@@ -168,6 +168,7 @@ export * from "./world-king-moment";
 export * from "./world-court-season";
 export * from "./the-crowns";
 export * from "./world-stage-tips";
+export * from "./world-stage-shoutouts";
 export * from "./world-locks";
 export * from "./world-room-invites";
 export * from "./world-tutorial";
