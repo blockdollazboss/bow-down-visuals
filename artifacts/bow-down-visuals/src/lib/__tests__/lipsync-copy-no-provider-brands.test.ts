@@ -31,7 +31,6 @@ const BRAND = /sync\.so|sync labs/i;
 /** The non-copy categories a brand mention may still live in. */
 function classify(line: string): string | null {
   if (/lipSyncProvider:/.test(line)) return "provenance data stamp";
-  if (/"https:\/\/sync\.so"/.test(line)) return "dashboard destination URL (code)";
   const trimmed = line.trimStart();
   if (
     trimmed.startsWith("/*") ||
@@ -45,7 +44,7 @@ function classify(line: string): string | null {
 }
 
 describe("LipSyncSection rendered copy — no provider brand names", () => {
-  it("every brand mention left in the file is comment, data, or the link target", () => {
+  it("every brand mention left in the file is a comment or a data stamp", () => {
     const offenders: string[] = [];
     source.split("\n").forEach((line, i) => {
       if (BRAND.test(line) && classify(line) === null) {
@@ -62,7 +61,10 @@ describe("LipSyncSection rendered copy — no provider brand names", () => {
     // Check-job panel: job-ID label + utility buttons.
     expect(source).toContain('label="lip sync job ID"');
     expect(source).toContain("Copy Lip Sync Job ID");
-    expect(source).toContain("Open Engine Dashboard");
+    // Stack1400: the dashboard button opened the removed provider's
+    // site — the button and its destination are gone entirely.
+    expect(source).not.toContain("Open Engine Dashboard");
+    expect(source).not.toContain("https://sync.so");
     // Check-failed / processing error defaults.
     expect(source).toContain('"Lip sync job failed."');
     expect(source).toContain('"Still processing. Check again in a few minutes."');

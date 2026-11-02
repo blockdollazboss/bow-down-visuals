@@ -80,22 +80,17 @@ import { notifyDueBookingReminders } from "./booking-reminders";
 import {
   MAX_SUBMIT_DEFERRALS,
   PROVIDER_LIMIT_SEC,
-  SYNC_LABS_MODEL,
   buildResolutionMeta,
-  classifySubmitError,
-  getLipSyncApiKey,
   getLipSyncProviderName,
   isLipSyncProviderConfigured,
+  isRemovedLipSyncProvider,
   normalizeLipSyncProvider,
-  normalizeProviderStatus,
   probeVideoDimensions,
   submitDeferralBackoffMs,
-  syncLabsStatus,
-  syncLabsSubmit,
   trimAndUploadAudioSegment,
   trimAndUploadVideoSegment,
   type LipSyncProviderId,
-} from "./sync-labs";
+} from "./lip-sync-core";
 import {
   classifyWaveSpeedSubmitError,
   getLatentSyncModel,
@@ -115,10 +110,8 @@ import { mirrorExternalMediaUrl } from "./mirrorMedia";
  * Server-owned background poller for lip-sync (and export) jobs.
  *
  * This is what lets the user close the tab: every TICK_MS the poller
- * - claims `queued` lip-sync jobs and submits them to the provider each
- *   job was created for (LatentSync via WaveSpeed by default; Sync.so
- *   only for explicitly selected premium jobs — see
- *   resolveJobProvider),
+ * - claims `queued` lip-sync jobs and submits them to the one live
+ *   provider (LatentSync via WaveSpeed — see resolveJobProvider),
  *   (trim + submit run in fire-and-forget workers, ≤ MAX_SUBMIT_WORKERS),
  * - polls that provider for `polling` jobs whose backoff window elapsed,
  * - records provider completions, attaches the finished video to the
@@ -126,15 +119,15 @@ import { mirrorExternalMediaUrl } from "./mirrorMedia";
  *   notifications,
  * - backfills "it's ready" notifications for terminal export jobs.
  *
- * Sync.so generations run 25–40+ minutes, so polls back off from 60s to a
- * 5-minute cap — gentle on the provider, and no tab, console script, or
- * pasted snippet is ever required for a job to finish. A provider-reported
- * FAILED is terminal (no silent re-submits that would spend the user's
- * Sync.so budget); repeated poll *transport* failures (5 in a row) also
- * fail the job with the last error surfaced. Transient submit rejections
- * (HTTP 429 / plan-concurrency limit) defer with a 5→10→20→40-minute
- * backoff instead of burning the submit attempts — slots free up, the job
- * waits, nobody babysits.
+ * Lip-sync generations can run for many minutes, so polls back off
+ * from 60s to a 5-minute cap — gentle on the provider, and no tab,
+ * console script, or pasted snippet is ever required for a job to
+ * finish. A provider-reported FAILED is terminal (no silent
+ * re-submits that would spend provider budget); repeated poll
+ * *transport* failures (5 in a row) also fail the job with the last
+ * error surfaced. Transient submit rejections defer with a
+ * 5→10→20→40-minute backoff instead of burning the submit attempts —
+ * slots free up, the job waits, nobody babysits.
  *
  * Started once from index.ts after the server begins listening.
  */
@@ -188,28 +181,33 @@ let prepareSubmitMedia: PrepareSubmitMedia = async (params) => {
 };
 
 /* ── Provider resolution ────────────────────────────────────────────────
-   A job runs on the provider recorded in its params at creation (itself
-   the effective switch value at that moment) — a job is never silently
-   rerouted to the other provider because a key appeared or vanished.
-   A job WITHOUT a stored provider falls back to the current switch
-   value — and to NOTHING else. The historical terminal fallback to
-   "sync" is removed (owner's ruling, 2026-10-26: sync-3 is
-   premium-only, never the default): when neither the job nor the
-   switch names a route, the job simply stays queued until a route is
-   explicitly selected or the default route's key is configured —
-   exactly how an unconfigured route's jobs already wait. */
+   A job runs on the provider recorded in its params at creation. The
+   only live route is LatentSync (stack1400: the former premium direct
+   route was removed when the owner deleted that provider account).
+
+   - A QUEUED job whose stored provider names the removed route has
+     not been submitted anywhere yet, so it falls back to the current
+     live route — never to the removed one.
+   - A POLLING job whose stored provider names the removed route
+     carries a provider job id issued by a closed account: it can
+     never be polled again, so pollOneJob fails it honestly (with the
+     usual exactly-once refund) instead of querying the live route
+     with a foreign id or, worse, the closed account.
+   - A job WITHOUT a stored provider falls back to the current switch
+     value — and to NOTHING else. When neither the job nor the switch
+     names the live route, the job simply stays queued until the live
+     route is configured. */
 function resolveJobProvider(job: LipSyncJob): LipSyncProviderId | null {
   return normalizeLipSyncProvider(job.params.provider) ?? getLipSyncProviderName();
 }
 
 function providerApiKey(provider: LipSyncProviderId | null): string | null {
   if (provider === "latentsync") return getWaveSpeedApiKey();
-  if (provider === "sync") return getLipSyncApiKey();
   return null;
 }
 
-function providerDisplayName(provider: LipSyncProviderId): string {
-  return provider === "latentsync" ? "WaveSpeed" : "Sync.so";
+function providerDisplayName(_provider: LipSyncProviderId): string {
+  return "Lip Sync";
 }
 
 const PEEK_BATCH = 10;
@@ -444,10 +442,9 @@ export async function runPollerTick(): Promise<void> {
 /* ── Submit phase ─────────────────────────────────────────────────────── */
 
 async function submitDueJobs(): Promise<void> {
-  /* Peek first, claim second: a job is only claimed once its OWN
-     provider's key is confirmed configured, so jobs for an unconfigured
-     route stay queued and untouched (the pre-switch behavior for Sync.so
-     was "no key → nothing is claimed"; that now holds per provider). */
+  /* Peek first, claim second: a job is only claimed once the live
+     route's key is confirmed configured, so jobs for an unconfigured
+     route stay queued and untouched. */
   const candidates = await peekQueuedJobs(PEEK_BATCH);
   let workers = 0;
   for (const candidate of candidates) {
@@ -497,30 +494,23 @@ async function runSubmitWorker(
 
     if (durationSec > PROVIDER_LIMIT_SEC) {
       await fail(
-        provider === "sync"
-          ? `Audio segment is ${durationSec.toFixed(1)}s — exceeds the Sync.so plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade the plan.`
-          : `Audio segment is ${durationSec.toFixed(1)}s — exceeds the ${PROVIDER_LIMIT_SEC}s limit of the current lip-sync route. Trim the scene.`,
+        `Audio segment is ${durationSec.toFixed(1)}s — exceeds the ${PROVIDER_LIMIT_SEC}s limit of the current lip-sync route. Trim the scene.`,
         "segment_too_long",
       );
       return;
     }
 
-    let providerJobId: string;
-    if (provider === "latentsync") {
-      /* LatentSync has no strength/temperature dial — the A-09 strength
-         control is recorded in the job params but, exactly like sync-3,
-         this model exposes no such option to send. */
-      providerJobId = await waveSpeedSubmit(providerClipUrl, segmentUrl, apiKey);
-    } else {
-      providerJobId = await syncLabsSubmit(providerClipUrl, segmentUrl, apiKey, job.params.strength);
-    }
+    /* LatentSync has no strength/temperature dial — the A-09 strength
+       control is recorded in the job params, and this model exposes no
+       such option to send. */
+    const providerJobId = await waveSpeedSubmit(providerClipUrl, segmentUrl, apiKey);
     await markJobSubmitted(job.id, providerJobId, 60_000);
     /* Record what was sent (provider, model, probed input dimensions)
        so the completion path can state — on the job record itself —
        whether the returned video is smaller than what was submitted. */
     await mergeLipSyncJobResultMeta(job.id, {
       provider,
-      model: provider === "latentsync" ? getLatentSyncModel() : SYNC_LABS_MODEL,
+      model: getLatentSyncModel(),
       inputWidth: inputWidth ?? null,
       inputHeight: inputHeight ?? null,
     }).catch((err) =>
@@ -531,62 +521,8 @@ async function runSubmitWorker(
       "[job-poller] lip-sync submitted",
     );
   } catch (err) {
-    if (provider === "latentsync") {
-      await handleWaveSpeedSubmitError(job, err, fail);
-      return;
-    }
-    const message = err instanceof Error ? err.message : "Lip-sync submit failed";
-    const kind = classifySubmitError(err);
-
-    if (kind === "transient") {
-      /* Sync.so plan-concurrency limit (or a 5xx): provider slots free up
-         over 25–40 minutes. Wait with a long backoff instead of burning all
-         submit attempts in ~2 minutes. Transient waits don't touch the
-         attempts budget — deferSubmitJob neutralizes the claim's +1. */
-      const backoffMs = submitDeferralBackoffMs(job.submitDeferrals);
-      const deferred = await deferSubmitJob(job.id, backoffMs, MAX_SUBMIT_DEFERRALS).catch(() => null);
-      if (!deferred) {
-        logger.error({ jobId: job.id, err: message }, "[job-poller] deferred submit target vanished; dropping");
-        return;
-      }
-      if (deferred.failed) {
-        const refunded = await refundFailedLipSyncCharge(job);
-        await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(
-          "Sync.so stayed at its plan concurrency limit for about a day, so this job was never submitted. Try again later or upgrade the Sync.so plan.",
-          500,
-        ), refunded));
-        logger.error(
-          { jobId: job.id, deferrals: deferred.deferrals },
-          "[job-poller] submit deferred past the limit; marked failed",
-        );
-      } else {
-        logger.warn(
-          { jobId: job.id, deferrals: deferred.deferrals, backoffMs, err: message },
-          "[job-poller] provider busy; submit deferred with backoff",
-        );
-      }
-      return;
-    }
-
-    if (kind === "permanent") {
-      /* 4xx (validation, auth, bad input): deterministic — retrying is
-         pointless and every retry re-trims media. Fail fast, notify once. */
-      await fail(message, "provider_rejected");
-      logger.error({ jobId: job.id, err: message }, "[job-poller] submit permanently rejected by provider");
-      return;
-    }
-
-    /* Transport failures (timeouts, DNS, resets): the request may never have
-       reached Sync.so — re-queue against the normal attempts budget. */
-    const attempts = await requeueSubmitJob(job.id, MAX_SUBMIT_ATTEMPTS).catch(() => MAX_SUBMIT_ATTEMPTS);
-    if (attempts >= MAX_SUBMIT_ATTEMPTS) {
-      // requeueSubmitJob already marked it failed; refund + notify once.
-      const refunded = await refundFailedLipSyncCharge(job);
-      await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
-      logger.error({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed permanently");
-    } else {
-      logger.warn({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed; re-queued");
-    }
+    await handleWaveSpeedSubmitError(job, err, fail);
+    return;
   }
 }
 
@@ -595,7 +531,7 @@ async function runSubmitWorker(
  * - balance: fail closed at once with a clear provider-unavailable
  *   state — no backoff loop pretending to wait, no resubmit;
  * - transient (provider answered 429/5xx — no task was issued): defer
- *   with the same long backoff machinery as Sync.so; a later resubmit is
+ *   with the long backoff machinery; a later resubmit is
  *   safe precisely because the provider answered and issued nothing;
  * - transport (no response at all): the submit may have created a
  *   billed task — NEVER resubmit blind. The job fails with
@@ -624,7 +560,7 @@ async function handleWaveSpeedSubmitError(
     const backoffMs = submitDeferralBackoffMs(job.submitDeferrals);
     const deferred = await deferSubmitJob(job.id, backoffMs, MAX_SUBMIT_DEFERRALS, {
       message:
-        "WaveSpeed stayed busy for ~24 hours and the job was not submitted. Try again later.",
+        "The lip-sync provider stayed busy for ~24 hours and the job was not submitted. Try again later.",
       code: "provider_busy_timeout",
     }).catch(() => null);
     if (!deferred) {
@@ -634,7 +570,7 @@ async function handleWaveSpeedSubmitError(
     if (deferred.failed) {
       const refunded = await refundFailedLipSyncCharge(job);
       await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(
-        "WaveSpeed stayed busy for about a day, so this job was never submitted. Try again later.",
+        "The lip-sync provider stayed busy for about a day, so this job was never submitted. Try again later.",
         500,
       ), refunded));
       logger.error(
@@ -688,6 +624,24 @@ async function pollOneJob(
   apiKey: string,
   providerArg?: LipSyncProviderId,
 ): Promise<void> {
+  const fail = async (message: string, code: string) => {
+    await failLipSyncJob(job.id, { message, code });
+    const refunded = await refundFailedLipSyncCharge(job);
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
+  };
+
+  /* A polling job stamped with the removed route carries a provider
+     job id from a closed account (stack1400). It can never complete:
+     fail it honestly (the fail path refunds exactly once) instead of
+     polling the live route with a foreign id. */
+  if (isRemovedLipSyncProvider(job.params.provider)) {
+    await fail(
+      "This lip-sync job was submitted on a provider route that is no longer available, so it cannot be finished. Please start a new lip sync.",
+      "provider_route_removed",
+    );
+    return;
+  }
+
   const provider = providerArg ?? resolveJobProvider(job);
   if (!provider) {
     /* No route in effect for this job: polling resumes once one is
@@ -696,66 +650,31 @@ async function pollOneJob(
     return;
   }
   const display = providerDisplayName(provider);
-  const fail = async (message: string, code: string) => {
-    await failLipSyncJob(job.id, { message, code });
-    const refunded = await refundFailedLipSyncCharge(job);
-    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
-  };
 
   let remote: { status: string; outputUrl?: string; error?: string };
   try {
-    if (provider === "latentsync") {
-      const ws = await waveSpeedStatus(job.providerJobId!, apiKey);
-      remote = {
-        status: normalizeWaveSpeedStatus(ws),
-        outputUrl: ws.outputUrl,
-        error: ws.error,
-      };
-    } else {
-      const sl = await syncLabsStatus(job.providerJobId!, apiKey);
-      remote = {
-        status: normalizeProviderStatus(sl),
-        outputUrl: sl.outputUrl,
-        error: sl.error,
-      };
-    }
+    const ws = await waveSpeedStatus(job.providerJobId!, apiKey);
+    remote = {
+      status: normalizeWaveSpeedStatus(ws),
+      outputUrl: ws.outputUrl,
+      error: ws.error,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Provider poll failed";
-    if (provider === "latentsync") {
-      if (isWaveSpeedBalanceError(err)) {
-        /* Out of funds mid-flight: fail closed with the clear state
-           instead of burning the poll-error budget on a dead account. */
-        await fail(
-          "Lip sync is temporarily unavailable — the provider account is out of funds, so this job could not be checked to completion.",
-          "provider_balance",
-        );
-        return;
-      }
-      if (
-        err instanceof WaveSpeedError &&
-        (err.status === 429 || (err.status !== null && err.status >= 500))
-      ) {
-        /* Provider answered and is just busy — not a transport failure. */
-        await recordJobPoll(job.id, { ok: true, nextPollInMs: pollBackoffMs(job.polls) });
-        logger.warn({ jobId: job.id, err: message }, "[job-poller] WaveSpeed busy on status check; backing off");
-        return;
-      }
-      const errors = job.consecutivePollErrors + 1;
-      if (errors >= MAX_POLL_ERRORS) {
-        await fail(
-          `WaveSpeed could not be reached after ${errors} attempts. Last error: ${message}`,
-          "provider_unreachable",
-        );
-      } else {
-        await recordJobPoll(job.id, { ok: false, error: message, nextPollInMs: pollBackoffMs(job.polls) });
-        logger.warn({ jobId: job.id, errors, err: message }, "[job-poller] WaveSpeed poll transport failure");
-      }
+    if (isWaveSpeedBalanceError(err)) {
+      /* Out of funds mid-flight: fail closed with the clear state
+         instead of burning the poll-error budget on a dead account. */
+      await fail(
+        "Lip sync is temporarily unavailable — the provider account is out of funds, so this job could not be checked to completion.",
+        "provider_balance",
+      );
       return;
     }
-    if (classifySubmitError(err) === "transient") {
-      /* A 429/5xx on the status check means we REACHED Sync.so and it's just
-         busy — not a transport failure. Don't count it toward the
-         consecutive-error budget; check again on the normal backoff. */
+    if (
+      err instanceof WaveSpeedError &&
+      (err.status === 429 || (err.status !== null && err.status >= 500))
+    ) {
+      /* Provider answered and is just busy — not a transport failure. */
       await recordJobPoll(job.id, { ok: true, nextPollInMs: pollBackoffMs(job.polls) });
       logger.warn({ jobId: job.id, err: message }, "[job-poller] provider busy on status check; backing off");
       return;
@@ -763,7 +682,7 @@ async function pollOneJob(
     const errors = job.consecutivePollErrors + 1;
     if (errors >= MAX_POLL_ERRORS) {
       await fail(
-        `Sync.so could not be reached after ${errors} attempts. Last error: ${message}`,
+        `The lip-sync provider could not be reached after ${errors} attempts. Last error: ${message}`,
         "provider_unreachable",
       );
     } else {

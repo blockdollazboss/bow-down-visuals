@@ -643,7 +643,7 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     "gentle wind and shifting light, cinematic fade-out energy.";
 
   /* Lip-sync-friendly cinematography: appended to Seedance generations so
-     downstream Sync.so jobs get a forward-facing, clearly-visible mouth —
+     downstream lip-sync jobs get a forward-facing, clearly-visible mouth —
      the single biggest lever on lip-sync quality. */
   const PERFORMANCE_DIRECTIVE =
     "Performance framing for lip sync: performer faces the camera directly, " +

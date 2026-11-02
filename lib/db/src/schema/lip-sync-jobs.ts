@@ -3,14 +3,14 @@ import { pgTable, uuid, text, integer, boolean, timestamp, jsonb } from "drizzle
 /**
  * Durable lip-sync job records.
  *
- * A lip-sync generation (trim audio/video → submit to Sync.so → poll for
+ * A lip-sync generation (trim audio/video → submit to the provider → poll for
  * 25–40+ minutes) far outlives any browser tab or HTTP request. The job
  * record is the source of truth for the server-owned background poller
  * (see artifacts/api-server/src/lib/job-poller.ts):
  *
  * - `queued`      — accepted by POST /lip-sync/preview, waiting for a submit worker
- * - `submitting`  — a worker claimed it and is trimming media + submitting to Sync.so
- * - `polling`     — submitted; provider_job_id is set, poller checks Sync.so on backoff
+ * - `submitting`  — a worker claimed it and is trimming media + submitting to the provider
+ * - `polling`     — submitted; provider_job_id is set, poller checks the provider on backoff
  * - `done`        — provider reported completion; result_url is the finished video
  * - `failed`      — terminal; error holds the last provider/worker error
  *
@@ -34,7 +34,7 @@ export const lipSyncJobsTable = pgTable("lip_sync_jobs", {
   state: text("state").notNull().default("queued"),
   /** Full lip-sync request params — everything needed to (re)run the submit. */
   params: jsonb("params").notNull(),
-  /** Sync.so provider job id, set once the provider accepts the generation. */
+  /** Provider job id, set once the provider accepts the generation. */
   provider_job_id: text("provider_job_id"),
   /** Provider-reported output URL on success. */
   result_url: text("result_url"),

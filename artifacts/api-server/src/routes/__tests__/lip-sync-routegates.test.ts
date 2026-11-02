@@ -27,7 +27,7 @@ describe("LatentSync switch — gates fail closed before charging", () => {
     expect(chargeIdx).toBeGreaterThan(gateIdx);
   });
 
-  it("run-all gates on the effective provider, not the Sync.so key alone", () => {
+  it("run-all gates on the effective provider, not a removed route's key alone", () => {
     const start = lipSyncSrc.indexOf('router.post("/lip-sync/run-all"');
     const slice = lipSyncSrc.slice(start, start + 1500);
     expect(slice).toMatch(/isLipSyncProviderConfigured\(getLipSyncProviderName\(\)\)/);
@@ -43,15 +43,15 @@ describe("LatentSync switch — gates fail closed before charging", () => {
   });
 });
 
-describe("stack1200 (Z3 residual) — check-provider-job reports the route it queried", () => {
-  it("both success answers carry the resolved provider for the client's recovery stamp", () => {
-    const start = lipSyncSrc.indexOf('"/lip-sync/check-provider-job/:syncJobId"');
+describe("check-provider-job reports the route it queried", () => {
+  it("the success answer carries the resolved provider for the client's recovery stamp", () => {
+    const start = lipSyncSrc.indexOf('"/lip-sync/check-provider-job/:providerJobId"');
     const end = lipSyncSrc.indexOf('"/lip-sync/check-inputs"', start);
     const handler = lipSyncSrc.slice(start, end);
-    // One `provider` field per success branch (WaveSpeed + Sync.so):
+    // One success branch remains (stack1400 removed the second route):
     // the route that actually answered for the job id, so the FE
     // recovery paths stamp truth instead of a hardcoded route name.
-    expect(handler.match(/^\s+provider,$/gm) ?? []).toHaveLength(2);
+    expect(handler.match(/^\s+provider,$/gm) ?? []).toHaveLength(1);
     // Read-only addition: the handler still refuses before querying
     // when no route resolves.
     expect(handler).toContain('code: "no_api_key"');
@@ -64,9 +64,9 @@ describe("Owner's ruling (2026-10-26) — run-all rides the same switch as the s
     const runAllEnd = lipSyncSrc.indexOf('router.post("/lip-sync/run-all"');
     const runAll = lipSyncSrc.slice(runAllStart, runAllEnd);
     // Same stamp as POST /lip-sync/preview: whatever the switch resolves
-    // (LatentSync by default; sync-3 only when explicitly selected) is
-    // what every scene of a run is created for — run-all can never drift
-    // onto a different route than the single-clip path.
+    // (the one live route, LatentSync) is what every scene of a run is
+    // created for — run-all can never drift onto a different route than
+    // the single-clip path.
     expect(runAll).toMatch(/provider: getLipSyncProviderName\(\)/);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * A-06 + A-09 (Stack-100 #3) — lip-sync money + control wiring pins.
  *
- * A-06: run-all used to enqueue paid Sync.so jobs at 0 VB per scene.
+ * A-06: run-all used to enqueue paid lip-sync jobs at 0 VB per scene.
  * processRunAll now charges LIP_SYNC_PREVIEW_CREDIT_COST per submitted
  * scene BEFORE the enqueue (same chargeCredits rail + idempotency as
  * the single-clip preview), refunds only when the enqueue itself fails,
@@ -9,8 +9,9 @@
  * (branded free / clean 400).
  *
  * A-09: the preview route no longer voids the four editor controls —
- * they are persisted into the durable job params, and the poller hands
- * the job's strength to the provider submit.
+ * they are persisted into the durable job params. (Stack1400: strength
+ * stays recorded-only — the live model exposes no strength dial, and
+ * the former route's temperature mapping was removed with that route.)
  *
  * Source pins (the route module pulls the whole provider pipeline —
  * same precedent as export-jobs-refund.test.ts Part 2).
@@ -82,9 +83,10 @@ describe("A-09 — the four controls are wired, not voided", () => {
     expect(lipSyncSrc).toMatch(/preserveArtistLook: preserveArtistLook \?\? null/);
   });
 
-  it("the poller hands the job's strength to the provider submit", () => {
+  it("the poller submits on the live route with no strength argument (the live model has no such dial)", () => {
     expect(pollerSrc).toMatch(
-      /syncLabsSubmit\(providerClipUrl, segmentUrl, apiKey, job\.params\.strength\)/,
+      /waveSpeedSubmit\(providerClipUrl, segmentUrl, apiKey\)/,
     );
+    expect(pollerSrc).not.toMatch(/job\.params\.strength/);
   });
 });

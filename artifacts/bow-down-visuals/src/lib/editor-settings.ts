@@ -603,7 +603,7 @@ export interface ClipEdit {
   lipSyncCreatedAt: string | null;
   /** Error message if lip sync failed. */
   lipSyncError: string | null;
-  /** Sync.so provider job ID — saved immediately after the job is accepted so status
+  /** Provider job ID — saved immediately after the job is accepted so status
    *  can be checked even after a local timeout or server restart. */
   lipSyncJobId: string | null;
   /** ISO timestamp when the job was submitted to the provider. */
@@ -611,7 +611,7 @@ export interface ClipEdit {
   /** When true, master player uses lipSyncUrl instead of scene.demoClipUrl. */
   useLipSync: boolean;
   /** Seconds to shift the audio extraction window forward (+) or backward (-).
-   *  Adjusts sceneStartSec/sceneEndSec sent to Sync.so for fine alignment. */
+   *  Adjusts sceneStartSec/sceneEndSec sent to the provider for fine alignment. */
   lipSyncAudioOffset: number;
   /** Marks a completed result as having been generated with incorrect audio timing.
    *  Cleared automatically when a corrected job succeeds. */

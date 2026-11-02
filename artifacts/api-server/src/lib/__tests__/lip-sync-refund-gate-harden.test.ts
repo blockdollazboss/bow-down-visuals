@@ -213,16 +213,16 @@ const { mockSubmit, mockStatus } = vi.hoisted(() => ({
   mockStatus: vi.fn(),
 }));
 
-vi.mock("../sync-labs", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("../sync-labs")>();
+vi.mock("../wavespeed", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../wavespeed")>();
   return {
     ...mod,
-    syncLabsSubmit: (...args: unknown[]) => mockSubmit(...args),
-    syncLabsStatus: (...args: unknown[]) => mockStatus(...args),
+    waveSpeedSubmit: (...args: unknown[]) => mockSubmit(...args),
+    waveSpeedStatus: (...args: unknown[]) => mockStatus(...args),
   };
 });
 
-import { SyncLabsError } from "../sync-labs";
+import { WaveSpeedError } from "../wavespeed";
 import { chargeCredits } from "../credits";
 import { __setLipSyncEventNotifier, __testHooks } from "../job-poller";
 import {
@@ -265,7 +265,7 @@ beforeEach(() => {
   h.teams = new Map();
   h.activeTeamId = null;
   h.failRestores = false;
-  process.env["LIP_SYNC_PROVIDER"] = "sync";
+  process.env["LIP_SYNC_PROVIDER"] = "latentsync";
   __testHooks.__setPrepareSubmitMedia(async () => ({
     segmentUrl: "https://x/seg.mp3",
     providerClipUrl: "https://x/clip.mp4",
@@ -330,7 +330,7 @@ describe("the claim/re-arm discipline", () => {
 
     /* The refund's restore cannot land — every profile write throws. */
     h.failRestores = true;
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
     await __testHooks.runSubmitWorker(job, "test-key");
 
     const failed = (await getLipSyncJob(job.id))!;

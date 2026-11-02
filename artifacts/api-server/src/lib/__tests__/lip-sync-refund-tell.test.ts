@@ -203,16 +203,16 @@ const { mockSubmit, mockStatus } = vi.hoisted(() => ({
   mockStatus: vi.fn(),
 }));
 
-vi.mock("../sync-labs", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("../sync-labs")>();
+vi.mock("../wavespeed", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../wavespeed")>();
   return {
     ...mod,
-    syncLabsSubmit: (...args: unknown[]) => mockSubmit(...args),
-    syncLabsStatus: (...args: unknown[]) => mockStatus(...args),
+    waveSpeedSubmit: (...args: unknown[]) => mockSubmit(...args),
+    waveSpeedStatus: (...args: unknown[]) => mockStatus(...args),
   };
 });
 
-import { SyncLabsError } from "../sync-labs";
+import { WaveSpeedError } from "../wavespeed";
 import { chargeCredits } from "../credits";
 import {
   __setLipSyncEventNotifier,
@@ -256,7 +256,7 @@ beforeEach(() => {
   h.teams = new Map();
   h.activeTeamId = null;
   h.failRestores = false;
-  process.env["LIP_SYNC_PROVIDER"] = "sync";
+  process.env["LIP_SYNC_PROVIDER"] = "latentsync";
   __testHooks.__setPrepareSubmitMedia(async () => ({
     segmentUrl: "https://x/seg.mp3",
     providerClipUrl: "https://x/clip.mp4",
@@ -308,7 +308,7 @@ describe("the failure tell carries the refund verdict", () => {
   it("submit rejected permanently: notification + door event both state the refund and its amount", async () => {
     const userId = randomUUID();
     const job = await chargedJob(userId);
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
 
     await __testHooks.runSubmitWorker(job, "test-key");
 
@@ -345,7 +345,7 @@ describe("the failure tell carries the refund verdict", () => {
   it("exactly-once: replaying the failure path adds no second tell and no second refund", async () => {
     const userId = randomUUID();
     const job = await chargedJob(userId);
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
 
     await __testHooks.runSubmitWorker(job, "test-key");
     await __testHooks.runSubmitWorker(job, "test-key");
@@ -365,7 +365,7 @@ describe("the failure tell carries the refund verdict", () => {
     expect(await claimLipSyncChargeRefund(job.id)).toBe(true);
     expect(refundRows()).toHaveLength(0);
 
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
     await __testHooks.runSubmitWorker(job, "test-key");
 
     const notes = await listPendingNotifications();
@@ -384,7 +384,7 @@ describe("the failure tell carries the refund verdict", () => {
        cannot land, so refundCredits rejects and the tell must stay
        silent about a refund that didn't happen. */
     h.failRestores = true;
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
 
     await __testHooks.runSubmitWorker(job, "test-key");
 
@@ -416,10 +416,12 @@ describe("client job shape + wiring pins", () => {
 
   it("every failure tell the poller records is composed through lipSyncFailureNotice", () => {
     const tells = pollerSrc.match(/recordLipSyncOutcome\(job, "failed", "Lip sync failed", [^;]*?\)\)/gs) ?? [];
-    /* Five live failure paths + the boot-recovery pass
+    /* Three live failure paths + the boot-recovery pass
        (refundRecoveredFailures) — every one composes through the
-       helper, so no bare failure message can creep back in. */
-    expect(tells.length).toBe(6);
+       helper, so no bare failure message can creep back in.
+       (Stack1400: the removed premium route's two extra failure
+       tells were deleted with that route.) */
+    expect(tells.length).toBe(4);
     for (const tell of tells) {
       expect(tell).toContain("lipSyncFailureNotice(");
     }

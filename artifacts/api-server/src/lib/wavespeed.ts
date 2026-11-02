@@ -4,11 +4,10 @@ import { logger } from "./logger";
  * WaveSpeed lip-sync provider client — the LatentSync route.
  *
  * Owner's verdict (2026-10-24, judged twice against timed lyrics):
- * LatentSync via WaveSpeed is CLEAN; the incumbent direct Sync.so route
- * is the glitchy one. LatentSync is therefore the DEFAULT lip-sync route
- * behind the LIP_SYNC_PROVIDER switch (see lib/sync-labs.ts
- * getLipSyncProviderName); the direct Sync.so route remains available as
- * the premium upsell (LIP_SYNC_PROVIDER=sync).
+ * LatentSync via WaveSpeed is CLEAN. LatentSync is therefore the
+ * lip-sync route (see lib/lip-sync-core.ts getLipSyncProviderName).
+ * It is the ONLY route: the former premium direct route was removed
+ * in stack1400 when the owner deleted that provider account.
  *
  * API shape (verified 2026-10-24 through the custom.wavespeed connector
  * helper, same account): base https://api.wavespeed.ai/api/v3, Bearer

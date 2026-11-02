@@ -165,7 +165,7 @@ const server = app.listen(port, (err) => {
   // restart or a second instance can never double-email a fan.
   startEmailAutomationSweeper();
 
-  // Server-owned background poller: drives lip-sync jobs through Sync.so's
+  // Server-owned background poller: drives lip-sync jobs through the provider's
   // long runs and raises exactly-once completion notifications — no tab needed.
   startJobPoller();
 

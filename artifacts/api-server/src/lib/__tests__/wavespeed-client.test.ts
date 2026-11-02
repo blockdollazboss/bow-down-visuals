@@ -22,7 +22,7 @@ import {
   waveSpeedStatus,
   waveSpeedSubmit,
 } from "../wavespeed";
-import { buildResolutionMeta } from "../sync-labs";
+import { buildResolutionMeta } from "../lip-sync-core";
 
 const fetchMock = vi.fn();
 

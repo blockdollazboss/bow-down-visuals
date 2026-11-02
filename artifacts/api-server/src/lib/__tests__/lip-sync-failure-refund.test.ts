@@ -206,17 +206,17 @@ const { mockSubmit, mockStatus } = vi.hoisted(() => ({
   mockStatus: vi.fn(),
 }));
 
-vi.mock("../sync-labs", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("../sync-labs")>();
+vi.mock("../wavespeed", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../wavespeed")>();
   return {
     ...mod,
-    syncLabsSubmit: (...args: unknown[]) => mockSubmit(...args),
-    syncLabsStatus: (...args: unknown[]) => mockStatus(...args),
+    waveSpeedSubmit: (...args: unknown[]) => mockSubmit(...args),
+    waveSpeedStatus: (...args: unknown[]) => mockStatus(...args),
   };
 });
 
 import { readFileSync } from "node:fs";
-import { SyncLabsError } from "../sync-labs";
+import { WaveSpeedError } from "../wavespeed";
 import { chargeCredits } from "../credits";
 import { __setLipSyncEventNotifier, __testHooks } from "../job-poller";
 import {
@@ -251,9 +251,8 @@ beforeEach(() => {
   h.ledger = [];
   h.teams = new Map();
   h.activeTeamId = null;
-  /* The Sync.so submit path, same as job-poller-submit.test.ts: the
-     operator switch selects the premium route this suite simulates. */
-  process.env["LIP_SYNC_PROVIDER"] = "sync";
+  /* The live LatentSync route: the operator switch selects it. */
+  process.env["LIP_SYNC_PROVIDER"] = "latentsync";
   __testHooks.__setPrepareSubmitMedia(async () => ({
     segmentUrl: "https://x/seg.mp3",
     providerClipUrl: "https://x/clip.mp4",
@@ -315,7 +314,7 @@ describe("lip-sync generation failure refunds the up-front charge", () => {
     expect(h.profile.bonus_credits).toBe(0);
     expect(h.profile.credits).toBe(1_000);
 
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
     await __testHooks.runSubmitWorker(job, "test-key");
 
     const failed = (await getLipSyncJob(job.id))!;
@@ -330,7 +329,7 @@ describe("lip-sync generation failure refunds the up-front charge", () => {
   it("exactly-once: replaying the failure path refunds nothing more", async () => {
     const userId = randomUUID();
     const job = await chargedJob(userId);
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
 
     await __testHooks.runSubmitWorker(job, "test-key");
     expect(h.profile.credits + h.profile.bonus_credits).toBe(1_300);
@@ -368,7 +367,7 @@ describe("lip-sync generation failure refunds the up-front charge", () => {
        (the ledger keeps the expiry recorded at charge time). */
     h.ledger[0]!.bonusExpiresAt = past();
 
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
     await __testHooks.runSubmitWorker(job, "test-key");
 
     /* Total preserved — 1,300 all permanent, nothing in a dead pool. */
@@ -387,7 +386,7 @@ describe("lip-sync generation failure refunds the up-front charge", () => {
     expect(h.teams.get("team-1")).toBe(200);
     expect(h.profile.credits).toBe(1_000);
 
-    mockSubmit.mockRejectedValue(new SyncLabsError("Sync Labs submit failed: HTTP 422 — bad payload", 422));
+    mockSubmit.mockRejectedValue(new WaveSpeedError("WaveSpeed submit failed: HTTP 422 — bad payload", 422));
     await __testHooks.runSubmitWorker(job, "test-key");
 
     expect(h.teams.get("team-1")).toBe(500);

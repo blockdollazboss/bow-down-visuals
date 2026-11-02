@@ -690,10 +690,10 @@ export function LipSyncStudio({
                 </li>
                 <li>
                   <span className="font-bold text-amber-100">
-                    Sync Labs per-second fees
+                    Provider per-second fees
                   </span>{" "}
-                  (~$0.05/sec of video) billed to the connected Sync Labs
-                  account for each lip-synced scene.
+                  (~$0.03/sec of video) billed to the connected lip-sync
+                  provider account for each lip-synced scene.
                 </li>
               </ul>
               <div className="flex gap-2 pt-1">

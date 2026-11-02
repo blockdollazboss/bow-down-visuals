@@ -10,9 +10,9 @@ describe("lipSyncProviderLabel (board item 60: no raw provider ids in the editor
     expect(lipSyncProviderLabel("LatentSync")).toBe("Lip Sync");
     expect(lipSyncProviderLabel(" latent-sync ")).toBe("Lip Sync");
   });
-  it("maps the sync family to Sync", () => {
-    expect(lipSyncProviderLabel("sync")).toBe("Sync");
-    expect(lipSyncProviderLabel("sync.so")).toBe("Sync");
+  it("maps the removed route's family to the generic Lip Sync label — its name never renders (stack1400)", () => {
+    expect(lipSyncProviderLabel("sync")).toBe("Lip Sync");
+    expect(lipSyncProviderLabel("sync.so")).toBe("Lip Sync");
   });
   it("falls back honestly for empty values", () => {
     expect(lipSyncProviderLabel(null)).toBe("Lip Sync");

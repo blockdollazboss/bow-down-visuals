@@ -34,11 +34,12 @@ function dims(w: unknown, h: unknown): string | null {
 
 /**
  * Canonical lip-sync provider id, or null when the value does not name
- * a known route. Mirrors the server's normalizeLipSyncProvider
- * (api-server lib/sync-labs.ts): the recorded route ids are a closed
- * set ("latentsync" | "sync"); legacy aliases ("sync.so", "wavespeed",
- * …) canonicalize to them. Anything else is UNKNOWN — null, never
- * passed through and never guessed (stack1200, Z3 residual).
+ * the one live route. Mirrors the server's normalizeLipSyncProvider
+ * (api-server lib/lip-sync-core.ts): the only recorded route id is
+ * "latentsync"; its aliases ("wavespeed", …) canonicalize to it.
+ * Legacy values naming the removed route (stack1400 — that provider
+ * account was deleted) are UNKNOWN here — null, never passed through
+ * and never guessed.
  */
 export function normalizeLipSyncProviderId(
   raw: string | null | undefined,
@@ -49,11 +50,6 @@ export function normalizeLipSyncProviderId(
     case "latent-sync":
     case "latent_sync":
       return "latentsync";
-    case "sync":
-    case "sync-labs":
-    case "synclabs":
-    case "sync.so":
-      return "sync";
     default:
       return null;
   }
@@ -95,13 +91,6 @@ export function lipSyncProviderLabel(provider: string | null | undefined): strin
     case "latent-sync":
     case "latent_sync":
       return "Lip Sync";
-    case "sync":
-    case "sync.so":
-    case "synclabs":
-    case "sync-labs":
-      return "Sync";
-    case "wavespeed":
-      return "WaveSpeed";
     case "hedra":
       return "Hedra";
     case "heygen":

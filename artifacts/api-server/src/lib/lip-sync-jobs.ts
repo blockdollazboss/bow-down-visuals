@@ -10,13 +10,13 @@ import { logger } from "./logger";
  *
  * Lip-sync jobs used to live in a module-level Map inside the lip-sync
  * route. Every backend restart, redeploy, or crash wiped in-flight jobs —
- * and because Sync.so generations run 25–40+ minutes, the browser tab had
+ * and because lip-sync generations can run for many minutes, the browser tab had
  * to stay open polling or the job was lost. Job records now live in the
  * `lip_sync_jobs` table (created via drizzle-kit push on boot):
  *
  * - POST /lip-sync/preview inserts a `queued` row and returns immediately;
  * - the background poller (lib/job-poller.ts) claims queued rows,
- *   submits them to Sync.so, then polls the provider on a backoff
+ *   submits them to the lip-sync provider, then polls it on a backoff
  *   schedule until completion or failure — no tab required;
  * - jobs left in `submitting` by a dead process are re-queued on boot,
  *   jobs in `polling` keep their provider_job_id and polling resumes;
@@ -47,10 +47,11 @@ interface LipSyncJobParams {
      - audioSourceType: already honored client-side — the submitted
        audioUrl IS the chosen stem (vocal stem vs full mix); recorded
        here as the job's provenance.
-     - strength: reaches the provider call as options.temperature via
-       the poller (see lib/sync-labs.ts lipSyncTemperatureForStrength).
-     - preserveFaceIdentity / preserveArtistLook: Sync.so exposes no
-       such options on any model — sync-3 preserves identity and look
+     - strength: recorded as the creator's intent — the live model
+       exposes no strength dial to send (stack1400 removed the former
+       route's temperature mapping with that route).
+     - preserveFaceIdentity / preserveArtistLook: the live model
+       exposes no such options — it preserves identity and look
        intrinsically. Recorded as the creator's stated intent; the UI
        labels them honestly as always-on. */
   audioSourceType?: string | null;
@@ -409,7 +410,7 @@ export async function deferSubmitJob(
   const nextAttemptAt = new Date(Date.now() + Math.max(backoffMs, 0)).toISOString();
   const timeoutError: LipSyncJobError = timeoutErrorOverride ?? {
     message:
-      "Sync.so was at its plan concurrency limit for ~24 hours and the job was not submitted. Try again later or upgrade the Sync.so plan.",
+      "The lip-sync provider was at its concurrency limit for ~24 hours and the job was not submitted. Try again later.",
     code: "provider_busy_timeout",
   };
   const res = await db().execute(sql`

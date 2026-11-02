@@ -6,71 +6,65 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import { getSupabaseAdmin } from "./supabase-admin";
-import { logger } from "./logger";
 import { r2Upload, r2GetSignedUrl, isR2Configured } from "./r2-client";
 import { getWaveSpeedApiKey } from "./wavespeed";
 
 const execFileAsync = promisify(execFile);
 
 /**
- * Sync.so lip-sync provider client + server-side media preparation.
+ * Lip-sync shared core: provider resolution + server-side media
+ * preparation.
  *
  * Moved out of routes/lip-sync.ts so both the HTTP routes and the
  * server-owned background job poller (lib/job-poller.ts) share one
- * implementation. Nothing here touches Express — it is pure provider I/O.
+ * implementation. Nothing here touches Express — it is pure provider
+ * I/O and media prep.
+ *
+ * THE ONLY LIP-SYNC ROUTE (stack1400, owner's account closure
+ * 2026-11-02): LatentSync via WaveSpeed. The former premium direct
+ * route was removed entirely when the owner deleted that
+ * provider account — its key env vars, its model name, its submit /
+ * status client and its provider-selection spellings are gone, and
+ * nothing in this file (or anywhere in the site code) can select it
+ * again. See lib/__tests__/lip-sync-provider.test.ts, which pins that
+ * the removed route can no longer be selected by env, by key
+ * presence, or by a job's stored provider value.
  */
-/* ── Server-side secrets (never sent to the browser) ── */
-/* Key resolution: prefer LIP_SYNC_API_KEY; fall back to SYNC_LABS_API_KEY so
-   the app works whichever variable name was added to the environment. */
-function rawKeys() {
-  return {
-    primary: process.env["LIP_SYNC_API_KEY"],
-    fallback: process.env["SYNC_LABS_API_KEY"],
-  };
-}
-
-/** Resolved Sync.so API key, or null when none is configured. */
-export function getLipSyncApiKey(): string | null {
-  const { primary, fallback } = rawKeys();
-  return primary ?? fallback ?? null;
-}
-
-/** Which env var supplied the active key (for diagnostics; never the key itself). */
-export function getActiveKeyVar(): string | null {
-  const { primary, fallback } = rawKeys();
-  return primary ? "LIP_SYNC_API_KEY" : fallback ? "SYNC_LABS_API_KEY" : null;
-}
-
-export function hasMultipleKeys(): boolean {
-  const { primary, fallback } = rawKeys();
-  return !!(primary && fallback);
-}
-
-export function isLipSyncServerKeyFound(): boolean {
-  const key = getLipSyncApiKey();
-  return !!(key && key.length > 0);
-}
 
 /* ── Provider switch ─────────────────────────────────────────────────────
-   Two routes sit behind LIP_SYNC_PROVIDER (owner's verdict, 2026-10-24,
-   judged twice against timed lyrics; owner's ruling, 2026-10-26):
+   One route exists: "latentsync" (LatentSync via WaveSpeed).
 
-   - "latentsync" — LatentSync via WaveSpeed. The DEFAULT route: it is
-     what new jobs use whenever its key is configured.
-   - "sync" — the direct Sync.so route (sync-3). PREMIUM-ONLY: it is
-     reached only by explicit selection (LIP_SYNC_PROVIDER=sync), never
-     by default and never by key-detection fallback. An earlier
-     resolution fell back to "sync" when only the Sync.so key existed —
-     that made the premium model the site-wide default whenever the
-     WaveSpeed key was absent, at several times the per-second cost;
-     the fallback is removed. With no explicit selection and no
-     WaveSpeed key, the switch resolves to null.
+   Resolution rules:
+   - An explicit LIP_SYNC_PROVIDER naming the live route selects it.
+   - An explicit value naming anything else — including every
+     spelling of the removed premium route — resolves to null (fail
+     closed: routes answer 503 provider_not_connected, jobs stay
+     queued / fail honestly) rather than silently rerouting or, worse,
+     calling a closed account.
+   - Unset → "latentsync" when the WaveSpeed key is configured, else
+     null (nothing connected).
+   - The removed route's old key env vars are never read: their
+     presence alone can never select or configure a route. */
+export type LipSyncProviderId = "latentsync";
 
-   An explicit value wins over key detection. An UNRECOGNIZED explicit
-   value resolves to null (fail closed — the routes answer 503
-   provider_not_connected) rather than silently routing jobs somewhere
-   nobody chose. */
-export type LipSyncProviderId = "latentsync" | "sync";
+/** Spellings of the removed premium route, kept ONLY so stored job
+ *  params and stale env values can be recognised and refused — never
+ *  routed. */
+const REMOVED_PROVIDER_SPELLINGS = new Set([
+  "sync",
+  "sync-labs",
+  "synclabs",
+  "sync.so",
+  "sync-3",
+  "sync3",
+]);
+
+/** True when a raw provider value names the removed premium route. */
+export function isRemovedLipSyncProvider(
+  raw: string | null | undefined,
+): boolean {
+  return REMOVED_PROVIDER_SPELLINGS.has((raw ?? "").toLowerCase().trim());
+}
 
 /** Normalize a raw provider string (env value or a job's stored params). */
 export function normalizeLipSyncProvider(
@@ -82,22 +76,15 @@ export function normalizeLipSyncProvider(
     case "latent-sync":
     case "latent_sync":
       return "latentsync";
-    case "sync":
-    case "sync-labs":
-    case "synclabs":
-    case "sync.so":
-      return "sync";
     default:
       return null;
   }
 }
 
 /**
- * Effective provider name: explicit LIP_SYNC_PROVIDER wins; otherwise
- * LatentSync when the WaveSpeed key is configured, else null (nothing
- * connected). The Sync.so key alone NEVER promotes the premium route
- * to the default — sync-3 serves a job only when it was explicitly
- * selected (owner's ruling, 2026-10-26).
+ * Effective provider name: the live route when it is explicitly
+ * selected or when its key is configured; null otherwise — including
+ * when the removed route is explicitly requested.
  */
 export function getLipSyncProviderName(): LipSyncProviderId | null {
   const explicit = (process.env["LIP_SYNC_PROVIDER"] ?? "").toLowerCase().trim();
@@ -106,97 +93,21 @@ export function getLipSyncProviderName(): LipSyncProviderId | null {
   return null;
 }
 
-/** Is the given provider's server key configured? */
+/** Is the given provider's server key configured? Only the live route exists. */
 export function isLipSyncProviderConfigured(
   provider: LipSyncProviderId | null | undefined,
 ): boolean {
   if (provider === "latentsync") return getWaveSpeedApiKey() !== null;
-  if (provider === "sync") return isLipSyncServerKeyFound();
   return false;
 }
 
 const SIDECAR = "http://127.0.0.1:1106";
 
-/** Sync Labs plan limit in seconds — Hobbyist plan (upgraded 2026-09-24). */
+/** Provider plan limit in seconds for the live lip-sync route. */
 export const PROVIDER_LIMIT_SEC = 60;
 
 /** Supabase storage bucket for temporary lip-sync audio segments (exported for tests) */
 export const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
-
-/* ── Sync Labs ────────────────────────────────────────────────────────────── */
-const SYNC_LABS_BASE = process.env["SYNC_LABS_BASE_URL"] ?? "https://api.sync.so/v2";
-
-/** Sync.so API base URL (overridable via SYNC_LABS_BASE_URL for staging/tests). */
-export function getSyncLabsBase(): string {
-  return SYNC_LABS_BASE;
-}
-// Upgraded 2026-09-24: sync-1.9.0-beta produced poor lip-sync on song audio.
-// sync-3 is the current-gen model (won the 2026-09-24 A/B, same input shape);
-// override via env if needed.
-export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "sync-3";
-const SYNC_POLL_INTERVAL_MS = 5_000;
-const SYNC_MAX_POLLS = 144; // 144 × 5s = 12 minutes max — provider queues can be slow; the client recovers directly past this
-
-interface SyncLabsJob {
-  id: string;
-  /** Raw provider status — Sync.so reports COMPLETED in uppercase. */
-  status: string;
-  outputUrl?: string;
-  error?: string;
-}
-
-/**
- * Typed provider error: carries the HTTP status so callers can distinguish
- * transient rejections (429 / plan-concurrency limit — wait and retry) from
- * permanent ones (422 validation, 401 auth — fail fast). Message text is
- * kept identical to the old plain-Error strings.
- */
-export class SyncLabsError extends Error {
-  readonly status: number | null;
-  constructor(message: string, status: number | null = null) {
-    super(message);
-    this.name = "SyncLabsError";
-    this.status = status;
-  }
-}
-
-/** How a submit failure should be treated by the background poller. */
-type SubmitErrorKind =
-  /** 429 / plan-concurrency / 5xx: wait with long backoff, don't burn attempts. */
-  | "transient"
-  /** Network timeout / DNS / reset: may not have reached the provider; re-queue normally. */
-  | "transport"
-  /** 4xx (other than 429), validation, auth: fail the job immediately. */
-  | "permanent";
-
-const TRANSIENT_MESSAGE_RE =
-  /concurren|plan.{0,24}limit|rate.?limit|too many|capacity|overloaded|temporar|try again|busy|throttl/i;
-
-/**
- * Classify a syncLabsSubmit failure. Transient rejections (the Sync.so plan
- * only allows N concurrent generations — exactly what blocks submits for
- * 25–40 min while slots free up) must back off for minutes, not burn all
- * submit attempts in ~2 minutes.
- */
-export function classifySubmitError(err: unknown): SubmitErrorKind {
-  const status = err instanceof SyncLabsError ? err.status : null;
-  const message = err instanceof Error ? err.message : String(err ?? "");
-  if (
-    status === 429 ||
-    status === 502 ||
-    status === 503 ||
-    status === 504 ||
-    TRANSIENT_MESSAGE_RE.test(message)
-  ) {
-    return "transient";
-  }
-  if (status !== null && status >= 400) return "permanent";
-  // A SyncLabsError means the provider answered (or failed in a
-  // provider-shaped way). Anything not explicitly transient is
-  // deterministic — retrying the identical request won't help.
-  if (err instanceof SyncLabsError) return "permanent";
-  return "transport"; // network timeouts, DNS, connection resets — may not have reached the provider
-}
 
 /** Transient submit backoff schedule: 5 → 10 → 20 → 40 min (capped). */
 export function submitDeferralBackoffMs(deferrals: number): number {
@@ -206,123 +117,6 @@ export function submitDeferralBackoffMs(deferrals: number): number {
 
 /** Consecutive transient deferrals before the job fails (~24h at the capped backoff). */
 export const MAX_SUBMIT_DEFERRALS = 36;
-
-/** Normalized provider status: "pending" | "processing" | "completed" | "failed". */
-export function normalizeProviderStatus(job: SyncLabsJob): string {
-  return String(job.status ?? "").toLowerCase();
-}
-
-/**
- * Fields removed from the Sync Labs payload because they are not part of
- * the v2 API schema. Kept here so /check-inputs can report them to the UI.
- */
-export const SYNC_LABS_REMOVED_FIELDS = ["synergize", "pads"] as const;
-
-/**
- * A-09 (Stack-100 #3): the editor's lip-sync Strength control
- * (low / medium / high) maps to Sync.so's documented generation option
- * `options.temperature` — "controls how expressive lipsync can be;
- * 0 is least expressive, 1 is most expressive" (Sync.so v2 schema).
- * Unknown/absent strength sends no options at all, keeping the payload
- * byte-identical to before.
- *
- * Provider truth (Sync.so's own sync-3 option schema): sync-3 "handles
- * this natively, so this option is ignored by sync-3" — the field IS
- * honored by lipsync-2, the env-switchable fallback model. The value
- * reaches the provider call either way, and the editor labels the
- * control accordingly rather than pretending sync-3 exposes the dial.
- */
-export function lipSyncTemperatureForStrength(
-  strength: string | null | undefined,
-): number | null {
-  switch ((strength ?? "").toLowerCase().trim()) {
-    case "low":
-      return 0.25;
-    case "medium":
-      return 0.5;
-    case "high":
-      return 0.85;
-    default:
-      return null;
-  }
-}
-
-/** Build and log the sanitized Sync Labs payload (never logs the API key). */
-export function buildSyncLabsPayload(
-  clipUrl: string,
-  audioUrl: string,
-  strength?: string | null,
-) {
-  const temperature = lipSyncTemperatureForStrength(strength);
-  return {
-    model: SYNC_LABS_MODEL,
-    input: [
-      { type: "video", url: clipUrl },
-      { type: "audio", url: audioUrl },
-    ],
-    // NOTE: the only "options" field ever sent is `temperature` (above),
-    // which IS part of the Sync Labs v2 schema. The previously-sent
-    // fields (synergize, pads) are not part of the v2 API and caused
-    // HTTP 422 — they stay removed (SYNC_LABS_REMOVED_FIELDS).
-    ...(temperature !== null ? { options: { temperature } } : {}),
-  };
-}
-
-export async function syncLabsSubmit(
-  clipUrl: string,
-  audioUrl: string,
-  apiKey: string,
-  strength?: string | null,
-): Promise<string> {
-  const payload = buildSyncLabsPayload(clipUrl, audioUrl, strength);
-
-  // Log the sanitized payload (keys only — no API key, no full URLs in prod)
-  const payloadKeys = [
-    "model",
-    ...payload.input.map((i) => `input[${i.type}]`),
-    ...("options" in payload ? ["options.temperature"] : []),
-  ];
-  logger.info("[lip-sync] Sync Labs payload keys: %s", payloadKeys.join(", "));
-  logger.info("[lip-sync] Removed fields: %s", SYNC_LABS_REMOVED_FIELDS.join(", "));
-
-  const res = await fetch(`${SYNC_LABS_BASE}/generate`, {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new SyncLabsError(
-      `Sync Labs submit failed: HTTP ${res.status} — ${body.slice(0, 400)}`,
-      res.status,
-    );
-  }
-  const data = (await res.json()) as { id?: string };
-  if (!data.id) throw new Error("Sync Labs returned no job ID.");
-  return data.id;
-}
-
-/**
- * Single-shot provider status check for one Sync.so job.
- * The background poller calls this on its backoff schedule — unlike the old
- * blocking poll loop, no request or tab ever waits on a 25–40 minute run.
- */
-export async function syncLabsStatus(jobId: string, apiKey: string): Promise<SyncLabsJob> {
-  const res = await fetch(`${SYNC_LABS_BASE}/generate/${jobId}`, {
-    headers: { "x-api-key": apiKey },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new SyncLabsError(
-      `Sync Labs status check failed: HTTP ${res.status} — ${text.slice(0, 300)}`,
-      res.status,
-    );
-  }
-  return (await res.json()) as SyncLabsJob;
-}
 
 /* ── URL type detection ──────────────────────────────────────────────────── */
 export type UrlType =
@@ -514,7 +308,7 @@ export async function uploadAudioToSupabase(
   contentType = "audio/mpeg",
 ): Promise<string> {
   /* R2 first with namespaced key (lip-sync-temp/<objectName>), signed URL
-     with the same 2-hour TTL the sync.so provider expects. Supabase is the
+     with a 2-hour TTL the lip-sync provider expects. Supabase is the
      fallback only when R2 is not configured. */
   const r2Key = `${LIP_SYNC_AUDIO_BUCKET}/${objectName}`;
   if (isR2Configured()) {
@@ -611,7 +405,7 @@ export async function trimAndUploadAudioSegment(
     /* 2. Trim with FFmpeg
        IMPORTANT: `timeout` is required here — without it a stalled/hung ffmpeg
        process (e.g. on a corrupt or unusual input) blocks this await forever,
-       which leaves the job permanently "processing" with no syncLabsJobId to
+       which leaves the job permanently "processing" with no provider job id to
        check, and the client's Check-Job-Status button stays disabled with no
        way to recover except abandoning the job. */
     let ffmpegStderr = "";

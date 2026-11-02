@@ -13,8 +13,9 @@
  *  - an answered 429/5xx defers on the shared backoff, attempts intact;
  *  - completion records resolution metadata (probe-unknown stays null —
  *    stated, not hidden) and mirrors the output like every other route;
- *  - the tick claims only jobs whose own provider is configured: a sync
- *    job with no Sync.so key stays queued and untouched.
+ *  - the tick claims a QUEUED job stored with the removed route and
+ *    runs it on the live route (stack1400: it was never submitted to
+ *    the closed account, so it is never stranded on a dead route).
  */
 import { randomUUID } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,13 +24,14 @@ import {
   __setLipSyncJobsDb,
   claimQueuedJobs,
   createLipSyncJob,
+  deferSubmitJob,
   getLipSyncJob,
   markJobSubmitted,
   mergeLipSyncJobResultMeta,
   type LipSyncJob,
 } from "../lip-sync-jobs";
 import { __setJobNotificationsDb, listPendingNotifications } from "../job-notifications";
-import { createTestDb } from "./test-db";
+import { claimWhenDue, createTestDb } from "./test-db";
 
 const { mockWsSubmit, mockWsStatus } = vi.hoisted(() => ({
   mockWsSubmit: vi.fn(),
@@ -60,7 +62,7 @@ const PARAMS = {
   provider: "latentsync",
 };
 
-const ENV_KEYS = ["WAVESPEED_API_KEY", "LIP_SYNC_API_KEY", "SYNC_LABS_API_KEY", "LIP_SYNC_PROVIDER"] as const;
+const ENV_KEYS = ["WAVESPEED_API_KEY", "LIP_SYNC_PROVIDER"] as const;
 let savedEnv: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -220,7 +222,7 @@ describe("pollOneJob — WaveSpeed route", () => {
     expect(pending[0].status).toBe("completed");
   });
 
-  it("a provider-reported failure is terminal with the WaveSpeed name on it", async () => {
+  it("a provider-reported failure is terminal with the generic Lip Sync name on it (no provider brand in member copy)", async () => {
     mockWsStatus.mockResolvedValue({ status: "failed", error: "model exploded" });
     const job = await pollingJob();
 
@@ -229,7 +231,7 @@ describe("pollOneJob — WaveSpeed route", () => {
     const failed = (await getLipSyncJob(job.id))!;
     expect(failed.state).toBe("failed");
     expect(failed.error?.code).toBe("provider_failed");
-    expect(failed.error?.message).toContain("WaveSpeed reported the generation failed");
+    expect(failed.error?.message).toContain("Lip Sync reported the generation failed");
     expect(mockWsStatus).toHaveBeenCalledTimes(1); // no silent re-polls of a terminal state
   });
 
@@ -247,14 +249,14 @@ describe("pollOneJob — WaveSpeed route", () => {
   });
 });
 
-describe("submit phase — per-provider claiming", () => {
+describe("submit phase — claiming after the sync-3 strip", () => {
   it(
-    "the tick submits the latentsync job and leaves the unconfigured sync job queued and untouched",
+    "the tick submits the latentsync job, and a QUEUED job stored with the removed route runs on the live route too",
     async () => {
       process.env["WAVESPEED_API_KEY"] = "ws-key";
       mockWsSubmit.mockResolvedValue("pred-tick");
       const wsJob = await createLipSyncJob({ userId: randomUUID(), params: PARAMS as LipSyncJob["params"] });
-      const syncJob = await createLipSyncJob({
+      const legacyJob = await createLipSyncJob({
         userId: randomUUID(),
         params: { ...PARAMS, provider: "sync" } as LipSyncJob["params"],
       });
@@ -264,10 +266,33 @@ describe("submit phase — per-provider claiming", () => {
       const wsAfter = (await getLipSyncJob(wsJob.id))!;
       expect(wsAfter.state).toBe("polling");
       expect(wsAfter.providerJobId).toBe("pred-tick");
-      const syncAfter = (await getLipSyncJob(syncJob.id))!;
-      expect(syncAfter.state).toBe("queued");
-      expect(syncAfter.attempts).toBe(0); // never claimed, never burned
+      // The legacy job was QUEUED — never submitted to the closed
+      // account — so the live route picks it up instead of stranding it.
+      const legacyAfter = (await getLipSyncJob(legacyJob.id))!;
+      expect(legacyAfter.state).toBe("polling");
+      expect(legacyAfter.providerJobId).toBe("pred-tick");
+      expect(legacyAfter.resultMeta).toMatchObject({ provider: "latentsync" });
     },
     60_000,
   );
+
+  it("deferring a transient submit past the cap fails the job with provider_busy_timeout and one ping", async () => {
+    mockWsSubmit.mockRejectedValue(
+      new WaveSpeedError("WaveSpeed submit failed: HTTP 429 — busy", 429),
+    );
+    const job = await claimedJob(); // submitting, deferrals = 0
+    // Burn 35 deferrals first; the worker's defer is the 36th → terminal.
+    for (let i = 0; i < 35; i++) {
+      const r = await deferSubmitJob(job.id, 0, 36);
+      expect(r!.failed).toBe(false);
+      await claimWhenDue(() => claimQueuedJobs(1).then((rows) => rows[0]));
+    }
+    const current = (await getLipSyncJob(job.id))!;
+    await __testHooks.runSubmitWorker(current, "ws-key");
+
+    const failed = (await getLipSyncJob(job.id))!;
+    expect(failed.state).toBe("failed");
+    expect(failed.error?.code).toBe("provider_busy_timeout");
+    expect(await listPendingNotifications()).toHaveLength(1);
+  });
 });

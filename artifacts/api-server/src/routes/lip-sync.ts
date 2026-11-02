@@ -13,31 +13,23 @@ import { freeExpensiveAiLimiter } from "../lib/rate-limit";
 import { objectStorageClient } from "../lib/objectStorage";
 import {
   PROVIDER_LIMIT_SEC,
-  SYNC_LABS_MODEL,
-  SYNC_LABS_REMOVED_FIELDS,
   buildResolutionMeta,
   detectUrlType,
-  getActiveKeyVar,
-  getLipSyncApiKey,
   getLipSyncProviderName,
-  getSyncLabsBase,
-  hasMultipleKeys,
   isLipSyncProviderConfigured,
   normalizeLipSyncProvider,
-  normalizeProviderStatus,
   probeUrl,
   probeVideoDimensions,
   signGetUrl,
-  syncLabsStatus,
   uploadAudioToSupabase,
-} from "../lib/sync-labs";
+} from "../lib/lip-sync-core";
 import {
   getLatentSyncModel,
   getWaveSpeedApiKey,
   normalizeWaveSpeedStatus,
   waveSpeedStatus,
 } from "../lib/wavespeed";
-import type { UrlType } from "../lib/sync-labs";
+import type { UrlType } from "../lib/lip-sync-core";
 import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, LIP_SYNC_JOB_CHARGE_CREDITS, type LipSyncJob } from "../lib/lip-sync-jobs";
 import {
   chargeCredits,
@@ -71,7 +63,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-/** Replit object-storage bucket id for vocal stems (media prep moved to lib/sync-labs). */
+/** Replit object-storage bucket id for vocal stems (media prep moved to lib/lip-sync-core). */
 const STEM_BUCKET = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
 
 /* ── Client-facing shape for a durable lip-sync job ──────────────────────
@@ -113,7 +105,7 @@ function toClientLipSyncJob(job: LipSyncJob) {
     chargeRefunded: job.chargeRefunded,
     ...(job.chargeRefunded ? { refundedCredits: LIP_SYNC_JOB_CHARGE_CREDITS } : {}),
     durationSec: Number.isFinite(durationSec) ? durationSec : undefined,
-    syncLabsJobId: job.providerJobId ?? undefined,
+    providerJobId: job.providerJobId ?? undefined,
     createdAt: new Date(job.createdAt).toISOString(),
     updatedAt: new Date(job.updatedAt).toISOString(),
   };
@@ -136,10 +128,8 @@ router.get("/lip-sync/status", (_req, res) => {
   const missingKeyMessage = connected
     ? null
     : providerName === "latentsync"
-      ? "WaveSpeed API key missing. Add WAVESPEED_API_KEY in the server environment."
-      : providerName === "sync"
-        ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in the server environment."
-        : "Lip Sync provider not connected. Add WAVESPEED_API_KEY for the default Lip Sync route in the server environment. (The premium Sync route never serves by default — it is selected explicitly with LIP_SYNC_PROVIDER=sync.)";
+      ? "Lip Sync provider key missing. Add WAVESPEED_API_KEY in the server environment."
+      : "Lip Sync provider not connected. Add WAVESPEED_API_KEY for the Lip Sync route in the server environment.";
 
   res.json({
     connected,
@@ -149,116 +139,46 @@ router.get("/lip-sync/status", (_req, res) => {
     mode: connected ? "real" : "mock",
     missingKeyMessage,
     providerLimitSec: PROVIDER_LIMIT_SEC,
-    /* The model of the EFFECTIVE route only — when nothing is connected
-       there is no acting model; naming sync-3 here (the old fallthrough)
-       told every reader the premium model was the default. */
-    model:
-      providerName === "latentsync"
-        ? getLatentSyncModel()
-        : providerName === "sync"
-          ? SYNC_LABS_MODEL
-          : null,
-    /* Per-route readiness, so the effective default is never a surprise:
-       the default route is LatentSync whenever its key is configured. */
+    /* The model of the EFFECTIVE route only — when nothing is
+       connected there is no acting model. The only route is
+       LatentSync via WaveSpeed (stack1400: the former premium direct
+       route was removed with the closed account). */
+    model: providerName === "latentsync" ? getLatentSyncModel() : null,
     latentsyncConfigured: isLipSyncProviderConfigured("latentsync"),
-    syncConfigured: isLipSyncProviderConfigured("sync"),
   });
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
    GET /lip-sync/account-check
-   Returns key inventory + billing status from Sync Labs.
-   Requires auth — the key's last-4 and billing status are not public info.
+   Returns key inventory for the one live lip-sync route.
+   Requires auth — the key's last-4 is not public info.
    Never exposes full API key — only last 4 chars and env var name.
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/account-check", requireAuth, async (_req, res) => {
-  const lipSyncApiKey = getLipSyncApiKey();
-  const activeKeyVar = getActiveKeyVar();
-  const multipleKeysFound = hasMultipleKeys();
+  /* Key inventory for the ONE live lip-sync route. The former premium
+     route's billing probe was removed with that closed account
+     (stack1400) — this endpoint never contacts it. No external probe
+     is made here, so account/billing status is honestly reported as
+     unavailable rather than probed from a dead provider. */
+  const apiKey = getWaveSpeedApiKey();
   const activeKeyLast4 =
-    lipSyncApiKey && lipSyncApiKey.length >= 4
-      ? lipSyncApiKey.slice(-4)
-      : lipSyncApiKey
-        ? "****"
-        : null;
-
-  if (!lipSyncApiKey) {
-    res.json({
-      keyPresent: false,
-      activeKeyVar: null,
-      activeKeyLast4: null,
-      multipleKeysFound,
-      providerEndpointConfigured: true,
-      accountStatusAvailable: false,
-      billingBlocked: null,
-      httpStatus: null,
-      lastError:
-        "No Sync Labs API key found. Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets.",
-      message: "No API key configured.",
-    });
-    return;
-  }
-
-  /* Try Sync Labs list-jobs endpoint — read-only, does not consume credits */
-  let httpStatus: number | null = null;
-  let billingBlocked: boolean | null = null;
-  let accountStatusAvailable = false;
-  let lastError: string | null = null;
-
-  /* Probe billing by fetching a non-existent job ID.
-     Sync Labs returns 404 "job not found" when the key is valid and billing OK.
-     It returns 402 when the free tier is exhausted regardless of job ID.
-     It returns 401/403 when the key is invalid.
-     This is read-only and does not consume credits.                          */
-  const PROBE_JOB_ID = "00000000-0000-0000-0000-000000000000";
-  try {
-    const r = await fetch(`${getSyncLabsBase()}/generate/${PROBE_JOB_ID}`, {
-      headers: { "x-api-key": lipSyncApiKey },
-      signal: AbortSignal.timeout(12_000),
-    });
-    httpStatus = r.status;
-    const body = await r.text().catch(() => "");
-
-    if (r.status === 404) {
-      /* "Job not found" — key is valid, billing is active */
-      accountStatusAvailable = true;
-      billingBlocked = false;
-      lastError = null;
-    } else if (r.status === 200) {
-      /* Unlikely for a fake UUID, but handle it */
-      accountStatusAvailable = true;
-      billingBlocked = false;
-    } else if (r.status === 402) {
-      accountStatusAvailable = true;
-      billingBlocked = true;
-      lastError = `HTTP 402 — ${body.slice(0, 300) || "free_tier_generations_exhausted"}`;
-    } else if (r.status === 401 || r.status === 403) {
-      accountStatusAvailable = true;
-      billingBlocked = null;
-      lastError = `HTTP ${r.status} — API key invalid or unauthorized. ${body.slice(0, 200)}`;
-    } else {
-      lastError = `HTTP ${r.status} — ${body.slice(0, 200)}`;
-    }
-  } catch (err) {
-    lastError =
-      err instanceof Error ? err.message : "Network error contacting Sync Labs";
-  }
-
-  const message = multipleKeysFound
-    ? `Multiple keys found. Using ${activeKeyVar} ending in ${activeKeyLast4}`
-    : `Using ${activeKeyVar} ending in ${activeKeyLast4}`;
+    apiKey && apiKey.length >= 4 ? apiKey.slice(-4) : apiKey ? "****" : null;
 
   res.json({
-    keyPresent: true,
-    activeKeyVar,
+    keyPresent: !!apiKey,
+    activeKeyVar: apiKey ? "WAVESPEED_API_KEY" : null,
     activeKeyLast4,
-    multipleKeysFound,
+    multipleKeysFound: false,
     providerEndpointConfigured: true,
-    accountStatusAvailable,
-    billingBlocked,
-    httpStatus,
-    lastError,
-    message,
+    accountStatusAvailable: false,
+    billingBlocked: null,
+    httpStatus: null,
+    lastError: apiKey
+      ? null
+      : "No Lip Sync provider key found. Add WAVESPEED_API_KEY in the server environment.",
+    message: apiKey
+      ? `Using WAVESPEED_API_KEY ending in ${activeKeyLast4}`
+      : "No API key configured.",
   });
 });
 
@@ -280,24 +200,23 @@ router.get("/lip-sync/job/:id", requireAuth, async (req, res) => {
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
-   GET /lip-sync/check-provider-job/:syncJobId
-   Directly check a Sync.so job by its provider ID.
-   Used by the client after a local timeout to see if Sync.so finished.
+   GET /lip-sync/check-provider-job/:providerJobId
+   Directly check a lip-sync job by its provider ID.
+   Used by the client after a local timeout to see if it finished.
 ────────────────────────────────────────────────────────────────────────── */
 router.get(
-  "/lip-sync/check-provider-job/:syncJobId",
+  "/lip-sync/check-provider-job/:providerJobId",
   requireAuth,
   async (req, res) => {
-    const syncJobId = String(req.params["syncJobId"] ?? "").trim();
-    if (!syncJobId) {
+    const providerJobId = String(req.params["providerJobId"] ?? "").trim();
+    if (!providerJobId) {
       res
         .status(400)
-        .json({ error: "syncJobId is required", code: "missing_param" });
+        .json({ error: "providerJobId is required", code: "missing_param" });
       return;
     }
     const provider = getLipSyncProviderName();
-    const apiKey =
-      provider === "latentsync" ? getWaveSpeedApiKey() : getLipSyncApiKey();
+    const apiKey = provider === "latentsync" ? getWaveSpeedApiKey() : null;
     if (!provider || !apiKey) {
       res
         .status(503)
@@ -306,24 +225,14 @@ router.get(
     }
 
     try {
-      if (provider === "latentsync") {
-        const job = await waveSpeedStatus(syncJobId, apiKey);
-        res.json({
-          status: normalizeWaveSpeedStatus(job), // "pending" | "processing" | "completed" | "failed"
-          outputUrl: job.outputUrl ?? null,
-          error: job.error ?? null,
-          /* Provenance for the client's recovery-path stamp: the route
-             this check actually queried for the job id (read-only field;
-             serving/charging unchanged). */
-          provider,
-        });
-        return;
-      }
-      const job = await syncLabsStatus(syncJobId, apiKey);
+      const job = await waveSpeedStatus(providerJobId, apiKey);
       res.json({
-        status: normalizeProviderStatus(job), // "pending" | "processing" | "completed" | "failed"
+        status: normalizeWaveSpeedStatus(job), // "pending" | "processing" | "completed" | "failed"
         outputUrl: job.outputUrl ?? null,
         error: job.error ?? null,
+        /* Provenance for the client's recovery-path stamp: the route
+           this check actually queried for the job id (read-only field;
+           serving/charging unchanged). */
         provider,
       });
     } catch (err) {
@@ -331,7 +240,7 @@ router.get(
       const m = /HTTP (\d+)/.exec(msg);
       if (m) {
         res.status(502).json({
-          error: `${provider === "latentsync" ? "WaveSpeed" : "Sync.so"} returned HTTP ${m[1]}`,
+          error: `Lip Sync provider returned HTTP ${m[1]}`,
           detail: msg.slice(0, 300),
           code: "provider_error",
         });
@@ -344,7 +253,7 @@ router.get(
 
 /* ──────────────────────────────────────────────────────────────────────────
    GET /lip-sync/check-inputs
-   Validate audio URL and clip URL before submitting to Sync Labs.
+   Validate audio URL and clip URL before submitting for lip sync.
    Never exposes secrets; never requires auth (read-only probe).
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/check-inputs", async (req, res) => {
@@ -395,12 +304,10 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
   const readyToSubmit =
     audio.found && clip.found && isLipSyncProviderConfigured(getLipSyncProviderName());
 
-  /* Payload validation:
-     removedFields = fields that WERE in the payload and have been stripped out.
-     payloadValid  = true because the sanitized payload no longer contains them. */
-  const sanitizedPayloadKeys = ["model", "input[video]", "input[audio]"];
-  const removedFields = [...SYNC_LABS_REMOVED_FIELDS]; // informational: what was removed
-  const payloadValid = true; // always valid after fix — removed fields are gone
+  /* Payload validation for the live route's payload shape. */
+  const sanitizedPayloadKeys = ["video", "audio"];
+  const removedFields: string[] = [];
+  const payloadValid = true;
 
   res.json({
     audio: { url: audioUrl ?? null, ...audio },
@@ -421,7 +328,7 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
 
 /* ──────────────────────────────────────────────────────────────────────────
    POST /lip-sync/preview
-   Trims audio to the scene's exact time range, then submits to Sync Labs.
+   Trims audio to the scene's exact time range, then enqueues lip sync.
 ────────────────────────────────────────────────────────────────────────── */
 /* ── Request validation schemas ── */
 const lipSyncPreviewSchema = z.object({
@@ -458,7 +365,7 @@ function invalidBody(res: import("express").Response, issues: { field: string; m
 /* Charged server-side at the price the UI has always displayed for lip
    sync (frontend registry: "/api/lip-sync" → 300 Visual Bucs, which the
    confirm dialog resolves for /lip-sync/preview by prefix match). Until
-   the owner's 2026-10-14 ruling this route enqueued paid Sync.so jobs
+   the owner's 2026-10-14 ruling this route enqueued paid lip-sync jobs
    for free. The charge lands after every free pre-flight check and
    immediately before the durable job is enqueued; if the enqueue
    itself fails, the charge is refunded with a ledger trace. */
@@ -490,10 +397,11 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
     /* A-09 (Stack-100 #3): the four editor controls are no longer voided
        here — they are persisted into the durable job params below.
        audioSourceType is already honored client-side (the submitted
-       audioUrl IS the chosen stem); strength reaches the provider call
-       as options.temperature via the poller; the two preserve toggles
-       name behavior sync-3 performs intrinsically (no provider option
-       exists) and are recorded as the creator's intent. */
+       audioUrl IS the chosen stem); strength is recorded in the job
+       params (the live model exposes no such dial to send); the two
+       preserve toggles name behavior the live model performs
+       intrinsically (no provider option exists) and are recorded as
+       the creator's intent. */
 
     /* ── Validate inputs ── */
     if (
@@ -552,10 +460,8 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
     if (!isLipSyncProviderConfigured(provider)) {
       const msg =
         provider === "latentsync"
-          ? "WaveSpeed API key missing. Add WAVESPEED_API_KEY in the server environment."
-          : provider === "sync"
-            ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in the server environment."
-            : "Lip Sync provider not connected. Add WAVESPEED_API_KEY for the default Lip Sync route in the server environment. (The premium Sync route never serves by default — it is selected explicitly with LIP_SYNC_PROVIDER=sync.)";
+          ? "Lip Sync provider key missing. Add WAVESPEED_API_KEY in the server environment."
+          : "Lip Sync provider not connected. Add WAVESPEED_API_KEY for the Lip Sync route in the server environment.";
       res.status(503).json({ error: msg, code: "provider_not_connected" });
       return;
     }
@@ -632,7 +538,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
 
     /* ── Enqueue a durable server-owned job and return immediately ─────────
        The job row survives restarts and the background poller drives it
-       through Sync.so's 25–40 minute runs — the tab can close right after
+       through long provider runs — the tab can close right after
        this response. The client keeps polling GET /api/lip-sync/job/:id
        as before until status becomes "done" or "failed".                */
     let job;
@@ -1233,7 +1139,7 @@ router.get("/lip-sync/scene-test/:jobId", requireAuth, (req, res) => {
    Replaces the old DevTools-console workaround script (lipsync-full-run.js).
    Orchestrates the whole pipeline server-side so the user's browser tab is
    never in the loop: for each exportable scene → trim the song window →
-   submit to Sync Labs → poll → save the lipSyncUrl onto the scene → run the
+   submit to the lip-sync provider → poll → save the lipSyncUrl onto the scene → run the
    final export with the lip-sync-first clip URLs.
 
    ── Robustness note ──
@@ -1478,34 +1384,25 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
   /* Provider-direct recovery: our poller may have given up while the
      provider is still working. Check the provider job directly before
      failing the scene — on the sub-job's OWN provider (the id in
-     provider_job_id belongs to whichever route submitted it). */
+     provider_job_id belongs to the route that submitted it). A sub-job
+     stamped with the removed route can never be recovered this way:
+     its provider account is closed (stack1400), so it falls through
+     to the honest timeout failure below. */
   const jobRow = await getLipSyncJob(subJobId);
-  const syncId = jobRow?.providerJobId;
+  const providerJobId = jobRow?.providerJobId;
   const jobProvider =
     normalizeLipSyncProvider(jobRow?.params.provider) ?? getLipSyncProviderName();
-  const apiKey =
-    jobProvider === "latentsync" ? getWaveSpeedApiKey() : getLipSyncApiKey();
-  if (syncId && apiKey && jobProvider) {
-    const failPrefix =
-      jobProvider === "latentsync" ? "WaveSpeed job failed" : "Sync Labs job failed";
+  const apiKey = jobProvider === "latentsync" ? getWaveSpeedApiKey() : null;
+  if (providerJobId && apiKey && jobProvider) {
+    const failPrefix = "Lip Sync job failed";
     const recoverUntil = Date.now() + 10 * 60 * 1000;
     while (Date.now() < recoverUntil) {
       await new Promise((r) => setTimeout(r, 15000));
       try {
-        let st: string;
-        let outputUrl: string | undefined;
-        let providerError: string | undefined;
-        if (jobProvider === "latentsync") {
-          const pj = await waveSpeedStatus(syncId, apiKey);
-          st = normalizeWaveSpeedStatus(pj);
-          outputUrl = pj.outputUrl;
-          providerError = pj.error;
-        } else {
-          const pj = await syncLabsStatus(syncId, apiKey);
-          st = normalizeProviderStatus(pj);
-          outputUrl = pj.outputUrl;
-          providerError = pj.error;
-        }
+        const pj = await waveSpeedStatus(providerJobId, apiKey);
+        const st = normalizeWaveSpeedStatus(pj);
+        const outputUrl = pj.outputUrl;
+        const providerError = pj.error;
         if (st === "completed" && outputUrl) {
           /* Mirror-on-save (2026-10-13 law): never persist the provider's
              raw CDN URL — re-host first, exactly like the job-poller's
@@ -1650,7 +1547,7 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
       if (t.dur > PROVIDER_LIMIT_SEC) {
         patchScene(i, {
           state: "skipped",
-          error: `Window is ${t.dur.toFixed(1)}s — exceeds the ${PROVIDER_LIMIT_SEC}s plan limit. Original clip kept.`,
+          error: `Window is ${t.dur.toFixed(1)}s — exceeds the ${PROVIDER_LIMIT_SEC}s limit. Original clip kept.`,
         });
         continue;
       }

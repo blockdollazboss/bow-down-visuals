@@ -2,7 +2,7 @@
  * stem-separation.ts — shared Demucs vocal/instrumental separation.
  *
  * Used by two pipelines:
- *  1. Lip-sync: isolate vocals before sending audio to Sync.so, then restore
+ *  1. Lip-sync: isolate vocals before sending audio to the lip-sync provider, then restore
  *     the full mix on the finished video.
  *  2. Artist voice lock: isolate vocals from a generated song so they can be
  *     swapped to the artist's locked ElevenLabs voice, then remixed.

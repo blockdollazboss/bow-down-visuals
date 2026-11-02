@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback, type Dispatch, type SetStateA
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
-  KeyRound, FlaskConical, ScanSearch, ShieldCheck, Copy, ExternalLink,
+  KeyRound, FlaskConical, ScanSearch, ShieldCheck, Copy,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import { getSceneTiming, computeManualTimings, type SceneTiming } from "@/lib/scene-timing";
@@ -171,7 +171,7 @@ interface AccountCheckResult {
 
 /* ── Scene timing helpers ─────────────────────────────────────────────────── */
 
-/** Sync Labs plan limit in seconds (kept in sync with backend PROVIDER_LIMIT_SEC) */
+/** Lip-sync provider limit in seconds (kept in sync with backend PROVIDER_LIMIT_SEC) */
 const PROVIDER_LIMIT_SEC = 20;
 
 /** Preset offsets for the Auto AI Lip Sync Timing calibrator (seconds).
@@ -354,7 +354,7 @@ export function LipSyncSection({
   const [healthCheck, setHealthCheck]           = useState<{ reachable: boolean; status: number; contentType: string; isJson: boolean } | null>(null);
   const [healthLoading, setHealthLoading]       = useState(false);
 
-  /* ── Check existing Sync.so job state ── */
+  /* ── Check existing the provider job state ── */
   const [checkJobLoading, setCheckJobLoading]   = useState(false);
   const [checkJobResult, setCheckJobResult]     = useState<{
     jobId:         string;
@@ -549,7 +549,7 @@ export function LipSyncSection({
    * polling) always merge onto the LATEST settings snapshot instead of a
    * stale one captured when the async function started. Reading from the
    * `settings` closure here previously caused later updates (e.g. attaching
-   * lipSyncJobId once Sync.so accepted the job) to silently clobber earlier
+   * lipSyncJobId once the provider accepted the job) to silently clobber earlier
    * ones (e.g. lipSyncStatus: "processing"), leaving jobs stuck showing
    * "Processing" forever with no job id ever recorded.
    */
@@ -582,7 +582,7 @@ export function LipSyncSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScene?.demoClipUrl, clipDurationReloadKey]);
 
-  /* ── Preview the exact audio segment that will be sent to Sync.so ── */
+  /* ── Preview the exact audio segment that will be sent to the provider ── */
   function previewAudioSegment() {
     if (!effectiveAudioUrl || !selectedTiming) return;
     if (isPreviewingAudio) {
@@ -707,7 +707,7 @@ export function LipSyncSection({
     }
   }
 
-  /* ── Check existing Sync.so job (no new submission) ── */
+  /* ── Check existing the provider job (no new submission) ── */
   async function checkExistingJob() {
     if (!selectedScene || !selectedClipEdit?.lipSyncJobId) return;
     const jobId = selectedClipEdit.lipSyncJobId;
@@ -822,7 +822,7 @@ export function LipSyncSection({
     if (!selectedScene) return;
     if (!clipAttached)  { setApplyError("This scene has no video clip yet — add one before lip sync."); return; }
 
-    /* Guard: don't resubmit if a Sync.so job is already in flight */
+    /* Guard: don't resubmit if a the provider job is already in flight */
     const existingJobId = getClipEdit(settings, selectedScene.id).lipSyncJobId;
     const existingStatus = getClipEdit(settings, selectedScene.id).lipSyncStatus;
     if (existingJobId && existingStatus === "processing") {
@@ -875,7 +875,7 @@ export function LipSyncSection({
     });
 
     try {
-      /* Use offset-adjusted, crop-clamped timing so Sync.so receives the correct audio window */
+      /* Use offset-adjusted, crop-clamped timing so the provider receives the correct audio window */
       const timing = selectedTiming ?? (() => {
         const raw = parseSceneTiming(selectedScene, scenes, audioDuration, settings.timelineLayout, settings.clips);
         const clampedStart = clampToSongCrop(raw.startSec);
@@ -899,11 +899,11 @@ export function LipSyncSection({
         sceneId,
         artistVaultId:      activeArtist?.id ?? null,
         getAccessToken,
-        onSyncLabsJobAccepted: (syncLabsJobId, provider) => {
+        onProviderJobAccepted: (providerJobId, provider) => {
           /* Save provider job ID immediately — persists even if local polling times out.
              The stamp is the route recorded on the job itself (or null when
              unrecorded) — never a hardcoded route name. */
-          updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: provider });
+          updateClipEdit(sceneId, { lipSyncJobId: providerJobId, lipSyncProvider: provider });
         },
         fetchImpl: confirmedFetch,
       });
@@ -928,7 +928,7 @@ export function LipSyncSection({
     } catch (err) {
       const msg = plainErrorText(err, "Lip sync didn't land — try again.");
       if (err instanceof StillProcessingError) {
-        /* Keep status as processing — Sync.so may still be running */
+        /* Keep status as processing — the provider may still be running */
         updateClipEdit(sceneId, { lipSyncError: msg });
         setApplyError(msg);
       } else {
@@ -1026,10 +1026,10 @@ export function LipSyncSection({
           sceneId:            sid,
           artistVaultId:      activeArtist?.id ?? null,
           getAccessToken,
-          onSyncLabsJobAccepted: (syncLabsJobId, provider) => {
+          onProviderJobAccepted: (providerJobId, provider) => {
             /* Same truthful stamp as the single-clip path: the job's own
                recorded route, or null when unrecorded. */
-            updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: provider });
+            updateClipEdit(sid, { lipSyncJobId: providerJobId, lipSyncProvider: provider });
           },
           fetchImpl: skipConfirmFetch,
         });
@@ -2874,13 +2874,6 @@ export function LipSyncSection({
                           >
                             <Copy className="h-3 w-3" /> Copy Lip Sync Job ID
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => window.open("https://sync.so", "_blank")}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/5 transition-colors"
-                          >
-                            <ExternalLink className="h-3 w-3" /> Open Engine Dashboard
-                          </button>
                         </div>
                       </div>
                     );
@@ -4049,7 +4042,7 @@ export function LipSyncSection({
 
 /* ══════════════════════════════════════════════════════════════════════════
    Backend lip sync call — all secrets stay server-side.
-   The frontend never sees LIP_SYNC_API_KEY.
+   The frontend never sees the provider API key.
 ══════════════════════════════════════════════════════════════════════════ */
 interface LipSyncBackendRequest {
   clipUrl:              string;
@@ -4071,12 +4064,12 @@ interface LipSyncBackendRequest {
    *  a local timeout or server restart. Also carries the job's recorded
    *  route (canonical provider id) from the same poll answer — null when
    *  the job carries no recorded route, never guessed. */
-  onSyncLabsJobAccepted?: (syncLabsJobId: string, provider: string | null) => void;
+  onProviderJobAccepted?: (providerJobId: string, provider: string | null) => void;
   /** fetch implementation (for the universal credit confirmation). */
   fetchImpl?: FetchImpl;
 }
 
-/** Thrown when the backend poll exhausts but the Sync.so job is still running.
+/** Thrown when the backend poll exhausts but the the provider job is still running.
  *  Keeps the clip as "processing" instead of marking it "failed". */
 class StillProcessingError extends Error {
   constructor(message: string) {
@@ -4101,7 +4094,7 @@ interface LipSyncJobPoll {
   provider?:      string;
   error?:         string;
   code?:          string;
-  syncLabsJobId?: string;
+  providerJobId?: string;
   resultMeta?:    LipSyncResultMeta | null;
   /* The failure-refund verdict off the job's own gate (0311): true
      only when the poller's refund of the up-front charge has fired;
@@ -4194,7 +4187,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
      Check every 3 s. The engine processing + FFmpeg can take 2–8 minutes
      so we allow up to 8 minutes total before giving up.                    */
   const deadline = Date.now() + 480_000;
-  let syncLabsJobNotified = false;
+  let providerJobNotified = false;
   const pollBudget = new PollFailureBudget();
 
   while (Date.now() < deadline) {
@@ -4235,9 +4228,9 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     /* Notify caller the moment the provider job ID becomes available —
        with the route recorded on that same job answer, so the clip's
        provenance stamp names the route that actually accepted the job. */
-    if (job.syncLabsJobId && !syncLabsJobNotified) {
-      req.onSyncLabsJobAccepted?.(job.syncLabsJobId, resolveLipSyncProvenance(job.provider));
-      syncLabsJobNotified = true;
+    if (job.providerJobId && !providerJobNotified) {
+      req.onProviderJobAccepted?.(job.providerJobId, resolveLipSyncProvenance(job.provider));
+      providerJobNotified = true;
     }
 
     if (job.status === "done") {
@@ -4268,7 +4261,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
         ),
       );
     }
-    /* Backend polled Sync.so until its own limit — job may still be running */
+    /* Backend polled the provider until its own limit — job may still be running */
     if (job.status === "processing" && job.code === "still_processing") {
       throw new StillProcessingError(
         job.error ?? "Still processing. Check again in a few minutes.",

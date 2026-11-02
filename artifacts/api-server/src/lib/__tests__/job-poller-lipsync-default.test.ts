@@ -1,40 +1,39 @@
 /**
- * $0 verification suite for the lip-sync DEFAULT vs the owner's ruling
- * (2026-10-26): LatentSync via WaveSpeed is THE lip-sync model; sync-3
- * is premium-only, never the default.
+ * $0 verification suite for the lip-sync poller AFTER the sync-3
+ * strip (stack1400 — owner deleted that provider account 2026-11-02).
  *
- * The disease this suite exists to keep dead: provider resolution used
- * to fall back to Sync.so whenever the Sync.so key existed — in
- * getLipSyncProviderName (key detection) and again in the poller's
- * resolveJobProvider (terminal ?? "sync"). One absent/rotated
- * WAVESPEED_API_KEY silently flipped every no-choice job onto the
- * premium route at several times the per-second cost, against a flat
- * 300 VB/clip price.
- *
- * Pins (all through the real poller tick, both provider submits faked):
+ * Pins (all through the real poller, the WaveSpeed submit/status
+ * faked — the removed route has no client left to fake):
  *  - a job with NO stored provider + WaveSpeed key → WaveSpeed submits;
- *  - the same job + ONLY the Sync.so key → never claimed, never
- *    submitted, no attempt burned (it waits for an explicit selection);
- *  - the same job + explicit LIP_SYNC_PROVIDER=sync → Sync.so submits
- *    (the premium route stays reachable by explicit selection);
- *  - a job STORED as sync (explicitly selected at creation) runs on
- *    Sync.so even with both keys present — jobs are never rerouted.
+ *  - the same job + ONLY the removed route's old keys → never claimed,
+ *    never submitted, no attempt burned (nothing is connected);
+ *  - the same job + explicit LIP_SYNC_PROVIDER naming the removed
+ *    route → never claimed or submitted, even with the WaveSpeed key
+ *    present (explicit removed selection fails closed);
+ *  - a QUEUED job STORED with the removed route was never submitted
+ *    to the closed account, so it runs on the live route instead;
+ *  - a POLLING job STORED with the removed route carries a foreign
+ *    provider job id from a closed account: it fails honestly with
+ *    provider_route_removed and the live route is never polled with
+ *    that id.
  */
 import { randomUUID } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __testHooks, runPollerTick } from "../job-poller";
 import {
   __setLipSyncJobsDb,
+  claimQueuedJobs,
   createLipSyncJob,
   getLipSyncJob,
+  markJobSubmitted,
   type LipSyncJob,
 } from "../lip-sync-jobs";
 import { __setJobNotificationsDb } from "../job-notifications";
 import { createTestDb } from "./test-db";
 
-const { mockWsSubmit, mockSyncSubmit } = vi.hoisted(() => ({
+const { mockWsSubmit, mockWsStatus } = vi.hoisted(() => ({
   mockWsSubmit: vi.fn(),
-  mockSyncSubmit: vi.fn(),
+  mockWsStatus: vi.fn(),
 }));
 
 vi.mock("../wavespeed", async (importOriginal) => {
@@ -42,14 +41,7 @@ vi.mock("../wavespeed", async (importOriginal) => {
   return {
     ...mod,
     waveSpeedSubmit: (...args: unknown[]) => mockWsSubmit(...args),
-  };
-});
-
-vi.mock("../sync-labs", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("../sync-labs")>();
-  return {
-    ...mod,
-    syncLabsSubmit: (...args: unknown[]) => mockSyncSubmit(...args),
+    waveSpeedStatus: (...args: unknown[]) => mockWsStatus(...args),
   };
 });
 
@@ -78,9 +70,8 @@ beforeEach(() => {
   __setLipSyncJobsDb(db);
   __setJobNotificationsDb(db);
   mockWsSubmit.mockReset();
-  mockSyncSubmit.mockReset();
+  mockWsStatus.mockReset();
   mockWsSubmit.mockResolvedValue("pred-default");
-  mockSyncSubmit.mockResolvedValue("sync-job-1");
   savedEnv = {};
   for (const k of ENV_KEYS) {
     savedEnv[k] = process.env[k];
@@ -117,7 +108,7 @@ async function settle(jobId: string, ms = 3000): Promise<LipSyncJob> {
   return job;
 }
 
-describe("lip-sync default vs the owner's ruling — poller tick", () => {
+describe("lip-sync poller after the sync-3 strip", () => {
   it(
     "DEFAULT: a no-choice job with the WaveSpeed key configured submits through WaveSpeed (LatentSync)",
     async () => {
@@ -138,7 +129,6 @@ describe("lip-sync default vs the owner's ruling — poller tick", () => {
         "https://x/seg.mp3",
         "ws-key",
       );
-      expect(mockSyncSubmit).not.toHaveBeenCalled();
       expect(after.resultMeta).toMatchObject({
         provider: "latentsync",
         model: "bytedance/latentsync",
@@ -148,9 +138,10 @@ describe("lip-sync default vs the owner's ruling — poller tick", () => {
   );
 
   it(
-    "PREMIUM NEVER BY FALLBACK: with ONLY the Sync.so key, a no-choice job is never claimed or submitted",
+    "REMOVED ROUTE NEVER BY KEY: with ONLY the removed route's old keys, a no-choice job is never claimed or submitted",
     async () => {
-      process.env["LIP_SYNC_API_KEY"] = "sync-key";
+      process.env["LIP_SYNC_API_KEY"] = "removed-key";
+      process.env["SYNC_LABS_API_KEY"] = "removed-key";
       const job = await createLipSyncJob({
         userId: randomUUID(),
         params: NO_PROVIDER_PARAMS as LipSyncJob["params"],
@@ -158,56 +149,44 @@ describe("lip-sync default vs the owner's ruling — poller tick", () => {
 
       await runPollerTick();
       await runPollerTick();
-      // A wrongly-claimed job would flip state within this window —
-      // every provider call in this suite resolves instantly.
       await new Promise((r) => setTimeout(r, 300));
 
       const after = (await getLipSyncJob(job.id))!;
       expect(after.state).toBe("queued");
       expect(after.attempts).toBe(0); // never claimed, never burned
       expect(after.providerJobId).toBeNull();
-      expect(mockSyncSubmit).not.toHaveBeenCalled();
       expect(mockWsSubmit).not.toHaveBeenCalled();
     },
     60_000,
   );
 
   it(
-    "PREMIUM BY EXPLICIT SELECTION: LIP_SYNC_PROVIDER=sync routes a no-choice job to Sync.so",
+    "REMOVED ROUTE NEVER BY EXPLICIT SELECTION: LIP_SYNC_PROVIDER naming the removed route fails closed",
     async () => {
       process.env["LIP_SYNC_PROVIDER"] = "sync";
-      process.env["LIP_SYNC_API_KEY"] = "sync-key";
+      process.env["WAVESPEED_API_KEY"] = "ws-key";
+      process.env["LIP_SYNC_API_KEY"] = "removed-key";
       const job = await createLipSyncJob({
         userId: randomUUID(),
         params: NO_PROVIDER_PARAMS as LipSyncJob["params"],
       });
 
       await runPollerTick();
-      const after = await settle(job.id);
+      await new Promise((r) => setTimeout(r, 300));
 
-      expect(after.state).toBe("polling");
-      expect(after.providerJobId).toBe("sync-job-1");
-      expect(mockSyncSubmit).toHaveBeenCalledTimes(1);
-      expect(mockSyncSubmit).toHaveBeenCalledWith(
-        "https://x/clip.mp4",
-        "https://x/seg.mp3",
-        "sync-key",
-        undefined, // no strength recorded on this job
-      );
+      const after = (await getLipSyncJob(job.id))!;
+      expect(after.state).toBe("queued");
+      expect(after.attempts).toBe(0);
+      expect(after.providerJobId).toBeNull();
       expect(mockWsSubmit).not.toHaveBeenCalled();
-      expect(after.resultMeta).toMatchObject({
-        provider: "sync",
-        model: "sync-3",
-      });
     },
     60_000,
   );
 
   it(
-    "STORED CHOICE WINS: a job created on the premium route runs on Sync.so even with both keys present",
+    "QUEUED legacy job stored with the removed route runs on the live route (it was never submitted to the closed account)",
     async () => {
       process.env["WAVESPEED_API_KEY"] = "ws-key";
-      process.env["LIP_SYNC_API_KEY"] = "sync-key";
       const job = await createLipSyncJob({
         userId: randomUUID(),
         params: {
@@ -220,9 +199,36 @@ describe("lip-sync default vs the owner's ruling — poller tick", () => {
       const after = await settle(job.id);
 
       expect(after.state).toBe("polling");
-      expect(after.providerJobId).toBe("sync-job-1");
-      expect(mockSyncSubmit).toHaveBeenCalledTimes(1);
-      expect(mockWsSubmit).not.toHaveBeenCalled();
+      expect(after.providerJobId).toBe("pred-default");
+      expect(mockWsSubmit).toHaveBeenCalledTimes(1);
+      expect(after.resultMeta).toMatchObject({ provider: "latentsync" });
+    },
+    60_000,
+  );
+
+  it(
+    "POLLING legacy job stored with the removed route fails honestly (provider_route_removed) and never polls the live route with its foreign id",
+    async () => {
+      process.env["WAVESPEED_API_KEY"] = "ws-key";
+      const job = await createLipSyncJob({
+        userId: randomUUID(),
+        params: {
+          ...NO_PROVIDER_PARAMS,
+          provider: "sync",
+        } as LipSyncJob["params"],
+      });
+      const [claimed] = await claimQueuedJobs(1);
+      expect(claimed.id).toBe(job.id);
+      await markJobSubmitted(job.id, "foreign-provider-job-1", 0);
+      const polling = (await getLipSyncJob(job.id))!;
+      expect(polling.state).toBe("polling");
+
+      await __testHooks.pollOneJob(polling, "ws-key");
+
+      const after = (await getLipSyncJob(job.id))!;
+      expect(after.state).toBe("failed");
+      expect(after.error?.code).toBe("provider_route_removed");
+      expect(mockWsStatus).not.toHaveBeenCalled();
     },
     60_000,
   );

@@ -1,34 +1,41 @@
 /**
- * $0 verification suite for the LIP_SYNC_PROVIDER switch resolution.
+ * $0 verification suite for lip-sync provider resolution AFTER the
+ * sync-3 strip (stack1400).
  *
- * Owner's verdict (2026-10-24): LatentSync via WaveSpeed is the DEFAULT
- * lip-sync route; the direct Sync.so route stays as the premium upsell
- * behind the same switch. Owner's ruling (2026-10-26) hardened the
- * default: sync-3 is PREMIUM-ONLY, never the default. Resolution rules
- * pinned here:
- *  - an explicit LIP_SYNC_PROVIDER wins over key detection;
- *  - unset → latentsync when the WaveSpeed key is configured;
- *  - unset → null when only the Sync.so key exists: the Sync.so key
- *    alone NEVER promotes the premium route to the default (the old
- *    fallback did exactly that — one missing WaveSpeed key silently
- *    flipped every job to sync-3 at several times the per-second
- *    cost). Routes fail closed with 503 until a route is explicitly
- *    selected or the WaveSpeed key lands;
- *  - an unrecognized explicit value fails closed (null), never a silent
- *    route nobody chose.
+ * Owner deleted his Sync Labs account on 2026-11-02. The premium
+ * direct route (sync-3) was removed from the site code entirely, so
+ * nothing can point at the closed account again. Pins:
+ *  - the ONLY selectable route is LatentSync via WaveSpeed;
+ *  - every spelling of the removed route resolves to null — by env
+ *    selection (LIP_SYNC_PROVIDER=sync / sync.so / sync-3), by stored
+ *    job provider, and by key presence;
+ *  - the removed route's old key env vars (LIP_SYNC_API_KEY,
+ *    SYNC_LABS_API_KEY, LIP_SYNC_MODEL) are never read: setting them
+ *    alone configures NOTHING and selects NOTHING;
+ *  - an explicit removed-route selection fails CLOSED (null) even
+ *    when the live route's key is also present — it never silently
+ *    reroutes and never reaches the closed account;
+ *  - the live route still resolves exactly as before: explicit
+ *    latentsync, or unset with the WaveSpeed key configured;
+ *  - a stored removed-route value is RECOGNISED as removed
+ *    (isRemovedLipSyncProvider) so the poller can fail already-
+ *    submitted jobs honestly instead of polling a foreign id.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getLipSyncProviderName,
   isLipSyncProviderConfigured,
+  isRemovedLipSyncProvider,
   normalizeLipSyncProvider,
-} from "../sync-labs";
+} from "../lip-sync-core";
 
 const ENV_KEYS = [
   "LIP_SYNC_PROVIDER",
   "WAVESPEED_API_KEY",
   "LIP_SYNC_API_KEY",
   "SYNC_LABS_API_KEY",
+  "LIP_SYNC_MODEL",
+  "SYNC_LABS_BASE_URL",
 ] as const;
 
 let saved: Record<string, string | undefined>;
@@ -48,17 +55,17 @@ afterEach(() => {
   }
 });
 
-describe("normalizeLipSyncProvider", () => {
+describe("normalizeLipSyncProvider — the removed route has no spelling left", () => {
   it("maps the WaveSpeed/LatentSync spellings to latentsync", () => {
     expect(normalizeLipSyncProvider("latentsync")).toBe("latentsync");
     expect(normalizeLipSyncProvider("WaveSpeed")).toBe("latentsync");
     expect(normalizeLipSyncProvider(" latent-sync ")).toBe("latentsync");
   });
 
-  it("maps the Sync.so spellings to sync", () => {
-    expect(normalizeLipSyncProvider("sync")).toBe("sync");
-    expect(normalizeLipSyncProvider("sync-labs")).toBe("sync");
-    expect(normalizeLipSyncProvider("Sync.so")).toBe("sync");
+  it("returns null for EVERY spelling of the removed route", () => {
+    for (const spelling of ["sync", "sync-labs", "synclabs", "sync.so", "sync-3", "sync3", "Sync Labs"]) {
+      expect(normalizeLipSyncProvider(spelling)).toBeNull();
+    }
   });
 
   it("returns null for empty and unrecognized values", () => {
@@ -69,15 +76,41 @@ describe("normalizeLipSyncProvider", () => {
   });
 });
 
-describe("getLipSyncProviderName — route selection", () => {
-  it("explicit sync selects the premium upsell even when WaveSpeed is configured", () => {
-    process.env["LIP_SYNC_PROVIDER"] = "sync";
-    process.env["WAVESPEED_API_KEY"] = "ws-key";
-    process.env["LIP_SYNC_API_KEY"] = "sync-key";
-    expect(getLipSyncProviderName()).toBe("sync");
+describe("isRemovedLipSyncProvider — legacy values are recognised only to be refused", () => {
+  it("recognises the removed route's spellings", () => {
+    expect(isRemovedLipSyncProvider("sync")).toBe(true);
+    expect(isRemovedLipSyncProvider(" sync.so ")).toBe(true);
+    expect(isRemovedLipSyncProvider("sync-3")).toBe(true);
   });
 
-  it("explicit latentsync selects the default route by name", () => {
+  it("does not flag the live route or empty values", () => {
+    expect(isRemovedLipSyncProvider("latentsync")).toBe(false);
+    expect(isRemovedLipSyncProvider(null)).toBe(false);
+    expect(isRemovedLipSyncProvider("")).toBe(false);
+  });
+});
+
+describe("getLipSyncProviderName — sync-3 can no longer be selected", () => {
+  it("explicit removed-route selection fails closed — even with every key present", () => {
+    for (const spelling of ["sync", "sync.so", "sync-3"]) {
+      process.env["LIP_SYNC_PROVIDER"] = spelling;
+      process.env["WAVESPEED_API_KEY"] = "ws-key";
+      process.env["LIP_SYNC_API_KEY"] = "removed-key";
+      process.env["SYNC_LABS_API_KEY"] = "removed-key";
+      expect(getLipSyncProviderName()).toBeNull();
+      expect(isLipSyncProviderConfigured(getLipSyncProviderName())).toBe(false);
+    }
+  });
+
+  it("the removed route's keys alone select and configure NOTHING", () => {
+    process.env["LIP_SYNC_API_KEY"] = "removed-key";
+    process.env["SYNC_LABS_API_KEY"] = "removed-key";
+    process.env["LIP_SYNC_MODEL"] = "sync-3";
+    expect(getLipSyncProviderName()).toBeNull();
+    expect(isLipSyncProviderConfigured(getLipSyncProviderName())).toBe(false);
+  });
+
+  it("explicit latentsync selects the live route by name", () => {
     process.env["LIP_SYNC_PROVIDER"] = "latentsync";
     expect(getLipSyncProviderName()).toBe("latentsync");
   });
@@ -93,39 +126,20 @@ describe("getLipSyncProviderName — route selection", () => {
     expect(getLipSyncProviderName()).toBe("latentsync");
   });
 
-  it("unset prefers latentsync when both keys are configured", () => {
-    process.env["WAVESPEED_API_KEY"] = "ws-key";
-    process.env["LIP_SYNC_API_KEY"] = "sync-key";
-    expect(getLipSyncProviderName()).toBe("latentsync");
-  });
-
-  it("unset with only the Sync.so key resolves to null — the premium route never serves by default (owner's ruling, 2026-10-26)", () => {
-    process.env["SYNC_LABS_API_KEY"] = "sync-key";
-    expect(getLipSyncProviderName()).toBeNull();
-    // …and the fail-closed chain holds: the resolved route is not
-    // configured, so the routes answer 503 before any charge.
-    expect(isLipSyncProviderConfigured(getLipSyncProviderName())).toBe(false);
-  });
-
-  it("the premium route is still reachable by explicit selection with only its key present", () => {
-    process.env["LIP_SYNC_PROVIDER"] = "sync";
-    process.env["SYNC_LABS_API_KEY"] = "sync-key";
-    expect(getLipSyncProviderName()).toBe("sync");
-    expect(isLipSyncProviderConfigured(getLipSyncProviderName())).toBe(true);
-  });
-
   it("unset with no keys resolves to null (nothing connected)", () => {
     expect(getLipSyncProviderName()).toBeNull();
   });
 });
 
 describe("isLipSyncProviderConfigured", () => {
-  it("tracks each route's own key", () => {
+  it("tracks only the live route's key", () => {
     process.env["WAVESPEED_API_KEY"] = "ws-key";
     expect(isLipSyncProviderConfigured("latentsync")).toBe(true);
-    expect(isLipSyncProviderConfigured("sync")).toBe(false);
-    process.env["LIP_SYNC_API_KEY"] = "sync-key";
-    expect(isLipSyncProviderConfigured("sync")).toBe(true);
+    // The removed route is not a provider id anymore; any foreign
+    // value passed by a legacy caller is simply not configured.
+    expect(isLipSyncProviderConfigured("sync" as never)).toBe(false);
+    process.env["LIP_SYNC_API_KEY"] = "removed-key";
+    expect(isLipSyncProviderConfigured("sync" as never)).toBe(false);
   });
 
   it("is false for a null provider", () => {
