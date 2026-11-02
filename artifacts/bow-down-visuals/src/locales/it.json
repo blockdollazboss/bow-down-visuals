@@ -5093,6 +5093,7 @@
     "generatingScenes": "Generazione delle scene…",
     "generateScenesFromSong": "Genera Scene dalla Canzone",
     "audioSceneFailed": "Impossibile generare le scene da questa canzone.",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "Artista / Brand",
     "step2Short": "Artista",
     "activeArtistReady": "Il tuo artista attivo è pronto.",

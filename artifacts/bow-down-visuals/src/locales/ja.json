@@ -5081,6 +5081,7 @@
     "generatingScenes": "シーンを生成中…",
     "generateScenesFromSong": "楽曲からシーンを生成",
     "audioSceneFailed": "この楽曲からシーンを生成できませんでした。",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "アーティスト／ブランド",
     "step2Short": "アーティスト",
     "activeArtistReady": "アクティブなアーティストの準備ができています。",

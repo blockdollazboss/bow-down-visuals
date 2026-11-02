@@ -5129,6 +5129,7 @@
     "generatingScenes": "جارٍ توليد المشاهد…",
     "generateScenesFromSong": "توليد المشاهد من الأغنية",
     "audioSceneFailed": "تعذّر توليد المشاهد من هذه الأغنية.",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "الفنان / العلامة",
     "step2Short": "الفنان",
     "activeArtistReady": "فنانك النشط جاهز للانطلاق.",

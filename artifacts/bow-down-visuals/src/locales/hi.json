@@ -5081,6 +5081,7 @@
     "generatingScenes": "सीन बनाए जा रहे हैं...",
     "generateScenesFromSong": "गाने से सीन बनाएं",
     "audioSceneFailed": "इस गाने से सीन नहीं बनाए जा सके।",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "आर्टिस्ट / ब्रांड",
     "step2Short": "आर्टिस्ट",
     "activeArtistReady": "आपका एक्टिव आर्टिस्ट तैयार है।",

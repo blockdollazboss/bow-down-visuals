@@ -38,6 +38,8 @@ import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scen
 import { AvatarPresenterPanel, EMPTY_PRESENTER, type AvatarPresenterConfig } from "@/components/video/AvatarPresenterPanel";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
+import { fetchTrack, resolveMedia } from "@/lib/streaming";
+import { parseMakeVideoSoundParam } from "@/lib/make-video-deep-link";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { useTranslation } from "react-i18next";
@@ -302,21 +304,62 @@ export function MakeVideoModule() {
 
   const watched = watch();
 
-  /* Deep-link protocol: /make-video?sound=<title> — <artist> pre-fills the song
-     title when arriving from the viral sound finder. */
+  /* Deep-link protocols:
+     - ?sound=<title> — <artist> pre-fills the song title when arriving
+       from the viral sound finder (plain-title scheme).
+     - ?sound=track:<id> (Trend Radar's "Use this sound", UPGRADE #178)
+       resolves the streaming track and attaches it as the project's
+       song — the same audioUrl state an upload fills, so scenes can be
+       built from the actual sound. A track that can't be resolved says
+       so on the audio block instead of landing as a dead title string.
+     - ?concept=… (Trend Radar's format scaffold) pre-fills the special
+       instructions the plan generator reads — the video panel's half of
+       the concept intake the song panel already runs for its links. */
   useEffect(() => {
+    let alive = true;
     try {
       const params = new URLSearchParams(window.location.search);
-      const sound = params.get("sound");
-      if (sound) {
-        setValue("songTitle", sound.slice(0, 120));
-        /* Strip only the consumed param — keep panel=/moved_from= intact so the
-           unified Create page + move banner keep working. */
+      const consumed: string[] = [];
+      const concept = params.get("concept");
+      if (concept) {
+        setValue("specialInstructions", concept.slice(0, 2000));
+        consumed.push("concept");
+      }
+      const soundParam = parseMakeVideoSoundParam(params.get("sound"));
+      if (soundParam?.kind === "title") {
+        setValue("songTitle", soundParam.title.slice(0, 120));
+        consumed.push("sound");
+      }
+      /* Strip only the consumed params — keep panel=/moved_from= intact so the
+         unified Create page + move banner keep working. The track: param is
+         stripped in its async branch below, once the attach attempt settles. */
+      if (consumed.length > 0) {
         const url = new URL(window.location.href);
-        url.searchParams.delete("sound");
+        consumed.forEach((k) => url.searchParams.delete(k));
         window.history.replaceState(null, "", url.pathname + url.search + url.hash);
       }
+      if (soundParam?.kind === "track") {
+        void (async () => {
+          const found = await fetchTrack(soundParam.id);
+          const audioUrl = found ? resolveMedia(found.track.audio_url) : "";
+          if (!alive) return;
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("sound");
+            window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+          } catch { /* non-browser — ignore */ }
+          if (found && audioUrl) {
+            setAudioUrl(audioUrl);
+            setValue("songTitle", found.track.title.slice(0, 120));
+          } else {
+            setAudioSceneError(t("makeVideo.soundAttachFailed"));
+          }
+        })();
+      }
     } catch { /* non-browser — ignore */ }
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

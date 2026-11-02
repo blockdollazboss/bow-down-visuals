@@ -5081,6 +5081,7 @@
     "generatingScenes": "Szenen werden erstellt…",
     "generateScenesFromSong": "Szenen aus Song erstellen",
     "audioSceneFailed": "Aus diesem Song konnten keine Szenen erstellt werden.",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "Künstler / Marke",
     "step2Short": "Künstler",
     "activeArtistReady": "Ihr aktiver Künstler ist startklar.",
