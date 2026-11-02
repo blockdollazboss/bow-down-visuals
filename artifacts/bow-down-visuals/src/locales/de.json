@@ -15692,5 +15692,32 @@
     "portalOpenFailed": "Das Abrechnungsportal öffnete sich nicht. Versuchen Sie es in einer Minute erneut.",
     "portalNoPage": "Das Abrechnungsportal lieferte keine Seite.",
     "portalOpened": "Ihr Abrechnungsportal öffnete sich in einem neuen Tab — verwalten oder kündigen Sie dort; diese Übersicht liest Ihren Plan bei Ihrer Rückkehr neu."
+  },
+  "officeHours": {
+    "panelTitle": "Eine Sprechstunden-Sitzung buchen",
+    "loadingTimes": "Freie Zeiten werden geladen…",
+    "pickTime": "Wähle eine Zeit",
+    "shownInYourTime": "Zeiten in deiner Zeitzone ({{tz}}).",
+    "noTimesTitle": "Gerade keine freien Zeiten",
+    "noTimesBody": "Im Buchungszeitraum ist noch nichts geöffnet — schau bald wieder vorbei.",
+    "signInToBook": "Zum Buchen anmelden",
+    "bookedTitle": "Du bist gebucht",
+    "buyerNote": "Ein 1:1-Videoanruf in Nachrichten — du zahlst in Visual Bucs, keine Karte nötig.",
+    "openMessages": "Nachrichten öffnen — dort findet die Sitzung statt",
+    "sessionLengthLine": "{{minutes}} Min. Sitzung",
+    "sellerToggle": "Sprechstunde — 1:1-Sitzungen",
+    "availabilityTitle": "Wöchentliche Verfügbarkeit",
+    "timezoneLabel": "Zeitzone",
+    "fromLabel": "Von",
+    "toLabel": "Bis",
+    "rowBadge": "Sprechstunde",
+    "editButton": "Sprechstunde",
+    "editorTitle": "Sprechstunde — {{title}}",
+    "saveButton": "Sprechstunde speichern",
+    "turnOffButton": "Sprechstunde ausschalten",
+    "savedOnNote": "Die Sprechstunde ist an — Fans können diese Sitzung buchen.",
+    "savedOffNote": "Die Sprechstunde ist für diesen Dienst aus.",
+    "durationMinLabel": "Sitzungsdauer (Minuten)",
+    "priceVbLabel": "Preis (Visual Bucs)"
   }
 }

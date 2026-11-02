@@ -15715,5 +15715,32 @@
     "portalOpenFailed": "O portal de faturamento não abriu. Tente de novo em um minuto.",
     "portalNoPage": "O portal de faturamento não retornou uma página.",
     "portalOpened": "Seu portal de faturamento abriu em uma nova aba — gerencie ou cancele lá; este painel relê seu plano quando você voltar."
+  },
+  "officeHours": {
+    "panelTitle": "Agende uma sessão de Horário de atendimento",
+    "loadingTimes": "Carregando horários disponíveis…",
+    "pickTime": "Escolha um horário",
+    "shownInYourTime": "Horários no seu fuso horário ({{tz}}).",
+    "noTimesTitle": "Nenhum horário disponível agora",
+    "noTimesBody": "Nada está aberto na janela de agendamento ainda — volte em breve.",
+    "signInToBook": "Entre para agendar",
+    "bookedTitle": "Agendamento feito",
+    "buyerNote": "Uma videochamada 1:1 dentro de Mensagens — você paga em Visual Bucs, sem cartão.",
+    "openMessages": "Abrir Mensagens — a sessão acontece lá",
+    "sessionLengthLine": "Sessão de {{minutes}} min",
+    "sellerToggle": "Horário de atendimento — sessões 1:1",
+    "availabilityTitle": "Disponibilidade semanal",
+    "timezoneLabel": "Fuso horário",
+    "fromLabel": "Das",
+    "toLabel": "Às",
+    "rowBadge": "Horário de atendimento",
+    "editButton": "Horário de atendimento",
+    "editorTitle": "Horário de atendimento — {{title}}",
+    "saveButton": "Salvar Horário de atendimento",
+    "turnOffButton": "Desativar Horário de atendimento",
+    "savedOnNote": "O Horário de atendimento está ativo — os fãs podem agendar esta sessão.",
+    "savedOffNote": "O Horário de atendimento está desativado para este serviço.",
+    "durationMinLabel": "Duração da sessão (minutos)",
+    "priceVbLabel": "Preço (Visual Bucs)"
   }
 }

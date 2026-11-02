@@ -15715,5 +15715,32 @@
     "portalOpenFailed": "Le portail de facturation ne s'est pas ouvert. Réessayez dans une minute.",
     "portalNoPage": "Le portail de facturation n'a renvoyé aucune page.",
     "portalOpened": "Votre portail de facturation s'est ouvert dans un nouvel onglet — gérez ou résiliez là-bas ; ce panneau relira votre formule à votre retour."
+  },
+  "officeHours": {
+    "panelTitle": "Réserver une session Heures de bureau",
+    "loadingTimes": "Chargement des horaires disponibles…",
+    "pickTime": "Choisissez un horaire",
+    "shownInYourTime": "Horaires affichés dans votre fuseau horaire ({{tz}}).",
+    "noTimesTitle": "Aucun horaire disponible pour le moment",
+    "noTimesBody": "Rien n'est encore ouvert dans la fenêtre de réservation — repassez bientôt.",
+    "signInToBook": "Connectez-vous pour réserver",
+    "bookedTitle": "C'est réservé",
+    "buyerNote": "Un appel vidéo 1:1 dans Messages — vous payez en Visual Bucs, sans carte.",
+    "openMessages": "Ouvrir Messages — la session s'y déroule",
+    "sessionLengthLine": "Session de {{minutes}} min",
+    "sellerToggle": "Heures de bureau — sessions 1:1",
+    "availabilityTitle": "Disponibilités hebdomadaires",
+    "timezoneLabel": "Fuseau horaire",
+    "fromLabel": "De",
+    "toLabel": "À",
+    "rowBadge": "Heures de bureau",
+    "editButton": "Heures de bureau",
+    "editorTitle": "Heures de bureau — {{title}}",
+    "saveButton": "Enregistrer les Heures de bureau",
+    "turnOffButton": "Désactiver les Heures de bureau",
+    "savedOnNote": "Les Heures de bureau sont activées — les fans peuvent réserver cette session.",
+    "savedOffNote": "Les Heures de bureau sont désactivées pour ce service.",
+    "durationMinLabel": "Durée de la session (minutes)",
+    "priceVbLabel": "Prix (Visual Bucs)"
   }
 }

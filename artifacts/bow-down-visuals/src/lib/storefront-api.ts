@@ -3,13 +3,33 @@ import { apiErrorMessage } from "./api-error";
  * storefront-api.ts — typed client for the Sell Everything storefront API.
  *
  * Conventions: authed helpers take the token from useAuth().getAccessToken().
- * Public helpers need no token. All money is REAL dollars via Stripe — never
- * Visual Bucs. Keep the two economies separate in every label.
+ * Public helpers need no token. Money is REAL dollars via Stripe — never
+ * Visual Bucs — with ONE exception: Office Hours services (#167), the
+ * VB-priced session shape whose door lives at the bottom of this file.
+ * Keep the two economies separate in every label.
  */
 
 export type StoreProductKind = "download" | "merch" | "digital" | "service" | "ticket" | "course" | "gift_card";
 
 export interface RelatedLink { label: string; url: string; }
+
+export interface BookingWindowDTO {
+  start: string; // "HH:MM" 24h wall time in the availability timezone
+  end: string; // "HH:MM", strictly after start
+}
+
+/** The creator's booking grid, exactly the server rail's shape
+    (api lib/booking-slots.ts): weekly windows in the creator's
+    timezone (weekday 0 = Sunday) plus optional per-date overrides. */
+export interface BookingAvailabilityDTO {
+  timezone: string;
+  weekly: Array<BookingWindowDTO & { weekday: number }>;
+  overrides?: Array<{ date: string; windows: BookingWindowDTO[] | null }>;
+  slot_step_min?: number;
+  buffer_min?: number;
+  min_notice_min?: number;
+  max_advance_days?: number;
+}
 
 export interface ServiceDetails {
   duration_min?: number;
@@ -22,6 +42,7 @@ export interface ServiceDetails {
   office_hours?: boolean;
   price_vb?: number;
   booking_enabled?: boolean;
+  availability?: BookingAvailabilityDTO;
 }
 
 interface ProductLinks {
@@ -324,6 +345,59 @@ export const acceptUpsell = (token: string, orderId: string) =>
 
 export const declineUpsell = (token: string, orderId: string) =>
   post<{ ok: boolean; status: string; duplicate?: boolean }>(`/orders/${orderId}/upsell/decline`, {}, token);
+
+/* ── Office Hours booking (#167) ──────────────────────────────────────
+   The one VB-priced door in this client. The slots read is public;
+   it names the price and the book endpoint itself when the service
+   is Office Hours. Booking charges Visual Bucs on the server rail
+   and confirms immediately — no checkout session, no card, and the
+   answer carries the Messages door the session happens behind. */
+export interface ProductSlotDTO {
+  startUtc: string;
+  endUtc: string;
+}
+
+export interface ProductSlotsDTO {
+  bookable: boolean;
+  /** Present when bookable is false: the server's plain reason. */
+  reason?: string;
+  timezone?: string;
+  durationMin?: number;
+  days?: Array<{ date: string; slots: ProductSlotDTO[] }>;
+  officeHours?: boolean;
+  priceVb?: number | null;
+  bookEndpoint?: string | null;
+  note?: string;
+}
+
+export const getProductSlots = (id: string) =>
+  get<ProductSlotsDTO>(`/product/${id}/slots`);
+
+export interface OfficeHoursBookedDTO {
+  booked: true;
+  orderId: string;
+  priceVb: number;
+  balanceAfter: number;
+  startUtc: string;
+  endUtc: string;
+  creatorTimezone: string;
+  buyerTimezone: string;
+  medium: string;
+  /** The Messages thread the session happens in (server-built). */
+  messagesUrl: string;
+  note: string;
+}
+
+export const bookOfficeHours = (
+  token: string,
+  id: string,
+  bookingStartUtc: string,
+  buyerTimezone?: string,
+) =>
+  post<OfficeHoursBookedDTO>(`/product/${id}/office-hours/book`, {
+    bookingStartUtc,
+    ...(buyerTimezone ? { buyerTimezone } : {}),
+  }, token);
 
 /* ── Seller ─────────────────────────────────────────────────────────── */
 export const createProduct = (token: string, input: CreateProductInput) =>

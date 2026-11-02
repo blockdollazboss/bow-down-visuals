@@ -15715,5 +15715,32 @@
     "portalOpenFailed": "El portal de facturación no se abrió. Inténtalo de nuevo en un minuto.",
     "portalNoPage": "El portal de facturación no devolvió una página.",
     "portalOpened": "Tu portal de facturación se abrió en una pestaña nueva — gestiona o cancela allí; este panel vuelve a leer tu plan cuando regreses."
+  },
+  "officeHours": {
+    "panelTitle": "Reserva una sesión de Horas de oficina",
+    "loadingTimes": "Cargando horarios disponibles…",
+    "pickTime": "Elige una hora",
+    "shownInYourTime": "Horarios en tu zona horaria ({{tz}}).",
+    "noTimesTitle": "No hay horarios disponibles ahora",
+    "noTimesBody": "Todavía no hay nada abierto en el periodo de reservas — vuelve pronto.",
+    "signInToBook": "Inicia sesión para reservar",
+    "bookedTitle": "Tu reserva está hecha",
+    "buyerNote": "Una videollamada 1:1 dentro de Mensajes — pagas en Visual Bucs, sin tarjeta.",
+    "openMessages": "Abre Mensajes — la sesión se hace allí",
+    "sessionLengthLine": "Sesión de {{minutes}} min",
+    "sellerToggle": "Horas de oficina — sesiones 1:1",
+    "availabilityTitle": "Disponibilidad semanal",
+    "timezoneLabel": "Zona horaria",
+    "fromLabel": "Desde",
+    "toLabel": "Hasta",
+    "rowBadge": "Horas de oficina",
+    "editButton": "Horas de oficina",
+    "editorTitle": "Horas de oficina — {{title}}",
+    "saveButton": "Guardar Horas de oficina",
+    "turnOffButton": "Desactivar Horas de oficina",
+    "savedOnNote": "Las Horas de oficina están activas — los fans pueden reservar esta sesión.",
+    "savedOffNote": "Las Horas de oficina están desactivadas para este servicio.",
+    "durationMinLabel": "Duración de la sesión (minutos)",
+    "priceVbLabel": "Precio (Visual Bucs)"
   }
 }
