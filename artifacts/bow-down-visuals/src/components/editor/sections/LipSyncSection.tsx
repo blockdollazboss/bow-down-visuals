@@ -31,6 +31,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* ── Provider status (fetched from backend — no secrets in frontend) ── */
 interface ProviderStatus {
@@ -384,6 +385,10 @@ export function LipSyncSection({
   const [isPreviewingAudio, setIsPreviewingAudio] = useState(false);
   const [showTimingValidation, setShowTimingValidation] = useState(false);
   const [previewModalUrl, setPreviewModalUrl]   = useState<string | null>(null);
+  /* The preview modal carries the house dialog contract (useModalA11y):
+     focus moves in on open, Tab cycles inside, Escape closes, and focus
+     returns to the control that opened it. */
+  const previewDialogRef = useModalA11y<HTMLDivElement>(previewModalUrl !== null, () => setPreviewModalUrl(null));
 
   /* ── Smart Lip Sync Doctor state ── */
   const [doctorResult,    setDoctorResult]    = useState<DoctorResult | null>(null);
@@ -3962,6 +3967,11 @@ export function LipSyncSection({
       {/* ── Lip Sync Preview Modal ── */}
       {previewModalUrl && (
         <div
+          ref={previewDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Lip Sync Result Preview"
+          tabIndex={-1}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setPreviewModalUrl(null); }}
         >
