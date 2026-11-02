@@ -8870,7 +8870,7 @@
     "streams": "{{num}} reproducciones",
     "empty": {
       "title": "Aún no hay datos de regalías",
-      "desc": "Exporta un CSV de tu distribuidor (DistroKid, TuneCore, CD Baby: todos los exportan) y pégalo abajo. Nosotros hacemos el resto."
+      "desc": "Exporta un CSV de tu distribuidor y pégalo abajo. Nosotros hacemos el resto."
     },
     "import": {
       "title": "Importar CSV del distribuidor",

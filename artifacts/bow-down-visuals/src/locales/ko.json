@@ -8798,7 +8798,7 @@
     "streams": "스트림 {{num}}회",
     "empty": {
       "title": "아직 로열티 데이터가 없습니다",
-      "desc": "유통사(DistroKid, TuneCore, CD Baby — 모두 내보내기를 제공합니다)에서 CSV를 내보내 아래에 붙여 넣으세요. 나머지는 저희가 합니다."
+      "desc": "유통사에서 CSV를 내보내 아래에 붙여 넣으세요. 나머지는 저희가 합니다."
     },
     "import": {
       "title": "유통사 CSV 가져오기",
