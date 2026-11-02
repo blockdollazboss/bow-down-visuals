@@ -673,10 +673,13 @@ export function LipSyncStudio({
                   <span className="font-bold text-amber-100">
                     300 Visual Bucs per scene
                   </span>{" "}
-                  for lip sync — the same per-clip price as a single-clip
-                  preview, charged for each scene before it runs. Scenes
-                  longer than the provider limit are skipped and never
-                  charged.
+                  for lip sync on scenes up to 50 seconds —{" "}
+                  <span className="font-bold text-amber-100">
+                    600 Visual Bucs per scene
+                  </span>{" "}
+                  for scenes longer than 50 seconds and up to 60 seconds.
+                  Charged for each scene before it runs. Scenes longer
+                  than 60 seconds are skipped and never charged.
                 </li>
                 <li>
                   The final export is{" "}
@@ -687,13 +690,6 @@ export function LipSyncStudio({
                   </span>
                   , reserved when the export starts and charged only when
                   it succeeds.
-                </li>
-                <li>
-                  <span className="font-bold text-amber-100">
-                    Sync Labs per-second fees
-                  </span>{" "}
-                  (~$0.05/sec of video) billed to the connected Sync Labs
-                  account for each lip-synced scene.
                 </li>
               </ul>
               <div className="flex gap-2 pt-1">
