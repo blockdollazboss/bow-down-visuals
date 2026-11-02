@@ -19,7 +19,9 @@ import {
   refundCheckoutSessionPayment,
   checkoutBaseUrl,
   isCheckoutTestMode,
+  type PaymentCheckoutInput,
 } from "../../lib/stripe-checkout";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import {
   dunningDaysLeft,
@@ -62,8 +64,8 @@ const router = Router();
    reads expired and the fan renews with a fresh checkout.
    Dunning (#21): a past_due membership gets a 7-day grace (lib/dunning)
    — the recovery email sequence chases it, the fan fixes it through
-   POST /memberships/mine/:id/update-payment (a fresh Stripe-hosted
-   checkout; verify reactivates), the creator works it from
+   POST /memberships/mine/:id/update-payment (a fresh checkout —
+   embedded on the site by default; verify reactivates), the creator works it from
    GET /memberships/recovery, and once grace runs out unpaid the seat
    reads expired at exactly the date the fan was told.
    Pause (#39): a willing-but-broke fan rests 1–3 months instead of
@@ -130,6 +132,19 @@ const checkoutSchema = z.object({
   billingPeriod: billingPeriodSchema.optional().default("monthly"),
   /* Gifted membership: the caller pays, this user becomes the member. */
   recipientUserId: z.string().uuid("recipientUserId must be a UUID.").optional(),
+  /* Embedded checkout (owner law 2026-10-26: "we should never have to
+     leave my site"): "embedded" creates the SAME session in
+     embedded_page ui_mode and answers a clientSecret for the on-page
+     mount on the profile / memberships page; absent/"hosted" keeps
+     the legacy hosted shape. Mirrors routes/storefront.ts +
+     routes/generate/beats.ts. */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
+});
+
+/* The past-due card-update door takes no required body; uiMode is its
+   only optional field (same embedded law as the join checkout). */
+const updatePaymentSchema = z.object({
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
 const verifySchema = z.object({
@@ -841,7 +856,11 @@ router.get("/memberships/directory", publicApiLimiter, async (_req, res) => {
 /* POST /api/memberships/checkout — start a join (or gift) checkout.
    The charged amount comes from checkoutChargeCents(tier, period) — the
    same number the tier DTO displays as the price. Free tiers skip
-   checkout entirely and activate immediately (no payment to verify). */
+   checkout entirely and activate immediately (no payment to verify).
+   Presentation: embedded on the site by default when the caller asks
+   (uiMode "embedded" + the EMBEDDED_CHECKOUT kill switch on) — the
+   session, metadata, idempotency key and amount are identical to the
+   legacy hosted shape; only where the fan pays differs. */
 router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -930,9 +949,16 @@ router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
+  /* Embedded presentation is asked for per-request and honored only
+     while the EMBEDDED_CHECKOUT kill switch is on — the session,
+     metadata, idempotency key and every money figure are identical
+     either way; only the presentation differs. */
+  const embeddedRequested =
+    parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
+
   try {
     const baseUrl = checkoutBaseUrl(req);
-    const session = await createPaymentCheckout({
+    const checkoutInput: PaymentCheckoutInput = {
       amountCents,
       productName: `${tier.name} membership — ${billingPeriod}`,
       description: isGift ? "Gifted fan membership" : "Fan membership",
@@ -974,7 +1000,10 @@ router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, 
             : null,
         },
       },
-    });
+    };
+    const session = embeddedRequested
+      ? await createPaymentCheckout({ ...checkoutInput, uiMode: "embedded" })
+      : await createPaymentCheckout(checkoutInput);
     if (isGift) {
       await db.insert(fanMembershipGiftsTable).values({
         tier_id: tierId,
@@ -987,12 +1016,20 @@ router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, 
         status: "pending_payment",
       });
     }
+    const checkoutUrl = "url" in session ? session.url : null;
+    const clientSecret = "clientSecret" in session ? session.clientSecret : null;
     logger.info(
       { tierId, fanUserId: recipientUserId, amountCents, billingPeriod, isGift, sessionId: session.sessionId },
       "[memberships] checkout session created",
     );
     res.json({
-      url: session.url,
+      url: checkoutUrl,
+      /* Embedded sessions have no hosted URL to hand back — the
+         clientSecret is what the on-page <EmbeddedSessionCheckout>
+         mounts (null on the hosted shape, mirroring
+         routes/storefront.ts). */
+      clientSecret,
+      uiMode: embeddedRequested ? "embedded" : "hosted",
       sessionId: session.sessionId,
       amountCents,
       amountDollars: centsToDollars(amountCents),
@@ -1479,10 +1516,11 @@ router.post("/memberships/mine/:memberId/resume", requireAuth, publicApiLimiter,
    card-update door for a past-due membership. Fan-scoped exactly like
    cancel (anyone else's seat reads 404). Fan memberships hold no
    saved card and never auto-charge — a join is one paid period via a
-   Stripe-hosted checkout — so "update your card" honestly means: a
-   fresh Stripe-hosted checkout for the same tier + period, where the
-   fan enters the new card on Stripe's page (no card data ever touches
-   this site), and the seat reactivates ONLY through the existing
+   checkout session — so "update your card" honestly means: a fresh
+   checkout for the same tier + period, presented embedded on this
+   site by default (the fan enters the new card in the on-page form;
+   card data goes straight to Stripe and never touches this site's
+   servers), and the seat reactivates ONLY through the existing
    /memberships/verify once Stripe confirms the payment. The checkout
    is built with the identical metadata + amount-lock + idempotency
    shape as POST /memberships/checkout, so verify treats it as the
@@ -1490,6 +1528,11 @@ router.post("/memberships/mine/:memberId/resume", requireAuth, publicApiLimiter,
    directly with a fresh period. Access state before payment is
    untouched — nothing here marks anything paid. */
 router.post("/memberships/mine/:memberId/update-payment", requireAuth, publicApiLimiter, async (req, res) => {
+  /* uiMode is the body's only optional field; a body that doesn't
+     parse simply keeps the legacy hosted presentation. */
+  const uiParsed = updatePaymentSchema.safeParse(req.body ?? {});
+  const embeddedRequested =
+    uiParsed.success && uiParsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   const rows = await db
     .select()
     .from(fanMembersTable)
@@ -1541,7 +1584,7 @@ router.post("/memberships/mine/:memberId/update-payment", requireAuth, publicApi
 
   try {
     const baseUrl = checkoutBaseUrl(req);
-    const session = await createPaymentCheckout({
+    const checkoutInput: PaymentCheckoutInput = {
       amountCents,
       productName: `${tier.name} membership — ${billingPeriod}`,
       description: "Fan membership — payment update / renewal",
@@ -1577,13 +1620,23 @@ router.post("/memberships/mine/:memberId/update-payment", requireAuth, publicApi
           },
         },
       },
-    });
+    };
+    const session = embeddedRequested
+      ? await createPaymentCheckout({ ...checkoutInput, uiMode: "embedded" })
+      : await createPaymentCheckout(checkoutInput);
+    const checkoutUrl = "url" in session ? session.url : null;
+    const clientSecret = "clientSecret" in session ? session.clientSecret : null;
     logger.info(
       { memberId: member.id, tierId: tier.id, amountCents, billingPeriod, sessionId: session.sessionId },
       "[memberships] past-due update-payment checkout created",
     );
     res.json({
-      url: session.url,
+      url: checkoutUrl,
+      /* Embedded sessions have no hosted URL — the clientSecret is
+         what the on-page <EmbeddedSessionCheckout> mounts (null on
+         the hosted shape, mirroring the join checkout above). */
+      clientSecret,
+      uiMode: embeddedRequested ? "embedded" : "hosted",
       sessionId: session.sessionId,
       amountCents,
       amountDollars: centsToDollars(amountCents),

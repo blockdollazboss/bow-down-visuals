@@ -11,6 +11,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { loginPathWithNext } from "@/lib/auth-next";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import {
+  EmbeddedSessionCheckout,
+  hasStripePublishableKey,
+} from "@/components/checkout/EmbeddedCheckout";
 
 /* ─── Fan Memberships ───────────────────────────────────────────────────
    /memberships — creators launch fan clubs with paid tiers. Tier setup +
@@ -177,7 +181,9 @@ async function api(path: string, token: string | null, init?: RequestInit) {
    Fans pick monthly or annual (the annual price shown is the exact
    amount checkout charges — both come from the same server math), start
    a free trial when the tier offers one, or gift the tier to another
-   fan by user id. Payment completes at secure checkout; the membership
+   fan by user id. Payment completes in the embedded checkout mounted
+   right here (never-leave-the-site law; the hosted page is only the
+   fallback when the embedded form can't mount); the membership
    activates when the return visit verifies it. */
 function FanClubJoin({
   creatorUserId,
@@ -194,6 +200,9 @@ function FanClubJoin({
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState(false);
+  /* The in-flight embedded join's clientSecret — the payment form
+     mounts under the tiers instead of sending the fan off-site. */
+  const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   /* The guest door carries the way back to THIS creator's club —
      public-surface truth, stack1000 R1. */
   const signInDoor = loginPathWithNext("/memberships", `creator=${encodeURIComponent(creatorUserId)}`);
@@ -221,6 +230,7 @@ function FanClubJoin({
     if (!signedIn) { window.location.href = signInDoor; return; }
     setBusy(tier.id + mode);
     setMsg(null);
+    setEmbeddedSecret(null);
     try {
       const token = await getAccessToken();
       const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
@@ -241,14 +251,26 @@ function FanClubJoin({
           tierId: tier.id,
           billingPeriod: period,
           ...(recipient ? { recipientUserId: recipient } : {}),
+          /* Ask for the embedded presentation when this device can
+             mount it (publishable key configured) — the server answers
+             a clientSecret instead of a hosted URL and the fan pays
+             right here; completion returns to this page, where the
+             verify-on-return below settles the seat. */
+          ...(hasStripePublishableKey() ? { uiMode: "embedded" } : {}),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; free?: boolean; error?: string; message?: string };
+      const data = (await res.json().catch(() => ({}))) as { url?: string; clientSecret?: string | null; free?: boolean; error?: string; message?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start checkout."));
       if (data.free) {
         setMsg(recipient ? "Gift sent — they're a member now." : "You're in — your membership is active.");
         return;
       }
+      if (data.clientSecret && hasStripePublishableKey()) {
+        setEmbeddedSecret(data.clientSecret);
+        setMsg("Finish paying right here — your membership activates the moment the payment lands.");
+        return;
+      }
+      /* Fallback rail only: the embedded form can't mount here. */
       if (data.url) { window.location.href = data.url; return; }
       throw new Error("Couldn't start checkout.");
     } catch (e) {
@@ -338,6 +360,11 @@ function FanClubJoin({
           );
         })}
       </div>
+      {embeddedSecret && (
+        <div className="mt-4" data-testid="memberships-join-embedded-checkout">
+          <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
+        </div>
+      )}
     </section>
   );
 }
@@ -375,6 +402,10 @@ export default function Memberships() {
   const [mineError, setMineError] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
+  /* The in-flight embedded card update for a past-due seat — the
+     payment form mounts under the fan message instead of sending
+     the fan off-site. */
+  const [fixEmbeddedSecret, setFixEmbeddedSecret] = useState<string | null>(null);
   /* Fan pause (#39): the row whose pause picker is open, the chosen
      months, and the in-flight pause/resume row. */
   const [pausePickId, setPausePickId] = useState<string | null>(null);
@@ -495,16 +526,29 @@ export default function Memberships() {
   }, [user]);
 
   /* Fan card-update door (POST /memberships/mine/:id/update-payment):
-     a past-due seat gets a fresh Stripe-hosted checkout — the fan
-     enters the new card on Stripe's page, and the seat comes back
-     only when the return visit verifies the payment. A free tier
-     reactivates in place. */
+     a past-due seat gets a fresh checkout, mounted embedded right
+     here by default (the fan enters the new card on this page; the
+     hosted page is only the fallback when the embedded form can't
+     mount), and the seat comes back only when the return visit
+     verifies the payment. A free tier reactivates in place. */
   async function fixPayment(m: MyMembership) {
     setFixingId(m.id);
+    setFixEmbeddedSecret(null);
     try {
       const token = await getAccessToken();
-      const { res, data } = await api(`/memberships/mine/${m.id}/update-payment`, token, { method: "POST" });
+      const { res, data } = await api(`/memberships/mine/${m.id}/update-payment`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          ...(hasStripePublishableKey() ? { uiMode: "embedded" } : {}),
+        }),
+      });
       if (!res.ok) throw new Error(apiErrorMessage(data, "update failed"));
+      if (typeof data.clientSecret === "string" && data.clientSecret && hasStripePublishableKey()) {
+        setFixEmbeddedSecret(data.clientSecret);
+        setFanMsg("Enter your new card below — your seat comes back the moment the payment lands.");
+        return;
+      }
+      /* Fallback rail only: the embedded form can't mount here. */
       if (data.url) {
         window.location.href = String(data.url);
         return;
@@ -827,6 +871,12 @@ export default function Memberships() {
           <div className="mb-8 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary flex items-center justify-between">
             {fanMsg}
             <button onClick={() => setFanMsg(null)} aria-label={t("memberships.dismiss")}><X className="h-4 w-4" /></button>
+          </div>
+        )}
+
+        {fixEmbeddedSecret && (
+          <div className="mb-8" data-testid="memberships-fix-embedded-checkout">
+            <EmbeddedSessionCheckout clientSecret={fixEmbeddedSecret} />
           </div>
         )}
 
