@@ -16,6 +16,7 @@ import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
 import { PaymentReversalsAdmin } from "@/components/PaymentReversalsAdmin";
 import { OperatorActionsAdmin } from "@/components/OperatorActionsAdmin";
 import { StudioGearQueueAdmin } from "@/components/StudioGearQueueAdmin";
+import { WorldDropAdmin } from "@/components/WorldDropAdmin";
 import { ChallengeAdmin } from "@/components/ChallengeAdmin";
 import { CommunityGrantsAdmin } from "@/components/CommunityGrantsAdmin";
 import { RemixKingAdmin } from "@/components/RemixKingAdmin";
@@ -2149,6 +2150,11 @@ export default function AdminPage() {
           <ChallengeAdmin authHeaders={authHeaders} />
           <CommunityGrantsAdmin authHeaders={authHeaders} />
           <RemixKingAdmin authHeaders={authHeaders} />
+
+          {/* stack1300 stage-booking lane: the World Drop Spectacles
+              bench — the admin drop-booking form the events backbone
+              never had a client for (Ring 3.4's booking half). */}
+          <WorldDropAdmin authHeaders={authHeaders} />
         </>
       )}
     </div>

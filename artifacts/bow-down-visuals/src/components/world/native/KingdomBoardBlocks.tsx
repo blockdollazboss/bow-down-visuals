@@ -34,6 +34,7 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import { PalaceCalendarBlock } from "./PalaceCalendarBlock";
 import { ShowInvitesBlock } from "./ShowInvitesBlock";
 import { PitchFixBoard } from "./PitchFixBoard";
+import { StageBookingBlock } from "./StageBookingBlock";
 
 /* ─── Kingdom Board blocks (Lane K2, item 2) ───────────────────────
    Blocks joining the Kingdom Board's room directory:
@@ -51,6 +52,9 @@ import { PitchFixBoard } from "./PitchFixBoard";
        happenings grouped by palace day across the week ahead,
        with the last seven days behind them, and a member's walk
        to each one (its room, or the contest desk).
+     BOOK THE STAGE (3.1, stack1300) — StageBookingBlock below:
+       the stage-show booking form the events backbone never had
+       a client for, standing beside the slate its bookings join.
      OPEN PARTY TABLES (program 2.23's directory join) — the open
        Marble Tables off the server's own rail (GET /api/party/rooms,
        the lobby's discovery read), each with a Join that hands the
@@ -396,6 +400,13 @@ export function KingdomBoardBlocks({
         onEnterRoom={onEnterRoom}
         onOpenStation={onOpenStation}
       />
+
+      {/* ── Book the stage (3.1, stack1300) — the booking door the
+          backbone never had: a Front Row member (or the house)
+          books the Throne Hall's screen from right here beside the
+          slate the booking joins. The rail holds the gate; the
+          block carries its refusal in plain words. ── */}
+      <StageBookingBlock isLight={isLight} isGuest={isGuest} />
 
       {/* ── Open party tables ── */}
       <div data-testid="world-kingdom-party-tables">
