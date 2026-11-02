@@ -34,6 +34,9 @@ import {
   type PaymentCheckoutInput,
 } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
+import { createJobNotification } from "../../lib/job-notifications";
+import { notifyUserEvent } from "../../lib/push-events";
+import { logger } from "../../lib/logger";
 
 /* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
    re-hosted into permanent storage at listing time; reads serve fresh
@@ -821,6 +824,55 @@ const licenseVerifySchema = z.object({
    are unchanged — the settle returns the very { status, body }
    verify always answered. */
 
+/* The producer tell (BEATS-SETTLE, stack1200) — the notify-census
+   lane's fix #5 in the shape THIS lineage needs. That lane wired
+   the tell into its own verify-local completion (its finding #4
+   recorded that beats had no webhook settle — true on its base,
+   already fixed here by WEBHOOK-SETTLE). On this branch completion
+   lives in the shared settle below, so the tell hangs off the
+   settle's completion-flip win and fires identically from the
+   webhook door (buyer closed the tab) and the verify door. Same
+   claim-first shape as the storefront sale finale
+   (lib/market-sale.ts): the claim (jobType "sale", jobId
+   `beat-license:<id>`) lands on the unique (job_type, job_id)
+   key — only its winner fires the door, so racing doors and
+   replays tell exactly once. Copy names the TRUE money: the
+   producer's net from the row's own price − commission, never
+   the gross. Best-effort: a tell failure never fails the
+   buyer's completion. */
+async function notifyBeatSaleSafely(license: {
+  id: string;
+  producer_id: string;
+  price_cents: number;
+  commission_cents: number;
+  tier: string;
+}, beatTitle: string): Promise<void> {
+  const title = "Your beat just sold 👑";
+  const message = `${beatTitle} (${license.tier}) — net $${((license.price_cents - license.commission_cents) / 100).toFixed(2)} to you. See it in your beat dashboard.`;
+  try {
+    const claimed = await createJobNotification({
+      jobType: "sale",
+      jobId: `beat-license:${license.id}`,
+      userId: license.producer_id,
+      projectId: null,
+      status: "completed",
+      title,
+      message,
+    });
+    if (!claimed) return; // a twin request already claimed the tell
+    await notifyUserEvent({
+      userId: license.producer_id,
+      category: "money",
+      kind: "beat_sale",
+      title,
+      body: message,
+      link: "/beats",
+    });
+  } catch (err) {
+    logger.warn({ err, licenseId: license.id }, "[beats] producer sale tell failed (sale stands)");
+  }
+}
+
 export interface BeatLicenseSettleResult {
   httpStatus: number;
   body: Record<string, unknown>;
@@ -976,6 +1028,12 @@ export async function settleBeatLicenseSession(
         },
       };
     }
+    /* The sale just landed — this flip is its one landing, and
+       only the winner reaches this line (the loser answered
+       duplicate above), so the producer tell fires here, inside
+       the shared settle, whichever door carried the payment home.
+       The helper never throws. */
+    await notifyBeatSaleSafely(updated, beat.title);
     return {
       httpStatus: 200,
       body: {
