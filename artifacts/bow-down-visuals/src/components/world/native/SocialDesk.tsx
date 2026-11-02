@@ -494,6 +494,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
             onChange={(e) => setNewSlug(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void startBySlug()}
             placeholder="Creator name (their profile slug)"
+            aria-label="Creator name (their profile slug)"
             className={inputCls(isLight)}
             data-testid="world-dm-new-slug"
           />
@@ -519,6 +520,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
           value={listQuery}
           onChange={(e) => setListQuery(e.target.value)}
           placeholder="Search conversations — a name, a word, a piece of work…"
+          aria-label="Search conversations"
           className={`${inputCls(isLight)} pl-9`}
           data-testid="world-dm-search"
         />
@@ -613,6 +615,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   value={threadQuery}
                   onChange={(e) => setThreadQuery(e.target.value)}
                   placeholder="Search this thread…"
+                  aria-label="Search this thread"
                   className={`${inputCls(isLight)} pl-9`}
                   data-testid="world-dm-thread-search"
                 />
@@ -724,6 +727,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     onChange={(e) => setLinkUrl(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && attachByUrl()}
                     placeholder="Link to your file (…/beat.mp3, …/cover.jpg, …/clip.mp4)"
+                    aria-label="Link to your file"
                     className={inputCls(isLight)}
                     data-testid="world-dm-attach-url"
                   />
@@ -793,6 +797,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void send()}
                     placeholder="Write from the desk…"
+                    aria-label="Write from the desk"
                     maxLength={DM_DRAFT_MAX}
                     className={inputCls(isLight)}
                     data-testid="world-dm-draft"
@@ -1009,6 +1014,7 @@ function ThreadReplyNode({
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void sendNodeReply()}
               placeholder="Answer this reply…"
+              aria-label="Answer this reply"
               maxLength={500}
               className={inputCls(isLight)}
               data-testid="world-community-node-reply-draft"
@@ -1606,6 +1612,7 @@ function NoticePostCard({
                     onChange={(e) => setReplyDraft(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void sendReply()}
                     placeholder="Answer in the Hall…"
+                    aria-label="Answer in the Hall"
                     maxLength={500}
                     className={inputCls(isLight)}
                     data-testid="world-community-reply-draft"
@@ -1726,6 +1733,7 @@ function ReplyDraftsBench({
           value={commentsText}
           onChange={(e) => setCommentsText(e.target.value)}
           placeholder={"Paste the comments you're answering — one per line…"}
+          aria-label="Paste the comments you're answering"
           rows={3}
           className={inputCls(isLight)}
           data-testid="world-community-bench-comments"
@@ -1781,6 +1789,7 @@ function ReplyDraftsBench({
                   maxLength={500}
                   className={`${inputCls(isLight)} mt-1.5`}
                   data-testid="world-community-bench-edit"
+                  aria-label="Your reply draft"
                 />
                 <div className="mt-1.5 flex justify-end">
                   <button
@@ -1844,6 +1853,7 @@ function FeedComposerCard({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Say it to the Hall…"
+          aria-label="Say it to the Hall"
           rows={3}
           maxLength={500}
           className={`${inputCls(isLight)} mt-2`}
@@ -2121,6 +2131,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
             onChange={(e) => setTopic(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void generatePin()}
             placeholder="What's the word? (a drop, a poll, a hello)"
+            aria-label="What's the word?"
             className={inputCls(isLight)}
             data-testid="world-community-pin-topic"
           />
