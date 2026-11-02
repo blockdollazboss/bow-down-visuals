@@ -4806,6 +4806,9 @@
     "length2min": "2분",
     "lengthFull": "풀곡"
   },
+  "lipSync": {
+    "refundNote": "{{credits}} Visual Bucs가 환불되었습니다."
+  },
   "makeVideo": {
     "pageTitle": "뮤직비디오 만들기",
     "pageDescription": "AI 씬 생성으로 곡을 영화 같은 뮤직비디오로 만들어보세요.",

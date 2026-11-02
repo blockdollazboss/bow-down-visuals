@@ -4818,6 +4818,9 @@
     "voiceStylePlaceholder": "es. profondo, roco, melodico, aggressivo, morbido...",
     "yourSong": "La tua canzone"
   },
+  "lipSync": {
+    "refundNote": "I tuoi {{credits}} Visual Bucs sono stati rimborsati."
+  },
   "makeVideo": {
     "pageTitle": "Crea un Video Musicale",
     "pageDescription": "Trasforma la tua canzone in un video musicale cinematografico con la generazione AI di scene.",

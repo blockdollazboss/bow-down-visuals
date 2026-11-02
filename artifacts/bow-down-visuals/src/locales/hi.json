@@ -4806,6 +4806,9 @@
     "voiceStylePlaceholder": "उदा. गहरा, कर्कश, मधुर, आक्रामक, मुलायम...",
     "yourSong": "आपका गाना"
   },
+  "lipSync": {
+    "refundNote": "आपके {{credits}} Visual Bucs वापस कर दिए गए।"
+  },
   "makeVideo": {
     "pageTitle": "म्यूज़िक वीडियो बनाएं",
     "pageDescription": "AI सीन जनरेशन के साथ अपने गाने को सिनेमैटिक म्यूज़िक वीडियो में बदलें।",

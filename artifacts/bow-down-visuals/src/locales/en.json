@@ -5083,6 +5083,9 @@
     "length2min": "2 minutes",
     "lengthFull": "Full song"
   },
+  "lipSync": {
+    "refundNote": "Your {{credits}} Visual Bucs were refunded."
+  },
   "makeVideo": {
     "pageTitle": "Make a Music Video",
     "pageDescription": "Turn your song into a cinematic music video with AI scene generation.",

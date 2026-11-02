@@ -18,8 +18,10 @@ import { requestAudioExport } from "@/lib/audio-export";
 import {
   formatLipSyncResultMeta,
   lipSyncProviderLabel,
+  withLipSyncRefundNote,
   type LipSyncResultMeta,
 } from "@/lib/lip-sync-result-meta";
+import i18n from "@/lib/i18n";
 import { PollFailureBudget, isTransientPollHttpStatus } from "@/lib/poll-tolerance";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
@@ -4065,6 +4067,42 @@ interface LipSyncResult {
   resultMeta?: LipSyncResultMeta | null;
 }
 
+/** One read of the durable job record (GET /api/lip-sync/job/:id). */
+interface LipSyncJobPoll {
+  status:         string;
+  url?:           string;
+  provider?:      string;
+  error?:         string;
+  code?:          string;
+  syncLabsJobId?: string;
+  resultMeta?:    LipSyncResultMeta | null;
+  /* The failure-refund verdict off the job's own gate (0310): true
+     only when the poller's refund of the up-front charge has fired;
+     refundedCredits (the job's charge record) rides along only then. */
+  chargeRefunded?:  boolean;
+  refundedCredits?: number;
+}
+
+/** A single best-effort re-read of the job record — used once when a
+ *  failed job's refund verdict isn't visible yet (see the failed
+ *  branch of callLipSyncBackend). Null on any failure: the caller
+ *  keeps the read it already has. */
+async function refetchLipSyncJob(
+  jobId: string,
+  token: string | null,
+): Promise<LipSyncJobPoll | null> {
+  try {
+    const res = await fetch(`/api/lip-sync/job/${jobId}`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+      signal:  AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as LipSyncJobPoll;
+  } catch {
+    return null;
+  }
+}
+
 async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncResult | null> {
   const token = await req.getAccessToken();
   const doFetch: FetchImpl = req.fetchImpl ?? fetch;
@@ -4140,15 +4178,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
        must not kill the client's view of a healthy job. Tolerate a
        bounded run of consecutive transient failures inside the same
        8-minute deadline; a real 4xx answer still surfaces at once. */
-    let job: {
-      status:         string;
-      url?:           string;
-      provider?:      string;
-      error?:         string;
-      code?:          string;
-      syncLabsJobId?: string;
-      resultMeta?:    LipSyncResultMeta | null;
-    };
+    let job: LipSyncJobPoll;
     try {
       const pollRes = await fetch(`/api/lip-sync/job/${jobId}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
@@ -4186,7 +4216,28 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       return { url: job.url, provider: job.provider ?? null, resultMeta: job.resultMeta ?? null };
     }
     if (job.status === "failed") {
-      throw new Error(apiErrorMessage(job, "Lip sync job failed."));
+      /* State the refund verdict with the failure: when the poller's
+         failure refund fired for this job, the member is told the
+         money came back (and how much — the job's own charge record),
+         not left believing a failed job kept it. The poller flips the
+         job to failed a breath before the refund lands (the refund
+         claim requires the failed state), so a first read can miss
+         the gate flip — one short re-read keeps this surface from
+         racing the verdict. The bell/push notification is composed
+         after the refund and always carries it. No refund fired → no
+         refund claimed, exactly as before. */
+      let verdictJob = job;
+      if (job.chargeRefunded !== true) {
+        await new Promise<void>(r => setTimeout(r, 1_500));
+        verdictJob = (await refetchLipSyncJob(jobId, token)) ?? job;
+      }
+      throw new Error(
+        withLipSyncRefundNote(
+          apiErrorMessage(verdictJob, "Lip sync job failed."),
+          verdictJob,
+          (credits) => i18n.t("lipSync.refundNote", { credits }),
+        ),
+      );
     }
     /* Backend polled Sync.so until its own limit — job may still be running */
     if (job.status === "processing" && job.code === "still_processing") {

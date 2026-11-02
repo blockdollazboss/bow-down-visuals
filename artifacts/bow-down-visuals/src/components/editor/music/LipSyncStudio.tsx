@@ -20,6 +20,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { computeSceneTimings } from "@/lib/scene-timing";
 import type { SceneData } from "@/lib/scene-parser";
 import { getCreditCost } from "@/lib/credit-costs";
+import i18n from "@/lib/i18n";
 import {
   runStillToLipSync,
   StillToLipSyncError,
@@ -176,6 +177,9 @@ export function LipSyncStudio({
         getAccessToken,
         fetchImpl: confirmedFetch,
         onPhase: setStillPhase,
+        /* A failed lip-sync job whose charge was refunded says so in
+           the failure message, in the member's language. */
+        refundNote: (credits) => i18n.t("lipSync.refundNote", { credits }),
       });
       setStillResult(result);
     } catch (e) {

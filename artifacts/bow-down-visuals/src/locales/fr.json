@@ -4976,6 +4976,9 @@
     "voiceStylePlaceholder": "ex. grave, rauque, mélodique, agressif, doux...",
     "yourSong": "Ton morceau"
   },
+  "lipSync": {
+    "refundNote": "Tes {{credits}} Visual Bucs ont été remboursés."
+  },
   "makeVideo": {
     "pageTitle": "Faire un clip vidéo",
     "pageDescription": "Transforme ta chanson en vidéo musicale cinématographique grâce à la génération de scènes AI.",

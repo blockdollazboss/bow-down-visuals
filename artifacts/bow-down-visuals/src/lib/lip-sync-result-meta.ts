@@ -67,6 +67,53 @@ export function lipSyncProviderLabel(provider: string | null | undefined): strin
 }
 
 /**
+ * The refund fields the job poll carries (GET /api/lip-sync/job/:id):
+ * `chargeRefunded` is the job's own exactly-once refund gate
+ * (migration 0310) — true only when the poller's failure refund of the
+ * job's up-front charge has fired — and `refundedCredits`, the amount
+ * from the job's charge record, rides along only when it has.
+ */
+export interface LipSyncJobRefundFields {
+  chargeRefunded?: boolean | null;
+  refundedCredits?: number | null;
+}
+
+/**
+ * The refund verdict sentence for a terminally failed job, rendered
+ * through the caller's translator (the `lipSync.refundNote` key), or
+ * null when NO verdict may be stated: the refund never fired for this
+ * job (the gate is false/absent — e.g. a failure that carried no
+ * completed refund), or the job record names no amount (an amount is
+ * never invented here; the figure always comes from the job's own
+ * charge record on the server).
+ */
+export function lipSyncRefundNote(
+  job: LipSyncJobRefundFields | null | undefined,
+  render: (credits: number) => string,
+): string | null {
+  if (!job || job.chargeRefunded !== true) return null;
+  const credits = job.refundedCredits;
+  if (typeof credits !== "number" || !Number.isFinite(credits) || credits <= 0) {
+    return null;
+  }
+  return render(credits);
+}
+
+/**
+ * A failure message with the refund verdict appended when the job's
+ * refund actually fired — and the message untouched when it didn't,
+ * so a failure never wears a refund it didn't get.
+ */
+export function withLipSyncRefundNote(
+  message: string,
+  job: LipSyncJobRefundFields | null | undefined,
+  render: (credits: number) => string,
+): string {
+  const note = lipSyncRefundNote(job, render);
+  return note ? `${message} ${note}` : message;
+}
+
+/**
  * The plain completion sentence for a finished lip-sync job, or null
  * when there is no metadata at all to report (older jobs pre-0230 —
  * silence is honest there; inventing dimensions would not be).
