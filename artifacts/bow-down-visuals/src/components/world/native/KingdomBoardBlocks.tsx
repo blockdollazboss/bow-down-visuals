@@ -116,6 +116,7 @@ export function KingdomBoardBlocks({
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
   const [restEvents, setRestEvents] = useState<PalaceSlateEvent[]>([]);
+  const [restFailed, setRestFailed] = useState(false);
   const [tables, setTables] = useState<PartyOpenRoom[] | null>(null);
   const [tablesFailed, setTablesFailed] = useState(false);
   const [tick, setTick] = useState(0);
@@ -142,9 +143,16 @@ export function KingdomBoardBlocks({
     (async () => {
       try {
         const events = await fetchWorldEvents();
-        if (!cancelled) setRestEvents(normalizeWorldEventSlate(events));
+        if (!cancelled) {
+          setRestEvents(normalizeWorldEventSlate(events));
+          setRestFailed(false);
+        }
       } catch {
-        /* The directory slate still speaks. */
+        /* The directory slate still speaks — its events render below
+           on their own. But the failure is recorded: while the merged
+           slate is empty, the block must say the load failed, never
+           dress the failure up as an empty day. */
+        if (!cancelled) setRestFailed(true);
       }
     })();
     return () => {
@@ -319,7 +327,17 @@ export function KingdomBoardBlocks({
               highlighted
             />
           )}
-          {today.length === 0 && !kingLine ? (
+          {today.length === 0 && restFailed ? (
+            <NativeErrorState
+              isLight={isLight}
+              title="Today's slate wouldn't load"
+              message="The palace events rail didn't answer — today's shows and drops may still stand. Try again."
+              onRetry={() => {
+                setRestFailed(false);
+                setTick((n) => n + 1);
+              }}
+            />
+          ) : today.length === 0 && !kingLine ? (
             <NativeEmptyState
               isLight={isLight}
               message="Nothing on today's slate at the palace."
