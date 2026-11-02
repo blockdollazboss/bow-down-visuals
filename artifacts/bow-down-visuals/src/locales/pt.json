@@ -15915,5 +15915,24 @@
       "notBookable": "Essa reserva não é sua para fazer.",
       "failed": "A reserva não foi concluída — nada foi agendado. Tente de novo."
     }
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "Sua mensagem para {{name}}…",
+    "send": "Enviar",
+    "offerLoadFailed": "Não foi possível carregar os shoutouts deste palco.",
+    "tryAgain": "Tentar de novo",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "Shoutouts são para membros — entre para saudar o palco.",
+    "deniedNoStage": "Ninguém está no palco agora — os shoutouts chegam enquanto há um show.",
+    "deniedSelf": "É o seu palco — você não pode comprar um shoutout de si mesmo.",
+    "deniedMessage": "Escreva uma mensagem primeiro — até 300 caracteres.",
+    "deniedTooFast": "Um shoutout de cada vez — espere alguns segundos.",
+    "deniedNotOffered": "{{name}} não está aceitando shoutouts agora.",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "Os shoutouts não estão disponíveis na sua conta agora.",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

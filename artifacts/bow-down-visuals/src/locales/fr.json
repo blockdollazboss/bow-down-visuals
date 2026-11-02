@@ -15915,5 +15915,24 @@
       "notBookable": "Cette réservation ne vous appartient pas.",
       "failed": "La réservation n'a pas abouti — rien n'a été programmé. Réessayez."
     }
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "Votre message pour {{name}}…",
+    "send": "Envoyer",
+    "offerLoadFailed": "Impossible de charger les dédicaces pour cette scène.",
+    "tryAgain": "Réessayer",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "Les dédicaces sont réservées aux membres — connectez-vous pour saluer la scène.",
+    "deniedNoStage": "Personne n'est sur scène pour le moment — les dédicaces arrivent pendant un spectacle.",
+    "deniedSelf": "C'est votre scène — vous ne pouvez pas vous acheter une dédicace.",
+    "deniedMessage": "Écrivez d'abord un message — 300 caractères maximum.",
+    "deniedTooFast": "Une dédicace à la fois — attendez quelques secondes.",
+    "deniedNotOffered": "{{name}} n'accepte pas de dédicaces pour le moment.",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "Les dédicaces ne sont pas disponibles sur votre compte pour le moment.",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

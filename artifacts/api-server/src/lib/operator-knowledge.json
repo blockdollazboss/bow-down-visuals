@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "a5fbb479df8ef53522766029f3f3221958d8551d",
+  "baseCommit": "503c61f05cc423067057ac87fd73ef3a893fb78e",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -22,7 +22,7 @@
     "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 429,
-    "serverEndpoints": 1723,
+    "serverEndpoints": 1724,
     "serverEndpointsVisible": 1061,
     "serverFilesClassified": 100
   },
@@ -20806,7 +20806,7 @@
       },
       {
         "file": "artifacts/api-server/src/routes/world.ts",
-        "endpoints": 19,
+        "endpoints": 20,
         "visible": 12,
         "unseen": [
           "/api/world/creator-rooms/:slug",
@@ -20815,7 +20815,8 @@
           "/api/world/jukebox-catalog",
           "/api/world/my-music",
           "/api/world/room-invites/:id/accept",
-          "/api/world/room-invites/:id/decline"
+          "/api/world/room-invites/:id/decline",
+          "/api/world/shoutout-offer/:slug"
         ]
       }
     ]

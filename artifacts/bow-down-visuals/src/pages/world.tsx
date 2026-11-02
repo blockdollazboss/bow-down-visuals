@@ -130,6 +130,12 @@ import {
   stageTipDeniedLine,
 } from "@/lib/world/stage-tip";
 import {
+  STAGE_SHOUTOUT_MESSAGE_MAX,
+  parseShoutoutOffer,
+  stageShoutoutDeniedKey,
+  stageShoutoutMessageProblem,
+} from "@/lib/world/stage-shoutout";
+import {
   EMPTY_DROP_BOOK,
   dropBookClaimSent,
   dropBookClaimed,
@@ -622,6 +628,25 @@ export default function WorldPage() {
    * words, on the tip bar. Landed tips speak for themselves — the
    * room witnesses them (the log + the moment toast). */
   const [tipNote, setTipNote] = useState<string | null>(null);
+  /* Stage shoutouts (Ring 3, item 3.3 remainder): the performer's
+   * offer for THIS stage (read off the site rail when a holder
+   * takes the stage), the composer's open state + draft, and the
+   * refusal of MY shoutout in plain words on the same bar. A
+   * failed offer read is its own state ("failed", with a retry) —
+   * never dressed up as "not offered". */
+  const [shoutoutOffer, setShoutoutOffer] = useState<
+    | { kind: "loading" }
+    | { kind: "offered"; priceVb: number }
+    | { kind: "not-offered" }
+    | { kind: "failed" }
+    | null
+  >(null);
+  const [shoutoutOpen, setShoutoutOpen] = useState(false);
+  const [shoutoutDraft, setShoutoutDraft] = useState("");
+  const [shoutoutNote, setShoutoutNote] = useState<string | null>(null);
+  /* The current holder's name, readable from the socket
+   * callbacks (which are registered before the holder exists). */
+  const stageNameRef = useRef("");
   /* Drop spectacles (World Events 3.4): the chest standing in THIS
    * room as the client reports it (welcome snapshot + drop frames)
    * — the drop card in the chrome reads this one mirror. The room
@@ -1847,6 +1872,50 @@ export default function WorldPage() {
      nobody is moved. */
   const stageSlug = stageScreen?.holder?.slug ?? null;
   const stageHeld = !!stageScreen?.holder;
+  /* Stage shoutouts (Ring 3, item 3.3 remainder): when a holder
+     takes the stage, read their shoutout offer off the site rail
+     (GET /api/world/shoutout-offer/:slug) — do they take
+     shoutouts, at what price. The price the seat shows is the
+     price the purchase charges: the server re-reads the same
+     shoutout_settings row at buy time. A new holder retires the
+     last holder's composer and note — they belonged to the old
+     show. Members only: guests never see the control, so no read
+     is made for them. */
+  const loadShoutoutOffer = useCallback(async () => {
+    if (!stageSlug || !user || isGuest) {
+      setShoutoutOffer(null);
+      return;
+    }
+    setShoutoutOffer({ kind: "loading" });
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/world/shoutout-offer/${encodeURIComponent(stageSlug)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => undefined);
+      if (!res?.ok) {
+        setShoutoutOffer({ kind: "failed" });
+        return;
+      }
+      const parsed = parseShoutoutOffer(await res.json().catch(() => null));
+      if (!parsed) {
+        setShoutoutOffer({ kind: "failed" });
+        return;
+      }
+      setShoutoutOffer(
+        parsed.state === "offered"
+          ? { kind: "offered", priceVb: parsed.priceVb }
+          : { kind: "not-offered" },
+      );
+    } catch {
+      setShoutoutOffer({ kind: "failed" });
+    }
+  }, [stageSlug, user, isGuest, getAccessToken]);
+  useEffect(() => {
+    setShoutoutOpen(false);
+    setShoutoutDraft("");
+    setShoutoutNote(null);
+    void loadShoutoutOffer();
+  }, [loadShoutoutOffer]);
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
@@ -2684,6 +2753,37 @@ export default function WorldPage() {
         if (cancelled) return;
         setTipNote(stageTipDeniedLine(reason));
       };
+      /* A stage shoutout landed in this room (Ring 3, item 3.3
+       * remainder) — witnessed publicly the way a tip is: the
+       * room log keeps the line under the Palace and the moment
+       * toast names it (buyer, performer, the message called
+       * out, the amount — all server truth). A refusal of MY
+       * shoutout says why on the bar, in plain words. */
+      client.onStageShouted = (shout) => {
+        if (cancelled) return;
+        const line =
+          shout.amountVb > 0
+            ? t("worldStageShoutout.witnessed", {
+                name: shout.name,
+                performer: shout.performerName,
+                amount: shout.amountVb.toLocaleString("en-US"),
+                message: shout.message,
+              })
+            : t("worldStageShoutout.witnessedFree", {
+                name: shout.name,
+                performer: shout.performerName,
+                message: shout.message,
+              });
+        setSayLog((log) => [
+          ...log.slice(-7),
+          { peerId: "hall", displayName: "The Palace", body: line },
+        ]);
+        showMomentLine(line);
+      };
+      client.onStageShoutoutDenied = (reason) => {
+        if (cancelled) return;
+        setShoutoutNote(t(stageShoutoutDeniedKey(reason), { name: stageNameRef.current }));
+      };
       /* Drop spectacles (World Events 3.4): the chest standing in
        * THIS room. applyDropState is the one writer of the page's
        * mirror — the drop frames land on it, and the station tick
@@ -3117,6 +3217,7 @@ export default function WorldPage() {
   /* The stage, from the room's own broadcasts: one holder, one hand
      on the screen — the host outranks the holder, always. */
   const stageHolder = stageScreen?.holder ?? null;
+  stageNameRef.current = stageHolder?.name ?? "";
   const iHoldStage = !!stageHolder && stageHolder.peerId === myPeerId;
   /* The drop card's claim state for THIS viewer (guest / claimed /
    * out / open) + whether my claim is still out on the chest —
@@ -3568,6 +3669,84 @@ export default function WorldPage() {
               {tipNote && (
                 <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-stage-tip-note">
                   {tipNote}
+                </span>
+              )}
+              {/* Stage shoutouts (Ring 3, item 3.3 remainder): the
+                  same bar, beside the tip presets — the performer's
+                  own price on the button (their shoutout_settings
+                  price, read when they took the stage), an inline
+                  composer for the message, and the purchase settling
+                  server-side on the site shoutout rail. The segment
+                  stands only when THIS performer takes shoutouts; a
+                  failed offer read shows its own line with a retry —
+                  never dressed up as "not offered". */}
+              {shoutoutOffer?.kind === "offered" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShoutoutNote(null);
+                    setShoutoutOpen((open) => !open);
+                  }}
+                  data-testid="world-stage-shoutout-button"
+                  className={`bdv-touch-target inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:bg-[#d4af37]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                >
+                  <Megaphone className="h-3.5 w-3.5" />
+                  {shoutoutOffer.priceVb > 0
+                    ? t("worldStageShoutout.priceButton", {
+                        amount: shoutoutOffer.priceVb.toLocaleString("en-US"),
+                      })
+                    : t("worldStageShoutout.freeButton")}
+                </button>
+              )}
+              {shoutoutOffer?.kind === "failed" && (
+                <>
+                  <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+                    {t("worldStageShoutout.offerLoadFailed")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void loadShoutoutOffer()}
+                    data-testid="world-stage-shoutout-retry"
+                    className={`bdv-touch-target rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:bg-[#d4af37]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                  >
+                    {t("worldStageShoutout.tryAgain")}
+                  </button>
+                </>
+              )}
+              {shoutoutOffer?.kind === "offered" && shoutoutOpen && (
+                <>
+                  <input
+                    value={shoutoutDraft}
+                    onChange={(e) => setShoutoutDraft(e.target.value)}
+                    maxLength={STAGE_SHOUTOUT_MESSAGE_MAX}
+                    placeholder={t("worldStageShoutout.composerPlaceholder", {
+                      name: stageHolder.name,
+                    })}
+                    data-testid="world-stage-shoutout-input"
+                    className={`bdv-touch-target min-w-44 flex-1 rounded-full border px-3 py-1.5 text-xs font-semibold outline-none ${isLight ? "border-[#7A5A12]/30 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]" : "border-[#d4af37]/40 bg-black/40 text-white placeholder:text-white/40"}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (stageShoutoutMessageProblem(shoutoutDraft)) {
+                        setShoutoutNote(t("worldStageShoutout.deniedMessage"));
+                        return;
+                      }
+                      setShoutoutNote(null);
+                      clientRef.current?.shoutOutStage(shoutoutDraft);
+                      setShoutoutDraft("");
+                      setShoutoutOpen(false);
+                    }}
+                    data-testid="world-stage-shoutout-send"
+                    className={`bdv-touch-target rounded-full border px-3 py-1.5 text-xs font-bold transition hover:scale-105 ${isLight ? "border-[#7A5A12]/30 text-[#7A5A12] hover:bg-[#d4af37]/15" : "border-[#d4af37]/40 text-[#e8c86a] hover:bg-[#d4af37]/10"}`}
+                  >
+                    {t("worldStageShoutout.send")}
+                  </button>
+                </>
+              )}
+              {shoutoutNote && (
+                <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-stage-shoutout-note">
+                  {shoutoutNote}
                 </span>
               )}
             </>

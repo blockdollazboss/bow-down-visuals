@@ -2184,6 +2184,45 @@ describe("stage tips from seats (Ring 3, item 3.3)", () => {
     guestRun.client.tipStage(250);
     expect(guestRun.socket.sent).toEqual([]);
   });
+});
+
+describe("stage shoutouts from seats (Ring 3, item 3.3 remainder)", () => {
+  it("stage.shouted + stage.shoutout.denied reach their handlers with server truth", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    const shouted: unknown[] = [];
+    const denied: string[] = [];
+    client.onStageShouted = (s) => shouted.push(s);
+    client.onStageShoutoutDenied = (r) => denied.push(r);
+    socket.receive({
+      type: "stage.shouted",
+      shout: { name: "Fan", performerName: "Star", message: "Play the anthem!", amountVb: 250 },
+    });
+    socket.receive({ type: "stage.shouted", shout: { name: "Fan" } });
+    socket.receive({
+      type: "stage.shouted",
+      shout: { name: "Fan", performerName: "Star", message: "No amount", amountVb: "250" },
+    });
+    socket.receive({ type: "stage.shoutout.denied", reason: "not-offered" });
+    socket.receive({ type: "stage.shoutout.denied" });
+    expect(shouted).toEqual([
+      { name: "Fan", performerName: "Star", message: "Play the anthem!", amountVb: 250 },
+    ]);
+    expect(denied).toEqual(["not-offered", "error"]);
+  });
+
+  it("shoutOutStage sends the trimmed message for a member inside; guests and blank messages send nothing", async () => {
+    const { client, socket } = await inside({ t: 0 }, SELF, [OTHER]);
+    client.shoutOutStage("  Play the anthem!  ");
+    expect(socket.sent).toEqual([{ type: "stage.shoutout", message: "Play the anthem!" }]);
+    socket.sent = [];
+    client.shoutOutStage("");
+    client.shoutOutStage("   ");
+    expect(socket.sent).toEqual([]);
+
+    const guestRun = await inside({ t: 0 }, { ...SELF, guest: true }, [OTHER]);
+    guestRun.client.shoutOutStage("Play the anthem!");
+    expect(guestRun.socket.sent).toEqual([]);
+  });
 
   /* The jump fix (Oct 24): the page re-places the rig on the
    * welcome's landing when transferNeedsReseat says the transfer

@@ -31,6 +31,7 @@ import {
   dailyQuestProgressTable,
   royalCourtTable,
   shopsTable,
+  shoutoutSettingsTable,
   worldEventsTable,
   worldRoomInvitesTable,
 } from "@workspace/db";
@@ -102,6 +103,7 @@ import {
 } from "../lib/cover-fridays";
 import { gateCourtSeasonHerald } from "../lib/operator-duties";
 import { createStageTipper } from "../lib/world-stage-tips";
+import { createStageShoutouter } from "../lib/world-stage-shoutouts";
 import { isTicketed } from "../lib/live-tickets";
 import { createTutorialActionNotifier } from "../lib/world-tutorial";
 
@@ -898,6 +900,58 @@ router.get("/world/my-music", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err }, "[world] my-music lookup failed");
     res.status(500).json({ error: "Couldn't load your songs. Try again." });
+  }
+});
+
+/* ── Stage shoutout offer — the performer's price, by stage (Ring 3, 3.3) ──
+ * GET /api/world/shoutout-offer/:slug — does the creator at this slug
+ * take shoutouts, and at what price? The seat's shoutout control reads
+ * it when a stage is held: the price shown is the price the purchase
+ * charges (the performer's shoutout_settings on the site rail, charged
+ * in Visual Bucs at that number — lib/world-stage-shoutouts owns the
+ * purchase and re-reads the same settings at buy time). Members only:
+ * stage money is members' business, and guests never see the control.
+ * Unknown and private slugs are one answer, like the creator room's. */
+export interface WorldShoutoutOffer {
+  offered: boolean;
+  /** The price in VB when offered (0 = free shoutouts); null when
+   *  the creator isn't taking shoutouts — never an invented figure. */
+  priceVb: number | null;
+}
+
+/** Pure mapper (exported for route tests): one shoutout_settings
+ *  row → the world-shaped offer. */
+export function shoutoutOfferFromSettings(
+  row: { price_cents: number; accepting: string } | null,
+): WorldShoutoutOffer {
+  if (!row || row.accepting !== "true") return { offered: false, priceVb: null };
+  return { offered: true, priceVb: row.price_cents };
+}
+
+router.get("/world/shoutout-offer/:slug", requireAuth, async (req, res) => {
+  try {
+    const slug = String(req.params["slug"] ?? "");
+    const [profile] = await db
+      .select({ userId: creatorProfilesTable.userId })
+      .from(creatorProfilesTable)
+      .where(and(eq(creatorProfilesTable.slug, slug), eq(creatorProfilesTable.isPublic, true)))
+      .limit(1);
+    if (!profile) {
+      res.status(404).json({ error: "That creator isn't in the palace — their profile is private or doesn't exist." });
+      return;
+    }
+    const [settings] = await db
+      .select({
+        price_cents: shoutoutSettingsTable.price_cents,
+        accepting: shoutoutSettingsTable.accepting,
+      })
+      .from(shoutoutSettingsTable)
+      .where(eq(shoutoutSettingsTable.user_id, profile.userId))
+      .limit(1);
+    res.json(shoutoutOfferFromSettings(settings ?? null));
+  } catch (err) {
+    logger.error({ err }, "[world] shoutout offer lookup failed");
+    res.status(500).json({ error: "Couldn't load shoutouts for this stage. Try again." });
   }
 });
 
@@ -2197,6 +2251,13 @@ export function registerWorldWs(gateway: LiveWsGateway, deps: WorldWsDeps = {}):
        * palace hands it to the two stage rooms (hall + Music
        * Hall). No fee — no house rule prices a cut of VB tips. */
       tipStagePerformer: createStageTipper(),
+      /* Stage shoutouts from seats (Ring 3, item 3.3 remainder):
+       * the purchase (price from the performer's shoutout rail
+       * settings → debit → world_stage_shoutouts ledger →
+       * performer credit of the net after the rail's flat 5%,
+       * refunds on failure) lives in lib/world-stage-shoutouts;
+       * the palace hands it to the same two stage rooms. */
+      shoutOutStagePerformer: createStageShoutouter(),
       /* "Your First 10 Minutes" (Ring 3, Phase 6): the rooms note
        * the tutorial verbs (walk to the King, enter the Treasury,
        * applaud at a show); the rail in lib/world-tutorial owns

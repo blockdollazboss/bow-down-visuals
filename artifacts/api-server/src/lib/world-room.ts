@@ -112,6 +112,38 @@
  *                                            transfer itself runs on
  *                                            the injected tipper —
  *                                            Ring 3, item 3.3)
+ *     { type: "stage.shoutout", message }    buy a shoutout from the
+ *                                            member holding THIS
+ *                                            room's stage, from your
+ *                                            seat: your message is
+ *                                            called out on stage
+ *                                            (members only, never
+ *                                            your own stage; the
+ *                                            price is the performer's
+ *                                            own shoutout price from
+ *                                            the site rail, charged
+ *                                            in VB at that number,
+ *                                            split at the rail's
+ *                                            flat 5%; the purchase
+ *                                            itself runs on the
+ *                                            injected shoutouter —
+ *                                            Ring 3, item 3.3)
+ *     { type: "stage.shoutout", message }    buy a shoutout from the
+ *                                            member holding THIS
+ *                                            room's stage, from your
+ *                                            seat: your message is
+ *                                            called out on stage
+ *                                            (members only, never
+ *                                            your own stage; the
+ *                                            price is the performer's
+ *                                            own shoutout price from
+ *                                            the site rail, charged
+ *                                            in VB at that number,
+ *                                            split at the rail's
+ *                                            flat 5%; the purchase
+ *                                            itself runs on the
+ *                                            injected shoutouter —
+ *                                            Ring 3, item 3.3)
  *     { type: "moment.celebrate", kind }      ask the room to witness
  *                                            a win: kind "quest" (a
  *                                            quest reward I just
@@ -229,6 +261,42 @@
  *                                            self / amount /
  *                                            too-fast / insufficient /
  *                                            disabled / error)
+ *     { type: "stage.shouted", shout }        a stage shoutout
+ *                                            landed, witnessed by
+ *                                            the room: shout.name
+ *                                            (the fan) + shout.
+ *                                            performerName + shout.
+ *                                            message + shout.
+ *                                            amountVb (the gross the
+ *                                            fan paid; 0 = the
+ *                                            performer's free
+ *                                            shoutout) are server
+ *                                            truth
+ *     { type: "stage.shoutout.denied", reason }    a shoutout was
+ *                                            refused (guests /
+ *                                            no-stage / self /
+ *                                            message / too-fast /
+ *                                            not-offered /
+ *                                            insufficient / disabled /
+ *                                            error)
+ *     { type: "stage.shouted", shout }        a stage shoutout
+ *                                            landed, witnessed by
+ *                                            the room: shout.name
+ *                                            (the fan) + shout.
+ *                                            performerName + shout.
+ *                                            message + shout.
+ *                                            amountVb (the gross the
+ *                                            fan paid; 0 = the
+ *                                            performer's free
+ *                                            shoutout) are server
+ *                                            truth
+ *     { type: "stage.shoutout.denied", reason }    a shoutout was
+ *                                            refused (guests /
+ *                                            no-stage / self /
+ *                                            message / too-fast /
+ *                                            not-offered /
+ *                                            insufficient / disabled /
+ *                                            error)
  *     { type: "peer.moment", moment }         a win, witnessed by the
  *                                            room (THE-GAME §5(a)):
  *                                            moment.kind "quest" →
@@ -722,6 +790,35 @@ export type WorldStageTipper = (input: {
   attemptKey: string;
 }) => Promise<WorldStageTipResult>;
 
+/* ── Stage shoutouts from seats (Ring 3, item 3.3 remainder) ─────
+ * The paid half of stage applause: a fan buys the performer's
+ * shoutout and their message is called out on stage. The room
+ * owns the moment (members only, a held stage, never your own,
+ * the message within the room's say bound, one purchase per pace
+ * window); the injected shoutouter (lib/world-stage-shoutouts)
+ * owns the purchase: price from the performer's shoutout_settings
+ * on the site rail, debit, ledger row, performer credit of the
+ * net after the rail's flat 5% fee, refunds on any failure. A
+ * landed shoutout is WITNESSED: the room sees who bought it, who
+ * holds the stage, the message, and the amount paid. */
+
+type WorldStageShoutoutResult =
+  | { ok: true; amountVb: number }
+  | { ok: false; reason: "not-offered" | "insufficient" | "disabled" | "error" };
+
+/** Injected by the route layer: buy one stage shoutout.
+ *  `attemptKey` is minted fresh by the room per attempt — the
+ *  purchase's idempotency keys all derive from it. The result's
+ *  amountVb is the charged gross (the performer's price, or 0
+ *  for their free shoutout) — server truth for the witness. */
+export type WorldStageShoutouter = (input: {
+  fromUserId: string;
+  toUserId: string;
+  message: string;
+  roomId: string;
+  attemptKey: string;
+}) => Promise<WorldStageShoutoutResult>;
+
 /* ── Tutorial verbs (Ring 3, Phase 6) ─────────────────────────────
  * "Your First 10 Minutes" completes three of its steps from what
  * a member DOES in the palace: walking to the King, walking into
@@ -741,6 +838,11 @@ export type WorldTutorialNotifier = (userId: string, verb: WorldTutorialVerb) =>
 /** The pace between one member's stage tips in a room — tips are
  *  applause with weight, not a faucet to hold open. */
 const STAGE_TIP_MIN_INTERVAL_MS = 2_000;
+
+/** The pace between one member's stage shoutouts in a room —
+ *  the same applause pace as tips, its own slot (a tip never
+ *  blocks a shoutout, or the reverse). */
+const STAGE_SHOUTOUT_MIN_INTERVAL_MS = 2_000;
 
 /* ── Witnessed moments (THE-GAME §5(a)) ────────────────────────────
  * Wins are public, progress is private (owner default, §5 Q3): when
@@ -1045,6 +1147,10 @@ interface WorldPeer extends WorldIdentity {
    *  STAGE_TIP_MIN_INTERVAL_MS). Set when the attempt is taken,
    *  before the async transfer runs. */
   lastTipAt: number;
+  /** The last stage.shoutout attempt (pace gate — see
+   *  STAGE_SHOUTOUT_MIN_INTERVAL_MS). Set when the attempt is
+   *  taken, before the async purchase runs. */
+  lastShoutoutAt: number;
   /** Tutorial verbs already noted for this peer this session
    *  (the room-side latch — the rail dedupes across sessions). */
   tutorialVerbsFired: Set<WorldTutorialVerb>;
@@ -1277,6 +1383,7 @@ export class WorldRoom {
       claimWorldDrop?: WorldDropClaimer;
       claimKingMoment?: WorldKingMomentClaimer;
       tipStagePerformer?: WorldStageTipper;
+      shoutOutStagePerformer?: WorldStageShoutouter;
       noteTutorialAction?: WorldTutorialNotifier;
       resolveStars?: WorldStarsResolver;
       findRecentQuestClaim?: WorldQuestClaimFinder;
@@ -1637,6 +1744,7 @@ export class WorldRoom {
       announcedStars: carry?.announcedStars ?? stars ?? 0,
       lastMomentAt: 0,
       lastTipAt: 0,
+      lastShoutoutAt: 0,
       tutorialVerbsFired: new Set(),
       lastQuestMomentKey: null,
       x: startX,
@@ -3013,6 +3121,74 @@ export class WorldRoom {
           .catch(() => {
             const tipperPeer = this.peerForUserId(fromUserId);
             if (tipperPeer) this.send(tipperPeer, { type: "stage.tip.denied", reason: "error" });
+          });
+        return;
+      }
+      case "stage.shoutout": {
+        /* Buy a shoutout from the stage, from your seat (Ring 3,
+         * item 3.3 remainder). Members only, a stage actually held
+         * in THIS room, never your own stage, the message within
+         * the room's say bound (it is witnessed text), one purchase
+         * per pace window. The purchase itself (price from the
+         * performer's shoutout rail settings → debit → ledger →
+         * performer credit of the net after the rail's flat 5%,
+         * refunds on failure) is the injected shoutouter's; the
+         * room just witnesses the landing. The performer is
+         * captured at send time, like a tip: if they step down
+         * mid-purchase, the shoutout still lands for the
+         * performance it applauded. */
+        const denyShoutout = (reason: string) =>
+          this.send(peer, { type: "stage.shoutout.denied", reason });
+        if (!this.stageEnabled) return denyShoutout("no-stage");
+        if (peer.guest || !peer.userId) return denyShoutout("guests");
+        const holder = this.stageHolder;
+        if (!holder) return denyShoutout("no-stage");
+        if (holder.userId === peer.userId) return denyShoutout("self");
+        const rawMessage = frame["message"];
+        const message =
+          typeof rawMessage === "string" ? rawMessage.trim().slice(0, SAY_MAX_CHARS) : "";
+        if (!message || (typeof rawMessage === "string" && rawMessage.trim().length > SAY_MAX_CHARS)) {
+          return denyShoutout("message");
+        }
+        if (now - peer.lastShoutoutAt < STAGE_SHOUTOUT_MIN_INTERVAL_MS) return denyShoutout("too-fast");
+        const shoutouter = this.deps.shoutOutStagePerformer;
+        if (!shoutouter) return denyShoutout("error");
+        peer.lastShoutoutAt = now;
+        const fromUserId = peer.userId;
+        const fromName = peer.displayName;
+        void shoutouter({
+          fromUserId,
+          toUserId: holder.userId,
+          message,
+          roomId: this.roomId,
+          attemptKey: randomUUID(),
+        })
+          .then((result) => {
+            if (!result.ok) {
+              const buyerPeer = this.peerForUserId(fromUserId);
+              if (buyerPeer) {
+                this.send(buyerPeer, { type: "stage.shoutout.denied", reason: result.reason });
+              }
+              return;
+            }
+            this.hub.broadcast(this.roomId, {
+              type: "stage.shouted",
+              shout: {
+                name: fromName,
+                performerName: holder.name,
+                message,
+                amountVb: result.amountVb,
+              },
+            });
+            /* Tutorial (Phase 6): a landed shoutout is applause
+             * with weight, like a landed tip — it satisfies the
+             * applaud step for the buyer (THE-GAME §4.6 step 6). */
+            const buyerPeer = this.peerForUserId(fromUserId);
+            if (buyerPeer) this.noteTutorial(buyerPeer, "applaud");
+          })
+          .catch(() => {
+            const buyerPeer = this.peerForUserId(fromUserId);
+            if (buyerPeer) this.send(buyerPeer, { type: "stage.shoutout.denied", reason: "error" });
           });
         return;
       }
