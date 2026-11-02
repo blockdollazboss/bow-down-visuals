@@ -88,6 +88,51 @@ describe("PlainWordsDeals — the failure branch carries a working Retry", () =>
   });
 });
 
+describe("KingdomBoardBlocks — a failed palace-events load is not an empty slate", () => {
+  const src = read("components/world/native/KingdomBoardBlocks.tsx");
+  const todayAt = src.indexOf('data-testid="world-kingdom-today"');
+  const calendarAt = src.indexOf("Palace calendar (3.9)", todayAt);
+  const todayBlock = src.slice(todayAt, calendarAt);
+
+  it("records the REST leg's failure in its own state, cleared on success", () => {
+    expect(src).toMatch(/const \[restFailed, setRestFailed\] = useState\(false\)/);
+    expect(src).toMatch(/setRestFailed\(true\)/);
+    expect(src).toMatch(/setRestFailed\(false\)/);
+    expect(src).not.toMatch(/The directory slate still speaks\./);
+  });
+
+  it("(1) REST failure + empty merged slate renders the failure state, not the empty claim", () => {
+    const errAt = todayBlock.indexOf("today.length === 0 && restFailed");
+    const emptyAt = todayBlock.indexOf("Nothing on today's slate at the palace.");
+    expect(todayAt).toBeGreaterThan(-1);
+    expect(errAt).toBeGreaterThan(-1);
+    expect(todayBlock).toContain("NativeErrorState");
+    expect(emptyAt).toBeGreaterThan(errAt);
+  });
+
+  it("(2) the empty claim is gated behind the failure branch, so it renders only on a completed REST load", () => {
+    const errAt = todayBlock.indexOf("today.length === 0 && restFailed");
+    const emptyGateAt = todayBlock.indexOf("today.length === 0 && !kingLine");
+    expect(errAt).toBeGreaterThan(-1);
+    expect(emptyGateAt).toBeGreaterThan(errAt);
+  });
+
+  it("(3) REST failure + directory events still renders the events — error and empty both require an empty slate", () => {
+    expect(src).toMatch(/mergeSlates\(restEvents, directorySlate\(directory\)\)/);
+    expect(todayBlock).toContain("today.map((e)");
+    expect(todayBlock).not.toMatch(/\{restFailed \? \(/);
+  });
+
+  it("(4) the failure state's Retry re-runs the loads via the tick the REST effect depends on", () => {
+    const errAt = todayBlock.indexOf("NativeErrorState");
+    const retryAt = todayBlock.indexOf("setTick((n) => n + 1)", errAt);
+    expect(errAt).toBeGreaterThan(-1);
+    expect(retryAt).toBeGreaterThan(errAt);
+    expect(todayBlock.slice(errAt, retryAt)).toContain("setRestFailed(false)");
+    expect(src).toMatch(/\}, \[tick\]\);/);
+  });
+});
+
 describe("PurchasesPanel — the failure branch carries a working Retry", () => {
   const src = read("components/library/PurchasesPanel.tsx");
 
