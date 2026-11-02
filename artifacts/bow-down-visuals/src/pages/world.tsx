@@ -5078,6 +5078,7 @@ export default function WorldPage() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 maxLength={300}
+                aria-label="Say something to the room"
                 placeholder={myName ? `Say something, ${myName.split(" ")[0]}…` : "Say something…"}
                 className={`bdv-touch-target min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/70 focus:border-[#7A5A12]" : "border-white/12 bg-black/50 text-white placeholder:text-white/30 focus:border-[#d4af37]/60"}`}
                 data-testid="world-say-input"
