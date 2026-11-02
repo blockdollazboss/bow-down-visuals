@@ -14,6 +14,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
+import { getCreditCost } from "@/lib/credit-costs";
 import { modelSupportsEndFrame, endFrameForPayload } from "@/lib/scene-end-frame";
 import { CLIP_FORMAT_OPTIONS, FORMAT_TO_RATIO, feedFormatHint, type ClipFormat } from "@/lib/feed-formats";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
@@ -864,12 +865,21 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
      server VEO_CREDITS_PER_SEC_DEFAULT). */
   const VEO_CREDITS_PER_SEC_CLIENT = 150;
   const VEO_CLIP_DURATION_CLIENT = 8;
+  /* Gen4.5 "Standard": flat per-clip price from the FE credit registry —
+     the same entry confirmedFetch confirms against. The registry mirrors
+     GEN45_CREDIT_COST in the server rail (routes/generate/clip-pricing.ts),
+     which charges 400 VB flat. This value feeds BOTH the "Generate costs …"
+     line and the spend-confirm dialog's overrideCost (both read clipCost),
+     so the quoted price can never again drift from the charge — the old
+     hard-coded 5 quoted 5 while the rail charged 400 (price audit #1,
+     2026-11-02). */
+  const GEN45_CLIP_COST_CLIENT = getCreditCost("/api/generate-runway-clip")?.cost ?? 400;
   const isDraftRequest = clipModel === "seedance2_5" && draftMode;
   const clipCost = clipModel === "veo3_1"
     ? VEO_CLIP_DURATION_CLIENT * VEO_CREDITS_PER_SEC_CLIENT
     : clipModel === "seedance2_5"
       ? clipDuration * (isDraftRequest ? SEEDANCE_CREDITS_PER_SEC_CLIENT_DRAFT : clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
-      : 5;
+      : GEN45_CLIP_COST_CLIENT;
   /* Enhance cost: re-render the draft's keeper at 1080p. */
   const enhanceCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : 0;
   const genTimeHint = clipModel === "veo3_1" ? "Usually takes 1–2 minutes" : clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
