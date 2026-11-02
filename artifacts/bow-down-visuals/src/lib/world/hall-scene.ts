@@ -452,6 +452,69 @@ function detectQuality(): QualityTier {
    wrapping kaleidoscoped the non-seamless source's veins. */
 const textureCache = new Map<string, THREE.Texture>();
 
+/* Creator-room host portraits (world-perf lane, stack1200): one
+ * texture per portrait URL for the scene's life, cleared at scene
+ * dispose like the plate caches below. The dressing subgroup
+ * rebuilds per host; before this cache every rebuild re-downloaded
+ * and re-decoded the host's portrait, and the retired texture was
+ * never disposed (the subgroup's materials die at rebuild; their
+ * maps did not). A material waiting on a portrait registers as a
+ * waiter: when the image lands, every current waiter's gilt frame
+ * flips to the portrait, exactly as the one-off load behaved — a
+ * waiter whose dressing was already replaced flips an unmounted
+ * material, which renders nothing. A failed load drops the entry,
+ * so a later visit retries and the frame stays honestly empty. */
+const creatorPortraitCache = new Map<
+  string,
+  { tex: THREE.Texture; loaded: boolean; waiters: Set<THREE.MeshBasicMaterial> }
+>();
+
+function creatorPortraitTexture(
+  url: string,
+  mat: THREE.MeshBasicMaterial,
+): void {
+  const hit = creatorPortraitCache.get(url);
+  if (hit) {
+    if (hit.loaded) {
+      mat.map = hit.tex;
+      mat.color.set(0xffffff);
+      mat.needsUpdate = true;
+    } else {
+      hit.waiters.add(mat);
+    }
+    return;
+  }
+  const entry: {
+    tex: THREE.Texture;
+    loaded: boolean;
+    waiters: Set<THREE.MeshBasicMaterial>;
+  } = {
+    tex: null as unknown as THREE.Texture,
+    loaded: false,
+    waiters: new Set([mat]),
+  };
+  creatorPortraitCache.set(url, entry);
+  entry.tex = new THREE.TextureLoader().load(
+    url,
+    (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      entry.loaded = true;
+      for (const waiter of entry.waiters) {
+        waiter.map = tex;
+        waiter.color.set(0xffffff);
+        waiter.needsUpdate = true;
+      }
+      entry.waiters.clear();
+    },
+    undefined,
+    () => {
+      if (creatorPortraitCache.get(url) === entry) {
+        creatorPortraitCache.delete(url);
+      }
+    },
+  );
+}
+
 /* The renderer's real anisotropy ceiling, captured at scene
  * construction (overhaul audit T12: the hard-coded 8 smeared the
  * plaza floor at the grazing angles the world is mostly viewed
@@ -4299,17 +4362,10 @@ export class KingsHallScene {
       portrait.position.set(interior.minX + 0.1, 3.1, (interior.minZ + interior.maxZ) / 2);
       portrait.rotation.y = Math.PI / 2;
       host.add(portrait);
-      new THREE.TextureLoader().load(
-        d.portraitUrl,
-        (tex) => {
-          tex.colorSpace = THREE.SRGBColorSpace;
-          portraitMat.map = tex;
-          portraitMat.color.set(0xffffff);
-          portraitMat.needsUpdate = true;
-        },
-        undefined,
-        () => undefined,
-      );
+      /* One texture per portrait for the scene's life (see
+       * creatorPortraitTexture): repeat visits to a host's room
+       * re-use the landed image instead of fetching it again. */
+      creatorPortraitTexture(d.portraitUrl, portraitMat);
     }
   }
 
@@ -10568,6 +10624,8 @@ export class KingsHallScene {
     }
     for (const tex of textureCache.values()) tex.dispose();
     textureCache.clear();
+    for (const entry of creatorPortraitCache.values()) entry.tex.dispose();
+    creatorPortraitCache.clear();
     for (const tex of doorPlateCache.values()) tex.dispose();
     doorPlateCache.clear();
     for (const tex of kingdomBoardPlateCache.values()) tex.dispose();
