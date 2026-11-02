@@ -92,7 +92,11 @@ describe("changeCreatorTierSubscription", () => {
     const [, params, options] = (stripe.subscriptions.update as any).mock.calls[0];
     expect(params.proration_date).toBe(1_798_000_000);
     expect(params.cancel_at_period_end).toBe(false);
-    expect(options).toEqual({ idempotencyKey: "idem-key-1" });
+    /* stack1300: the effective key is the caller's key PLUS a
+       fingerprint of the exact update parameters, so the key
+       identifies this request (a parameter change under a reused key
+       is what Stripe refuses). */
+    expect(options.idempotencyKey).toMatch(/^idem-key-1:[0-9a-f]{32}$/);
   });
 
   it("without the stack600 options the update carries no proration_date, no cancel clear, no key (hosted rail unchanged)", async () => {

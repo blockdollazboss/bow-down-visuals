@@ -213,7 +213,7 @@ describe("performance-booking fund — embedded checkout (sweep)", () => {
     expect(row.escrow_status).toBe("funding");
   });
 
-  it("embedded and hosted create the identical session but for presentation (same key, amount, metadata)", async () => {
+  it("embedded and hosted create the identical session but for presentation (same amount + metadata; different idempotency key — stack1300)", async () => {
     const id = await acceptedBooking();
     await req("POST", `/performance-bookings/${id}/fund`, { uiMode: "embedded" });
     await h.db.execute(sql`UPDATE performance_bookings SET escrow_status = 'unfunded', stripe_session_id = NULL WHERE id = ${id}`);
@@ -230,7 +230,10 @@ describe("performance-booking fund — embedded checkout (sweep)", () => {
       performance_escrow: "true",
       amount_cents: "25000",
     });
-    expect(emb!.options.idempotencyKey).toBe(host!.options.idempotencyKey);
+    /* Different presentations = different Stripe requests; the key
+       fingerprints the exact parameters, so they must NOT share one
+       (a shared key is what Stripe refused on staging). */
+    expect(emb!.options.idempotencyKey).not.toBe(host!.options.idempotencyKey);
   });
 
   it("hosted stays the default shape", async () => {
