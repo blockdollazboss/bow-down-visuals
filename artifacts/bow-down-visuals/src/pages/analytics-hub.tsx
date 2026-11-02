@@ -1,7 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -9,16 +9,43 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { CostBadge } from "@/components/CostBadge";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
-import ContentIntelligenceChain from "@/components/analytics-hub/ContentIntelligenceChain";
-import RetentionDoctor from "@/components/analytics-hub/RetentionDoctor";
-import MilestoneTracker from "@/components/analytics-hub/MilestoneTracker";
-import ContentIdMonitor from "@/components/analytics-hub/ContentIdMonitor";
-import { ClaimsPanel, RetentionPanel } from "@/components/trust/TrustPanels";
-import ChannelAuditPanel from "@/components/analytics-hub/ChannelAuditPanel";
-import ViralityCheckPanel from "@/components/analytics-hub/ViralityCheckPanel";
-import FanDecoderSection from "@/components/analytics-hub/FanDecoderSection";
+/* The per-tab panels ride lazy doors (site-perf, stack1300):
+   the hub renders exactly ONE tab at a time and the default tab
+   is the in-page dashboard, so the intelligence chain, the
+   Content ID monitor, the milestone tracker, the channel audit,
+   the virality check, the fan decoder, the audience room and
+   the two trust panels no longer ride /analytics-hub's first
+   load. Each fetches on first tab selection and is cached for
+   later switches. The dashboard's own pieces (MonthWrappedCard,
+   the charts) and the in-file ConnectedAccountsTab stay static. */
+const ContentIntelligenceChain = lazy(() => import("@/components/analytics-hub/ContentIntelligenceChain"));
+const RetentionDoctor = lazy(() => import("@/components/analytics-hub/RetentionDoctor"));
+const MilestoneTracker = lazy(() => import("@/components/analytics-hub/MilestoneTracker"));
+const ContentIdMonitor = lazy(() => import("@/components/analytics-hub/ContentIdMonitor"));
+const ClaimsPanel = lazy(() => import("@/components/trust/TrustPanels").then((m) => ({ default: m.ClaimsPanel })));
+const RetentionPanel = lazy(() => import("@/components/trust/TrustPanels").then((m) => ({ default: m.RetentionPanel })));
+const ChannelAuditPanel = lazy(() => import("@/components/analytics-hub/ChannelAuditPanel"));
+const ViralityCheckPanel = lazy(() => import("@/components/analytics-hub/ViralityCheckPanel"));
+const FanDecoderSection = lazy(() => import("@/components/analytics-hub/FanDecoderSection"));
+const AudienceRoomPanel = lazy(() => import("@/components/analytics-hub/AudienceRoomPanel"));
+
+/* The tab stage's loading frame: gold spinner — a tab switch
+   reads as "opening", never a blank hole. */
+function AnalyticsTabFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[240px] items-center justify-center gap-3 text-white/50" role="status">
+      <Loader2 className="h-5 w-5 animate-spin text-[#d4a017]" />
+      <span className="text-sm">{t("common.loading")}</span>
+    </div>
+  );
+}
+
+/* One Suspense door per tab block, in the world DeskDoor style. */
+function TabDoor({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<AnalyticsTabFallback />}>{children}</Suspense>;
+}
 import { MonthWrappedCard } from "@/components/MonthWrappedCard";
-import { AudienceRoomPanel } from "@/components/analytics-hub/AudienceRoomPanel";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -2425,7 +2452,7 @@ export default function AnalyticsHub() {
             The guided 5-step flow: Validate Idea → Hook Lab → Niche Check →
             Competitor Gaps → Content Calendar → plan review. No new page,
             no new sidebar item — this tab is its only home. */}
-        {hubTab === "intelligence" && (
+        <TabDoor>{hubTab === "intelligence" && (
           <div className="relative mt-10">
             <ContentIntelligenceChain initialHook={intelInitialHook || undefined} />
             {/* ── AI RETENTION DOCTOR ────────────────────────────────────
@@ -2437,19 +2464,19 @@ export default function AnalyticsHub() {
               <RetentionDoctor />
             </div>
           </div>
-        )}
+        )}</TabDoor>
 
         {/* ── CONTENT ID MONITOR ─────────────────────────────────────────
             YouTube Content ID opt-in management (DistroKid parity). Real
             claiming requires a CMS partnership we don't have yet — the
             component states that up front and never fakes a claim.
             No new page, no new sidebar item — this tab is its only home. */}
-        {hubTab === "contentid" && (
+        <TabDoor>{hubTab === "contentid" && (
           <div className="grid gap-4">
             <ContentIdMonitor />
             <ClaimsPanel />
           </div>
-        )}
+        )}</TabDoor>
 
         {/* ── MILESTONE TRACKER ────────────────────────────────────────────
             DistroKid RIAA-monitoring parity: user-logged / CSV-imported
@@ -2458,12 +2485,12 @@ export default function AnalyticsHub() {
             Spotify sync exists — the component says so and never fakes
             numbers. No new page, no new sidebar item — this tab is its
             only home. */}
-        {hubTab === "milestones" && (
+        <TabDoor>{hubTab === "milestones" && (
           <div className="grid gap-4">
             <MilestoneTracker />
             <RetentionPanel />
           </div>
-        )}
+        )}</TabDoor>
 
         {/* ── CONNECTED ACCOUNTS ─────────────────────────────────────────
             Live connected-account stats (Instagram / TikTok / Facebook via
@@ -2480,30 +2507,30 @@ export default function AnalyticsHub() {
             dimensions A–F with fixes, an overall grade, and a top-3 priority
             list. Absorbed from /channel-audit — no new page, no new sidebar
             item; this tab is its only home. */}
-        {hubTab === "channelAudit" && (
+        <TabDoor>{hubTab === "channelAudit" && (
           <ChannelAuditPanel />
-        )}
+        )}</TabDoor>
 
         {/* ── VIRALITY PRE-FLIGHT CHECK ──────────────────────────────────
             Deeper standalone scorecard for a post's viral readiness
             (POST /api/virality-check, 2 credits). Absorbed from
             /virality-check — no new page, no new sidebar item; this tab is
             its only home. */}
-        {hubTab === "virality" && (
+        <TabDoor>{hubTab === "virality" && (
           <ViralityCheckPanel />
-        )}
-        {hubTab === "fandecoder" && (
+        )}</TabDoor>
+        <TabDoor>{hubTab === "fandecoder" && (
           <FanDecoderSection />
-        )}
+        )}</TabDoor>
 
         {/* ── AUDIENCE ROOM (N16) ────────────────────────────────────────
             One honest room over my own plays: best hours + declared play
             sources from real play_events rows; fan city stays absent —
             the platform records no fan location, and the panel says so
             instead of estimating. Absorbed into the hub; no new page. */}
-        {hubTab === "audience" && (
+        <TabDoor>{hubTab === "audience" && (
           <AudienceRoomPanel />
-        )}
+        )}</TabDoor>
       </main>
 
 
