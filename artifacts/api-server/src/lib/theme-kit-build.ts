@@ -179,6 +179,96 @@ function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 }
 
+/* ─── Stored customization mix (the builders consume it) ──────────────
+   A member's saved mix (theme_pack_customizations) — or a creator
+   pack's design mix (creator_theme_packs.mix) — is what a bundle is
+   built FROM. The route loads + sanitizes it; these resolvers read
+   the two fields that shape bundle bytes:
+
+   - accentHex: the kit accent. Resolution mirrors the FE
+     effectiveAccent (lib/theme-kit.ts): the component's own accent,
+     then the accent-color component's, then the pack default. Device
+     resolution tries the artifact's device key, then "all" (the key
+     the kit panel writes).
+   - artSourceId (home-wallpapers / lock-wallpapers): swap the slot's
+     wallpaper art from the approved library. "pack-ground" (or no
+     choice) keeps the pack ground — today's behaviour, unchanged.
+
+   Fields with no bundle-byte meaning are NOT consumed here: branded
+   and note carry no defined bundle semantics, cursorId names no
+   bundle-side cursor art, customArtUrl bytes are not resolvable from
+   the approved on-disk library, and extraSoundRole is already inside
+   every bundle by construction (the full library set ships). */
+
+export interface KitMixSettings {
+  artSourceId?: string;
+  accentHex?: string;
+}
+
+/** component → device → settings (the sanitized storage shape). */
+export type KitMix = Partial<Record<string, Partial<Record<string, KitMixSettings>>>>;
+
+const HEX6_RE = /^#[0-9a-fA-F]{6}$/;
+
+function deviceChain(device: string): string[] {
+  return device === "all" ? ["all"] : [device, "all"];
+}
+
+/** The accent a kit artifact renders with after customization —
+    server mirror of the FE effectiveAccent chain. */
+export function resolveKitAccent(
+  pack: ServerPack,
+  mode: KitMode,
+  mix: KitMix | undefined,
+  component: string,
+  device = "all",
+): string {
+  for (const comp of [component, "accent-color"]) {
+    for (const d of deviceChain(device)) {
+      const hex = mix?.[comp]?.[d]?.accentHex;
+      if (typeof hex === "string" && HEX6_RE.test(hex)) return hex.toLowerCase();
+    }
+  }
+  return hslToHex(pack.colors[mode].primary);
+}
+
+/** Approved-library art id → site path. Mirror of the FE
+    APPROVED_ART_SOURCES paths ("pack-ground" has no path — it IS the
+    pack ground, the default). The parity tests pin both lists. */
+export const KIT_ART_SITE_PATHS: Record<string, string> = {
+  "kings-set-throne-phone": "/wallpapers/kings-set-throne-phone.webp",
+  "kings-set-plaza-phone": "/wallpapers/kings-set-plaza-phone.webp",
+  "kings-set-stage-desktop": "/wallpapers/kings-set-stage-desktop.webp",
+  "kings-set-throne-loop": "/wallpapers/kings-set-throne-loop.mp4",
+  "kings-set-plaza-loop": "/wallpapers/kings-set-plaza-loop.mp4",
+  "kings-set-stage-loop": "/wallpapers/kings-set-stage-loop.mp4",
+};
+
+/** The raw art choice stored for one component × device (no device
+    fallback) — kit.json records exactly what was stored. */
+export function storedKitArtId(
+  mix: KitMix | undefined,
+  component: string,
+  device: string,
+): string | undefined {
+  const id = mix?.[component]?.[device]?.artSourceId;
+  return typeof id === "string" && id in KIT_ART_SITE_PATHS ? id : undefined;
+}
+
+/** The art choice that applies to a slot: the slot device's own
+    choice, then the "all devices" choice, else the pack ground. */
+export function resolveKitArtId(
+  mix: KitMix | undefined,
+  component: string,
+  device: string,
+): string | undefined {
+  for (const d of deviceChain(device)) {
+    const id = storedKitArtId(mix, component, d);
+    if (id) return id;
+  }
+  return undefined;
+}
+
 /* ─── Asset resolution (approved library on disk) ───────────────────── */
 
 export function assetRoots(): string[] {
@@ -203,6 +293,23 @@ export function readSiteAsset(sitePath: string): Buffer | null {
     }
   }
   return null;
+}
+
+/** The mix-chosen art for one wallpaper slot, resolved to bytes from
+    the approved library — null when the slot keeps the pack ground
+    (no choice, or the chosen file is absent on this deploy, in which
+    case the ground ships rather than a substitute). */
+export function chosenKitArt(
+  mix: KitMix | undefined,
+  component: string,
+  device: string,
+): { id: string; bytes: Buffer; ext: "webp" | "mp4" } | null {
+  const id = resolveKitArtId(mix, component, device);
+  if (!id) return null;
+  const sitePath = KIT_ART_SITE_PATHS[id]!;
+  const bytes = readSiteAsset(sitePath);
+  if (!bytes) return null;
+  return { id, bytes, ext: sitePath.endsWith(".mp4") ? "mp4" : "webp" };
 }
 
 /* ─── Minimal .cur writer (32×32, 32bpp, accent glyph block) ───────── */
@@ -324,8 +431,8 @@ export function buildCab(files: CabFile[]): Buffer {
 
 /* ─── .themepack assembly ───────────────────────────────────────────── */
 
-export function buildWindowsThemeText(pack: ServerPack, mode: KitMode): string {
-  const accent = hslToHex(pack.colors[mode].primary).replace("#", "");
+export function buildWindowsThemeText(pack: ServerPack, mode: KitMode, accentHex?: string): string {
+  const accent = (accentHex ?? hslToHex(pack.colors[mode].primary)).replace("#", "");
   const r = parseInt(accent.slice(0, 2), 16), g = parseInt(accent.slice(2, 4), 16), b = parseInt(accent.slice(4, 6), 16);
   const colorization = (b << 16) | (g << 8) | r;
   return [
@@ -363,18 +470,27 @@ export function buildWindowsThemeText(pack: ServerPack, mode: KitMode): string {
     (the pack's CLEAN approved ground — no logo baked onto it), the
     whole logo as its own file, the pack app icon (the real logo
     lockup composited whole onto the pack tile), pack cursors, and
-    the LIBRARY sound files under manifest names. */
-export function buildThemepack(pack: ServerPack, mode: KitMode): Buffer {
+    the LIBRARY sound files under manifest names. When a stored mix
+    is supplied, the kit wears it: the theme-text colorization takes
+    the mix accent, the cursors take the cursors-component accent,
+    and a still art choice for home wallpapers ships as the wallpaper
+    (a living-loop choice cannot be a Windows wallpaper — the ground
+    ships for that slot instead). */
+export function buildThemepack(pack: ServerPack, mode: KitMode, mix?: KitMix): Buffer {
+  const packAccent = resolveKitAccent(pack, mode, mix, "accent-color");
   const files: CabFile[] = [
-    { name: `${pack.id}-${mode}.theme`, data: Buffer.from(buildWindowsThemeText(pack, mode), "utf8") },
+    { name: `${pack.id}-${mode}.theme`, data: Buffer.from(buildWindowsThemeText(pack, mode, packAccent), "utf8") },
   ];
-  const wallpaper = readSiteAsset(pack.deviceArt[mode]);
+  const homeArt = chosenKitArt(mix, "home-wallpapers", "desktop");
+  const wallpaper = homeArt && homeArt.ext === "webp"
+    ? homeArt.bytes
+    : readSiteAsset(pack.deviceArt[mode]);
   if (wallpaper) files.push({ name: "wallpaper.webp", data: wallpaper });
   const logo = readSiteAsset(logoSitePath(mode));
   if (logo) files.push({ name: "logo.webp", data: logo });
   const appIcon = readSiteAsset(appIconSitePath(pack.id, mode));
   if (appIcon) files.push({ name: "app-icon.webp", data: appIcon });
-  const accent = hslToHex(pack.colors[mode].primary);
+  const accent = resolveKitAccent(pack, mode, mix, "cursors");
   files.push({ name: "cursors\\arrow.cur", data: buildCursorFile(accent, "arrow") });
   files.push({ name: "cursors\\hand.cur", data: buildCursorFile(accent, "hand") });
   for (const role of SOUND_ROLES) {
@@ -429,17 +545,26 @@ function addSounds(archive: InstanceType<typeof ZipArchive>, prefix: string): vo
     per pack, so the kit ships the ground sized per device for both
     slots instead of inventing lock art. All wallpapers are CLEAN:
     no logo is baked or composited onto them; the whole logo ships
-    as its own file (logo-<mode>.webp). */
-function addWallpapers(archive: InstanceType<typeof ZipArchive>, pack: ServerPack, prefix: string): void {
+    as its own file (logo-<mode>.webp).
+    MIX: a stored art choice for home-wallpapers / lock-wallpapers
+    (per device, falling back to the "all devices" choice) ships in
+    that slot instead of the ground render — a still under its .webp
+    name, a living loop under its real .mp4 name. Untouched slots
+    keep the ground exactly as before. */
+function addWallpapers(archive: InstanceType<typeof ZipArchive>, pack: ServerPack, prefix: string, mix?: KitMix): void {
   for (const mode of ["light", "dark"] as KitMode[]) {
     const ground = readSiteAsset(pack.deviceArt[mode]);
-    if (ground) archive.append(ground, { name: `${prefix}wallpaper-${mode}-original.webp` });
+    const homeAll = chosenKitArt(mix, "home-wallpapers", "all");
+    if (homeAll) archive.append(homeAll.bytes, { name: `${prefix}wallpaper-${mode}-original.${homeAll.ext}` });
+    else if (ground) archive.append(ground, { name: `${prefix}wallpaper-${mode}-original.webp` });
     for (const device of WALLPAPER_DEVICES) {
       const sized = readSiteAsset(deviceWallpaperSitePath(pack.id, mode, device.id));
-      if (sized) {
-        archive.append(sized, { name: `${prefix}wallpaper-${mode}-${device.id}.webp` });
-        archive.append(sized, { name: `${prefix}lock-${mode}-${device.id}.webp` });
-      }
+      const home = chosenKitArt(mix, "home-wallpapers", device.id);
+      if (home) archive.append(home.bytes, { name: `${prefix}wallpaper-${mode}-${device.id}.${home.ext}` });
+      else if (sized) archive.append(sized, { name: `${prefix}wallpaper-${mode}-${device.id}.webp` });
+      const lock = chosenKitArt(mix, "lock-wallpapers", device.id);
+      if (lock) archive.append(lock.bytes, { name: `${prefix}lock-${mode}-${device.id}.${lock.ext}` });
+      else if (sized) archive.append(sized, { name: `${prefix}lock-${mode}-${device.id}.webp` });
     }
     const logo = readSiteAsset(logoSitePath(mode));
     if (logo) archive.append(logo, { name: `${prefix}logo-${mode}.webp` });
@@ -516,15 +641,34 @@ function addFolderIcons(archive: InstanceType<typeof ZipArchive>, pack: ServerPa
     pack's own assets, never supplied by the caller, so a download
     always carries the approved art whatever client asked for it.
     The remaining caller-supplied pieces are text builders owned by
-    the FE kit module (widget art, Chrome manifest, share card). */
+    the FE kit module (widget art, Chrome manifest, share card).
+    opts.mix is the STORED customization mix (loaded + sanitized by
+    the route): the accent and wallpaper art are built from it. */
 export function buildKitZip(
   pack: ServerPack,
   kind: Exclude<KitBundleKind, "windows">,
-  opts: { mode: KitMode; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string },
+  opts: { mode: KitMode; widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string; mix?: KitMix },
 ): InstanceType<typeof ZipArchive> {
   const archive = new ZipArchive({ zlib: { level: 9 } });
   const base = `${pack.id}-${opts.mode}/`;
-  const accent = hslToHex(pack.colors[opts.mode].primary);
+  const accent = resolveKitAccent(pack, opts.mode, opts.mix, "accent-color");
+  const cursorAccent = resolveKitAccent(pack, opts.mode, opts.mix, "cursors");
+  const defaultAccent = hslToHex(pack.colors[opts.mode].primary);
+  // The stored art choices exactly as saved (kit.json records them;
+  // slots resolve device → "all" when the builders place the art).
+  const storedArt = (component: string): Record<string, string> => {
+    const rec: Record<string, string> = {};
+    for (const d of ["all", ...WALLPAPER_DEVICES.map((x) => x.id)]) {
+      const id = storedKitArtId(opts.mix, component, d);
+      if (id) rec[d] = id;
+    }
+    return rec;
+  };
+  const homeArt = storedArt("home-wallpapers");
+  const lockArt = storedArt("lock-wallpapers");
+  const mixApplied =
+    accent !== defaultAccent || cursorAccent !== defaultAccent ||
+    Object.keys(homeArt).length > 0 || Object.keys(lockArt).length > 0;
 
   const readme = [
     `Bow Down Visuals — ${pack.name} whole-device theme kit (${opts.mode})`,
@@ -538,6 +682,11 @@ export function buildKitZip(
     `— wallpaper-<mode>-phone/tablet/desktop.webp for home, lock-<mode>-*.webp for`,
     `the lock screen. Home and lock share the pack's approved ground art: no`,
     `separate lock scene has been approved for this pack, so none was invented.`,
+    ...(mixApplied ? [
+      `Customization: this kit was built FROM the saved customization mix — the`,
+      `accent and the wallpaper art choices recorded in kit.json are the saved`,
+      `ones, worn in the matching slots; every other slot keeps the pack ground.`,
+    ] : []),
     `The whole logo ships on its own as logo-<mode>.webp.`,
     `Sounds: this pack's ringtone / notification / sound scheme ARE the site sound`,
     `library's signature set by role (single source of truth) — never per-pack copies.`,
@@ -546,6 +695,9 @@ export function buildKitZip(
   archive.append(readme, { name: `${base}README.txt` });
   archive.append(JSON.stringify({
     packId: pack.id, kind, mode: opts.mode, accent,
+    ...(mixApplied
+      ? { customization: { source: "stored customization mix", art: { home: homeArt, lock: lockArt } } }
+      : {}),
     icons: {
       source: "designed art manifest (owner-approved, Oct 25 2026)",
       count: DESIGNED_ICON_NAMES.length,
@@ -562,20 +714,20 @@ export function buildKitZip(
   }, null, 2), { name: `${base}kit.json` });
 
   if (kind === "mac" || kind === "full") {
-    addWallpapers(archive, pack, `${base}mac/`);
+    addWallpapers(archive, pack, `${base}mac/`, opts.mix);
     addFolderIcons(archive, pack, `${base}mac/`);
     addAppIcons(archive, pack, `${base}mac/`);
     archive.append("Set the wallpapers from System Settings > Wallpaper. Folder icons: Get Info on a folder, drag the icon file onto the icon well.", { name: `${base}mac/INSTALL.txt` });
   }
   if (kind === "android" || kind === "full") {
-    addWallpapers(archive, pack, `${base}android/`);
+    addWallpapers(archive, pack, `${base}android/`, opts.mix);
     addDesignedIcons(archive, pack, `${base}android/`);
     addAppIcons(archive, pack, `${base}android/`);
     archive.append("Android: apply the icons with your launcher's icon-pack import (the designed icons/ set, light and dark), set the wallpapers from the kit (wallpaper-<mode>-phone.webp for home, lock-<mode>-phone.webp for the lock screen), and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role).", { name: `${base}android/INSTALL.txt` });
     addSounds(archive, `${base}android/sounds/`);
   }
   if (kind === "ios" || kind === "full") {
-    addWallpapers(archive, pack, `${base}ios/`);
+    addWallpapers(archive, pack, `${base}ios/`, opts.mix);
     addDesignedIcons(archive, pack, `${base}ios/`);
     addAppIcons(archive, pack, `${base}ios/`);
     archive.append([
@@ -591,7 +743,13 @@ export function buildKitZip(
   }
   if (kind === "chrome" || kind === "full") {
     if (opts.chromeManifest) archive.append(opts.chromeManifest, { name: `${base}chrome/manifest.json` });
-    const wp = readSiteAsset(deviceWallpaperSitePath(pack.id, opts.mode, "desktop")) ?? readSiteAsset(pack.deviceArt[opts.mode]);
+    // The NTP background is the home wallpaper's desktop face: a mix
+    // still choice for home wallpapers ships here too (a living loop
+    // can't be a static NTP background — the ground render ships).
+    const homeDesktop = chosenKitArt(opts.mix, "home-wallpapers", "desktop");
+    const wp = (homeDesktop && homeDesktop.ext === "webp" ? homeDesktop.bytes : null)
+      ?? readSiteAsset(deviceWallpaperSitePath(pack.id, opts.mode, "desktop"))
+      ?? readSiteAsset(pack.deviceArt[opts.mode]);
     if (wp) archive.append(wp, { name: `${base}chrome/theme-ntp-background.webp` });
     archive.append("Chrome: chrome://extensions > Developer mode > Load unpacked > select this chrome folder.", { name: `${base}chrome/INSTALL.txt` });
   }
@@ -599,12 +757,11 @@ export function buildKitZip(
     addSounds(archive, `${base}sounds/`);
   }
   if (kind === "full") {
-    const accentHex = accent;
-    archive.append(buildCursorFile(accentHex, "arrow"), { name: `${base}cursors/arrow.cur` });
-    archive.append(buildCursorFile(accentHex, "hand"), { name: `${base}cursors/hand.cur` });
+    archive.append(buildCursorFile(cursorAccent, "arrow"), { name: `${base}cursors/arrow.cur` });
+    archive.append(buildCursorFile(cursorAccent, "hand"), { name: `${base}cursors/hand.cur` });
     if (opts.widgetSvg) archive.append(opts.widgetSvg, { name: `${base}widget.svg` });
     if (opts.shareCardSvg) archive.append(opts.shareCardSvg, { name: `${base}share-card.svg` });
-    const tp = buildThemepack(pack, opts.mode);
+    const tp = buildThemepack(pack, opts.mode, opts.mix);
     archive.append(tp, { name: `${base}windows/${pack.id}-${opts.mode}.themepack` });
   }
   return archive;
