@@ -1495,6 +1495,27 @@ html, body {
    white arc and read as frozen. The arc takes a readable gold top. */
 .light .border-t-white\/60:not([data-dark-lock]):not([data-dark-lock] *) { border-top-color: rgb(201 168 76 / 0.65); }
 
+/* ── 21. Stack1200 light/dark everywhere audit: the last uncovered
+   brand-accent inks. Each rule is .light-scoped and dark-lock-guarded;
+   dark rendering is untouched. ── */
+
+/* FinalVideoExport's post-to-Facebook / post-to-Discord buttons print
+   the platforms' pale screen blues (text-[#6ea8fe] / text-[#8b9bff]) on
+   brand-tinted chips. The panel ground branches to ivory in light, so
+   both inks sat at ~2:1 on ivory — the §5 accent-deepening family never
+   had the arbitrary-hex forms. They deepen to the platforms' readable
+   print steps, the same move §5 makes for the named 200s → 700s. The
+   Discord step also heals the DiscordWebhookSettings icon. */
+.light .text-\[\#6ea8fe\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #1D6FE0; }
+.light .text-\[\#8b9bff\]:not([data-dark-lock]):not([data-dark-lock] *) { color: #4753D8; }
+
+/* Cheat-code jackpot d-pad: its disc repaints via the §3 frosted table
+   (bg-black/90 → warm cream) and its resting ink is covered (§5,
+   #F5DE8E), but the hover ink hover:text-[#FFE9A8] had no rung — on
+   hover the glyph washed to pale straw on the cream disc. The hover
+   step takes the antique-gold value, like §19's hover steps. */
+.light .hover\:text-\[\#FFE9A8\]:hover:not([data-dark-lock]):not([data-dark-lock] *) { color: #8A6B1F; }
+
 /* ═══════════════════════════════════════════════════════════════════
    HOMEPAGE LIGHT MODE — "Sunlit Golden Palace"
    A million times better than flat white. This is not an inversion —

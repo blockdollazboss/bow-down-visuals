@@ -374,7 +374,7 @@ export default function JewelryStudio() {
               onChange={(e) => onLogoPicked(e.target.files?.[0])}
             />
             {logoPreview && (
-              <button onClick={() => fileRef.current?.click()} className="mt-3 text-sm text-[#DDBB62] hover:underline">
+              <button onClick={() => fileRef.current?.click()} className={`mt-3 text-sm hover:underline ${isLight ? "text-[#7A5A12]" : "text-[#DDBB62]"}`}>
                 {t("jewelry.chooseDifferent")}
               </button>
             )}

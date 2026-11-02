@@ -4433,7 +4433,7 @@ export default function WorldPage() {
                 {p.admin && <span className="rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">Host</span>}
                 {p.guest && <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>guest</span>}
                 {p.voice && <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>in voice</span>}
-                {p.voiceOff && <span className="text-[11px] font-semibold text-[#e08a6d]">voice off</span>}
+                {p.voiceOff && <span className={`text-[11px] font-semibold ${isLight ? "text-[#A8432A]" : "text-[#e08a6d]"}`}>voice off</span>}
                 {p.voiceDeaf && <span className={`text-[11px] font-semibold ${isLight ? "text-[#476b8a]" : "text-[#a9c3d9]"}`}>deafened</span>}
                 {p.hostMuted && <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-300">Muted by host</span>}
                 {p.peerId !== myPeerId && (
