@@ -15633,6 +15633,24 @@
       "vbNote": "Visual Bucs कभी नहीं बदले जाते — Visual Bucs की रकम हर जगह एक जैसी होती है।",
       "ratesNote": "दरें एक अनुमानित स्थिर झलक हैं, लाइव विनिमय दरें नहीं।"
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "आपके स्टोर पर बिके कार्ड",
+    "soldAllTime": "बिक्री (कुल)",
+    "soldCount": "{{count}} कार्ड",
+    "stillOutThere": "अभी भी चलन में (देनदारी)",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "आपको भुगतान कैसे मिलता है",
+    "soldAgainst": "आपके स्टोर पर बिके",
+    "soldEmpty": "आपके स्टोर पर अभी तक कोई गिफ़्ट कार्ड नहीं बिका — जब कोई आपके स्टैंड से खरीदेगा, तो वह यहाँ दिखेगा।",
+    "soldLoading": "आपके बिके कार्ड लोड हो रहे हैं…",
+    "soldLoadFailed": "आपके बिके कार्ड लोड नहीं हो सके — आपका स्टोर और आपके कार्ड अपरिवर्तित हैं।",
+    "tryAgain": "फिर से कोशिश करें",
+    "refundUnspent": "बचा हुआ बैलेंस वापस करें",
+    "refunding": "वापसी हो रही है…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "इस कार्ड की राशि वापस नहीं हो सकी।"
+  },
   "worldPlansDesk": {
     "title": "आपकी साइट योजना",
     "loadFailed": "योजनाओं की सूची नहीं खुली — आपकी योजना अपरिवर्तित है।",

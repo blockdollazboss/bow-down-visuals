@@ -15656,6 +15656,24 @@
       "vbNote": "Les Visual Bucs ne sont jamais convertis : les montants en Visual Bucs sont les mêmes partout.",
       "ratesNote": "Les taux sont un instantané statique approximatif, pas des taux de change en direct."
   },
+  "worldGiftCardsDesk": {
+    "soldTitle": "Cartes vendues dans votre boutique",
+    "soldAllTime": "Vendu (au total)",
+    "soldCount": "{{count}} cartes",
+    "stillOutThere": "Encore en circulation (passif)",
+    "heldLine": "Held for the people holding them — it becomes your sale when they spend it.",
+    "howYouGetPaid": "Comment vous êtes payé",
+    "soldAgainst": "Vendues dans votre boutique",
+    "soldEmpty": "Aucune carte cadeau vendue dans votre boutique pour le moment — quand quelqu'un en achètera une à votre stand, elle apparaîtra ici.",
+    "soldLoading": "Chargement de vos cartes vendues…",
+    "soldLoadFailed": "Impossible de charger vos cartes vendues — votre boutique et vos cartes n'ont pas changé.",
+    "tryAgain": "Réessayer",
+    "refundUnspent": "Rembourser le solde non utilisé",
+    "refunding": "Remboursement…",
+    "refundArm": "Refund {{amount}} unspent? Tap again to refund",
+    "refundDoneFallback": "{{amount}} refunded to your original payment method.",
+    "refundFailed": "Impossible de rembourser cette carte."
+  },
   "worldPlansDesk": {
     "title": "Votre formule du site",
     "loadFailed": "Le catalogue des formules n'a pas pu s'ouvrir — votre formule n'a pas changé.",

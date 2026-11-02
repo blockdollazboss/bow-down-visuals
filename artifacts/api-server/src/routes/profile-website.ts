@@ -559,6 +559,12 @@ export interface StoreCatalogItemDto {
   price: string;
   compareAtCents: number | null;
   pwyw: { enabled: boolean; minCents: number } | null;
+  /** kind='gift_card' store products only: the seller-set amounts
+   *  (cents) the buyer picks from at purchase — the gift-card
+   *  checkout rail refuses any other amount, so every buying
+   *  surface needs the list to offer the purchase at all. Null for
+   *  every other kind. */
+  giftCardDenominationsCents: number[] | null;
   buyUrl: string;
   /** The finished UGC ad pinned to this shop product (migration
       0178), or null. Only shop products can carry one; videoUrl is
@@ -618,6 +624,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       price: formatUsd(t.downloadPriceCents),
       compareAtCents: null,
       pwyw: t.pwywEnabled ? { enabled: true, minCents: t.pwywMinCents } : null,
+      giftCardDenominationsCents: null,
       buyUrl: `/store/buy/track/${t.id}`,
       pinnedAd: null,
     });
@@ -635,6 +642,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       price: formatUsd(v.downloadPriceCents),
       compareAtCents: null,
       pwyw: v.pwywEnabled ? { enabled: true, minCents: v.pwywMinCents } : null,
+      giftCardDenominationsCents: null,
       buyUrl: `/store/buy/video/${v.id}`,
       pinnedAd: null,
     });
@@ -651,6 +659,13 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
       price: formatUsd(p.priceCents),
       compareAtCents: p.compareAtCents ?? null,
       pwyw: null,
+      /* kind='gift_card': the seller-set amounts the buyer picks
+         from (the product rail's own presentation, withLinks) —
+         without them an in-World surface can list the card but can
+         never offer its purchase. */
+      giftCardDenominationsCents: Array.isArray(p.giftCardDenominationsCents)
+        ? p.giftCardDenominationsCents.map(Number)
+        : null,
       buyUrl: `/storefront/product/${p.id}`,
       pinnedAd: null,
     });
@@ -697,6 +712,7 @@ export async function buildStoreCatalog(profile: ProfileRow): Promise<StoreCatal
         price: formatUsd(sp.price_cents),
         compareAtCents: null,
         pwyw: null,
+        giftCardDenominationsCents: null,
         buyUrl: `/shop/${shop.handle}`,
         pinnedAd:
           sp.status === "active" && sp.pinned_ugc_ad_id

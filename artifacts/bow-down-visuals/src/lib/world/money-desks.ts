@@ -512,6 +512,11 @@ export interface RoomStoreItem {
    *  door for a kind a rail DOES sell. */
   buyUrl: string;
   pwyw: { enabled: boolean; minCents: number } | null;
+  /** kind='gift_card' store products only: the seller-set amounts
+   *  (cents) the buyer picks from — the gift-card checkout refuses
+   *  any other amount, so the room's gift form needs the list the
+   *  catalog now carries. Null for every other kind. */
+  giftCardDenominationsCents: number[] | null;
 }
 
 /** Parse GET /api/creator-profiles/:slug/store-catalog tolerantly —
@@ -541,6 +546,7 @@ export function parseRoomCatalog(payload: unknown): RoomStoreItem[] {
                 : 0,
           }
         : null;
+    const denomsRaw = r["giftCardDenominationsCents"];
     out.push({
       id,
       kind: typeof r["kind"] === "string" ? r["kind"] : "item",
@@ -551,6 +557,10 @@ export function parseRoomCatalog(payload: unknown): RoomStoreItem[] {
       price: typeof r["price"] === "string" ? r["price"] : "",
       buyUrl: typeof r["buyUrl"] === "string" ? r["buyUrl"] : "",
       pwyw,
+      giftCardDenominationsCents:
+        Array.isArray(denomsRaw) && denomsRaw.every((n) => typeof n === "number" && Number.isFinite(n) && n > 0)
+          ? (denomsRaw as number[])
+          : null,
     });
   }
   return out;
@@ -564,12 +574,17 @@ export function parseRoomCatalog(payload: unknown): RoomStoreItem[] {
  *    (single-item hosted checkout, name-your-price honored);
  *  - "storefront": store products — POST /api/storefront/checkout
  *    (single product, quantity honored);
+ *  - "gift": gift-card store products — POST /api/gift-cards/checkout
+ *    (a recipient, an amount from the seller's list, delivery by
+ *    email). The product checkout refuses these by name, so before
+ *    this rail existed the room's Buy button dead-ended on it;
  *  - null: a kind no rail here sells — the card keeps the honest
  *    website door instead of a button that can't complete. */
-type RoomItemRail = "market" | "store" | "storefront" | null;
+export type RoomItemRail = "market" | "store" | "storefront" | "gift" | null;
 export function roomItemRail(item: RoomStoreItem): RoomItemRail {
   if (item.kind === "product" && item.productKind === "shop") return "market";
   if (item.kind === "track" || item.kind === "video") return "store";
+  if (item.kind === "product" && item.productKind === "gift_card") return "gift";
   if (item.kind === "product") return "storefront";
   return null;
 }
@@ -608,9 +623,21 @@ export function storeCheckoutPayload(
 
 /** POST /api/storefront/checkout — the product page's Buy Now body
  *  (quantity rides along; no discount field at this stand — the
- *  room store never invents a code box the catalog didn't carry). */
-export function storefrontCheckoutPayload(item: RoomStoreItem, quantity: number): { productId: string; quantity: number } {
-  return { productId: item.id, quantity: Math.max(1, Math.min(99, Math.floor(quantity) || 1)) };
+ *  room store never invents a code box the catalog didn't carry.
+ *  The gift-card tender is the one code the product page DOES
+ *  carry beside its buy button, so it rides along when the walker
+ *  pasted one — the rail treats it as tender, never a discount). */
+export function storefrontCheckoutPayload(
+  item: RoomStoreItem,
+  quantity: number,
+  giftCardCode?: string,
+): { productId: string; quantity: number; giftCardCode?: string } {
+  const code = giftCardCode?.trim();
+  return {
+    productId: item.id,
+    quantity: Math.max(1, Math.min(99, Math.floor(quantity) || 1)),
+    ...(code ? { giftCardCode: code } : {}),
+  };
 }
 
 /** The room cart's persistence key: the shop page's own key shape

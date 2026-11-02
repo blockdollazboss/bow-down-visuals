@@ -5,6 +5,7 @@ import {
   Check,
   Crown,
   DoorOpen,
+  Gift,
   Home,
   Loader2,
   Lock,
@@ -89,6 +90,19 @@ import {
   storefrontCheckoutPayload,
   type RoomStoreItem,
 } from "@/lib/world/money-desks";
+import {
+  emptyGiftCardForm,
+  giftCardCheckoutPayload,
+  giftCardFormAmount,
+  giftCardFormProblem,
+  giftCardPendingKey,
+  giftCardVerifyState,
+  paidWithGiftCard,
+  parseGiftCardPending,
+  parseGiftCardVerify,
+  type GiftCardFormState,
+  type GiftCardVerifyResult,
+} from "@/lib/world/gift-cards";
 import { isSameShelfItem } from "@/lib/world/shelf";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { PortraitCard } from "./PortraitCard";
@@ -1598,6 +1612,117 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
   const [embeddedSecret, setEmbeddedSecret] = useState<string | null>(null);
   const [refreshingOrder, setRefreshingOrder] = useState(false);
 
+  /* ── Gift cards — this creator's cards, bought and spent here ──
+     The tender code riders product buys and the cart below (the
+     product page's own code box, on this creator's rails); the buy
+     form under the grid sells the creator's gift-card product on
+     the gift-card checkout rail — the only rail that can sell it,
+     since delivery goes to a recipient's email. Issuance is
+     confirmed by the verify rail alone, on mount and on focus,
+     from the stashed session — never assumed from "paid here". */
+  const [giftCode, setGiftCode] = useState("");
+  const [giftItem, setGiftItem] = useState<RoomStoreItem | null>(null);
+  const [giftForm, setGiftForm] = useState<GiftCardFormState>(emptyGiftCardForm());
+  const [giftBusy, setGiftBusy] = useState(false);
+  const [giftError, setGiftError] = useState<string | null>(null);
+  const [giftEmbedded, setGiftEmbedded] = useState<{ clientSecret: string; sessionId: string } | null>(null);
+  const [giftIssued, setGiftIssued] = useState<GiftCardVerifyResult | null>(null);
+  const [giftRefreshing, setGiftRefreshing] = useState(false);
+  const giftScope = giftCardPendingKey(detail.slug);
+
+  const verifyGiftSession = async (sessionId: string) => {
+    setGiftRefreshing(true);
+    try {
+      const res = await fetch("/api/gift-cards/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const state = giftCardVerifyState(res.status, data);
+      if (state === "issued") {
+        setGiftIssued(parseGiftCardVerify(data));
+        setGiftEmbedded(null);
+        try { localStorage.removeItem(giftScope); } catch { /* ignore */ }
+      } else if (state === "pending") {
+        setNote("The gift card's payment hasn't completed yet — this room keeps the receipt and confirms the card itself the moment it lands.");
+      } else {
+        setGiftEmbedded(null);
+        try { localStorage.removeItem(giftScope); } catch { /* ignore */ }
+        setNote("That gift-card checkout closed before the payment landed — no card was issued, and nothing was charged for one.");
+      }
+    } catch {
+      setNote("The gift card's status couldn't be checked just now — nothing about it changed.");
+    } finally {
+      setGiftRefreshing(false);
+    }
+  };
+  const verifyGiftRef = useRef(verifyGiftSession);
+  verifyGiftRef.current = verifyGiftSession;
+  useEffect(() => {
+    let pending: { sessionId: string } | null = null;
+    try { pending = parseGiftCardPending(localStorage.getItem(giftScope)); } catch { /* storage blocked */ }
+    if (pending) void verifyGiftRef.current(pending.sessionId);
+    const onFocus = () => {
+      let p: { sessionId: string } | null = null;
+      try { p = parseGiftCardPending(localStorage.getItem(giftScope)); } catch { /* storage blocked */ }
+      if (p) void verifyGiftRef.current(p.sessionId);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giftScope]);
+
+  const startGiftCheckout = async () => {
+    if (!giftItem || giftBusy) return;
+    if (isGuest) {
+      setNote("Buying rides your account — sign in on the website (the footer below) and come back through this door; the goods will be waiting.");
+      return;
+    }
+    const problem = giftCardFormProblem(giftForm, giftItem.giftCardDenominationsCents);
+    if (problem) {
+      setGiftError(problem);
+      return;
+    }
+    const payload = giftCardCheckoutPayload(giftItem.id, giftForm, giftItem.giftCardDenominationsCents, hasStripePublishableKey());
+    if (!payload) {
+      setGiftError("Pick an amount and add the recipient's email first.");
+      return;
+    }
+    setGiftBusy(true);
+    setGiftError(null);
+    setGiftIssued(null);
+    setGiftEmbedded(null);
+    try {
+      const res = await fetch("/api/gift-cards/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorLine(data, "Gift-card checkout didn't start — nothing was charged."));
+      const sessionId = typeof data.sessionId === "string" ? data.sessionId : "";
+      if (sessionId) {
+        try {
+          localStorage.setItem(giftScope, JSON.stringify({ sessionId, productId: giftItem.id, title: giftItem.title }));
+        } catch { /* storage blocked — the room just can't resume the receipt */ }
+      }
+      if (typeof data.clientSecret === "string" && data.clientSecret) {
+        setGiftEmbedded({ clientSecret: data.clientSecret, sessionId });
+        setNote(`Pay for the gift card right here in the room — it is delivered to ${giftForm.recipientEmail.trim()} the moment the payment lands, and this room confirms the card itself.`);
+        return;
+      }
+      const url = hostedCheckoutUrl(data);
+      if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      openCheckoutTab(url);
+      setNote("Your gift-card checkout opened in a new tab — finish paying there. This room keeps the receipt: it confirms the card itself when the payment lands.");
+    } catch (e) {
+      setGiftError(plainErrorText(e, "Gift-card checkout didn't start — nothing was charged."));
+    } finally {
+      setGiftBusy(false);
+    }
+  };
+
   const refreshOrder = async () => {
     if (!handle || refreshingOrder) return;
     let sessionId: string | null = null;
@@ -1655,6 +1780,10 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           shopId,
           items: detailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
+          /* This creator's gift card pays here too (the shop page's
+             own cart tender): it covers what it can, the rest rides
+             the payment, and a wrong-store code fails honestly. */
+          giftCardCode: giftCode.trim() || undefined,
           /* stack800 lane 6: ask for the embedded presentation when
              this device can mount it — the server answers a
              clientSecret instead of a hosted URL and the buyer
@@ -1666,7 +1795,10 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) throw new Error(apiErrorLine(data, "Checkout didn't start — nothing was charged."));
-      if (checkoutCompletedInWorld(data)) {
+      /* A gift card covering the whole cart answers paid with NO
+         payment page (paidWithGiftCard) — a completed purchase,
+         not a missing URL. */
+      if (checkoutCompletedInWorld(data) || paidWithGiftCard(data)) {
         const order = marketOrderFromPayload(data);
         if (order?.paid) setPaidOrder(order);
         setCart([]);
@@ -1746,11 +1878,19 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           method: "POST",
           headers: { "Content-Type": "application/json", ...(await authHeaders()) },
           /* stack800 lane 6: the product page's exact body plus
-             the embedded ask, same as the store rail above. */
-          body: JSON.stringify({ ...storefrontCheckoutPayload(item, qtyInputs[item.id] ?? 1), uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
+             the embedded ask, same as the store rail above — with
+             this creator's gift-card tender riding when one was
+             pasted above, exactly as the product page's box does. */
+          body: JSON.stringify({ ...storefrontCheckoutPayload(item, qtyInputs[item.id] ?? 1, giftCode), uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        if (paidWithGiftCard(data)) {
+          /* The card covered it in full — the rail recorded the
+             order and answers with no payment page at all. */
+          setNote(typeof data.note === "string" && data.note ? data.note : `“${item.title}” is yours — paid in full with your gift card.`);
+          return;
+        }
         if (typeof data.clientSecret === "string" && data.clientSecret) {
           setEmbeddedSecret(data.clientSecret);
           setNote(`Pay for “${item.title}” right here in the room — the payment form is at the foot of this panel.`);
@@ -1817,7 +1957,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   </span>
                   {item.price && (
                     <span className={`text-xs font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      {item.price}
+                      {rail === "gift" ? `from ${item.price}` : item.price}
                     </span>
                   )}
                   {rail === "market" ? (
@@ -1870,6 +2010,26 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                         {CHECKOUT_TRANSFER_LABEL}
                       </button>
                     </>
+                  ) : rail === "gift" ? (
+                    <>
+                      <span className={`text-[11px] ${mutedCls}`}>
+                        Stored value for this store — pick an amount, it&rsquo;s emailed to them.
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="world-room-store-gift"
+                        onClick={() => {
+                          setGiftItem(item);
+                          setGiftForm(emptyGiftCardForm());
+                          setGiftError(null);
+                          setGiftIssued(null);
+                          setGiftEmbedded(null);
+                        }}
+                        className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
+                      >
+                        <Gift className="h-3.5 w-3.5" /> Buy a gift card
+                      </button>
+                    </>
                   ) : item.buyUrl ? (
                     <a
                       href={item.buyUrl}
@@ -1883,6 +2043,136 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                 </div>
               );
             })}
+          </div>
+
+          {giftItem && (
+            <div className={`rounded-2xl border px-3 py-3 ${cardCls}`} data-testid="world-room-store-gift-form">
+              <p className={`flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+                <Gift className="h-4 w-4 text-[#d4af37]" /> Gift card — {giftItem.title}
+              </p>
+              <p className={`mt-1 text-xs ${mutedCls}`}>
+                For {detail.displayName}&rsquo;s store. Every cent you buy is a cent they can spend —
+                no platform fee is taken from a gift card, and whatever&rsquo;s unspent stays on the card.
+                It is delivered to the recipient&rsquo;s email, never to you.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Gift card amount">
+                {(giftItem.giftCardDenominationsCents ?? []).map((d) => {
+                  const picked = (giftForm.amountCents ?? giftItem.giftCardDenominationsCents?.[0]) === d;
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      data-testid="world-room-store-gift-amount"
+                      aria-pressed={picked}
+                      onClick={() => setGiftForm((f) => ({ ...f, amountCents: d }))}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
+                        picked
+                          ? "border-[#d4af37] bg-[#d4af37] text-black"
+                          : isLight
+                            ? "border-[#7A5A12]/30 text-[#6B5B36]"
+                            : "border-white/15 text-white/75"
+                      }`}
+                    >
+                      {centsToDisplay(d)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 space-y-2">
+                <input
+                  value={giftForm.recipientEmail}
+                  onChange={(e) => setGiftForm((f) => ({ ...f, recipientEmail: e.target.value }))}
+                  type="email"
+                  placeholder="Recipient's email — the card is delivered there"
+                  aria-label="Recipient's email"
+                  data-testid="world-room-store-gift-recipient"
+                  className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+                />
+                <input
+                  value={giftForm.recipientName}
+                  onChange={(e) => setGiftForm((f) => ({ ...f, recipientName: e.target.value }))}
+                  placeholder="Recipient's name (optional)"
+                  aria-label="Recipient's name"
+                  className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+                />
+                <input
+                  value={giftForm.message}
+                  onChange={(e) => setGiftForm((f) => ({ ...f, message: e.target.value }))}
+                  placeholder="A note to go with it (optional)"
+                  aria-label="Gift message"
+                  className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+                />
+              </div>
+              {giftError && <p className="mt-2 text-xs font-semibold text-red-400">{giftError}</p>}
+              {!giftIssued && !giftEmbedded && (
+                <button
+                  type="button"
+                  data-testid="world-room-store-gift-checkout"
+                  onClick={() => void startGiftCheckout()}
+                  disabled={giftBusy}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
+                >
+                  {giftBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                  {CHECKOUT_TRANSFER_LABEL}
+                  {giftCardFormAmount(giftForm, giftItem.giftCardDenominationsCents) !== null &&
+                    ` · ${centsToDisplay(giftCardFormAmount(giftForm, giftItem.giftCardDenominationsCents)!)}`}
+                </button>
+              )}
+              {giftEmbedded && (
+                <div className="mt-3 space-y-2" data-testid="world-room-store-gift-embedded">
+                  <EmbeddedSessionCheckout clientSecret={giftEmbedded.clientSecret} />
+                  <span className="inline-flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => giftEmbedded.sessionId && void verifyGiftSession(giftEmbedded.sessionId)}
+                      disabled={giftRefreshing || !giftEmbedded.sessionId}
+                      className={chipCls}
+                    >
+                      {giftRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Check payment status
+                    </button>
+                    <button type="button" onClick={() => setGiftEmbedded(null)} className={chipCls}>
+                      Close — the card still issues here when the payment lands
+                    </button>
+                  </span>
+                </div>
+              )}
+              {giftIssued && (
+                <div className="mt-3 space-y-1.5" data-testid="world-room-store-gift-issued">
+                  <p className={`flex items-start gap-2 text-xs font-bold ${isLight ? "text-[#4a6b1f]" : "text-emerald-300"}`}>
+                    <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {giftIssued.duplicate
+                        ? "This payment already issued its gift card."
+                        : `Gift card issued${giftIssued.card ? ` — ${centsToDisplay(giftIssued.card.initialCents)} for ${giftIssued.card.storeName ?? `${detail.displayName}'s store`}` : ""}, emailed to ${giftIssued.card?.recipientEmail || "the recipient"}.`}
+                    </span>
+                  </p>
+                  {giftIssued.code && (
+                    <p className={`rounded-xl border px-3 py-2 font-mono text-sm font-bold tracking-wider ${cardCls}`}>
+                      {giftIssued.code}
+                    </p>
+                  )}
+                  {giftIssued.codeNote && <p className={`text-[11px] ${mutedCls}`}>{giftIssued.codeNote}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className={`rounded-2xl border px-3 py-3 ${cardCls}`} data-testid="world-room-store-gift-code">
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+              Have a gift card from {detail.displayName}?
+            </p>
+            <input
+              value={giftCode}
+              onChange={(e) => setGiftCode(e.target.value)}
+              placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
+              aria-label="Gift card code"
+              data-testid="world-room-store-gift-code-input"
+              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
+            />
+            <p className={`mt-1.5 text-[11px] ${mutedCls}`}>
+              It pays toward product buys and your cart here — covers what it can, the rest goes on
+              your payment method, and whatever&rsquo;s left stays on the card.
+            </p>
           </div>
 
           {(detailed.length > 0 || paidOrder || pendingNote) && shopId && (
