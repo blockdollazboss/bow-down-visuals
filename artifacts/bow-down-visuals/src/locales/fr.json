@@ -2214,6 +2214,8 @@
     "templatesEmpty": "Pas encore de licences personnalisées — les trois niveaux standard sont ce que voient les acheteurs.",
     "templatesLoadFailed": "Impossible de charger vos licences personnalisées.",
     "templateSaveFailed": "Impossible d'enregistrer ce modèle — vérifiez les champs et réessayez.",
+    "aiTagsApplyFailed": "Impossible d'appliquer ces étiquettes — veuillez réessayer.",
+    "templateDeleteFailed": "Impossible de supprimer ce modèle — veuillez réessayer.",
     "templateEdit": "Modifier",
     "templateDelete": "Supprimer",
     "templateName": "Nom de la licence",

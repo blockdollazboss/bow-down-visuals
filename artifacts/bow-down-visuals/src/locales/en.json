@@ -2244,6 +2244,8 @@
     "templatesEmpty": "No custom licenses yet — the three standard tiers are what buyers see.",
     "templatesLoadFailed": "Couldn't load your custom licenses.",
     "templateSaveFailed": "Couldn't save that template — check the fields and try again.",
+    "aiTagsApplyFailed": "Couldn't apply those tags — please try again.",
+    "templateDeleteFailed": "Couldn't delete that template — please try again.",
     "templateEdit": "Edit",
     "templateDelete": "Delete",
     "templateName": "License name",

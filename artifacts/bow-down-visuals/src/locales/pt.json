@@ -2139,6 +2139,8 @@
     "templatesEmpty": "Nenhuma licença personalizada ainda: os três níveis padrão são o que os compradores veem.",
     "templatesLoadFailed": "Não foi possível carregar suas licenças personalizadas.",
     "templateSaveFailed": "Não foi possível salvar esse modelo: confira os campos e tente novamente.",
+    "aiTagsApplyFailed": "Não foi possível aplicar essas etiquetas — tente novamente.",
+    "templateDeleteFailed": "Não foi possível excluir esse modelo — tente novamente.",
     "templateEdit": "Editar",
     "templateDelete": "Excluir",
     "templateName": "Nome da licença",

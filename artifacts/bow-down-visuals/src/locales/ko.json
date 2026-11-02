@@ -2138,6 +2138,8 @@
     "templatesEmpty": "아직 커스텀 라이선스가 없습니다 — 구매자에게 보이는 것은 세 가지 표준 등급입니다.",
     "templatesLoadFailed": "커스텀 라이선스를 불러오지 못했습니다.",
     "templateSaveFailed": "그 템플릿을 저장하지 못했습니다 — 필드를 확인하고 다시 시도하세요.",
+    "aiTagsApplyFailed": "해당 태그를 적용하지 못했습니다 — 다시 시도해 주세요.",
+    "templateDeleteFailed": "해당 템플릿을 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "templateEdit": "편집",
     "templateDelete": "삭제",
     "templateName": "라이선스 이름",

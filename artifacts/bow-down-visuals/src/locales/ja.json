@@ -2138,6 +2138,8 @@
     "templatesEmpty": "まだカスタムライセンスがありません — 購入者に見えるのは3つの標準ティアです。",
     "templatesLoadFailed": "カスタムライセンスを読み込めませんでした。",
     "templateSaveFailed": "そのテンプレートを保存できませんでした — 項目を確認してもう一度お試しください。",
+    "aiTagsApplyFailed": "そのタグを適用できませんでした — もう一度お試しください。",
+    "templateDeleteFailed": "そのテンプレートを削除できませんでした — もう一度お試しください。",
     "templateEdit": "編集",
     "templateDelete": "削除",
     "templateName": "ライセンス名",

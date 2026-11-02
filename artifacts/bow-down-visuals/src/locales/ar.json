@@ -2142,6 +2142,8 @@
     "templatesEmpty": "لا تراخيص مخصصة بعد: المستويات القياسية الثلاثة هي ما يراه المشترون.",
     "templatesLoadFailed": "تعذّر تحميل تراخيصك المخصصة.",
     "templateSaveFailed": "تعذّر حفظ ذلك القالب: تحقق من الحقول وحاول مرة أخرى.",
+    "aiTagsApplyFailed": "تعذر تطبيق تلك الوسوم — حاول مرة أخرى.",
+    "templateDeleteFailed": "تعذر حذف ذلك القالب — حاول مرة أخرى.",
     "templateEdit": "تعديل",
     "templateDelete": "حذف",
     "templateName": "اسم الترخيص",

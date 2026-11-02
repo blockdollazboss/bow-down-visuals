@@ -2138,6 +2138,8 @@
     "templatesEmpty": "Noch keine eigenen Lizenzen — die drei Standardstufen sind das, was Käufer sehen.",
     "templatesLoadFailed": "Deine eigenen Lizenzen konnten nicht geladen werden.",
     "templateSaveFailed": "Diese Vorlage konnte nicht gespeichert werden — prüfe die Felder und versuch es erneut.",
+    "aiTagsApplyFailed": "Diese Tags konnten nicht angewendet werden — bitte versuche es erneut.",
+    "templateDeleteFailed": "Diese Vorlage konnte nicht gelöscht werden — bitte versuche es erneut.",
     "templateEdit": "Bearbeiten",
     "templateDelete": "Löschen",
     "templateName": "Lizenzname",

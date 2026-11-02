@@ -1,4 +1,4 @@
-import { plainErrorText } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import {
@@ -437,8 +437,13 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       if (res.ok) {
         setConfirmingDeleteTpl(null);
         await loadDashboard();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setTplError(apiErrorMessage(data, "Couldn't delete that template — please try again."));
       }
-    } catch { /* the reload in loadDashboard surfaces the truth */ }
+    } catch (e) {
+      setTplError(plainErrorText(e, "Couldn't delete that template — please try again."));
+    }
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
