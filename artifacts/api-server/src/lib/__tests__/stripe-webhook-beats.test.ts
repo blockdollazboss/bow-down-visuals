@@ -36,6 +36,8 @@ const h = vi.hoisted(() => {
     licenses: [] as Array<Record<string, any>>,
     event: null as any,
     refunds: [] as Array<unknown>,
+    claims: new Set<string>(),
+    tells: [] as Array<Record<string, any>>,
   };
 });
 
@@ -108,6 +110,35 @@ vi.mock("../stripe-checkout", () => ({
   checkoutBaseUrl: () => "https://example.com",
   isCheckoutTestMode: () => true,
 }));
+
+/* The producer-tell door (BEATS-SETTLE): the claim is modelled with
+   its real contract — createJobNotification resolves true only for
+   the (jobType, jobId) claim winner and false for every twin — and
+   the door itself is a recording spy. Spread-actual keeps every
+   other export the module graph imports from these modules. */
+vi.mock("../job-notifications", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    createJobNotification: vi.fn(async (input: { jobType: string; jobId: string }) => {
+      const key = `${input.jobType}:${input.jobId}`;
+      if (h.claims.has(key)) return false;
+      h.claims.add(key);
+      return true;
+    }),
+  };
+});
+
+vi.mock("../push-events", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    notifyUserEvent: vi.fn(async (input: Record<string, any>) => {
+      h.tells.push(input);
+      return { delivered: true };
+    }),
+  };
+});
 
 /* The settle path reads/writes beats + beat_licenses through the
    drizzle builder. The fake matches rows by rendering the
@@ -211,6 +242,7 @@ function seed() {
       producer_id: PRODUCER_ID,
       tier: "premium",
       price_cents: 3000,
+      commission_cents: 450,
       status: "pending_payment",
       stripe_session_id: SESSION_ID,
       terms_snapshot: {
@@ -278,6 +310,8 @@ async function deliver(event: unknown) {
 beforeEach(() => {
   seed();
   h.event = null;
+  h.claims = new Set();
+  h.tells = [];
 });
 
 describe("stripe webhook — beat license settle (WEBHOOK-SETTLE)", () => {
@@ -309,5 +343,73 @@ describe("stripe webhook — beat license settle (WEBHOOK-SETTLE)", () => {
     expect(res.statusCode).toBe(200);
     expect(h.licenses[0]?.status).toBe("pending_payment");
     expect(h.refunds).toHaveLength(1);
+  });
+});
+
+describe("stripe webhook — beat license producer tell (BEATS-SETTLE)", () => {
+  /* The notify-census lane (sibling branch stack1200/notify-census,
+     fix #5) wired the producer tell into ITS verify-local completion;
+     its finding #4 said beats has no webhook settle. On THIS lineage
+     the settle exists (WEBHOOK-SETTLE da87f4240) but the tell exists
+     nowhere — neither door told the producer. The tell therefore
+     belongs in the shared settle, at the completion-flip win, so a
+     closed-tab sale tells exactly like a returned-browser sale.
+     Net on the seed: $30.00 price − $4.50 commission = $25.50. */
+  it("a closed-tab paid settle tells the producer exactly once, naming the true net", async () => {
+    const res = await deliver(beatEvent("paid"));
+    expect(res.statusCode).toBe(200);
+    expect(h.licenses[0]?.status).toBe("completed");
+    expect(h.tells).toHaveLength(1);
+    expect(h.tells[0]).toMatchObject({
+      userId: PRODUCER_ID,
+      category: "money",
+      kind: "beat_sale",
+      title: "Your beat just sold 👑",
+      link: "/beats",
+    });
+    expect(h.tells[0]?.body).toContain("Midnight Loops (premium)");
+    expect(h.tells[0]?.body).toContain("net $25.50");
+    expect(h.claims.has("sale:beat-license:" + LICENSE_ID)).toBe(true);
+  });
+
+  it("a replayed delivery does not tell twice", async () => {
+    await deliver(beatEvent("paid"));
+    await deliver(beatEvent("paid"));
+    expect(h.licenses[0]?.status).toBe("completed");
+    expect(h.tells).toHaveLength(1);
+  });
+
+  it("the verify door after a webhook settle does not tell twice", async () => {
+    await deliver(beatEvent("paid"));
+    expect(h.tells).toHaveLength(1);
+    const { settleBeatLicenseSession } = await import("../../routes/generate/beats");
+    const session: any = {
+      id: SESSION_ID,
+      payment_status: "paid",
+      amount_total: 3000,
+      metadata: {
+        purchase_kind: "beat_license",
+        license_id: LICENSE_ID,
+        buyer_user_id: BUYER_ID,
+        beat_id: BEAT_ID,
+      },
+    };
+    const result = await settleBeatLicenseSession(session, { buyerUserId: BUYER_ID });
+    expect(result.httpStatus).toBe(200);
+    expect(result.body).toMatchObject({ success: true, duplicate: true });
+    expect(h.tells).toHaveLength(1);
+  });
+
+  it("an unpaid session tells nothing", async () => {
+    await deliver(beatEvent("unpaid"));
+    expect(h.licenses[0]?.status).toBe("pending_payment");
+    expect(h.tells).toHaveLength(0);
+  });
+
+  it("a paid session whose beat is gone tells nothing (the auto-refund stands instead)", async () => {
+    h.beats = [];
+    await deliver(beatEvent("paid"));
+    expect(h.refunds).toHaveLength(1);
+    expect(h.tells).toHaveLength(0);
   });
 });
