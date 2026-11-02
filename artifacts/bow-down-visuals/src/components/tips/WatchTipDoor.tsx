@@ -122,6 +122,7 @@ export function WatchTipDoor({
         <WatchTipPanel
           data={data}
           initialFanName={profile?.display_name ?? ""}
+          returnPath={signInNext}
           onClose={() => setOpen(false)}
         />
       )}
@@ -132,10 +133,14 @@ export function WatchTipDoor({
 function WatchTipPanel({
   data,
   initialFanName,
+  returnPath,
   onClose,
 }: {
   data: TipPageData;
   initialFanName: string;
+  /** This watch page's own path — the rail lands the fan back here
+   *  when the checkout session ends (see returnPath in sendTip). */
+  returnPath: string;
   onClose: () => void;
 }) {
   const isLight = useIsLightTheme();
@@ -181,6 +186,12 @@ function WatchTipPanel({
           fanName,
           message,
           uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+          /* The tip started HERE: when the session ends, the rail
+             lands the fan back on this watch page instead of the
+             tip page (the rail admits only house-minted path shapes
+             and falls back to /tips/:handle for anything else). The
+             tip itself settles by webhook either way. */
+          returnPath,
         }),
       });
       if (co.ok) {
