@@ -14,6 +14,8 @@ import {
   type KitRelease,
 } from "../lib/drop-day-kit";
 import { presaveUrl } from "../lib/presave-url";
+import { defaultKitBannerRenderDeps, renderKitBanners } from "../lib/drop-day-kit-render";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -42,10 +44,13 @@ const router = Router();
 
    Nothing here sends, posts, or publishes: the fan heads-up at land
    time is the existing presave sweeper over presave_follows, the
-   teaser/banners render in Create from the kit's links, and the
    launch announcement is scheduled by the creator in the Scheduler
    (its release-attributed posts are only READ here, for the
-   checklist). */
+   checklist), and the teaser renders in Create from the kit's link.
+   The BANNERS render here, at assembly (lib/drop-day-kit-render):
+   a deterministic composite of the release's own art + text — a
+   banner whose render fails is stored as a spec with its Create
+   link, never as a claimed render. */
 
 async function ownRelease(req: Request, res: Response, releaseId: string): Promise<KitRelease | null> {
   const release = await readKitRelease(releaseId);
@@ -60,6 +65,28 @@ async function ownRelease(req: Request, res: Response, releaseId: string): Promi
   return release;
 }
 
+type KitPayload = ReturnType<typeof assembleKit>;
+type KitViewPayload = Omit<KitPayload, "banners"> & {
+  banners: Array<KitPayload["banners"][number] & { imageUrl: string | null }>;
+};
+
+/** The stored payload carries each banner render's stable REF; the
+ *  view mints a fresh URL from it on every read (a stored URL would
+ *  expire; the ref never does — the promo-card DTO pattern). Kits
+ *  stored before renders existed have no refs and pass through with
+ *  imageUrl null — specs, honestly labelled by their Create links. */
+async function kitWithBannerUrls(kit: KitPayload): Promise<KitViewPayload> {
+  return {
+    ...kit,
+    banners: await Promise.all(
+      kit.banners.map(async (b) => ({
+        ...b,
+        imageUrl: b.imageRef ? await refreshSupabaseStorageUrl(b.imageRef) : null,
+      })),
+    ),
+  };
+}
+
 /** The one kit view every surface reads: the kit payload (null when
  *  none is assembled), its effective status, the real presave
  *  capture count, the Scheduler announcement state for the release,
@@ -69,7 +96,8 @@ async function buildKitView(release: KitRelease, row?: Record<string, unknown> |
   const kitRow = row === undefined ? await drizzleDropDayKitStore.getByRelease(release.id) : row;
   const captures = await drizzleDropDayKitStore.captureCount(release.id);
   const announce = await drizzleDropDayKitStore.announceState(release.id, release.userId);
-  const kit = kitRow ? (kitRow["kit"] as ReturnType<typeof assembleKit>) : null;
+  const storedKit = kitRow ? (kitRow["kit"] as KitPayload) : null;
+  const kit = storedKit ? await kitWithBannerUrls(storedKit) : null;
   const status = kitRow ? effectiveKitStatus(String(kitRow["status"]), release.releaseDate) : null;
   return {
     id: kitRow ? kitRow["id"] : null,
@@ -112,7 +140,18 @@ router.post("/drop-day-kits", requireAuth, publicApiLimiter, async (req: Request
   try {
     const release = await ownRelease(req, res, parsed.data.releaseId);
     if (!release) return;
-    const kit = assembleKit(release);
+    const assembled = assembleKit(release);
+    /* The banner render pass: deterministic composites of the
+       release's own art, stored with the kit so the payload itself
+       proves the renders. Best-effort by design — the orchestrator
+       already degrades per banner, and even a whole-pass failure
+       stores the honest spec kit rather than failing assembly. */
+    let kit = assembled;
+    try {
+      kit = await renderKitBanners(release, assembled, defaultKitBannerRenderDeps());
+    } catch (renderErr) {
+      logger.warn({ err: renderErr, releaseId: release.id }, "[drop-day-kit] banner render pass failed; kit stored as specs");
+    }
     await drizzleDropDayKitStore.upsertKit({ userId: req.userId!, releaseId: release.id, kit });
     res.json(await kitView(release));
   } catch (err) {

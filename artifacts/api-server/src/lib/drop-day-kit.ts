@@ -10,8 +10,12 @@
      pre-loaded into Create. A spec, not a render: the creator
      renders it in Create.
    - BANNER SET — four standard sizes, each carrying the release's
-     own artwork, title, artist, and date, pre-loaded into the
-     cover-art panel.
+     own artwork, title, artist, and date. The banners RENDER at
+     assembly (lib/drop-day-kit-render.ts): a deterministic
+     composite of the release's own art + its verbatim headline and
+     subline — no AI, no invented copy, no charge — and each stored
+     banner carries the render's storage ref as its proof. The
+     Create links stay on every banner for restyling.
    - COUNTDOWN — bound to the release's existing presave page (the
      page that already counts down and captures fans).
    - FAN HEADS-UP AT LAND TIME — kit-era captures are presave
@@ -26,6 +30,9 @@
    starts as a DRAFT: nothing is live until the creator reviews it
    and activates it, and activation requires the two pieces the
    land-time promise stands on — a release date and a presave page.
+   A banner whose render failed keeps imageRef null and falls back
+   to its Create link — the kit never claims a render it cannot
+   point at.
 
    H3 delta (the G1-scoped remainder): the RELEASE-DAY CHECKLIST and
    the Promote list. assembleChecklist derives the run-through from
@@ -34,9 +41,12 @@
    posts (scheduled_posts.release_id, migration 0143) — and
    listKitReleases + GET /api/drop-day-kits/mine feed the kit's
    second home, the Drop Day panel docked in Promote. Steps the kit
-   cannot verify (the teaser and banners render in Create) are
-   'action', never 'done' — a checklist that ticks itself would be
-   a lie with a checkbox. */
+   cannot verify are 'action', never 'done' — a checklist that
+   ticks itself would be a lie with a checkbox. The teaser renders
+   in Create, so it stays 'action'; the banners render at assembly
+   and the payload carries each render's ref, so the banner step is
+   'done' only when every banner in the stored kit points at a real
+   render — the kit's own record is the proof. */
 
 import { sql, eq, and } from "drizzle-orm";
 import { db, dropDayKitsTable, presaveFollowsTable, scheduledPostsTable } from "@workspace/db";
@@ -71,9 +81,16 @@ export interface KitBanner {
   headline: string;
   subline: string;
   createLink: string;
+  /** The assembly render's stable storage ref (objectStorage), or
+   *  null when the banner is still a spec — assembly renders every
+   *  banner it can, and a failed render leaves null here so no
+   *  surface can present a render that does not exist. Written only
+   *  by lib/drop-day-kit-render.ts; read paths mint a fresh URL
+   *  from the ref, never store one. */
+  imageRef: string | null;
 }
 
-interface DropDayKitPayload {
+export interface DropDayKitPayload {
   teaser: KitTeaser | null;
   banners: KitBanner[];
   countdown: { presaveUrl: string | null; releaseDate: string | null };
@@ -129,6 +146,7 @@ export function assembleKit(release: KitRelease): DropDayKitPayload {
       headline: release.title,
       subline,
       createLink: bannerCreateLink(release, s.size),
+      imageRef: null,
     }));
   } else {
     missing.push("artwork");
@@ -186,9 +204,11 @@ export function effectiveKitStatus(
                 and only the creator can take the step (render in
                 Create, schedule in the Scheduler, activate the kit).
 
-   The teaser and banner steps are NEVER 'done': rendering happens
-   in Create and the kit cannot see a render — claiming otherwise
-   would tick a box nobody checked. */
+   The teaser step is NEVER 'done': it renders in Create and the
+   kit cannot see that render. The banner step is 'done' only when
+   the stored kit proves the renders — every banner carrying an
+   imageRef from the assembly render pass; a spec-only or partly
+   rendered set stays 'action' and names the count. */
 
 export interface AnnounceState {
   draft: number;
@@ -237,11 +257,24 @@ export function assembleChecklist(input: {
       ? { id: "teaser", label: "Teaser short", state: "action", detail: "The 15-second teaser spec is ready — it renders in Create, so this step stays open until you've made it." }
       : { id: "teaser", label: "Teaser short", state: "todo", detail: "Assemble the kit — the teaser spec is built from your track." });
 
-  steps.push(!release.artworkUrl
-    ? { id: "banners", label: "Banner set", state: "todo", detail: "Needs the cover art first — every banner is built from it." }
-    : input.kit && input.kit.banners.length > 0
-      ? { id: "banners", label: "Banner set", state: "action", detail: "Four banner sizes are specced from your cover art — they render in Create, so this step stays open until you've made them." }
-      : { id: "banners", label: "Banner set", state: "todo", detail: "Assemble the kit — the banner set is specced from your cover art." });
+  if (!release.artworkUrl) {
+    steps.push({ id: "banners", label: "Banner set", state: "todo", detail: "Needs the cover art first — every banner is built from it." });
+  } else if (input.kit && input.kit.banners.length > 0) {
+    /* 'done' stands on the stored payload's own proof: the count of
+       banners carrying a render ref from the assembly render pass.
+       Old kits (stored before renders existed) and failed renders
+       carry none — they stay 'action', never retro-ticked. */
+    const rendered = input.kit.banners.filter((b) => b.imageRef).length;
+    if (rendered === input.kit.banners.length) {
+      steps.push({ id: "banners", label: "Banner set", state: "done", detail: "Rendered from your cover art when the kit assembled — download them from the kit, or open one in Create to restyle it." });
+    } else if (rendered > 0) {
+      steps.push({ id: "banners", label: "Banner set", state: "action", detail: `${rendered} of ${input.kit.banners.length} banners rendered from your cover art — the rest open in Create to finish.` });
+    } else {
+      steps.push({ id: "banners", label: "Banner set", state: "action", detail: "Four banner sizes are specced from your cover art — they render in Create, so this step stays open until you've made them." });
+    }
+  } else {
+    steps.push({ id: "banners", label: "Banner set", state: "todo", detail: "Assemble the kit — the banner set is specced from your cover art." });
+  }
 
   if (announce.posted > 0) {
     steps.push({ id: "announce", label: "Launch announcement", state: "done", detail: "Posted through the Scheduler." });

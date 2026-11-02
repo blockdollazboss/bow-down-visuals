@@ -13,12 +13,18 @@ import { sql } from "drizzle-orm";
  * presave_follows, which lib/presave-release-notify.ts already fans
  * out exactly once at the release moment).
  *
- * The kit assembles SPECS, never finished renders and never claims:
- * the teaser and banners sit at 'draft' inside the payload until the
- * creator reviews the kit and activates it; rendering/publishing
- * happens in Create, from the kit's pre-loaded links. Anything the
- * release lacks (no artwork, no audio, no date, no presave page) is
- * listed in payload.missing — never invented to complete the set.
+ * The kit assembles from the release's own fields and never
+ * invents: the teaser stays a SPEC (a video — it renders in Create
+ * from the kit's pre-loaded link), while the banners carry FINISHED
+ * renders since stack1300 — lib/drop-day-kit-render composites the
+ * release's own art + verbatim title/artist/date at assembly and
+ * stores each render's storage ref on the banner (imageRef; null =
+ * still a spec, Create link is the fallback). The kit sits at
+ * 'draft' inside the payload until the creator reviews it and
+ * activates it. Anything the release lacks (no artwork, no audio,
+ * no date, no presave page) is listed in payload.missing — never
+ * invented to complete the set. (Migration 0284's header predates
+ * the banner renders and is left as the historical record.)
  *
  * Status: draft (assembled, awaiting review) → active (creator
  * approved the kit) → landed (release moment passed; read-side flip,

@@ -48,6 +48,9 @@ describe("assembleKit — from the release's own fields only", () => {
     expect(decodeURIComponent(kit.teaser!.createLink)).toContain("Midnight Run");
     expect(kit.banners.map((b) => b.size)).toEqual(["profile", "wide", "post", "story"]);
     expect(kit.banners.every((b) => b.artworkUrl === FULL.artworkUrl)).toBe(true);
+    /* Assembly alone never claims a render: every banner starts as
+       a spec (imageRef null) until the render pass proves one. */
+    expect(kit.banners.every((b) => b.imageRef === null)).toBe(true);
     expect(kit.banners[0]).toMatchObject({ headline: "Midnight Run", subline: "Thy Cheat Code · 2026-11-15" });
     expect(kit.countdown).toEqual({
       presaveUrl: "https://bowdownvisuals.com/presave/midnight-run",

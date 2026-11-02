@@ -5,9 +5,13 @@
  * - every step is derived from real state (the release's own fields,
  *   the kit, the presave captures, the Scheduler's release-attributed
  *   posts) — a step is 'done' only when its rail proves it;
- * - the teaser and banner steps are NEVER 'done': they render in
- *   Create and the kit cannot see a render, so a ready spec reads
- *   'action', and a missing input reads 'todo';
+ * - the teaser step is NEVER 'done': it renders in Create and the
+ *   kit cannot see that render, so a ready spec reads 'action', and
+ *   a missing input reads 'todo';
+ * - the banner step ticks ONLY on proven renders: banners render at
+ *   assembly and the stored payload carries each render's ref, so
+ *   'done' requires every banner to carry one — spec-only and
+ *   partly rendered sets read 'action' and name the count;
  * - the announcement step reads the Scheduler's buckets honestly —
  *   posted/scheduled = done, a waiting draft = action, and with no
  *   presave page the step is 'todo' (the announcement's link rides
@@ -79,7 +83,7 @@ describe("assembleChecklist — field steps follow the release's own fields", ()
   });
 });
 
-describe("assembleChecklist — teaser and banners never tick themselves", () => {
+describe("assembleChecklist — teaser never ticks; banners tick only on proven renders", () => {
   it("ready specs read 'action', never 'done' — in every kit state", () => {
     for (const kitStatus of [null, "draft", "active", "landed"]) {
       const steps = assembleChecklist({
@@ -90,8 +94,34 @@ describe("assembleChecklist — teaser and banners never tick themselves", () =>
         announce: NONE,
       });
       expect(step(steps, "teaser").state).toBe("action");
+      /* assembleKit's banners are specs (imageRef null) — unproven
+         renders read 'action' exactly like the teaser. */
       expect(step(steps, "banners").state).toBe("action");
     }
+  });
+
+  it("a fully rendered banner set is 'done' — the stored refs are the proof", () => {
+    const kit = assembleKit(FULL);
+    const rendered = {
+      ...kit,
+      banners: kit.banners.map((b) => ({ ...b, imageRef: `r2://generated-clips/drop-day-kits/x/banner-${b.size}.jpg` })),
+    };
+    const steps = assembleChecklist({ release: FULL, kit: rendered, kitStatus: "draft", captures: 0, announce: NONE });
+    expect(step(steps, "banners").state).toBe("done");
+    /* The teaser still cannot tick — its render lives in Create. */
+    expect(step(steps, "teaser").state).toBe("action");
+  });
+
+  it("a partly rendered set stays 'action' and names the count", () => {
+    const kit = assembleKit(FULL);
+    const partial = {
+      ...kit,
+      banners: kit.banners.map((b, i) => (i < 2 ? { ...b, imageRef: "r2://generated-clips/x.jpg" } : b)),
+    };
+    const steps = assembleChecklist({ release: FULL, kit: partial, kitStatus: "draft", captures: 0, announce: NONE });
+    const s = step(steps, "banners");
+    expect(s.state).toBe("action");
+    expect(s.detail).toContain("2 of 4");
   });
 
   it("missing inputs read 'todo' and name the blocker", () => {
