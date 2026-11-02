@@ -13,8 +13,9 @@ import { OneTipJarCard } from "@/components/tips/OneTipJarCard";
 
 /* ─── Tip Jar — creator dashboard ──────────────────────────────────────────
    Set up your public tip page at /tips/:handle, share the link, and watch
-   tip intent roll in. Payment processing is COMING SOON — tips are recorded
-   as intent only, no charge is ever made. Setup is free. */
+   paid tips roll in. Tips are LIVE — fans are charged for real in test
+   mode, paid tips are marked paid, and 100% of every tip goes to the
+   creator with no fee taken. Setup is free. */
 
 interface TipSettings {
   handle: string;
@@ -233,7 +234,9 @@ export default function Tips() {
         </h1>
         <p className="mt-3 max-w-2xl text-white/55">{t("tips.subtitle")}</p>
 
-        {/* Honest disclosure driven by the live flag: tips are intent-only until payments go live */}
+        {/* Tips status note (copy: tips.paymentsSoonTitle/Body in the
+            locale files — the keys keep their original names): tips are
+            live, charged for real in test mode, 100% to the creator. */}
         {!loading && !dashboard?.paymentsLive && (
           <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-200/90">
             <BadgeAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />

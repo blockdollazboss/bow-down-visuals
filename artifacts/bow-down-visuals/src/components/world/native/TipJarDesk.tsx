@@ -20,8 +20,9 @@ import {
    POST /api/tips/settings to create/update — its exact body (the
    typed suggested-amounts list parsed the page's way, the
    [5, 10, 25] fallback when it parses empty). The honesty law
-   rides along: while paymentsLive is false the desk says tips are
-   recorded as intent only — no charge is ever made — and a
+   rides along: while paymentsLive is false the desk carries the
+   tips status note — tips are live, charged for real in test
+   mode, 100% to the creator with no fee — and a
    pending_payment feed row reads "Intent recorded", never as
    money received. The desk renders inside the EarningsBoard,
    which already pitches guests, so it is members-only by
@@ -120,7 +121,7 @@ export function TipJarDesk({ isLight }: { isLight: boolean }) {
       <div data-testid="world-tipjar-desk" className="space-y-3">
         {!dashboard.paymentsLive && (
           <p className={`rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-3 text-[11px] ${isLight ? "text-[#92600a]" : "text-amber-200/85"}`}>
-            Tip payments are coming soon — tips are recorded as intent only, and no charge is ever made. Setup is free.
+            Tips are live — tips are charged for real in test mode, and 100% of every tip goes to you with no fee taken. Setup is free.
           </p>
         )}
 
