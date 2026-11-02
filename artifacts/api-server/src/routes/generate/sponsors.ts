@@ -10,6 +10,7 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, canUseCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient } from "../../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { escrowHeldCents } from "../../lib/escrow-held";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
 
@@ -924,6 +925,12 @@ router.patch("/sponsors/applications/:id", requireAuth, publicApiLimiter, async 
 
 const fundSchema = z.object({
   amountCents: z.number().int().min(100).max(100000000),
+  /* Embedded checkout (owner law 2026-10-26: never leave the site):
+     "embedded" creates the SAME escrow session in embedded_page
+     ui_mode and answers its clientSecret so the brand pays on the
+     page; absent/"hosted" keeps the hosted-URL shape. Honored only
+     while the EMBEDDED_CHECKOUT kill switch is on. */
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
 });
 
 /**
@@ -953,7 +960,9 @@ export function buildSponsorEscrowCheckoutKey(args: {
 }
 
 /* POST /api/sponsors/deals/:id/fund — brand funds the escrow.
-   With STRIPE_SECRET_KEY configured: returns a real Stripe Checkout URL.
+   With STRIPE_SECRET_KEY configured: returns a real Stripe Checkout
+   URL — or, when the page asks for the embedded presentation, the
+   session's clientSecret so the brand pays without leaving the site.
    Without it: sandbox mode — returns a mock session the frontend can
    "complete" to simulate the funding flow end to end. No credits involved;
    this is real money (or the sandbox stand-in). */
@@ -1020,6 +1029,13 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
       acceptedApplicationId: deal.accepted_application_id,
       amountCents,
     });
+    const embeddedRequested =
+      parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
+    const successUrl = `${baseUrl}/sponsors/${dealId}?funded=1`;
+    /* Session, metadata, idempotency key and amount are identical
+       either way — only the presentation differs. An embedded
+       session takes a return_url (the same funded landing) instead
+       of success/cancel URLs; funding still lands via the webhook. */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -1042,12 +1058,29 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
         brand_user_id: req.userId!,
         amount_cents: String(amountCents),
       },
-      success_url: `${baseUrl}/sponsors/${dealId}?funded=1`,
-      cancel_url: `${baseUrl}/sponsors/${dealId}?funded=0`,
+      ...(embeddedRequested
+        ? { ui_mode: "embedded_page" as const, return_url: successUrl }
+        : { success_url: successUrl, cancel_url: `${baseUrl}/sponsors/${dealId}?funded=0` }),
     }, { idempotencyKey });
+    if (embeddedRequested && !session.client_secret) {
+      /* An embedded session without a client secret cannot be
+         mounted — throwing lands in the catch below, which resets
+         the deal to unfunded exactly like a failed creation. */
+      throw new Error("Checkout session did not return a client secret");
+    }
     await db.execute(sql`
       UPDATE sponsor_deals SET stripe_session_id = ${session.id} WHERE id = ${dealId}
     `);
+    if (embeddedRequested) {
+      res.json({
+        sandbox: false,
+        checkoutUrl: null,
+        clientSecret: session.client_secret,
+        uiMode: "embedded",
+        sessionId: session.id,
+      });
+      return;
+    }
     res.json({ sandbox: false, checkoutUrl: session.url, sessionId: session.id });
   } catch (err) {
     logger.error({ err }, "[sponsors] failed to create escrow funding session");

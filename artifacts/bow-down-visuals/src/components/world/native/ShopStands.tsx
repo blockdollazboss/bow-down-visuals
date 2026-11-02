@@ -92,6 +92,10 @@ import {
    mounts in the stand; the server rail landed with this join) —
    the new-tab transfer remains only as the no-publishable-key
    fallback, here and at the Treasury desks.
+   SWEEP UPDATE (stack1200): the Crowns stand's join is embedded
+   first the same way — the memberships rail answers a clientSecret
+   and the crown is paid for right at the stand; the §3.9 new-tab
+   transfer remains only as its fallback.
    Prices are the real server charges end to end — payload prices
    (Marketplace, Crowns) and the shared client catalog (Branding)
    are displayed and charged from the same source.
@@ -2844,6 +2848,9 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
   const [pendingCheckout, setPendingCheckout] = useState<MembershipPendingCheckout | null>(null);
   const [joinNote, setJoinNote] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  /* Embedded join: the clientSecret of a join being paid for right
+     here at the stand (the hosted tab is only the fallback). */
+  const [joinSecret, setJoinSecret] = useState<string | null>(null);
 
   const recipientId = parseRecipientUserId(recipientInput);
   const recipientInvalid = recipientInput.trim() !== "" && recipientId === null;
@@ -2898,6 +2905,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       if (state === "confirmed") {
         try { localStorage.removeItem(membershipPendingKey()); } catch { /* the state below still clears */ }
         setPendingCheckout(null);
+        setJoinSecret(null);
         setJoinNote(
           pending.isGift
             ? `Gift confirmed — “${pending.tierName}” is theirs. The payment landed and their crown is active.`
@@ -2906,10 +2914,11 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         setMsg(null);
         void loadMine();
       } else if (state === "pending") {
-        setJoinNote(`That “${pending.tierName}” payment hasn't completed yet — finish it in the checkout tab, then check again here.`);
+        setJoinNote(`That “${pending.tierName}” payment hasn't completed yet — finish paying first, then check again here.`);
       } else {
         try { localStorage.removeItem(membershipPendingKey()); } catch { /* the state below still clears */ }
         setPendingCheckout(null);
+        setJoinSecret(null);
         setJoinNote("That checkout session is closed, so there's nothing to confirm — your crowns below tell the truth, and any crown still on offer can be joined again.");
       }
     } catch {
@@ -2971,11 +2980,13 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
   };
 
   /* Joining: the trial happens right here at the stand; a paid
-     join rides the checkout transfer — POST checkout, then the
-     hosted page it returns opens in a NEW TAB (§3.9). A free tier
-     activates in-world with no payment page at all. Guests get
-     the pitch, never a dead button: joining rides an account, and
-     sign-in lives on the website by design. */
+     join is embedded first — POST checkout asking for the embedded
+     presentation, and the payment form mounts right here. Only
+     when no clientSecret comes back does the join ride the §3.9
+     transfer (the hosted page it returns opens in a NEW TAB).
+     A free tier activates in-world with no payment page at all.
+     Guests get the pitch, never a dead button: joining rides an
+     account, and sign-in lives on the website by design. */
   const join = async (tier: MembershipTierDto, mode: "checkout" | "trial") => {
     if (isGuest) {
       setMsg("Joining a fan club rides your account — sign in on the website (the footer below) and come back through this door; the crowns will be waiting.");
@@ -2987,6 +2998,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
     }
     setBusy(tier.id + mode);
     setMsg(null);
+    setJoinSecret(null);
     try {
       if (mode === "trial") {
         const res = await fetch("/api/memberships/join-trial", {
@@ -3004,7 +3016,13 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       const res = await fetch("/api/memberships/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(membershipCheckoutPayload(tier.id, period, recipientId)),
+        body: JSON.stringify({
+          ...membershipCheckoutPayload(tier.id, period, recipientId),
+          /* Embedded first, like the Marketplace stand above: ask
+             for the in-stand presentation whenever this device can
+             mount it; the hosted tab below stays the fallback. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start checkout."));
@@ -3013,6 +3031,24 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
            the seat is THEIRS, in the memberships page's own words. */
         setMsg(gifting ? "Gift sent — they're a member now." : "You're in — your membership is active, right here at the stand.");
         void loadMine();
+        return;
+      }
+      const clientSecret = (data as { clientSecret?: unknown }).clientSecret;
+      if (typeof clientSecret === "string" && clientSecret) {
+        /* Stash the session exactly like the hosted path: the
+           verify (check button, focus, reopen) confirms THIS
+           payment rather than trusting the form's say-so. */
+        const sessionId = (data as { sessionId?: unknown }).sessionId;
+        if (typeof sessionId === "string" && sessionId) {
+          const pending: MembershipPendingCheckout = { sessionId, tierName: tier.name, isGift: gifting };
+          try { localStorage.setItem(membershipPendingKey(), JSON.stringify(pending)); } catch { /* no stash — the stand still says where the truth lives */ }
+          setPendingCheckout(pending);
+        }
+        setJoinSecret(clientSecret);
+        setJoinNote(gifting
+          ? `The gift checkout for “${tier.name}” is right here — finish paying in this stand and it confirms the gift itself when the payment lands.`
+          : `Your checkout for “${tier.name}” is right here — finish paying in this stand and it confirms your crown itself when the payment lands.`);
+        setMsg(null);
         return;
       }
       const url = hostedCheckoutUrl(data);
@@ -3087,7 +3123,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
             <span>
               {joinNote ??
                 (pendingCheckout
-                  ? `Waiting on the “${pendingCheckout.tierName}” payment — finish it in the checkout tab, then check here and this stand confirms ${pendingCheckout.isGift ? "the gift" : "your crown"} itself.`
+                  ? `Waiting on the “${pendingCheckout.tierName}” payment — finish paying, then check here and this stand confirms ${pendingCheckout.isGift ? "the gift" : "your crown"} itself.`
                   : "")}
             </span>
           </p>
@@ -3102,6 +3138,14 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
               {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Check my payment
             </button>
+          )}
+          {joinSecret && (
+            <div className="space-y-2" data-testid="world-crowns-embedded-checkout">
+              <EmbeddedSessionCheckout clientSecret={joinSecret} />
+              <button type="button" onClick={() => setJoinSecret(null)} className={chipBtn(isLight)}>
+                Close — the crown isn&rsquo;t yours until the payment lands
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -3233,12 +3277,14 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                       </ul>
                     )}
                     <div className="mt-3 space-y-1.5">
-                      {/* Paid joins ride the ONE marked transfer: the
-                          hosted checkout page, in a new tab (§3.9).
-                          With a gift recipient named, the same
-                          buttons buy the crown FOR them — the trial
-                          hides, exactly as on the memberships page
-                          (a trial is a seat you take yourself). */}
+                      {/* Paid joins pay right here at the stand
+                          (embedded first); the ONE marked transfer
+                          — the hosted checkout page in a new tab
+                          (§3.9) — is only the fallback. With a gift
+                          recipient named, the same buttons buy the
+                          crown FOR them — the trial hides, exactly
+                          as on the memberships page (a trial is a
+                          seat you take yourself). */}
                       <button
                         type="button"
                         data-testid="world-crowns-join"

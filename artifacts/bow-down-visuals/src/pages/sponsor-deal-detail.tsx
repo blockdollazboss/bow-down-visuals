@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -248,17 +249,26 @@ export default function SponsorDealDetail() {
     }
   }
 
+  /* Embedded escrow funding: the payment form mounts on this page
+     (owner law 2026-10-26: never leave the site); the hosted page is
+     only the fallback when no clientSecret comes back. */
+  const [fundSecret, setFundSecret] = useState<string | null>(null);
+
   async function fundDeal() {
     const amountCents = deal?.agreedAmountCents ?? Math.round(Number(agreedDollars) * 100);
     if (!amountCents || amountCents <= 0) { setError(t("sponsorDealDetail.errorNoAgreedPayout")); return; }
-    const data = await postAction(`/api/sponsors/deals/${dealId}/fund`, "POST", { amountCents }, "fund") as
-      { sandbox?: boolean; sessionId?: string; checkoutUrl?: string } | null;
+    setFundSecret(null);
+    const data = await postAction(`/api/sponsors/deals/${dealId}/fund`, "POST",
+      { amountCents, uiMode: hasStripePublishableKey() ? "embedded" : undefined }, "fund") as
+      { sandbox?: boolean; sessionId?: string; checkoutUrl?: string | null; clientSecret?: string } | null;
     if (!data) return;
     if (data.sandbox && data.sessionId) {
       /* Sandbox: simulate the card payment completing. */
       const confirm = await postAction("/api/sponsors/escrow/confirm", "POST",
         { dealId, sessionId: data.sessionId }, "fund-confirm");
       if (confirm) setError(null);
+    } else if (data.clientSecret) {
+      setFundSecret(data.clientSecret);
     } else if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl;
     }
@@ -556,6 +566,17 @@ export default function SponsorDealDetail() {
                       className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-6 py-3 text-sm font-black text-black transition hover:scale-[1.03] disabled:opacity-50">
                       {(busy === "fund" || busy === "fund-confirm") ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="h-4 w-4" aria-hidden="true" />}
                       {busy ? t("sponsorDealDetail.processing") : t("sponsorDealDetail.fundButton", { amount: moneyCents(deal.agreedAmountCents) })}
+                    </button>
+                  </div>
+                )}
+                {fundSecret && (
+                  <div className="mt-6 space-y-2" data-testid="sponsor-fund-embedded-checkout">
+                    <p className="text-xs text-white/50">
+                      Finish funding the escrow right here — the deal shows as funded the moment the payment lands.
+                    </p>
+                    <EmbeddedSessionCheckout clientSecret={fundSecret} />
+                    <button onClick={() => setFundSecret(null)} className="text-xs text-white/40 hover:text-white">
+                      Close — the escrow stays unfunded until a payment completes
                     </button>
                   </div>
                 )}

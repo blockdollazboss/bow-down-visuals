@@ -7,6 +7,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
 import { createGuardedStripeClient } from "../lib/stripe-client";
+import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import { escrowHeldCents } from "../lib/escrow-held";
 import { refundCheckoutSessionPayment } from "../lib/stripe-checkout";
 import {
@@ -496,8 +497,24 @@ router.post("/performance-bookings/:id/respond", requireAuth, publicApiLimiter, 
 
 /* ── FUND: the promoter puts the fee in escrow ─────────────────────── */
 
+/* Embedded checkout (owner law 2026-10-26: never leave the site):
+   "embedded" creates the SAME escrow session in embedded_page
+   ui_mode and answers its clientSecret so the promoter pays on the
+   page; absent/"hosted" keeps the hosted-URL shape. Honored only
+   while the EMBEDDED_CHECKOUT kill switch is on. */
+export const fundCheckoutSchema = z.object({
+  uiMode: z.enum(["embedded", "hosted"]).optional(),
+});
+
 router.post("/performance-bookings/:id/fund", requireAuth, publicApiLimiter, async (req, res) => {
   const bookingId = uuidParam(req.params["id"]);
+  const parsed = fundCheckoutSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request." });
+    return;
+  }
+  const embeddedRequested =
+    parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
   try {
     const row = await guardAction(req, res, bookingId, "fund");
     if (!row) return;
@@ -539,6 +556,11 @@ router.post("/performance-bookings/:id/fund", requireAuth, publicApiLimiter, asy
       bookingId: row.id,
       feeCents: Number(row.fee_cents),
     });
+    const successUrl = `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=1`;
+    /* Session, metadata, idempotency key and amount are identical
+       either way — only the presentation differs. An embedded
+       session takes a return_url (the same funded landing) instead
+       of success/cancel URLs; funding still lands via the webhook. */
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -561,12 +583,32 @@ router.post("/performance-bookings/:id/fund", requireAuth, publicApiLimiter, asy
         promoter_user_id: req.userId!,
         amount_cents: String(row.fee_cents),
       },
-      success_url: `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=1`,
-      cancel_url: `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=0`,
+      ...(embeddedRequested
+        ? { ui_mode: "embedded_page" as const, return_url: successUrl }
+        : {
+            success_url: successUrl,
+            cancel_url: `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=0`,
+          }),
     }, { idempotencyKey });
+    if (embeddedRequested && !session.client_secret) {
+      /* An embedded session without a client secret cannot be
+         mounted — throwing lands in the catch below, which resets
+         the escrow to unfunded exactly like a failed creation. */
+      throw new Error("Checkout session did not return a client secret");
+    }
     await db.execute(sql`
       UPDATE performance_bookings SET stripe_session_id = ${session.id} WHERE id = ${row.id}
     `);
+    if (embeddedRequested) {
+      res.json({
+        sandbox: false,
+        checkoutUrl: null,
+        clientSecret: session.client_secret,
+        uiMode: "embedded",
+        sessionId: session.id,
+      });
+      return;
+    }
     res.json({ sandbox: false, checkoutUrl: session.url, sessionId: session.id });
   } catch (err) {
     logger.error({ err }, "[performance-bookings] failed to create escrow funding session");
