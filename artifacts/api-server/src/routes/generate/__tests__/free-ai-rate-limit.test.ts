@@ -22,7 +22,8 @@
  * the endpoints whose UI displayed a price but whose server never
  * charged now charge exactly the displayed price server-side:
  * /analyze-sections 100, /generate/ai-edit-plan 100, /transcribe 100,
- * /transcribe-url 100, /lip-sync/preview 300, and the vault voice
+ * /transcribe-url 100, /lip-sync/preview 300 (base; duration-tiered
+ * to 600 for 50–60s clips since stack1400), and the vault voice
  * clone at 200 (mirroring its from-song sibling). The blocks below
  * pin the charged behavior for the four light routers behaviorally
  * (real routers, fake credits lib): charge lands once per
@@ -606,17 +607,23 @@ describe("the other capped free endpoints stay wired", () => {
 describe("the heavy routers charge their displayed prices (source-shape)", () => {
   const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
-  it("lip-sync.ts: preview charges 300 BEFORE createLipSyncJob, refunds on enqueue failure", () => {
+  it("lip-sync.ts: preview charges the duration-tiered price BEFORE createLipSyncJob, refunds on enqueue failure", () => {
     const src = readFileSync(path.join(srcRoot, "routes/lip-sync.ts"), "utf8");
     expect(src).toContain("const LIP_SYNC_PREVIEW_CREDIT_COST = 300;");
+    expect(src).toContain("const LIP_SYNC_LONG_CLIP_CREDIT_COST = 600;");
     const previewStart = src.indexOf('router.post("/lip-sync/preview"');
     expect(previewStart).toBeGreaterThan(-1);
-    const previewBlock = src.slice(previewStart, previewStart + 12000);
+    const previewBlock = src.slice(previewStart, previewStart + 20000);
     // Charge (with an idempotency key) precedes the enqueue; the refund
-    // is wired to the enqueue's failure path.
-    const chargeIdx = previewBlock.indexOf("chargeCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST");
+    // is wired to the enqueue's failure path. Since stack1400 the amount
+    // is the duration tier of the real window (≤50s → 300, 50–60s →
+    // 600) — lip-sync-duration-tier.test.ts pins the tier itself.
+    expect(previewBlock).toContain(
+      "const previewChargeCredits = lipSyncChargeForDurationSec(clipDurationSec);",
+    );
+    const chargeIdx = previewBlock.indexOf("chargeCredits(userId, previewChargeCredits");
     const enqueueIdx = previewBlock.indexOf("createLipSyncJob({");
-    const refundIdx = previewBlock.indexOf("refundCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST");
+    const refundIdx = previewBlock.indexOf("refundCredits(userId, previewChargeCredits");
     expect(chargeIdx).toBeGreaterThan(-1);
     expect(enqueueIdx).toBeGreaterThan(chargeIdx);
     expect(refundIdx).toBeGreaterThan(enqueueIdx);

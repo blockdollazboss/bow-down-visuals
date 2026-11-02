@@ -62,6 +62,13 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate-video-plan": { cost: 200, feature: "Video Plan" },
   "/api/generate/ai-edit-plan": { cost: 100, feature: "Edit Plan" },
   "/api/auto-video-plan": { cost: 200, feature: "Auto Video Plan" },
+  /* Lip Sync is duration-tiered server-side (owner ruled 2026-11-02,
+     stack1400): the registry records the BASE price — 300 VB for a
+     clip of ≤50s. A 50–60s clip costs 600 VB; callers that know the
+     clip's real duration pass lipSyncCostForDurationSec(duration) as
+     overrideCost so the confirmation quotes the tiered price the
+     server will actually charge. Clips over 60s keep the base price
+     (the server fails them over the provider limit and refunds). */
   "/api/lip-sync": { cost: 300, feature: "Lip Sync" },
   "/api/lip-sync/run-all": { cost: 300, feature: "Lip Sync — Run All (per scene)" },
   "/api/export-final-video": { cost: 400, feature: "Export Final Video" },
@@ -354,6 +361,21 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
  * (e.g. /api/trend-predictor/forecast) is never shadowed by its parent
  * (e.g. /api/trend-predictor) regardless of insertion order.
  */
+/**
+ * The lip-sync charge for a clip of `durationSec` seconds — the client
+ * mirror of the server tier (lipSyncChargeForDurationSec in
+ * artifacts/api-server/src/lib/lip-sync-jobs.ts; keep the two in sync):
+ * ≤50s → 300 VB, 50–60s → 600 VB, over 60s / invalid → 300 VB
+ * (existing behaviour). Used as overrideCost wherever the caller
+ * knows the real clip duration, so the spend confirmation quotes the
+ * exact amount the server charges.
+ */
+export function lipSyncCostForDurationSec(durationSec: unknown): number {
+  const d = typeof durationSec === "number" ? durationSec : Number(durationSec);
+  if (!Number.isFinite(d)) return 300;
+  return d > 50 && d <= 60 ? 600 : 300;
+}
+
 export function getCreditCost(endpoint: string): { cost: number; feature: string } | null {
   let best: { cost: number; feature: string } | null = null;
   let bestLen = -1;

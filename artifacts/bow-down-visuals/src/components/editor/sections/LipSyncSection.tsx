@@ -29,6 +29,7 @@ import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
+import { lipSyncCostForDurationSec } from "@/lib/credit-costs";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
@@ -977,9 +978,17 @@ export function LipSyncSection({
     setApplyError(null);
     setApplyDebug(null);
     setConfirmOpen(null);
-    // One confirmation for the whole batch (3 credits per clip)
+    // One confirmation for the whole batch, priced exactly as the
+    // server will charge it: the duration tier per scene (stack1400 —
+    // ≤50s → 300 VB, 50–60s → 600 VB) over each scene's real window,
+    // computed with the same timing + crop clamp the submit loop uses.
+    const batchCost = eligible.reduce((sum, scene) => {
+      const raw = parseSceneTiming(scene, scenes, audioDuration, settings.timelineLayout, settings.clips);
+      const dur = clampToSongCrop(raw.endSec) - clampToSongCrop(raw.startSec);
+      return sum + lipSyncCostForDurationSec(dur);
+    }, 0);
     const okToSpend = await confirmSpend({
-      cost: eligible.length * 3,
+      cost: batchCost,
       feature: `Lip Sync ${eligible.length} Clip${eligible.length !== 1 ? "s" : ""}`,
       details: "Submits a lip sync job for every eligible scene.",
     });
@@ -4138,8 +4147,14 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
      The server validates inputs, starts background processing, and returns
      a jobId immediately. This avoids the Replit proxy timeout (which was
      killing the old synchronous route after ~30–60 s).                     */
-  const startRes = await doFetch("/api/lip-sync/preview", {
+  /* The confirmation must quote the duration-tiered price the server
+     will charge for THIS clip's real window (stack1400: ≤50s → 300 VB,
+     50–60s → 600 VB) — overrideCost carries it past the registry's
+     base-price fallback; a plain fetch ignores the extra fields. */
+  const startInit: RequestInit & { overrideCost?: number; overrideFeature?: string } = {
     method: "POST",
+    overrideCost: lipSyncCostForDurationSec(req.sceneEndSec - req.sceneStartSec),
+    overrideFeature: "Lip Sync",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token ?? ""}`,
@@ -4158,7 +4173,8 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       artistVaultId:        req.artistVaultId ?? undefined,
     }),
     signal: AbortSignal.timeout(30_000), // 30 s — only for validation + queuing
-  });
+  };
+  const startRes = await doFetch("/api/lip-sync/preview", startInit);
   if (!startRes) return null; // user cancelled the credit confirmation
 
   const startCt = startRes.headers.get("content-type") ?? "";
