@@ -7347,7 +7347,7 @@
     "notFoundBody": "This handle doesn't have a tip jar yet. Double-check the link.",
     "notFoundTitle": "Tip page not found",
     "recordFailed": "Couldn't record your tip.",
-    "recordedBody": "{{name}} will see your ${{amount}} tip intent. Payments are coming soon — nothing was charged today.",
+    "recordedBody": "{{name}} will see your ${{amount}} tip. Tips are live — 100% of every tip goes to the creator, with no platform fee.",
     "recordedTitle": "Tip recorded!",
     "sendTipButton": "Send ${{amount}} tip",
     "tipHeading": "Tip",
@@ -9660,8 +9660,8 @@
     "hero": {
       "p1": "This is your job now. Climb the Kingpin ranks — more stars, bigger cut. New creators get",
       "reward": "{{num}} free Visual Bucs",
-      "p2": ", and you earn up to",
-      "cut": "40% of everything they buy",
+      "p2": ", and you earn",
+      "cut": "25% of everything they buy",
       "p3": "for",
       "days": "{{days}} days",
       "p4": "."
