@@ -21,6 +21,16 @@
  *      Action Tracker on /api/coach/plan-numbers (server sums over
  *      the creator's OWN ledger + platform state), /api/coach/goal
  *      and /api/coach/action-items.
+ *   3. The Money Tracker's remaining views (Ring 4 #6 graduation —
+ *      components/world/native/CoachMoneySubViews.tsx): SPLITS on
+ *      GET /api/splits/overview + the publishing registry on
+ *      /api/publishing-splits (the shared client contract in
+ *      lib/publishing-splits), SPLIT SHEETS on /api/wave8/splits
+ *      (free CRUD + the 50-Buc PDF finalize), and ROYALTIES on the
+ *      /api/royalties rails via lib/royalties-load (the page's own
+ *      loader) + the 100-Buc insights. Every figure below parses the
+ *      same wire the page reads — nothing re-derived, nothing
+ *      approximated.
  *
  * This module is the testable half: payload builders that mirror the
  * website panels' bodies in shape, tolerant parsers for every
@@ -35,6 +45,7 @@
  * Naming law: no provider names anywhere in copy.
  */
 import type { CoachActionItemDto, PlanNumbersDto } from "@/lib/coach-tracker";
+import type { PublishingRegistrationItem } from "@/lib/publishing-splits";
 
 /* ─── tiny tolerant readers (the desks' shared habit) ─────────────── */
 function asRecord(v: unknown): Record<string, unknown> {
@@ -602,4 +613,448 @@ export function actionItemSourceLabel(source: CoachActionItemDto["source"]): str
   if (source === "plan") return "From your money plan";
   if (source === "niche") return "From your niche analysis";
   return "Added by you";
+}
+
+/* ═══ 3a. SPLITS — the release split overview ═══════════════════════ */
+
+export interface SplitsShare {
+  name: string;
+  role: string | null;
+  sharePct: number;
+  amountCents: number;
+}
+
+export interface SplitsOverviewEntry {
+  id: string;
+  entryDate: string;
+  note: string;
+  amountCents: number;
+  agreementVersion: number;
+  shares: SplitsShare[];
+}
+
+export interface SplitsCollaboratorTotal {
+  name: string;
+  role: string | null;
+  totalCents: number;
+}
+
+export interface SplitsOverviewRelease {
+  id: string;
+  title: string;
+  artistName: string;
+  totalIncomeCents: number;
+  collaboratorTotals: SplitsCollaboratorTotal[];
+  entries: SplitsOverviewEntry[];
+  activeSplits: { name: string; role: string | null; sharePct: number; agreementVersion: number }[];
+}
+
+export interface SplitsOverviewData {
+  releases: SplitsOverviewRelease[];
+  collaboratorTotals: SplitsCollaboratorTotal[];
+  unlinkedIncomeCents: number;
+  unlinkedIncomeCount: number;
+  /** The server's own honesty line, carried verbatim — never reworded. */
+  disclaimer: string;
+}
+
+function parseSplitsTotals(rows: unknown): SplitsCollaboratorTotal[] {
+  if (!Array.isArray(rows)) return [];
+  const out: SplitsCollaboratorTotal[] = [];
+  for (const raw of rows) {
+    const r = asRecord(raw);
+    const name = str(r["name"]);
+    if (!name) continue;
+    out.push({ name, role: str(r["role"]), totalCents: num(r["totalCents"]) ?? 0 });
+  }
+  return out;
+}
+
+/** GET /api/splits/overview, tolerated into the page's shape: the
+ *  server's split accounting over the creator's OWN linked ledger
+ *  income, parsed — never recomputed here. A response missing its
+ *  spine (the releases list or the disclaimer's honesty line) is a
+ *  failure (null); an empty releases list is a real, honest empty. */
+export function parseSplitsOverview(data: unknown): SplitsOverviewData | null {
+  const d = asRecord(data);
+  if (!Array.isArray(d["releases"]) || typeof d["disclaimer"] !== "string") return null;
+  const releases: SplitsOverviewRelease[] = [];
+  for (const raw of d["releases"] as unknown[]) {
+    const r = asRecord(raw);
+    const id = str(r["id"]);
+    const title = str(r["title"]);
+    if (!id || !title) continue;
+    const entries: SplitsOverviewEntry[] = [];
+    for (const rawEntry of Array.isArray(r["entries"]) ? (r["entries"] as unknown[]) : []) {
+      const e = asRecord(rawEntry);
+      const entryId = str(e["id"]);
+      if (!entryId) continue;
+      const shares: SplitsShare[] = [];
+      for (const rawShare of Array.isArray(e["shares"]) ? (e["shares"] as unknown[]) : []) {
+        const s = asRecord(rawShare);
+        const shareName = str(s["name"]);
+        if (!shareName) continue;
+        shares.push({
+          name: shareName,
+          role: str(s["role"]),
+          sharePct: num(s["sharePct"]) ?? 0,
+          amountCents: num(s["amountCents"]) ?? 0,
+        });
+      }
+      entries.push({
+        id: entryId,
+        entryDate: str(e["entryDate"]) ?? "",
+        note: str(e["note"]) ?? "",
+        amountCents: num(e["amountCents"]) ?? 0,
+        agreementVersion: num(e["agreementVersion"]) ?? 0,
+        shares,
+      });
+    }
+    const activeSplits: SplitsOverviewRelease["activeSplits"] = [];
+    for (const rawSplit of Array.isArray(r["activeSplits"]) ? (r["activeSplits"] as unknown[]) : []) {
+      const s = asRecord(rawSplit);
+      const splitName = str(s["name"]);
+      if (!splitName) continue;
+      activeSplits.push({
+        name: splitName,
+        role: str(s["role"]),
+        sharePct: num(s["sharePct"]) ?? 0,
+        agreementVersion: num(s["agreementVersion"]) ?? 0,
+      });
+    }
+    releases.push({
+      id,
+      title,
+      artistName: str(r["artistName"]) ?? "",
+      totalIncomeCents: num(r["totalIncomeCents"]) ?? 0,
+      collaboratorTotals: parseSplitsTotals(r["collaboratorTotals"]),
+      entries,
+      activeSplits,
+    });
+  }
+  return {
+    releases,
+    collaboratorTotals: parseSplitsTotals(d["collaboratorTotals"]),
+    unlinkedIncomeCents: num(d["unlinkedIncomeCents"]) ?? 0,
+    unlinkedIncomeCount: num(d["unlinkedIncomeCount"]) ?? 0,
+    disclaimer: d["disclaimer"] as string,
+  };
+}
+
+/* ═══ 3b. SPLITS — the publishing (songwriter) registry ═════════════ */
+
+export interface PublishingMineData {
+  registrations: PublishingRegistrationItem[];
+  /** The registry's storage is live (the page's "still being
+   *  switched on" banner reads this flag). */
+  registryReady: boolean;
+}
+
+/** GET /api/publishing-splits/mine, tolerated: the registrations ride
+ *  in the shared contract's own shape (lib/publishing-splits); a
+ *  response without the registrations list is a failure (null), an
+ *  empty list is a real empty. */
+export function parsePublishingMine(data: unknown): PublishingMineData | null {
+  const d = asRecord(data);
+  if (!Array.isArray(d["registrations"])) return null;
+  const registrations: PublishingRegistrationItem[] = [];
+  for (const raw of d["registrations"] as unknown[]) {
+    const item = asRecord(raw);
+    if (!str(item["id"]) || !Array.isArray(item["writers"])) continue;
+    registrations.push(raw as PublishingRegistrationItem);
+  }
+  return { registrations, registryReady: d["registry_ready"] === true };
+}
+
+/** One writer row as the registry form holds it (shares as typed). */
+export interface PublishingWriterDraft {
+  name: string;
+  profileId: string;
+  sharePct: string;
+}
+
+/** The page's row read: a row rides when it carries a name or a
+ *  share; names trim, a blank profile id rides as null (a name-only
+ *  writer), shares become numbers once, here. */
+export function publishingWritersFromRows(
+  rows: PublishingWriterDraft[],
+): { name: string; profile_id: string | null; share_pct: number }[] {
+  return rows
+    .filter((r) => r.name.trim() !== "" || r.sharePct.trim() !== "")
+    .map((r) => ({
+      name: r.name.trim(),
+      profile_id: r.profileId.trim() === "" ? null : r.profileId.trim(),
+      share_pct: Number(r.sharePct),
+    }));
+}
+
+/** POST /api/publishing-splits — a fresh registration's body. */
+export function buildPublishingRegisterPayload(input: {
+  songKind: "release" | "song";
+  songId: string;
+  writers: { name: string; profile_id: string | null; share_pct: number }[];
+}): Record<string, unknown> {
+  return { song_kind: input.songKind, song_id: input.songId, writers: input.writers };
+}
+
+/** POST /api/publishing-splits/:id/amend — a revision's body. */
+export function buildPublishingAmendPayload(
+  writers: { name: string; profile_id: string | null; share_pct: number }[],
+): Record<string, unknown> {
+  return { writers };
+}
+
+/** POST /api/publishing-splits/:id/dispute — the note rides as typed. */
+export function buildPublishingDisputePayload(note: string): Record<string, unknown> {
+  return { note };
+}
+
+/* ═══ 4. SPLIT SHEETS (the wave8 calculator) ═══════════════════════ */
+
+/** The credit registry's own figure for the PDF finalize
+ *  (lib/credit-costs: /api/wave8/splits/pdf — 50), quoted up front. */
+export const SPLIT_SHEET_PDF_COST_VISUAL_BUCS = 50;
+
+export interface Wave8Collaborator {
+  name: string;
+  role: string;
+  pct: number;
+}
+
+export interface Wave8Sheet {
+  id: string;
+  songTitle: string;
+  collaborators: Wave8Collaborator[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinalizedSplitSheet {
+  songTitle: string;
+  collaborators: Wave8Collaborator[];
+  totalPct: number;
+  finalizedAt: string;
+  sheetCode: string;
+  creditsRemaining: number | null;
+}
+
+function parseWave8Collaborators(rows: unknown): Wave8Collaborator[] {
+  if (!Array.isArray(rows)) return [];
+  const out: Wave8Collaborator[] = [];
+  for (const raw of rows) {
+    const r = asRecord(raw);
+    const name = str(r["name"]);
+    if (!name) continue;
+    out.push({ name, role: str(r["role"]) ?? "", pct: num(r["pct"]) ?? 0 });
+  }
+  return out;
+}
+
+/** GET /api/wave8/splits, tolerated: null when the sheets list itself
+ *  is missing (a failure — never a fake empty); an empty list is a
+ *  real empty. Rows ride with an id and a title. */
+export function parseWave8Sheets(data: unknown): Wave8Sheet[] | null {
+  const rows = asRecord(data)["sheets"];
+  if (!Array.isArray(rows)) return null;
+  const out: Wave8Sheet[] = [];
+  for (const raw of rows) {
+    const r = asRecord(raw);
+    const id = str(r["id"]);
+    const songTitle = str(r["songTitle"]);
+    if (!id || !songTitle) continue;
+    out.push({
+      id,
+      songTitle,
+      collaborators: parseWave8Collaborators(r["collaborators"]),
+      createdAt: str(r["createdAt"]) ?? "",
+      updatedAt: str(r["updatedAt"]) ?? "",
+    });
+  }
+  return out;
+}
+
+/** POST /api/wave8/splits/pdf's audited payload, tolerated: the
+ *  spine (title, collaborators, sheet code) or it didn't finalize. */
+export function parseFinalizedSheet(data: unknown): FinalizedSplitSheet | null {
+  const d = asRecord(data);
+  const songTitle = str(d["songTitle"]);
+  const sheetCode = str(d["sheetCode"]);
+  if (!songTitle || !sheetCode || !Array.isArray(d["collaborators"])) return null;
+  return {
+    songTitle,
+    collaborators: parseWave8Collaborators(d["collaborators"]),
+    totalPct: num(d["totalPct"]) ?? 0,
+    finalizedAt: str(d["finalizedAt"]) ?? "",
+    sheetCode,
+    creditsRemaining: num(d["creditsRemaining"]),
+  };
+}
+
+/** The page's largest-remainder split, verbatim: floor every share,
+ *  hand the leftover cents to the biggest fractional parts so the
+ *  posted total matches to the cent. */
+export function splitCentsLargestRemainder(totalCents: number, pcts: number[]): number[] {
+  const raws = pcts.map((p) => (totalCents * p) / 100);
+  const shares = raws.map((r) => Math.floor(r));
+  let remainder = totalCents - shares.reduce((a, b) => a + b, 0);
+  const order = raws
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < remainder && k < order.length; k++) shares[order[k]!.i] += 1;
+  return shares;
+}
+
+/** One collaborator row as the sheet form holds it (share as typed). */
+export interface Wave8DraftRow {
+  name: string;
+  role: string;
+  pct: string;
+}
+
+/** The draft's running total, as typed (NaN reads as 0). */
+export function wave8DraftTotalPct(rows: Wave8DraftRow[]): number {
+  return rows.reduce((s, r) => s + (parseFloat(r.pct) || 0), 0);
+}
+
+/** The sheet form's refusals, in words, or null when the sheet can
+ *  save — the page's rule: a title, at least one named collaborator,
+ *  every share a real 0–100, and the shares total exactly 100. */
+export function validateWave8Draft(title: string, rows: Wave8DraftRow[]): string | null {
+  if (!title.trim()) return "Give the sheet a song title.";
+  if (rows.length === 0) return "Add at least one collaborator.";
+  for (const r of rows) {
+    if (!r.name.trim()) return "Every collaborator needs a name.";
+    const p = parseFloat(r.pct);
+    if (!Number.isFinite(p) || p < 0 || p > 100) return "Each share must be between 0% and 100%.";
+  }
+  if (Math.abs(wave8DraftTotalPct(rows) - 100) >= 0.001) {
+    return "Splits must add up to exactly 100% to save.";
+  }
+  return null;
+}
+
+/** POST /api/wave8/splits — the page's body: names/roles trimmed,
+ *  shares become numbers once, here. */
+export function buildWave8SheetPayload(title: string, rows: Wave8DraftRow[]): Record<string, unknown> {
+  return {
+    songTitle: title.trim(),
+    collaborators: rows.map((r) => ({
+      name: r.name.trim(),
+      role: r.role.trim(),
+      pct: parseFloat(r.pct),
+    })),
+  };
+}
+
+/** POST /api/money for one collaborator's share of a received royalty
+ *  payment — the page's body: the category carries the sheet's title
+ *  (the rail's 60-char cap), the note names the share (280 cap). */
+export function buildSplitLedgerPostBody(input: {
+  sheetTitle: string;
+  collaborator: Wave8Collaborator;
+  amountCents: number;
+  date: string;
+}): Record<string, unknown> {
+  return {
+    type: "income",
+    category: `Royalties — ${input.sheetTitle}`.slice(0, 60),
+    amountCents: input.amountCents,
+    note: `${input.collaborator.name} ${input.collaborator.pct}% split`.slice(0, 280),
+    date: input.date,
+  };
+}
+
+/** The PDF's file-name slug — the page's rule (a blank slug falls
+ *  back to "split-sheet"). */
+export function splitSheetSlug(title: string): string {
+  const s = title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return s || "split-sheet";
+}
+
+/* ═══ 5. ROYALTIES (the tracker dashboard) ═════════════════════════ */
+
+/** The server's own figure for the AI earnings insights
+ *  (ROYALTY_INSIGHTS_CREDITS — 100, charged server-side with a refund
+ *  on failure), quoted up front; the page's constant agrees. */
+export const ROYALTY_INSIGHTS_COST_VISUAL_BUCS = 100;
+
+export interface RoyaltyInsight {
+  title: string;
+  detail: string;
+}
+
+/** POST /api/royalties/insights' answer, tolerated: rows ride with a
+ *  title; a response without the insights list is a failure (null). */
+export function parseRoyaltyInsights(data: unknown): RoyaltyInsight[] | null {
+  const rows = asRecord(data)["insights"];
+  if (!Array.isArray(rows)) return null;
+  const out: RoyaltyInsight[] = [];
+  for (const raw of rows) {
+    const r = asRecord(raw);
+    const title = str(r["title"]);
+    if (!title) continue;
+    out.push({ title, detail: str(r["detail"]) ?? "" });
+  }
+  return out;
+}
+
+/** A royalty amount the way the page prints it: the rail's decimal
+ *  string parsed once and formatted — USD in the house $ shape, any
+ *  other currency keeping its code (the page's own fallback for an
+ *  unparseable amount is 0.00, never an invented figure). */
+export function royaltyMoneyLabel(amount: string, currency = "USD"): string {
+  const n = parseFloat(amount);
+  const value = Number.isNaN(n) ? 0 : n;
+  const formatted = value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return currency === "USD" ? `$${formatted}` : `${currency} ${formatted}`;
+}
+
+/** A bar's share of its column's biggest row, clamped to the rail —
+ *  the page's Bar rule (0 when there is no biggest row). */
+export function royaltyBarPct(cents: number, maxCents: number): number {
+  if (maxCents <= 0) return 0;
+  return Math.min(100, Math.max(0, (cents / maxCents) * 100));
+}
+
+/** The monthly trend bar's height — the page's floor of 8px so a real
+ *  month still shows, scaled to 120px at the biggest month. */
+export function royaltyMonthlyBarHeight(cents: number, maxCents: number): number {
+  if (maxCents <= 0) return 8;
+  return Math.max(8, (cents / maxCents) * 120);
+}
+
+export interface RoyaltyPayoutDraft {
+  distributor: string;
+  periodStart: string;
+  periodEnd: string;
+  /** The expected amount as typed ("125.50"). */
+  expected: string;
+  /** The received amount as typed; blank = not received yet. */
+  received: string;
+  status: string;
+}
+
+/** The payout form's refusal, in the page's words, or null: the
+ *  distributor, both period dates and an expected amount are owed. */
+export function validateRoyaltyPayoutDraft(draft: RoyaltyPayoutDraft): string | null {
+  if (!draft.distributor.trim() || !draft.periodStart || !draft.periodEnd || !draft.expected.trim()) {
+    return "Distributor, period dates, and expected amount are required.";
+  }
+  return null;
+}
+
+/** POST /api/royalties/payouts — the page's body: a blank received
+ *  amount rides as absent (the rail reads it as not-yet-received). */
+export function buildRoyaltyPayoutPayload(draft: RoyaltyPayoutDraft): Record<string, unknown> {
+  return {
+    distributor: draft.distributor.trim(),
+    period_start: draft.periodStart,
+    period_end: draft.periodEnd,
+    expected_amount: draft.expected.trim(),
+    received_amount: draft.received.trim() || undefined,
+    status: draft.status,
+  };
 }
