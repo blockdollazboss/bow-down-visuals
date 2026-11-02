@@ -1,18 +1,39 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
-import { Palette, Clapperboard, Tv, Store, Gem, ArrowRight, Camera, Fingerprint, Image } from "lucide-react";
+import { Palette, Clapperboard, Loader2, Tv, Store, Gem, ArrowRight, Camera, Fingerprint, Image } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BrandKitPanel } from "@/components/branding/BrandKitPanel";
-import { LogoMakerTool } from "@/pages/logo-maker";
-import { IntrosOutrosTool } from "@/pages/intros-outros";
 import { BrowseLibraryButton } from "@/pages/library";
-import { StreamPackTool } from "@/pages/stream-pack";
-import BrandingShop from "@/pages/branding-shop";
-import JewelryStudio from "@/pages/jewelry";
-import { HeadshotStudio } from "@/components/photo/HeadshotStudio";
-import { WallpapersDesk } from "@/components/wallpapers/WallpapersDesk";
+
+/* The seven non-default tab tools ride lazy doors (site-perf,
+   stack1300): the kit renders exactly ONE tab at a time, so the
+   logo maker, intros/outros, stream pack, headshots, shop,
+   jewelry and wallpapers tools — four of them whole sibling
+   pages — no longer ride /branding-kit's first load. The
+   default brand tab (BrandKitPanel) stays static, so the
+   landing's first paint is unchanged. Each tool chunk fetches
+   on first tab selection and is cached for later switches. */
+const LogoMakerTool = lazy(() => import("@/pages/logo-maker").then((m) => ({ default: m.LogoMakerTool })));
+const IntrosOutrosTool = lazy(() => import("@/pages/intros-outros").then((m) => ({ default: m.IntrosOutrosTool })));
+const StreamPackTool = lazy(() => import("@/pages/stream-pack").then((m) => ({ default: m.StreamPackTool })));
+const BrandingShop = lazy(() => import("@/pages/branding-shop"));
+const JewelryStudio = lazy(() => import("@/pages/jewelry"));
+const HeadshotStudio = lazy(() => import("@/components/photo/HeadshotStudio").then((m) => ({ default: m.HeadshotStudio })));
+const WallpapersDesk = lazy(() => import("@/components/wallpapers/WallpapersDesk").then((m) => ({ default: m.WallpapersDesk })));
+
+/* The tab stage's loading frame: gold spinner — a tab switch
+   reads as "opening", never a blank hole. */
+function BrandingTabFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[240px] items-center justify-center gap-3 text-white/50" role="status">
+      <Loader2 className="h-5 w-5 animate-spin text-[#d4a017]" />
+      <span className="text-sm">{t("common.loading")}</span>
+    </div>
+  );
+}
 
 /* ─── Branding Kit ──────────────────────────────────────────────────────────
    Hub page for the creator brand-identity tools: Logo Studio, Intro & Outro
@@ -120,13 +141,15 @@ export default function BrandingKit() {
       )}
       <div className="pb-10">
         {tab === "brand" && <BrandKitPanel key="brand" />}
-        {tab === "logo" && <LogoMakerTool key="logo" />}
-        {tab === "intros" && <IntrosOutrosTool key="intros" />}
-        {tab === "stream" && <StreamPackTool key="stream" />}
-        {tab === "headshots" && <HeadshotStudio key="headshots" />}
-        {tab === "shop" && <BrandingShop key="shop" />}
-        {tab === "jewelry" && <JewelryStudio key="jewelry" />}
-        {tab === "wallpapers" && <WallpapersDesk key="wallpapers" />}
+        <Suspense fallback={<BrandingTabFallback />}>
+          {tab === "logo" && <LogoMakerTool key="logo" />}
+          {tab === "intros" && <IntrosOutrosTool key="intros" />}
+          {tab === "stream" && <StreamPackTool key="stream" />}
+          {tab === "headshots" && <HeadshotStudio key="headshots" />}
+          {tab === "shop" && <BrandingShop key="shop" />}
+          {tab === "jewelry" && <JewelryStudio key="jewelry" />}
+          {tab === "wallpapers" && <WallpapersDesk key="wallpapers" />}
+        </Suspense>
       </div>
 
 
