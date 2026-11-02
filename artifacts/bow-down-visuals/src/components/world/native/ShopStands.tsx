@@ -9,6 +9,8 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { PalaceStation } from "@/lib/world/stations";
 import { NativeCard } from "./NativeCard";
 import { DomainsDesk } from "./DomainsDesk";
+import { GiftCardsDesk } from "./GiftCardsDesk";
+import { paidWithGiftCard } from "@/lib/world/gift-cards";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay, cartKey } from "@/lib/shops";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
@@ -207,6 +209,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
   const [cart, setCart] = useState<CartLine[]>([]);
   const cartLoadedFor = useRef<string | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
+  /* The gift-card tender, mirroring the shop page's cart box: a
+     card from THIS shop's creator pays here; whatever it doesn't
+     cover goes on the card payment, and what's left stays on it. */
+  const [giftCardInput, setGiftCardInput] = useState("");
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   /* The confirmed (PAID) order — the reward moment, rendered only
@@ -366,6 +372,11 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           shopId: shop.id,
           items: detailed.map((l) => ({ productId: l.productId, quantity: l.qty })),
           buyerEmail: buyerEmail.trim() || undefined,
+          /* The tender rides only when a code was pasted — the rail
+             treats it as tender (never a discount) and answers
+             WRONG_STORE for a card from another creator's store,
+             which surfaces through the stand's honest error line. */
+          giftCardCode: giftCardInput.trim() || undefined,
           /* JOIN2: ask for the embedded presentation when this device
              can mount it (publishable key configured) — the server
              answers a clientSecret instead of a hosted URL and the
@@ -376,7 +387,11 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start — nothing was charged."));
-      if (checkoutCompletedInWorld(data)) {
+      /* A gift card that covers the whole bill answers paid with
+         NO payment page (paidWithGiftCard) — that's a completed
+         in-world purchase too, and falling through to the URL hunt
+         would call a successful buy a failure. */
+      if (checkoutCompletedInWorld(data) || paidWithGiftCard(data)) {
         const order = marketOrderFromPayload(data);
         if (order?.paid) setPaidOrder(order);
         setCart([]);
@@ -510,6 +525,18 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                   placeholder="Email for your receipt (optional)"
                   className={inputCls(isLight)}
                 />
+                <input
+                  value={giftCardInput}
+                  onChange={(e) => setGiftCardInput(e.target.value)}
+                  placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
+                  aria-label="Gift card code"
+                  data-testid="world-shop-gift-card-input"
+                  className={inputCls(isLight)}
+                />
+                <p className={`text-[11px] ${muted(isLight)}`}>
+                  Paying with a gift card from this creator? It covers what it can, the rest goes on
+                  your payment method, and whatever&rsquo;s left stays on the gift card.
+                </p>
                 {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}
                 {/* The ONE marked door out of this stand: payment. */}
                 <button type="button" data-testid="world-shop-checkout" onClick={() => void checkout()} disabled={placing} className={`${goldBtn(placing)} w-full`}>
@@ -609,6 +636,11 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           ))}
         </div>
       )}
+      {/* Gift-card truth at the square (the read half of gift-card
+          parity): any code's balance — the code is the capability,
+          guests included — and, for members, the cards in their
+          name, all from the rails' own answers. */}
+      <GiftCardsDesk isLight={isLight} isGuest={isGuest} />
       {/* Opening a shop (Stack-4 wave-2 #6) — the website's own
           create rail, offered only once the caller's mine read has
           landed (a signed-in member surface; guests and an unlanded
