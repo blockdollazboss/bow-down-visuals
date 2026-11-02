@@ -88,7 +88,16 @@ export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise
       {loading ? (
         <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
       ) : error ? (
-        <p className="text-sm text-red-400">{error}</p>
+        <div>
+          <p className="text-sm text-red-400">{error}</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+          >
+            Retry
+          </button>
+        </div>
       ) : orders.length === 0 ? (
         <p className="text-sm text-white/40">No jewelry reservations yet.</p>
       ) : (

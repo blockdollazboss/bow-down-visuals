@@ -15,6 +15,11 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
   const [requests, setRequests] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
+  /* Failure and empty are separate states: a failed load must never
+     dress up as "this group takes direct joins" or "nobody is
+     waiting" — those claims only print after a load actually landed. */
+  const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const call = useCallback(async (method: string, path: string, body?: unknown) => {
     const t = await getAccessToken();
@@ -36,7 +41,11 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
           setRequests(queue.requests ?? []);
         }
       }
-    } catch { /* the group page itself already surfaces load errors */ }
+      setLoadError(false);
+      setLoaded(true);
+    } catch {
+      setLoadError(true);
+    }
   }, [call, slug, user]);
   useEffect(() => { void load(); }, [load]);
 
@@ -54,6 +63,13 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
       </p>
       {msg && <p className="mt-2 text-sm text-emerald-400">{msg}</p>}
 
+      {loadError && (
+        <div className="mt-3">
+          <p className="text-sm text-red-300">This panel couldn&rsquo;t load just now — your role and any waiting requests are safe, they just didn&rsquo;t arrive.</p>
+          <button type="button" className={ghost + " mt-2"} onClick={() => void load()}>Retry</button>
+        </div>
+      )}
+
       {!myRole && user && questions.length > 0 && (
         <div className="mt-4 grid gap-3">
           <p className="text-sm text-white/80">This group asks a few questions before you join — the admins read your answers when they decide.</p>
@@ -68,7 +84,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
           }}>Request to join</button>
         </div>
       )}
-      {!myRole && user && questions.length === 0 && <p className="mt-3 text-sm text-white/60">This group takes direct joins — use the Join button above.</p>}
+      {loaded && !loadError && !myRole && user && questions.length === 0 && <p className="mt-3 text-sm text-white/60">This group takes direct joins — use the Join button above.</p>}
 
       {can?.setJoinQuestions && (
         <div className="mt-4 border-t border-white/10 pt-4">
@@ -85,7 +101,7 @@ export function GroupOnboarding({ slug, members }: { slug: string; members: Arra
       {can?.reviewJoinRequests && (
         <div className="mt-4 border-t border-white/10 pt-4">
           <p className="text-sm font-bold text-white">Join requests ({requests.length})</p>
-          {requests.length === 0 && <p className="mt-1 text-sm text-white/60">Nobody is waiting right now.</p>}
+          {loaded && requests.length === 0 && <p className="mt-1 text-sm text-white/60">Nobody is waiting right now.</p>}
           {requests.map((r) => (
             <div key={r.id} className="mt-2 rounded-xl border border-white/10 p-3 text-sm text-white/80">
               {(r.answers ?? []).map((a: any, i: number) => <p key={i}><strong className="text-white">{a.question}</strong> — {a.answer}</p>)}

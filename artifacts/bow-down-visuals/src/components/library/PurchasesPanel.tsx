@@ -39,6 +39,9 @@ export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: 
   const { user, getAccessToken } = useAuth();
   const [purchases, setPurchases] = useState<ShopPurchase[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* The failure state carries a working Retry: bumping the nonce
+     re-runs the load instead of leaving a reload as the only way back. */
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (!user) {
@@ -46,6 +49,7 @@ export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: 
       return;
     }
     let alive = true;
+    setError(null);
     (async () => {
       try {
         const token = await getAccessToken();
@@ -64,7 +68,7 @@ export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: 
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, getAccessToken]);
+  }, [user, getAccessToken, retryNonce]);
 
   if (!user) {
     return (
@@ -77,7 +81,18 @@ export default function PurchasesPanel({ onCountChange }: { onCountChange?: (n: 
     );
   }
   if (error) {
-    return <p className="py-16 text-center text-sm text-red-300" role="alert">{error}</p>;
+    return (
+      <div className="py-16 text-center">
+        <p className="text-sm text-red-300" role="alert">{error}</p>
+        <button
+          type="button"
+          onClick={() => setRetryNonce((n) => n + 1)}
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-black hover:brightness-110"
+        >
+          {t("library.purchasesRetry", { defaultValue: "Try again" })}
+        </button>
+      </div>
+    );
   }
   if (purchases === null) {
     return (
