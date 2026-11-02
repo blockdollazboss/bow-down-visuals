@@ -819,6 +819,98 @@ async function findRefundChargeSplit(
   }
 }
 
+/**
+ * Recover the paying TEAM pool for a refund (stack1200 team-refund seam).
+ *
+ * The charge side already records the pool durably: chargeCredits writes
+ * `team_id` on the charge's credit_usage row whenever the deduction drew
+ * from a team pool, and NULL whenever it drew from the member's personal
+ * balance (including the personal-fallback and personalOnly paths — see
+ * credits-team-pool.test.ts). deductTeamCredits is only ever called from
+ * chargeCredits, so every team-pool charge carries that record. A refund
+ * therefore does not need the caller to name the pool — the ledger does.
+ *
+ * THE AMBIGUITY GUARD (why this is a seam and not a guess): a refund row
+ * names only (user, base action, amount) — the same bucket the bonus-split
+ * pairing uses. Within one bucket, individual charge rows ARE pool-exact
+ * (team_id set or null), but the refund does not say WHICH charge in the
+ * bucket it reverses. Returning the money to a team is therefore justified
+ * ONLY when the bucket is pool-unambiguous:
+ *   - every charge row in the bucket drew from the SAME team (a single
+ *     distinct pool identity, non-null), so whichever charge the refund
+ *     reverses, that team paid; and
+ *   - an unconsumed charge remains (prior refund rows in the bucket have
+ *     not already consumed every charge), so the restore cannot double-pay
+ *     a charge that was already refunded.
+ * Anything else — no charge rows, a mixed bucket (personal + team charges,
+ * or two different teams, for the same user + action + amount), a bucket
+ * already fully refunded, the pairing window overflowing, or ANY read
+ * failure — returns null and the refund falls back to the historical
+ * all-permanent restore: the member's total stays exact, only the pool
+ * composition is approximate there. Fail-open by design, like
+ * findRefundChargeSplit.
+ */
+async function findRefundChargeTeam(
+  userId: string,
+  refundAction: string,
+  amount: number,
+): Promise<string | null> {
+  const sep = refundAction.indexOf(" — ");
+  if (sep <= 0) return null;
+  const baseAction = refundAction.slice(0, sep);
+  try {
+    const charges = await db.execute(sql`
+      SELECT team_id FROM credit_usage
+      WHERE user_id = ${userId} AND action = ${baseAction}
+        AND credits_used = ${amount}
+      ORDER BY created_at DESC
+      LIMIT 64
+    `);
+    if (!charges.rows.length) return null;
+    /* The pairing window is capped (same 64 as the split pairing): a
+       bucket that overflows it cannot be proven pool-unambiguous from a
+       partial read, so it fails open rather than guessing. */
+    if (charges.rows.length >= 64) return null;
+    const refunds = await db.execute(sql`
+      SELECT COUNT(*)::int AS n FROM credit_usage
+      WHERE user_id = ${userId} AND credits_used = ${-amount}
+        AND starts_with(action, ${`${baseAction} — `})
+    `);
+    const consumed = Number((refunds.rows[0] as { n?: number } | undefined)?.n ?? 0);
+    if (consumed >= charges.rows.length) return null;
+    const pools = new Set(
+      charges.rows.map((r) => (r as { team_id?: string | null }).team_id ?? null),
+    );
+    if (pools.size !== 1) return null;
+    const [only] = pools;
+    return only ?? null;
+  } catch (err) {
+    logger.warn(
+      { userId, refundAction, amount, err },
+      "[credits] refund team-pool lookup failed — refunding to personal credits (fail-open)",
+    );
+    return null;
+  }
+}
+
+/**
+ * Restore `amount` to a team's shared pool. Returns false when the team
+ * row no longer exists (deleted since the charge) so the caller can fall
+ * back to restoring the member personally — the refund's value must land
+ * SOMEWHERE exact, never into a dead pool. A write ERROR propagates
+ * instead: the update may or may not have landed, and silently restoring
+ * personally on top of it could double-restore, so the route must see
+ * the failure (the same posture as addCreditsToProfile throwing).
+ */
+async function restoreTeamCredits(teamId: string, amount: number): Promise<boolean> {
+  const updated = await db.execute(sql`
+    UPDATE teams SET credits = credits + ${amount}, updated_at = now()
+    WHERE id = ${teamId}
+    RETURNING id
+  `);
+  return updated.rows.length > 0;
+}
+
 interface RefundCreditsOpts {
   /**
    * The pool split of the charge being refunded, when the caller holds
@@ -846,6 +938,20 @@ interface RefundCreditsOpts {
  * refund restores to permanent credits exactly as it always has. The
  * refund's own ledger row records how much actually landed back in the
  * bonus pool (negative), so the history tells the truth either way.
+ *
+ * Team pools (stack1200): when the caller does NOT hold an explicit
+ * split, the charge's ledger row also names the paying pool — a team
+ * charge carries its team_id, a personal charge carries null. When the
+ * (user, base action, amount) bucket is pool-unambiguous (every charge
+ * in it drew from the same team, with an unconsumed charge remaining —
+ * findRefundChargeTeam), the refund restores the TEAM pool instead of
+ * the member's personal profile, and the refund's ledger row carries
+ * that team_id so the history reconciles. A team charge never carries
+ * a bonus split (the team pool has no temporary pool), so the two
+ * restores never compete. Any ambiguity fails open to the historical
+ * personal restore above. Callers holding an explicit split (the
+ * export rail, whose reserve/charge path is personal-only by
+ * construction) skip the team lookup entirely.
  */
 export async function refundCredits(
   userId: string,
@@ -856,12 +962,46 @@ export async function refundCredits(
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error(`refundCredits: invalid amount ${amount}`);
   }
+  /* Team-pool restore (stack1200): only on the pairing path — an
+     explicit caller split is a personal-pool record by construction
+     and wins outright. A null result (personal charge, mixed bucket,
+     exhausted bucket, any lookup failure) falls through to the exact
+     historical behaviour below. */
+  let restoredTeamId: string | null = null;
+  /* Set when the team-gone fallback below already restored the member
+     personally — the split/personal restore that follows must not run
+     a second time for the same refund. */
+  let alreadyRestored = false;
+  if (opts?.split === undefined) {
+    const teamId = await findRefundChargeTeam(userId, record.action, amount);
+    if (teamId) {
+      if (await restoreTeamCredits(teamId, amount)) {
+        restoredTeamId = teamId;
+      } else {
+        /* The team is gone — its pool cannot receive the refund. The
+           value lands on the member's personal profile instead, so the
+           total stays exact (fail-open), and the ledger row below keeps
+           its historical (personal) shape. */
+        logger.warn(
+          { userId, amount, action: record.action, teamId },
+          "[credits] refund's team pool no longer exists — restoring to the member's personal credits",
+        );
+        await addCreditsToProfile(userId, amount);
+        alreadyRestored = true;
+      }
+    }
+  }
   const split =
-    opts?.split !== undefined
-      ? opts.split
-      : await findRefundChargeSplit(userId, record.action, amount);
+    restoredTeamId !== null || alreadyRestored
+      ? null
+      : opts?.split !== undefined
+        ? opts.split
+        : await findRefundChargeSplit(userId, record.action, amount);
   let restoredToBonus = 0;
-  if (split && split.fromBonus > 0) {
+  if (restoredTeamId !== null || alreadyRestored) {
+    /* Restored above (team pool, or personal fallback for a deleted
+       team) — no further restore follows for this refund. */
+  } else if (split && split.fromBonus > 0) {
     const fromBonus = Math.min(split.fromBonus, amount);
     const applied = await restoreCreditsSplit(userId, {
       fromBonus,
@@ -881,6 +1021,11 @@ export async function refundCredits(
       /* Recorded only when temporary money actually returned to the
          pool — otherwise the row keeps its historical shape. */
       ...(restoredToBonus > 0 ? { bonusCreditsUsed: -restoredToBonus } : {}),
+      /* Recorded only when the refund restored a TEAM pool — the row
+         then names the pool it repaid (the same teamId the history
+         surfaces read), and personal refunds keep their exact
+         historical shape. */
+      ...(restoredTeamId !== null ? { teamId: restoredTeamId } : {}),
     });
   } catch (err) {
     logger.error(

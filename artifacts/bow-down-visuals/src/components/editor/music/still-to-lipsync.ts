@@ -31,6 +31,8 @@
  * for a clip that does not exist, and step 1 itself charged nothing.
  */
 
+import { withLipSyncRefundNote } from "@/lib/lip-sync-result-meta";
+
 export type StillToLipSyncPhase =
   | "animating"
   | "clip-ready"
@@ -98,6 +100,13 @@ interface RunStillToLipSyncInput {
    *  endpoint in the credit registry and pop a spend confirmation on
    *  every poll. Defaults to plain fetch. */
   pollFetch?: FetchLike;
+  /** Renders the refund verdict sentence for a failed lip-sync job
+   *  whose up-front charge was refunded (the `lipSync.refundNote`
+   *  locale string, interpolated with the amount from the job's own
+   *  charge record). Injected so this module stays free of the i18n
+   *  runtime; the caller passes the app translator. Defaults to the
+   *  English catalog wording (pinned equal to en.json by test). */
+  refundNote?: (credits: number) => string;
   sleep?: (ms: number) => Promise<void>;
   clipPollIntervalMs?: number;
   clipMaxPolls?: number;
@@ -116,6 +125,12 @@ const UUID_RE =
 
 const realSleep = (ms: number) =>
   new Promise<void>((r) => setTimeout(r, ms));
+
+/* The en.json `lipSync.refundNote` wording, used when the caller
+   injects no translator. A test pins this string to the catalog so
+   the two can never drift apart. */
+const defaultRefundNote = (credits: number) =>
+  `Your ${credits} Visual Bucs were refunded.`;
 
 export async function runStillToLipSync(
   input: RunStillToLipSyncInput,
@@ -324,6 +339,12 @@ export async function runStillToLipSync(
       provider?: string;
       error?: string;
       code?: string;
+      /* The failure-refund verdict off the job's own gate (0310):
+         true only when the poller's refund of the up-front charge
+         has fired; refundedCredits (the job's charge record) rides
+         along only then. */
+      chargeRefunded?: boolean;
+      refundedCredits?: number;
     };
     if (job.status === "done") {
       if (!job.url) {
@@ -338,10 +359,39 @@ export async function runStillToLipSync(
       break;
     }
     if (job.status === "failed") {
+      /* State the refund verdict with the failure, like every other
+         lip-sync failure surface: when the poller's failure refund
+         fired for this job, the member hears the money came back —
+         the amount is the job's own charge record, never typed in.
+         The poller flips the job to failed a breath before the
+         refund lands (the refund claim requires the failed state),
+         so one confirmation re-read keeps this from racing the
+         verdict; the failure is thrown either way, and no refund
+         fired → no refund claimed. */
+      let verdict = job;
+      if (job.chargeRefunded !== true) {
+        await sleep(lipSyncPollIntervalMs);
+        try {
+          const again = await doPoll(`/api/lip-sync/job/${lipSyncJobId}`, {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+            signal: AbortSignal.timeout(15_000),
+          });
+          if (again && again.ok) {
+            const fresh = (await again.json().catch(() => ({}))) as typeof job;
+            if (fresh.status === "failed") verdict = fresh;
+          }
+        } catch {
+          /* keep the read we already have */
+        }
+      }
       throw new StillToLipSyncError(
         "lip-sync",
-        job.error ??
-          "Lip sync failed. The animated clip above is yours to keep.",
+        withLipSyncRefundNote(
+          verdict.error ??
+            "Lip sync failed. The animated clip above is yours to keep.",
+          verdict,
+          input.refundNote ?? defaultRefundNote,
+        ),
         clipUrl,
       );
     }

@@ -5067,6 +5067,9 @@
     "voiceStylePlaceholder": "مثال: عميق، أجش، لحني، عدواني، ناعم...",
     "yourSong": "أغنيتك"
   },
+  "lipSync": {
+    "refundNote": "تم استرداد {{credits}} Visual Bucs الخاصة بك."
+  },
   "makeVideo": {
     "pageTitle": "اصنع فيديو موسيقي",
     "pageDescription": "حوّل أغنيتك إلى فيديو موسيقي سينمائي بتوليد المشاهد بالذكاء الاصطناعي.",

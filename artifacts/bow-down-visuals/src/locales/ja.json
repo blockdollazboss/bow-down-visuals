@@ -5019,6 +5019,9 @@
     "length2min": "2分",
     "lengthFull": "フル楽曲"
   },
+  "lipSync": {
+    "refundNote": "{{credits}} Visual Bucsは返金されました。"
+  },
   "makeVideo": {
     "pageTitle": "ミュージックビデオを作成",
     "pageDescription": "AIシーン生成で、あなたの楽曲をシネマティックなミュージックビデオに仕上げましょう。",

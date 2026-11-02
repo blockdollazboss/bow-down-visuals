@@ -5031,6 +5031,9 @@
     "length2min": "2 minutos",
     "lengthFull": "Música completa"
   },
+  "lipSync": {
+    "refundNote": "Seus {{credits}} Visual Bucs foram reembolsados."
+  },
   "makeVideo": {
     "pageTitle": "Criar um Clipe",
     "pageDescription": "Transforme sua música em um clipe cinematográfico com geração de cenas por IA.",

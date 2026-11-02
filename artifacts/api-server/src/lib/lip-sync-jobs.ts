@@ -26,6 +26,16 @@ import { logger } from "./logger";
 
 type LipSyncJobState = "queued" | "submitting" | "polling" | "done" | "failed";
 
+/**
+ * The up-front charge every job in this table carries, in Visual Bucs.
+ * POST /lip-sync/preview and each run-all scene charge exactly this via
+ * chargeCredits BEFORE the job row exists (routes/lip-sync.ts keeps the
+ * route-side constant LIP_SYNC_PREVIEW_CREDIT_COST — the two are pinned
+ * equal by lip-sync-failure-refund.test.ts). A job that terminally
+ * fails refunds exactly this amount, exactly once (charge_refunded).
+ */
+export const LIP_SYNC_JOB_CHARGE_CREDITS = 300;
+
 interface LipSyncJobParams {
   clipUrl: string;
   audioUrl: string;
@@ -80,6 +90,10 @@ export interface LipSyncJob {
   /** Consecutive transient submit deferrals (429/plan-limit); backoff grows 5→10→20→40 min. */
   submitDeferrals: number;
   historyRecorded: boolean;
+  /** Exactly-once gate (0310): the failure refund fires only on the
+   *  false→true flip, and a claim whose refund doesn't land is
+   *  released — so true means the refund actually completed. */
+  chargeRefunded: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -110,7 +124,7 @@ function db(): DrizzleDb {
   return _dbOverride ?? drizzle(getPool());
 }
 
-const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, artist_vault_id, state, params, provider_job_id, result_url, result_meta, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, created_at, updated_at`;
+const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, artist_vault_id, state, params, provider_job_id, result_url, result_meta, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, charge_refunded, created_at, updated_at`;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (v == null) return null;
@@ -146,6 +160,7 @@ function toLipSyncJob(row: Record<string, unknown>): LipSyncJob {
     nextAttemptAt: row["next_attempt_at"] != null ? new Date(row["next_attempt_at"] as string).getTime() : null,
     submitDeferrals: Number(row["submit_deferrals"] ?? 0),
     historyRecorded: row["history_recorded"] === true,
+    chargeRefunded: row["charge_refunded"] === true,
     createdAt: new Date(row["created_at"] as string).getTime(),
     updatedAt: new Date(row["updated_at"] as string).getTime(),
   };
@@ -436,13 +451,79 @@ export async function markHistoryRecorded(id: string): Promise<boolean> {
 }
 
 /**
+ * Idempotency gate for the failure refund (migration 0310): only the
+ * worker that flips charge_refunded false→true on an already-failed
+ * job performs the refund of the job's up-front charge. A replayed
+ * failure path, a second poller, or a boot-recovery pass over the same
+ * job can never refund it twice.
+ *
+ * The flip is a CLAIM, not a completion record: the winner owes the
+ * gate a release (releaseLipSyncChargeRefundClaim) whenever its
+ * refund does not land, so charge_refunded only ever reads true for
+ * a job whose refund actually completed — the same claim/re-arm
+ * discipline as the export rail's claimChargeRelease. A claim whose
+ * refund is still owed is retried by the poller's refund sweep while
+ * the failure is recent (getFailedUnrefundedLipSyncJobs).
+ */
+export async function claimLipSyncChargeRefund(id: string): Promise<boolean> {
+  const res = await db().execute(sql`
+    UPDATE lip_sync_jobs
+    SET charge_refunded = true, updated_at = now()
+    WHERE id = ${id} AND state = 'failed' AND charge_refunded = false
+    RETURNING id
+  `);
+  return res.rows.length > 0;
+}
+
+/**
+ * Release a refund claim whose refund did NOT land (the refund write
+ * threw after the flip): charge_refunded returns to false, so the
+ * durable record never claims a refund that didn't happen and the
+ * job is claimable again by the next retry. Guarded on the same
+ * failed + claimed state the claim required — a release can never
+ * un-record a refund another worker completed, because a completed
+ * refund's claim is never released (its caller returns success
+ * instead of releasing).
+ */
+export async function releaseLipSyncChargeRefundClaim(id: string): Promise<boolean> {
+  const res = await db().execute(sql`
+    UPDATE lip_sync_jobs
+    SET charge_refunded = false, updated_at = now()
+    WHERE id = ${id} AND state = 'failed' AND charge_refunded = true
+    RETURNING id
+  `);
+  return res.rows.length > 0;
+}
+
+/**
+ * The refund sweep's candidate set: terminally failed jobs whose
+ * up-front charge has not been refunded — the refund was never
+ * attempted (the process died between the failure write and the
+ * refund) or its claim was released after a failed refund write.
+ * Most-recently-updated first, so a bounded batch always covers the
+ * freshest failures; the caller applies the recency window (older
+ * rows are the pre-refund-fix history a backfill decision owns, not
+ * this sweep).
+ */
+export async function getFailedUnrefundedLipSyncJobs(limit: number): Promise<LipSyncJob[]> {
+  const res = await db().execute(sql`
+    SELECT ${JOB_COLUMNS} FROM lip_sync_jobs
+    WHERE state = 'failed' AND charge_refunded = false
+    ORDER BY updated_at DESC
+    LIMIT ${Math.max(1, Math.floor(limit))}
+  `);
+  return (res.rows as Record<string, unknown>[]).map(toLipSyncJob);
+}
+
+/**
  * Boot recovery: jobs left in `submitting` belong to a dead worker — the
  * trim/submit died with it, but the full request params are persisted, so
  * the job simply goes back to `queued`. Jobs in `polling` keep their
  * provider_job_id; the poller resumes checking them (next_poll_at is
  * clamped to now so they are picked up on the first tick).
  */
-export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promise<void> {
+export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promise<LipSyncJob[]> {
+  const newlyFailed: LipSyncJob[] = [];
   let rows: Record<string, unknown>[];
   try {
     const res = await db().execute(sql`
@@ -455,7 +536,7 @@ export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promis
     // Table may not exist yet on the very first boot before drizzle-kit push
     // finishes — log and continue; the next boot will recover.
     logger.warn({ err }, "[lip-sync-jobs] recovery select failed; skipping");
-    return;
+    return newlyFailed;
   }
   for (const r of rows) {
     const job = toLipSyncJob(r);
@@ -466,6 +547,7 @@ export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promis
             message: "This lip-sync job was interrupted by a server restart and could not be recovered.",
             code: "interrupted",
           });
+          newlyFailed.push(job);
           logger.warn({ jobId: job.id }, "[lip-sync-jobs] interrupted submit exceeded retry limit; marked failed");
         } else {
           await db().execute(sql`
@@ -492,6 +574,9 @@ export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promis
       logger.error({ err, jobId: job.id }, "[lip-sync-jobs] recovery failed for job");
     }
   }
+  /* The jobs this pass terminally failed — the caller (job-poller)
+     refunds their up-front charges through the charge_refunded gate. */
+  return newlyFailed;
 }
 
 /** Kept for callers that need a job id without a DB round-trip. */

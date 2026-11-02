@@ -5019,6 +5019,9 @@
     "length2min": "2 Minuten",
     "lengthFull": "Kompletter Song"
   },
+  "lipSync": {
+    "refundNote": "Ihre {{credits}} Visual Bucs wurden erstattet."
+  },
   "makeVideo": {
     "pageTitle": "Musikvideo erstellen",
     "pageDescription": "Verwandeln Sie Ihren Song in ein cineastisches Musikvideo mit KI-Szenengenerierung.",

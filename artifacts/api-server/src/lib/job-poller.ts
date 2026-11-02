@@ -4,19 +4,25 @@ import { publishDueScheduledPosts } from "./scheduler-jobs";
 import { drainEmailQueue } from "./email-campaign-sender";
 import {
   claimJobForSubmit,
+  claimLipSyncChargeRefund,
   completeLipSyncJob,
   deferSubmitJob,
   failLipSyncJob,
+  getFailedUnrefundedLipSyncJobs,
   getJobsDueForPoll,
+  getLipSyncJob,
+  LIP_SYNC_JOB_CHARGE_CREDITS,
   markHistoryRecorded,
   markJobSubmitted,
   mergeLipSyncJobResultMeta,
   peekQueuedJobs,
   recordJobPoll,
   recoverInterruptedLipSyncJobs,
+  releaseLipSyncChargeRefundClaim,
   requeueSubmitJob,
   type LipSyncJob,
 } from "./lip-sync-jobs";
+import { refundCredits } from "./credits";
 import {
   createJobNotification,
   notifyTerminalExportJobs,
@@ -221,12 +227,156 @@ let timer: NodeJS.Timeout | null = null;
 let tickInFlight = false;
 const submitInFlight = new Set<string>();
 
+/**
+ * Refund a terminally failed job's up-front charge — exactly once.
+ *
+ * Every job row exists only because chargeCredits took
+ * LIP_SYNC_JOB_CHARGE_CREDITS before enqueueing (routes/lip-sync.ts);
+ * the money rule is that a failed generation refunds in full. The
+ * refund goes through refundCredits under the charge's own action
+ * name, so the rail restores the exact pools the charge drew from —
+ * temporary portion back to the live bonus pool (or into permanent
+ * when the pool has since expired, per the Z1 rule), a team-pool
+ * charge back to the team pool. claimLipSyncChargeRefund is the
+ * atomic gate: whichever failure path flips it first refunds, and
+ * every replay is a no-op.
+ *
+ * The flip is a claim, not a completion record (the export rail's
+ * claim/re-arm discipline): if refundCredits throws after the flip,
+ * the claim is RELEASED before this returns — charge_refunded goes
+ * back to false, so the durable record never claims a refund that
+ * didn't land, and the poller's refund sweep (retryFailedLipSyncRefunds)
+ * can claim the job again and land the refund exactly once. Never
+ * throws — a refund failure is logged loudly and must not break the
+ * worker that reported the failure.
+ *
+ * Returns true ONLY when this call actually landed the refund (won
+ * the gate AND refundCredits completed) — the failure tells below key
+ * their refund sentence off this, never off the failure alone: a path
+ * that lost the gate, or whose refund write failed, must not tell the
+ * member money came back when it didn't. The gate and the tell agree
+ * by construction: the gate reads true only for a job some caller's
+ * refundCredits completed under its claim (a claim is released on
+ * any throw), which is exactly the set of jobs whose tell may carry
+ * the refund sentence. The one window no code here can close is a
+ * process dying INSIDE the refundCredits call itself — its claim
+ * can't be released by a dead process and the restore's state is
+ * unknowable without risking a double refund, so that claim stands
+ * and the CRITICAL log below is the operator's reconciliation
+ * signal (findable: failed jobs with charge_refunded = true and no
+ * matching refund ledger row).
+ */
+async function refundFailedLipSyncCharge(job: LipSyncJob): Promise<boolean> {
+  if (!job.userId) return false;
+  let won = false;
+  try {
+    won = await claimLipSyncChargeRefund(job.id);
+    if (!won) return false;
+    await refundCredits(job.userId, LIP_SYNC_JOB_CHARGE_CREDITS, {
+      action: "Lip Sync — Refund (generation failed)",
+    });
+    logger.info({ jobId: job.id, userId: job.userId }, "[job-poller] lip-sync failure refunded");
+    return true;
+  } catch (err) {
+    if (won) {
+      /* The refund did not land — release the claim so the gate
+         stops claiming it and the refund sweep can retry. A failed
+         release is logged just as loudly: the row is then in the
+         documented reconciliation state above. */
+      await releaseLipSyncChargeRefundClaim(job.id).catch((releaseErr) =>
+        logger.error(
+          { err: releaseErr, jobId: job.id, userId: job.userId },
+          "[job-poller] CRITICAL: lip-sync refund claim release failed — gate may claim an unlanded refund",
+        ),
+      );
+    }
+    logger.error(
+      { err, jobId: job.id, userId: job.userId },
+      "[job-poller] CRITICAL: lip-sync failure refund failed — charge stands unrefunded",
+    );
+    return false;
+  }
+}
+
+/* How long after a failure the refund sweep keeps retrying an
+   unlanded refund. The sweep is a RETRY mechanism for this build's
+   own failure paths — a refund write that threw, or a process that
+   died between the failure write and the refund — not a backfill:
+   failed rows older than this window predate the refund path and
+   paying them is a separate decision, so the sweep never reaches
+   them. Two hours is far beyond a poller restart or a credit-rail
+   blip, and far inside the 7-day terminal-row retention. */
+const LIP_SYNC_REFUND_RETRY_WINDOW_MS = 2 * 60 * 60 * 1000;
+const LIP_SYNC_REFUND_RETRY_BATCH = 25;
+
+/**
+ * Refund sweep: retry the failure refunds that never landed. Runs on
+ * every poller tick (restart-safe, like the export notification
+ * backfill). Candidates are failed jobs still wearing
+ * charge_refunded = false whose last update is inside the retry
+ * window; each goes through the same atomic claim as the live
+ * failure paths, so a sweep racing a poller worker — or a second
+ * poller — can never refund twice. A job another worker currently
+ * holds the claim on (gate already true) is not a candidate at all.
+ * The sweep deliberately sends no second tell: the failure was
+ * already reported when it happened (without a refund claim, which
+ * was the truth at the time); this pass only makes the money right.
+ */
+async function retryFailedLipSyncRefunds(): Promise<void> {
+  const jobs = await getFailedUnrefundedLipSyncJobs(LIP_SYNC_REFUND_RETRY_BATCH);
+  const cutoff = Date.now() - LIP_SYNC_REFUND_RETRY_WINDOW_MS;
+  for (const job of jobs) {
+    if (job.updatedAt < cutoff) continue;
+    await refundFailedLipSyncCharge(job);
+  }
+}
+
+/**
+ * The member-facing failure message for a terminally failed job.
+ * When the refund actually fired for THIS job, the message says so
+ * plainly and names the amount from the job's own charge record —
+ * LIP_SYNC_JOB_CHARGE_CREDITS, the exact figure the refund rail just
+ * restored (never a typed-in number, so the words can't drift from
+ * the money). When no refund fired — the gate was already claimed by
+ * an earlier path, or the refund write failed — the base message
+ * stands alone: a failure never wears a refund it didn't get.
+ */
+export function lipSyncFailureNotice(baseMessage: string, refunded: boolean): string {
+  return refunded
+    ? `${baseMessage} Your ${LIP_SYNC_JOB_CHARGE_CREDITS} Visual Bucs were refunded.`
+    : baseMessage;
+}
+
+/**
+ * Boot recovery's terminal failures are failures like any other:
+ * their up-front charges refund through the same gate AND the member
+ * gets the same failure tell (recovery failures used to refund
+ * silently — no notification row ever recorded the outcome). The
+ * tell carries the refund verdict off THIS pass's refund result and
+ * is composed through the same helper as every live failure path;
+ * recordLipSyncOutcome's exactly-once row gate means a replayed
+ * recovery pass can never tell twice. The message is read back off
+ * the durable row recovery just wrote, so the words are the job's
+ * own recorded error.
+ */
+async function refundRecoveredFailures(newlyFailed: LipSyncJob[]): Promise<void> {
+  for (const job of newlyFailed) {
+    const refunded = await refundFailedLipSyncCharge(job);
+    const fresh = await getLipSyncJob(job.id).catch(() => undefined);
+    const message =
+      fresh?.error?.message ??
+      job.error?.message ??
+      "This lip-sync job was interrupted by a server restart and could not be recovered.";
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
+  }
+}
+
 export function startJobPoller(): void {
   if (timer) return;
   // Re-queue submits orphaned by a previous process; resume polling the rest.
-  recoverInterruptedLipSyncJobs(MAX_SUBMIT_ATTEMPTS).catch((err) =>
-    logger.error({ err }, "[job-poller] lip-sync recovery failed"),
-  );
+  recoverInterruptedLipSyncJobs(MAX_SUBMIT_ATTEMPTS)
+    .then(refundRecoveredFailures)
+    .catch((err) => logger.error({ err }, "[job-poller] lip-sync recovery failed"));
   void runPollerTick();
   timer = setInterval(() => {
     void runPollerTick();
@@ -249,6 +399,13 @@ export async function runPollerTick(): Promise<void> {
     await pollDueJobs().catch((err) => logger.error({ err }, "[job-poller] poll phase failed"));
     await notifyTerminalExportJobs().catch((err) =>
       logger.error({ err }, "[job-poller] export notification backfill failed"),
+    );
+    /* Lip-sync failure refunds: retry the ones that never landed (a
+       refund write that threw, a process that died mid-failure) —
+       DB-backed, restart-safe, exactly-once through the same claim
+       gate as the live failure paths. */
+    await retryFailedLipSyncRefunds().catch((err) =>
+      logger.error({ err }, "[job-poller] lip-sync refund retry phase failed"),
     );
     /* Content Scheduler: fire due scheduled social posts (DB-backed, restart-safe). */
     await publishDueScheduledPosts().catch((err) =>
@@ -330,7 +487,8 @@ async function runSubmitWorker(
   }
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
-    await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
+    const refunded = await refundFailedLipSyncCharge(job);
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
   };
 
   try {
@@ -392,10 +550,11 @@ async function runSubmitWorker(
         return;
       }
       if (deferred.failed) {
-        await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(
+        const refunded = await refundFailedLipSyncCharge(job);
+        await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(
           "Sync.so stayed at its plan concurrency limit for about a day, so this job was never submitted. Try again later or upgrade the Sync.so plan.",
           500,
-        ));
+        ), refunded));
         logger.error(
           { jobId: job.id, deferrals: deferred.deferrals },
           "[job-poller] submit deferred past the limit; marked failed",
@@ -421,8 +580,9 @@ async function runSubmitWorker(
        reached Sync.so — re-queue against the normal attempts budget. */
     const attempts = await requeueSubmitJob(job.id, MAX_SUBMIT_ATTEMPTS).catch(() => MAX_SUBMIT_ATTEMPTS);
     if (attempts >= MAX_SUBMIT_ATTEMPTS) {
-      // requeueSubmitJob already marked it failed; notify once.
-      await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
+      // requeueSubmitJob already marked it failed; refund + notify once.
+      const refunded = await refundFailedLipSyncCharge(job);
+      await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
       logger.error({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed permanently");
     } else {
       logger.warn({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed; re-queued");
@@ -472,10 +632,11 @@ async function handleWaveSpeedSubmitError(
       return;
     }
     if (deferred.failed) {
-      await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(
+      const refunded = await refundFailedLipSyncCharge(job);
+      await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(
         "WaveSpeed stayed busy for about a day, so this job was never submitted. Try again later.",
         500,
-      ));
+      ), refunded));
       logger.error(
         { jobId: job.id, deferrals: deferred.deferrals },
         "[job-poller] WaveSpeed submit deferred past the limit; marked failed",
@@ -537,7 +698,8 @@ async function pollOneJob(
   const display = providerDisplayName(provider);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
-    await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
+    const refunded = await refundFailedLipSyncCharge(job);
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
   };
 
   let remote: { status: string; outputUrl?: string; error?: string };
@@ -691,6 +853,8 @@ export const __testHooks = {
   pollOneJob,
   runSubmitWorker,
   pollBackoffMs,
+  retryFailedLipSyncRefunds,
+  refundRecoveredFailures,
   __setPrepareSubmitMedia: (fn: PrepareSubmitMedia) => {
     prepareSubmitMedia = fn;
   },

@@ -4,6 +4,7 @@ import {
   StillToLipSyncError,
   type StillToLipSyncPhase,
 } from "./still-to-lipsync";
+import en from "../../../locales/en.json";
 
 /**
  * Stack-100 #3 W3 Lane 7 — still → clip → lip-sync orchestration.
@@ -213,5 +214,81 @@ describe("runStillToLipSync", () => {
       runStillToLipSync({ ...baseInput, imageUrl: "blob:http://x", fetchImpl }),
     ).rejects.toMatchObject({ step: "animate" });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("runStillToLipSync — the failure tell states the refund verdict", () => {
+  it("a failed job whose charge was refunded says so, naming the job's own amount", async () => {
+    const { fetchImpl } = makeFetch({
+      lipPolls: [
+        {
+          status: "failed",
+          error: "Provider reported the generation failed.",
+          chargeRefunded: true,
+          refundedCredits: 300,
+        },
+      ],
+    });
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
+    expect(err).toBeInstanceOf(StillToLipSyncError);
+    expect((err as StillToLipSyncError).step).toBe("lip-sync");
+    expect((err as StillToLipSyncError).clipUrl).toBe(CLIP);
+    /* The default renderer's wording is the en catalog's — pinned so
+       the module default and en.json can never drift apart. */
+    const enSentence = en.lipSync.refundNote.replace("{{credits}}", "300");
+    expect(enSentence).toBe("Your 300 Visual Bucs were refunded.");
+    expect((err as StillToLipSyncError).message).toBe(
+      `Provider reported the generation failed. ${enSentence}`,
+    );
+  });
+
+  it("the amount comes from the job record, not a constant", async () => {
+    const { fetchImpl } = makeFetch({
+      lipPolls: [
+        { status: "failed", error: "boom", chargeRefunded: true, refundedCredits: 450 },
+      ],
+    });
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
+    expect((err as StillToLipSyncError).message).toContain("Your 450 Visual Bucs were refunded.");
+  });
+
+  it("NEGATIVE — a failed job with no refund fired claims no refund", async () => {
+    const { fetchImpl } = makeFetch({
+      lipPolls: [{ status: "failed", error: "Provider reported the generation failed." }],
+    });
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
+    expect(err).toBeInstanceOf(StillToLipSyncError);
+    expect((err as StillToLipSyncError).message).toBe(
+      "Provider reported the generation failed.",
+    );
+    expect((err as StillToLipSyncError).message).not.toContain("refunded");
+  });
+
+  it("the verdict landing a breath after the fail flip is still stated (confirmation re-read)", async () => {
+    const { fetchImpl } = makeFetch({
+      lipPolls: [
+        { status: "failed", error: "boom" },
+        { status: "failed", error: "boom", chargeRefunded: true, refundedCredits: 300 },
+      ],
+    });
+    const err = await runStillToLipSync({ ...baseInput, fetchImpl, pollFetch: fetchImpl }).catch((e) => e);
+    expect((err as StillToLipSyncError).message).toBe(
+      "boom Your 300 Visual Bucs were refunded.",
+    );
+  });
+
+  it("an injected translator renders the verdict (the caller's language)", async () => {
+    const { fetchImpl } = makeFetch({
+      lipPolls: [
+        { status: "failed", error: "boom", chargeRefunded: true, refundedCredits: 300 },
+      ],
+    });
+    const err = await runStillToLipSync({
+      ...baseInput,
+      fetchImpl,
+      pollFetch: fetchImpl,
+      refundNote: (credits) => `NOTE(${credits})`,
+    }).catch((e) => e);
+    expect((err as StillToLipSyncError).message).toBe("boom NOTE(300)");
   });
 });
