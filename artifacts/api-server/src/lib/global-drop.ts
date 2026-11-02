@@ -8,11 +8,16 @@
      language (Spanish, Portuguese, French, German, Japanese — all
      five are dub-supported on the existing rail), each carrying the
      release's own title as its source and a door into Translate &
-     Dub for the actual dub/caption work.
+     Dub for the actual dub/caption work. The door is PRELOADED
+     (stack1300 #165 remainder): it carries this release + this
+     language, so Translate & Dub opens already set to the version's
+     language, and when the dub finishes its produced video URL
+     returns into this version's review slot on its own — the
+     creator no longer copies links back by hand.
    - REVIEW (per version, creator's hand): the creator enters the
-     translated title and the version's destination URL and approves
-     the version. Nothing is approved by default; nothing publishes
-     unreviewed.
+     translated title and approves the version; the destination URL
+     arrives from the finished dub (still editable by hand).
+     Nothing is approved by default; nothing publishes unreviewed.
    - PUBLISH: approved versions WITH a URL are written into the
      release's smartlink language routing — the release's own
      distribution surface fans visitors out by language. Existing
@@ -48,8 +53,21 @@ export interface GlobalDropVersion {
   /** 'draft' | 'approved' — the creator's review state. */
   status: "draft" | "approved";
   /** The existing Translate & Dub surface, where the dub + captions
-   *  for this version are produced. */
+   *  for this version are produced — preloaded with this release +
+   *  language (see globalDropTranslateLink). */
   translateLink: string;
+}
+
+/** The preloaded Translate & Dub door for one version: the surface
+ *  reads `gd` (the release) + `lang` (this version's language) off
+ *  the URL, opens set to that language, verifies the pair against
+ *  the caller's own package, and returns the finished dub's video
+ *  URL into this version's review slot via the review PATCH. A pair
+ *  that doesn't resolve to a real version of the caller's own
+ *  package is refused there in plain words — the params themselves
+ *  are never rendered as content. */
+export function globalDropTranslateLink(releaseId: string, code: GlobalDropLanguageCode): string {
+  return `/translate?gd=${encodeURIComponent(releaseId)}&lang=${code}`;
 }
 
 export type GlobalDropVersions = Record<GlobalDropLanguageCode, GlobalDropVersion>;
@@ -72,10 +90,24 @@ export function assemblePackage(release: GlobalDropRelease): GlobalDropVersions 
       translatedTitle: null,
       url: null,
       status: "draft",
-      translateLink: "/translate",
+      translateLink: globalDropTranslateLink(release.id, lang.code),
     };
   }
   return versions;
+}
+
+/** Re-derive every version's preload door for THIS release at read
+ *  time. Packages assembled before the preloaded door existed carry
+ *  the bare "/translate" link in their stored JSON; the view upgrades
+ *  those in place so the production round-trip works for them too.
+ *  Nothing but translateLink is touched. */
+export function withPreloadLinks(versions: GlobalDropVersions, releaseId: string): GlobalDropVersions {
+  const out = {} as GlobalDropVersions;
+  for (const lang of GLOBAL_DROP_LANGUAGES) {
+    const v = versions[lang.code];
+    if (v) out[lang.code] = { ...v, translateLink: globalDropTranslateLink(releaseId, lang.code) };
+  }
+  return out;
 }
 
 export function isHttpUrl(value: string): boolean {
