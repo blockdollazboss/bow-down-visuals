@@ -1,6 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
@@ -16,20 +16,42 @@ import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { VocalPolishModal } from "@/components/song/VocalPolishModal";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
-import AiAudio from "@/pages/ai-audio";
-import VoiceoverStudio from "@/pages/voiceover";
-import PodcastStudio from "@/pages/podcast";
-import ViralSoundFinder from "@/pages/sounds";
-import { HumToSong } from "@/components/HumToSong";
-import { FinishMySong } from "@/components/audio-studio/FinishMySong";
 import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
-import { RateMyMix } from "@/components/audio-studio/RateMyMix";
-import ArrangementStudio from "@/components/audio-studio/ArrangementStudio";
-import { PodcastTranscriptEditor } from "@/components/audio-studio/PodcastTranscriptEditor";
-import { PodcastPublishPanel } from "@/components/audio-studio/PodcastPublishPanel";
-import { LufsPanel } from "@/components/audio/LufsPanel";
-import { DeverbPanel } from "@/components/audio/DeverbPanel";
-import { VocalTunePanel } from "@/components/audio/VocalTunePanel";
+
+/* The tab modules ride lazy doors (site-perf, stack1300): the
+   studio renders exactly ONE tab at a time, so the other tabs'
+   weight — three whole sibling pages (ai-audio, voiceover,
+   podcast) plus the sounds finder and the tool panels — no
+   longer rides /audio-studio's first load. Each tab chunk
+   fetches on first selection and is cached for later switches.
+   The in-file panels (Cleanup — the default tab — Stems,
+   MixMaster) stay in the page chunk; the modal and the song
+   picker stay static because in-file panels use them. */
+const AiAudio = lazy(() => import("@/pages/ai-audio"));
+const VoiceoverStudio = lazy(() => import("@/pages/voiceover"));
+const PodcastStudio = lazy(() => import("@/pages/podcast"));
+const ViralSoundFinder = lazy(() => import("@/pages/sounds"));
+const HumToSong = lazy(() => import("@/components/HumToSong").then((m) => ({ default: m.HumToSong })));
+const FinishMySong = lazy(() => import("@/components/audio-studio/FinishMySong").then((m) => ({ default: m.FinishMySong })));
+const RateMyMix = lazy(() => import("@/components/audio-studio/RateMyMix").then((m) => ({ default: m.RateMyMix })));
+const ArrangementStudio = lazy(() => import("@/components/audio-studio/ArrangementStudio"));
+const PodcastTranscriptEditor = lazy(() => import("@/components/audio-studio/PodcastTranscriptEditor").then((m) => ({ default: m.PodcastTranscriptEditor })));
+const PodcastPublishPanel = lazy(() => import("@/components/audio-studio/PodcastPublishPanel").then((m) => ({ default: m.PodcastPublishPanel })));
+const LufsPanel = lazy(() => import("@/components/audio/LufsPanel").then((m) => ({ default: m.LufsPanel })));
+const DeverbPanel = lazy(() => import("@/components/audio/DeverbPanel").then((m) => ({ default: m.DeverbPanel })));
+const VocalTunePanel = lazy(() => import("@/components/audio/VocalTunePanel").then((m) => ({ default: m.VocalTunePanel })));
+
+/* The tab stage's loading frame: gold spinner inside the same
+   stage — a tab switch reads as "opening", never a blank hole. */
+function AudioTabFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[240px] items-center justify-center gap-3 text-white/50" role="status">
+      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      <span className="text-sm">{t("common.loading")}</span>
+    </div>
+  );
+}
 /* ─── Audio Cleanup ───────────────────────────────────────────────────────
    Server-side background-noise removal for creator audio: podcasts,
    voiceovers, stream clips, live recordings. Real DSP denoising via
@@ -3617,6 +3639,7 @@ export default function AudioStudio() {
         </p>
 
         <div className={`mt-2 rounded-3xl border p-4 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+          <Suspense fallback={<AudioTabFallback />}>
           {tab === "arrange" ? <ArrangementStudio /> : tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? (
             <div className="space-y-8">
               <PodcastStudio />
@@ -3628,6 +3651,7 @@ export default function AudioStudio() {
               </div>
             </div>
           ) : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
+          </Suspense>
         </div>
       </main>
     </div>
