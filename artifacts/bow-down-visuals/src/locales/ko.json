@@ -885,11 +885,11 @@
         "slotTaken": "그 방에는 그 시간대에 이미 행사가 있습니다 — 다른 시간을 선택하세요.",
         "signIn": "스펙터클을 예약하려면 로그인하세요.",
         "failed": "예약이 접수되지 않았습니다 — 아무것도 예정되지 않았습니다. 다시 시도하세요.",
-        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
+        "amountRange": "드롭은 청구당 100~1,000 Visual Bucs를 지급합니다."
       },
-      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
-      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
+      "budgetLine": "각 청구는 공유 주간 드롭 예산에서 지급됩니다 — 모든 드롭을 합쳐 주당 최대 1,000 Visual Bucs입니다.",
+      "rangeLine": "드롭은 청구당 100~1,000 Visual Bucs를 지급합니다.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}}건의 청구"
     },
     "pageTitle": "관리자",
     "pageDescription": "사이트 관리.",

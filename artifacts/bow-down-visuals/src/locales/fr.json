@@ -885,11 +885,11 @@
         "slotTaken": "Cette salle a déjà un événement sur ce créneau — choisissez une autre heure.",
         "signIn": "Connectez-vous pour réserver un spectacle.",
         "failed": "La réservation n'a pas abouti — rien n'a été programmé. Réessayez.",
-        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
+        "amountRange": "Un drop paie entre 100 et 1,000 Visual Bucs par réclamation."
       },
-      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
-      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
+      "budgetLine": "Chaque réclamation est payée sur le budget hebdomadaire partagé des drops — au maximum 1,000 Visual Bucs par semaine pour tous les drops.",
+      "rangeLine": "Un drop paie entre 100 et 1,000 Visual Bucs par réclamation.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}} réclamations"
     },
     "pageTitle": "Admin",
     "pageDescription": "Administration du site.",

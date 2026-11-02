@@ -885,11 +885,11 @@
         "slotTaken": "Dieser Raum hat in diesem Zeitfenster bereits ein Ereignis — wähle eine andere Stunde.",
         "signIn": "Melde dich an, um ein Spektakel zu buchen.",
         "failed": "Die Buchung kam nicht an — es wurde nichts geplant. Versuch es erneut.",
-        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
+        "amountRange": "Ein Drop zahlt zwischen 100 und 1,000 Visual Bucs pro Anspruch."
       },
-      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
-      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
+      "budgetLine": "Jeder Anspruch wird aus dem gemeinsamen wöchentlichen Drop-Budget bezahlt — höchstens 1,000 Visual Bucs pro Woche über alle Drops.",
+      "rangeLine": "Ein Drop zahlt zwischen 100 und 1,000 Visual Bucs pro Anspruch.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}} Ansprüche"
     },
     "bowRaceDescription": "Ein geheimes websiteweites Rennen pro Monat. Die Bows aller angemeldeten Nutzer speisen einen einzigen Zähler; jeden Monat wird ein Zufallsziel von 1.000–5.000 Bows gezogen. Wessen Bow genau auf dem Ziel landet, gewinnt die Visual-Buc-Belohnung und sieht das Überraschungs-Popup „You Cracked the Code!“. Das Rennen wird nirgends angekündigt – dieses Panel ist der einzige Ort, wo es erscheint.",
     "bowRaceFooterNote": "Jeder neue Monat startet automatisch ein neues Rennen mit neuem Zufallsziel – kein manuelles Zurücksetzen nötig. Die Überschreibung gilt einmalig für den nächsten Rennmonat und löscht sich dann selbst. Belohnungen werden als „Global Bow Race“ im Visual-Buc-Ledger protokolliert.",
