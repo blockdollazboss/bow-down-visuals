@@ -13161,7 +13161,11 @@
       "milestoneHeadline": "🏆 Série de {{days}} jours !",
       "milestoneSub": "Bonus d'étape sécurisé 🔥",
       "freezeEarned": "🧊 +1 gel de série gagné : manque un jour et ta chaîne survit !",
-      "freezeUsed": "🧊 Gel de série utilisé : ta chaîne de {{streak}} jours est sauvée !"
+      "freezeUsed": "🧊 Gel de série utilisé : ta chaîne de {{streak}} jours est sauvée !",
+      "claimFailed": "Nous n'avons pas pu récupérer votre bonus pour le moment — veuillez réessayer.",
+      "alreadyClaimedToday": "Vous avez déjà récupéré le bonus d'aujourd'hui — revenez demain pour le prochain !",
+      "crateFailed": "Nous n'avons pas pu ouvrir la caisse pour le moment — veuillez réessayer.",
+      "crateCooldown": "Vous avez ouvert une caisse il y a peu — la prochaine se débloque bientôt."
     },
     "streakWidget": {
       "atRiskTitle": "Ne perds pas ta série de {{streak}} jours !",

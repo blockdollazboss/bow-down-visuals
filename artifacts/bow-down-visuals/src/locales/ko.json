@@ -11556,7 +11556,11 @@
       "milestoneHeadline": "🏆 {{days}}일 스트릭!",
       "milestoneSub": "마일스톤 보너스 확정 🔥",
       "freezeEarned": "🧊 스트릭 프리즈 +1 획득 — 하루를 놓쳐도 체인은 유지돼요!",
-      "freezeUsed": "🧊 스트릭 프리즈 사용 — {{streak}}일 체인이 구해졌어요!"
+      "freezeUsed": "🧊 스트릭 프리즈 사용 — {{streak}}일 체인이 구해졌어요!",
+      "claimFailed": "지금은 보너스를 지급하지 못했습니다 — 다시 시도해 주세요.",
+      "alreadyClaimedToday": "오늘의 보너스는 이미 받으셨습니다 — 내일 다음 보너스를 받으러 오세요!",
+      "crateFailed": "지금은 상자를 열지 못했습니다 — 다시 시도해 주세요.",
+      "crateCooldown": "방금 상자를 여셨습니다 — 다음 상자는 곧 열립니다."
     },
     "streakWidget": {
       "atRiskTitle": "{{streak}}일 스트릭을 잃지 마세요!",

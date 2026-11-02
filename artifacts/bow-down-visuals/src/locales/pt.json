@@ -11576,7 +11576,11 @@
       "milestoneHeadline": "🏆 Sequência de {{days}} dias!",
       "milestoneSub": "Bônus de marco garantido 🔥",
       "freezeEarned": "🧊 +1 congelamento de sequência ganho — falte um dia e sua corrente sobrevive!",
-      "freezeUsed": "🧊 Congelamento de sequência usado — sua corrente de {{streak}} dias está salva!"
+      "freezeUsed": "🧊 Congelamento de sequência usado — sua corrente de {{streak}} dias está salva!",
+      "claimFailed": "Não conseguimos resgatar seu bônus agora — tente novamente.",
+      "alreadyClaimedToday": "Você já resgatou o bônus de hoje — volte amanhã para o próximo!",
+      "crateFailed": "Não conseguimos abrir a caixa agora — tente novamente.",
+      "crateCooldown": "Você abriu uma caixa há pouco tempo — a próxima desbloqueia em breve."
     },
     "streakWidget": {
       "atRiskTitle": "Não perca sua sequência de {{streak}} dias!",

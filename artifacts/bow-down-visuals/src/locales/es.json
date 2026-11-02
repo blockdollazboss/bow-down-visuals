@@ -12485,7 +12485,11 @@
       "milestoneHeadline": "🏆 ¡Racha de {{days}} días!",
       "milestoneSub": "Bono de hito asegurado 🔥",
       "freezeEarned": "🧊 +1 congelación de racha ganada: ¡falla un día y tu cadena sobrevive!",
-      "freezeUsed": "🧊 Congelación de racha usada: ¡tu cadena de {{streak}} días está salvada!"
+      "freezeUsed": "🧊 Congelación de racha usada: ¡tu cadena de {{streak}} días está salvada!",
+      "claimFailed": "No pudimos reclamar tu bono ahora — inténtalo de nuevo.",
+      "alreadyClaimedToday": "Ya reclamaste el bono de hoy — ¡vuelve mañana por el siguiente!",
+      "crateFailed": "No pudimos abrir la caja ahora — inténtalo de nuevo.",
+      "crateCooldown": "Abriste una caja hace poco — la siguiente se desbloquea pronto."
     },
     "streakWidget": {
       "atRiskTitle": "¡No pierdas tu racha de {{streak}} días!",

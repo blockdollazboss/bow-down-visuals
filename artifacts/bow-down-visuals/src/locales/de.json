@@ -12481,7 +12481,11 @@
       "milestoneHeadline": "🏆 {{days}}-Tage-Serie!",
       "milestoneSub": "Meilenstein-Bonus gesichert 🔥",
       "freezeEarned": "🧊 +1 Serien-Freeze verdient — verpasse einen Tag und deine Kette überlebt!",
-      "freezeUsed": "🧊 Serien-Freeze verwendet — deine {{streak}}-Tage-Kette ist gerettet!"
+      "freezeUsed": "🧊 Serien-Freeze verwendet — deine {{streak}}-Tage-Kette ist gerettet!",
+      "claimFailed": "Wir konnten deinen Bonus gerade nicht gutschreiben — bitte versuche es erneut.",
+      "alreadyClaimedToday": "Du hast den heutigen Bonus bereits abgeholt — komm morgen für den nächsten wieder!",
+      "crateFailed": "Wir konnten die Kiste gerade nicht öffnen — bitte versuche es erneut.",
+      "crateCooldown": "Du hast vor Kurzem eine Kiste geöffnet — die nächste wird bald freigeschaltet."
     },
     "streakWidget": {
       "atRiskTitle": "Verliere deine {{streak}}-Tage-Serie nicht!",

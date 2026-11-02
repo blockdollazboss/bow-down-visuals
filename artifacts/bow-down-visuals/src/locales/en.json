@@ -13853,7 +13853,11 @@
       "milestoneHeadline": "🏆 {{days}}-day streak!",
       "milestoneSub": "Milestone bonus secured 🔥",
       "freezeEarned": "🧊 +1 streak freeze earned — miss a day and your chain survives!",
-      "freezeUsed": "🧊 Streak freeze used — your {{streak}}-day chain is saved!"
+      "freezeUsed": "🧊 Streak freeze used — your {{streak}}-day chain is saved!",
+      "claimFailed": "We couldn't claim your bonus just now — please try again.",
+      "alreadyClaimedToday": "You've already claimed today's bonus — come back tomorrow for the next one!",
+      "crateFailed": "We couldn't open the crate just now — please try again.",
+      "crateCooldown": "You opened a crate not long ago — your next one unlocks soon."
     },
     "streakWidget": {
       "atRiskTitle": "Don't lose your {{streak}}-day streak!",

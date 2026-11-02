@@ -11553,7 +11553,11 @@
       "milestoneHeadline": "🏆 {{days}}日ストリーク！",
       "milestoneSub": "マイルストーンボーナス確定 🔥",
       "freezeEarned": "🧊 ストリークフリーズ+1を獲得 — 1日休んでもチェーンは途切れません！",
-      "freezeUsed": "🧊 ストリークフリーズを使用 — {{streak}}日間のチェーンが救われました！"
+      "freezeUsed": "🧊 ストリークフリーズを使用 — {{streak}}日間のチェーンが救われました！",
+      "claimFailed": "今はボーナスを受け取れませんでした — もう一度お試しください。",
+      "alreadyClaimedToday": "今日のボーナスはすでに受け取り済みです — 明日またお越しください！",
+      "crateFailed": "今はクレートを開けませんでした — もう一度お試しください。",
+      "crateCooldown": "少し前にクレートを開きました — 次はまもなく解放されます。"
     },
     "streakWidget": {
       "atRiskTitle": "{{streak}}日ストリークを失わないで！",

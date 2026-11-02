@@ -11576,7 +11576,11 @@
       "milestoneHeadline": "🏆 Serie di {{days}} giorni!",
       "milestoneSub": "Bonus traguardo assicurato 🔥",
       "freezeEarned": "🧊 +1 congelamento della serie guadagnato — salta un giorno e la tua catena sopravvive!",
-      "freezeUsed": "🧊 Congelamento della serie usato — la tua catena di {{streak}} giorni è salva!"
+      "freezeUsed": "🧊 Congelamento della serie usato — la tua catena di {{streak}} giorni è salva!",
+      "claimFailed": "Non siamo riusciti a riscattare il tuo bonus in questo momento — riprova.",
+      "alreadyClaimedToday": "Hai già riscattato il bonus di oggi — torna domani per il prossimo!",
+      "crateFailed": "Non siamo riusciti ad aprire la cassa in questo momento — riprova.",
+      "crateCooldown": "Hai aperto una cassa poco fa — la prossima si sblocca presto."
     },
     "streakWidget": {
       "atRiskTitle": "Non perdere la tua serie di {{streak}} giorni!",
