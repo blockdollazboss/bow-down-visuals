@@ -106,6 +106,17 @@ describe("watch-page tip door — the panel is the tip page's own flow", () => {
     expect(sendRegion).toContain("setSent(true)");
   });
 
+  it("names its own watch page as the return landing — the fan comes back to the video", () => {
+    /* The door hands the panel the same /watch/:id the sign-in door
+       returns to, and the checkout call carries it as returnPath;
+       the intent fallback (no session, no landing) does not. */
+    expect(src).toContain("returnPath={signInNext}");
+    expect(src).toContain("returnPath: string;");
+    expect(sendRegion).toContain("returnPath,");
+    const intentRegion = sendRegion.slice(sendRegion.indexOf("/tip`"));
+    expect(intentRegion).not.toContain("returnPath");
+  });
+
   it("the API's own honesty notice rides along, verbatim from the jar data", () => {
     expect(src).toContain("{data.notice}");
   });
