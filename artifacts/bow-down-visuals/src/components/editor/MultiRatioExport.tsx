@@ -223,7 +223,7 @@ export function MultiRatioExportCard({
           } else {
             toast({
               title: t("videoEditor.multiRatio.failedTitle"),
-              description: next.error ?? t("videoEditor.multiRatio.failedDesc"),
+              description: plainErrorText(next.error, t("videoEditor.multiRatio.failedDesc")),
             });
           }
         }
@@ -484,7 +484,7 @@ export function MultiRatioExportCard({
               </p>
             )}
             {job.state === "failed" && job.error && (
-              <p className="text-[11px] text-red-300/90">{job.error}</p>
+              <p className="text-[11px] text-red-300/90">{plainErrorText(job.error, t("videoEditor.multiRatio.failedDesc"))}</p>
             )}
 
             <div className="space-y-2">
@@ -521,7 +521,7 @@ export function MultiRatioExportCard({
                       </div>
                     )}
                     {r.state === "failed" && r.error && (
-                      <p className="mt-1.5 text-[11px] text-red-300/80 break-words">{r.error}</p>
+                      <p className="mt-1.5 text-[11px] text-red-300/80 break-words">{plainErrorText(r.error, t("videoEditor.multiRatio.failedDesc"))}</p>
                     )}
 
                     {/* Per-ratio actions: download, share, captions, schedule */}

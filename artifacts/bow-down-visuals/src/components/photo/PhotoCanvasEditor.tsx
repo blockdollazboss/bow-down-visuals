@@ -548,7 +548,7 @@ export function PhotoCanvasEditor() {
             <ul className="space-y-1 text-sm">
               {exportOutputs.map((o) => (
                 <li key={o.specId} className={o.ok ? "text-emerald-300" : "text-red-300"}>
-                  {o.ok ? <a className="underline" href={o.url!} target="_blank" rel="noreferrer">{o.specId}{o.watermark ? " (stamped)" : ""} — download</a> : `${o.specId} — failed: ${o.error}`}
+                  {o.ok ? <a className="underline" href={o.url!} target="_blank" rel="noreferrer">{o.specId}{o.watermark ? " (stamped)" : ""} — download</a> : `${o.specId} — failed: ${plainErrorText(o.error, "render failed")}`}
                 </li>
               ))}
             </ul>
@@ -566,7 +566,7 @@ export function PhotoCanvasEditor() {
             <ul className="space-y-1 text-xs">
               {batchRows.map((r, i) => (
                 <li key={i} className={r.ok ? "text-emerald-300" : "text-red-300"}>
-                  {r.ok ? <a className="underline" href={r.url!} target="_blank" rel="noreferrer">{r.imageUrl} — done</a> : `${r.imageUrl} — failed: ${r.error}`}
+                  {r.ok ? <a className="underline" href={r.url!} target="_blank" rel="noreferrer">{r.imageUrl} — done</a> : `${r.imageUrl} — failed: ${plainErrorText(r.error, "render failed")}`}
                 </li>
               ))}
             </ul>
