@@ -1058,12 +1058,6 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
 
     const stripe = createGuardedStripeClient();
     const baseUrl = sponsorEscrowBaseUrl(req);
-    const idempotencyKey = buildSponsorEscrowCheckoutKey({
-      brandUserId: req.userId!,
-      dealId,
-      acceptedApplicationId: deal.accepted_application_id,
-      amountCents,
-    });
     const embeddedRequested =
       parsed.data.uiMode === "embedded" && isEmbeddedCheckoutEnabled();
     const successUrl = `${baseUrl}/sponsors/${dealId}?funded=1`;
