@@ -186,6 +186,13 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "samples.credits", "vocalPolish.buttonCost", "vocalPolish.strengthValue",
     "vocalPolish.keyShiftValue", "vocalPolish.tempoValue",
     "makeSong.priceBadge", "translate.creditsLabel", "translate.perMinuteCost",
+    "translate.globalDropBanner",
+    "translate.globalDropUnresolved",
+    "translate.globalDropSaving",
+    "translate.globalDropSaved",
+    "translate.globalDropReviewLink",
+    "translate.globalDropSaveFailed",
+    "translate.globalDropRetry",
     "voiceover.creditsEstimate", "scheduler.bestTime.cost", "scheduler.bestTime.bucs",
     "myProjects.visualBucsUsed", "mashup.priceBadge",
     // proper-noun / example placeholders (incl. example lyrics)

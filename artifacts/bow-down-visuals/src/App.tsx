@@ -816,7 +816,7 @@ function AppShell() {
                 <Route path="/caption-styler"><QueryPreservingRedirect to="/hooks?tab=styler" /></Route>
                 <Route path="/cover-art"><QueryPreservingRedirect to="/create?panel=coverart" /></Route>
                 <Route path="/lyric-video"><Redirect to="/video-editor?tab=lyric-video" /></Route>
-                <Route path="/translate"><Redirect to="/video-editor?tab=translate" /></Route>
+                <Route path="/translate"><QueryPreservingRedirect to="/video-editor?tab=translate" /></Route>
                 <Route path="/script-writer"><Redirect to="/hooks?tab=scripts" /></Route>
                 <Route path="/repurpose"><QueryPreservingRedirect to="/video-editor?tab=repurpose" /></Route>
                 <Route path="/trends"><Redirect to="/scheduler?tab=trends" /></Route>
