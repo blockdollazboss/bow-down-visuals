@@ -23,6 +23,10 @@ const USER_B = "22222222-2222-4222-8222-222222222222";
 
 const h = vi.hoisted(() => ({
   tips: [] as Array<Record<string, any>>,
+  /* Durable tip-page settings rows (tip_pages, 0316): the router
+     persists/hydrates page settings through the db, so the fake
+     keeps the rows the way Postgres would. */
+  pages: [] as Array<Record<string, any>>,
   currentUser: "11111111-1111-4111-8111-111111111111",
 }));
 
@@ -34,7 +38,7 @@ function render(cond: unknown): { sql: string; params: unknown[] } {
 
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
-  const { tipJarTipsTable, creatorProfilesTable } = actual;
+  const { tipJarTipsTable, tipPagesTable, creatorProfilesTable } = actual;
 
   function selectRows(table: unknown, cond: unknown): Array<Record<string, any>> {
     if (cond === undefined) {
@@ -46,11 +50,42 @@ vi.mock("@workspace/db", async (importOriginal) => {
         (r) => params.includes(r.page_user_id) || params.includes(r.stripe_session_id) || params.includes(r.id),
       );
     }
+    if (table === tipPagesTable) {
+      return h.pages.filter((r) => params.includes(r.user_id) || params.includes(r.handle));
+    }
     if (table === creatorProfilesTable) return [];
     return [];
   }
 
   const fakeDb: any = {
+    insert: (table: unknown) => ({
+      values: (v: Record<string, any>) => ({
+        returning: async () => {
+          if (table !== tipPagesTable) return [];
+          const row = { ...v };
+          h.pages.push(row);
+          return [row];
+        },
+        then: (res: any, rej: any) => {
+          if (table === tipPagesTable) h.pages.push({ ...v });
+          return Promise.resolve([]).then(res, rej);
+        },
+      }),
+    }),
+    update: (table: unknown) => ({
+      set: (patch: Record<string, any>) => ({
+        where: (cond: unknown) => ({
+          returning: async () => {
+            if (table !== tipPagesTable) return [];
+            const { params } = render(cond);
+            const row = h.pages.find((r) => params.includes(r.user_id));
+            if (!row) return [];
+            Object.assign(row, patch);
+            return [row];
+          },
+        }),
+      }),
+    }),
     select: () => ({
       from: (table: unknown) => ({
         where: (cond: unknown) => {
@@ -105,6 +140,7 @@ afterAll(() => {
 
 beforeEach(() => {
   h.tips = [];
+  h.pages = [];
   h.currentUser = USER_A;
   __resetTipJarStores();
 });

@@ -523,7 +523,7 @@ embedApiRouter.get("/embed/mine", requireAuth, async (req: Request, res: Respons
         shop_handle: shopHandleById.get(p.shop_id)!,
       }));
   }
-  const tip = getPublicTipPageByUserId(userId);
+  const tip = await getPublicTipPageByUserId(userId);
   const live = profile ? await getEmbedLive(profile.slug) : null;
   /* Classic-embed inventory (Stack1000 M2): the desk's track / video /
      playlist widgets wear the creator's OWN published media — the same

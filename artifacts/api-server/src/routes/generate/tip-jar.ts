@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
-import { db, creatorProfilesTable, tipJarTipsTable, liveStreamTipsTable, worldStageTipsTable } from "@workspace/db";
+import { db, creatorProfilesTable, tipJarTipsTable, tipPagesTable, liveStreamTipsTable, worldStageTipsTable } from "@workspace/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -27,9 +27,15 @@ import {
    "completed". The public page says so plainly, and the API enforces it:
    every recorded tip has status "pending_payment" forever.
 
-   Storage: server-owned in-memory maps (same pattern as the caption styler
-   and other v1 tools). NOT restart-safe — move to DB-backed storage before
-   real payments ship.
+   Storage: tip INTENTS stay in server-owned in-memory maps (they are
+   no-charge records by design). The tip PAGE settings moved to the
+   durable tip_pages table (0316, stack1300): the in-memory maps below
+   are now a read-through CACHE only. They were the store of record
+   until then, and Gate #5 (Nov 2) proved what that costs — an
+   env-save redeploy restarted the staging service and every tip page
+   on the site vanished ("Tip page not found") while the paid tips in
+   tip_jar_tips survived. A restart or cache eviction now costs a
+   re-read, never the page.
 
    REAL CHECKOUT (0142, DE-14): alongside the intent flow, POST
    /tips/:handle/checkout records a durable tip_jar_tips row and opens a
@@ -334,14 +340,22 @@ export function sumTipIntents(intents: TipIntent[]): { total: number; count: num
   return { total, count, average: count === 0 ? 0 : Math.round((total / count) * 100) / 100 };
 }
 
-/* Server-owned in-memory stores. Keyed by userId (settings) and id (intents). */
+/* ─── Tip page store: tip_pages (DB) is the record, memory is cache ──
+   The maps below are a read-through CACHE of the durable tip_pages
+   rows, keyed by userId (settings) and handle → userId. Every read
+   goes through loadTipPageSettings / loadTipPageOwnerByHandle, which
+   hydrate the cache from the DB on a miss; every save goes through
+   persistTipPageSettings, which writes the DB row first. A process
+   restart (or the cache eviction below) therefore costs a re-read,
+   never the page — the pre-0316 shape, where these maps WERE the
+   record, is the vanishing-jar defect (Gate #5, Nov 2). */
 const tipPages = new Map<string, TipPageSettings>();
 const tipPagesByHandle = new Map<string, string>(); // handle -> userId
 
-/* OOM fix (2026-10-25): tipPages is the store of record for tip-page
- * settings, so it is never TTL-swept (evicting on age would delete a
- * live page) — but it still needs a hard bound. Beyond the cap, the
- * least-recently-updated pages are evicted, handle index included. */
+/* OOM bound (2026-10-25): the cache still needs a hard bound. Beyond
+ * the cap, the least-recently-updated pages are evicted, handle index
+ * included — safe now that eviction only drops the cache copy; the
+ * durable row rehydrates on the next read. */
 const TIP_PAGES_MAX_ENTRIES = 10_000;
 
 function evictTipPagesBeyondCap(): void {
@@ -357,6 +371,104 @@ function evictTipPagesBeyondCap(): void {
     }
   }
 }
+
+type TipPageRow = typeof tipPagesTable.$inferSelect;
+
+function isoOf(v: Date | string): string {
+  return v instanceof Date ? v.toISOString() : new Date(v).toISOString();
+}
+
+function settingsFromRow(row: TipPageRow): TipPageSettings {
+  return {
+    userId: row.user_id,
+    handle: row.handle,
+    displayName: row.display_name,
+    message: row.message,
+    suggestedAmounts: Array.isArray(row.suggested_amounts) ? row.suggested_amounts : [],
+    goalAmount: row.goal_amount ?? null,
+    goalLabel: row.goal_label ?? "",
+    fundingGoal: row.funding_goal ?? null,
+    goalHistory: Array.isArray(row.goal_history) ? row.goal_history : [],
+    createdAt: isoOf(row.created_at),
+    updatedAt: isoOf(row.updated_at),
+  };
+}
+
+function cacheTipPage(settings: TipPageSettings): void {
+  tipPages.set(settings.userId, settings);
+  tipPagesByHandle.set(settings.handle, settings.userId);
+  evictTipPagesBeyondCap();
+}
+
+async function readTipPageRowByUser(userId: string): Promise<TipPageRow | null> {
+  const [row] = await db
+    .select()
+    .from(tipPagesTable)
+    .where(eq(tipPagesTable.user_id, userId))
+    .limit(1);
+  return row ?? null;
+}
+
+async function readTipPageRowByHandle(handle: string): Promise<TipPageRow | null> {
+  const [row] = await db
+    .select()
+    .from(tipPagesTable)
+    .where(eq(tipPagesTable.handle, handle))
+    .limit(1);
+  return row ?? null;
+}
+
+/** The owner's tip page settings: cache first, durable row on a miss
+    (the read that makes a jar survive a restart). Null = no jar. */
+export async function loadTipPageSettings(userId: string): Promise<TipPageSettings | null> {
+  const cached = tipPages.get(userId);
+  if (cached) return cached;
+  const row = await readTipPageRowByUser(userId);
+  if (!row) return null;
+  const settings = settingsFromRow(row);
+  cacheTipPage(settings);
+  return settings;
+}
+
+/** Resolve a tip HANDLE to its owner: cache first, durable row on a
+    miss. Undefined = the handle names no jar. */
+async function loadTipPageOwnerByHandle(handle: string): Promise<string | undefined> {
+  const cached = tipPagesByHandle.get(handle);
+  if (cached) return cached;
+  const row = await readTipPageRowByHandle(handle);
+  if (!row) return undefined;
+  cacheTipPage(settingsFromRow(row));
+  return row.user_id;
+}
+
+/** Write settings to the store of record, then refresh the cache.
+    Throws on a DB failure: a save that cannot persist must fail
+    honestly — a jar that lives only in this process's memory is the
+    exact defect this layer exists to end. */
+async function persistTipPageSettings(settings: TipPageSettings): Promise<void> {
+  const values = {
+    user_id: settings.userId,
+    handle: settings.handle,
+    display_name: settings.displayName,
+    message: settings.message,
+    suggested_amounts: settings.suggestedAmounts,
+    goal_amount: settings.goalAmount,
+    goal_label: settings.goalLabel,
+    funding_goal: settings.fundingGoal,
+    goal_history: settings.goalHistory,
+    created_at: new Date(settings.createdAt),
+    updated_at: new Date(settings.updatedAt),
+  };
+  const existing = await readTipPageRowByUser(settings.userId);
+  if (existing) {
+    const { created_at: _kept, ...patch } = values;
+    await db.update(tipPagesTable).set(patch).where(eq(tipPagesTable.user_id, settings.userId));
+  } else {
+    await db.insert(tipPagesTable).values(values);
+  }
+  cacheTipPage(settings);
+}
+
 const tipIntents = new Map<string, TipIntent>();
 
 /** Pending tip-jar intents for one creator (Stack 8 #5 earnings view).
@@ -368,10 +480,50 @@ export function tipJarPendingForUser(userId: string): { totalCents: number; coun
   return { totalCents: Math.round(total * 100), count };
 }
 
+/** Clear the IN-MEMORY state (settings cache + intents). Durable
+    tip_pages / tip_jar_tips rows are untouched — clearing the cache
+    is exactly a process restart, and the durability pins rely on
+    that equivalence. */
 export function __resetTipJarStores() {
   tipPages.clear();
   tipPagesByHandle.clear();
   tipIntents.clear();
+}
+
+/** The durable PAID tip rows for one page owner — the settled record.
+    Every totals surface (creator dashboard, public page counter)
+    derives from THESE rows and nothing else, so the numbers a fan
+    sees on /tips/:handle are the numbers the creator sees on /tips.
+    (The public page used to sum the in-memory intent map instead:
+    real checkouts never write intents, so the public counter read
+    0 tips / $0.00 forever — Gate #5, Nov 2.) */
+async function selectPaidTipRows(userId: string): Promise<TipRow[]> {
+  return db
+    .select()
+    .from(tipJarTipsTable)
+    .where(
+      and(
+        eq(tipJarTipsTable.page_user_id, userId),
+        eq(tipJarTipsTable.status, TIP_STATUS_PAID),
+      ),
+    )
+    .limit(500);
+}
+
+/** Totals math over settled rows — the ONE derivation both totals
+    readers share. Amounts ride integer cents end to end. */
+export function statsFromPaidRows(rows: Array<{ amount_cents: number }>): {
+  total: number;
+  count: number;
+  average: number;
+} {
+  const paidCents = rows.reduce((s, r) => s + r.amount_cents, 0);
+  const count = rows.length;
+  return {
+    total: Math.round(paidCents) / 100,
+    count,
+    average: count === 0 ? 0 : Math.round(paidCents / count) / 100,
+  };
 }
 
 /** All durable tip rows for one page owner (any status — the progress
@@ -471,8 +623,8 @@ setInterval(() => {
 const router = Router();
 
 /* GET /api/tips/settings → my tip page settings (or 404 if not set up). Auth. */
-router.get("/tips/settings", requireAuth, publicApiLimiter, (req, res) => {
-  const settings = tipPages.get(req.userId!);
+router.get("/tips/settings", requireAuth, publicApiLimiter, async (req, res) => {
+  const settings = await loadTipPageSettings(req.userId!);
   if (!settings) {
     res.status(404).json({ error: "Tip page not set up yet." });
     return;
@@ -493,21 +645,23 @@ router.post("/tips/settings", requireAuth, publicApiLimiter, async (req, res) =>
   }
   const { handle, displayName, message, suggestedAmounts, goalAmount, goalLabel } = parsed.data;
 
-  const existingOwner = tipPagesByHandle.get(handle);
+  /* The handle check reads the durable store too — a handle claimed
+     before a restart is still taken after it. */
+  const existingOwner = await loadTipPageOwnerByHandle(handle);
   if (existingOwner && existingOwner !== req.userId) {
     res.status(409).json({ error: "That handle is already taken — pick another." });
     return;
   }
 
   const now = new Date().toISOString();
-  const prev = tipPages.get(req.userId!);
+  const prev = await loadTipPageSettings(req.userId!);
   if (prev && prev.handle !== handle) tipPagesByHandle.delete(prev.handle);
 
   /* The goal fields ride the same save: run them through the funding
      goal lifecycle so a save can start / edit / archive / clear the
      goal without resetting its progress basis. */
   const goalState = await transitionFundingGoal(
-    prev,
+    prev ?? undefined,
     { targetAmount: goalAmount, label: goalLabel },
     now,
   );
@@ -525,9 +679,13 @@ router.post("/tips/settings", requireAuth, publicApiLimiter, async (req, res) =>
     createdAt: prev?.createdAt ?? now,
     updatedAt: now,
   };
-  tipPages.set(req.userId!, settings);
-  tipPagesByHandle.set(handle, req.userId!);
-  evictTipPagesBeyondCap();
+  try {
+    await persistTipPageSettings(settings);
+  } catch (err) {
+    logger.error({ err, userId: req.userId, handle }, "[tip-jar] tip page save failed to persist");
+    res.status(500).json({ error: "Couldn't save your tip page — try again." });
+    return;
+  }
   logger.info({ userId: req.userId, handle }, "[tip-jar] tip page saved");
   res.json({ settings, paymentsLive: false });
 });
@@ -536,7 +694,7 @@ router.post("/tips/settings", requireAuth, publicApiLimiter, async (req, res) =>
    funding goal. Auth. Owner-scoped by construction: the handler only
    ever touches the caller's own tip page. */
 router.post("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
-  const settings = tipPages.get(req.userId!);
+  const settings = await loadTipPageSettings(req.userId!);
   if (!settings) {
     res.status(404).json({ error: "Set up your tip page first, then add a funding goal." });
     return;
@@ -563,14 +721,14 @@ router.post("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
     goalHistory: goalState.goalHistory,
     updatedAt: now,
   };
-  tipPages.set(req.userId!, updated);
+  await persistTipPageSettings(updated);
   res.json({ goal: await fundingGoalView(updated), goalHistory: updated.goalHistory });
 });
 
 /* DELETE /api/tips/goal → remove MY active funding goal. Auth. A
    reached goal is archived to the history, never silently erased. */
 router.delete("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
-  const settings = tipPages.get(req.userId!);
+  const settings = await loadTipPageSettings(req.userId!);
   if (!settings) {
     res.status(404).json({ error: "Tip page not set up yet." });
     return;
@@ -589,7 +747,7 @@ router.delete("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
     goalHistory: goalState.goalHistory,
     updatedAt: now,
   };
-  tipPages.set(req.userId!, updated);
+  await persistTipPageSettings(updated);
   res.json({ goal: null, goalHistory: updated.goalHistory });
 });
 
@@ -605,7 +763,7 @@ router.delete("/tips/goal", requireAuth, publicApiLimiter, async (req, res) => {
  * Returns undefined when neither namespace resolves to a tip page.
  */
 async function resolveTipPageOwnerId(value: string): Promise<string | undefined> {
-  const byHandle = tipPagesByHandle.get(value);
+  const byHandle = await loadTipPageOwnerByHandle(value);
   if (byHandle) return byHandle;
   const profiles = await db
     .select({ userId: creatorProfilesTable.userId })
@@ -613,7 +771,7 @@ async function resolveTipPageOwnerId(value: string): Promise<string | undefined>
     .where(eq(creatorProfilesTable.slug, value))
     .limit(1);
   const userId = profiles[0]?.userId;
-  if (userId && tipPages.has(userId)) return userId;
+  if (userId && (await loadTipPageSettings(userId))) return userId;
   return undefined;
 }
 
@@ -648,13 +806,13 @@ export async function getPublicTipPageByHandleOrSlug(
 ): Promise<PublicTipPageView | null> {
   const ownerId = await resolveTipPageOwnerId(value.toLowerCase());
   if (!ownerId) return null;
-  const settings = tipPages.get(ownerId);
+  const settings = await loadTipPageSettings(ownerId);
   return settings ? publicTipPageView(settings) : null;
 }
 
 /** The signed-in owner's own tip page, for the widgets desk inventory. */
-export function getPublicTipPageByUserId(userId: string): PublicTipPageView | null {
-  const settings = tipPages.get(userId);
+export async function getPublicTipPageByUserId(userId: string): Promise<PublicTipPageView | null> {
+  const settings = await loadTipPageSettings(userId);
   return settings ? publicTipPageView(settings) : null;
 }
 
@@ -670,12 +828,28 @@ router.get("/tips/page/:handle", publicApiLimiter, async (req, res) => {
     res.status(404).json({ error: "Tip page not found." });
     return;
   }
-  const settings = tipPages.get(ownerId)!;
-  const intents = [...tipIntents.values()].filter((t) => t.pageUserId === ownerId);
-  const stats = sumTipIntents(intents);
-  /* Goal progress is derived from PAID tips only (0142 rows) — the
-     intent totals above stay what they are (recorded intent), but
-     they no longer feed the goal bar. */
+  const settings = await loadTipPageSettings(ownerId);
+  if (!settings) {
+    res.status(404).json({ error: "Tip page not found." });
+    return;
+  }
+  /* The public counter reads the SAME settled record the creator's
+     dashboard reads — durable paid tip_jar_tips rows, via the one
+     shared derivation. It used to sum the in-memory intent map:
+     real checkouts never write intents, so the counter read
+     "0 tips so far · $0.00 total" forever, even with paid tips on
+     the page (Gate #5, Nov 2). A failed read answers an honest 500
+     (the page's load-error state), never a fabricated zero. */
+  let paidStats: { total: number; count: number; average: number };
+  try {
+    paidStats = statsFromPaidRows(await selectPaidTipRows(ownerId));
+  } catch (err) {
+    logger.error({ err, handle }, "[tip-jar] public page paid-tip read failed");
+    res.status(500).json({ error: "Couldn't load that tip page." });
+    return;
+  }
+  const stats = paidStats;
+  /* Goal progress is derived from PAID tips only (0142 rows). */
   const goal = await fundingGoalView(settings);
   res.json({
     page: {
@@ -713,7 +887,11 @@ router.get("/tips/jar/:handle", publicApiLimiter, async (req, res) => {
     res.status(404).json({ error: "Tip jar not found." });
     return;
   }
-  const settings = tipPages.get(ownerId)!;
+  const settings = await loadTipPageSettings(ownerId);
+  if (!settings) {
+    res.status(404).json({ error: "Tip jar not found." });
+    return;
+  }
   try {
     /* A generous per-rail window feeds both the totals and the feed;
        the feed itself caps at the lib's display limit. */
@@ -812,7 +990,12 @@ router.post("/tips/:handle/tip", publicApiLimiter, async (req, res) => {
     res.status(404).json({ error: "Tip page not found." });
     return;
   }
-  const pageHandle = tipPages.get(ownerId)!.handle;
+  const pageSettings = await loadTipPageSettings(ownerId);
+  if (!pageSettings) {
+    res.status(404).json({ error: "Tip page not found." });
+    return;
+  }
+  const pageHandle = pageSettings.handle;
   const parsed = tipIntentSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -893,7 +1076,11 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
     res.status(404).json({ error: "Tip page not found." });
     return;
   }
-  const page = tipPages.get(ownerId)!;
+  const page = await loadTipPageSettings(ownerId);
+  if (!page) {
+    res.status(404).json({ error: "Tip page not found." });
+    return;
+  }
   const parsed = tipIntentSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -1137,7 +1324,7 @@ router.post("/tips/checkout/verify", publicApiLimiter, async (req, res) => {
 
 /* GET /api/tips/dashboard → my totals + tip feed. Auth. */
 router.get("/tips/dashboard", requireAuth, publicApiLimiter, async (req, res) => {
-  const settings = tipPages.get(req.userId!);
+  const settings = await loadTipPageSettings(req.userId!);
   /* TIP-TRUTH (stack1200): totals and the feed's paid entries derive
      from the DURABLE paid rows — the same rows the jar summary
      reads. The old read summed only in-memory intents, so a real
@@ -1150,25 +1337,12 @@ router.get("/tips/dashboard", requireAuth, publicApiLimiter, async (req, res) =>
      still renders. */
   let paidRows: TipRow[] = [];
   try {
-    paidRows = await db
-      .select()
-      .from(tipJarTipsTable)
-      .where(
-        and(
-          eq(tipJarTipsTable.page_user_id, req.userId!),
-          eq(tipJarTipsTable.status, TIP_STATUS_PAID),
-        ),
-      )
-      .limit(500);
+    paidRows = await selectPaidTipRows(req.userId!);
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[tip-jar] dashboard paid-tip read failed");
   }
-  const paidCents = paidRows.reduce((s, r) => s + r.amount_cents, 0);
-  const stats = {
-    total: Math.round(paidCents) / 100,
-    count: paidRows.length,
-    average: paidRows.length === 0 ? 0 : Math.round(paidCents / paidRows.length) / 100,
-  };
+  /* The same derivation the public page counter uses — one truth. */
+  const stats = statsFromPaidRows(paidRows);
   const paidFeed = paidRows.map((r) => {
     const when = r.paid_at ?? r.created_at;
     return {
