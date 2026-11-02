@@ -601,23 +601,33 @@ describe("row8 item 4 — verify/webhook race idempotency", () => {
     return { productId, sessionId: r.json.sessionId as string };
   }
 
-  it("webhook delivered TWICE before verify, then verify TWICE: one order, webhook writes nothing", async () => {
+  it("webhook delivered TWICE before verify settles it, then verify TWICE: one order", async () => {
     const { sessionId } = await checkoutDigital();
     const session = paidSession(sessionId, 500);
 
+    /* WEBHOOK-SETTLE (stack1200): the webhook now has a storefront
+       branch — the first delivery settles the order through
+       verify's own settle, the replay is a no-op. (This test used
+       to pin the defect itself: "webhook writes nothing", the
+       credit-pack fall-through. The race invariant it exists for —
+       exactly one order across every delivery order — is unchanged
+       and now holds with the webhook as a writer too.) */
     for (let i = 0; i < 2; i++) {
       const res = await deliverCompleted(session);
       expect(res.statusCode).toBe(200);
-      /* The webhook has no storefront branch: it acknowledges and
-         records nothing (credit-pack fall-through, missing user_id). */
-      expect(res.body).toMatchObject({ received: true, warning: "Missing user_id in metadata" });
-      expect(await orderCount()).toBe(0);
+      expect(res.body).toMatchObject({ received: true, kind: "storefront_purchase" });
+      expect(await orderCount()).toBe(1);
     }
+    const recorded = await h.db.execute(sql`SELECT id FROM store_orders`);
+    const recordedOrderId = (recorded.rows[0] as any).id as string;
 
     h.session = session;
     const v1 = await req("POST", "/storefront/verify", { sessionId });
     expect(v1.status).toBe(200);
-    expect(v1.json.duplicate).toBe(false);
+    /* The webhook already settled it: verify reads the same order
+       back as a duplicate. */
+    expect(v1.json.duplicate).toBe(true);
+    expect(v1.json.order.id).toBe(recordedOrderId);
     const v2 = await req("POST", "/storefront/verify", { sessionId });
     expect(v2.status).toBe(200);
     expect(v2.json.duplicate).toBe(true);
@@ -665,7 +675,11 @@ describe("row8 item 4 — verify/webhook race idempotency", () => {
     expect(w1.statusCode).toBe(200);
     const v1 = await req("POST", "/storefront/verify", { sessionId });
     expect(v1.status).toBe(200);
-    expect(v1.json.duplicate).toBe(false);
+    /* WEBHOOK-SETTLE (stack1200): the first webhook delivery now
+       settles the ticket order itself, so verify reads it back as
+       a duplicate — the entitlement totals below are the invariant
+       (one order, ONE rsvp) and they are unchanged. */
+    expect(v1.json.duplicate).toBe(true);
     const w2 = await deliverCompleted(session);
     expect(w2.statusCode).toBe(200);
     const v2 = await req("POST", "/storefront/verify", { sessionId });

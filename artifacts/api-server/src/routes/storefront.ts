@@ -2909,42 +2909,56 @@ async function mintDeliveryToken(orderId: string, fileUrl: string) {
   return { token, expiresAt };
 }
 
-router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = VerifySchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "sessionId is required" });
-    return;
-  }
-  const { sessionId } = parsed.data;
+/* ─── Storefront settle (WEBHOOK-SETTLE, stack1200) ───────────────────
+   ONE settle path takes a paid storefront session to a recorded
+   order. Both completion paths run through it: the buyer's
+   return-verify (below) and the Stripe webhook (stripe-webhook.ts,
+   keyed on metadata type "storefront_purchase"). Before the
+   webhook door existed, verify was the ONLY path — the webhook
+   had no branch for these sessions (its expired-session handling
+   only recorded abandoned checkouts), so a paid order fell through
+   the dispatch to the credit-grant tail's "missing user_id"
+   warning, and a buyer who closed the tab after paying had no
+   order recorded: no delivery, no download token, no seller tell,
+   no co-seller splits. Exactly-once is the stripe_session_id
+   UNIQUE index + the existing-order read-back at the top of the
+   settle: a replayed delivery returns the recorded order with no
+   new side effects. Amounts, splits and delivery are unchanged —
+   the settle returns the very { status, body } verify always
+   answered. */
 
+export interface StorefrontSettleResult {
+  httpStatus: number;
+  body: Record<string, unknown>;
+}
+
+/** Settle a paid storefront checkout session. The caller asserts
+    the session is paid (verify asks Stripe; the webhook trusts the
+    signature-verified event) and names the buyer (verify: the
+    signed-in user; the webhook: the session metadata's buyer —
+    the ownership check below then trivially holds). */
+export async function settleStorefrontSession(
+  session: Stripe.Checkout.Session,
+  opts: { buyerUserId: string },
+): Promise<StorefrontSettleResult> {
+  const sessionId = session.id;
+  /* The post-purchase upsell below rides the Stripe client (saved-
+     card hint); verify used to build it in its prologue — the
+     settle builds it the same way, with verify's exact
+     not-configured answer. */
   let stripe: Stripe;
   try {
     stripe = getStripe();
   } catch {
-    res.status(500).json({ error: "Payments are not configured yet." });
-    return;
-  }
-
-  let session: Stripe.Checkout.Session;
-  try {
-    session = await stripe.checkout.sessions.retrieve(sessionId);
-  } catch {
-    res.status(400).json({ error: "Could not retrieve this checkout session." });
-    return;
-  }
-  if (session.payment_status !== "paid") {
-    res.status(400).json({ error: "Payment has not been completed." });
-    return;
+    return { httpStatus: 500, body: { error: "Payments are not configured yet." } };
   }
   const meta = session.metadata ?? {};
   if (meta["type"] !== "storefront_purchase") {
-    res.status(400).json({ error: "This session isn't a storefront purchase." });
-    return;
+    return { httpStatus: 400, body: { error: "This session isn't a storefront purchase." } };
   }
-  if (meta["buyer_user_id"] !== req.userId) {
-    logger.error({ sessionId, reqUserId: req.userId }, "[storefront] verify: buyer mismatch");
-    res.status(403).json({ error: "This purchase doesn't belong to you." });
-    return;
+  if (meta["buyer_user_id"] !== opts.buyerUserId) {
+    logger.error({ sessionId, reqUserId: opts.buyerUserId }, "[storefront] verify: buyer mismatch");
+    return { httpStatus: 403, body: { error: "This purchase doesn't belong to you." } };
   }
 
   const productId = meta["product_id"] ?? "";
@@ -2955,8 +2969,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
   const affiliateCode = meta["affiliate_code"] || null;
   const eventId = meta["event_id"] || null;
   if (!productId || !profileId) {
-    res.status(400).json({ error: "This session is missing its purchase details." });
-    return;
+    return { httpStatus: 400, body: { error: "This session is missing its purchase details." } };
   }
   /* Gift-card tender (feature #26): the session charged only the
      amount still due; the sale's gross is due + tender, and the fee
@@ -2978,8 +2991,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     bumpProductId &&
     (!Number.isInteger(bumpAmountCents) || bumpAmountCents <= 0 || bumpAmountCents >= amountCents)
   ) {
-    res.status(400).json({ error: "This session's add-on details don't add up." });
-    return;
+    return { httpStatus: 400, body: { error: "This session's add-on details don't add up." } };
   }
   const splits = splitOrderAmounts(amountCents, bumpAmountCents);
   const feeCents = splits.totalFeeCents;
@@ -3048,11 +3060,13 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           `);
           if (claimed.rows.length === 0) {
             logger.error({ sessionId, productId }, "[storefront] verify: booking inventory claim failed after payment");
-            res.status(409).json({
-              error: "SOLD_OUT_AFTER_PAYMENT",
-              message: "Payment went through but the item just sold out — contact the creator for a refund or restock.",
-            });
-            return;
+            return {
+              httpStatus: 409,
+              body: {
+                error: "SOLD_OUT_AFTER_PAYMENT",
+                message: "Payment went through but the item just sold out — contact the creator for a refund or restock.",
+              },
+            };
           }
         }
         const confirmed: BookingRecord = { ...heldRec, st: "confirmed" };
@@ -3141,11 +3155,13 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         `);
         if (claimed.rows.length === 0) {
           logger.error({ sessionId, productId }, "[storefront] verify: inventory claim failed after payment");
-          res.status(409).json({
-            error: "SOLD_OUT_AFTER_PAYMENT",
-            message: "Payment went through but the item just sold out — contact the creator for a refund or restock.",
-          });
-          return;
+          return {
+            httpStatus: 409,
+            body: {
+              error: "SOLD_OUT_AFTER_PAYMENT",
+              message: "Payment went through but the item just sold out — contact the creator for a refund or restock.",
+            },
+          };
         }
       }
 
@@ -3176,7 +3192,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
                creator_amount_cents, stripe_session_id, status, fulfillment_note,
                bump_product_id, bump_title, bump_amount_cents,
                bump_platform_fee_cents, bump_creator_amount_cents)
-            VALUES (${req.userId!}, ${profileId}, ${productId}, ${productTitle}, ${kind},
+            VALUES (${opts.buyerUserId}, ${profileId}, ${productId}, ${productTitle}, ${kind},
                     ${quantity}, ${amountCents}, ${discountCode}, ${feeCents},
                     ${creatorCents}, ${sessionId}, 'completed', NULL,
                     ${bumpProductId}, ${bumpTitle}, ${splits.bump.grossCents},
@@ -3189,7 +3205,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
               (buyer_user_id, profile_id, product_id, product_title, product_kind,
                quantity, amount_cents, discount_code, platform_fee_cents,
                creator_amount_cents, stripe_session_id, status, fulfillment_note)
-            VALUES (${req.userId!}, ${profileId}, ${productId}, ${productTitle}, ${kind},
+            VALUES (${opts.buyerUserId}, ${profileId}, ${productId}, ${productTitle}, ${kind},
                     ${quantity}, ${amountCents}, ${discountCode}, ${feeCents},
                     ${creatorCents}, ${sessionId}, 'completed', NULL)
             ON CONFLICT (stripe_session_id) DO NOTHING
@@ -3205,8 +3221,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           SELECT id FROM store_orders WHERE stripe_session_id = ${sessionId} LIMIT 1
         `);
         if (retry.rows.length === 0) {
-          res.status(500).json({ error: "Payment confirmed but the order couldn't be recorded. Contact support." });
-          return;
+          return { httpStatus: 500, body: { error: "Payment confirmed but the order couldn't be recorded. Contact support." } };
         }
         orderId = String((retry.rows[0] as Record<string, unknown>)["id"]);
         duplicate = true;
@@ -3261,7 +3276,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
             productId,
             productTitle,
             orderRef: sessionId,
-            buyerUserId: req.userId!,
+            buyerUserId: opts.buyerUserId,
             grossCents: amountCents,
             platformFeeCents: feeCents,
           });
@@ -3282,7 +3297,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           /* Worker 9 owns events — buying a ticket = an RSVP. */
           const rsvp = await db.execute(sql`
             INSERT INTO event_rsvps (event_id, user_id)
-            VALUES (${eventId}, ${req.userId!})
+            VALUES (${eventId}, ${opts.buyerUserId})
             ON CONFLICT DO NOTHING
             RETURNING event_id
           `);
@@ -3366,7 +3381,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
           } else if (bumpKind === "ticket" && bumpRow.event_id) {
             const rsvp = await db.execute(sql`
               INSERT INTO event_rsvps (event_id, user_id)
-              VALUES (${bumpRow.event_id}, ${req.userId!})
+              VALUES (${bumpRow.event_id}, ${opts.buyerUserId})
               ON CONFLICT DO NOTHING
               RETURNING event_id
             `);
@@ -3420,7 +3435,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
             orderId,
             productId,
             profileId,
-            buyerUserId: req.userId!,
+            buyerUserId: opts.buyerUserId,
             record: confirmedBooking,
           }).catch((e) => {
             logger.error({ err: e, orderId, sessionId }, "[storefront] verify: service_bookings place failed for metadata booking");
@@ -3528,7 +3543,7 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     try {
       const offer = await ensureUpsellOffer({
         orderId,
-        buyerUserId: req.userId!,
+        buyerUserId: opts.buyerUserId,
         profileId,
         productId,
         boughtBumpProductId: recordedBump?.productId ?? null,
@@ -3545,7 +3560,9 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
     }
 
     const p = await fetchProduct(productId, false);
-    res.json({
+    return {
+      httpStatus: 200,
+      body: {
       success: true,
       duplicate,
       upsell,
@@ -3588,11 +3605,42 @@ router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res
         purchasesEndpoint: "/api/storefront/orders/purchases",
       },
       note: "Real-money purchase via Stripe. This is not Visual Bucs (AI credits).",
-    });
+      },
+    };
   } catch (err) {
     logger.error({ err, sessionId }, "[storefront] verify failed");
-    res.status(500).json({ error: "Payment confirmed but the order couldn't be recorded. Contact support." });
+    return { httpStatus: 500, body: { error: "Payment confirmed but the order couldn't be recorded. Contact support." } };
   }
+}
+router.post("/storefront/verify", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = VerifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  const { sessionId } = parsed.data;
+
+  let stripe: Stripe;
+  try {
+    stripe = getStripe();
+  } catch {
+    res.status(500).json({ error: "Payments are not configured yet." });
+    return;
+  }
+
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    res.status(400).json({ error: "Payment has not been completed." });
+    return;
+  }
+  const result = await settleStorefrontSession(session, { buyerUserId: req.userId! });
+  res.status(result.httpStatus).json(result.body);
 });
 
 /* ═══════════ COMMERCE TRACKING PIXELS: settings (wave-4 #41) ════════

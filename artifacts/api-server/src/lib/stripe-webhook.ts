@@ -133,6 +133,196 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         }
         return;
       }
+      if (s.metadata?.type === "shoutout_request") {
+        /* Shoutouts (WEBHOOK-SETTLE, stack1200): before this branch
+           existed a paid shoutout session fell through the whole
+           dispatch to the credit-grant tail — which logged "missing
+           user_id in metadata" and answered 200 — so a paid request
+           settled ONLY if the fan's browser returned and the page
+           called verify. A fan who closed the tab left the request
+           in pending_payment forever: the fan paid, the creator was
+           never told, the shoutout was never owed. The settle runs
+           the same guarded flip as verify (exactly-once under
+           webhook replays and verify races) and fires the creator's
+           paid tell on the landed transition. A settle failure 500s
+           so Stripe retries; it must NOT fall through to the credit
+           logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "shoutout_request", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleShoutoutBySessionId } = await import("../routes/generate/shoutouts");
+          const settled = await settleShoutoutBySessionId(s.id);
+          if (!settled.found) {
+            logger.warn({ sessionId: s.id }, "Stripe webhook: shoutout_request session has no request row (checkout row missing or already cleaned up)");
+          }
+          res.status(200).json({ received: true, kind: "shoutout_request" });
+        } catch (shoutoutErr) {
+          logger.error({ err: shoutoutErr, sessionId: s.id }, "Stripe webhook: shoutout settle failed");
+          res.status(500).json({ error: "Shoutout settle failed, retry later" });
+        }
+        return;
+      }
+      if (s.metadata?.type === "gift_card_purchase") {
+        /* Gift cards (WEBHOOK-SETTLE, stack1200): before this branch
+           existed a paid gift-card session fell through the whole
+           dispatch to the credit-grant tail — which logged "missing
+           user_id in metadata" and answered 200 — so the card issued
+           ONLY if the buyer's browser returned and the page called
+           verify. A buyer who closed the tab after paying left the
+           recipient with nothing: no card, no code, no delivery
+           email, against money already taken. The settle runs the
+           same issuance claim as verify (exactly-once under webhook
+           replays and verify races) and sends the recipient's
+           delivery email on the landed issuance. A settle failure
+           500s so Stripe retries; it must NOT fall through to the
+           credit logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "gift_card_purchase", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleGiftCardBySession } = await import("../routes/gift-cards");
+          const settled = await settleGiftCardBySession(s, {
+            buyerUserId: s.metadata?.["buyer_user_id"] ?? "",
+          });
+          if (settled.outcome === "unavailable") {
+            logger.warn({ sessionId: s.id }, "Stripe webhook: gift-card settle deferred — gift card tables unavailable");
+          } else if (settled.outcome !== "issued" && settled.outcome !== "duplicate") {
+            logger.warn({ sessionId: s.id, outcome: settled.outcome }, "Stripe webhook: gift-card session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "gift_card_purchase" });
+        } catch (giftCardErr) {
+          logger.error({ err: giftCardErr, sessionId: s.id }, "Stripe webhook: gift card settle failed");
+          res.status(500).json({ error: "Gift card settle failed, retry later" });
+        }
+        return;
+      }
+      if (s.metadata?.purchase_kind === "membership") {
+        /* Fan memberships (WEBHOOK-SETTLE, stack1200): before this
+           branch existed a paid membership session (join, gift join,
+           past-due renewal — all stamp purchase_kind "membership")
+           fell through the whole dispatch to the credit-grant tail,
+           which logged "missing user_id in metadata" and answered
+           200 — so a join settled ONLY if the fan's browser returned
+           and the page called verify. A fan who closed the tab after
+           paying never became a member: money taken, no seat, no
+           creator tell. The settle is verify's own core
+           (settleMembershipSession), exactly-once via the session
+           read-back + stripe_session_id unique index. Business
+           rejections (tier deleted — already auto-refunded by the
+           settle; amount mismatch) are terminal: warned 200, never
+           retried into a different outcome. A 500-shaped settle
+           (recording failure) 500s so Stripe retries; nothing here
+           falls through to the credit logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "membership", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleMembershipSession } = await import("../routes/generate/memberships");
+          const settled = await settleMembershipSession(s, {
+            actingUserId: s.metadata?.["purchaser_user_id"] ?? "",
+            fanEmailFallback: null,
+          });
+          if (settled.httpStatus === 500) {
+            logger.error({ sessionId: s.id }, "Stripe webhook: membership settle failed");
+            res.status(500).json({ error: "Membership settle failed, retry later" });
+            return;
+          }
+          if (settled.httpStatus !== 200) {
+            logger.warn({ sessionId: s.id, httpStatus: settled.httpStatus }, "Stripe webhook: membership session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "membership" });
+        } catch (membershipErr) {
+          logger.error({ err: membershipErr, sessionId: s.id }, "Stripe webhook: membership settle failed");
+          res.status(500).json({ error: "Membership settle failed, retry later" });
+        }
+        return;
+      }
+      if (s.metadata?.purchase_kind === "beat_license") {
+        /* Beat licenses (WEBHOOK-SETTLE, stack1200): before this
+           branch existed a paid beat-license session fell through
+           the whole dispatch to the credit-grant tail, which logged
+           "missing user_id in metadata" and answered 200 — so the
+           license completed ONLY if the buyer's browser returned
+           and the page called /beats/licenses/verify. A producer
+           who closed the tab after paying kept a pending_payment
+           license forever: money taken, no download, no stems. The
+           settle is verify's own core (settleBeatLicenseSession),
+           exactly-once via the exclusive beat-row claim and the
+           status-guarded completion flip. Business rejections
+           (beat deleted — already auto-refunded by the settle;
+           amount mismatch; exclusive lost) are terminal: warned
+           200. A 500-shaped settle (recording failure) 500s so
+           Stripe retries; nothing here falls through to the credit
+           logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "beat_license", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleBeatLicenseSession } = await import("../routes/generate/beats");
+          const settled = await settleBeatLicenseSession(s, {
+            buyerUserId: s.metadata?.["buyer_user_id"] ?? "",
+          });
+          if (settled.httpStatus === 500) {
+            logger.error({ sessionId: s.id }, "Stripe webhook: beat license settle failed");
+            res.status(500).json({ error: "Beat license settle failed, retry later" });
+            return;
+          }
+          if (settled.httpStatus !== 200) {
+            logger.warn({ sessionId: s.id, httpStatus: settled.httpStatus }, "Stripe webhook: beat license session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "beat_license" });
+        } catch (beatErr) {
+          logger.error({ err: beatErr, sessionId: s.id }, "Stripe webhook: beat license settle failed");
+          res.status(500).json({ error: "Beat license settle failed, retry later" });
+        }
+        return;
+      }
+      if (s.metadata?.purchase_kind === "live_shop") {
+        /* Live shopping (WEBHOOK-SETTLE, stack1200): before this
+           branch existed a paid live-shop session fell through the
+           whole dispatch to the credit-grant tail, which logged
+           "missing user_id in metadata" and answered 200 — so the
+           sale recorded ONLY if the buyer's browser returned and
+           the page called /live-shopping/verify. A viewer who
+           closed the tab after paying was charged with no sale
+           recorded: no delivery record, no overlay alert. The
+           settle is verify's own core (settleLiveShopSession),
+           exactly-once via the stripe_session_id unique index +
+           read-back. Business rejections (product deleted —
+           already auto-refunded by the settle; amount mismatch;
+           Q150 stream ended, which auto-refunds an UNRECORDED
+           session) are terminal: warned 200. A 500-shaped settle
+           (recording failure) 500s so Stripe retries; nothing here
+           falls through to the credit logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "live_shop", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleLiveShopSession } = await import("../routes/live-shopping");
+          const settled = await settleLiveShopSession(s, {
+            buyerUserId: s.metadata?.["buyer_user_id"] ?? "",
+          });
+          if (settled.httpStatus === 500) {
+            logger.error({ sessionId: s.id }, "Stripe webhook: live shop settle failed");
+            res.status(500).json({ error: "Live shop settle failed, retry later" });
+            return;
+          }
+          if (settled.httpStatus !== 200) {
+            logger.warn({ sessionId: s.id, httpStatus: settled.httpStatus }, "Stripe webhook: live shop session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "live_shop" });
+        } catch (liveShopErr) {
+          logger.error({ err: liveShopErr, sessionId: s.id }, "Stripe webhook: live shop settle failed");
+          res.status(500).json({ error: "Live shop settle failed, retry later" });
+        }
+        return;
+      }
       if (s.metadata?.kind === "membership_gift") {
         /* Gift membership (payfix lane 9): a one-time payment granting
            the recipient a Pro/Elite window. Fulfillment claims on
@@ -506,7 +696,8 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   // refund:<sessionId>, exactly the key verify's inline refund uses,
   // so webhook-then-verify, verify-then-webhook, and webhook replays
   // can never double-refund. Deliverable items answer "not due" and
-  // fulfillment stays with verify, untouched.
+  // settle through verify's own core below (WEBHOOK-SETTLE,
+  // stack1200 — fulfillment no longer waits for the buyer's return).
   const storeMeta = session.metadata ?? {};
   if (storeMeta["buyer_user_id"] && storeMeta["profile_id"] && storeMeta["item_kind"] && storeMeta["item_id"]) {
     const itemKind = storeMeta["item_kind"];
@@ -515,7 +706,62 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       const { isStoreSessionAutoRefundDue } = await import("../routes/store");
       const refundDue = await isStoreSessionAutoRefundDue(session.id, itemKind, itemId);
       if (!refundDue) {
-        res.status(200).json({ received: true, kind: "digital_store" });
+        /* Deliverable purchase (WEBHOOK-SETTLE, stack1200): this
+           branch used to answer 200 here and leave fulfillment to
+           the buyer's verify return — a buyer who closed the tab
+           after paying got no sale recorded: no download link, no
+           license keys, no bundle grants, no seller tell. Now the
+           webhook settles through verify's own core
+           (settleDigitalStoreSession), exactly-once via the
+           digital_sales ON CONFLICT claim + read-back. The settle's
+           refunded-payment guard needs the charge witness, so the
+           session is re-retrieved WITH the
+           payment_intent.latest_charge expansion, exactly as
+           verify retrieves it; a retrieve failure 500s (Stripe
+           retries) rather than settling on a half-witnessed
+           session. Business rejections (buyer/amount/add-on
+           mismatches; the fully-refunded refusal) are terminal:
+           warned 200. A 500-shaped settle 500s for retry. */
+        try {
+          /* A sale already recorded (verify won the race, or a
+             replay) never re-enters the settle: the settle
+             re-resolves the item BEFORE its duplicate read-back,
+             so a delivered purchase whose item was since deleted
+             would be refunded by the settle's undeliverable path —
+             the stack900 "never refund a delivered purchase"
+             invariant, enforced here the same way the probe
+             enforces it on the refund side. */
+          const { storeSessionSaleExists } = await import("../routes/store");
+          if (await storeSessionSaleExists(session.id)) {
+            res.status(200).json({ received: true, kind: "digital_store", duplicate: true });
+            return;
+          }
+          const expanded = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ["payment_intent.latest_charge"],
+          });
+          if (expanded.payment_status !== "paid") {
+            res.status(200).json({ received: true, kind: "digital_store", warning: "session not paid" });
+            return;
+          }
+          const { settleDigitalStoreSession } = await import("../routes/store");
+          const settled = await settleDigitalStoreSession(expanded, {
+            userId: storeMeta["buyer_user_id"],
+            email: null,
+          });
+          if (settled.httpStatus === 500) {
+            logger.error({ sessionId: session.id }, "Stripe webhook: digital store settle failed");
+            res.status(500).json({ error: "Digital store settle failed, retry later" });
+            return;
+          }
+          if (settled.httpStatus !== 200) {
+            logger.warn({ sessionId: session.id, httpStatus: settled.httpStatus }, "Stripe webhook: digital store session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "digital_store" });
+        } catch (storeSettleErr: unknown) {
+          const msg = (storeSettleErr as { message?: string })?.message ?? "unknown";
+          logger.error({ err: storeSettleErr, msg, sessionId: session.id }, "Stripe webhook: digital store settle failed");
+          res.status(500).json({ error: "Digital store settle failed, retry later" });
+        }
         return;
       }
       const { refundCheckoutSessionPayment } = await import("./stripe-checkout");
@@ -577,6 +823,52 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       const msg = (err as { message?: string })?.message ?? "unknown";
       logger.error({ err, msg, sessionId: session.id }, "Stripe webhook: store auto-refund probe failed — no refund fired");
       res.status(200).json({ received: true, kind: "digital_store", warning: "auto-refund probe failed" });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── STOREFRONT SETTLE (WEBHOOK-SETTLE, stack1200) ────────────────
+  // Storefront sessions (routes/storefront.ts checkout stamps
+  // metadata type "storefront_purchase" + product_id; digital-store
+  // sessions never match — they were handled by the branch above)
+  // used to fall through this dispatch untouched: the order recorded
+  // ONLY if the buyer's browser returned and the page called
+  // /storefront/verify. A buyer who closed the tab after paying had
+  // no order recorded — no delivery, no download token, no seller
+  // tell, no co-seller splits. Now the webhook runs verify's own
+  // settle (settleStorefrontSession), exactly-once via the
+  // stripe_session_id UNIQUE index + the existing-order read-back:
+  // a replayed delivery returns the recorded order with no new side
+  // effects. Business rejections (buyer/amount/add-on mismatches)
+  // are terminal: warned 200. The SOLD_OUT 409 is likewise terminal
+  // here — its buyer-facing refund/restock conversation belongs to
+  // the buyer's own verify return, and Stripe retries cannot restock
+  // an item. A 500-shaped settle (recording failure) 500s so Stripe
+  // retries; nothing here falls through to the credit logic.
+  if (session.metadata?.["type"] === "storefront_purchase") {
+    if (session.payment_status !== "paid") {
+      res.status(200).json({ received: true, kind: "storefront_purchase", warning: "session not paid" });
+      return;
+    }
+    try {
+      const { settleStorefrontSession } = await import("../routes/storefront");
+      const settled = await settleStorefrontSession(session, {
+        buyerUserId: session.metadata?.["buyer_user_id"] ?? "",
+      });
+      if (settled.httpStatus === 500) {
+        logger.error({ sessionId: session.id }, "Stripe webhook: storefront settle failed");
+        res.status(500).json({ error: "Storefront settle failed, retry later" });
+        return;
+      }
+      if (settled.httpStatus !== 200) {
+        logger.warn({ sessionId: session.id, httpStatus: settled.httpStatus }, "Stripe webhook: storefront session did not settle");
+      }
+      res.status(200).json({ received: true, kind: "storefront_purchase" });
+    } catch (storefrontErr: unknown) {
+      const msg = (storefrontErr as { message?: string })?.message ?? "unknown";
+      logger.error({ err: storefrontErr, msg, sessionId: session.id }, "Stripe webhook: storefront settle failed");
+      res.status(500).json({ error: "Storefront settle failed, retry later" });
     }
     return;
   }

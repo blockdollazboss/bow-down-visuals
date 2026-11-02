@@ -1043,37 +1043,46 @@ router.post("/memberships/checkout", requireAuth, publicApiLimiter, async (req, 
   }
 });
 
-/* POST /api/memberships/verify — the ONLY path from paid checkout to an
-   active membership. Idempotent on the session id (unique index +
-   read-back), and the session total must match the tier's computed
-   charge for the period — a tampered or stale session never activates. */
-router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = verifySchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "sessionId is required" });
-    return;
-  }
-  const { sessionId } = parsed.data;
+/* ─── Membership settle (WEBHOOK-SETTLE, stack1200) ───────────────────
+   ONE settle path takes a paid membership session to an active
+   membership. Both completion paths run through it: the fan's
+   return-verify (below) and the Stripe webhook (stripe-webhook.ts,
+   keyed on purchase_kind "membership"). Before the webhook door
+   existed, verify was the ONLY path — the webhook had no branch for
+   these sessions, so a paid join fell through the dispatch to the
+   credit-grant tail's "missing user_id" warning, and a fan who
+   closed the tab after paying never became a member: money taken,
+   no seat, no creator tell. Exactly-once is the session read-back +
+   the stripe_session_id unique index: a webhook/verify race's loser
+   reads the winner's row back as a duplicate (or throws on the
+   unique index into the 500 shape, whose Stripe retry then reads
+   the row back). Amounts, periods and gift handling are unchanged —
+   the settle returns the very { status, body } verify always
+   answered, so both doors speak identically. */
 
-  let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
-  try {
-    session = await retrieveCheckoutSession(sessionId);
-  } catch {
-    res.status(400).json({ error: "Could not retrieve this checkout session." });
-    return;
-  }
-  if (session.payment_status !== "paid") {
-    res.status(400).json({ error: "Payment has not been completed." });
-    return;
-  }
+export interface MembershipSettleResult {
+  httpStatus: number;
+  body: Record<string, unknown>;
+}
+
+/** Settle a paid membership checkout session (the join, gift join
+    and past-due update-payment renewal all stamp the same
+    purchase_kind). The caller asserts the session is paid (verify
+    asks Stripe; the webhook trusts the signature-verified event)
+    and names the acting user (verify: the signed-in purchaser; the
+    webhook: the session metadata's purchaser — the ownership check
+    below then trivially holds). */
+export async function settleMembershipSession(
+  session: Awaited<ReturnType<typeof retrieveCheckoutSession>>,
+  opts: { actingUserId: string; fanEmailFallback?: string | null },
+): Promise<MembershipSettleResult> {
+  const sessionId = session.id;
   const meta = session.metadata ?? {};
   if (meta["purchase_kind"] !== "membership" || !meta["tier_id"] || !meta["fan_user_id"]) {
-    res.status(400).json({ error: "This session isn't a membership purchase." });
-    return;
+    return { httpStatus: 400, body: { error: "This session isn't a membership purchase." } };
   }
-  if (meta["purchaser_user_id"] !== req.userId) {
-    res.status(403).json({ error: "This purchase doesn't belong to you." });
-    return;
+  if (meta["purchaser_user_id"] !== opts.actingUserId) {
+    return { httpStatus: 403, body: { error: "This purchase doesn't belong to you." } };
   }
   const tierId = meta["tier_id"];
   const fanUserId = meta["fan_user_id"];
@@ -1088,13 +1097,15 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
        landed. */
     const refunded = await refundCheckoutSessionPayment(session);
     logger.error({ sessionId, refunded }, "[memberships] verify: tier deleted after payment");
-    res.status(400).json({
-      error: refunded
-        ? "The tier for this purchase no longer exists — your payment has been refunded in full."
-        : "The tier for this purchase no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
-      refunded,
-    });
-    return;
+    return {
+      httpStatus: 400,
+      body: {
+        error: refunded
+          ? "The tier for this purchase no longer exists — your payment has been refunded in full."
+          : "The tier for this purchase no longer exists. Your payment couldn't be refunded automatically — contact support and we'll make it right.",
+        refunded,
+      },
+    };
   }
   const amountCents = session.amount_total ?? 0;
   /* Verify against the CHECKOUT-LOCKED amount (Lane V3 F4): the
@@ -1107,8 +1118,7 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
     Number.isFinite(lockedCents) && lockedCents > 0 ? lockedCents : checkoutChargeCents(tier, billingPeriod);
   if (amountCents !== expectedCents) {
     logger.error({ sessionId, amountCents, expectedCents }, "[memberships] verify: amount mismatch");
-    res.status(400).json({ error: "The paid amount doesn't match this tier's price." });
-    return;
+    return { httpStatus: 400, body: { error: "The paid amount doesn't match this tier's price." } };
   }
 
   try {
@@ -1119,8 +1129,7 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
       .where(eq(fanMembersTable.stripe_session_id, sessionId))
       .limit(1);
     if (bySession[0]) {
-      res.json({ success: true, duplicate: true, membership: toMemberJson(bySession[0], tier.name) });
-      return;
+      return { httpStatus: 200, body: { success: true, duplicate: true, membership: toMemberJson(bySession[0], tier.name) } };
     }
 
     const now = new Date();
@@ -1133,7 +1142,7 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
          gifts the same tier to two different fans. */
       fan_label: isGift
         ? `fan:${fanUserId}`
-        : (session.customer_details?.email ?? req.userEmail ?? `fan:${fanUserId}`),
+        : (session.customer_details?.email ?? opts.fanEmailFallback ?? `fan:${fanUserId}`),
       fan_user_id: fanUserId,
       status: "active" as const,
       price_cents: amountCents,
@@ -1148,7 +1157,7 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
       stripe_session_id: sessionId,
       external_ref: sessionId,
       is_gift: isGift,
-      gifted_by_user_id: isGift ? req.userId! : null,
+      gifted_by_user_id: isGift ? opts.actingUserId : null,
       canceled_at: null,
       updated_at: now,
     };
@@ -1194,11 +1203,42 @@ router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, re
         .where(eq(fanMembershipGiftsTable.stripe_session_id, sessionId));
     }
     logger.info({ sessionId, memberId: member.id, amountCents }, "[memberships] membership activated");
-    res.json({ success: true, duplicate: false, membership: toMemberJson(member, tier.name) });
+    return { httpStatus: 200, body: { success: true, duplicate: false, membership: toMemberJson(member, tier.name) } };
   } catch (err) {
     logger.error({ err, sessionId }, "[memberships] verify failed");
-    res.status(500).json({ error: "Payment confirmed but the membership couldn't be recorded. Contact support." });
+    return { httpStatus: 500, body: { error: "Payment confirmed but the membership couldn't be recorded. Contact support." } };
   }
+}
+/* POST /api/memberships/verify — the fan's return path from paid
+   checkout to an active membership; the Stripe webhook settles the
+   same session through the same settle when the fan never returns.
+   Idempotent on the session id (unique index + read-back), and the
+   session total must match the tier's computed charge for the
+   period — a tampered or stale session never activates. */
+router.post("/memberships/verify", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = verifySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+  const { sessionId } = parsed.data;
+
+  let session: Awaited<ReturnType<typeof retrieveCheckoutSession>>;
+  try {
+    session = await retrieveCheckoutSession(sessionId);
+  } catch {
+    res.status(400).json({ error: "Could not retrieve this checkout session." });
+    return;
+  }
+  if (session.payment_status !== "paid") {
+    res.status(400).json({ error: "Payment has not been completed." });
+    return;
+  }
+  const result = await settleMembershipSession(session, {
+    actingUserId: req.userId!,
+    fanEmailFallback: req.userEmail,
+  });
+  res.status(result.httpStatus).json(result.body);
 });
 
 /* POST /api/memberships/join-trial — start the 7-day free trial.
