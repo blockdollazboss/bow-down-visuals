@@ -527,6 +527,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                   onChange={(e) => setBuyerEmail(e.target.value)}
                   type="email"
                   placeholder="Email for your receipt (optional)"
+                  aria-label="Email for your receipt (optional)"
                   className={inputCls(isLight)}
                 />
                 <input
@@ -733,6 +734,7 @@ function StandCreateShop({
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
               placeholder="Shop name"
+              aria-label="Shop name"
               maxLength={SHOP_NAME_MAX}
               className={inputCls(isLight)}
             />
@@ -740,6 +742,7 @@ function StandCreateShop({
               value={form.handle}
               onChange={(e) => set({ handle: e.target.value })}
               placeholder="Handle — like gold-standard (its address on the square)"
+              aria-label="Shop handle"
               maxLength={SHOP_HANDLE_MAX}
               className={inputCls(isLight)}
             />
@@ -747,6 +750,7 @@ function StandCreateShop({
               value={form.tagline}
               onChange={(e) => set({ tagline: e.target.value })}
               placeholder="Tagline (optional)"
+              aria-label="Tagline (optional)"
               maxLength={SHOP_TAGLINE_MAX}
               className={inputCls(isLight)}
             />
@@ -1319,6 +1323,7 @@ function StandManager({
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
               placeholder="Product name"
+              aria-label="Product name"
               maxLength={120}
               className={inputCls(isLight)}
             />
@@ -1326,6 +1331,7 @@ function StandManager({
               value={form.price}
               onChange={(e) => set({ price: e.target.value })}
               placeholder="Price — like 19.99"
+              aria-label="Price"
               inputMode="decimal"
               className={inputCls(isLight)}
             />
@@ -1333,6 +1339,7 @@ function StandManager({
               value={form.description}
               onChange={(e) => set({ description: e.target.value })}
               placeholder="Description — what it is, why it's worth it"
+              aria-label="Product description"
               maxLength={2000}
               rows={3}
               className={inputCls(isLight)}
@@ -1373,6 +1380,7 @@ function StandManager({
               value={form.styleHint}
               onChange={(e) => set({ styleHint: e.target.value })}
               placeholder="Image style direction (optional)"
+              aria-label="Image style direction (optional)"
               maxLength={300}
               className={inputCls(isLight)}
             />
@@ -1380,6 +1388,7 @@ function StandManager({
               value={form.imageUrl}
               onChange={(e) => set({ imageUrl: e.target.value })}
               placeholder="Image link — paste one, or make one above"
+              aria-label="Image link"
               className={inputCls(isLight)}
             />
             {form.imageUrl.trim() && (
@@ -1414,6 +1423,7 @@ function StandManager({
             value={settingsForm.name}
             onChange={(e) => setSettings({ name: e.target.value })}
             placeholder="Shop name"
+            aria-label="Shop name"
             maxLength={SHOP_NAME_MAX}
             className={inputCls(isLight)}
           />
@@ -1421,6 +1431,7 @@ function StandManager({
             value={settingsForm.tagline}
             onChange={(e) => setSettings({ tagline: e.target.value })}
             placeholder="Tagline — the one line under your name"
+            aria-label="Tagline"
             maxLength={SHOP_TAGLINE_MAX}
             className={inputCls(isLight)}
           />
@@ -1428,6 +1439,7 @@ function StandManager({
             value={settingsForm.description}
             onChange={(e) => setSettings({ description: e.target.value })}
             placeholder="Your shop's story — what you sell and why it's worth it"
+            aria-label="Shop description"
             maxLength={SHOP_DESCRIPTION_MAX}
             rows={4}
             className={inputCls(isLight)}
@@ -1436,6 +1448,7 @@ function StandManager({
             value={shopNiche}
             onChange={(e) => setShopNiche(e.target.value)}
             placeholder="Your niche (optional — steers the writer below)"
+            aria-label="Your niche (optional)"
             maxLength={120}
             className={inputCls(isLight)}
           />
@@ -1905,6 +1918,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       value={shipping[key]}
       onChange={(e) => setShipping((s) => ({ ...s, [key]: e.target.value }))}
       placeholder={placeholder}
+      aria-label={placeholder}
       className={inputCls(isLight)}
     />
   );
@@ -2007,8 +2021,8 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       {/* The design desk — in-world, priced in Visual Bucs up front. */}
       <NativeCard isLight={isLight} title={`Design my brand kit — ${BRANDING_DESIGN_COST.toLocaleString("en-US")} Visual Bucs`}>
         <div className="grid gap-2 sm:grid-cols-2">
-          <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Brand name" maxLength={80} className={inputCls(isLight)} />
-          <input value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Your niche (e.g. indie rap, gaming)" maxLength={120} className={inputCls(isLight)} />
+          <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Brand name" aria-label="Brand name" maxLength={80} className={inputCls(isLight)} />
+          <input value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Your niche (e.g. indie rap, gaming)" aria-label="Your niche" maxLength={120} className={inputCls(isLight)} />
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {BRANDING_STYLES.map((st) => (
@@ -2629,14 +2643,14 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {field("Tier name", (
-                  <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Gold Circle" className={inputCls(isLight)} maxLength={70} />
+                  <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Gold Circle" aria-label="Tier name" className={inputCls(isLight)} maxLength={70} />
                 ))}
                 {field("Price — $ / month (0 = free)", (
-                  <input value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="5" className={inputCls(isLight)} />
+                  <input value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="5" aria-label="Price in dollars per month (0 = free)" className={inputCls(isLight)} />
                 ))}
               </div>
               {field("Description", (
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} className={inputCls(isLight)} maxLength={520} />
+                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} aria-label="Tier description" className={inputCls(isLight)} maxLength={520} />
               ))}
               <div>
                 <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>Perks</span>
@@ -2646,6 +2660,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                     onChange={(e) => setPerkInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPerk(); } }}
                     placeholder="A perk fans get…"
+                    aria-label="A perk fans get"
                     className={`${inputCls(isLight)} min-w-0 flex-1`}
                     maxLength={150}
                   />
@@ -3233,6 +3248,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
             onChange={(e) => setCreatorInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") submitCreator(); }}
             placeholder="Creator's join ID or link"
+            aria-label="Creator's join ID or link"
             className={`${inputCls(isLight)} min-w-0 flex-1`}
           />
           <button type="button" onClick={submitCreator} className={goldBtn()}>
