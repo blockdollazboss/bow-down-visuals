@@ -34,6 +34,9 @@ import {
   type PaymentCheckoutInput,
 } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
+import { createJobNotification } from "../../lib/job-notifications";
+import { notifyUserEvent } from "../../lib/push-events";
+import { logger } from "../../lib/logger";
 
 /* Mirror-on-save (2026-10-13 law): a listed beat's audio/preview are
    re-hosted into permanent storage at listing time; reads serve fresh
@@ -802,6 +805,48 @@ const licenseVerifySchema = z.object({
   sessionId: z.string().min(1).max(200),
 });
 
+/* The producer tell (notification census, stack1200) — the same
+   claim-first shape as the storefront sale finale
+   (lib/market-sale.ts): the completion used to flip the license and
+   tell the producer NOTHING. The claim (jobType "sale", jobId
+   `beat-license:<id>`) lands on the unique (job_type, job_id) key —
+   only its winner fires the door, so concurrent verify replays tell
+   exactly once. Copy names the TRUE money: the producer's net from
+   the row's own price − commission, never the gross. Best-effort: a
+   tell failure never fails the buyer's completion. */
+async function notifyBeatSaleSafely(license: {
+  id: string;
+  producer_id: string;
+  price_cents: number;
+  commission_cents: number;
+  tier: string;
+}, beatTitle: string): Promise<void> {
+  const title = "Your beat just sold 👑";
+  const message = `${beatTitle} (${license.tier}) — net $${((license.price_cents - license.commission_cents) / 100).toFixed(2)} to you. See it in your beat dashboard.`;
+  try {
+    const claimed = await createJobNotification({
+      jobType: "sale",
+      jobId: `beat-license:${license.id}`,
+      userId: license.producer_id,
+      projectId: null,
+      status: "done",
+      title,
+      message,
+    });
+    if (!claimed) return; // a twin request already claimed the tell
+    await notifyUserEvent({
+      userId: license.producer_id,
+      category: "money",
+      kind: "beat_sale",
+      title,
+      body: message,
+      link: "/beats",
+    });
+  } catch (err) {
+    logger.warn({ err, licenseId: license.id }, "[beats] producer sale tell failed (sale stands)");
+  }
+}
+
 router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
   const parsed = licenseVerifySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -929,6 +974,10 @@ router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
         .set({ status: "completed" })
         .where(eq(beatLicensesTable.id, license.id))
         .returning();
+      /* The producer tell (notification census, stack1200): the sale
+         just landed — say so through the door. Inside the completion
+         try on purpose is fine: the helper never throws. */
+      await notifyBeatSaleSafely(updated ?? { ...license, status: "completed" }, beat.title);
     } catch (err) {
       /* Completion failed after the claim: free the beat so the paid
          buyer's retry (or the next buyer) is not locked out forever. */
