@@ -12,6 +12,7 @@ import {
   TARGET_LANGUAGES,
   estimateTranslateCost,
   formatDuration,
+  languageLabel,
   pickDefaultVoiceId,
   TRANSLATOR_MAX_LANGUAGES,
   TRANSLATOR_MAX_BYTES,
@@ -22,6 +23,11 @@ import {
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
+import { Link } from "wouter";
+import {
+  parseGlobalDropIntake,
+  withoutGlobalDropParams,
+} from "@/lib/global-drop-intake";
 
 /* ─── Thy Cheat Code's AI Video Translator ───────────────────────────────
    Upload a video → pick target languages → AI transcribes, translates,
@@ -67,6 +73,29 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const pollRef = useRef<number | null>(null);
+
+  /* Global Drop preload (#165): when this visit arrived through a
+     version's preloaded door (?gd=<releaseId>&lang=<code>) AND the
+     pair verified against the caller's own package, the surface is
+     making THAT version — its language was preselected on arrival,
+     and the finished dub's video URL returns into the version's
+     review slot on its own (as a draft; approval stays the
+     creator's hand in Distribute). A pair that doesn't resolve is
+     refused in plain words (gdUnresolved) and nothing is preloaded
+     or returned. */
+  const [gdContext, setGdContext] = useState<{
+    releaseId: string;
+    language: string;
+    label: string;
+    releaseTitle: string;
+  } | null>(null);
+  const [gdUnresolved, setGdUnresolved] = useState(false);
+  const [gdSaveState, setGdSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const gdContextRef = useRef<typeof gdContext>(null);
+  const gdReturnJobRef = useRef<string | null>(null);
+  const gdOutputRef = useRef<{ language: string; videoUrl: string } | null>(null);
+
+  useEffect(() => { gdContextRef.current = gdContext; }, [gdContext]);
 
   const estimate = estimateTranslateCost(durationSec, selectedLangs.length);
 
@@ -125,6 +154,83 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
     };
   }, []);
 
+  /* Global Drop preload intake: consume the door's pair once. The
+     language preselects immediately; the context only arms when the
+     pair verifies against the caller's OWN package (a foreign or
+     stale release id resolves to nothing and is refused in plain
+     words — the params themselves are never shown as content). The
+     pair is stripped from the URL once the intake settles, so a
+     refresh doesn't re-fire the door. */
+  useEffect(() => {
+    if (!user) return;
+    const intake = parseGlobalDropIntake(window.location.search);
+    if (!intake) return;
+    let cancelled = false;
+    setSelectedLangs([intake.language]);
+    void (async () => {
+      let resolved: { label: string; releaseTitle: string } | null = null;
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/global-drop/${encodeURIComponent(intake.releaseId)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = (await res.json().catch(() => null)) as {
+            versions?: Record<string, { label?: string; sourceTitle?: string }>;
+          } | null;
+          const v = data?.versions?.[intake.language];
+          if (v) {
+            resolved = {
+              label: v.label ?? languageLabel(intake.language),
+              releaseTitle: v.sourceTitle ?? "",
+            };
+          }
+        }
+      } catch {
+        /* unresolved — refused below in plain words */
+      }
+      if (cancelled) return;
+      if (resolved) {
+        setGdContext({ releaseId: intake.releaseId, language: intake.language, ...resolved });
+      } else {
+        setGdUnresolved(true);
+      }
+      const rest = withoutGlobalDropParams(window.location.search);
+      window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /* Return the finished dub's video URL into the version's review
+     slot. The PATCH carries ONLY the url — the version stays a draft
+     under the creator's own review, and its translated title stays
+     the creator's own entry (no translation is invented here). */
+  async function saveGdReturn() {
+    const ctx = gdContextRef.current;
+    const out = gdOutputRef.current;
+    if (!ctx || !out || out.language !== ctx.language) return;
+    setGdSaveState("saving");
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(
+        `/api/global-drop/${encodeURIComponent(ctx.releaseId)}/languages/${ctx.language}`,
+        {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ url: out.videoUrl }),
+        },
+      );
+      if (!res.ok) throw new Error("Global Drop return failed");
+      setGdSaveState("saved");
+    } catch {
+      setGdSaveState("failed");
+    }
+  }
+
   function toggleLang(code: string) {
     setSelectedLangs((prev) => {
       if (prev.includes(code)) return prev.filter((c) => c !== code);
@@ -171,6 +277,18 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
           for (const o of (data as TranslateJobState).outputs ?? []) {
             if (o.videoUrl) {
               try { addAsset({ kind: "video", url: o.videoUrl, label: `Translated video (${o.label || o.language})`, detail: "Video translator" }); } catch { /* non-fatal */ }
+            }
+          }
+          /* Global Drop return: the version this visit is making gets
+             its finished dub's URL in its review slot — once per job. */
+          const gdCtx = gdContextRef.current;
+          const finishedJob = data as TranslateJobState;
+          if (gdCtx && finishedJob.jobId && gdReturnJobRef.current !== finishedJob.jobId) {
+            const out = (finishedJob.outputs ?? []).find((o) => o.language === gdCtx.language && o.videoUrl);
+            if (out?.videoUrl) {
+              gdReturnJobRef.current = finishedJob.jobId;
+              gdOutputRef.current = { language: out.language, videoUrl: out.videoUrl };
+              void saveGdReturn();
             }
           }
         }
@@ -244,6 +362,10 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
     setError(null);
     setOutOfCredits(false);
     setVideoFile(null);
+    /* The Global Drop context itself survives — the next dub made
+       here is still for the same version — but its save line starts
+       fresh for the new job. */
+    setGdSaveState("idle");
   }
 
   const doneOutputs = job?.outputs.filter((o) => o.videoUrl) ?? [];
@@ -269,6 +391,53 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
           <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/60"}`}>{t("translate.signInPrompt")}</div>
         ) : (
           <>
+            {/* ── Global Drop preload (#165): this visit is making one
+                version of one release — say which, and report the
+                return of the finished dub's URL into its review slot. */}
+            {gdContext && (
+              <section className="mb-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-5">
+                <p className="flex items-start gap-2 text-sm text-white/75">
+                  <Globe className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                  <span>{t("translate.globalDropBanner", { label: gdContext.label, title: gdContext.releaseTitle })}</span>
+                </p>
+                {gdSaveState === "saving" && (
+                  <p className="mt-3 flex items-center gap-2 text-xs text-white/50">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />{t("translate.globalDropSaving")}
+                  </p>
+                )}
+                {gdSaveState === "saved" && (
+                  <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-emerald-300">
+                    <Check className="h-3.5 w-3.5 shrink-0" />
+                    <span>{t("translate.globalDropSaved", { label: gdContext.label, title: gdContext.releaseTitle })}</span>
+                    <Link href="/distribute" className="font-semibold text-amber-300 underline-offset-2 hover:underline">
+                      {t("translate.globalDropReviewLink")}
+                    </Link>
+                  </p>
+                )}
+                {gdSaveState === "failed" && (
+                  <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-red-300">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{t("translate.globalDropSaveFailed")}</span>
+                    <button
+                      type="button"
+                      onClick={() => void saveGdReturn()}
+                      className="font-semibold text-amber-300 underline-offset-2 hover:underline"
+                    >
+                      {t("translate.globalDropRetry")}
+                    </button>
+                  </p>
+                )}
+              </section>
+            )}
+            {gdUnresolved && (
+              <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <p className="flex items-start gap-2 text-sm text-white/60">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                  <span>{t("translate.globalDropUnresolved")}</span>
+                </p>
+              </section>
+            )}
+
             {/* ── Step 1: upload ── */}
             <section className={`mb-6 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-200">

@@ -17,9 +17,11 @@ import { describe, expect, it } from "vitest";
 import {
   GLOBAL_DROP_LANGUAGES,
   assemblePackage,
+  globalDropTranslateLink,
   isHttpUrl,
   mergeLanguageDestinations,
   publishableVersions,
+  withPreloadLinks,
   type GlobalDropVersions,
 } from "../global-drop";
 import { TARGET_LANGUAGES } from "../../routes/generate/video-translator";
@@ -48,9 +50,43 @@ describe("assemblePackage — five drafts, nothing invented", () => {
         translatedTitle: null,
         url: null,
         status: "draft",
-        translateLink: "/translate",
+        translateLink: `/translate?gd=rel-1&lang=${lang.code}`,
       });
     }
+  });
+});
+
+describe("globalDropTranslateLink — the preloaded production door", () => {
+  it("carries the release and the version's own language into Translate & Dub", () => {
+    expect(globalDropTranslateLink("rel-1", "es")).toBe("/translate?gd=rel-1&lang=es");
+    expect(globalDropTranslateLink("rel-1", "ja")).toBe("/translate?gd=rel-1&lang=ja");
+  });
+
+  it("escapes a release id that needs it", () => {
+    expect(globalDropTranslateLink("a b/c", "pt")).toBe("/translate?gd=a%20b%2Fc&lang=pt");
+  });
+});
+
+describe("withPreloadLinks — stored packages get the production door at read time", () => {
+  it("upgrades a bare stored link and touches nothing else", () => {
+    const versions = assemblePackage(RELEASE);
+    versions.es = { ...versions.es, translateLink: "/translate", translatedTitle: "Carrera de Medianoche", status: "approved", url: "https://example.com/es" };
+    const out = withPreloadLinks(versions, RELEASE.id);
+    expect(out.es.translateLink).toBe("/translate?gd=rel-1&lang=es");
+    expect(out.es).toMatchObject({
+      sourceTitle: "Midnight Run",
+      translatedTitle: "Carrera de Medianoche",
+      url: "https://example.com/es",
+      status: "approved",
+    });
+    for (const lang of GLOBAL_DROP_LANGUAGES) {
+      expect(out[lang.code].translateLink).toBe(`/translate?gd=rel-1&lang=${lang.code}`);
+    }
+  });
+
+  it("is a no-op on a freshly assembled package", () => {
+    const versions = assemblePackage(RELEASE);
+    expect(withPreloadLinks(versions, RELEASE.id)).toEqual(versions);
   });
 });
 

@@ -12,6 +12,7 @@ import {
   isHttpUrl,
   mergeLanguageDestinations,
   publishableVersions,
+  withPreloadLinks,
   type GlobalDropLanguageCode,
   type GlobalDropVersions,
 } from "../lib/global-drop";
@@ -63,7 +64,10 @@ async function packageView(releaseId: string) {
     id: row["id"],
     releaseId,
     status: row["status"],
-    versions: row["versions"] as GlobalDropVersions,
+    /* The preload door is re-derived at read time so packages
+       assembled before it existed (stored bare "/translate" links)
+       get the production round-trip too. */
+    versions: withPreloadLinks(row["versions"] as GlobalDropVersions, releaseId),
     updatedAt: row["updatedAt"],
   };
 }
