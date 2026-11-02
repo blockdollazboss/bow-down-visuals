@@ -38,7 +38,7 @@ import {
   waveSpeedStatus,
 } from "../lib/wavespeed";
 import type { UrlType } from "../lib/sync-labs";
-import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
+import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, LIP_SYNC_JOB_CHARGE_CREDITS, type LipSyncJob } from "../lib/lip-sync-jobs";
 import {
   chargeCredits,
   refundCredits,
@@ -101,6 +101,14 @@ function toClientLipSyncJob(job: LipSyncJob) {
     resultMeta: job.resultMeta ?? undefined,
     error: job.error?.message,
     code: job.error?.code,
+    /* The failure-refund verdict, straight off the job's own gate
+       (migration 0310): chargeRefunded is true only when the poller's
+       exactly-once refund of this job's up-front charge has fired, and
+       refundedCredits — the amount from the job's charge record, the
+       same constant the refund rail restores — rides along only then,
+       so a failure that got no refund never wears one in the client. */
+    chargeRefunded: job.chargeRefunded,
+    ...(job.chargeRefunded ? { refundedCredits: LIP_SYNC_JOB_CHARGE_CREDITS } : {}),
     durationSec: Number.isFinite(durationSec) ? durationSec : undefined,
     syncLabsJobId: job.providerJobId ?? undefined,
     createdAt: new Date(job.createdAt).toISOString(),
@@ -1437,8 +1445,26 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
     const job = await getLipSyncJob(subJobId);
     if (!job) throw new Error("Lip-sync sub-job disappeared.");
     if (job.state === "done" && job.resultUrl) return job.resultUrl;
-    if (job.state === "failed")
-      throw new Error(job.error?.message ?? "Lip-sync provider failed.");
+    if (job.state === "failed") {
+      /* The scene error is a member-facing tell, so it carries the
+         refund verdict like every other lip-sync failure surface. The
+         poller flips the job to failed a breath before its failure
+         refund lands (the refund claim requires the failed state), so
+         a first read can miss the gate flip — one short re-read keeps
+         this surface from racing the verdict. The amount named is the
+         job's own charge record, the constant the refund rail restores. */
+      let verdict = job;
+      if (!job.chargeRefunded) {
+        await new Promise((r) => setTimeout(r, 2000));
+        verdict = (await getLipSyncJob(subJobId).catch(() => null)) ?? job;
+      }
+      throw new Error(
+        (verdict.error?.message ?? "Lip-sync provider failed.") +
+          (verdict.chargeRefunded
+            ? ` Your ${LIP_SYNC_JOB_CHARGE_CREDITS} Visual Bucs were refunded.`
+            : ""),
+      );
+    }
     if (Date.now() >= deadline) break;
   }
   /* Provider-direct recovery: our poller may have given up while the
@@ -1626,10 +1652,12 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
          jobs at 0 VB per scene — a leak next to the 300 VB preview rail.
          Same rail, same rules as POST /lip-sync/preview: 300 VB per clip
          via chargeCredits, idempotent per (user, run, scene), refunded
-         only when the enqueue itself fails; a later provider failure
-         keeps the charge, exactly like the single-clip rail. Scenes
-         skipped above for the provider length limit never reach here
-         and are never charged. */
+         when the enqueue itself fails — and a later terminal provider
+         failure refunds too, through the poller's charge_refunded gate
+         (stack1200), exactly like the single-clip rail: these scenes ARE
+         durable lip_sync_jobs, so the poller's failure paths own their
+         refunds. Scenes skipped above for the provider length limit
+         never reach here and are never charged. */
       const sceneChargeKey = buildChargeIdempotencyKey(
         "lip-sync-run-all",
         ctx.userId,

@@ -238,22 +238,46 @@ const submitInFlight = new Set<string>();
  * atomic gate: whichever failure path flips it first refunds, and
  * every replay is a no-op. Never throws — a refund failure is logged
  * loudly and must not break the worker that reported the failure.
+ *
+ * Returns true ONLY when this call actually landed the refund (won
+ * the gate AND refundCredits completed) — the failure tells below key
+ * their refund sentence off this, never off the failure alone: a path
+ * that lost the gate, or whose refund write failed, must not tell the
+ * member money came back when it didn't.
  */
-async function refundFailedLipSyncCharge(job: LipSyncJob): Promise<void> {
-  if (!job.userId) return;
+async function refundFailedLipSyncCharge(job: LipSyncJob): Promise<boolean> {
+  if (!job.userId) return false;
   try {
     const won = await claimLipSyncChargeRefund(job.id);
-    if (!won) return;
+    if (!won) return false;
     await refundCredits(job.userId, LIP_SYNC_JOB_CHARGE_CREDITS, {
       action: "Lip Sync — Refund (generation failed)",
     });
     logger.info({ jobId: job.id, userId: job.userId }, "[job-poller] lip-sync failure refunded");
+    return true;
   } catch (err) {
     logger.error(
       { err, jobId: job.id, userId: job.userId },
       "[job-poller] CRITICAL: lip-sync failure refund failed — charge stands unrefunded",
     );
+    return false;
   }
+}
+
+/**
+ * The member-facing failure message for a terminally failed job.
+ * When the refund actually fired for THIS job, the message says so
+ * plainly and names the amount from the job's own charge record —
+ * LIP_SYNC_JOB_CHARGE_CREDITS, the exact figure the refund rail just
+ * restored (never a typed-in number, so the words can't drift from
+ * the money). When no refund fired — the gate was already claimed by
+ * an earlier path, or the refund write failed — the base message
+ * stands alone: a failure never wears a refund it didn't get.
+ */
+export function lipSyncFailureNotice(baseMessage: string, refunded: boolean): string {
+  return refunded
+    ? `${baseMessage} Your ${LIP_SYNC_JOB_CHARGE_CREDITS} Visual Bucs were refunded.`
+    : baseMessage;
 }
 
 export function startJobPoller(): void {
@@ -371,8 +395,8 @@ async function runSubmitWorker(
   }
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
-    await refundFailedLipSyncCharge(job);
-    await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
+    const refunded = await refundFailedLipSyncCharge(job);
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
   };
 
   try {
@@ -434,11 +458,11 @@ async function runSubmitWorker(
         return;
       }
       if (deferred.failed) {
-        await refundFailedLipSyncCharge(job);
-        await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(
+        const refunded = await refundFailedLipSyncCharge(job);
+        await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(
           "Sync.so stayed at its plan concurrency limit for about a day, so this job was never submitted. Try again later or upgrade the Sync.so plan.",
           500,
-        ));
+        ), refunded));
         logger.error(
           { jobId: job.id, deferrals: deferred.deferrals },
           "[job-poller] submit deferred past the limit; marked failed",
@@ -465,8 +489,8 @@ async function runSubmitWorker(
     const attempts = await requeueSubmitJob(job.id, MAX_SUBMIT_ATTEMPTS).catch(() => MAX_SUBMIT_ATTEMPTS);
     if (attempts >= MAX_SUBMIT_ATTEMPTS) {
       // requeueSubmitJob already marked it failed; refund + notify once.
-      await refundFailedLipSyncCharge(job);
-      await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
+      const refunded = await refundFailedLipSyncCharge(job);
+      await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
       logger.error({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed permanently");
     } else {
       logger.warn({ jobId: job.id, attempts, err: message }, "[job-poller] submit failed; re-queued");
@@ -516,11 +540,11 @@ async function handleWaveSpeedSubmitError(
       return;
     }
     if (deferred.failed) {
-      await refundFailedLipSyncCharge(job);
-      await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(
+      const refunded = await refundFailedLipSyncCharge(job);
+      await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(
         "WaveSpeed stayed busy for about a day, so this job was never submitted. Try again later.",
         500,
-      ));
+      ), refunded));
       logger.error(
         { jobId: job.id, deferrals: deferred.deferrals },
         "[job-poller] WaveSpeed submit deferred past the limit; marked failed",
@@ -582,8 +606,8 @@ async function pollOneJob(
   const display = providerDisplayName(provider);
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
-    await refundFailedLipSyncCharge(job);
-    await recordLipSyncOutcome(job, "failed", "Lip sync failed", truncate(message, 500));
+    const refunded = await refundFailedLipSyncCharge(job);
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
   };
 
   let remote: { status: string; outputUrl?: string; error?: string };
