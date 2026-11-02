@@ -114,7 +114,7 @@ export function lipSyncProviderLabel(provider: string | null | undefined): strin
 /**
  * The refund fields the job poll carries (GET /api/lip-sync/job/:id):
  * `chargeRefunded` is the job's own exactly-once refund gate
- * (migration 0310) — true only when the poller's failure refund of the
+ * (migration 0311) — true only when the poller's failure refund of the
  * job's up-front charge has fired — and `refundedCredits`, the amount
  * from the job's charge record, rides along only when it has.
  */

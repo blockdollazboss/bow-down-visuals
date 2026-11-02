@@ -1,7 +1,7 @@
 /**
  * lip-sync-refund-note.test.ts — stack1200: the failure tell for a
  * lip-sync job must state the refund verdict, keyed off the job's own
- * refund gate (chargeRefunded, migration 0310) and naming the amount
+ * refund gate (chargeRefunded, migration 0311) and naming the amount
  * from the job's own charge record (refundedCredits) — never a figure
  * typed into the client, and never a refund claim for a failure whose
  * refund didn't fire.

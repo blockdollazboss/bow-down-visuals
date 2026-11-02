@@ -339,7 +339,7 @@ export async function runStillToLipSync(
       provider?: string;
       error?: string;
       code?: string;
-      /* The failure-refund verdict off the job's own gate (0310):
+      /* The failure-refund verdict off the job's own gate (0311):
          true only when the poller's refund of the up-front charge
          has fired; refundedCredits (the job's charge record) rides
          along only then. */

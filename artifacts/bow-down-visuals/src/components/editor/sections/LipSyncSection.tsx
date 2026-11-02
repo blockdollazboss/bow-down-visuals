@@ -4094,7 +4094,7 @@ interface LipSyncJobPoll {
   code?:          string;
   syncLabsJobId?: string;
   resultMeta?:    LipSyncResultMeta | null;
-  /* The failure-refund verdict off the job's own gate (0310): true
+  /* The failure-refund verdict off the job's own gate (0311): true
      only when the poller's refund of the up-front charge has fired;
      refundedCredits (the job's charge record) rides along only then. */
   chargeRefunded?:  boolean;
