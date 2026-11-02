@@ -451,7 +451,16 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
           {loading ? (
             <p className="text-sm text-white/40 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading your deals…</p>
           ) : loadError ? (
-            <p className="text-sm text-red-300">{loadError}</p>
+            <div>
+              <p className="text-sm text-red-300">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="mt-2 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+              >
+                Retry
+              </button>
+            </div>
           ) : deals.length === 0 ? (
             <p className="text-sm text-white/40">No deals yet. Write your first one above — it takes a minute and reads like you talk.</p>
           ) : (
