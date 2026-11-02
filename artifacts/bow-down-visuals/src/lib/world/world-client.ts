@@ -2016,9 +2016,10 @@ export async function fetchWorldDirectory(signal?: AbortSignal): Promise<PalaceD
 export interface WorldEventDto {
   id: string;
   /* 'contest' joined the calendar in 0158 (World Contests, 2.24);
-   * 'office_hours' in 0159 (3.7) — the slate has carried both
-   * since their migrations landed. */
-  kind: "stage_show" | "listening_party" | "drop" | "contest" | "office_hours";
+   * 'office_hours' in 0159 (3.7); 'royal_court' in 0313 (Court
+   * gatherings, 3.6) — the slate has carried each since its
+   * migration landed. */
+  kind: "stage_show" | "listening_party" | "drop" | "contest" | "office_hours" | "royal_court";
   roomId: string;
   hostUserId: string;
   hostName: string;

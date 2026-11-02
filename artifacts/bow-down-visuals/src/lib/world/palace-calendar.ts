@@ -1,7 +1,8 @@
 /**
  * palace-calendar.ts — the Palace Calendar (UPGRADE-PROGRAM 3.9):
  * the Kingdom Board's one view over every happening in the World —
- * stage shows, listening parties, drops, contests and office hours —
+ * stage shows, listening parties, drops, contests, office hours and
+ * court gatherings —
  * grouped by palace day, with the week just past behind it. One line
  * is not an events-rail row: the weekly quest reset, the quest
  * week's own turn, shaped from the retention rails' Monday week
@@ -34,7 +35,8 @@ export interface CalendarEvent {
   status: "scheduled" | "live" | "done";
   /** Contest only: the theme works are entered under. */
   theme: string | null;
-  /** Office hours only: the host's optional agenda line. */
+  /** Office hours' agenda line / a court gathering's occasion
+   *  line: the host's optional one-liner, from the payload. */
   note: string | null;
 }
 
@@ -291,6 +293,7 @@ export function calendarEventAction(e: CalendarEvent): CalendarEventAction {
     case "listening_party":
     case "drop":
     case "office_hours":
+    case "royal_court":
       return e.roomId ? { type: "room", roomId: e.roomId } : { type: "none" };
     case "contest":
       return { type: "station", stationId: "winners-circle" };

@@ -34,6 +34,18 @@ import { sql } from "drizzle-orm";
  *                       over at the hour — the scheduler only flips
  *                       the status; the session is the room standing
  *                       open under its host's name on the calendar.
+ *  - royal_court      — a court gathering in the Royal Court
+ *                       Chamber (migration 0313, UPGRADE-PROGRAM
+ *                       3.6): room_id is the Chamber
+ *                       ("world:royal-court"), payload { note? } is
+ *                       an optional occasion line. Booked by the
+ *                       house (admin — the drop precedent). At the
+ *                       hour the scheduler flips the status and
+ *                       heralds the court palace-wide through the
+ *                       announce channel, the Front Row presented
+ *                       from the King's court seats (server truth);
+ *                       no room state is seized and no money moves —
+ *                       court honors are honor only.
  *
  * room_id is a palace room id ("world:kings-hall", "world:music-hall",
  * …) — plain text, because rooms are socket state, not rows; the
@@ -46,7 +58,7 @@ import { sql } from "drizzle-orm";
  *   scheduled → live → done, with cancelled reachable from scheduled
  *   or live (host or admin). The tick is the only writer of live/done.
  */
-const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "contest", "office_hours"] as const;
+const WORLD_EVENT_KINDS = ["stage_show", "listening_party", "drop", "contest", "office_hours", "royal_court"] as const;
 export type WorldEventKind = (typeof WORLD_EVENT_KINDS)[number];
 
 const WORLD_EVENT_STATUSES = ["scheduled", "live", "done", "cancelled"] as const;
@@ -54,6 +66,7 @@ export type WorldEventStatus = (typeof WORLD_EVENT_STATUSES)[number];
 
 /** Per-kind booking payload (validated + sanitized at the route). */
  // office_hours: an optional agenda line
+ // royal_court: an optional occasion line
 
 export const worldEventsTable = pgTable(
   "world_events",
@@ -75,10 +88,11 @@ export const worldEventsTable = pgTable(
     index("world_events_host_idx").on(t.hostUserId),
     /* Migration 0145: kinds and statuses are closed sets.
      * Migration 0158 admits 'contest' (World Contests, 2.24);
-     * migration 0159 admits 'office_hours' (3.7) and keeps 'contest'. */
+     * migration 0159 admits 'office_hours' (3.7) and keeps 'contest';
+     * migration 0313 admits 'royal_court' (3.6) and keeps all five. */
     check(
       "world_events_kind_check",
-      sql`${t.kind} IN ('stage_show', 'listening_party', 'drop', 'contest', 'office_hours')`,
+      sql`${t.kind} IN ('stage_show', 'listening_party', 'drop', 'contest', 'office_hours', 'royal_court')`,
     ),
     check(
       "world_events_status_check",
