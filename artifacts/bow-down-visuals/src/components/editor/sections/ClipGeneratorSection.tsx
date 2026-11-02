@@ -1193,10 +1193,21 @@ function SceneClipCard({
       }`}
       data-testid={`clip-gen-card-${index}`}
     >
-      {/* ── Header — click to select ── */}
+      {/* ── Header — click to select (keyboard: Enter/Space, same toggle) ── */}
       <div
         className="flex items-center gap-2 px-3 py-2 border-b border-white/10 cursor-pointer hover:bg-white/[0.02] transition-colors"
         onClick={onSelect}
+        role="button"
+        tabIndex={0}
+        aria-pressed={isSelected}
+        aria-label={isSelected ? `Deselect clip ${index + 1}` : `Select clip ${index + 1} for insert positioning`}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
         title={isSelected ? "Click to deselect" : "Click to select for insert positioning"}
       >
         {dragHandleProps && (
