@@ -301,6 +301,10 @@ router.get(
           status: normalizeWaveSpeedStatus(job), // "pending" | "processing" | "completed" | "failed"
           outputUrl: job.outputUrl ?? null,
           error: job.error ?? null,
+          /* Provenance for the client's recovery-path stamp: the route
+             this check actually queried for the job id (read-only field;
+             serving/charging unchanged). */
+          provider,
         });
         return;
       }
@@ -309,6 +313,7 @@ router.get(
         status: normalizeProviderStatus(job), // "pending" | "processing" | "completed" | "failed"
         outputUrl: job.outputUrl ?? null,
         error: job.error ?? null,
+        provider,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Check failed";

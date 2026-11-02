@@ -18,6 +18,7 @@ import { requestAudioExport } from "@/lib/audio-export";
 import {
   formatLipSyncResultMeta,
   lipSyncProviderLabel,
+  resolveLipSyncProvenance,
   type LipSyncResultMeta,
 } from "@/lib/lip-sync-result-meta";
 import { PollFailureBudget, isTransientPollHttpStatus } from "@/lib/poll-tolerance";
@@ -357,6 +358,9 @@ export function LipSyncSection({
     rawStatus:     string;
     outputUrl:     string | null;
     providerError: string | null;
+    /** Route the check actually queried for this job (server-reported);
+     *  null when the answer carried none — never guessed client-side. */
+    provider:      string | null;
     checkedAt:     string;
   } | null>(null);
 
@@ -712,7 +716,7 @@ export function LipSyncSection({
         const body = await res.text().catch(() => "");
         throw new Error(`Check failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
       }
-      const data = await res.json() as { status: string; outputUrl?: string; error?: string };
+      const data = await res.json() as { status: string; outputUrl?: string; error?: string; provider?: string | null };
       const normalStatus = data.status.toLowerCase();
 
       const result = {
@@ -720,6 +724,7 @@ export function LipSyncSection({
         rawStatus:     data.status,
         outputUrl:     data.outputUrl ?? null,
         providerError: data.error ?? null,
+        provider:      data.provider ?? null,
         checkedAt:     new Date().toISOString(),
       };
       setCheckJobResult(result);
@@ -741,13 +746,17 @@ export function LipSyncSection({
     }
   }
 
-  /* ── Save completed Sync.so result to scene metadata only ── */
-  function saveResultToScene(jobId: string, outputUrl: string) {
+  /* ── Save completed result to scene metadata only ──
+     Provenance: the route the job check reported (checkedProvider, when
+     the caller has one) wins; otherwise the clip's previously recorded
+     stamp is preserved; when neither knows, the stamp is null — this
+     recovery path never fabricates a route name. */
+  function saveResultToScene(jobId: string, outputUrl: string, checkedProvider?: string | null) {
     if (!selectedScene) return;
     updateClipEdit(selectedScene.id, {
       lipSyncUrl:       outputUrl,
       lipSyncStatus:    "done",
-      lipSyncProvider:  "sync.so",
+      lipSyncProvider:  resolveLipSyncProvenance(checkedProvider, selectedClipEdit?.lipSyncProvider),
       lipSyncJobId:     jobId,
       lipSyncCreatedAt: new Date().toISOString(),
       lipSyncError:     null,
@@ -756,13 +765,14 @@ export function LipSyncSection({
     setApplyError(null);
   }
 
-  /* ── Apply completed result to master player (save + activate useLipSync) ── */
-  function useResultInPlayer(jobId: string, outputUrl: string) {
+  /* ── Apply completed result to master player (save + activate useLipSync) ──
+     Same provenance rule as saveResultToScene. */
+  function useResultInPlayer(jobId: string, outputUrl: string, checkedProvider?: string | null) {
     if (!selectedScene) return;
     updateClipEdit(selectedScene.id, {
       lipSyncUrl:       outputUrl,
       lipSyncStatus:    "done",
-      lipSyncProvider:  "sync.so",
+      lipSyncProvider:  resolveLipSyncProvenance(checkedProvider, selectedClipEdit?.lipSyncProvider),
       lipSyncJobId:     jobId,
       lipSyncCreatedAt: new Date().toISOString(),
       lipSyncError:     null,
@@ -882,9 +892,11 @@ export function LipSyncSection({
         sceneId,
         artistVaultId:      activeArtist?.id ?? null,
         getAccessToken,
-        onSyncLabsJobAccepted: (syncLabsJobId) => {
-          /* Save provider job ID immediately — persists even if local polling times out */
-          updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
+        onSyncLabsJobAccepted: (syncLabsJobId, provider) => {
+          /* Save provider job ID immediately — persists even if local polling times out.
+             The stamp is the route recorded on the job itself (or null when
+             unrecorded) — never a hardcoded route name. */
+          updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: provider });
         },
         fetchImpl: confirmedFetch,
       });
@@ -1007,8 +1019,10 @@ export function LipSyncSection({
           sceneId:            sid,
           artistVaultId:      activeArtist?.id ?? null,
           getAccessToken,
-          onSyncLabsJobAccepted: (syncLabsJobId) => {
-            updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
+          onSyncLabsJobAccepted: (syncLabsJobId, provider) => {
+            /* Same truthful stamp as the single-clip path: the job's own
+               recorded route, or null when unrecorded. */
+            updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: provider });
           },
           fetchImpl: skipConfirmFetch,
         });
@@ -2382,7 +2396,9 @@ export function LipSyncSection({
                       updateClipEdit(selectedScene.id, {
                         lipSyncUrl:            resultUrl,
                         lipSyncStatus:         "done",
-                        lipSyncProvider:       ce?.lipSyncProvider ?? "sync.so",
+                        /* Preserve the result's recorded provenance (canonicalized);
+                           unrecorded stays null — never a fabricated route. */
+                        lipSyncProvider:       resolveLipSyncProvenance(ce?.lipSyncProvider),
                         lipSyncCreatedAt:      ce?.lipSyncCreatedAt ?? new Date().toISOString(),
                         lipSyncError:          null,
                         lipSyncTimingMismatch: false,
@@ -2804,7 +2820,7 @@ export function LipSyncSection({
                             </button>
                             <button
                               type="button"
-                              onClick={() => useResultInPlayer(cjr.jobId, cjr.outputUrl!)}
+                              onClick={() => useResultInPlayer(cjr.jobId, cjr.outputUrl!, cjr.provider)}
                               disabled={isInPlayer}
                               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
@@ -2813,7 +2829,7 @@ export function LipSyncSection({
                             </button>
                             <button
                               type="button"
-                              onClick={() => saveResultToScene(cjr.jobId, cjr.outputUrl!)}
+                              onClick={() => saveResultToScene(cjr.jobId, cjr.outputUrl!, cjr.provider)}
                               disabled={isSaved}
                               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
@@ -4039,10 +4055,12 @@ interface LipSyncBackendRequest {
   /** The character this lip-sync is made as (0142, G8). */
   artistVaultId?:       string | null;
   getAccessToken:       () => Promise<string | null>;
-  /** Called the first time the backend records the Sync.so provider job ID.
+  /** Called the first time the backend records the provider job ID.
    *  The client should immediately persist this to the clip so it survives
-   *  a local timeout or server restart. */
-  onSyncLabsJobAccepted?: (syncLabsJobId: string) => void;
+   *  a local timeout or server restart. Also carries the job's recorded
+   *  route (canonical provider id) from the same poll answer — null when
+   *  the job carries no recorded route, never guessed. */
+  onSyncLabsJobAccepted?: (syncLabsJobId: string, provider: string | null) => void;
   /** fetch implementation (for the universal credit confirmation). */
   fetchImpl?: FetchImpl;
 }
@@ -4175,9 +4193,11 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       continue;
     }
 
-    /* Notify caller the moment the Sync.so provider job ID becomes available */
+    /* Notify caller the moment the provider job ID becomes available —
+       with the route recorded on that same job answer, so the clip's
+       provenance stamp names the route that actually accepted the job. */
     if (job.syncLabsJobId && !syncLabsJobNotified) {
-      req.onSyncLabsJobAccepted?.(job.syncLabsJobId);
+      req.onSyncLabsJobAccepted?.(job.syncLabsJobId, resolveLipSyncProvenance(job.provider));
       syncLabsJobNotified = true;
     }
 

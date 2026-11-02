@@ -33,6 +33,51 @@ function dims(w: unknown, h: unknown): string | null {
 }
 
 /**
+ * Canonical lip-sync provider id, or null when the value does not name
+ * a known route. Mirrors the server's normalizeLipSyncProvider
+ * (api-server lib/sync-labs.ts): the recorded route ids are a closed
+ * set ("latentsync" | "sync"); legacy aliases ("sync.so", "wavespeed",
+ * …) canonicalize to them. Anything else is UNKNOWN — null, never
+ * passed through and never guessed (stack1200, Z3 residual).
+ */
+export function normalizeLipSyncProviderId(
+  raw: string | null | undefined,
+): string | null {
+  switch ((raw ?? "").trim().toLowerCase()) {
+    case "latentsync":
+    case "wavespeed":
+    case "latent-sync":
+    case "latent_sync":
+      return "latentsync";
+    case "sync":
+    case "sync-labs":
+    case "synclabs":
+    case "sync.so":
+      return "sync";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Provenance for a scene's lip-sync stamp on the recovery paths: the
+ * FIRST candidate that names a known route wins (callers pass the
+ * freshest evidence first — e.g. the check-provider-job answer ahead
+ * of the clip's previously recorded stamp). When no candidate knows,
+ * the stamp is null: a recovery path must never fabricate the premium
+ * route's name for a job that may have run on the default route.
+ */
+export function resolveLipSyncProvenance(
+  ...candidates: Array<string | null | undefined>
+): string | null {
+  for (const candidate of candidates) {
+    const id = normalizeLipSyncProviderId(candidate);
+    if (id) return id;
+  }
+  return null;
+}
+
+/**
  * Human provider label for editor surfaces (board item 60): the raw
  * provider ids ("latentsync", "sync") are internal names, never shown
  * to creators verbatim — and neither is the model name behind the
