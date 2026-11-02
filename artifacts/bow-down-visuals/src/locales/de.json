@@ -15692,5 +15692,24 @@
     "portalOpenFailed": "Das Abrechnungsportal öffnete sich nicht. Versuchen Sie es in einer Minute erneut.",
     "portalNoPage": "Das Abrechnungsportal lieferte keine Seite.",
     "portalOpened": "Ihr Abrechnungsportal öffnete sich in einem neuen Tab — verwalten oder kündigen Sie dort; diese Übersicht liest Ihren Plan bei Ihrer Rückkehr neu."
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "Deine Nachricht für {{name}}…",
+    "send": "Senden",
+    "offerLoadFailed": "Shoutouts für diese Bühne konnten nicht geladen werden.",
+    "tryAgain": "Erneut versuchen",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "Shoutouts sind für Mitglieder — melde dich an, um der Bühne zuzujubeln.",
+    "deniedNoStage": "Gerade hält niemand die Bühne — Shoutouts landen, solange eine Show läuft.",
+    "deniedSelf": "Das ist deine Bühne — du kannst dir selbst keinen Shoutout kaufen.",
+    "deniedMessage": "Schreib zuerst eine Nachricht — bis zu 300 Zeichen.",
+    "deniedTooFast": "Ein Shoutout nach dem anderen — warte ein paar Sekunden.",
+    "deniedNotOffered": "{{name}} nimmt gerade keine Shoutouts an.",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "Shoutouts sind für dein Konto gerade nicht verfügbar.",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

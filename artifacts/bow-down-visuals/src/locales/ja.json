@@ -15688,5 +15688,24 @@
     "portalOpenFailed": "請求ポータルを開けませんでした。少ししてから再試行してください。",
     "portalNoPage": "請求ポータルがページを返しませんでした。",
     "portalOpened": "請求ポータルが新しいタブで開きました — そちらで管理または解約してください。戻るとこのデスクがプランを再読み込みします。"
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "{{name}}へのメッセージ…",
+    "send": "送信",
+    "offerLoadFailed": "このステージのシャウトアウトを読み込めませんでした。",
+    "tryAgain": "もう一度試す",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "シャウトアウトはメンバー専用です — ステージにシャウトアウトするにはサインインしてください。",
+    "deniedNoStage": "今は誰もステージにいません — シャウトアウトはショーの最中に届きます。",
+    "deniedSelf": "あなたのステージです — 自分からシャウトアウトは買えません。",
+    "deniedMessage": "まずメッセージを書いてください — 最大300文字です。",
+    "deniedTooFast": "シャウトアウトは一度に一つ — 数秒お待ちください。",
+    "deniedNotOffered": "{{name}}は今シャウトアウトを受け付けていません。",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "現在あなたのアカウントではシャウトアウトを利用できません。",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

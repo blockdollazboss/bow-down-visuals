@@ -15715,5 +15715,24 @@
     "portalOpenFailed": "El portal de facturación no se abrió. Inténtalo de nuevo en un minuto.",
     "portalNoPage": "El portal de facturación no devolvió una página.",
     "portalOpened": "Tu portal de facturación se abrió en una pestaña nueva — gestiona o cancela allí; este panel vuelve a leer tu plan cuando regreses."
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "Tu mensaje para {{name}}…",
+    "send": "Enviar",
+    "offerLoadFailed": "No se pudieron cargar los saludos para este escenario.",
+    "tryAgain": "Intentar de nuevo",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "Los saludos son para miembros: inicia sesión para saludar al escenario.",
+    "deniedNoStage": "Nadie está en el escenario ahora: los saludos llegan mientras hay un espectáculo.",
+    "deniedSelf": "Es tu escenario: no puedes comprarte un saludo a ti mismo.",
+    "deniedMessage": "Escribe primero un mensaje: hasta 300 caracteres.",
+    "deniedTooFast": "Un saludo a la vez: espera un par de segundos.",
+    "deniedNotOffered": "{{name}} no está aceptando saludos ahora mismo.",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "Los saludos no están disponibles en tu cuenta ahora mismo.",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

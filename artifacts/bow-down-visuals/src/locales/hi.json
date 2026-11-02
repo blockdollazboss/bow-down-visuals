@@ -15692,5 +15692,24 @@
     "portalOpenFailed": "बिलिंग पोर्टल नहीं खुला। एक मिनट बाद फिर कोशिश करें।",
     "portalNoPage": "बिलिंग पोर्टल ने कोई पृष्ठ नहीं लौटाया।",
     "portalOpened": "आपका बिलिंग पोर्टल नए टैब में खुला — वहाँ प्रबंधित या रद्द करें; आपके लौटने पर यह डेस्क आपकी योजना फिर पढ़ेगा।"
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "{{name}} के लिए आपका संदेश…",
+    "send": "भेजें",
+    "offerLoadFailed": "इस मंच के लिए शाउटआउट लोड नहीं हो सके।",
+    "tryAgain": "फिर कोशिश करें",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "शाउटआउट सदस्यों के लिए हैं — मंच को शाउटआउट देने के लिए साइन इन करें।",
+    "deniedNoStage": "अभी मंच पर कोई नहीं है — शाउटआउट शो चलने पर ही मिलते हैं।",
+    "deniedSelf": "यह आपका मंच है — आप खुद से शाउटआउट नहीं खरीद सकते।",
+    "deniedMessage": "पहले एक संदेश लिखें — अधिकतम 300 अक्षर।",
+    "deniedTooFast": "एक बार में एक शाउटआउट — कुछ सेकंड रुकें।",
+    "deniedNotOffered": "{{name}} अभी शाउटआउट नहीं ले रहे हैं।",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "शाउटआउट अभी आपके खाते पर उपलब्ध नहीं हैं।",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

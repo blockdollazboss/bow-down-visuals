@@ -15784,5 +15784,24 @@
     "portalOpenFailed": "لم تُفتح بوابة الفوترة. حاول مرة أخرى بعد دقيقة.",
     "portalNoPage": "لم تُرجع بوابة الفوترة أي صفحة.",
     "portalOpened": "فُتحت بوابة الفوترة في علامة تبويب جديدة — أدر أو ألغِ هناك؛ ستعيد هذه اللوحة قراءة خطتك عند عودتك."
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "رسالتك إلى {{name}}…",
+    "send": "إرسال",
+    "offerLoadFailed": "تعذر تحميل التحيات لهذا المسرح.",
+    "tryAgain": "حاول مرة أخرى",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "التحيات للأعضاء — سجّل الدخول لتحية المسرح.",
+    "deniedNoStage": "لا أحد على المسرح الآن — تصل التحيات أثناء العرض.",
+    "deniedSelf": "هذا مسرحك — لا يمكنك شراء تحية من نفسك.",
+    "deniedMessage": "اكتب رسالة أولاً — حتى 300 حرف.",
+    "deniedTooFast": "تحية واحدة في كل مرة — انتظر بضع ثوانٍ.",
+    "deniedNotOffered": "{{name}} لا يقبل التحيات الآن.",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "التحيات غير متاحة في حسابك الآن.",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }

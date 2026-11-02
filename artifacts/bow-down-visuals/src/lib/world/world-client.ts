@@ -780,6 +780,16 @@ export class WorldClient {
   /** My stage tip was refused (guests / no-stage / self / amount /
    *  too-fast / insufficient / disabled / error). */
   onStageTipDenied: ((reason: string) => void) | null = null;
+  /** A stage shoutout landed in this room — witnessed publicly
+   *  (fan name + performer name + message + amount are server
+   *  truth). */
+  onStageShouted:
+    | ((shout: { name: string; performerName: string; message: string; amountVb: number }) => void)
+    | null = null;
+  /** My stage shoutout was refused (guests / no-stage / self /
+   *  message / too-fast / not-offered / insufficient / disabled /
+   *  error). */
+  onStageShoutoutDenied: ((reason: string) => void) | null = null;
   /** A palace-wide announcement landed (any room's moment, the
    *  King's daily moment, the host's herald). */
   onAnnounce: ((announce: WorldAnnouncement) => void) | null = null;
@@ -1412,6 +1422,22 @@ export class WorldClient {
     this.send({ type: "stage.tip", amountVb });
   }
 
+  /* ── Stage shoutouts from seats (Ring 3, item 3.3 remainder) ──
+   * One intent with the message; the room enforces members-only,
+   * a held stage, never your own stage, the say bound and the
+   * pace — and the purchase (the performer's own shoutout price,
+   * the rail's flat-5% split) settles server-side. The seat
+   * control shows the price from GET /api/world/shoutout-offer. */
+
+  /** Buy a shoutout from the member holding this room's stage:
+   *  my message, called out on stage. */
+  shoutOutStage(message: string): void {
+    if (this.status !== "inside" || this.isGuest) return;
+    const text = typeof message === "string" ? message.trim() : "";
+    if (!text) return;
+    this.send({ type: "stage.shoutout", message: text });
+  }
+
   /* ── Witnessed moments (THE-GAME §5(a)) ───────────────────────
    * Bare intents: "a win just happened — witness it if it's real."
    * They carry NO facts (no quest name, no reward, no level): the
@@ -1859,6 +1885,32 @@ export class WorldClient {
       }
       case "stage.tip.denied": {
         this.onStageTipDenied?.(typeof frame["reason"] === "string" ? frame["reason"] : "error");
+        return;
+      }
+      case "stage.shouted": {
+        const shout = frame["shout"];
+        if (shout && typeof shout === "object") {
+          const s = shout as Record<string, unknown>;
+          if (
+            typeof s.name === "string" &&
+            typeof s.performerName === "string" &&
+            typeof s.message === "string" &&
+            typeof s.amountVb === "number"
+          ) {
+            this.onStageShouted?.({
+              name: s.name,
+              performerName: s.performerName,
+              message: s.message,
+              amountVb: s.amountVb,
+            });
+          }
+        }
+        return;
+      }
+      case "stage.shoutout.denied": {
+        this.onStageShoutoutDenied?.(
+          typeof frame["reason"] === "string" ? frame["reason"] : "error",
+        );
         return;
       }
       case "drop.landed": {

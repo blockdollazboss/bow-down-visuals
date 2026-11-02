@@ -15715,5 +15715,24 @@
     "portalOpenFailed": "Il portale di fatturazione non si è aperto. Riprova tra un minuto.",
     "portalNoPage": "Il portale di fatturazione non ha restituito una pagina.",
     "portalOpened": "Il tuo portale di fatturazione si è aperto in una nuova scheda — gestisci o annulla lì; questo pannello rileggerà il tuo piano al tuo ritorno."
+  },
+  "worldStageShoutout": {
+    "priceButton": "Shoutout — {{amount}} VB",
+    "freeButton": "Shoutout — free",
+    "composerPlaceholder": "Il tuo messaggio per {{name}}…",
+    "send": "Invia",
+    "offerLoadFailed": "Impossibile caricare gli shoutout per questo palco.",
+    "tryAgain": "Riprova",
+    "witnessed": "{{name}} bought a shoutout for {{performer}} ({{amount}} VB): “{{message}}”",
+    "witnessedFree": "{{name}} shouted out to {{performer}}: “{{message}}”",
+    "deniedGuests": "Gli shoutout sono per i membri — accedi per salutare il palco.",
+    "deniedNoStage": "Nessuno è sul palco in questo momento — gli shoutout arrivano durante uno spettacolo.",
+    "deniedSelf": "È il tuo palco — non puoi comprare uno shoutout da te stesso.",
+    "deniedMessage": "Scrivi prima un messaggio — fino a 300 caratteri.",
+    "deniedTooFast": "Uno shoutout alla volta — aspetta un paio di secondi.",
+    "deniedNotOffered": "{{name}} non sta accettando shoutout in questo momento.",
+    "deniedInsufficient": "Not enough Visual Bucs for that shoutout — your balance hasn't changed.",
+    "deniedDisabled": "Gli shoutout non sono disponibili sul tuo account in questo momento.",
+    "deniedError": "That shoutout didn't land — no Visual Bucs moved. Try again."
   }
 }
