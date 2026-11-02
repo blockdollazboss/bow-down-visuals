@@ -1013,7 +1013,7 @@ async function tellReversalParty(input: {
       jobId: input.claimJobId,
       userId: input.userId,
       projectId: null,
-      status: "done",
+      status: "completed",
       title: input.title,
       message: input.body,
     });

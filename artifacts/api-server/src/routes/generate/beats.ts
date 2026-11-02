@@ -829,7 +829,7 @@ async function notifyBeatSaleSafely(license: {
       jobId: `beat-license:${license.id}`,
       userId: license.producer_id,
       projectId: null,
-      status: "done",
+      status: "completed",
       title,
       message,
     });
