@@ -3683,6 +3683,7 @@ export default function WorldPage() {
               {shoutoutOffer?.kind === "offered" && (
                 <button
                   type="button"
+                  aria-expanded={shoutoutOpen}
                   onClick={() => {
                     setShoutoutNote(null);
                     setShoutoutOpen((open) => !open);
@@ -3719,6 +3720,9 @@ export default function WorldPage() {
                     value={shoutoutDraft}
                     onChange={(e) => setShoutoutDraft(e.target.value)}
                     maxLength={STAGE_SHOUTOUT_MESSAGE_MAX}
+                    aria-label={t("worldStageShoutout.composerPlaceholder", {
+                      name: stageHolder.name,
+                    })}
                     placeholder={t("worldStageShoutout.composerPlaceholder", {
                       name: stageHolder.name,
                     })}
