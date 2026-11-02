@@ -33,10 +33,12 @@ import {
 import {
   DeskSelectField,
   DeskTextField,
-  QuestProgressChip,
   useDeskAuthHeaders,
+} from "./CreateDeskLeaf";
+import {
+  QuestProgressChip,
   useQuestProgressChip,
-} from "./CreateDeskShared";
+} from "./CreateResultLeaf";
 import { SchedulerComposeStandalone } from "./SchedulerDesk";
 
 /* ─── Ring 2 (2.9 + 2.10) — the Thumbnail Desk's pro benches ────────

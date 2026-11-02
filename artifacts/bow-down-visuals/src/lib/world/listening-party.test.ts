@@ -258,8 +258,12 @@ describe("the start-time input", () => {
 });
 
 describe("wiring pins — the Music Hall panel walks the whole loop", () => {
+  /* World-perf round 4: the jukebox panel + listening-party
+     section moved verbatim out of StationPanel.tsx into
+     native/JukeboxPanel.tsx (their own lazy chunk) — the wiring
+     pins read the bodies at their new home, unchanged. */
   const panel = readFileSync(
-    resolve(__dirname, "../../components/world/StationPanel.tsx"),
+    resolve(__dirname, "../../components/world/native/JukeboxPanel.tsx"),
     "utf8",
   );
 

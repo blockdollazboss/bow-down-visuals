@@ -6,7 +6,7 @@ import {
   NativeErrorState,
   NativeLoadingState,
 } from "@/components/world/native/NativeStates";
-import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   REFERRALS_CONTEST_PATH,
   REFERRALS_ME_PATH,

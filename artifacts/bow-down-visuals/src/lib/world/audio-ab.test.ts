@@ -24,7 +24,7 @@ import {
 import type { AudioBenchResult } from "./audio-benches";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const shared = read("../../components/world/native/CreateDeskShared.tsx");
+const resultLeaf = read("../../components/world/native/CreateResultLeaf.tsx");
 const audioDesk = read("../../components/world/native/AudioDesk.tsx");
 
 const result = (urls: Array<{ label: string; url: string }>): AudioBenchResult => ({
@@ -164,7 +164,7 @@ describe("which bench results carry an honest A/B", () => {
 
 describe("source pins — the player and the desks stay honest", () => {
   it("the A/B player is ONE audio element, driven by the seam", () => {
-    const player = shared.slice(shared.indexOf("export function ABAudioPlayer"));
+    const player = resultLeaf.slice(resultLeaf.indexOf("export function ABAudioPlayer"));
     expect(player.match(/<audio/g)?.length).toBe(1);
     expect(player).toContain("abResumePosition(");
     expect(player).toContain("abSideAfterFlip(");
@@ -174,7 +174,7 @@ describe("source pins — the player and the desks stay honest", () => {
   });
 
   it("a missing original is said out loud, in the player's own note", () => {
-    const player = shared.slice(shared.indexOf("export function ABAudioPlayer"));
+    const player = resultLeaf.slice(resultLeaf.indexOf("export function ABAudioPlayer"));
     expect(player).toContain('data-testid="world-audio-ab-before-gone"');
     expect(player).toContain("isn&rsquo;t at this desk anymore");
     expect(player).toContain("!availability.before");

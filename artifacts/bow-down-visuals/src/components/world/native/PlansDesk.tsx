@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Crown, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
-import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   PLAN_CHANGE_CLEARS_CANCEL_LINE,
   apiErrorLine,

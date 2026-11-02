@@ -4,7 +4,7 @@ import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, Sparkles, Za
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { DeskSelectField, DeskTextField } from "./CreateDeskShared";
+import { DeskSelectField, DeskTextField } from "./CreateDeskLeaf";
 import type { CreateDeskProps } from "./CreateDesks";
 import { parsePanelPayloadFor } from "@/lib/world/panel-payload";
 import { HOOK_TEMPLATES } from "@/data/hook-templates";

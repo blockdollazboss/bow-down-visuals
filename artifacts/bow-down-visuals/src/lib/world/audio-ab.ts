@@ -3,7 +3,7 @@
  * before/after A/B seam for the Audio Desk.
  *
  * Ring 2 (2.7) docked the A/B player at the QUICK bench for
- * cleanup / de-reverb only (CreateDeskShared's ABAudioPlayer —
+ * cleanup / de-reverb only (CreateDeskLeaf's ABAudioPlayer —
  * the Audio Studio DeverbPanel's own pattern: one element, swap
  * the source at the same position, per-side waveform peaks).
  * Everything around it was missing:

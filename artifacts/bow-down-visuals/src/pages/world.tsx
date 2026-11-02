@@ -1,5 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
@@ -195,9 +195,8 @@ import {
   PARTY_GAME_META,
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
-import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
+import type { StationPanelTarget } from "@/components/world/StationPanel";
 import ControllerMapPanel from "@/components/world/ControllerMapPanel";
-import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk, LiveScheduleDesk, LiveControllerDesk, LiveWatchDesk, LivePremiereDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
 import { insertAtCursor } from "@/lib/king-emoji";
 import { fetchPublicCourt } from "@/lib/royal-court";
@@ -374,6 +373,66 @@ function ActionButton({
       <Icon className="h-3.5 w-3.5" />
       {def.label}
     </button>
+  );
+}
+
+/* The station panel universe — every native desk — loads on
+ * FIRST OPEN, not with the room (world-perf lane, stack1200).
+ * The panel only ever mounts while a station stands open
+ * (panelTarget), so its code rides its own chunk behind this
+ * lazy door: the same pattern App.tsx's routes and
+ * StationPanel's own step-through editor already use. First-load
+ * bytes for /world drop by the whole desk tree; the scene, the
+ * HUD and the walk are untouched. */
+const StationPanel = lazy(() => import("@/components/world/StationPanel"));
+
+/* What stands in the sheet's place while its chunk lands: the
+ * sheet's own frame (same anchor, same chrome) with a spinner —
+ * a first open on a slow line reads as "opening", never a dead
+ * tap or a blank hole (the empty-lie rule). */
+function StationPanelFallback({ isLight, label }: { isLight: boolean; label: string }) {
+  return (
+    <div
+      className={`fixed inset-x-0 bottom-0 z-40 max-h-[86dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-16px_48px_rgba(0,0,0,0.45)] md:inset-x-6 md:bottom-4 md:rounded-2xl md:border ${
+        isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"
+      }`}
+      data-testid="world-station-panel-loading"
+      role="status"
+      aria-label={label}
+    >
+      <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {label}
+      </span>
+    </div>
+  );
+}
+
+/* The Screen panel's Go-Live desks load on FIRST OPEN too
+ * (world-perf round 2, stack1200): the seven Live desks render
+ * only inside that panel (screenPanelOpen), so their module —
+ * LiveDesk.tsx and its go-live rails — rides its own chunk
+ * behind this lazy door instead of the /world first-load graph.
+ * Same pattern as the station panel above; the desks, their
+ * order and their props are untouched (LiveDesksPanel passes
+ * down exactly what this page used to render inline). */
+const LiveDesksPanel = lazy(() => import("@/components/world/native/LiveDesksPanel"));
+
+/* What stands in the desks' place while their chunk lands: the
+ * desks' own frame (the same border-t strip the loaded block
+ * opens with) with a spinner — a first open on a slow line reads
+ * as "opening", never a dead tap or a blank hole. */
+function LiveDesksFallback({ isLight, label }: { isLight: boolean; label: string }) {
+  return (
+    <div
+      className={`mt-4 border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-[#d4af37]/20"}`}
+      data-testid="world-live-desks-loading"
+      role="status"
+      aria-label={label}
+    >
+      <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {label}
+      </span>
+    </div>
   );
 }
 
@@ -4387,24 +4446,17 @@ export default function WorldPage() {
             </div>
           )}
 
-          {/* Live Wave I (stack-100 #85–#87): the Go Live studio,
-              its guests & backstage, and the guest door — in-world,
-              on the 2D studio's own rails. This panel is members-only
-              (!isGuest above), so palace guests never reach these
-              desks and gain no voice from them. */}
-          <div className={`mt-4 space-y-5 border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-[#d4af37]/20"}`} data-testid="world-live-desks">
-            <LiveStudioDesk isLight={isLight} onStreamChange={() => void loadStageTools()} />
-            <LiveBackstageDesk isLight={isLight} />
-            <LiveGuestJoinDesk isLight={isLight} />
-            {/* Live Wave II (stack-100 #88–#91): scheduling, the
-                Stream Controller deck, live-watch parity for the
-                stream on the big screen, and premiere scheduling —
-                same members-only panel, same real rails. */}
-            <LiveScheduleDesk isLight={isLight} />
-            <LiveControllerDesk isLight={isLight} />
-            <LiveWatchDesk isLight={isLight} screen={stageScreen ? { mode: stageScreen.mode, streamId: stageScreen.streamId } : null} />
-            <LivePremiereDesk isLight={isLight} />
-          </div>
+          {/* The Go-Live desks (Live Wave I + II) ride their own
+              chunk behind the LiveDesksPanel lazy door — they
+              render only inside this members-only panel, so they
+              load on first open, not with the room. */}
+          <Suspense fallback={<LiveDesksFallback isLight={isLight} label={t("common.loading")} />}>
+            <LiveDesksPanel
+              isLight={isLight}
+              screen={stageScreen ? { mode: stageScreen.mode, streamId: stageScreen.streamId } : null}
+              onStreamChange={() => void loadStageTools()}
+            />
+          </Suspense>
         </div>
       )}
 
@@ -4639,6 +4691,7 @@ export default function WorldPage() {
           viewport (see StationPanel's root); the step-through kind
           renders itself full-screen from inside this same mount. */}
       {panelTarget && status === "inside" && (
+        <Suspense fallback={<StationPanelFallback isLight={isLight} label={t("common.loading")} />}>
         <StationPanel
           target={panelTarget}
           isLight={isLight}
@@ -4689,6 +4742,7 @@ export default function WorldPage() {
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
           onJukeboxRemove={(entryId) => clientRef.current?.jukeboxRemove(entryId)}
         />
+        </Suspense>
       )}
 
       {/* World settings (stack900): the World's own settings

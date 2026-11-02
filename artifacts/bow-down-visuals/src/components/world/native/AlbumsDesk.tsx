@@ -10,7 +10,7 @@ import {
   NativeErrorState,
   NativeLoadingState,
 } from "@/components/world/native/NativeStates";
-import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   ALBUMS_PATH,
   ALBUM_PUBLISH_COST_VB,

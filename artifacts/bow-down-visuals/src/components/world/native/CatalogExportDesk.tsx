@@ -2,7 +2,7 @@ import { plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
-import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   CATALOG_EXPORT_FIELD_OPTIONS,
   CATALOG_EXPORT_FORMAT_OPTIONS,

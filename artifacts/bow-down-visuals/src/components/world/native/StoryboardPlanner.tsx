@@ -26,7 +26,8 @@ import {
   type StoryboardBoardDTO,
   type StoryboardPanelDTO,
 } from "@/lib/world/storyboard-planner";
-import { QuestProgressChip, useDeskAuthHeaders, useQuestProgressChip } from "./CreateDeskShared";
+import { useDeskAuthHeaders } from "./CreateDeskLeaf";
+import { QuestProgressChip, useQuestProgressChip } from "./CreateResultLeaf";
 
 /* ─── STACK-20 R2 #19 (2.3, planner half) — the storyboard planner ──
    The bench above builds scenes FROM a song; this planner is the

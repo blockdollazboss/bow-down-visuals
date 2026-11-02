@@ -4,21 +4,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import {
   AdvancedExpander,
-  ClipModelPicker,
   DeskSelectField,
   DeskTextField,
+  saveGeneratedClipToLibrary,
+  useDeskAuthHeaders,
+} from "./CreateDeskLeaf";
+import {
+  ClipModelPicker,
   ImageResult,
   PublishedReward,
   QuestProgressChip,
-  ResultChips,
   SongAudioRail,
   TextResult,
   VideoResult,
-  saveGeneratedClipToLibrary,
-  useDeskAuthHeaders,
   useQuestProgressChip,
   type SongAudioState,
-} from "./CreateDeskShared";
+} from "./CreateResultLeaf";
+import { ResultChips } from "./CreateDeskShared";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { StoryboardBench } from "./StoryboardBench";

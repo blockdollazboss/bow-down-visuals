@@ -51,7 +51,11 @@ const FORBIDDEN: Array<[string, RegExp]> = [
  *  locally composed copy or already translator-built at the source. */
 const BARE_ALLOWLIST: Array<[string, string]> = [
   ["GroupProfileSettings.tsx", "setError(built.error)"],
-  ["StationPanel.tsx", "setError(built.error)"],
+  /* World-perf round 4: the listening-party builder's local-copy
+     site moved verbatim with the jukebox panel into its own file;
+     the allowlist entry follows the code (same string, same
+     locally composed value from buildListeningPartyBody). */
+  ["JukeboxPanel.tsx", "setError(built.error)"],
   ["CreatorRooms.tsx", "setFormError(built.error)"],
   ["LiveCaptionsStudioPanel.tsx", "setNote(r.error)"],
   ["copyright.tsx", "setError(result.error)"],

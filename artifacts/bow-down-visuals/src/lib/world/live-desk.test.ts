@@ -36,6 +36,7 @@ import {
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const deskSrc = read("../../components/world/native/LiveDesk.tsx");
+const livePanelSrc = read("../../components/world/native/LiveDesksPanel.tsx");
 const worldSrc = read("../../pages/world.tsx");
 const guestApiSrc = read("../go-live/guest-api.ts");
 const transportSrc = read("../stream-kit/transport.ts");
@@ -212,10 +213,15 @@ describe("#87 join as guest — the guest page's doors verbatim", () => {
 
 describe("law — members only, no link-out completion, nothing charged", () => {
   it("the desks dock inside the members-only Screen panel (palace guests gain no voice)", () => {
-    expect(worldSrc).toContain('data-testid="world-live-desks"');
-    expect(worldSrc).toContain("<LiveStudioDesk");
-    expect(worldSrc).toContain("<LiveBackstageDesk");
-    expect(worldSrc).toContain("<LiveGuestJoinDesk");
+    /* The desks render inside LiveDesksPanel (world-perf round 2
+       moved them behind the page's lazy door unchanged) — the
+       mount pins read the wrapper; the panel gate stays pinned
+       on world.tsx. */
+    expect(livePanelSrc).toContain('data-testid="world-live-desks"');
+    expect(livePanelSrc).toContain("<LiveStudioDesk");
+    expect(livePanelSrc).toContain("<LiveBackstageDesk");
+    expect(livePanelSrc).toContain("<LiveGuestJoinDesk");
+    expect(worldSrc).toContain("<LiveDesksPanel");
     /* The panel's own gate: screenPanelOpen && inHall && !isGuest. */
     expect(worldSrc).toContain("screenPanelOpen && inHall && !isGuest");
     expect(deskSrc).toContain("palace guests never");

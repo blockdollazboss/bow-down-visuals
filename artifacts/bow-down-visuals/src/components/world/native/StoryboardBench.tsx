@@ -25,11 +25,13 @@ import {
   type ClipSettings,
 } from "@/lib/world/create-desks";
 import {
-  QuestProgressChip,
   saveGeneratedClipToLibrary,
   useDeskAuthHeaders,
+} from "./CreateDeskLeaf";
+import {
+  QuestProgressChip,
   useQuestProgressChip,
-} from "./CreateDeskShared";
+} from "./CreateResultLeaf";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Ring 2 (2.3) — the storyboard bench ───────────────────────────

@@ -190,7 +190,9 @@ describe("the desk is mounted in the Hall and rides the confirmation", () => {
     expect(hallAt).toBeGreaterThan(-1);
     expect(eventsAt).toBeGreaterThan(hallAt);
     expect(collabsAt).toBeGreaterThan(eventsAt);
-    expect(panelSrc).toContain('import { CollabsDesk } from "@/components/world/native/CollabsDesk"');
+    /* world-perf round 2: the desk rides its own chunk behind the
+       panel's lazy door — the door is the wiring now. */
+    expect(panelSrc).toContain('lazy(() => import("@/components/world/native/CollabsDesk")');
   });
 
   it("the match rides confirmedFetch with the pinned cost; a declined confirmation charges nothing", () => {

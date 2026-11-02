@@ -22,14 +22,16 @@ import {
   styleDnaOfResponse,
 } from "@/lib/world/create-desks";
 import {
-  AudioResult,
   DeskSelectField,
   DeskTextField,
+  useDeskAuthHeaders,
+} from "./CreateDeskLeaf";
+import {
+  AudioResult,
   QuestProgressChip,
   TextResult,
-  useDeskAuthHeaders,
   useQuestProgressChip,
-} from "./CreateDeskShared";
+} from "./CreateResultLeaf";
 
 /* ─── Ring 2 (2.5) — the Song Desk's other tabs ─────────────────────
    make-song.tsx's docked tabs, riding the same endpoints the page
