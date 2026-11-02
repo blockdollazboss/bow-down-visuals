@@ -20,6 +20,9 @@ import {
   BRAND_OUTREACH_COST_VB,
   BRAND_OUTREACH_DEAL_TYPES,
   BRAND_OUTREACH_PLATFORMS,
+  CHART_LOOKBACKS,
+  CHART_LOOKBACK_MAX_DAYS,
+  CHART_LOOKBACK_MIN_DAYS,
   CHART_VERTICALS,
   CHART_WINDOWS,
   brandOutreachErrorMessage,
@@ -27,6 +30,8 @@ import {
   buildUgcBriefPayload,
   chartLikeIdsParam,
   chartLikeKey,
+  chartLookbackNoun,
+  chartLookbackSuffix,
   chartRepostIdsParam,
   chartTrackPlayInput,
   chartVideoPlayInput,
@@ -393,8 +398,8 @@ describe("the ChartsBoard surface (source pins)", () => {
        the URLs it builds are the plan's endpoints, window included. */
     expect(chartsMediaPath("week")).toBe("/api/discovery/charts?window=week&limit=10");
     expect(chartsCreatorsPath("week")).toBe("/api/discovery/charts/creators?window=week&limit=10");
-    expect(boardSrc).toContain("chartsMediaPath(window, vertical)");
-    expect(boardSrc).toContain("chartsCreatorsPath(window, vertical)");
+    expect(boardSrc).toContain("chartsMediaPath(window, vertical, lookbackDays)");
+    expect(boardSrc).toContain("chartsCreatorsPath(window, vertical, lookbackDays)");
     /* The fixed-span reads ride their builders too — the exact
        strings are pinned at the seam (P3 describe below). */
     expect(boardSrc).toContain("chartsRisingPath(vertical)");
@@ -484,7 +489,7 @@ describe("Ring 4 parity — the window switcher (Today / This week / All time)",
     expect(boardSrc).toContain("setWindow(w.key)");
     /* the load effect re-runs on window change, and media rows
        cache per window — a window's rows are its own server read */
-    expect(boardSrc).toContain("[tab, tick, window, vertical]");
+    expect(boardSrc).toContain("[tab, tick, window, vertical, lookbackDays]");
     expect(boardSrc).toContain("mediaByKey");
     /* titles come off the window, not a hardcoded "this week" */
     expect(boardSrc).toContain("chartWindowNoun(window)");
@@ -785,7 +790,7 @@ describe("P3 — the board source: the vertical switcher stands on every tab", (
     expect(boardSrc).toContain("setVertical(v.key)");
     /* every read carries the vertical, and the load effect
        re-runs when it moves — switching re-queries */
-    expect(boardSrc).toContain("[tab, tick, window, vertical]");
+    expect(boardSrc).toContain("[tab, tick, window, vertical, lookbackDays]");
     /* a chosen vertical names itself in the board title */
     expect(boardSrc).toContain("chartVerticalLabel(vertical)");
     /* unlike the window switcher it is NOT gated to windowed tabs:
@@ -829,5 +834,119 @@ describe("P3 — the board source: the vertical switcher stands on every tab", (
     expect(outreachPanelSrc).toContain('data-testid="world-outreach-result"');
     expect(outreachPanelSrc).toContain('data-testid="world-outreach-copy"');
     expect(outreachPanelSrc).toContain('data-testid="world-brief-posted"');
+  });
+});
+
+describe("Ring 4 #26 — the advanced lookback (the charts page's `days`, in-world)", () => {
+  const libSrc = read("./charts-board.ts");
+
+  it("offers exactly the website panel's presets — Default plus 7 / 14 / 30 / 90 days", () => {
+    /* The 2D AdvancedPanel's DAY_PRESETS, with its null state
+       first: Default is the window's own span, riding no param. */
+    expect(CHART_LOOKBACKS.map((l) => l.days)).toEqual([null, 7, 14, 30, 90]);
+    expect(CHART_LOOKBACKS.map((l) => l.label)).toEqual([
+      "Default",
+      "7 days",
+      "14 days",
+      "30 days",
+      "90 days",
+    ]);
+  });
+
+  it("the range matches the rail exactly — the ChartsQuery integer 1–90, edges included", () => {
+    /* routes/discovery.ts: days is z.coerce.number().int()
+       .min(1).max(90) — 0, 91 and non-integers are the caller's
+       400 there, and its own suite pins days=1 / days=90 as 200. */
+    expect(CHART_LOOKBACK_MIN_DAYS).toBe(1);
+    expect(CHART_LOOKBACK_MAX_DAYS).toBe(90);
+    for (const l of CHART_LOOKBACKS) {
+      if (l.days === null) continue;
+      expect(Number.isInteger(l.days)).toBe(true);
+      expect(l.days).toBeGreaterThanOrEqual(CHART_LOOKBACK_MIN_DAYS);
+      expect(l.days).toBeLessThanOrEqual(CHART_LOOKBACK_MAX_DAYS);
+    }
+    expect(chartLookbackSuffix(1)).toBe("&days=1");
+    expect(chartLookbackSuffix(90)).toBe("&days=90");
+    expect(chartLookbackSuffix(30)).toBe("&days=30");
+  });
+
+  it("an out-of-range or non-integer lookback rides no param — the board never sends a span the rail would 400", () => {
+    expect(chartLookbackSuffix(null)).toBe("");
+    expect(chartLookbackSuffix(0)).toBe("");
+    expect(chartLookbackSuffix(91)).toBe("");
+    expect(chartLookbackSuffix(-3)).toBe("");
+    expect(chartLookbackSuffix(7.5)).toBe("");
+    expect(chartLookbackSuffix(Number.NaN)).toBe("");
+  });
+
+  it("the lookback drives the SAME days parameter the 2D control sends, on the same two reads", () => {
+    /* No lookback: the windowed paths stay byte-identical. */
+    expect(chartsMediaPath("week", "all", null)).toBe("/api/discovery/charts?window=week&limit=10");
+    expect(chartsCreatorsPath("week", "all", null)).toBe(
+      "/api/discovery/charts/creators?window=week&limit=10",
+    );
+    /* Chosen: `days` rides after the vertical, composing with it —
+       the same param the page appends (`&days=${days}`), on the
+       media read and the creators read alike. */
+    expect(chartsMediaPath("week", "all", 30)).toBe(
+      "/api/discovery/charts?window=week&limit=10&days=30",
+    );
+    expect(chartsMediaPath("today", "music", 7)).toBe(
+      "/api/discovery/charts?window=today&limit=10&vertical=music&days=7",
+    );
+    expect(chartsCreatorsPath("all", "podcast", 90)).toBe(
+      "/api/discovery/charts/creators?window=all&limit=10&vertical=podcast&days=90",
+    );
+    expect(chartsCreatorsPath("week", "all", 14)).toBe(
+      "/api/discovery/charts/creators?window=week&limit=10&days=14",
+    );
+  });
+
+  it("the fixed-span reads take no days at all — the rail refuses it there, so the seam offers no way to send it", () => {
+    expect(libSrc).toContain('export function chartsRisingPath(vertical: ChartVertical = "all"): string');
+    expect(libSrc).toContain('export function chartsEarnersPath(vertical: ChartVertical = "all"): string');
+    expect(libSrc).toContain('export function chartsBrandsPath(vertical: ChartVertical = "all"): string');
+    expect(boardSrc).not.toContain("chartsRisingPath(vertical,");
+    expect(boardSrc).not.toContain("chartsEarnersPath(vertical,");
+    expect(boardSrc).not.toContain("chartsBrandsPath(vertical,");
+  });
+
+  it("titles and empty states speak the lookback's span while one is chosen", () => {
+    expect(chartLookbackNoun(7)).toBe("last 7 days");
+    expect(chartLookbackNoun(30)).toBe("last 30 days");
+    expect(chartLookbackNoun(90)).toBe("last 90 days");
+    expect(boardSrc).toContain("chartLookbackNoun(lookbackDays)");
+    /* the all-time empty copy is gated on NO lookback — under a
+       chosen lookback it would name a span the board isn't showing */
+    expect(boardSrc).toContain('lookbackDays === null && window === "all"');
+  });
+
+  it("the board source: a lookback state drives the control, the fetches, the caches", () => {
+    expect(boardSrc).toContain("const [lookbackDays, setLookbackDays] = useState<number | null>(null)");
+    expect(boardSrc).toContain("CHART_LOOKBACKS.map");
+    expect(boardSrc).toContain('world-charts-lookback-${l.days ?? "default"}');
+    expect(boardSrc).toContain("setLookbackDays(l.days)");
+    /* both windowed fetches carry the state; the load effect
+       re-runs when it moves */
+    expect(boardSrc).toContain("chartsMediaPath(window, vertical, lookbackDays)");
+    expect(boardSrc).toContain("chartsCreatorsPath(window, vertical, lookbackDays)");
+    expect(boardSrc).toContain("[tab, tick, window, vertical, lookbackDays]");
+    /* a lookback's rows cache apart from the window's own — its
+       own server read, like a window's */
+    expect(boardSrc).toContain('${lookbackDays ?? "default"}');
+  });
+
+  it("the board source: the lookback stands with the window switcher — windowed tabs only, before the vertical row", () => {
+    const windowAt = boardSrc.indexOf('aria-label="Chart window"');
+    const lookbackAt = boardSrc.indexOf('aria-label="Chart lookback"');
+    const verticalAt = boardSrc.indexOf('aria-label="Chart vertical"');
+    expect(windowAt).toBeGreaterThan(-1);
+    expect(lookbackAt).toBeGreaterThan(windowAt);
+    expect(verticalAt).toBeGreaterThan(lookbackAt);
+    /* it renders inside the windowed-tab gate, like the window
+       switcher — the fixed-span tabs never see it */
+    const gateAt = boardSrc.lastIndexOf("{windowedTab && (", lookbackAt);
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(lookbackAt - gateAt).toBeLessThan(160);
   });
 });
