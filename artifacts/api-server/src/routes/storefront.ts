@@ -5712,6 +5712,34 @@ async function shopUnloggedSalesCount(userId: string): Promise<number> {
   }
 }
 
+/* Customer-shop product counts for the checklist's first two nudges
+   (stack1200 — the leftover G5C named when it unified this handler's
+   earnings with shop sales). Counts ride shop OWNERSHIP: shop_products
+   joined through their shops (shops.user_id is the owner), so another
+   seller's products can never count. Status vocabulary is the shops'
+   own: 'active' is live, 'paused' is listed-but-not-live (the draft
+   side of the activate nudge). The "restock" nudge is deliberately
+   NOT folded in: shop_products carries no inventory column, so shop
+   products have no sold-out semantics to count. Guarded like the
+   sales reads above — a database without the shops tables reads as
+   zero shop products, never a 500. */
+async function shopProductCounts(userId: string): Promise<{ total: number; active: number }> {
+  try {
+    const r = await db.execute(sql`
+      SELECT COUNT(*)::int AS total,
+             COALESCE(SUM(CASE WHEN sp.status = 'active' THEN 1 ELSE 0 END), 0)::int AS active
+      FROM shop_products sp
+      JOIN shops s ON s.id = sp.shop_id
+      WHERE s.user_id = ${userId}
+    `);
+    const row = r.rows[0] as Record<string, unknown>;
+    return { total: Number(row["total"]), active: Number(row["active"]) };
+  } catch (err) {
+    if (isMissingSchemaError(err)) return { total: 0, active: 0 };
+    throw err;
+  }
+}
+
 /* ═══════════ SELLER: money checklist (Get Paid finale) ═══════════════
    The seller dashboard IS the Get Paid finale: earnings first, then a money
    checklist, then the single sharpest next-money-move nudge. Viewing
@@ -5776,6 +5804,11 @@ router.get("/storefront/money-checklist", requireAuth, async (req, res) => {
        shops tables reads as zero shop sales, never a 500. */
     const shopTotals = await shopSalesTotals(req.userId!);
     const shopUnlogged = await shopUnloggedSalesCount(req.userId!);
+    /* The first two nudges count BOTH product ledgers too: a seller
+       whose only products live in their customer shop has listed a
+       product, and the activate detail must cite the combined true
+       not-live count for mixed sellers. */
+    const shopProducts = await shopProductCounts(req.userId!);
 
     const orow = ordersR.rows[0] as Record<string, unknown>;
     const earningsTotals = {
@@ -5815,6 +5848,8 @@ router.get("/storefront/money-checklist", requireAuth, async (req, res) => {
       id: string; title: string; kind: string; inventory: number; is_active: boolean;
     }>;
     const activeProducts = products.filter((p) => p.is_active);
+    const totalListed = products.length + shopProducts.total;
+    const totalLive = activeProducts.length + shopProducts.active;
     const soldOut = products.filter((p) => p.is_active && Number(p.inventory) === 0);
     const codeCount = Number((codesR.rows[0] as Record<string, unknown>)["n"]);
     const unpricedCount = Number((unpricedR.rows[0] as Record<string, unknown>)["n"]);
@@ -5831,14 +5866,14 @@ router.get("/storefront/money-checklist", requireAuth, async (req, res) => {
         title: "List your first product",
         detail: "A store with nothing in it can't make you money. One product, one price, one tap.",
         cta: "Add a product", href: "/store/dashboard?tab=products",
-        priority: 100, done: products.length > 0,
+        priority: 100, done: totalListed > 0,
       },
       {
         id: "activate",
         title: "Activate a product",
-        detail: `${products.length - activeProducts.length} product(s) sitting in draft. Flip one live.`,
+        detail: `${totalListed - totalLive} product(s) sitting in draft. Flip one live.`,
         cta: "Review products", href: "/store/dashboard?tab=products",
-        priority: 90, done: products.length === 0 || activeProducts.length > 0,
+        priority: 90, done: totalListed === 0 || totalLive > 0,
       },
       {
         id: "price-content",
