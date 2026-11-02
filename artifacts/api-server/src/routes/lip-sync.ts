@@ -102,7 +102,7 @@ function toClientLipSyncJob(job: LipSyncJob) {
     error: job.error?.message,
     code: job.error?.code,
     /* The failure-refund verdict, straight off the job's own gate
-       (migration 0310): chargeRefunded is true only when the poller's
+       (migration 0311): chargeRefunded is true only when the poller's
        exactly-once refund of this job's up-front charge has landed —
        the poller releases its claim whenever the refund write doesn't
        complete and its sweep retries the rest, so the gate never

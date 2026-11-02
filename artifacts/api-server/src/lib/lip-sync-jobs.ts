@@ -90,7 +90,7 @@ export interface LipSyncJob {
   /** Consecutive transient submit deferrals (429/plan-limit); backoff grows 5→10→20→40 min. */
   submitDeferrals: number;
   historyRecorded: boolean;
-  /** Exactly-once gate (0310): the failure refund fires only on the
+  /** Exactly-once gate (0311): the failure refund fires only on the
    *  false→true flip, and a claim whose refund doesn't land is
    *  released — so true means the refund actually completed. */
   chargeRefunded: boolean;
@@ -451,7 +451,7 @@ export async function markHistoryRecorded(id: string): Promise<boolean> {
 }
 
 /**
- * Idempotency gate for the failure refund (migration 0310): only the
+ * Idempotency gate for the failure refund (migration 0311): only the
  * worker that flips charge_refunded false→true on an already-failed
  * job performs the refund of the job's up-front charge. A replayed
  * failure path, a second poller, or a boot-recovery pass over the same

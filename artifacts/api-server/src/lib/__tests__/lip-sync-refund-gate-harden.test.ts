@@ -1,6 +1,6 @@
 /**
  * lip-sync-refund-gate-harden.test.ts — stack1200 hardening of the
- * Gate #5 failure-refund gate (migration 0310).
+ * Gate #5 failure-refund gate (migration 0311).
  *
  * The hole this suite convicts: claimLipSyncChargeRefund flipped
  * charge_refunded BEFORE refundCredits ran. If the refund write
