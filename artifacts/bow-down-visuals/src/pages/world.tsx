@@ -1,5 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
@@ -195,7 +195,7 @@ import {
   PARTY_GAME_META,
   type PartyOpenRoom,
 } from "@/lib/world/games-lobby";
-import StationPanel, { type StationPanelTarget } from "@/components/world/StationPanel";
+import type { StationPanelTarget } from "@/components/world/StationPanel";
 import ControllerMapPanel from "@/components/world/ControllerMapPanel";
 import { LiveStudioDesk, LiveBackstageDesk, LiveGuestJoinDesk, LiveScheduleDesk, LiveControllerDesk, LiveWatchDesk, LivePremiereDesk } from "@/components/world/native/LiveDesk";
 import { EmojiTray, KingTokenText } from "@/components/social/KingEmoji";
@@ -374,6 +374,37 @@ function ActionButton({
       <Icon className="h-3.5 w-3.5" />
       {def.label}
     </button>
+  );
+}
+
+/* The station panel universe — every native desk — loads on
+ * FIRST OPEN, not with the room (world-perf lane, stack1200).
+ * The panel only ever mounts while a station stands open
+ * (panelTarget), so its code rides its own chunk behind this
+ * lazy door: the same pattern App.tsx's routes and
+ * StationPanel's own step-through editor already use. First-load
+ * bytes for /world drop by the whole desk tree; the scene, the
+ * HUD and the walk are untouched. */
+const StationPanel = lazy(() => import("@/components/world/StationPanel"));
+
+/* What stands in the sheet's place while its chunk lands: the
+ * sheet's own frame (same anchor, same chrome) with a spinner —
+ * a first open on a slow line reads as "opening", never a dead
+ * tap or a blank hole (the empty-lie rule). */
+function StationPanelFallback({ isLight, label }: { isLight: boolean; label: string }) {
+  return (
+    <div
+      className={`fixed inset-x-0 bottom-0 z-40 max-h-[86dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-16px_48px_rgba(0,0,0,0.45)] md:inset-x-6 md:bottom-4 md:rounded-2xl md:border ${
+        isLight ? "border-[#C9A84C]/50 bg-[#FBF6E9]" : "border-[#d4af37]/25 bg-[#070605]"
+      }`}
+      data-testid="world-station-panel-loading"
+      role="status"
+      aria-label={label}
+    >
+      <span className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {label}
+      </span>
+    </div>
   );
 }
 
@@ -4639,6 +4670,7 @@ export default function WorldPage() {
           viewport (see StationPanel's root); the step-through kind
           renders itself full-screen from inside this same mount. */}
       {panelTarget && status === "inside" && (
+        <Suspense fallback={<StationPanelFallback isLight={isLight} label={t("common.loading")} />}>
         <StationPanel
           target={panelTarget}
           isLight={isLight}
@@ -4689,6 +4721,7 @@ export default function WorldPage() {
           onJukeboxSkip={() => clientRef.current?.jukeboxSkip()}
           onJukeboxRemove={(entryId) => clientRef.current?.jukeboxRemove(entryId)}
         />
+        </Suspense>
       )}
 
       {/* World settings (stack900): the World's own settings
