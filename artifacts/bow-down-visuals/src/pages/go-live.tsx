@@ -1,6 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Radio, Square, Loader2, CheckCircle2, AlertTriangle, CalendarPlus,
@@ -42,10 +42,30 @@ interface Stream {
   vod_url: string | null;
 }
 
-import ShowFinder from "@/pages/shows";
-import DiscordBotSetup from "@/pages/discord-bot";
-import GamersHub from "@/pages/gamers";
-import StreamCopilotSection from "@/components/go-live/StreamCopilotSection";
+/* The four off-console tab roots ride lazy doors (site-perf,
+   stack1300): /go-live renders one tab at a time and the
+   default is the broadcast console, whose panel stack renders
+   together and stays static. The shows finder, Discord bot
+   setup, gamers hub (three sibling pages) and the stream
+   copilot section fetch on first tab selection and are cached
+   for later switches. The in-file GoLiveMain tab stays in the
+   page chunk. */
+const ShowFinder = lazy(() => import("@/pages/shows"));
+const DiscordBotSetup = lazy(() => import("@/pages/discord-bot"));
+const GamersHub = lazy(() => import("@/pages/gamers"));
+const StreamCopilotSection = lazy(() => import("@/components/go-live/StreamCopilotSection"));
+
+/* The tab stage's loading frame: gold spinner — a tab switch
+   reads as "opening", never a blank hole. */
+function LiveTabFallback() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[240px] items-center justify-center gap-3 text-white/50" role="status">
+      <Loader2 className="h-5 w-5 animate-spin text-[#d4a017]" />
+      <span className="text-sm">{t("common.loading")}</span>
+    </div>
+  );
+}
 import BroadcastStudio from "@/components/go-live/BroadcastStudio";
 import { SongRequestDesk } from "@/components/live/SongRequests";
 import GuestPanel from "@/components/go-live/GuestPanel";
@@ -553,7 +573,9 @@ export default function GoLive() {
         </Link>
       </div>
       <div id="golive-panel" role="tabpanel" aria-labelledby={`golive-tab-${tab}`} tabIndex={0}>
-        {tab === "broadcast" ? <><BroadcastStudio /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+        <Suspense fallback={<LiveTabFallback />}>
+          {tab === "broadcast" ? <><BroadcastStudio /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+        </Suspense>
       </div>
       <div className="mt-6"><StageRooms /></div>
     </div>
