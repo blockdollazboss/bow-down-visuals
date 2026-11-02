@@ -176,6 +176,7 @@ function BackstageChat({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
           placeholder="Message backstage…"
+          aria-label="Message backstage"
           maxLength={BACKSTAGE_SAY_MAX}
           className={inputCls(isLight)}
           data-testid={`${testid}-input`}
@@ -370,6 +371,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                 maxLength={200}
                 className={inputCls(isLight)}
                 data-testid="world-live-title"
+                aria-label="Stream title"
               />
               {phase === "off" ? (
                 <button type="button" onClick={() => void startCamera()} className={goldBtn} data-testid="world-live-camera-start">
@@ -557,7 +559,7 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
       )}
       {ingest?.has_key && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Standing stream title for key broadcasts" maxLength={120} className={`${inputCls(isLight)} max-w-sm`} data-testid="world-live-ingest-title" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Standing stream title for key broadcasts" maxLength={120} className={`${inputCls(isLight)} max-w-sm`} data-testid="world-live-ingest-title" aria-label="Standing stream title" />
           <button
             type="button"
             disabled={busy !== null}
@@ -634,9 +636,9 @@ function DestinationKeysSection({ isLight }: { isLight: boolean }) {
         </ul>
       )}
       <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <input value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="Platform (e.g. youtube)" className={inputCls(isLight)} data-testid="world-live-dest-platform" />
-        <input value={ingestUrl} onChange={(e) => setIngestUrl(e.target.value)} placeholder="Ingest URL (rtmp://…)" className={inputCls(isLight)} data-testid="world-live-dest-url" />
-        <input value={streamKey} onChange={(e) => setStreamKey(e.target.value)} placeholder="Stream key" type="password" className={inputCls(isLight)} data-testid="world-live-dest-key" />
+        <input value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="Platform (e.g. youtube)" className={inputCls(isLight)} data-testid="world-live-dest-platform" aria-label="Platform" />
+        <input value={ingestUrl} onChange={(e) => setIngestUrl(e.target.value)} placeholder="Ingest URL (rtmp://…)" className={inputCls(isLight)} data-testid="world-live-dest-url" aria-label="Ingest URL" />
+        <input value={streamKey} onChange={(e) => setStreamKey(e.target.value)} placeholder="Stream key" type="password" className={inputCls(isLight)} data-testid="world-live-dest-key" aria-label="Stream key" />
       </div>
       <button
         type="button"
@@ -1321,7 +1323,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       {!joined && (
         <>
           <div className="flex flex-wrap gap-2">
-            <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Paste the invite link — …/live/guest/…" className={`${inputCls(isLight)} min-w-56 flex-1`} data-testid="world-live-join-paste" />
+            <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Paste the invite link — …/live/guest/…" className={`${inputCls(isLight)} min-w-56 flex-1`} data-testid="world-live-join-paste" aria-label="Guest invite link" />
             <button type="button" onClick={() => void checkInvite()} disabled={checking || !pasted.trim()} className={goldBtn} data-testid="world-live-join-check">
               {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Check invite
             </button>
@@ -1335,7 +1337,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
                 {info.invite.label ? <span className={muted}> · {info.invite.label}</span> : null}
               </p>
               <div className="flex flex-wrap gap-2">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="The name the host will see" maxLength={40} className={`${inputCls(isLight)} min-w-48 flex-1`} data-testid="world-live-join-name" />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="The name the host will see" maxLength={40} className={`${inputCls(isLight)} min-w-48 flex-1`} data-testid="world-live-join-name" aria-label="The name the host will see" />
                 <button type="button" onClick={() => void handleJoin()} disabled={joining || !guestNameReady(name)} className={goldBtn} data-testid="world-live-join-join">
                   {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />} Step into backstage
                 </button>
@@ -1477,9 +1479,9 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
       </p>
       <p className={`text-sm ${muted}`}>Plan ahead on the same list the website&rsquo;s Go Live page keeps — schedule here and it shows there, and the other way round.</p>
       <div className="grid gap-2 md:grid-cols-3">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Stream title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-sched-title" />
-        <input value={game} onChange={(e) => setGame(e.target.value)} placeholder="Game / content (optional)" maxLength={100} className={inputCls(isLight)} data-testid="world-live-sched-game" />
-        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={inputCls(isLight)} data-testid="world-live-sched-when" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Stream title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-sched-title" aria-label="Stream title" />
+        <input value={game} onChange={(e) => setGame(e.target.value)} placeholder="Game / content (optional)" maxLength={100} className={inputCls(isLight)} data-testid="world-live-sched-game" aria-label="Game or content (optional)" />
+        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={inputCls(isLight)} data-testid="world-live-sched-when" aria-label="Scheduled start time" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void handleSave()} disabled={saving || !scheduleDraftReady(title, game)} className={goldBtn} data-testid="world-live-sched-save">
@@ -1870,13 +1872,13 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
         <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Your finished videos couldn&rsquo;t load, so a premiere can&rsquo;t be scheduled right now.</p>
       )}
       <div className="grid gap-2 md:grid-cols-2">
-        <select value={clipId} onChange={(e) => setClipId(e.target.value)} className={selectCls(isLight)} data-testid="world-live-premiere-clip">
+        <select value={clipId} onChange={(e) => setClipId(e.target.value)} className={selectCls(isLight)} data-testid="world-live-premiere-clip" aria-label="Pick a finished video">
           <option value="">Pick a finished video…</option>
           {(clips ?? []).map((c) => (
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Premiere title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-premiere-title" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Premiere title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-premiere-title" aria-label="Premiere title" />
         <label className={`text-xs ${muted}`}>
           Video length (seconds)
           <input type="number" min={10} max={14400} value={duration} onChange={(e) => setDuration(e.target.value)} className={`${inputCls(isLight)} mt-1`} data-testid="world-live-premiere-duration" />
