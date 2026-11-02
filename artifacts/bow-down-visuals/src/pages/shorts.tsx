@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatBucs } from "@/lib/visual-bucs";
 import { jarPath } from "@/lib/one-tip-jar";
+import { currentFanCode, playPathWithFanCode } from "@/lib/upg-fans";
 import { normalizeShortsFeed, normalizeShortItem } from "@/lib/shorts-data";
 import {
   postShortPublishHref,
@@ -214,7 +215,7 @@ export default function ShortsFeed() {
         const item = itemRefs.current[idx] && items[idx];
         if (item && !seenViews.current.has(item.id)) {
           seenViews.current.add(item.id);
-          fetch(`/api/media/video/${item.id}/play`, { method: "POST" }).catch(() => {});
+          fetch(playPathWithFanCode(`/api/media/video/${item.id}/play`, currentFanCode()), { method: "POST" }).catch(() => {});
           setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, view_count: p.view_count + 1 } : p)));
         }
         if (idx >= items.length - 3) loadMore();

@@ -146,6 +146,32 @@ export function fanLinkContentLabel(contentType: string, contentId: string | nul
   return contentId ? `${label} · ${contentId}` : label;
 }
 
+/* ── N17 Fan Links — the play hand-back ──────────────────────────────────
+   A fan arrives through the public redirect and lands on a page whose
+   URL still carries ?fan=<code>. A play made from that page is the
+   link's ARRIVAL, but only when the play call hands the code back —
+   both play doors read it through the server's one shared reader
+   (?fan= on the play URL for the media door, a fanCode body field for
+   the discovery door). No code in the URL → play calls stay
+   byte-identical to before: ordinary plays remain ordinary. The
+   server validates the code's shape and the play's ownership; the FE
+   only carries what the URL held. */
+export function fanCodeFromSearch(search: string): string | null {
+  const code = new URLSearchParams(search).get("fan");
+  return code ? code : null;
+}
+
+export function currentFanCode(): string | null {
+  if (typeof window === "undefined") return null;
+  return fanCodeFromSearch(window.location.search);
+}
+
+/* A play path with the arrival code riding along, when there is one. */
+export function playPathWithFanCode(path: string, code: string | null): string {
+  if (!code) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}fan=${encodeURIComponent(code)}`;
+}
+
 /* ── N16 Audience Room ─────────────────────────────────────────────────── */
 
 export interface AudienceRoomResponse {

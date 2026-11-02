@@ -42,6 +42,7 @@ import {
 import rateLimit from "express-rate-limit";
 import { resolveOptionalSession } from "../lib/optional-auth";
 import { playCounter, playSourceKey } from "../lib/play-counting";
+import { fanCodeFromPlayRequest, recordFanLinkArrival } from "../lib/fan-link-events";
 
 /* ─── Creator Streaming Platform — Discovery + Social (Worker 6) ──────────
    Vertical-aware discovery for ALL creators — music, video, gaming,
@@ -943,6 +944,10 @@ const optionalAuth: RequestHandler = async (req, _res, next) => {
 const PlayBody = z.object({
   kind: z.enum(["track", "video"]),
   mediaId: z.string().uuid(),
+  /* N17: the fan-link code the play carried, when a play surface hands
+     one back — a counted play carrying a qualifying code records that
+     link's arrival (lib/fan-link-events). Absent for ordinary plays. */
+  fanCode: z.string().optional(),
 });
 
 router.post("/play", playLimiter, optionalAuth, asyncHandler(async (req, res) => {
@@ -980,6 +985,16 @@ router.post("/play", playLimiter, optionalAuth, asyncHandler(async (req, res) =>
         mediaId,
         userId,
       });
+      /* N17: a counted play that carried a fan code is that link's
+         ARRIVAL — a fact distinct from the click the landing recorded,
+         written with the counted play it rides or not at all (an
+         uncounted play writes nothing, arrivals included). The writer
+         is best-effort by the fan-link contract: it returns whether a
+         row landed and can never break the play. */
+      const fanCode = fanCodeFromPlayRequest(req);
+      if (fanCode) {
+        await recordFanLinkArrival({ code: fanCode, play: { kind, mediaId, userId } });
+      }
       if (kind === "track") {
         const updated = await db.execute(sql`
           UPDATE profile_tracks SET play_count = play_count + 1
