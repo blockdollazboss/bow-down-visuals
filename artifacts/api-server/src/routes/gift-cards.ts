@@ -273,6 +273,126 @@ router.post("/gift-cards/checkout", requireAuth, publicApiLimiter, async (req, r
   }
 });
 
+/* ═══════════════ SETTLE: issue the card, exactly once ═════════════
+   (WEBHOOK-SETTLE, stack1200) ONE issuance path takes a paid
+   gift-card session to an issued card: issueGiftCard claims on the
+   session id, so the winner — and only the winner — mints the code
+   and sends the recipient's delivery email. Both completion paths
+   run through it: the buyer's return-verify (below) and the Stripe
+   webhook (settleGiftCardBySession). Before the webhook door
+   existed, a paid card issued ONLY if the buyer's browser returned
+   for verify — the webhook had no branch for type
+   "gift_card_purchase", so the session fell through to the
+   credit-grant tail's "missing user_id" warning. A buyer who closed
+   the tab after paying left the recipient with nothing: no card, no
+   code, no email — against money already taken. The webhook caller
+   cannot show the buyer the one-time code (there is no buyer
+   present); the recipient email is the delivery channel either way,
+   and a later verify answers duplicate with the code already gone
+   to the recipient's inbox — exactly what its copy says. */
+
+export type GiftCardSettleOutcome =
+  | { outcome: "issued" | "duplicate"; card: GiftCardRow; duplicate: boolean; code: string | null; storeName: string; storeUrl: string; amountCents: number }
+  | { outcome: "not_gift_card" }
+  | { outcome: "buyer_mismatch" }
+  | { outcome: "amount_mismatch" }
+  | { outcome: "unavailable" };
+
+/** Settle a paid gift-card checkout session. The caller asserts the
+    session is paid (verify asks Stripe; the webhook trusts the
+    signature-verified event) and names the expected buyer (verify:
+    the signed-in user; the webhook: the session metadata's buyer —
+    the comparison then trivially holds). Exactly-once falls out of
+    issueGiftCard's session claim: webhook retries and a racing
+    return-verify issue the card — and email the code — one time. */
+export async function settleGiftCardBySession(
+  session: Stripe.Checkout.Session,
+  opts: { buyerUserId: string },
+): Promise<GiftCardSettleOutcome> {
+  const meta = session.metadata ?? {};
+  if (meta["type"] !== "gift_card_purchase") {
+    return { outcome: "not_gift_card" };
+  }
+  if (meta["buyer_user_id"] !== opts.buyerUserId) {
+    return { outcome: "buyer_mismatch" };
+  }
+  const amountCents = session.amount_total ?? Number(meta["amount_cents"] ?? 0);
+  if (!amountCents || amountCents !== Number(meta["amount_cents"] ?? 0)) {
+    return { outcome: "amount_mismatch" };
+  }
+  const sessionId = session.id;
+
+  let issued: { card: GiftCardRow; duplicate: boolean };
+  /* The code is minted HERE and exists in plaintext only in the
+     issuing caller's response + the recipient's email; the DB keeps
+     hash + last4. A duplicate settle returns the card WITHOUT the
+     code (it can't be recovered — by design). */
+  const code = generateGiftCardCode();
+  try {
+    issued = await issueGiftCard({
+      code,
+      profileId: meta["profile_id"] ?? "",
+      productId: meta["product_id"] || null,
+      buyerUserId: opts.buyerUserId,
+      recipientEmail: meta["recipient_email"] ?? "",
+      recipientName: meta["recipient_name"] || null,
+      message: meta["gift_message"] || null,
+      amountCents,
+      stripeSessionId: sessionId,
+    });
+  } catch (err) {
+    if (err instanceof GiftCardsUnavailable) return { outcome: "unavailable" };
+    throw err;
+  }
+  const { card, duplicate } = issued;
+
+  const profileRes = await db.execute(sql`
+    SELECT display_name, slug FROM creator_profiles WHERE id = ${card.profile_id} LIMIT 1
+  `);
+  const profile = profileRes.rows[0] as Record<string, unknown> | undefined;
+  const storeName = profile ? String(profile["display_name"]) : "the creator";
+  const storeUrl = profile ? `/artist/${String(profile["slug"])}` : "/";
+  /* The delivery email's CTA must be absolute — a site-relative href
+     cannot resolve in a real inbox. (The links.storeUrl in the JSON
+     response stays relative: our own frontend consumes it.) */
+  const storeEmailUrl = `${baseUrlForEmail()}${storeUrl}`;
+
+  if (!duplicate) {
+    /* Delivery: the recipient's email carries the code — the buyer
+       never has to forward anything, and the card is a surprise
+       until it lands. Best-effort, fail-open (store.ts receipt
+       pattern): the issuing verify response also carries the code
+       exactly this once. */
+    const html = emailShell(
+      `You've got a ${emailMoney(amountCents)} gift card`,
+      `<p style="margin:0 0 12px;">${escapeHtml(meta["recipient_name"] || "You")} — someone sent you stored value for <strong>${escapeHtml(storeName)}</strong>'s store on Bow Down Visuals.</p>
+${meta["gift_message"] ? `<p style="margin:0 0 12px;">“${escapeHtml(meta["gift_message"])}”</p>` : ""}
+<div style="background:${EMAIL_COLORS.box};border:1px solid ${EMAIL_COLORS.boxBorder};border-radius:10px;padding:18px 20px;margin:0 0 18px;text-align:center;">
+<div style="color:${EMAIL_COLORS.muted};font-size:12px;letter-spacing:2px;">YOUR GIFT CARD CODE</div>
+<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:24px;letter-spacing:1px;margin-top:6px;">${escapeHtml(code)}</div>
+<div style="font-size:14px;margin-top:8px;">Worth <strong>${emailMoney(amountCents)}</strong> — spend it all at once or a little at a time, on anything in ${escapeHtml(storeName)}'s store.</div>
+</div>
+<p style="margin:0 0 16px;font-size:14px;">At checkout, paste the code in the gift-card field (right beside the discount code). Whatever you don't spend stays on the card.</p>
+${emailButton(storeEmailUrl, `Shop ${escapeHtml(storeName)}'s store`)}`
+    );
+    void sendEmail({
+      to: String(card.recipient_email),
+      subject: `Your ${emailMoney(amountCents)} gift card for ${storeName}`,
+      html,
+    }).catch(() => undefined);
+  }
+
+  return {
+    outcome: duplicate ? "duplicate" : "issued",
+    card: card as GiftCardRow,
+    duplicate,
+    code: duplicate ? null : code,
+    storeName,
+    storeUrl,
+    amountCents,
+  };
+}
+
 /* ═══════════════ VERIFY: issue the card, exactly once ═════════════ */
 const VerifySchema = z.object({ sessionId: z.string().min(1).max(200) });
 
@@ -303,75 +423,30 @@ router.post("/gift-cards/verify", requireAuth, publicApiLimiter, async (req, res
     res.status(400).json({ error: "Payment has not been completed." });
     return;
   }
-  const meta = session.metadata ?? {};
-  if (meta["type"] !== "gift_card_purchase") {
-    res.status(400).json({ error: "This session isn't a gift-card purchase." });
-    return;
-  }
-  if (meta["buyer_user_id"] !== req.userId) {
-    res.status(403).json({ error: "This purchase doesn't belong to you." });
-    return;
-  }
-  const amountCents = session.amount_total ?? Number(meta["amount_cents"] ?? 0);
-  if (!amountCents || amountCents !== Number(meta["amount_cents"] ?? 0)) {
-    res.status(400).json({ error: "The paid amount doesn't match this gift card." });
-    return;
-  }
 
   try {
-    /* The code is minted HERE and exists in plaintext only in this
-       response + the recipient's email; the DB keeps hash + last4.
-       A duplicate verify returns the card WITHOUT the code (it can't
-       be recovered — by design). */
-    const code = generateGiftCardCode();
-    const { card, duplicate } = await issueGiftCard({
-      code,
-      profileId: meta["profile_id"] ?? "",
-      productId: meta["product_id"] || null,
-      buyerUserId: req.userId!,
-      recipientEmail: meta["recipient_email"] ?? "",
-      recipientName: meta["recipient_name"] || null,
-      message: meta["gift_message"] || null,
-      amountCents,
-      stripeSessionId: sessionId,
-    });
-
-    const profileRes = await db.execute(sql`
-      SELECT display_name, slug FROM creator_profiles WHERE id = ${card.profile_id} LIMIT 1
-    `);
-    const profile = profileRes.rows[0] as Record<string, unknown> | undefined;
-    const storeName = profile ? String(profile["display_name"]) : "the creator";
-    const storeUrl = profile ? `/artist/${String(profile["slug"])}` : "/";
-    /* The delivery email's CTA must be absolute — a site-relative href
-       cannot resolve in a real inbox. (The links.storeUrl in the JSON
-       response below stays relative: our own frontend consumes it.) */
-    const storeEmailUrl = `${baseUrlForEmail()}${storeUrl}`;
-
-    if (!duplicate) {
-      /* Delivery: the recipient's email carries the code — the buyer
-         never has to forward anything, and the card is a surprise
-         until it lands. Best-effort, fail-open (store.ts receipt
-         pattern): the buyer's response below also carries the code
-         exactly this once. */
-      const html = emailShell(
-        `You've got a ${emailMoney(amountCents)} gift card`,
-        `<p style="margin:0 0 12px;">${escapeHtml(meta["recipient_name"] || "You")} — someone sent you stored value for <strong>${escapeHtml(storeName)}</strong>'s store on Bow Down Visuals.</p>
-${meta["gift_message"] ? `<p style="margin:0 0 12px;">“${escapeHtml(meta["gift_message"])}”</p>` : ""}
-<div style="background:${EMAIL_COLORS.box};border:1px solid ${EMAIL_COLORS.boxBorder};border-radius:10px;padding:18px 20px;margin:0 0 18px;text-align:center;">
-<div style="color:${EMAIL_COLORS.muted};font-size:12px;letter-spacing:2px;">YOUR GIFT CARD CODE</div>
-<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:24px;letter-spacing:1px;margin-top:6px;">${escapeHtml(code)}</div>
-<div style="font-size:14px;margin-top:8px;">Worth <strong>${emailMoney(amountCents)}</strong> — spend it all at once or a little at a time, on anything in ${escapeHtml(storeName)}'s store.</div>
-</div>
-<p style="margin:0 0 16px;font-size:14px;">At checkout, paste the code in the gift-card field (right beside the discount code). Whatever you don't spend stays on the card.</p>
-${emailButton(storeEmailUrl, `Shop ${escapeHtml(storeName)}'s store`)}`
-      );
-      void sendEmail({
-        to: String(card.recipient_email),
-        subject: `Your ${emailMoney(amountCents)} gift card for ${storeName}`,
-        html,
-      }).catch(() => undefined);
+    /* The shared settle (settleGiftCardBySession): issuance claim +
+       the recipient's one delivery email. A racing webhook may
+       issue first — the card exists either way, and this call then
+       answers duplicate exactly as a second verify always has. */
+    const settled = await settleGiftCardBySession(session, { buyerUserId: req.userId! });
+    if (settled.outcome === "not_gift_card") {
+      res.status(400).json({ error: "This session isn't a gift-card purchase." });
+      return;
     }
-
+    if (settled.outcome === "buyer_mismatch") {
+      res.status(403).json({ error: "This purchase doesn't belong to you." });
+      return;
+    }
+    if (settled.outcome === "amount_mismatch") {
+      res.status(400).json({ error: "The paid amount doesn't match this gift card." });
+      return;
+    }
+    if (settled.outcome === "unavailable") {
+      unavailable(res);
+      return;
+    }
+    const { card, duplicate, code, storeName, storeUrl } = settled;
     res.json({
       success: true,
       duplicate,

@@ -134,6 +134,41 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         }
         return;
       }
+      if (s.metadata?.type === "gift_card_purchase") {
+        /* Gift cards (WEBHOOK-SETTLE, stack1200): before this branch
+           existed a paid gift-card session fell through the whole
+           dispatch to the credit-grant tail — which logged "missing
+           user_id in metadata" and answered 200 — so the card issued
+           ONLY if the buyer's browser returned and the page called
+           verify. A buyer who closed the tab after paying left the
+           recipient with nothing: no card, no code, no delivery
+           email, against money already taken. The settle runs the
+           same issuance claim as verify (exactly-once under webhook
+           replays and verify races) and sends the recipient's
+           delivery email on the landed issuance. A settle failure
+           500s so Stripe retries; it must NOT fall through to the
+           credit logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "gift_card_purchase", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleGiftCardBySession } = await import("../routes/gift-cards");
+          const settled = await settleGiftCardBySession(s, {
+            buyerUserId: s.metadata?.["buyer_user_id"] ?? "",
+          });
+          if (settled.outcome === "unavailable") {
+            logger.warn({ sessionId: s.id }, "Stripe webhook: gift-card settle deferred — gift card tables unavailable");
+          } else if (settled.outcome !== "issued" && settled.outcome !== "duplicate") {
+            logger.warn({ sessionId: s.id, outcome: settled.outcome }, "Stripe webhook: gift-card session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "gift_card_purchase" });
+        } catch (giftCardErr) {
+          logger.error({ err: giftCardErr, sessionId: s.id }, "Stripe webhook: gift card settle failed");
+          res.status(500).json({ error: "Gift card settle failed, retry later" });
+        }
+        return;
+      }
       if (s.metadata?.kind === "membership_gift") {
         /* Gift membership (payfix lane 9): a one-time payment granting
            the recipient a Pro/Elite window. Fulfillment claims on
