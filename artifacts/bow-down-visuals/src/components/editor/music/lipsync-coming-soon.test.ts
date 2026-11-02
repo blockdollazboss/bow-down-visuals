@@ -61,4 +61,23 @@ describe("LipSyncStudio single-source actions (Stack-28 #43, updated Stack-100 #
     expect(src).toContain("400 Visual Bucs");
     expect(src).not.toContain("5 site Visual Bucs");
   });
+
+  it("the run-all confirm states only our lip-sync price — no third-party fee claim (price audit #11)", () => {
+    /* The deleted provider's per-second fee claim is gone entirely:
+       no provider name, no dollar-per-second figure, no billing to a
+       connected third-party account. */
+    expect(src).not.toContain("Sync Labs");
+    expect(src).not.toContain("$0.05");
+    expect(src).not.toContain("per-second fees");
+    expect(src).not.toContain("billed to the connected");
+    /* The box states our tiered price instead (stack1400 ruling):
+       300 VB up to 50s, 600 VB for >50–60s, over 60s skipped and
+       never charged on the run-all rail. */
+    expect(src).toContain("300 Visual Bucs per scene");
+    expect(src).toContain("up to 50 seconds");
+    expect(src).toContain("600 Visual Bucs per scene");
+    expect(src).toContain("longer than 50 seconds and up to 60 seconds");
+    expect(src).toContain("longer");
+    expect(src).toContain("than 60 seconds are skipped and never charged");
+  });
 });
