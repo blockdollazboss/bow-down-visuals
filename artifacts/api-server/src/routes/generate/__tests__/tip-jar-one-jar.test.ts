@@ -46,6 +46,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
   const fake = createFakeDb({
     creatorProfiles: actual.creatorProfilesTable,
     tipJarTips: actual.tipJarTipsTable,
+    /* The jar's durable settings store (0316) — the router persists
+       and hydrates page settings through it. */
+    tipPages: actual.tipPagesTable,
     liveStreamTips: actual.liveStreamTipsTable,
     worldStageTips: actual.worldStageTipsTable,
   });

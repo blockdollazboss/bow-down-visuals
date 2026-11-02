@@ -40,6 +40,9 @@ const TIP_HANDLE = "tip-queen";
 const h = vi.hoisted(() => ({
   state: {
     profilesBySlug: new Map<string, Record<string, unknown>>(),
+    /* Durable tip-page settings rows (tip_pages, 0316): the settings
+       route persists through the db now, so the fake keeps the rows. */
+    pages: [] as Array<Record<string, any>>,
   },
 }));
 
@@ -67,9 +70,14 @@ vi.mock("../../lib/logger", () => ({
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const state = h.state;
-  const { creatorProfilesTable } = actual;
+  const { creatorProfilesTable, tipPagesTable } = actual;
 
   function rowsFor(table: unknown, cond: unknown): unknown[] {
+    if (table === tipPagesTable) {
+      if (cond === undefined) return [...state.pages];
+      const { params } = render(cond);
+      return state.pages.filter((r) => params.includes(r.user_id) || params.includes(r.handle));
+    }
     if (table === creatorProfilesTable) {
       const { sql, params } = render(cond);
       // Slug lookup: eq(slug) — answer by slug only, the way Postgres
@@ -101,6 +109,34 @@ vi.mock("@workspace/db", async (importOriginal) => {
         where: (cond: unknown) => chain(table, cond),
       }),
     }),
+    insert: (table: unknown) => ({
+      values: (v: Record<string, any>) => ({
+        returning: async () => {
+          if (table !== tipPagesTable) return [];
+          const row = { ...v };
+          state.pages.push(row);
+          return [row];
+        },
+        then: (res: any, rej: any) => {
+          if (table === tipPagesTable) state.pages.push({ ...v });
+          return Promise.resolve([]).then(res, rej);
+        },
+      }),
+    }),
+    update: (table: unknown) => ({
+      set: (patch: Record<string, any>) => ({
+        where: (cond: unknown) => ({
+          returning: async () => {
+            if (table !== tipPagesTable) return [];
+            const { params } = render(cond);
+            const row = state.pages.find((r) => params.includes(r.user_id));
+            if (!row) return [];
+            Object.assign(row, patch);
+            return [row];
+          },
+        }),
+      }),
+    }),
   };
 
   return { ...actual, db: fakeDb };
@@ -127,6 +163,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   __resetTipJarStores();
+  h.state.pages = [];
   h.state.profilesBySlug = new Map([
     [
       PROFILE_SLUG,
