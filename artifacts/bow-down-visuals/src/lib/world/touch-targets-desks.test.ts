@@ -46,6 +46,8 @@ const desks: Record<string, string> = {
   SongDeskTabs: src(`${N}SongDeskTabs.tsx`),
   CreateDesks: src(`${N}CreateDesks.tsx`),
   CreateDeskShared: src(`${N}CreateDeskShared.tsx`),
+  CreateDeskLeaf: src(`${N}CreateDeskLeaf.tsx`),
+  CreateResultLeaf: src(`${N}CreateResultLeaf.tsx`),
   GamesPanels: src(`${N}GamesPanels.tsx`),
   GroupsDesk: src(`${N}GroupsDesk.tsx`),
   SmartCardsStand: src(`${N}SmartCardsStand.tsx`),
@@ -172,8 +174,8 @@ describe("the desks' shared families — one lift per family, every rider inheri
     expect(desks.TipJarDesk).toContain("deskInputCls(isLight)");
     expect(desks.SuccessionDesk).toContain("deskInputCls(isLight)");
     expect(desks.MoneyActionsDesk).toContain("deskInputCls(isLight)");
-    /* The shared helper itself is pinned in CreateDeskShared. */
-    expect(constWears(desks.CreateDeskShared, "deskInputCls", "bdv-touch-target")).toBe(true);
+    /* The shared helper itself is pinned in CreateDeskLeaf (round 3 leaf split). */
+    expect(constWears(desks.CreateDeskLeaf, "deskInputCls", "bdv-touch-target")).toBe(true);
   });
 
   it("per-desk consts: BeatsDesk, CoachPanels smallBtn, AudioDeskTabs chips, SongDeskTabs, CreatorRooms, SocialWave2 riders", () => {
@@ -230,15 +232,15 @@ describe("named desk controls wear the target (testid pins)", () => {
     expect(dailyDrop.split("bdv-touch-target").length - 1).toBe(2);
   });
 
-  it("advanced expander + draft toggle (CreateDeskShared chrome inside every create desk)", () => {
-    expect(wears(desks.CreateDeskShared, "world-create-advanced-toggle", "bdv-touch-target")).toBe(true);
+  it("advanced expander + draft toggle (create-desk leaf chrome inside every create desk)", () => {
+    expect(wears(desks.CreateDeskLeaf, "world-create-advanced-toggle", "bdv-touch-target")).toBe(true);
     /* The draft toggle's testid sits on the checkbox INSIDE its
      * label — the class rides the label, which opens BEFORE the
      * input, so this pin reads the label literal directly. */
-    expect(desks.CreateDeskShared).toContain(
+    expect(desks.CreateResultLeaf).toContain(
       'className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target"',
     );
-    expect(desks.CreateDeskShared).toContain('data-testid="world-clip-draft-toggle"');
+    expect(desks.CreateResultLeaf).toContain('data-testid="world-clip-draft-toggle"');
   });
 });
 

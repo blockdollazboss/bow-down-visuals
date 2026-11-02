@@ -32,6 +32,17 @@
  *     chunks behind DeskDoor (Suspense + the house loading
  *     state): opening one station fetches only its desk plus
  *     the shared frame, not the whole desk universe.
+ *
+ * Round 3 (stack1200) adds:
+ *  F. The genuinely-shared leaves live OUTSIDE the desk web:
+ *     the create-desk form bits (CreateDeskLeaf) and the
+ *     picker/result renderers (CreateResultLeaf) were split
+ *     out of CreateDeskShared — which keeps only ResultChips
+ *     and its two heavy desk imports — and vite homes the
+ *     leaves, the native frame kit and the pure world libs in
+ *     a `world-kit` chunk (dependencies left automatic). The
+ *     frame therefore no longer statically reaches the desk
+ *     web: first station open dropped 1,238,989 -> 446,880 raw.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -277,6 +288,96 @@ describe("world-perf round 2 E — desks inside the panel ride per-desk chunks",
     expect(panel).toContain('import { PacksDesk } from "@/components/world/native/PacksDesk";');
     expect(panel).not.toContain('lazy(() => import("@/components/world/native/PacksDesk")');
     expect(panel).not.toContain('lazy(() => import("@/components/world/native/SeasonMarksWall")');
+  });
+});
+
+describe("world-perf round 3 F — the shared leaves live outside the desk web", () => {
+  const leaf = read("../../components/world/native/CreateDeskLeaf.tsx");
+  const resultLeaf = read("../../components/world/native/CreateResultLeaf.tsx");
+  const sharedFile = read("../../components/world/native/CreateDeskShared.tsx");
+  const barrel = read("../../components/world/native/index.ts");
+  const pitchFix = read("../../components/world/native/PitchFixBoard.tsx");
+  const packsDesk = read("../../components/world/native/PacksDesk.tsx");
+  const viteConfig = read("../../../vite.config.ts");
+  const kitGroup = viteConfig.slice(
+    viteConfig.indexOf('name: "world-kit"'),
+    viteConfig.indexOf('name: "world-kit"') + 1600,
+  );
+
+  it("the form leaf owns the desk form bits and imports no desk", () => {
+    expect(leaf).toContain("export function deskInputCls");
+    expect(leaf).toContain("export function useDeskAuthHeaders");
+    expect(leaf).toContain("export function AdvancedExpander");
+    expect(leaf).not.toContain('from "./ReleaseDesk"');
+    expect(leaf).not.toContain('from "./SchedulerDesk"');
+    expect(leaf).not.toContain('from "./CreateDesks"');
+    expect(leaf).not.toContain('from "./CreateDeskShared"');
+  });
+
+  it("the result leaf owns the pickers and players and imports no desk", () => {
+    expect(resultLeaf).toContain("export function ABAudioPlayer");
+    expect(resultLeaf).toContain("export function ClipModelPicker");
+    expect(resultLeaf).toContain("export function useQuestProgressChip");
+    expect(resultLeaf).toContain('from "./CreateDeskLeaf"');
+    expect(resultLeaf).not.toContain('from "./ReleaseDesk"');
+    expect(resultLeaf).not.toContain('from "./SchedulerDesk"');
+    expect(resultLeaf).not.toContain('from "./CreateDeskShared"');
+  });
+
+  it("CreateDeskShared is ResultChips alone, holding only its two desk imports", () => {
+    expect(sharedFile).toContain("export function ResultChips");
+    expect(sharedFile).toContain(
+      'import { ReleaseDeskStandalone } from "./ReleaseDesk";',
+    );
+    expect(sharedFile).toContain(
+      'import { SchedulerComposeStandalone } from "./SchedulerDesk";',
+    );
+    expect(sharedFile).not.toContain("export function deskInputCls");
+    expect(sharedFile).not.toContain("export function ABAudioPlayer");
+    expect(sharedFile).not.toContain("export function AdvancedExpander");
+  });
+
+  it("frame-side boards import the leaves, never CreateDeskShared", () => {
+    expect(pitchFix).toContain('native/CreateDeskLeaf"');
+    expect(pitchFix).not.toContain("CreateDeskShared");
+    expect(packsDesk).not.toContain("CreateDeskShared");
+  });
+
+  it("the barrel re-exports the kit only — no desk rides it into the frame", () => {
+    for (const src of [
+      "./ShopStands",
+      "./ListeningBooth",
+      "./CreateDeskPanel",
+      "./HookDesk",
+      "./CreateDesks",
+      "./AudioDesk",
+      "./BusinessDesks",
+      "./CreateDeskRunner",
+      "./CreateDeskShared",
+    ]) {
+      expect(barrel).not.toContain(`from "${src}"`);
+    }
+    expect(barrel).toContain('from "./CreateDeskLeaf"');
+    expect(barrel).toContain('from "./NativeCard"');
+  });
+
+  it("the world-kit group pins the leaves with dependencies left automatic", () => {
+    expect(viteConfig).toContain('name: "world-kit"');
+    expect(kitGroup).toContain("NativeStates");
+    expect(kitGroup).toContain("CreateDeskLeaf");
+    expect(kitGroup).toContain("CreateResultLeaf");
+    expect(kitGroup).toContain("CreatorProfileCreate");
+    expect(kitGroup).toContain("money-desks");
+    expect(kitGroup).toContain("shop-stands");
+    expect(kitGroup).toContain("includeDependenciesRecursively: false");
+    expect(kitGroup).not.toContain("CreateDeskShared");
+    /* The vendor pins survive the manualChunks -> codeSplitting
+       conversion with names and tests intact. */
+    expect(viteConfig).toContain('name: "vendor-radix"');
+    expect(viteConfig).toContain('name: "vendor-clsx"');
+    expect(viteConfig).toContain('name: "vendor-recharts"');
+    expect(viteConfig).not.toContain("manualChunks:");
+    expect(viteConfig).not.toContain("manualChunks(");
   });
 });
 

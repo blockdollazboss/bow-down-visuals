@@ -16,6 +16,8 @@ const songTabs = read("../../components/world/native/SongDeskTabs.tsx");
 const thumbBenches = read("../../components/world/native/ThumbnailBenches.tsx");
 const audioDesk = read("../../components/world/native/AudioDesk.tsx");
 const shared = read("../../components/world/native/CreateDeskShared.tsx");
+const resultLeaf = read("../../components/world/native/CreateResultLeaf.tsx");
+const leaf = read("../../components/world/native/CreateDeskLeaf.tsx");
 
 describe("2.3 storyboard bench contracts", () => {
   it("docks analysis, the audio scene flow, per-scene clips, draft autosave + project save", () => {
@@ -40,14 +42,14 @@ describe("creation desk contracts (stack300)", () => {
        at the desk and governing the bench under it. */
     expect(desks).toContain("<ClipModelPicker");
     expect(desks).toContain("clipSettings={clipSettings}");
-    expect(shared).toContain('data-testid="world-clip-model-picker"');
+    expect(resultLeaf).toContain('data-testid="world-clip-model-picker"');
     /* Generation through confirmedFetch at the plan's exact price. */
     expect(desks).toContain('confirmedFetch("/api/generate-runway-clip"');
     expect(desks).toContain("buildRunwayClipPayload(prompt, negativePrompt, clipSettings)");
     expect(desks).toContain("costVisualBucs={clipPlanCost(clipSettings)}");
     /* On success the clip is saved to My Clips with SceneStudio's
        body — the shared helper posts it, the desk says so. */
-    expect(shared).toContain('fetch("/api/generated-clips"');
+    expect(leaf).toContain('fetch("/api/generated-clips"');
     expect(desks).toContain("buildGeneratedClipSavePayload({");
     expect(storyboard).toContain("buildGeneratedClipSavePayload({");
     expect(desks).toContain('data-testid="world-create-clip-library-note"');
@@ -64,7 +66,7 @@ describe("creation desk contracts (stack300)", () => {
     /* The audio leg rides that confirmation — its rail shows the
        covered-total note instead of a second price. */
     expect(desks).toContain("includedInTotal={songDeskTotalCost()}");
-    expect(shared).toContain("includedInTotal");
+    expect(resultLeaf).toContain("includedInTotal");
   });
 });
 
@@ -111,8 +113,8 @@ describe("2.6–2.8 audio desk contracts", () => {
     expect(audioDesk).toContain("interpretAudioBenchResponse");
     expect(audioDesk).toContain('data-testid="world-audio-full-bench"');
     expect(audioDesk).toContain("<ABAudioPlayer");
-    expect(shared).toContain('data-testid="world-audio-ab-player"');
-    expect(shared).toContain("peaksFromChannelData");
+    expect(resultLeaf).toContain('data-testid="world-audio-ab-player"');
+    expect(resultLeaf).toContain("peaksFromChannelData");
     /* 2.8: beat posts the surfaced fields, not the silent defaults */
     expect(audioDesk).toContain("bpm: beatBpm");
     expect(audioDesk).toContain("musicalKey: beatKey");
@@ -248,10 +250,10 @@ describe("2.1 + 2.2 publish rail + jukebox chip contracts (stack-20 round 2, #3/
 
 describe("§5(a) quest chip contracts", () => {
   it("the chip reads server truth via the shared hook and renders only from its lines", () => {
-    expect(shared).toContain('fetch("/api/retention/quests"');
-    expect(shared).toContain("questAdvancesBetween");
-    expect(shared).toContain('data-testid="world-create-quest-chip"');
-    expect(shared).toContain("if (lines.length === 0) return null");
+    expect(resultLeaf).toContain('fetch("/api/retention/quests"');
+    expect(resultLeaf).toContain("questAdvancesBetween");
+    expect(resultLeaf).toContain('data-testid="world-create-quest-chip"');
+    expect(resultLeaf).toContain("if (lines.length === 0) return null");
     for (const src of [desks, storyboard, songTabs, thumbBenches, audioDesk]) {
       expect(src).toContain("useQuestProgressChip");
     }
