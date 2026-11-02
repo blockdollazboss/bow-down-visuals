@@ -1360,11 +1360,11 @@ export interface CrossingRecord {
 
 /** How long after a crossing a reversal at the same doorway is a
  *  flap, not a journey (ms). */
-const ROOM_FLAP_WINDOW_MS = 3000;
+export const ROOM_FLAP_WINDOW_MS = 3000;
 /** How close to the crossing point a reversal must be to count as
  *  standing on the edge (m) — a reversal farther away is a genuine
  *  walk back through the door and fires at once. */
-const ROOM_FLAP_RADIUS_M = 1.5;
+export const ROOM_FLAP_RADIUS_M = 1.5;
 
 /**
  * Room-boundary flap guard. The portal plane is a knife edge: a
