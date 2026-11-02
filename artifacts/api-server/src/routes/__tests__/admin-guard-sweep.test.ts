@@ -135,7 +135,10 @@ import remixKingRouter from "../remix-king";
 import studioGearRouter from "../studio-gear";
 
 /* Every requireAdmin registration in the joined tree (census:
-   2026-10-31, git grep over the twelve route files). */
+   2026-11-01, git grep over the twelve route files; +2 reads from
+   the stack1200 admin-benches lane: GET /admin/challenges and
+   GET /admin/remix-king/events — the two list reads the new /admin
+   benches ride, guarded identically to every other admin door). */
 const GUARDED: Array<[string, string]> = [
   // routes/admin.ts
   ["POST", "/api/admin/credits/grant"],
@@ -163,6 +166,7 @@ const GUARDED: Array<[string, string]> = [
   ["GET", "/api/admin/bow-challenge"],
   ["PUT", "/api/admin/bow-challenge"],
   // routes/challenge-engine.ts
+  ["GET", "/api/admin/challenges"],
   ["POST", "/api/admin/challenges/test-slug/prizes"],
   ["POST", "/api/admin/challenges/test-slug/lifecycle"],
   ["POST", "/api/admin/challenges/test-slug/judge"],
@@ -194,6 +198,7 @@ const GUARDED: Array<[string, string]> = [
   ["POST", "/api/playlist/upload"],
   ["DELETE", "/api/playlist/test-track"],
   // routes/remix-king.ts
+  ["GET", "/api/admin/remix-king/events"],
   ["POST", "/api/admin/remix-king/events"],
   ["PATCH", `/api/admin/remix-king/events/${SAMPLE_ID}`],
   ["POST", `/api/admin/remix-king/events/${SAMPLE_ID}/status`],
@@ -248,8 +253,8 @@ async function call(method: string, path: string, who?: { id: string; email: str
 }
 
 describe("admin guard sweep — every admin route in the joined tree", () => {
-  it("the census carries all 55 guarded routes", () => {
-    expect(GUARDED).toHaveLength(55);
+  it("the census carries all 57 guarded routes", () => {
+    expect(GUARDED).toHaveLength(57);
   });
 
   it("guests get 401 on every guarded route", async () => {

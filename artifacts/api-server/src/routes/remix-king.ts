@@ -120,6 +120,27 @@ router.get("/remix-king/releases/:id/payments", requireAuth, publicApiLimiter, a
 
 /* ─── Team surface (admin) ─────────────────────────────────────────── */
 
+/* The /admin Remix King bench's spine (stack1200 admin-benches lane):
+   every public read hides draft events, so the team's own events —
+   the ones that still need editing, opening, judging — had NO list
+   read and the admin verbs below were unreachable from any page.
+   Same composition as the public event view (entries + release),
+   drafts included, plus the release's split payments. */
+router.get("/admin/remix-king/events", requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const all = await store.listEvents();
+    const events = [];
+    for (const e of all) {
+      const view = await getEventView(store, e.id);
+      if (!view) continue;
+      const payments = view.release ? await store.listPayments(view.release.id) : [];
+      events.push({ event: view.event, entries: view.entries, release: view.release, payments });
+    }
+    events.sort((a, b) => b.event.monthKey.localeCompare(a.event.monthKey));
+    res.json({ events });
+  } catch (err) { fail(res, err, "admin list"); }
+});
+
 const splitSchema = z.object({
   role: z.enum(["winner", "king", "house"]),
   payeeName: z.string().trim().min(1).max(80),
