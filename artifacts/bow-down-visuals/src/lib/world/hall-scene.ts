@@ -1104,6 +1104,12 @@ interface AvatarRig {
    *  character has one (figure-loop.ts). Owned end to end by the
    *  loop methods below; torn down on every figure swap. */
   loopFeed: FigureLoopFeed | null;
+  /** The in-flight snapshot probe for a video-only character
+   *  (reconcileFigure): tracked on the rig so a superseded pick,
+   *  a removed peer or scene teardown can STOP its download
+   *  instead of letting a dead figure's loop finish fetching
+   *  (world-perf lane, stack1200). */
+  figureProbe: HTMLVideoElement | null;
   /** The standing character's name from the latest reconcile —
    *  the loop registry keys the King's loop off it. */
   characterName: string;
@@ -1464,6 +1470,7 @@ function buildAvatar(peer: WorldPeer): AvatarRig {
     speechShown: 0,
     lastMouthDrawAt: 0,
     loopFeed: null,
+    figureProbe: null,
     characterName: "",
   };
 }
@@ -8625,6 +8632,24 @@ export class KingsHallScene {
    *  once, and a failed load leaves what's standing — requestedId
    *  stays set so the 120 ms upsert cadence never turns into a retry
    *  storm. */
+  /** Stop a rig's in-flight figure probe, if any (world-perf
+   *  lane, stack1200): detach the handlers, drop the source and
+   *  force the load abort — the same release the loop feeds get
+   *  at teardown. Without this, a video-only character's probe
+   *  kept downloading its whole loop after the pick changed, the
+   *  peer left, or the scene was disposed: the seq guard stopped
+   *  the WORK, never the FETCH. */
+  private cancelFigureProbe(rig: AvatarRig): void {
+    const probe = rig.figureProbe;
+    if (!probe) return;
+    rig.figureProbe = null;
+    probe.oncanplay = null;
+    probe.onerror = null;
+    probe.pause();
+    probe.removeAttribute("src");
+    probe.load();
+  }
+
   private reconcileFigure(rig: AvatarRig, peer: WorldPeer): void {
     const want = peer.character && (peer.character.portraitUrl || peer.character.loopUrl) ? peer.character : null;
     rig.characterName = want?.name ?? "";
@@ -8642,6 +8667,9 @@ export class KingsHallScene {
     }
     rig.requestedId = wantId;
     const seq = ++rig.swapSeq;
+    /* The pick changed: any probe still fetching the OLD
+     * character's loop is waste — stop its download now. */
+    this.cancelFigureProbe(rig);
     if (!want || wantGuard) {
       this.reconcileGuardFigure(rig, peer, wantGuard);
       return;
@@ -8700,9 +8728,11 @@ export class KingsHallScene {
     probe.preload = "auto";
     probe.crossOrigin = "anonymous";
     probe.onerror = () => {
+      if (rig.figureProbe === probe) rig.figureProbe = null;
       /* loop unreachable — the standing figure keeps standing */
     };
     probe.oncanplay = () => {
+      if (rig.figureProbe === probe) rig.figureProbe = null;
       if (rig.swapSeq !== seq || rig.requestedId !== wantId) return;
       try {
         const snap = document.createElement("canvas");
@@ -8743,6 +8773,7 @@ export class KingsHallScene {
         /* a tainted or torn-down probe — the standing figure stands */
       }
     };
+    rig.figureProbe = probe;
     probe.src = loopUrl;
   }
 
@@ -8928,6 +8959,12 @@ export class KingsHallScene {
     const rig = this.avatars.get(peerId);
     if (!rig) return;
     this.avatars.delete(peerId);
+    /* Retire the rig's in-flight figure work: the seq bump makes
+     * every pending load callback a no-op, and the probe's fetch
+     * itself stops instead of finishing a dead figure's loop
+     * download (world-perf lane, stack1200). */
+    rig.swapSeq++;
+    this.cancelFigureProbe(rig);
     this.teardownLoopFeed(rig);
     this.scene.remove(rig.group);
     if (rig.portrait) rig.portrait.texture.dispose();
@@ -9355,6 +9392,10 @@ export class KingsHallScene {
   setSelfFigure(peer: WorldPeer | null): void {
     if (!peer) {
       if (this.selfRig) {
+        /* Same retirement as removePeer: pending figure loads
+         * for the self rig die with it (world-perf, stack1200). */
+        this.selfRig.swapSeq++;
+        this.cancelFigureProbe(this.selfRig);
         this.teardownLoopFeed(this.selfRig);
         this.scene.remove(this.selfRig.group);
         if (this.selfRig.portrait) this.selfRig.portrait.texture.dispose();
