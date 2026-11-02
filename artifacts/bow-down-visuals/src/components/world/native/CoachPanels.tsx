@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -23,6 +23,20 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import {
+  InnerBlock,
+  SubHead,
+  chipBtn,
+  goldBtn,
+  inputCls,
+  smallBtn,
+  useCoachAuthHeaders,
+} from "./CoachPanelBits";
+import {
+  CoachRoyaltiesSection,
+  CoachSplitSheetsSection,
+  CoachSplitsSection,
+} from "./CoachMoneySubViews";
 import { fmtPlanMoney, fmtPlanMoneyShort, parseGoalCents, trackerProgress } from "@/lib/coach-tracker";
 import { fetchReleaseOptions } from "@/components/coach/SplitsOverview";
 import { NativeCard } from "./NativeCard";
@@ -91,57 +105,9 @@ import type { CoachActionItemDto, PlanNumbersDto } from "@/lib/coach-tracker";
        /api/coach/plan-numbers + /api/coach/goal +
        /api/coach/action-items.
    The Money Tracker's splits / split-sheets / royalties sub-views
-   stay on the coach page for now — named follow-ons, not hidden. */
-
-function useCoachAuthHeaders() {
-  const { getAccessToken } = useAuth();
-  return async (): Promise<Record<string, string>> => {
-    const token = await getAccessToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-}
-
-const inputCls = (isLight: boolean) =>
-  `w-full rounded-xl border px-3 py-2 text-sm outline-none transition focus:border-[#d4af37] bdv-touch-target ${
-    isLight
-      ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
-      : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
-  }`;
-
-const goldBtn =
-  "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target disabled:hover:scale-100";
-
-const chipBtn = (isLight: boolean, active: boolean) =>
-  `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
-    active
-      ? "border-[#d4af37] bg-[#d4af37] text-black"
-      : isLight
-        ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
-        : "border-white/15 text-white/75 hover:text-white"
-  }`;
-
-const smallBtn = (isLight: boolean) =>
-  `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition bdv-touch-target ${
-    isLight
-      ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
-      : "border-white/15 text-white/70 hover:text-white"
-  }`;
-
-function SubHead({ isLight, children }: { isLight: boolean; children: ReactNode }) {
-  return (
-    <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-      {children}
-    </p>
-  );
-}
-
-function InnerBlock({ isLight, children }: { isLight: boolean; children: ReactNode }) {
-  return (
-    <div className={`rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
-      {children}
-    </div>
-  );
-}
+   ride the same card under its view switcher, finished in
+   CoachMoneySubViews.tsx (Ring 4 #6) on the page's own rails —
+   the last 2D-only pocket of the coach is closed. */
 
 const bandBarCls = (band: NicheScoreBand, isLight: boolean) =>
   band === "open"
@@ -624,9 +590,20 @@ function shortIso(iso: string | null): string {
 
 type ReleaseOption = Awaited<ReturnType<typeof fetchReleaseOptions>>[number];
 
+type MoneyView = "ledger" | "splits" | "splitSheets" | "royalties";
+
+/** The Money Tracker card's views — the /coach page's own tab words. */
+const MONEY_VIEWS: { key: MoneyView; label: string }[] = [
+  { key: "ledger", label: "Income & Expenses" },
+  { key: "splits", label: "Split Payouts" },
+  { key: "splitSheets", label: "Split Agreements" },
+  { key: "royalties", label: "Royalties" },
+];
+
 export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
   const authHeaders = useCoachAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
+  const [moneyView, setMoneyView] = useState<MoneyView>("ledger");
 
   /* ── the ledger ── */
   const [entries, setEntries] = useState<LedgerEntry[] | null>(null);
@@ -918,6 +895,25 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
       {/* ── The Money Tracker: the full month view ─────────────────── */}
       <NativeCard isLight={isLight} title="Money Tracker — know your numbers">
         <div className="space-y-3" data-testid="world-coach-money-panel">
+          {/* The page's four views, one card (Ring 4 #6): the ledger
+              below, and the splits / split-sheets / royalties views
+              finished in CoachMoneySubViews on the same rails. */}
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Money Tracker views" data-testid="world-coach-money-views">
+            {MONEY_VIEWS.map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                aria-pressed={moneyView === v.key}
+                data-testid={`world-coach-money-view-${v.key}`}
+                className={chipBtn(isLight, moneyView === v.key)}
+                onClick={() => setMoneyView(v.key)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          {moneyView === "ledger" ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5" data-testid="world-coach-money-month">
               <button
@@ -951,8 +947,9 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               {formOpen ? "Close" : "Add entry"}
             </button>
           </div>
+          ) : null}
 
-          {entries === null && !loadFailed ? (
+          {moneyView !== "ledger" ? null : entries === null && !loadFailed ? (
             <NativeLoadingState isLight={isLight} message="Reading your money ledger…" />
           ) : loadFailed ? (
             <NativeErrorState
@@ -1222,6 +1219,18 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               )}
             </>
           ) : null}
+
+          {moneyView === "splits" ? <CoachSplitsSection isLight={isLight} /> : null}
+          {moneyView === "splitSheets" ? (
+            <CoachSplitSheetsSection
+              isLight={isLight}
+              onLedgerPosted={() => {
+                setReloadTick((t) => t + 1);
+                setTick((t) => t + 1);
+              }}
+            />
+          ) : null}
+          {moneyView === "royalties" ? <CoachRoyaltiesSection isLight={isLight} /> : null}
         </div>
       </NativeCard>
 

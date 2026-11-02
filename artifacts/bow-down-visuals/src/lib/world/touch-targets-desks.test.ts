@@ -40,6 +40,7 @@ const desks: Record<string, string> = {
   SocialDesk: src(`${N}SocialDesk.tsx`),
   ShelfPlayer: src(`${N}ShelfPlayer.tsx`),
   CoachPanels: src(`${N}CoachPanels.tsx`),
+  CoachPanelBits: src(`${N}CoachPanelBits.tsx`),
   AudioDesk: src(`${N}AudioDesk.tsx`),
   AudioDeskTabs: src(`${N}AudioDeskTabs.tsx`),
   CreatorRooms: src(`${N}CreatorRooms.tsx`),
@@ -183,7 +184,11 @@ describe("the desks' shared families — one lift per family, every rider inheri
   });
 
   it("per-desk consts: BeatsDesk, CoachPanels smallBtn, AudioDeskTabs chips, SongDeskTabs, CreatorRooms, SocialWave2 riders", () => {
-    expect(constWears(desks.CoachPanels, "const smallBtn", "bdv-touch-target")).toBe(true);
+    /* The coach kit consts are pinned in CoachPanelBits (Ring 4 #6 split —
+       the Money Tracker sub-views share the same kit). */
+    expect(constWears(desks.CoachPanelBits, "const smallBtn", "bdv-touch-target")).toBe(true);
+    expect(constWears(desks.CoachPanelBits, "const chipBtn", "bdv-touch-target")).toBe(true);
+    expect(constWears(desks.CoachPanelBits, "const goldBtn", "bdv-touch-target")).toBe(true);
     expect(constWears(desks.AudioDeskTabs, "const chipBtn", "bdv-touch-target")).toBe(true);
     expect(constWears(desks.SongDeskTabs, "const tabBtn", "bdv-touch-target")).toBe(true);
     expect(constWears(desks.SongDeskTabs, "const goldBtn", "bdv-touch-target")).toBe(true);
