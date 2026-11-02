@@ -8857,7 +8857,8 @@
       "importFailed": "Import fehlgeschlagen.",
       "insightsFailed": "Insights fehlgeschlagen — versuche es erneut.",
       "payoutRequired": "Distributor, Periodendaten und erwarteter Betrag sind erforderlich.",
-      "payoutSaveFailed": "Diese Auszahlung konnte nicht gespeichert werden."
+      "payoutSaveFailed": "Diese Auszahlung konnte nicht gespeichert werden.",
+      "connectFailed": "Diese Plattform konnte nicht verbunden werden — bitte versuche es erneut."
     }
   },
   "mediaDetector": {

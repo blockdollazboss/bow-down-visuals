@@ -8811,7 +8811,8 @@
       "importFailed": "Falha na importação.",
       "insightsFailed": "Falha nos insights — tente novamente.",
       "payoutRequired": "Distribuidora, datas do período e valor esperado são obrigatórios.",
-      "payoutSaveFailed": "Não foi possível salvar esse pagamento."
+      "payoutSaveFailed": "Não foi possível salvar esse pagamento.",
+      "connectFailed": "Não foi possível conectar essa plataforma — tente novamente."
     }
   },
   "playlistPitch": {

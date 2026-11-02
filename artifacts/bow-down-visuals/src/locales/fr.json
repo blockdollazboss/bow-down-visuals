@@ -9162,7 +9162,8 @@
       "importFailed": "Échec de l'import.",
       "insightsFailed": "Échec des analyses — réessayez.",
       "payoutRequired": "Le distributeur, les dates de période et le montant attendu sont requis.",
-      "payoutSaveFailed": "Impossible d'enregistrer ce paiement."
+      "payoutSaveFailed": "Impossible d'enregistrer ce paiement.",
+      "connectFailed": "Impossible de connecter cette plateforme — veuillez réessayer."
     }
   },
   "mediaDetector": {

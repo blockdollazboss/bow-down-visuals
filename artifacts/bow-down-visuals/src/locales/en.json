@@ -9364,7 +9364,8 @@
       "importFailed": "Import failed.",
       "insightsFailed": "Insights failed — try again.",
       "payoutRequired": "Distributor, period dates, and expected amount are required.",
-      "payoutSaveFailed": "Couldn't save that payout."
+      "payoutSaveFailed": "Couldn't save that payout.",
+      "connectFailed": "Couldn't connect that platform — try again."
     }
   },
   "mediaDetector": {

@@ -8797,7 +8797,8 @@
       "importFailed": "取り込みに失敗しました。",
       "insightsFailed": "インサイトに失敗しました — もう一度お試しください。",
       "payoutRequired": "ディストリビューター、期間の日付、予定金額が必要です。",
-      "payoutSaveFailed": "その支払いを保存できませんでした。"
+      "payoutSaveFailed": "その支払いを保存できませんでした。",
+      "connectFailed": "そのプラットフォームを接続できませんでした — もう一度お試しください。"
     }
   },
   "playlistPitch": {

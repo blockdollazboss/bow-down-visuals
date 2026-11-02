@@ -8798,7 +8798,8 @@
       "importFailed": "가져오기에 실패했습니다.",
       "insightsFailed": "인사이트에 실패했습니다 — 다시 시도하세요.",
       "payoutRequired": "유통사, 기간 날짜, 예상 금액이 필요합니다.",
-      "payoutSaveFailed": "그 지급을 저장할 수 없었습니다."
+      "payoutSaveFailed": "그 지급을 저장할 수 없었습니다.",
+      "connectFailed": "해당 플랫폼을 연결하지 못했습니다 — 다시 시도해 주세요."
     }
   },
   "playlistPitch": {

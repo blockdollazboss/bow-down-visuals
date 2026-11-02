@@ -135,8 +135,7 @@ export default function RoyaltyTrackerPanel() {
     try {
       const { res, data } = await authed("/api/royalties/import", "POST", { csv });
       if (!res.ok) {
-        const details = (data.details as string[] | undefined)?.join(" ") ?? "";
-        throw new Error(`${(data.error as string) || t("royalties.error.importFailed")} ${details}`.trim());
+        throw new Error(apiErrorMessage(data, t("royalties.error.importFailed")));
       }
       const warnings = (data.warnings as string[] | undefined) ?? [];
       setImportMsg({
@@ -155,10 +154,11 @@ export default function RoyaltyTrackerPanel() {
 
   async function connectManual(key: string) {
     try {
-      await authed("/api/royalties/platforms", "POST", { platform: key });
+      const { res, data } = await authed("/api/royalties/platforms", "POST", { platform: key });
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("royalties.error.connectFailed")));
       loadAll();
-    } catch {
-      /* non-fatal */
+    } catch (err) {
+      setImportMsg({ ok: false, text: plainErrorText(err, t("royalties.error.connectFailed")) });
     }
   }
 

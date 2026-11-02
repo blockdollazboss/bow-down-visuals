@@ -8798,7 +8798,8 @@
       "importFailed": "इम्पोर्ट विफल रहा।",
       "insightsFailed": "Insights विफल रहे — फिर से प्रयास करें।",
       "payoutRequired": "Distributor, अवधि तिथियाँ, और अपेक्षित राशि आवश्यक हैं।",
-      "payoutSaveFailed": "वह payout सेव नहीं हो सका।"
+      "payoutSaveFailed": "वह payout सेव नहीं हो सका।",
+      "connectFailed": "वह प्लेटफ़ॉर्म कनेक्ट नहीं हो सका — फिर से कोशिश करें।"
     }
   },
   "playlistPitch": {

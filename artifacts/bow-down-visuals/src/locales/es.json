@@ -8870,7 +8870,8 @@
       "importFailed": "La importación falló.",
       "insightsFailed": "Los análisis fallaron: inténtalo de nuevo.",
       "payoutRequired": "Se requieren el distribuidor, las fechas del período y el monto esperado.",
-      "payoutSaveFailed": "No se pudo guardar ese pago."
+      "payoutSaveFailed": "No se pudo guardar ese pago.",
+      "connectFailed": "No se pudo conectar esa plataforma — inténtalo de nuevo."
     }
   },
   "mediaDetector": {

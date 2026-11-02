@@ -8909,7 +8909,8 @@
       "importFailed": "فشل الاستيراد.",
       "insightsFailed": "فشلت الرؤى — حاول مجدداً.",
       "payoutRequired": "الموزع وتواريخ الفترة والمبلغ المتوقع مطلوبة.",
-      "payoutSaveFailed": "تعذّر حفظ تلك الدفعة."
+      "payoutSaveFailed": "تعذّر حفظ تلك الدفعة.",
+      "connectFailed": "تعذر ربط تلك المنصة — حاول مرة أخرى."
     }
   },
   "mediaDetector": {
