@@ -33,8 +33,9 @@ describe("guest doors on public surfaces carry ?next= back", () => {
   it("storefront product page: every member-action bounce goes through the door builder", () => {
     expect(productPage).not.toContain('navigate("/login")');
     expect(productPage).toContain("loginPathWithNext(location, search)");
-    // buy, claim, offer, restock subscribe + its token-miss twin.
-    expect(productPage.match(/navigate\(signInDoor\)/g)?.length).toBe(5);
+    // buy, claim, offer, restock subscribe + its token-miss twin,
+    // office-hours book + its token-miss twin + its guest button (#167).
+    expect(productPage.match(/navigate\(signInDoor\)/g)?.length).toBe(8);
   });
 
   it("challenge page: vote and join doors return to the challenge", () => {

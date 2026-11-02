@@ -1946,6 +1946,20 @@ router.post("/storefront/checkout", requireAuth, publicApiLimiter, async (req, r
       });
       return;
     }
+    /* Office Hours (#167) sessions are booked with Visual Bucs on
+       their own door (POST /storefront/product/:id/office-hours/book)
+       — never for dollars here: a dollar booking would write a record
+       with no messages_call trailer and no VB charge, two economies
+       mixed on one session. The refusal sits before the $0 check so
+       an Office Hours product gets THIS answer, not "free product". */
+    if (officeHoursInfo(p.service_details).officeHours) {
+      res.status(400).json({
+        error: "OFFICE_HOURS_VB",
+        message: "This is an Office Hours session — it's booked with Visual Bucs on its page, not through dollar checkout.",
+        bookEndpoint: `/api/storefront/product/${p.id}/office-hours/book`,
+      });
+      return;
+    }
     /* A $0 lead magnet never reaches Stripe (migration 0190): there is
        no card to charge. It is claimed by email on the house rail. */
     if (Number(p.price_cents) === 0) {
@@ -4207,6 +4221,18 @@ router.post("/storefront/claim", requireAuth, publicApiLimiter, async (req, res)
       res.status(400).json({
         error: "NOT_FREE",
         message: "This product isn't free — it goes through regular checkout.",
+      });
+      return;
+    }
+    /* Office Hours (#167): a bookable Office Hours service carries
+       price_cents 0 BY DESIGN (its price is price_vb) — without this
+       refusal the claim below would confirm its slot for free, no
+       Visual Bucs charged. It is booked with Bucs on its own door. */
+    if (officeHoursInfo(p.service_details).officeHours) {
+      res.status(400).json({
+        error: "OFFICE_HOURS_VB",
+        message: "This is an Office Hours session — it's booked with Visual Bucs on its page, not claimed for free.",
+        bookEndpoint: `/api/storefront/product/${p.id}/office-hours/book`,
       });
       return;
     }

@@ -15803,5 +15803,32 @@
     "portalOpenFailed": "Il portale di fatturazione non si è aperto. Riprova tra un minuto.",
     "portalNoPage": "Il portale di fatturazione non ha restituito una pagina.",
     "portalOpened": "Il tuo portale di fatturazione si è aperto in una nuova scheda — gestisci o annulla lì; questo pannello rileggerà il tuo piano al tuo ritorno."
+  },
+  "officeHours": {
+    "panelTitle": "Prenota una sessione di Orario di ricevimento",
+    "loadingTimes": "Caricamento degli orari disponibili…",
+    "pickTime": "Scegli un orario",
+    "shownInYourTime": "Orari mostrati nel tuo fuso orario ({{tz}}).",
+    "noTimesTitle": "Nessun orario disponibile al momento",
+    "noTimesBody": "Non c'è ancora nulla di aperto nel periodo di prenotazione — ripassa presto.",
+    "signInToBook": "Accedi per prenotare",
+    "bookedTitle": "Prenotazione fatta",
+    "buyerNote": "Una videochiamata 1:1 dentro Messaggi — paghi in Visual Bucs, senza carta.",
+    "openMessages": "Apri Messaggi — la sessione si svolge lì",
+    "sessionLengthLine": "Sessione di {{minutes}} min",
+    "sellerToggle": "Orario di ricevimento — sessioni 1:1",
+    "availabilityTitle": "Disponibilità settimanale",
+    "timezoneLabel": "Fuso orario",
+    "fromLabel": "Dalle",
+    "toLabel": "Alle",
+    "rowBadge": "Orario di ricevimento",
+    "editButton": "Orario di ricevimento",
+    "editorTitle": "Orario di ricevimento — {{title}}",
+    "saveButton": "Salva Orario di ricevimento",
+    "turnOffButton": "Disattiva Orario di ricevimento",
+    "savedOnNote": "L'Orario di ricevimento è attivo — i fan possono prenotare questa sessione.",
+    "savedOffNote": "L'Orario di ricevimento è disattivato per questo servizio.",
+    "durationMinLabel": "Durata della sessione (minuti)",
+    "priceVbLabel": "Prezzo (Visual Bucs)"
   }
 }

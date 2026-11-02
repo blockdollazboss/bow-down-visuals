@@ -26,8 +26,14 @@ import {
   type StoreProductDTO, type StoreOrderDTO, type DiscountCodeDTO,
   type MoneyChecklist, type CreateProductInput, type StoreProductKind,
   type ShopifyImportResultDTO, type ShopifyExportKind,
+  type ServiceDetails,
 } from "@/lib/storefront-api";
 import { formatDropLocal } from "@/lib/product-drop";
+import {
+  availabilityFormFrom, availabilityFromForm, browserTimeZone, emptyAvailabilityForm,
+  isOfficeHoursFlagged, officeHoursPriceVb, weekdayShortLabel,
+  type AvailabilityForm,
+} from "@/lib/office-hours";
 import SplitsEditor from "@/components/splits/SplitsEditor";
 import PushOptInPrompt from "@/components/PushOptInPrompt";
 import CommercePixelsSettings, {
@@ -834,8 +840,75 @@ function DropControls({ product, getToken, onChanged }: {
 }
 
 /* ── Products tab ────────────────────────────────────────────────────── */
+/* ── Office Hours availability editor (#167) ──────────────────────────
+   The seller's weekly grid for the one VB-priced service shape: one
+   window per weekday in the creator's own timezone, exactly the
+   shape the booking rail consumes (lib/office-hours converts both
+   ways; saving validates through availabilityFromForm, so a grid the
+   server would call unbookable never leaves this form). Shared by
+   the create form and the per-product row editor. */
+function AvailabilityWindowsEditor({ form, onChange, disabled }: {
+  form: AvailabilityForm;
+  onChange: (f: AvailabilityForm) => void;
+  disabled?: boolean;
+}) {
+  const { t, i18n } = useTranslation();
+  const inputCls = "rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-white disabled:opacity-40";
+  const setDay = (weekday: number, patch: Partial<AvailabilityForm["days"][number]>) =>
+    onChange({ ...form, days: form.days.map((d) => (d.weekday === weekday ? { ...d, ...patch } : d)) });
+  return (
+    <div>
+      <p className="text-xs font-bold text-white/70">{t("officeHours.availabilityTitle", { defaultValue: "Weekly availability" })}</p>
+      <label className="mt-2 flex items-center gap-2 text-xs text-white/50">
+        {t("officeHours.timezoneLabel", { defaultValue: "Time zone" })}
+        <input
+          aria-label={t("officeHours.timezoneLabel", { defaultValue: "Time zone" })}
+          value={form.timezone}
+          onChange={(e) => onChange({ ...form, timezone: e.target.value })}
+          disabled={disabled}
+          className={`${inputCls} w-56`}
+        />
+      </label>
+      <div className="mt-2 space-y-1.5">
+        {form.days.map((day) => (
+          <div key={day.weekday} className="flex flex-wrap items-center gap-2 text-sm">
+            <label className="flex w-24 cursor-pointer items-center gap-2 text-white/70">
+              <input
+                type="checkbox"
+                checked={day.on}
+                onChange={(e) => setDay(day.weekday, { on: e.target.checked })}
+                disabled={disabled}
+                className="h-4 w-4 accent-amber-400"
+              />
+              {weekdayShortLabel(day.weekday, i18n.language)}
+            </label>
+            <input
+              type="time"
+              aria-label={`${weekdayShortLabel(day.weekday, i18n.language)} ${t("officeHours.fromLabel", { defaultValue: "From" })}`}
+              value={day.start}
+              onChange={(e) => setDay(day.weekday, { start: e.target.value })}
+              disabled={disabled || !day.on}
+              className={inputCls}
+            />
+            <span className="text-white/40">{t("officeHours.toLabel", { defaultValue: "To" })}</span>
+            <input
+              type="time"
+              aria-label={`${weekdayShortLabel(day.weekday, i18n.language)} ${t("officeHours.toLabel", { defaultValue: "To" })}`}
+              value={day.end}
+              onChange={(e) => setDay(day.weekday, { end: e.target.value })}
+              disabled={disabled || !day.on}
+              className={inputCls}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void }) {
   const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const getToken = useToken();
   const { user, getAccessToken } = useAuth();
   const ownerUserId = user?.id ?? "";
@@ -870,7 +943,13 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     affiliatePct: "",
     /* kind='gift_card': seller-set amounts, comma-separated dollars. */
     denominations: "25, 50, 100",
+    /* Office Hours (#167): the VB-priced 1:1 session shape — its own
+       price field, because the dollar price is NOT used for it. */
+    officeHours: false,
+    ohPriceVb: "",
   });
+  /* The create form's Office Hours weekly grid (creator-local). */
+  const [ohAvailability, setOhAvailability] = useState<AvailabilityForm>(() => emptyAvailabilityForm(browserTimeZone()));
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -894,11 +973,24 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     setErr("");
     if (!form.title.trim()) { setErr("Give it a title."); return; }
     const cents = dollarsToCents(form.priceDollars);
+    /* Office Hours (#167): a service sold in Visual Bucs — the dollar
+       price field does not apply to it at all (price_cents stays 0 by
+       design), so it skips the dollars check and validates its own
+       three facts instead: a session length, a whole VB price, and a
+       bookable weekly grid. */
+    const ohOn = form.kind === "service" && form.officeHours;
+    if (ohOn) {
+      const dur = parseInt(form.durationMin, 10);
+      if (!Number.isInteger(dur) || dur < 1) { setErr(t("officeHours.needDuration", { defaultValue: "Set the session length first — Office Hours need a duration." })); return; }
+      const vb = Number(form.ohPriceVb);
+      if (!Number.isInteger(vb) || vb < 1 || vb > 1_000_000) { setErr(t("officeHours.needPrice", { defaultValue: "Set the price in Visual Bucs — a whole number above zero." })); return; }
+      if (!availabilityFromForm(ohAvailability)) { setErr(t("officeHours.needAvailability", { defaultValue: "Turn on at least one day, with an end time after its start time." })); return; }
+    }
     /* $0 is a real price here: a free lead magnet (0190) — fans claim
        it with their email instead of checking out. Negative isn't.
        Gift cards skip this: their price IS their amounts list (the
        server sets the listing price to the smallest denomination). */
-    if (form.kind !== "gift_card" && (!Number.isFinite(cents) || cents < 0)) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
+    if (!ohOn && form.kind !== "gift_card" && (!Number.isFinite(cents) || cents < 0)) { setErr("Set a price — $0 makes it a free lead magnet; a negative price isn't a price."); return; }
     /* #16: the commission is the creator's own number — required when
        affiliates are on, never invented. */
     let affiliateBps: number | null = null;
@@ -921,19 +1013,28 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
         title: form.title.trim(),
         description: form.description.trim(),
         /* Gift cards: placeholder 0 — the server sets the real listing
-           price from the amounts list (smallest denomination). */
-        priceCents: form.kind === "gift_card" ? 0 : cents,
-        compareAtCents: form.compareAtDollars ? dollarsToCents(form.compareAtDollars) : null,
+           price from the amounts list (smallest denomination).
+           Office Hours: 0 by design — its price is price_vb. */
+        priceCents: ohOn || form.kind === "gift_card" ? 0 : cents,
+        compareAtCents: ohOn ? null : form.compareAtDollars ? dollarsToCents(form.compareAtDollars) : null,
         inventory: form.kind === "digital" || form.kind === "download" ? -1 : parseInt(form.inventory, 10) || -1,
         mediaUrls: form.mediaUrl.trim() ? [form.mediaUrl.trim()] : [],
         mediaAltTexts: form.mediaUrl.trim() && form.mediaAlt.trim() ? [form.mediaAlt.trim()] : [],
         relatedLinks: form.relatedLabel.trim() && form.relatedUrl.trim()
           ? [{ label: form.relatedLabel.trim(), url: form.relatedUrl.trim() }] : [],
-        serviceDetails: form.kind === "service" ? {
+        serviceDetails: form.kind === "service" ? (ohOn ? {
+          duration_min: parseInt(form.durationMin, 10),
+          location: form.location.trim() || undefined,
+          booking_calendar_link: form.calendarLink.trim() || undefined,
+          office_hours: true,
+          price_vb: Number(form.ohPriceVb),
+          booking_enabled: true,
+          availability: availabilityFromForm(ohAvailability) ?? undefined,
+        } : {
           duration_min: form.durationMin ? parseInt(form.durationMin, 10) : undefined,
           location: form.location.trim() || undefined,
           booking_calendar_link: form.calendarLink.trim() || undefined,
-        } : null,
+        }) : null,
         eventId: form.kind === "ticket" && form.eventId.trim() ? form.eventId.trim() : null,
         giftCardDenominationsCents: form.kind === "gift_card"
           ? form.denominations.split(",").map((s) => dollarsToCents(s.trim())).filter((c) => Number.isFinite(c) && c > 0)
@@ -956,7 +1057,8 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
       }
       await createProduct(token, input);
       setShowForm(false);
-      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", mediaAlt: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "", denominations: "25, 50, 100" });
+      setForm({ kind: "digital", title: "", description: "", priceDollars: "", compareAtDollars: "", inventory: "-1", mediaUrl: "", mediaAlt: "", relatedLabel: "", relatedUrl: "", durationMin: "", location: "", calendarLink: "", eventId: "", affiliatesEnabled: false, affiliatePct: "", denominations: "25, 50, 100", officeHours: false, ohPriceVb: "" });
+      setOhAvailability(emptyAvailabilityForm(browserTimeZone()));
       setSplitDrafts([]);
       await load();
       onChanged();
@@ -1049,6 +1151,67 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
     }
   };
 
+  /* ── Office Hours row editor (#167) ────────────────────────────────
+     Turn an existing service into an Office Hours session (or back).
+     PATCH replaces service_details WHOLESALE server-side, so the
+     save always sends the full merged object — the product's other
+     service fields (location, notes, …) ride along untouched. */
+  const [ohEditId, setOhEditId] = useState<string | null>(null);
+  const [ohEnabled, setOhEnabled] = useState(false);
+  const [ohPriceVb, setOhPriceVb] = useState("");
+  const [ohDuration, setOhDuration] = useState("");
+  const [ohGrid, setOhGrid] = useState<AvailabilityForm>(() => emptyAvailabilityForm(browserTimeZone()));
+  const [ohBusy, setOhBusy] = useState(false);
+  const [ohErr, setOhErr] = useState("");
+  const [ohMsg, setOhMsg] = useState("");
+
+  const openOhEditor = (p: StoreProductDTO) => {
+    setOhErr("");
+    setOhMsg("");
+    if (ohEditId === p.id) { setOhEditId(null); return; }
+    setOhEditId(p.id);
+    const sd = p.serviceDetails;
+    setOhEnabled(isOfficeHoursFlagged(sd));
+    setOhPriceVb(sd?.price_vb ? String(sd.price_vb) : "");
+    setOhDuration(sd?.duration_min ? String(sd.duration_min) : "");
+    setOhGrid(availabilityFormFrom(sd?.availability, browserTimeZone()));
+  };
+
+  const saveOh = async (p: StoreProductDTO) => {
+    setOhErr("");
+    setOhMsg("");
+    const base: ServiceDetails = { ...(p.serviceDetails ?? {}) };
+    let merged: ServiceDetails;
+    if (!ohEnabled) {
+      /* Off is the flag alone: the rail ignores a stored price while
+         the flag is off, so the seller's last price survives the
+         toggle and comes back if they re-enable. */
+      merged = { ...base, office_hours: false };
+    } else {
+      const dur = parseInt(ohDuration, 10);
+      if (!Number.isInteger(dur) || dur < 1) { setOhErr(t("officeHours.needDuration", { defaultValue: "Set the session length first — Office Hours need a duration." })); return; }
+      const vb = Number(ohPriceVb);
+      if (!Number.isInteger(vb) || vb < 1 || vb > 1_000_000) { setOhErr(t("officeHours.needPrice", { defaultValue: "Set the price in Visual Bucs — a whole number above zero." })); return; }
+      const availability = availabilityFromForm(ohGrid);
+      if (!availability) { setOhErr(t("officeHours.needAvailability", { defaultValue: "Turn on at least one day, with an end time after its start time." })); return; }
+      merged = { ...base, duration_min: dur, office_hours: true, price_vb: vb, booking_enabled: true, availability };
+    }
+    setOhBusy(true);
+    try {
+      const token = await getToken();
+      await updateProduct(token, p.id, { serviceDetails: merged } as Partial<CreateProductInput>);
+      await load();
+      onChanged();
+      setOhMsg(ohEnabled
+        ? t("officeHours.savedOnNote", { defaultValue: "Office Hours are on — fans can book this session." })
+        : t("officeHours.savedOffNote", { defaultValue: "Office Hours are off for this service." }));
+    } catch (e) {
+      setOhErr(plainErrorText(e, t("officeHours.saveError", { defaultValue: "Couldn't save Office Hours." })));
+    } finally {
+      setOhBusy(false);
+    }
+  };
+
   const inputCls = "w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/25";
 
   return (
@@ -1130,6 +1293,42 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                 <input aria-label="Duration in minutes" value={form.durationMin} onChange={(e) => setForm({ ...form, durationMin: e.target.value })} placeholder="Duration (min)" inputMode="numeric" className={inputCls} />
                 <input aria-label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" className={inputCls} />
                 <input aria-label="Booking calendar link" value={form.calendarLink} onChange={(e) => setForm({ ...form, calendarLink: e.target.value })} placeholder="Booking calendar link (stub)" className={inputCls} />
+              </div>
+            )}
+            {/* Office Hours (#167): the VB-priced session shape, docked
+                in the service section of this same form — its price is
+                Visual Bucs, its calendar is the grid below, and the
+                dollar price above is ignored for it. */}
+            {form.kind === "service" && (
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-4">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={form.officeHours}
+                    onChange={(e) => setForm({ ...form, officeHours: e.target.checked })}
+                    className="h-4 w-4 accent-amber-400"
+                  />
+                  <span className="text-sm font-bold text-white">{t("officeHours.sellerToggle", { defaultValue: "Office Hours — 1:1 sessions" })}</span>
+                </label>
+                <p className="mt-1 text-[11px] text-white/45">
+                  {t("officeHours.sellerBlurb", { defaultValue: "Fans pick a time from your availability and pay in Visual Bucs — the dollar price isn't used for Office Hours. The session happens as a video call in your Messages." })}
+                </p>
+                {form.officeHours && (
+                  <div className="mt-3 space-y-3">
+                    <label className="flex items-center gap-2 text-xs text-white/50">
+                      {t("officeHours.priceVbLabel", { defaultValue: "Price (Visual Bucs)" })}
+                      <input
+                        aria-label={t("officeHours.priceVbLabel", { defaultValue: "Price (Visual Bucs)" })}
+                        value={form.ohPriceVb}
+                        onChange={(e) => setForm({ ...form, ohPriceVb: e.target.value })}
+                        placeholder="500"
+                        inputMode="numeric"
+                        className="w-28 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                      />
+                    </label>
+                    <AvailabilityWindowsEditor form={ohAvailability} onChange={setOhAvailability} disabled={busy} />
+                  </div>
+                )}
               </div>
             )}
             {form.kind === "ticket" && (
@@ -1254,7 +1453,15 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                   </td>
                   <td className="px-4 py-3 text-xs text-white/60">{KIND_EMOJI[p.kind]} {KIND_LABELS[p.kind]}</td>
                   <td className="px-4 py-3 font-bold text-primary">
-                    {p.priceCents === 0 ? (
+                    {isOfficeHoursFlagged(p.serviceDetails) ? (
+                      /* Office Hours (#167): priceCents is 0 by design —
+                         "FREE / Lead magnet" here would be a lie; the
+                         price is Visual Bucs and the badge says so. */
+                      <span className="inline-flex items-center gap-1.5">
+                        {officeHoursPriceVb(p.serviceDetails) != null ? `${officeHoursPriceVb(p.serviceDetails)} VB` : "—"}
+                        <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">{t("officeHours.rowBadge", { defaultValue: "Office Hours" })}</span>
+                      </span>
+                    ) : p.priceCents === 0 ? (
                       <span className="inline-flex items-center gap-1.5">
                         FREE
                         <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">Lead magnet</span>
@@ -1318,6 +1525,19 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                       open={splitsEditId === p.id}
                       onToggle={() => setSplitsEditId(splitsEditId === p.id ? null : p.id)}
                     />
+                    {p.kind === "service" && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => openOhEditor(p)}
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${isOfficeHoursFlagged(p.serviceDetails) ? "border-primary/50 bg-primary/10 text-primary" : "border-white/15 text-white/60 hover:border-amber-400/40 hover:text-amber-300"}`}
+                          title="Sell this service as Office Hours — 1:1 sessions fans book in Visual Bucs"
+                        >
+                          <CalendarClock className="mr-1 inline h-3 w-3" />
+                          {t("officeHours.editButton", { defaultValue: "Office Hours" })}
+                          {isOfficeHoursFlagged(p.serviceDetails) ? " · on" : ""}
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-start justify-end gap-2">
@@ -1387,6 +1607,78 @@ function ProductsTab({ slug, onChanged }: { slug: string; onChanged: () => void 
                         onDone={() => { setSplitsEditId(null); load(); onChanged(); }}
                         onCancel={() => setSplitsEditId(null)}
                       />
+                    </td>
+                  </tr>
+                )}
+                {ohEditId === p.id && (
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                    <td colSpan={7} className="px-4 py-4">
+                      <p className="text-xs font-bold text-white">{t("officeHours.editorTitle", { title: p.title, defaultValue: "Office Hours — {{title}}" })}</p>
+                      <p className="mt-0.5 text-[11px] text-white/45">
+                        {t("officeHours.sellerBlurb", { defaultValue: "Fans pick a time from your availability and pay in Visual Bucs — the dollar price isn't used for Office Hours. The session happens as a video call in your Messages." })}
+                      </p>
+                      <label className="mt-3 flex cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={ohEnabled}
+                          onChange={(e) => setOhEnabled(e.target.checked)}
+                          className="h-4 w-4 accent-amber-400"
+                        />
+                        <span className="text-sm font-bold text-white">{t("officeHours.sellerToggle", { defaultValue: "Office Hours — 1:1 sessions" })}</span>
+                      </label>
+                      {ohEnabled && (
+                        <div className="mt-3 space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="flex items-center gap-2 text-xs text-white/50">
+                              {t("officeHours.priceVbLabel", { defaultValue: "Price (Visual Bucs)" })}
+                              <input
+                                aria-label={t("officeHours.priceVbLabel", { defaultValue: "Price (Visual Bucs)" })}
+                                value={ohPriceVb}
+                                onChange={(e) => setOhPriceVb(e.target.value)}
+                                placeholder="500"
+                                inputMode="numeric"
+                                className="w-28 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                              />
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-white/50">
+                              {t("officeHours.durationMinLabel", { defaultValue: "Session length (minutes)" })}
+                              <input
+                                aria-label={t("officeHours.durationMinLabel", { defaultValue: "Session length (minutes)" })}
+                                value={ohDuration}
+                                onChange={(e) => setOhDuration(e.target.value)}
+                                placeholder="60"
+                                inputMode="numeric"
+                                className="w-24 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                              />
+                            </label>
+                          </div>
+                          <AvailabilityWindowsEditor form={ohGrid} onChange={setOhGrid} disabled={ohBusy} />
+                        </div>
+                      )}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => saveOh(p)} disabled={ohBusy}
+                          className="rounded-full bg-gradient-to-b from-[#e8c547] to-[#b8860b] px-4 py-2 text-xs font-black text-black hover:brightness-110 disabled:opacity-60"
+                        >
+                          {ohBusy ? "Saving…" : t("officeHours.saveButton", { defaultValue: "Save Office Hours" })}
+                        </button>
+                        {ohEnabled && isOfficeHoursFlagged(p.serviceDetails) && (
+                          <button
+                            onClick={() => setOhEnabled(false)} disabled={ohBusy}
+                            className="rounded-full border border-red-400/40 px-4 py-2 text-xs font-bold text-red-300 hover:bg-red-400/10 disabled:opacity-60"
+                          >
+                            {t("officeHours.turnOffButton", { defaultValue: "Turn off Office Hours" })}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setOhEditId(null)}
+                          className="rounded-full border border-white/15 px-4 py-2 text-xs text-white/60"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {ohErr && <p className="mt-2 flex items-center gap-2 text-xs text-red-400"><AlertCircle className="h-4 w-4" />{ohErr}</p>}
+                      {ohMsg && <p className="mt-2 flex items-center gap-2 text-xs text-green-300"><CheckCircle2 className="h-4 w-4" />{ohMsg}</p>}
                     </td>
                   </tr>
                 )}

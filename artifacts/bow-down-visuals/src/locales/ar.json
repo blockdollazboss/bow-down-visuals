@@ -15872,5 +15872,32 @@
     "portalOpenFailed": "لم تُفتح بوابة الفوترة. حاول مرة أخرى بعد دقيقة.",
     "portalNoPage": "لم تُرجع بوابة الفوترة أي صفحة.",
     "portalOpened": "فُتحت بوابة الفوترة في علامة تبويب جديدة — أدر أو ألغِ هناك؛ ستعيد هذه اللوحة قراءة خطتك عند عودتك."
+  },
+  "officeHours": {
+    "panelTitle": "احجز جلسة ساعات المكتب",
+    "loadingTimes": "جارٍ تحميل الأوقات المتاحة…",
+    "pickTime": "اختر وقتًا",
+    "shownInYourTime": "تُعرض الأوقات بتوقيت منطقتك ({{tz}}).",
+    "noTimesTitle": "لا توجد أوقات متاحة الآن",
+    "noTimesBody": "لا شيء مفتوح بعد في نافذة الحجز — عد قريبًا.",
+    "signInToBook": "سجّل الدخول للحجز",
+    "bookedTitle": "تم حجزك",
+    "buyerNote": "مكالمة فيديو 1:1 داخل الرسائل — تدفع بـ Visual Bucs، دون بطاقة.",
+    "openMessages": "افتح الرسائل — الجلسة تُعقد هناك",
+    "sessionLengthLine": "جلسة مدتها {{minutes}} دقيقة",
+    "sellerToggle": "ساعات المكتب — جلسات 1:1",
+    "availabilityTitle": "التوفر الأسبوعي",
+    "timezoneLabel": "المنطقة الزمنية",
+    "fromLabel": "من",
+    "toLabel": "إلى",
+    "rowBadge": "ساعات المكتب",
+    "editButton": "ساعات المكتب",
+    "editorTitle": "ساعات المكتب — {{title}}",
+    "saveButton": "حفظ ساعات المكتب",
+    "turnOffButton": "إيقاف ساعات المكتب",
+    "savedOnNote": "ساعات المكتب مفعّلة — يمكن للمعجبين حجز هذه الجلسة.",
+    "savedOffNote": "ساعات المكتب متوقفة لهذه الخدمة.",
+    "durationMinLabel": "مدة الجلسة (بالدقائق)",
+    "priceVbLabel": "السعر (Visual Bucs)"
   }
 }

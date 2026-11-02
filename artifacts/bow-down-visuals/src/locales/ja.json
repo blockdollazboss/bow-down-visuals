@@ -15776,5 +15776,32 @@
     "portalOpenFailed": "請求ポータルを開けませんでした。少ししてから再試行してください。",
     "portalNoPage": "請求ポータルがページを返しませんでした。",
     "portalOpened": "請求ポータルが新しいタブで開きました — そちらで管理または解約してください。戻るとこのデスクがプランを再読み込みします。"
+  },
+  "officeHours": {
+    "panelTitle": "オフィスアワーのセッションを予約",
+    "loadingTimes": "空き時間を読み込み中…",
+    "pickTime": "時間を選んでください",
+    "shownInYourTime": "あなたのタイムゾーン（{{tz}}）で表示しています。",
+    "noTimesTitle": "現在、空き時間はありません",
+    "noTimesBody": "予約枠はまだ開いていません — また後でご確認ください。",
+    "signInToBook": "予約するにはサインイン",
+    "bookedTitle": "予約が完了しました",
+    "buyerNote": "メッセージ内の1:1ビデオ通話 — お支払いは Visual Bucs で、カード不要です。",
+    "openMessages": "メッセージを開く — セッションはそこで行われます",
+    "sessionLengthLine": "{{minutes}}分のセッション",
+    "sellerToggle": "オフィスアワー — 1:1セッション",
+    "availabilityTitle": "週間の空き状況",
+    "timezoneLabel": "タイムゾーン",
+    "fromLabel": "開始",
+    "toLabel": "終了",
+    "rowBadge": "オフィスアワー",
+    "editButton": "オフィスアワー",
+    "editorTitle": "オフィスアワー — {{title}}",
+    "saveButton": "オフィスアワーを保存",
+    "turnOffButton": "オフィスアワーをオフにする",
+    "savedOnNote": "オフィスアワーはオンです — ファンがこのセッションを予約できます。",
+    "savedOffNote": "このサービスのオフィスアワーはオフです。",
+    "durationMinLabel": "セッション時間（分）",
+    "priceVbLabel": "価格（Visual Bucs）"
   }
 }

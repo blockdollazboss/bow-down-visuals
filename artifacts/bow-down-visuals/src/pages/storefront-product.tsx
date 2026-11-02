@@ -1,9 +1,10 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams, useLocation, useSearch } from "wouter";
 import { loginPathWithNext } from "@/lib/auth-next";
-import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Minus, Plus, Timer, BellRing, Mail, CheckCircle2, Users } from "lucide-react";
+import { Loader2, ShieldCheck, Zap, BadgeDollarSign, ArrowLeft, Lock, Share2, Minus, Plus, Timer, BellRing, Mail, CheckCircle2, Users, CalendarClock, Video } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { shareDrop } from "@/lib/share-drop";
 import { clampQuantity, maxQuantity } from "@/lib/storefront-product";
@@ -13,8 +14,9 @@ import ProductOfferPanel from "@/components/offers/ProductOfferPanel";
 import type { ProductOffer } from "@/lib/product-offers";
 import { dropCountdown, formatDropLocal, pad2 } from "@/lib/product-drop";
 import { fireCommercePageView, type CommercePixels } from "@/lib/commerce-pixels";
-import type { ProductDropDTO } from "@/lib/storefront-api";
-import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert } from "@/lib/storefront-api";
+import type { ProductDropDTO, ServiceDetails, OfficeHoursBookedDTO, ProductSlotsDTO } from "@/lib/storefront-api";
+import { getStockAlert, subscribeStockAlert, unsubscribeStockAlert, getProductSlots, bookOfficeHours } from "@/lib/storefront-api";
+import { browserTimeZone, groupSlotsForViewer, officeHoursPriceVb } from "@/lib/office-hours";
 import { usePageTitle } from "@/hooks/use-page-title";
 import CourseOutline from "@/components/courses/CourseOutline";
 import GiftThisProductPanel from "@/components/storefront/GiftThisProductPanel";
@@ -29,7 +31,9 @@ import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/c
    POST /api/storefront/checkout.
 
    Money copy rule: this is REAL MONEY via secure checkout, never
-   Visual Bucs. */
+   Visual Bucs — with ONE exception: an Office Hours service (#167),
+   whose price is Visual Bucs by design and which is booked in the
+   OfficeHoursPanel below, never through checkout or the free claim. */
 
 const PRODUCT_KIND_LABELS: Record<string, string> = {
   download: "Download",
@@ -83,6 +87,9 @@ interface ProductData {
     mediaAltTexts?: string[];
     /** kind='gift_card': seller-set amounts (cents) to pick from. */
     giftCardDenominationsCents?: number[] | null;
+    /** Service shape (#167 Office Hours): the detail payload carries
+        the product's service_details, flag + VB price included. */
+    serviceDetails?: ServiceDetails | null;
     /* #36: co-seller splits as presented — every seller sharing this
        product's net, with names/slugs; null when the product is solo. */
     splits?: { userId: string; sharePct: number; name?: string | null; slug?: string | null }[] | null;
@@ -390,6 +397,196 @@ function RestockAlert({ productId, title, creatorName, waitingCount }: {
   );
 }
 
+/* ─── Office Hours booking panel (#167) ────────────────────────────────
+   The buyer door for the one VB-priced service shape. The server rail
+   owns everything money-shaped: the slots read names the VB price and
+   the book endpoint, booking charges Visual Bucs and confirms at
+   once, and the answer carries the Messages door the session happens
+   behind. This panel never prices, never checks out, and never
+   claims — claim/checkout refuse Office Hours server-side too
+   (OFFICE_HOURS_VB). Failure is its own state with a working Retry;
+   "no open times" is a different, honest state. */
+function OfficeHoursPanel({ productId, priceVb, durationMin }: {
+  productId: string;
+  priceVb: number;
+  durationMin?: number;
+}) {
+  const { t, i18n } = useTranslation();
+  const { user, getAccessToken } = useAuth();
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  /* Same guest door as the rest of this page: sign in, come back here. */
+  const signInDoor = loginPathWithNext(location, search);
+  const viewerTz = useMemo(() => browserTimeZone(), []);
+  const [slots, setSlots] = useState<ProductSlotsDTO | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [retryTick, setRetryTick] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [booking, setBooking] = useState(false);
+  const [bookError, setBookError] = useState<string | null>(null);
+  const [booked, setBooked] = useState<OfficeHoursBookedDTO | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoadState("loading");
+    (async () => {
+      try {
+        const s = await getProductSlots(productId);
+        if (!alive) return;
+        setSlots(s);
+        setLoadState("ready");
+      } catch {
+        if (alive) setLoadState("error");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [productId, retryTick]);
+
+  const days = useMemo(
+    () => (slots?.bookable ? groupSlotsForViewer(slots.days ?? [], viewerTz, i18n.language) : []),
+    [slots, viewerTz, i18n.language],
+  );
+
+  async function book() {
+    if (!user) {
+      navigate(signInDoor);
+      return;
+    }
+    if (!selected || booking) return;
+    setBooking(true);
+    setBookError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        navigate(signInDoor);
+        return;
+      }
+      const r = await bookOfficeHours(token, productId, selected, viewerTz);
+      setBooked(r);
+    } catch (err) {
+      setBookError(plainErrorText(err, t("officeHours.bookErrorFallback", { defaultValue: "Couldn't book that session — nothing was charged." })));
+      /* The pick may have just been taken — reload the grid so the
+         next try starts from the truth, not a stale slot. */
+      setSelected(null);
+      setRetryTick((n) => n + 1);
+    } finally {
+      setBooking(false);
+    }
+  }
+
+  const goldButton =
+    "flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-60";
+
+  if (booked) {
+    const when = new Intl.DateTimeFormat(i18n.language, {
+      timeZone: viewerTz, weekday: "long", month: "long", day: "numeric",
+      hour: "numeric", minute: "2-digit",
+    }).format(new Date(booked.startUtc));
+    return (
+      <div className="mt-6 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5 text-center" data-testid="office-hours-panel">
+        <div className="inline-flex items-center gap-2 text-lg font-bold text-emerald-200">
+          <CheckCircle2 className="h-5 w-5" /> {t("officeHours.bookedTitle", { defaultValue: "You're booked" })}
+        </div>
+        <p className="mt-1 text-sm text-emerald-100/80">{when}</p>
+        <p className="mt-1 text-xs text-emerald-100/60">
+          {t("officeHours.balanceAfterLine", { balance: booked.balanceAfter, defaultValue: "Your balance after booking: {{balance}} Visual Bucs" })}
+        </p>
+        <Link
+          href={booked.messagesUrl}
+          className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-6 py-3 font-bold text-black transition hover:brightness-110"
+        >
+          <Video className="h-4 w-4" /> {t("officeHours.openMessages", { defaultValue: "Open Messages — the session happens there" })}
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6" data-testid="office-hours-panel">
+      <div className="flex items-center gap-2">
+        <CalendarClock className="h-5 w-5 text-amber-400" />
+        <h3 className="text-lg font-bold text-amber-100">{t("officeHours.panelTitle", { defaultValue: "Book an Office Hours session" })}</h3>
+      </div>
+      <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm text-amber-100/70">
+        <span className="text-xl font-bold text-amber-300">
+          {t("officeHours.priceLine", { price: priceVb, defaultValue: "{{price}} Visual Bucs" })}
+        </span>
+        {durationMin ? (
+          <span>{t("officeHours.sessionLengthLine", { minutes: durationMin, defaultValue: "{{minutes}} min session" })}</span>
+        ) : null}
+      </p>
+      <p className="mt-1 text-xs text-amber-100/50">{t("officeHours.buyerNote", { defaultValue: "A 1:1 video call inside Messages — you pay in Visual Bucs, no card needed." })}</p>
+
+      {loadState === "loading" ? (
+        <p className="mt-4 flex items-center gap-2 text-sm text-amber-100/60">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("officeHours.loadingTimes", { defaultValue: "Loading open times…" })}
+        </p>
+      ) : loadState === "error" ? (
+        <div className="mt-4 rounded-xl border border-red-400/30 bg-red-400/5 p-4 text-center">
+          <p className="text-sm font-bold text-red-300">{t("officeHours.loadError", { defaultValue: "Couldn't load the open times." })}</p>
+          <button
+            onClick={() => setRetryTick((n) => n + 1)}
+            className="mt-2 text-sm font-bold text-amber-300 underline underline-offset-2 transition hover:text-amber-200"
+          >
+            {t("common.retry", { defaultValue: "Retry" })}
+          </button>
+        </div>
+      ) : slots && !slots.bookable ? (
+        <p className="mt-4 rounded-xl border border-amber-500/20 bg-black/30 p-4 text-sm text-amber-100/70">
+          {slots.reason ?? t("officeHours.noTimesBody", { defaultValue: "Nothing is open in the booking window yet — check back soon." })}
+        </p>
+      ) : days.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-amber-500/20 bg-black/30 p-4">
+          <p className="text-sm font-bold text-amber-100">{t("officeHours.noTimesTitle", { defaultValue: "No open times right now" })}</p>
+          <p className="mt-1 text-sm text-amber-100/60">{t("officeHours.noTimesBody", { defaultValue: "Nothing is open in the booking window yet — check back soon." })}</p>
+        </div>
+      ) : (
+        <>
+          <p className="mt-4 text-sm font-bold text-amber-100">{t("officeHours.pickTime", { defaultValue: "Pick a time" })}</p>
+          <div className="mt-2 space-y-3">
+            {days.map((day) => (
+              <div key={day.dateKey}>
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-100/50">{day.label}</p>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {day.slots.map((s) => (
+                    <button
+                      key={s.startUtc}
+                      data-testid="office-hours-slot"
+                      onClick={() => setSelected(s.startUtc)}
+                      aria-pressed={selected === s.startUtc}
+                      className={selected === s.startUtc
+                        ? "rounded-full bg-gradient-to-b from-amber-300 to-amber-600 px-4 py-2 text-sm font-bold text-black transition"
+                        : "rounded-full border border-amber-500/30 bg-black/40 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-400 hover:text-amber-200"}
+                    >
+                      {s.timeLabel}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-amber-100/50">
+            {t("officeHours.shownInYourTime", { tz: viewerTz, defaultValue: "Times shown in your time zone ({{tz}})." })}
+          </p>
+          {bookError && <p className="mt-3 text-sm font-bold text-red-300">{bookError}</p>}
+          {user ? (
+            <button onClick={book} disabled={!selected || booking} className={`mt-4 ${goldButton}`}>
+              {booking ? <Loader2 className="h-5 w-5 animate-spin" /> : <CalendarClock className="h-5 w-5" />}
+              {t("officeHours.bookButton", { price: priceVb, defaultValue: "Book — {{price}} Visual Bucs" })}
+            </button>
+          ) : (
+            <button onClick={() => navigate(signInDoor)} className={`mt-4 ${goldButton}`}>
+              <Lock className="h-5 w-5" /> {t("officeHours.signInToBook", { defaultValue: "Sign in to book" })}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function StorefrontProduct() {
   const isLight = useIsLightTheme();
   usePageTitle("Product", "Buy directly from the creator on Bow Down Visuals.");
@@ -475,6 +672,15 @@ export default function StorefrontProduct() {
 
   const maxQty = data ? maxQuantity(data.product.inventory, data.product.unlimited) : 99;
   const isFree = !!data && (data.free === true || data.product.free === true || data.product.priceCents === 0);
+  /* Office Hours (#167): priceCents is 0 BY DESIGN for this shape, so
+     the isFree test above matches it — the OH test must be consulted
+     FIRST everywhere the two diverge (price display, explainer, the
+     action chain), or the page would offer a paid VB session as a
+     free email claim. The helper mirrors the server rail's validity
+     exactly, so a half-configured flag never renders this door. */
+  const { t } = useTranslation();
+  const ohPriceVb = data ? officeHoursPriceVb(data.product.serviceDetails) : null;
+  const isOfficeHours = ohPriceVb != null;
   /* Timed drop (#25): while upcoming, this page is the drop page —
      countdown + capture replace the buy/claim box (the server refuses
      checkout/claim until the moment anyway). */
@@ -780,7 +986,9 @@ export default function StorefrontProduct() {
                         ${(data.product.compareAtCents / 100).toFixed(2)}
                       </span>
                     )}
-                    {isFree ? (
+                    {isOfficeHours ? (
+                      <span className="text-3xl font-bold text-amber-300">{t("officeHours.priceLine", { price: ohPriceVb, defaultValue: "{{price}} Visual Bucs" })}</span>
+                    ) : isFree ? (
                       <span className="text-3xl font-bold text-amber-300">FREE</span>
                     ) : (
                       <span className="text-3xl font-bold text-amber-300">{isGiftCard ? `from ${data.product.price}` : data.product.price}</span>
@@ -792,7 +1000,12 @@ export default function StorefrontProduct() {
                 {!isFree && (
                   <LocalCurrencyPrice cents={data.product.priceCents} className="text-xs mt-2 text-right" />
                 )}
-                {isFree ? (
+                {isOfficeHours ? (
+                  <p className="mt-3 flex items-start gap-1.5 border-t border-amber-500/10 pt-3 text-xs text-amber-100/60">
+                    <Video className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                    {t("officeHours.buyerNote", { defaultValue: "A 1:1 video call inside Messages — you pay in Visual Bucs, no card needed." })}
+                  </p>
+                ) : isFree ? (
                   <p className="mt-3 flex items-start gap-1.5 border-t border-amber-500/10 pt-3 text-xs text-amber-100/60">
                     <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
                     Free from {data.product.links.creatorName} — claim it with your email and it's delivered instantly. Claiming adds your email to their list; every email carries an unsubscribe link. No card, no charge.
@@ -838,7 +1051,17 @@ export default function StorefrontProduct() {
                 />
               )}
 
-              {isDropUpcoming ? null : data.product.soldOut ? (
+              {/* Office Hours takes the action slot ahead of soldOut and
+                  the free claim: its availability IS the slots grid
+                  (the rail ignores inventory for this shape), and the
+                  claim would give a paid session away. */}
+              {isDropUpcoming ? null : isOfficeHours ? (
+                <OfficeHoursPanel
+                  productId={data.product.id}
+                  priceVb={ohPriceVb!}
+                  durationMin={data.product.serviceDetails?.duration_min}
+                />
+              ) : data.product.soldOut ? (
                 <>
                   <div className="mt-6 rounded-full border border-amber-500/30 px-6 py-4 text-center text-lg font-bold text-amber-200/70">
                     Sold out — the creator's restocking

@@ -172,6 +172,68 @@ describe("balance — en-only money copy, pinned absent under the owner-decision
 });
 
 /* ------------------------------------------------------------------ */
+/* officeHours (#167 door) — drafted UI copy in all 10, money/error    */
+/* copy owner-decision en-only, same split as the lanes above.         */
+/* The non-en UI values are AGENT-DRAFTED and UNREVIEWED (fill-in      */
+/* contract): present and placeholder-shaped, awaiting native review.  */
+/* ------------------------------------------------------------------ */
+
+const OH_UI_KEYS = [
+  "panelTitle", "loadingTimes", "pickTime", "shownInYourTime",
+  "noTimesTitle", "noTimesBody", "signInToBook", "bookedTitle",
+  "openMessages", "buyerNote", "sessionLengthLine", "sellerToggle",
+  "availabilityTitle", "timezoneLabel", "fromLabel", "toLabel",
+  "rowBadge", "editButton", "editorTitle", "saveButton",
+  "turnOffButton", "savedOnNote", "savedOffNote", "durationMinLabel",
+  "priceVbLabel",
+] as const;
+
+const OH_OWNER_DECISION_KEYS = [
+  // money copy — the VB price, the charge button, the balance line,
+  // the seller's money explainer, the price validation
+  "priceLine", "bookButton", "balanceAfterLine", "sellerBlurb", "needPrice",
+  // error copy
+  "loadError", "bookErrorFallback", "saveError", "needDuration", "needAvailability",
+] as const;
+
+const placeholdersOf = (v: string | undefined) =>
+  [...(v ?? "").matchAll(/\{\{[^}]+\}\}/g)].map((m) => m[0]).sort();
+
+describe("officeHours — every en key is classified, and the split holds in all 9 catalogs", () => {
+  it("the classification covers en's officeHours exactly (a new en key must be classified here)", () => {
+    const enKeys = [...EN.keys()].filter((k) => k.startsWith("officeHours.")).map((k) => k.slice("officeHours.".length)).sort();
+    const classified = [...OH_UI_KEYS, ...OH_OWNER_DECISION_KEYS].sort();
+    expect(enKeys).toEqual(classified);
+  });
+
+  it("UI keys are present, non-empty, in every catalog (agent-drafted, UNREVIEWED)", () => {
+    for (const l of LOCALES) {
+      for (const k of OH_UI_KEYS) {
+        const v = CATS[l]!.get(`officeHours.${k}`);
+        expect(typeof v === "string" && v.trim() !== "", `${l}: officeHours.${k}`).toBe(true);
+      }
+    }
+  });
+
+  it("UI keys keep the en placeholder shape in every catalog", () => {
+    for (const l of NON_EN) {
+      for (const k of OH_UI_KEYS) {
+        expect(placeholdersOf(CATS[l]!.get(`officeHours.${k}`)), `${l}: officeHours.${k}`).toEqual(placeholdersOf(EN.get(`officeHours.${k}`)));
+      }
+    }
+  });
+
+  it("owner-decision money/error keys stay absent outside en until owner-approved translations land", () => {
+    for (const l of NON_EN) {
+      for (const k of OH_OWNER_DECISION_KEYS) {
+        expect(EN.has(`officeHours.${k}`), `en officeHours.${k}`).toBe(true);
+        expect(CATS[l]!.has(`officeHours.${k}`), `${l}: officeHours.${k}`).toBe(false);
+      }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* ja plural reuse                                                     */
 /* ------------------------------------------------------------------ */
 
