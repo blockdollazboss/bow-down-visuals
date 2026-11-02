@@ -188,6 +188,9 @@ describe("E — /analytics-hub's tab panels ride lazy doors", () => {
   it("the panels sit behind lazy() doors (TrustPanels behind two)", () => {
     for (const door of doors) expect(analyticsHub).toContain(door);
     expect(analyticsHub.match(/import\("@\/components\/trust\/TrustPanels"\)/g)).toHaveLength(2);
+    // AudienceRoomPanel is a NAMED export — its door must pick it
+    // explicitly, or React.lazy gets a module with no default.
+    expect(analyticsHub).toContain('import("@/components/analytics-hub/AudienceRoomPanel").then((m) => ({ default: m.AudienceRoomPanel }))');
   });
 
   it("no panel rides a static import anymore", () => {

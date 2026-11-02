@@ -27,7 +27,7 @@ const RetentionPanel = lazy(() => import("@/components/trust/TrustPanels").then(
 const ChannelAuditPanel = lazy(() => import("@/components/analytics-hub/ChannelAuditPanel"));
 const ViralityCheckPanel = lazy(() => import("@/components/analytics-hub/ViralityCheckPanel"));
 const FanDecoderSection = lazy(() => import("@/components/analytics-hub/FanDecoderSection"));
-const AudienceRoomPanel = lazy(() => import("@/components/analytics-hub/AudienceRoomPanel"));
+const AudienceRoomPanel = lazy(() => import("@/components/analytics-hub/AudienceRoomPanel").then((m) => ({ default: m.AudienceRoomPanel })));
 
 /* The tab stage's loading frame: gold spinner — a tab switch
    reads as "opening", never a blank hole. */
