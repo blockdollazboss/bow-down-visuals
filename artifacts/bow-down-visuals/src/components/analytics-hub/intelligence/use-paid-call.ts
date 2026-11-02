@@ -36,7 +36,7 @@ export function usePaidCall() {
           return null;
         }
         if (!res.ok) {
-          throw new Error(apiErrorMessage(data, `Request failed (${res.status}).`));
+          throw new Error(apiErrorMessage(data, "The request could not be completed — please try again."));
         }
         refreshProfile();
         return data;

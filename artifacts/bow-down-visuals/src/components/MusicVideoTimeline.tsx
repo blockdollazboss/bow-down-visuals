@@ -319,7 +319,7 @@ import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-err
           };
 
           if (!res.ok || !data.taskId) {
-            throw new Error(apiThrowMessage(data, `Scene clip error (HTTP ${res.status})`));
+            throw new Error(apiThrowMessage(data, "The scene clip could not be created — please try again."));
           }
 
           if (IS_DEV) console.log("[Runway] task:", data.taskId);

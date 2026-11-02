@@ -186,7 +186,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
       if (!res) { setGenerating(false); return; } // user cancelled the credit confirmation
       const data = await res.json() as { taskId?: string; status?: string; url?: string | null; path?: string | null; error?: string; message?: string };
       if (!res.ok || !data.taskId) {
-        throw new Error(apiThrowMessage(data, `Image API error (HTTP ${res.status})`));
+        throw new Error(apiThrowMessage(data, "The image could not be generated — please try again."));
       }
       /* GPT Image 2.5 returns synchronously — no polling needed. */
       if (data.status === "succeeded" && data.url) {

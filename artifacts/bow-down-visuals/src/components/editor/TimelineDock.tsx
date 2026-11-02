@@ -1004,7 +1004,7 @@ export function TimelineDock({
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Upload failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, "Upload failed — please try again."));
       if (!data.url) throw new Error("Upload succeeded but returned no clip URL.");
       onReplaceClipVideo(sceneId, data.url);
       toast({ title: "Clip replaced", description: file.name });
