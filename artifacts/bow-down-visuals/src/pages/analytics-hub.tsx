@@ -1521,11 +1521,11 @@ export default function AnalyticsHub() {
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(247,241,222,0.07)" />
-                <XAxis dataKey="name" stroke="rgba(247,241,222,0.5)" tick={{ fill: "rgba(247,241,222,0.6)", fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={isLight ? "rgba(122,90,18,0.18)" : "rgba(247,241,222,0.07)"} />
+                <XAxis dataKey="name" stroke={isLight ? "rgba(122,90,18,0.45)" : "rgba(247,241,222,0.5)"} tick={{ fill: isLight ? "rgba(90,70,20,0.75)" : "rgba(247,241,222,0.6)", fontSize: 12 }} />
                 <YAxis
-                  stroke="rgba(247,241,222,0.5)"
-                  tick={{ fill: "rgba(247,241,222,0.6)", fontSize: 12 }}
+                  stroke={isLight ? "rgba(122,90,18,0.45)" : "rgba(247,241,222,0.5)"}
+                  tick={{ fill: isLight ? "rgba(90,70,20,0.75)" : "rgba(247,241,222,0.6)", fontSize: 12 }}
                   tickFormatter={(v: number) => fmt(v)}
                 />
                 <Tooltip
