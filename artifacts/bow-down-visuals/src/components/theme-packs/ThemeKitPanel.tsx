@@ -18,6 +18,7 @@ import {
   buildShareCardSvg,
   designedAppIconPath,
   designedIconPath,
+  effectiveAccent,
   encodeLook,
   kitManifest,
   renderWidgetSvg,
@@ -81,20 +82,32 @@ export function ThemeKitPanel({
     if (previewMix) setMix(previewMix);
   }, [previewMix]);
 
+  /** The SAVED customization for this pack, straight from storage —
+      the same source the server builds the bundle from, so the text
+      assets this panel supplies wear the identical mix. Returns null
+      when the read itself fails (callers fall back to panel state);
+      an empty object means storage holds no mix. */
+  const fetchSavedMix = async (): Promise<PackCustomization | null> => {
+    try {
+      const token = await getAccessToken();
+      if (!token) return null;
+      const res = await fetch(`/api/theme-packs/customizations/${pack.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const json = (await res.json()) as { mix?: PackCustomization };
+      return json.mix ?? {};
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Load the buyer's saved customization for this pack.
     let cancelled = false;
     (async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token) return;
-        const res = await fetch(`/api/theme-packs/customizations/${pack.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const json = (await res.json()) as { mix?: PackCustomization };
-        if (!cancelled && json.mix && Object.keys(json.mix).length > 0) setMix(json.mix);
-      } catch { /* desk still renders with the default mix */ }
+      const saved = await fetchSavedMix();
+      if (!cancelled && saved && Object.keys(saved).length > 0) setMix(saved);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,10 +118,14 @@ export function ThemeKitPanel({
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("signin");
-      // Art is NOT sent by the client: the server ships the pack's
-      // approved designed art (icons, app icon, per-device
-      // wallpapers) from the library itself. Only the text builders
-      // this module owns ride along.
+      // The bundle is built FROM the saved mix: the server loads it
+      // from storage itself, and the text builders this module owns
+      // are resolved through the same saved mix (the panel state only
+      // stands in when the storage read itself fails). Art is NOT
+      // sent by the client: the server ships the pack's approved
+      // designed art (icons, app icon, per-device wallpapers) from
+      // the library itself.
+      const savedMix = (await fetchSavedMix()) ?? mix;
       const res = await fetch(`/api/theme-packs/kit/${pack.id}/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -116,9 +133,9 @@ export function ThemeKitPanel({
           kind,
           mode,
           assets: {
-            widgetSvg: renderWidgetSvg(pack, mode),
-            chromeManifest: JSON.stringify(buildChromeThemeManifest(pack, mode), null, 2),
-            shareCardSvg: buildShareCardSvg(pack, mode),
+            widgetSvg: renderWidgetSvg(pack, mode, effectiveAccent(pack, mode, savedMix, "widget-art")),
+            chromeManifest: JSON.stringify(buildChromeThemeManifest(pack, mode, effectiveAccent(pack, mode, savedMix, "browser-theme")), null, 2),
+            shareCardSvg: buildShareCardSvg(pack, mode, effectiveAccent(pack, mode, savedMix, "accent-color")),
           },
         }),
       });
@@ -172,7 +189,9 @@ export function ThemeKitPanel({
   };
 
   const downloadShareCard = () => {
-    const svg = buildShareCardSvg(pack, mode);
+    // The standalone card advertises the look the share link carries —
+    // the panel's current mix — so it wears that mix's accent.
+    const svg = buildShareCardSvg(pack, mode, effectiveAccent(pack, mode, mix, "accent-color"));
     const href = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
     const a = document.createElement("a");
     a.href = href;
