@@ -44,6 +44,44 @@ export interface CheckoutSessionIdempotencyScope {
    * purchase after the previous one completed.
    */
   purchaseIntent: unknown;
+  /**
+   * Fingerprint of the EXACT Stripe request parameters this key will
+   * guard (see fingerprintStripeRequestParams). Stripe refuses a key
+   * reused with different parameters ("Keys for idempotent requests
+   * can only be used with the same parameters they were first used
+   * with"), so a key that can survive a parameter change is a poisoned
+   * key: the first parameter shape wins and every later shape fails
+   * until the key expires. Folding the fingerprint into the
+   * derivation makes same-key/different-parameters impossible by
+   * construction — any parameter change (amount, ui_mode, return
+   * paths, metadata, customer…) mints a fresh key, while a genuine
+   * duplicate submission of the identical request keeps the same key
+   * and dedupes to the original response. Callers whose parameters
+   * are fully determined by the purchase intent may omit it and keep
+   * the legacy derivation byte-for-byte.
+   */
+  requestFingerprint?: string;
+}
+
+/**
+ * Canonical fingerprint of a Stripe request's parameters: sha256 over
+ * the canonical (key-sorted) JSON, so property order never matters
+ * and any value change — however small — changes the fingerprint.
+ */
+export function fingerprintStripeRequestParams(params: unknown): string {
+  const json = JSON.stringify(canonicalizeIntent(params)) ?? "null";
+  return createHash("sha256").update(json).digest("hex");
+}
+
+/**
+ * Combine a precomputed base idempotency key with the fingerprint of
+ * the exact request it guards — for call sites whose base key is
+ * derived elsewhere (e.g. lib/creator-tier-upgrade's subscription
+ * update). Same contract as the scope fold: identical request →
+ * identical key; any parameter change → a different key.
+ */
+export function withCheckoutRequestFingerprint(baseKey: string, params: unknown): string {
+  return `${baseKey}:${fingerprintStripeRequestParams(params).slice(0, 32)}`;
 }
 
 function canonicalizeIntent(value: unknown): unknown {
@@ -63,7 +101,10 @@ function canonicalizeIntent(value: unknown): unknown {
  * Deterministic Stripe idempotency key for Checkout Session creation.
  * The same member + rail + purchase intent always produces the same
  * key, regardless of object property order; changing any one of the
- * three produces a different key.
+ * three produces a different key. When the scope carries a request
+ * fingerprint, the fingerprint is folded into the same hash, so the
+ * key identifies the full request (intent + exact parameters), not
+ * just the intent.
  */
 export function buildCheckoutSessionIdempotencyKey(
   scope: CheckoutSessionIdempotencyScope,
@@ -72,7 +113,10 @@ export function buildCheckoutSessionIdempotencyKey(
   const rail = scope.rail.trim();
   if (!memberId) throw new Error("Checkout idempotency memberId is required");
   if (!rail) throw new Error("Checkout idempotency rail is required");
-  const intentJson = JSON.stringify(canonicalizeIntent(scope.purchaseIntent)) ?? "null";
+  const hashInput = scope.requestFingerprint
+    ? { purchaseIntent: scope.purchaseIntent, requestFingerprint: scope.requestFingerprint }
+    : scope.purchaseIntent;
+  const intentJson = JSON.stringify(canonicalizeIntent(hashInput)) ?? "null";
   const hash = createHash("sha256").update(intentJson).digest("hex").slice(0, 32);
   return `checkout:${rail}:${memberId}:${hash}`;
 }
