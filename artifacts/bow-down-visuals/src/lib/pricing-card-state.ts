@@ -44,3 +44,28 @@ export function pricingCardCta(
   if (currentTier === "pro" || currentTier === "elite") return "none";
   return "start-free";
 }
+
+/* ─── Paid-plan CTA — /creator-pricing Pro / Elite cards ──────────────
+   stack1300 staging-gate-api: the page seeds paid plans with
+   priceConfigured:false and overlays GET /api/creator-tiers/plans.
+   When that load FAILED (non-ok — the staging gate's 401 included —
+   or a network throw), the overlay never arrived and the fallback
+   rendered "price coming soon" even with the price fully configured
+   server-side: a load failure dressed up as a configuration fact.
+   The two are different facts and render differently:
+
+     configured                 → "buy"         (Go / Switch label)
+     unconfigured, load clean   → "coming-soon" (the honest fact)
+     unconfigured, load FAILED  → "retry-load"  (honest failure; the
+                                  click re-runs the load, never opens
+                                  a checkout against unknown config)  */
+
+export type PaidPlanCtaKind = "buy" | "coming-soon" | "retry-load";
+
+export function paidPlanCta(
+  priceConfigured: boolean,
+  plansLoadFailed: boolean,
+): PaidPlanCtaKind {
+  if (priceConfigured) return "buy";
+  return plansLoadFailed ? "retry-load" : "coming-soon";
+}
