@@ -75,3 +75,25 @@ describe("drop day — the retired countdown shape stays retired", () => {
     expect(panel).not.toContain("useCountdown");
   });
 });
+
+describe("drop day rendered banners — the finished art is reachable from both homes", () => {
+  const kitPanel = read("components/distribute/DropDayKitPanel.tsx");
+
+  it("the Distribute kit panel shows rendered banners with Download + Restyle", () => {
+    expect(kitPanel).toContain("imageUrl");
+    expect(kitPanel).toContain("renderedBanners");
+    expect(kitPanel).toContain("Download");
+    expect(kitPanel).toContain("Restyle");
+    /* A banner without a render keeps the Create door — the panel
+       never presents a spec as a finished render. */
+    expect(kitPanel).toContain("unrenderedBanners");
+  });
+
+  it("the Promote checklist links downloads for rendered banners", () => {
+    expect(panel).toContain("imageUrl");
+    expect(panel).toContain("Download");
+    /* …on 'done' steps too, not only 'action' — a fully rendered
+       set is the one step state that proves all four renders. */
+    expect(panel).toContain('step.state === "done"');
+  });
+});
