@@ -125,7 +125,12 @@ describe("EmbeddedPaymentForm — World PacksDesk (station-sheet scroll)", () =>
   });
 
   it("StationPanel dispatches the desk inside the one-scroll-region sheet", () => {
-    expect(stationPanelSrc).toContain("return <PacksDesk isLight={isLight} />;");
+    /* World-perf round 4: the desk rides a DeskDoor lazy door at
+       the same dispatch — same sheet, same scroll region. */
+    expect(stationPanelSrc).toContain("<PacksDesk isLight={isLight} />");
+    expect(stationPanelSrc).toContain(
+      'const PacksDesk = lazy(() => import("@/components/world/native/PacksDesk")',
+    );
     expect(stationPanelSrc).toContain("max-h-[86dvh]");
     expect(stationPanelSrc).toContain("overflow-y-auto");
     expect(stationPanelSrc).toContain("overscroll-contain");

@@ -66,7 +66,7 @@ function panelBody(startMarker: string, endMarker: string): string {
 
 const dailyBody = panelBody("function TreasuryDaily", "function TreasuryShark");
 const sharkBody = panelBody("function TreasuryShark", "function TreasuryQuests");
-const questsBody = panelBody("function TreasuryQuests", "/* ─── The Music Hall jukebox");
+const questsBody = panelBody("function TreasuryQuests", "/* ─── The host");
 
 describe("the Treasury panels resolve from the host's custom switch", () => {
   it("the host mounts exactly the three Treasury customs", () => {

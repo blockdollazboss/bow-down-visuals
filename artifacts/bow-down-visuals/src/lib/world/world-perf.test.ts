@@ -43,6 +43,21 @@
  *     a `world-kit` chunk (dependencies left automatic). The
  *     frame therefore no longer statically reaches the desk
  *     web: first station open dropped 1,238,989 -> 446,880 raw.
+ *
+ * Round 4 (stack1200) adds:
+ *  G. The frame's remaining one-station blocks ride DeskDoor
+ *     lazy doors too: the Treasury's drop card + catalog and
+ *     quest widget + depths, the Kingdom Board's blocks, the
+ *     Front Row's portrait card, the Packs desk, the Season
+ *     Marks wall, and the Music Hall jukebox panel — extracted
+ *     verbatim to native/JukeboxPanel.tsx with its listening-
+ *     party section and their shelf/streaming chains. Round
+ *     2's two stay-static calls are REVERSED on measurement:
+ *     PacksDesk's own weight hid its Stripe checkout chain,
+ *     and SeasonMarksWall carries the Crowns chamber. And the
+ *     pure voiceover leaf is homed in world-kit, so the kit no
+ *     longer drags the song-library/audio-stems chain into
+ *     every first station open.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -283,11 +298,12 @@ describe("world-perf round 2 E — desks inside the panel ride per-desk chunks",
     expect(panel).not.toContain("  ListeningBooth,\n");
   });
 
-  it("the stay-static calls hold: small doors are not lazied", () => {
+  it("round 2's stay-static call held only for the boards barrel", () => {
     expect(panel).not.toContain('from "@/components/world/native/boards";');
-    expect(panel).toContain('import { PacksDesk } from "@/components/world/native/PacksDesk";');
-    expect(panel).not.toContain('lazy(() => import("@/components/world/native/PacksDesk")');
-    expect(panel).not.toContain('lazy(() => import("@/components/world/native/SeasonMarksWall")');
+    /* The PacksDesk / SeasonMarksWall halves of the round-2
+       call were reversed by round 4 on measurement (section G):
+       their own rendered weight was small, their chains were
+       not. The pins live in section G now. */
   });
 });
 
@@ -378,6 +394,118 @@ describe("world-perf round 3 F — the shared leaves live outside the desk web",
     expect(viteConfig).toContain('name: "vendor-recharts"');
     expect(viteConfig).not.toContain("manualChunks:");
     expect(viteConfig).not.toContain("manualChunks(");
+  });
+});
+
+describe("world-perf round 4 G — the frame's one-station blocks ride doors", () => {
+  const panel = read("../../components/world/StationPanel.tsx");
+  const jukeboxPanel = read("../../components/world/native/JukeboxPanel.tsx");
+  const viteConfig = read("../../../vite.config.ts");
+  const kitGroup = viteConfig.slice(
+    viteConfig.indexOf('name: "world-kit"'),
+    viteConfig.indexOf('name: "world-kit"') + 1700,
+  );
+
+  /* The round-4 split set: every block that renders for exactly
+   * one custom panel (or one click inside one). Module path ->
+   * component name, in the round-2 pin style. */
+  const splitDoors4: Array<[string, string, boolean]> = [
+    // [module, name, defaultExport]
+    ["@/components/DailyDropCard", "DailyDropCard", true],
+    ["@/components/world/native/DailyDropCatalog", "DailyDropCatalog", false],
+    ["@/components/QuestsWidget", "QuestsWidget", true],
+    ["@/components/world/native/TreasuryQuestDepths", "TreasuryQuestDepths", false],
+    ["@/components/world/native/KingdomBoardBlocks", "KingdomBoardBlocks", false],
+    ["@/components/world/native/PortraitCard", "PortraitCard", false],
+    ["@/components/world/native/PacksDesk", "PacksDesk", false],
+    ["@/components/world/native/SeasonMarksWall", "SeasonMarksWall", false],
+    ["@/components/world/native/JukeboxPanel", "JukeboxPanel", true],
+  ];
+
+  it("every round-4 block is a lazy door and no static import of it survives", () => {
+    for (const [mod, name, isDefault] of splitDoors4) {
+      if (isDefault) {
+        expect(panel, `${name} lazy door`).toContain(
+          `const ${name} = lazy(() => import("${mod}"));`,
+        );
+      } else {
+        expect(panel, `${name} lazy door`).toContain(
+          `const ${name} = lazy(() => import("${mod}").then((m) => ({ default: m.${name} })));`,
+        );
+      }
+      expect(panel, `${name} static import gone`).not.toMatch(
+        new RegExp(`^import .*\\b${name}\\b.* from "${mod}";$`, "m"),
+      );
+    }
+  });
+
+  it("the doored blocks render behind DeskDoor at their one-station sites", () => {
+    /* Treasury daily + quests (inside the in-file Treasury
+       sections), the Kingdom Board's blocks, the Front Row's
+       card, and the three dispatch-level customs. */
+    expect(panel).toContain("<DailyDropCard inWorld />");
+    expect(panel).toContain("<DailyDropCatalog isLight={isLight} onOpenStation={onOpenStation} />");
+    expect(panel).toContain("<QuestsWidget");
+    expect(panel).toContain("<TreasuryQuestDepths isLight={isLight} />");
+    expect(panel.split("<KingdomBoardBlocks").length - 1).toBe(2);
+    expect(panel).toContain("<PortraitCard");
+    expect(panel).toContain("<PacksDesk isLight={isLight} />");
+    expect(panel).toContain("<SeasonMarksWall isLight={isLight} />");
+    expect(panel).toContain("<JukeboxPanel {...props} />");
+    const wraps = panel.split("<DeskDoor").length - 1;
+    expect(wraps).toBeGreaterThanOrEqual(37);
+  });
+
+  it("the jukebox chains left the frame: no streaming / shelf / listening-party / jukebox-sync imports", () => {
+    expect(panel).not.toContain('from "@/lib/streaming"');
+    expect(panel).not.toContain('from "@/lib/world/shelf"');
+    expect(panel).not.toContain('from "@/lib/world/listening-party"');
+    expect(panel).not.toContain('from "@/lib/world/jukebox-sync"');
+  });
+
+  it("the extracted jukebox panel owns the chains and the party wiring, verbatim home", () => {
+    expect(jukeboxPanel).toContain('from "@/lib/streaming"');
+    expect(jukeboxPanel).toContain('from "@/lib/world/shelf"');
+    expect(jukeboxPanel).toContain('from "@/lib/world/listening-party"');
+    expect(jukeboxPanel).toContain("export default function JukeboxPanel");
+    expect(jukeboxPanel).toContain("world-jukebox-party");
+    expect(jukeboxPanel).toContain("world-party-submit");
+    /* The one internal edit the move required: the kit's
+       byte-identical auth-headers hook replaces the panel's
+       private copy (which stays behind for the Treasury). */
+    expect(jukeboxPanel).toContain(
+      'import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";',
+    );
+    expect(jukeboxPanel).toContain("useDeskAuthHeaders()");
+    expect(jukeboxPanel).not.toContain("function useAuthHeaders");
+    expect(panel).toContain("function useAuthHeaders()");
+  });
+
+  it("the frame's in-file customs stay in the frame — only their one-station blocks moved", () => {
+    expect(panel).toContain("function KingdomBoard(");
+    expect(panel).toContain("function FrontRowGallery(");
+    expect(panel).toContain("function TreasuryDaily(");
+    expect(panel).toContain("function TreasuryShark(");
+    expect(panel).toContain("function TreasuryQuests(");
+  });
+
+  it("the shelf player stays static: it is the panel-wide shared player, not a desk", () => {
+    /* The host owns one useShelfPlayer instance for the panel's
+       whole life and threads it into the Booth, the Charts
+       board and creator rooms; the Now Playing card renders
+       above ANY station's body. Splitting it would split shared
+       state — it stays, deliberately. */
+    expect(panel).toContain("useShelfPlayer()");
+    expect(panel).toContain("<NowPlayingCard player={shelfPlayer} isLight={isLight} />");
+  });
+
+  it("the voiceover leaf is homed in world-kit, out of the song-library chunk", () => {
+    expect(kitGroup).toContain("voiceover");
+    /* audio-benches (the kit member that imports the leaf) is
+       still pinned, and the leaf's new home names no desk. */
+    expect(kitGroup).toContain("audio-benches");
+    expect(kitGroup).not.toContain("ArrangementStudio");
+    expect(kitGroup).not.toContain("song-library");
   });
 });
 

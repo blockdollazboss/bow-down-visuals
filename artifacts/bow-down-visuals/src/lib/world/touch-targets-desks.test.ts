@@ -142,9 +142,13 @@ describe("the picker and the panel bodies the first pass named", () => {
   });
 
   it("StationPanel bodies: both chip families, the party field, the treasury verbs", () => {
-    expect(constWears(station, "const chipBtn", "bdv-touch-target")).toBe(true);
-    expect(constWears(station, "const inputCls", "bdv-touch-target")).toBe(true);
-    expect(station).toContain("${chipBtn} bdv-touch-box");
+    /* World-perf round 4: the jukebox + listening-party bodies
+       (both chip families, the party field) moved verbatim to
+       native/JukeboxPanel.tsx — the pins follow the bodies. */
+    const jukebox = src("../../components/world/native/JukeboxPanel.tsx");
+    expect(constWears(jukebox, "const chipBtn", "bdv-touch-target")).toBe(true);
+    expect(constWears(jukebox, "const inputCls", "bdv-touch-target")).toBe(true);
+    expect(jukebox).toContain("${chipBtn} bdv-touch-box");
     expect(wears(station, "world-board-room", "bdv-touch-target")).toBe(true);
   });
 
