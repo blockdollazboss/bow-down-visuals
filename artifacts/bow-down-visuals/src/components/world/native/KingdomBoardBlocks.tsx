@@ -32,6 +32,7 @@ import {
 } from "@/lib/world/world-client";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import { PalaceCalendarBlock } from "./PalaceCalendarBlock";
+import { ShowInvitesBlock } from "./ShowInvitesBlock";
 import { PitchFixBoard } from "./PitchFixBoard";
 
 /* ─── Kingdom Board blocks (Lane K2, item 2) ───────────────────────
@@ -380,6 +381,18 @@ export function KingdomBoardBlocks({
         currentRoomId={currentRoomId}
         isLight={isLight}
         isGuest={isGuest}
+        onEnterRoom={onEnterRoom}
+        onOpenStation={onOpenStation}
+      />
+
+      {/* ── Show invites (stack1300, Ring 3.8) — docked with the
+          calendar the shows live on: invites addressed to the
+          walker (accept/decline, then the calendar's own walk)
+          and, for hosts, the send panel for their standing
+          shows. Members only — the block itself renders nothing
+          for guests. */}
+      <ShowInvitesBlock
+        isLight={isLight}
         onEnterRoom={onEnterRoom}
         onOpenStation={onOpenStation}
       />
