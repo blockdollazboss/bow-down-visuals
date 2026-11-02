@@ -411,7 +411,7 @@ describe("world-perf round 4 G — the frame's one-station blocks ride doors", (
    * component name, in the round-2 pin style. */
   const splitDoors4: Array<[string, string, boolean]> = [
     // [module, name, defaultExport]
-    ["@/components/DailyDropCard", "DailyDropCard", true],
+    ["@/components/DailyDropCard", "DailyDropCard", false],
     ["@/components/world/native/DailyDropCatalog", "DailyDropCatalog", false],
     ["@/components/QuestsWidget", "QuestsWidget", true],
     ["@/components/world/native/TreasuryQuestDepths", "TreasuryQuestDepths", false],

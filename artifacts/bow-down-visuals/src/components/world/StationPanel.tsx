@@ -221,7 +221,7 @@ const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks")
    the same DeskDoor; the in-file sections that host them (the
    Treasury, the Kingdom Board, the Front Row gallery) stay in
    the frame, only their one-station blocks moved out. */
-const DailyDropCard = lazy(() => import("@/components/DailyDropCard"));
+const DailyDropCard = lazy(() => import("@/components/DailyDropCard").then((m) => ({ default: m.DailyDropCard })));
 const DailyDropCatalog = lazy(() => import("@/components/world/native/DailyDropCatalog").then((m) => ({ default: m.DailyDropCatalog })));
 const QuestsWidget = lazy(() => import("@/components/QuestsWidget"));
 const TreasuryQuestDepths = lazy(() => import("@/components/world/native/TreasuryQuestDepths").then((m) => ({ default: m.TreasuryQuestDepths })));
