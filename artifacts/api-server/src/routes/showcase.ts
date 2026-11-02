@@ -147,11 +147,14 @@ router.get("/showcase/:slug", async (req, res) => {
        only ever carried a display name. Null when the creator has
        no profile slug; a slug without a jar still resolves to no
        jar at the probe, so no dead door follows from carrying it. */
+    /* Best-effort: the slug is a payload decoration — a failed
+       lookup must never fail the item read itself. */
     const [profile] = await db
       .select({ slug: creatorProfilesTable.slug })
       .from(creatorProfilesTable)
       .where(eq(creatorProfilesTable.userId, item.user_id))
-      .limit(1);
+      .limit(1)
+      .catch(() => [] as { slug: string }[]);
     res.json({
       item: await refreshSupabaseStorageUrlsDeep({
         ...item,
