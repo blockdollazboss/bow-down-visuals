@@ -28,6 +28,7 @@ export default function ChooseArtist() {
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [orderError, setOrderError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(activeArtist?.id ?? null);
 
@@ -88,18 +89,25 @@ export default function ChooseArtist() {
     ordered.splice(Math.min(targetSlot, ordered.length), 0, moved);
     const reordered = ordered.map((v, i) => ({ ...v, spotlight_order: i }));
     const orderMap = new Map(reordered.map((v) => [v.id, v.spotlight_order as number]));
+    const prevVaults = vaults;
     setVaults((prev) =>
       prev.map((v) => (orderMap.has(v.id) ? { ...v, spotlight_order: orderMap.get(v.id)! } : v)),
     );
     try {
       const token = await getAccessToken();
-      await fetch("/api/artist-vaults/spotlight-order", {
+      const res = await fetch("/api/artist-vaults/spotlight-order", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ order: reordered.map((v) => v.id) }),
       });
+      if (!res.ok) throw new Error("spotlight order not saved");
+      setOrderError(false);
     } catch {
-      /* order still applies locally; syncs next load */
+      /* The server never took the new order — restore the order it holds
+         and say so, instead of showing an order that will vanish on the
+         next load. */
+      setVaults(prevVaults);
+      setOrderError(true);
     }
   }
 
@@ -242,6 +250,11 @@ export default function ChooseArtist() {
             <p className="text-center text-xs text-white/35 mb-4">
               {t("chooseArtist.dragHint")}
             </p>
+            {orderError && (
+              <p className="text-center text-sm text-red-400 mb-4" role="alert">
+                {t("chooseArtist.reorderFailed", { defaultValue: "Couldn't save that new order — your previous order is back. Try the drag again." })}
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {featuredVaults.map((vault, index) => {
               const isSelected = selectedId === vault.id;
