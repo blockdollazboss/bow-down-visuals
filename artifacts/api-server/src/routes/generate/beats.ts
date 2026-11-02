@@ -893,6 +893,51 @@ export async function settleBeatLicenseSession(
         },
       };
     }
+    /* A paid session this settle refuses for a reason that can
+       NEVER clear on retry — a rival COMPLETED the exclusive, or
+       this license's market was closed by a completed exclusive —
+       is fulfillment-impossible in exactly the Lane V3 F3 sense the
+       beat-deleted path above already auto-refunds. Refund it here
+       too: the claim is made only when the refund landed, and the
+       helper's per-session refund idempotency key
+       (lib/stripe-checkout) keeps a replayed refusal from
+       double-refunding. A refusal that CAN still clear — a rival
+       merely pending behind a dangling flag — stays a plain
+       retryable 409 below with no refund. (Gate #5 beats-fail lane:
+       before this, the losing exclusive buyer was 409'd with their
+       money kept, and an in-flight non-exclusive checkout paid after
+       the exclusive completed settled anyway, breaching the
+       exclusive buyer's "producer stops selling this beat" terms.) */
+    const refuseWithRefund = async (error: string): Promise<BeatLicenseSettleResult> => {
+      const refunded = await refundCheckoutSessionPayment(session);
+      return {
+        httpStatus: 409,
+        body: {
+          error: refunded
+            ? `${error} Your payment has been refunded in full.`
+            : `${error} Your payment couldn't be refunded automatically — contact support and we'll make it right.`,
+          refunded,
+        },
+      };
+    };
+    if (license.tier !== "exclusive" && beat.exclusive_sold) {
+      /* An exclusive sale closes the WHOLE market (stack1100 X4) —
+         the creation rail and the offers shelf already close, but an
+         in-flight checkout started before the sale could still
+         settle after it, re-selling in slices what the exclusive
+         buyer paid to own outright. The settle is the last door:
+         when a COMPLETED exclusive exists for this beat, a pending
+         non-exclusive license can never be fulfilled. A dangling
+         flag with no completed exclusive is a crashed attempt, not
+         a sale (the C2 philosophy) — it does not strand this buyer. */
+      const exclusives = await db
+        .select()
+        .from(beatLicensesTable)
+        .where(and(eq(beatLicensesTable.beat_id, beat.id), eq(beatLicensesTable.tier, "exclusive")));
+      if (exclusives.some((l) => l.status === "completed")) {
+        return refuseWithRefund("This beat was sold exclusively before this purchase could complete.");
+      }
+    }
     /* Exclusive completion is an ATOMIC CLAIM, not check-then-set
        (Lane V3 F5): the old flow read exclusive_sold, completed the
        license, then set the flag — two verifies racing in the awaits
@@ -926,7 +971,16 @@ export async function settleBeatLicenseSession(
           .where(and(eq(beatLicensesTable.beat_id, beat.id), eq(beatLicensesTable.tier, "exclusive")));
         const rivalCompleted = others.some((l) => l.id !== license.id && l.status === "completed");
         const rivalPending = others.some((l) => l.id !== license.id && l.status === "pending_payment");
-        if (rivalCompleted || rivalPending) {
+        if (rivalCompleted) {
+          /* Definitive loss: this paid session can never complete —
+             refund it like every other fulfillment-impossible paid
+             session on this rail. */
+          return refuseWithRefund("This beat's exclusive license was sold to someone else first.");
+        }
+        if (rivalPending) {
+          /* Not yet a loss: the rival has not paid to completion and
+             its claim may still be released (refunded rivals already
+             don't count above) — plain retryable 409, no refund. */
           return { httpStatus: 409, body: { error: "This beat's exclusive license was sold to someone else first." } };
         }
         await db
@@ -938,7 +992,9 @@ export async function settleBeatLicenseSession(
         claimedExclusive = await claim();
       }
       if (!claimedExclusive) {
-        return { httpStatus: 409, body: { error: "This beat's exclusive license was sold to someone else first." } };
+        /* The atomic claim went to a racing settle — this paid
+           session lost the beat for good; refund it. */
+        return refuseWithRefund("This beat's exclusive license was sold to someone else first.");
       }
     }
     let updated: typeof license | undefined;
