@@ -60,7 +60,7 @@ describe("ExpressPayButton — the verify failure speaks through the translator"
 
   it("never hands the raw server error field to the failure state", () => {
     expect(src).not.toMatch(/fail\(\s*vData\.error \?\?/);
-    expect(src).toMatch(/fail\(apiErrorMessage\(vData/);
+    expect(src).toMatch(/fail\(\s*apiErrorMessage\(\s*vData/);
   });
 });
 
