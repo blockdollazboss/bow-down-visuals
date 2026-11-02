@@ -13,7 +13,12 @@
  *   receipt email and recognizes the same gift-paid answer;
  * - the GiftCardsDesk at the square reads the balance rail (the
  *   code is the capability) and the mine rail — the two reads no
- *   surface consumed before.
+ *   surface consumed before;
+ * - the same desk mirrors the website's seller + refund surfaces
+ *   on the same rails (stack1200 world-gift-desks): the sold read
+ *   (liability — held, not revenue) and the buyer refund of the
+ *   unspent balance, behind the money desks' two-tap arm, with
+ *   the rail's own words answering every outcome.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -62,5 +67,50 @@ describe("the square's gift-card desk", () => {
     expect(desk).toContain("parseGiftCardsMine");
     expect(desk).toContain('data-testid="world-gift-cards-desk"');
     expect(desk).toContain('data-testid="world-gift-card-balance"');
+  });
+});
+
+describe("the desk's seller mirror — the sold rail", () => {
+  it("reads GET /api/gift-cards/sold and renders its liability, not a local sum", () => {
+    expect(desk).toContain('fetch("/api/gift-cards/sold"');
+    expect(desk).toContain("parseGiftCardsSold");
+    expect(desk).toContain('data-testid="world-gift-cards-sold"');
+    expect(desk).toContain('data-testid="world-gift-card-sold-totals"');
+    expect(desk).toContain('data-testid="world-gift-card-sold-row"');
+    /* The figures are the rail's formatted strings first. */
+    expect(desk).toContain("sold.liability.issued || centsToDisplay(sold.liability.issuedCents)");
+    expect(desk).toContain("sold.liability.outstanding || centsToDisplay(sold.liability.outstandingCents)");
+    expect(desk).toContain("sold.liability.note");
+  });
+
+  it("the sold section keeps the honest states separate — 503, no-profile, failure + retry, empty", () => {
+    expect(desk).toContain("setSoldUnavailable(apiErrorMessage(data,");
+    expect(desk).toContain("setSoldNoProfile(apiErrorMessage(data,");
+    expect(desk).toContain('data-testid="world-gift-card-sold-retry"');
+    expect(desk).toContain('t("worldGiftCardsDesk.soldLoadFailed")');
+    expect(desk).toContain('t("worldGiftCardsDesk.soldEmpty")');
+    /* The empty state is gated on a completed, genuinely empty load. */
+    expect(desk).toContain("sold.liability.cardCount === 0 && sold.cards.length === 0");
+  });
+});
+
+describe("the desk's buyer refund — the website rail, two-tap armed", () => {
+  it("rides POST /api/gift-cards/:id/refund behind the website tab's own gate", () => {
+    expect(desk).toContain("fetch(`/api/gift-cards/${card.id}/refund`");
+    expect(desk).toContain('method: "POST"');
+    expect(desk).toContain("giftCardRefundable(card)");
+    expect(desk).toContain("parseGiftCardRefund");
+    expect(desk).toContain('data-testid="world-gift-card-refund-button"');
+    /* Received cards never carry the control — the action rides bought rows only. */
+    expect(desk).toContain("action={refundAction(c)}");
+  });
+
+  it("the first tap arms the exact amount; the settled answer is the rail's own words", () => {
+    expect(desk).toContain("setArmedRefundId(card.id)");
+    expect(desk).toContain('t("worldGiftCardsDesk.refundArm", { amount: centsToDisplay(card.availableCents) })');
+    expect(desk).toContain('data-testid="world-gift-card-refund-note"');
+    expect(desk).toContain('data-testid="world-gift-card-refund-error"');
+    /* Success and failure are separate states, and both lists reload from the rails after. */
+    expect(desk).toContain("await Promise.all([loadMine(), loadSold()]);");
   });
 });
