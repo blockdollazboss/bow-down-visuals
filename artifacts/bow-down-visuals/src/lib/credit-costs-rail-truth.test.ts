@@ -131,20 +131,20 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(CREDIT_COSTS["/api/generate-thumbnail"]?.cost).toBe(text + image);
   });
 
-  // Stack-28 item 9 (A2-06): /api/chat three-way disagreement — registry
-  // said 100, the rail default charges 1 (CHAT_CREDIT_COST ?? "1"), and
-  // the route comment claimed "free by default". Display artifacts now
-  // align to the rail's actual default (1); the charge is untouched and
-  // the intended price (free / 1 / 100) remains an owner call.
-  it("/api/chat: registry == getChatCreditCost() default (1)", () => {
+  // Stack-28 item 9 (A2-06) recorded the old three-way disagreement;
+  // Stack1400 price-fix (audit #4) resolves it. DECIDED (owner ruling,
+  // Oct 27): /api/chat carries NO separate charge — the rail default
+  // is now CHAT_CREDIT_COST ?? "0" and the registry records 0. An
+  // explicit env setting > 0 still wins on the rail (the function-side
+  // override is pinned in the api-server chat-credit-cost suite).
+  it("/api/chat: registry == getChatCreditCost() default (0, decided free)", () => {
     const src = readApi("lib/ai-chat-assistant.ts");
     const m = src.match(/CHAT_CREDIT_COST"\]\s*\?\?\s*"(\d+)"/);
     expect(m, "CHAT_CREDIT_COST default").toBeTruthy();
     const railDefault = Number(m![1]);
-    expect(railDefault).toBe(1);
+    expect(railDefault).toBe(0);
     expect(CREDIT_COSTS["/api/chat"]?.cost).toBe(railDefault);
-    const route = readApi("routes/chat.ts");
-    expect(route).not.toContain("Free by default (CHAT_CREDIT_COST=0)");
+    expect(CREDIT_COSTS["/api/chat"]?.cost).toBe(0);
   });
 
   // Q182 / ruling A-05: AI Upscale is officially 1,500 VB — the registry
