@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "ba9521ed9a154f3ce887158e71eafb4a009a7095",
+  "baseCommit": "a5fbb479df8ef53522766029f3f3221958d8551d",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-01",
+  "generatedAt": "2026-11-02",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
@@ -22,8 +22,8 @@
     "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 429,
-    "serverEndpoints": 1722,
-    "serverEndpointsVisible": 1052,
+    "serverEndpoints": 1723,
+    "serverEndpointsVisible": 1061,
     "serverFilesClassified": 100
   },
   "packs": [
@@ -275,6 +275,10 @@
       "component": "Admin",
       "endpoints": [
         "/api/admin/bow-challenge",
+        "/api/admin/challenges",
+        "/api/admin/community-grants/rounds",
+        "/api/admin/community-grants/rounds/:param",
+        "/api/admin/community-grants/rounds/:param/settle",
         "/api/admin/contact-messages",
         "/api/admin/contact-messages/:param",
         "/api/admin/content/:param",
@@ -288,7 +292,14 @@
         "/api/admin/payment-reversals/:param/resolve",
         "/api/admin/pitch-fix/:param",
         "/api/admin/pitch-fix/queue",
+        "/api/admin/pitch-fix/rewards/process",
         "/api/admin/plan/set",
+        "/api/admin/remix-king/entries/:param/shortlist",
+        "/api/admin/remix-king/events",
+        "/api/admin/remix-king/events/:param",
+        "/api/admin/remix-king/events/:param/status",
+        "/api/admin/remix-king/events/:param/winner",
+        "/api/admin/remix-king/releases/:param/split-payments",
         "/api/admin/reports",
         "/api/admin/reports/:param",
         "/api/admin/spotlight-inquiries",
@@ -299,6 +310,7 @@
         "/api/admin/studio-gear/orders/:param/status",
         "/api/cheat-code/admin/events",
         "/api/cheat-code/admin/events/:param/:param",
+        "/api/community-grants",
         "/api/credits/claim-trial",
         "/api/jewelry/admin/orders",
         "/api/jewelry/admin/orders.csv",
@@ -16338,7 +16350,6 @@
         "/api/discovery/radio",
         "/api/discovery/radio/prefs",
         "/api/live-streams/status",
-        "/api/playlists/mine",
         "/api/projects",
         "/api/referrals/apply",
         "/api/retention/leaderboard",
@@ -16354,8 +16365,6 @@
         "/api/world/creator-rooms",
         "/api/world/directory",
         "/api/world/events",
-        "/api/world/events/mine",
-        "/api/world/jukebox-catalog",
         "/api/world/locks",
         "/api/world/locks/door/lock",
         "/api/world/locks/door/unlock",
@@ -17093,8 +17102,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/challenge-engine.ts",
-        "endpoints": 15,
-        "visible": 5,
+        "endpoints": 16,
+        "visible": 6,
         "unseen": [
           "/api/admin/challenges/:slug/judge",
           "/api/admin/challenges/:slug/lifecycle",
@@ -17234,12 +17243,8 @@
       {
         "file": "artifacts/api-server/src/routes/community-grants.ts",
         "endpoints": 7,
-        "visible": 4,
-        "unseen": [
-          "/api/admin/community-grants/rounds",
-          "/api/admin/community-grants/rounds/:id",
-          "/api/admin/community-grants/rounds/:id/settle"
-        ]
+        "visible": 7,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/community.ts",
@@ -19848,9 +19853,8 @@
       {
         "file": "artifacts/api-server/src/routes/pitch-fix.ts",
         "endpoints": 12,
-        "visible": 8,
+        "visible": 9,
         "unseen": [
-          "/api/admin/pitch-fix/rewards/process",
           "/api/pitch-fix/feedback",
           "/api/pitch-fix/feedback-prompt/eligibility",
           "/api/pitch-fix/feedback-prompt/shown"
@@ -20094,14 +20098,8 @@
       {
         "file": "artifacts/api-server/src/routes/remix-king.ts",
         "endpoints": 11,
-        "visible": 3,
+        "visible": 9,
         "unseen": [
-          "/api/admin/remix-king/entries/:id/shortlist",
-          "/api/admin/remix-king/events",
-          "/api/admin/remix-king/events/:id",
-          "/api/admin/remix-king/events/:id/status",
-          "/api/admin/remix-king/events/:id/winner",
-          "/api/admin/remix-king/releases/:id/split-payments",
           "/api/remix-king/events/:id",
           "/api/remix-king/releases/:id/payments"
         ]
@@ -20782,9 +20780,10 @@
       {
         "file": "artifacts/api-server/src/routes/world-events.ts",
         "endpoints": 3,
-        "visible": 2,
+        "visible": 1,
         "unseen": [
-          "/api/world/events/:id"
+          "/api/world/events/:id",
+          "/api/world/events/mine"
         ]
       },
       {
@@ -20808,11 +20807,12 @@
       {
         "file": "artifacts/api-server/src/routes/world.ts",
         "endpoints": 19,
-        "visible": 13,
+        "visible": 12,
         "unseen": [
           "/api/world/creator-rooms/:slug",
           "/api/world/creator-rooms/:slug/dressing",
           "/api/world/creator-rooms/:slug/invites",
+          "/api/world/jukebox-catalog",
           "/api/world/my-music",
           "/api/world/room-invites/:id/accept",
           "/api/world/room-invites/:id/decline"
