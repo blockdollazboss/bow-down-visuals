@@ -23,19 +23,15 @@ import {
   editorStepthroughSearch,
 } from "@/lib/world/station-panel";
 import {
-  CreateDeskPanel,
   NativeLoadingState,
   NativePlaceholder,
   TransferFooter,
-  ListeningBooth,
   NowPlayingCard,
-  ShopStand,
   useShelfPlayer,
   type ShelfPlayerController,
 } from "@/components/world/native";
 import { PortraitCard } from "@/components/world/native/PortraitCard";
 import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
-import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";
 import { jukeboxDeniedCopy } from "@/lib/world/jukebox-sync";
 import {
   buildListeningPartyBody,
@@ -196,10 +192,9 @@ const PanelEditor = lazy(() => import("@/pages/video-editor"));
    module — the sheet, the in-file boards, the kit). Ranked by
    rendered weight in the round-1 panel chunk and split where a
    desk serves one station (or one station stack) and stands
-   independent of the panel's own state. Desks whose modules
-   already ride the /world chunk (the Create/Shop/Business
-   families) and the small doors (PacksDesk, SeasonMarksWall)
-   stay static — a lazy door there would save nothing at open. */
+   independent of the panel's own state. Only the small doors
+   (PacksDesk, SeasonMarksWall) and the frame kit stay static —
+   a lazy door there would save nothing at open. */
 const PostOfficeDesk = lazy(() => import("@/components/world/native/SocialDesk").then((m) => ({ default: m.PostOfficeDesk })));
 const CommunityHallBoard = lazy(() => import("@/components/world/native/SocialDesk").then((m) => ({ default: m.CommunityHallBoard })));
 const ExploreDesk = lazy(() => import("@/components/world/native/SocialWave2").then((m) => ({ default: m.ExploreDesk })));
@@ -221,6 +216,18 @@ const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDe
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
 const BeatsDesk = lazy(() => import("@/components/world/native/BeatsDesk").then((m) => ({ default: m.BeatsDesk })));
+/* The pattern families round 1 believed rode the /world chunk:
+   that was bundler homing, not an eager need — in the panel's own
+   graph they are the heaviest remaining static web (the Create
+   desks, the Shop stands, the Business desks, the Listening
+   booth), so they take the same doors. One pattern each, props
+   only — as independent as the desks above. */
+const CreateDeskPanel = lazy(() => import("@/components/world/native/CreateDeskPanel").then((m) => ({ default: m.CreateDeskPanel })));
+const ShopStand = lazy(() => import("@/components/world/native/ShopStands").then((m) => ({ default: m.ShopStand })));
+const ListeningBooth = lazy(() => import("@/components/world/native/ListeningBooth").then((m) => ({ default: m.ListeningBooth })));
+const BrandingKitDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.BrandingKitDesk })));
+const PressKitDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PressKitDesk })));
+const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PromoteDesk })));
 
 /* The Suspense door a lazy desk renders behind: while its chunk
    lands, the desk's own loading state stands in its place — the
@@ -1752,11 +1759,13 @@ export default function StationPanel(props: StationPanelProps) {
         if (resolution.pattern === "shelf") {
           return (
             <PanelBoundary isLight={isLight} resetKey={station.id}>
-              <ListeningBooth
-                isLight={isLight}
-                shelfPlayer={shelfPlayer}
-                onJukeboxAdd={props.onJukeboxAdd}
-              />
+              <DeskDoor isLight={isLight}>
+                <ListeningBooth
+                  isLight={isLight}
+                  shelfPlayer={shelfPlayer}
+                  onJukeboxAdd={props.onJukeboxAdd}
+                />
+              </DeskDoor>
             </PanelBoundary>
           );
         }
@@ -1814,16 +1823,20 @@ export default function StationPanel(props: StationPanelProps) {
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             {resolution.pattern === "create" ? (
-              <CreateDeskPanel
-                station={station}
-                isLight={isLight}
-                onJukeboxAdd={props.onJukeboxAdd}
-                onOpenEditor={props.onOpenEditorStation}
-                shelfPlayer={shelfPlayer}
-                panelPayload={target.payload ?? null}
-              />
+              <DeskDoor isLight={isLight}>
+                <CreateDeskPanel
+                  station={station}
+                  isLight={isLight}
+                  onJukeboxAdd={props.onJukeboxAdd}
+                  onOpenEditor={props.onOpenEditorStation}
+                  shelfPlayer={shelfPlayer}
+                  panelPayload={target.payload ?? null}
+                />
+              </DeskDoor>
             ) : resolution.pattern === "shop" ? (
-              <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
               <DeskDoor isLight={isLight}>
                 <ChartsBoard
@@ -1859,9 +1872,13 @@ export default function StationPanel(props: StationPanelProps) {
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
-              <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
-              <PressKitDesk isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <PressKitDesk isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "jewelry-bench" ? (
               <DeskDoor isLight={isLight}>
                 <JewelryBench isLight={isLight} isGuest={isGuest} />
@@ -1875,7 +1892,9 @@ export default function StationPanel(props: StationPanelProps) {
                 <MerchBench isLight={isLight} isGuest={isGuest} />
               </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "promote-room" ? (
-              <PromoteDesk isLight={isLight} isGuest={isGuest} />
+              <DeskDoor isLight={isLight}>
+                <PromoteDesk isLight={isLight} isGuest={isGuest} />
+              </DeskDoor>
             ) : (
               <NativePlaceholder station={station} isLight={isLight} />
             )}

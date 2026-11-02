@@ -226,6 +226,12 @@ describe("world-perf round 2 E — desks inside the panel ride per-desk chunks",
     ["TailDesks", "JackpotDesk"],
     ["WinnersCirclePanel", "WinnersCirclePanel"],
     ["BeatsDesk", "BeatsDesk"],
+    ["CreateDeskPanel", "CreateDeskPanel"],
+    ["ShopStands", "ShopStand"],
+    ["ListeningBooth", "ListeningBooth"],
+    ["BusinessDesks", "BrandingKitDesk"],
+    ["BusinessDesks", "PressKitDesk"],
+    ["BusinessDesks", "PromoteDesk"],
   ];
 
   it("every split desk is a lazy door and no static import of it survives", () => {
@@ -254,14 +260,23 @@ describe("world-perf round 2 E — desks inside the panel ride per-desk chunks",
     expect(panel).toContain("<EarningsBoard");
   });
 
-  it("the stay-static calls hold: small doors and world-chunk families are not lazied", () => {
-    expect(panel).not.toContain('from "@/components/world/native/boards";');
-    expect(panel).toContain('import { PacksDesk } from "@/components/world/native/PacksDesk";');
-    expect(panel).toContain(
+  it("the pattern families' barrel imports are gone (they ride doors now)", () => {
+    /* The trio's old one-line import from BusinessDesks, and the
+       barrel lines that carried CreateDeskPanel / ShopStand /
+       ListeningBooth (name + comma in the import list). */
+    expect(panel).not.toContain(
       'import { BrandingKitDesk, PressKitDesk, PromoteDesk } from "@/components/world/native/BusinessDesks";',
     );
-    expect(panel).not.toContain('lazy(() => import("@/components/world/native/BusinessDesks")');
+    expect(panel).not.toContain("  CreateDeskPanel,\n");
+    expect(panel).not.toContain("  ShopStand,\n");
+    expect(panel).not.toContain("  ListeningBooth,\n");
+  });
+
+  it("the stay-static calls hold: small doors are not lazied", () => {
+    expect(panel).not.toContain('from "@/components/world/native/boards";');
+    expect(panel).toContain('import { PacksDesk } from "@/components/world/native/PacksDesk";');
     expect(panel).not.toContain('lazy(() => import("@/components/world/native/PacksDesk")');
+    expect(panel).not.toContain('lazy(() => import("@/components/world/native/SeasonMarksWall")');
   });
 });
 
