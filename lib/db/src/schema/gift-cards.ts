@@ -7,11 +7,15 @@ import { storeProductsTable } from "./storefront";
 
 /**
  * Gift Cards — stored value for a seller's whole store
- * (Stack-100 #3 item 26). ⚠️ PENDING-MIGRATION: this is the drafted
- * source-of-truth; the migration SQL is held in
- * .lane/MIGRATION-NEEDED.md and NO number is claimed by this lane
- * (numbering is assigned at join). Until it lands, every money path
- * that touches these tables fails closed.
+ * (Stack-100 #3 item 26). Migration state: 0215 created these tables
+ * in their original shape (source_session_id; ledger/reservations
+ * keyed by card_id + entry_type); this schema is the source-of-truth
+ * for the rebuilt session shape, and 0312_gift_cards_session_columns.sql
+ * is the reconcile migration that brings a 0215-shaped database to it
+ * (additively: the session columns + arbiters land, card_id columns
+ * are backfilled into gift_card_id, legacy NOT NULLs/CHECKs the live
+ * code cannot satisfy are relaxed or widened — nothing renamed or
+ * dropped). Until 0312 applies, every write path fails closed.
  *
  * Money law:
  *  - A gift card is a LIABILITY, not revenue: initial_cents is money
