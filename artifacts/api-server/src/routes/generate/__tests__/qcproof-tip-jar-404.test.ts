@@ -199,8 +199,16 @@ describe("QC-200 Q151 — tip jar 404 precedes ALL money machinery", () => {
     expect(h.tips).toHaveLength(1);
     const tip = h.tips[0]!;
     expect(tip.stripe_session_id).toBe("cs_tip_1");
-    expect(h.sessionKeys).toEqual([buildTipCheckoutKey({ pageOwnerId: OWNER_ID, tipId: tip.id })]);
-    /* The key is deterministic: same tip id → same key, always. */
-    expect(buildTipCheckoutKey({ pageOwnerId: OWNER_ID, tipId: tip.id })).toBe(h.sessionKeys[0]);
+    /* stack1300: the session is still keyed on the durable tip row —
+       the builder's tip-jar derivation for this owner + tip — with
+       the exact session parameters fingerprinted in, so the key
+       identifies the request and not only the row. */
+    const used = h.sessionKeys[0] as string;
+    expect(used).toMatch(new RegExp(`^checkout:tip-jar:${OWNER_ID}:[0-9a-f]{32}$`));
+    expect(used).not.toBe(buildTipCheckoutKey({ pageOwnerId: OWNER_ID, tipId: tip.id }));
+    /* The builder is deterministic: same tip id → same key, always. */
+    expect(buildTipCheckoutKey({ pageOwnerId: OWNER_ID, tipId: tip.id })).toBe(
+      buildTipCheckoutKey({ pageOwnerId: OWNER_ID, tipId: tip.id }),
+    );
   });
 });

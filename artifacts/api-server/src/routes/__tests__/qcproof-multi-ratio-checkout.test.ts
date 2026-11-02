@@ -144,7 +144,10 @@ describe("Q196 checkout shape — embedded-first, hosted only as fallback, kill-
     expect(store).toContain('creator_amount_cents: String(creatorCents)');
     const shared = readApi("lib/stripe-checkout.ts");
     expect(shared).toContain('ui_mode: "embedded_page" as const');
-    expect(shared).toContain("same amount, metadata and idempotency key");
+    /* stack1300: amounts + metadata are unchanged by presentation,
+       but the idempotency key fingerprints the exact request — the
+       presentations no longer share one (Stripe refused that). */
+    expect(shared).toContain("requestFingerprint: fingerprintStripeRequestParams(params)");
   });
 });
 
