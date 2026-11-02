@@ -944,7 +944,7 @@ export function CoachSplitSheetsSection({
     setPostingId(sheet.id);
     try {
       const totalCents = Math.round(amountDollars * 100);
-      const shares = splitCentsLargestRemainder(totalCents, sheet.collaborators);
+      const shares = splitCentsLargestRemainder(totalCents, sheet.collaborators.map((c) => c.pct));
       const today = ledgerTodayYmd();
       for (let i = 0; i < sheet.collaborators.length; i += 1) {
         const c = sheet.collaborators[i]!;
@@ -953,10 +953,10 @@ export function CoachSplitSheetsSection({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             buildSplitLedgerPostBody({
-              songTitle: sheet.songTitle,
+              sheetTitle: sheet.songTitle,
               collaborator: c,
-              amountCents: shares[i]!.amountCents,
-              entryDate: today,
+              amountCents: shares[i]!,
+              date: today,
             }),
           ),
           skipConfirm: true,
@@ -1105,7 +1105,8 @@ export function CoachSplitSheetsSection({
 
                   <div className="mt-2 space-y-1.5">
                     {sheet.collaborators.map((c, i) => {
-                      const pct = sheet.totalPct > 0 ? (c.pct / sheet.totalPct) * 100 : 0;
+                      const sheetTotal = sheet.collaborators.reduce((s, x) => s + x.pct, 0);
+                      const pct = sheetTotal > 0 ? (c.pct / sheetTotal) * 100 : 0;
                       return (
                         <div key={`${c.name}-${i}`} className="flex items-center gap-2">
                           <span className={`w-32 truncate text-xs ${strong}`}>{c.name}</span>
@@ -1193,16 +1194,12 @@ export function CoachSplitSheetsSection({
 
 /* ═══ 3. ROYALTIES — the dashboard ══════════════════════════════════ */
 
-const ROYALTY_WORKFLOW_LABELS: Record<string, string> = {
-  imported: "Imported",
-  manual: "Added by you",
-};
-
+/** The page's payout status words (royalties.payouts.status.*). */
 const PAYOUT_STATUS_LABELS: Record<string, string> = {
-  expected: "Expected",
-  received: "Received",
-  partial: "Partially received",
-  overdue: "Overdue",
+  expected: "expected",
+  received: "received",
+  partial: "partial",
+  overdue: "overdue",
 };
 
 export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
@@ -1225,11 +1222,12 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
   const [platformError, setPlatformError] = useState<string | null>(null);
 
   const [payoutDraft, setPayoutDraft] = useState<RoyaltyPayoutDraft>({
-    platform: "",
-    expectedDate: "",
-    amount: "",
+    distributor: "",
+    periodStart: "",
+    periodEnd: "",
+    expected: "",
+    received: "",
     status: "expected",
-    referencePeriod: "",
   });
   const [payoutBusy, setPayoutBusy] = useState(false);
   const [payoutMsg, setPayoutMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -1241,7 +1239,6 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const cardCls = `rounded-xl border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`;
-  const chipCls = `inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/60"}`;
 
   const load = async () => {
     setLoading(true);
@@ -1252,11 +1249,11 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
       return { res, data };
     });
     setSummary(result.summary);
-    setSummaryError(result.errors.summary);
+    setSummaryError(result.summaryError);
     setPlatforms(result.platforms);
-    setPlatformsError(result.errors.platforms);
+    setPlatformsError(result.platformsError);
     setPayouts(result.payouts);
-    setPayoutsError(result.errors.payouts);
+    setPayoutsError(result.payoutsError);
     setLoading(false);
   };
 
@@ -1341,7 +1338,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the payout."));
-      setPayoutDraft({ platform: "", expectedDate: "", amount: "", status: "expected", referencePeriod: "" });
+      setPayoutDraft({ distributor: "", periodStart: "", periodEnd: "", expected: "", received: "", status: "expected" });
       setPayoutMsg({ kind: "ok", text: "Payout saved." });
       await load();
     } catch (err) {
@@ -1395,22 +1392,21 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         <NativeErrorState isLight={isLight} message={summaryError} onRetry={() => void load()} />
       ) : summary ? (
         <>
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
             <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><DollarSign className="h-3.5 w-3.5" />Total royalties</p>
-              <p className={`mt-1 text-xl font-black ${strong}`}>{royaltyMoneyLabel(summary.totalAmount, summary.currency)}</p>
+              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><DollarSign className="h-3.5 w-3.5" />Total earnings</p>
+              <p className={`mt-1 text-xl font-black ${strong}`}>{royaltyMoneyLabel(summary.total)}</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>{summary.entryCount} entries tracked</p>
             </div>
             <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><Music2 className="h-3.5 w-3.5" />Total streams</p>
+              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><TrendingUp className="h-3.5 w-3.5" />Total streams</p>
               <p className={`mt-1 text-xl font-black ${strong}`}>{summary.totalStreams.toLocaleString()}</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>across all platforms</p>
             </div>
             <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><Wallet className="h-3.5 w-3.5" />Top platform</p>
-              <p className={`mt-1 truncate text-xl font-black ${strong}`}>{summary.topPlatform ?? "—"}</p>
-            </div>
-            <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><FileText className="h-3.5 w-3.5" />Entries tracked</p>
-              <p className={`mt-1 text-xl font-black ${strong}`}>{summary.entryCount}</p>
+              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><Music2 className="h-3.5 w-3.5" />Songs earning</p>
+              <p className={`mt-1 text-xl font-black ${strong}`}>{summary.perSong.length}</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>{summary.perPlatform.length} platforms reporting</p>
             </div>
           </div>
 
@@ -1447,13 +1443,13 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                     <SubHead isLight={isLight}>Top songs</SubHead>
                     <div className="mt-2 space-y-1.5">
                       {summary.perSong.slice(0, 8).map((s) => (
-                        <div key={s.songTitle} className="flex items-center gap-2">
-                          <span className={`w-32 truncate text-xs ${strong}`}>{s.songTitle}</span>
+                        <div key={s.song} className="flex items-center gap-2">
+                          <span className={`w-32 truncate text-xs ${strong}`}>{s.song}</span>
                           <span className={`h-2 flex-1 overflow-hidden rounded-full ${isLight ? "bg-black/[0.08]" : "bg-white/10"}`}>
                             <span className="block h-full rounded-full bg-[#d4af37]" style={{ width: `${royaltyBarPct(s.cents, topSongMax)}%` }} />
                           </span>
                           <span className={`text-[11px] ${muted}`}>{s.streams.toLocaleString()} streams</span>
-                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>${parseFloat(s.amount).toFixed(2)}</span>
+                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>{royaltyMoneyLabel(s.amount)}</span>
                         </div>
                       ))}
                     </div>
@@ -1466,11 +1462,11 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                     <div className="mt-2 space-y-1.5">
                       {summary.perPlatform.map((p) => (
                         <div key={p.platform} className="flex items-center gap-2">
-                          <span className={`w-32 truncate text-xs ${strong}`}>{p.platform}</span>
+                          <span className={`w-32 truncate text-xs ${strong}`}>{p.label}</span>
                           <span className={`h-2 flex-1 overflow-hidden rounded-full ${isLight ? "bg-black/[0.08]" : "bg-white/10"}`}>
                             <span className="block h-full rounded-full bg-[#d4af37]" style={{ width: `${royaltyBarPct(p.cents, platformMax)}%` }} />
                           </span>
-                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>${parseFloat(p.amount).toFixed(2)}</span>
+                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>{royaltyMoneyLabel(p.amount)}</span>
                         </div>
                       ))}
                     </div>
@@ -1499,12 +1495,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                   <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                     {insights.map((ins, i) => (
                       <div key={`${ins.title}-${i}`} className={`rounded-lg border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-black/20"}`}>
-                        <p className={`flex items-center gap-1.5 text-sm font-bold ${strong}`}>
-                          <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${isLight ? "bg-[#d4af37]/25 text-[#7A5A12]" : "bg-[#d4af37]/20 text-[#e8c86a]"}`}>
-                            {ins.priority}
-                          </span>
-                          {ins.title}
-                        </p>
+                        <p className={`text-sm font-bold ${strong}`}>{ins.title}</p>
                         <p className={`mt-1 text-xs leading-relaxed ${muted}`}>{ins.detail}</p>
                       </div>
                     ))}
@@ -1560,45 +1551,45 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         ) : null}
       </InnerBlock>
 
-      {/* Platforms — manual note today, auto-sync honest. */}
+      {/* Platforms — manual connect today, auto-sync honest. */}
       <div className={cardCls}>
-        <SubHead isLight={isLight}><Link2 className="mr-1 inline h-3.5 w-3.5" />Platforms</SubHead>
-        <p className={`mt-1.5 text-xs ${muted}`}>
-          Note the platforms paying you royalties. Connect Spotify, Apple Music, YouTube and more — automatic
-          sync arrives soon; imported reports already land here.
+        <SubHead isLight={isLight}><Link2 className="mr-1 inline h-3.5 w-3.5" />Platform connections</SubHead>
+        <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
+          Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists — their
+          auto-sync is honestly <b className={strong}>coming soon</b>. CSV import works for everything today.
         </p>
         {platformsError ? (
           <NativeErrorState isLight={isLight} message={platformsError} onRetry={() => void load()} />
         ) : platforms.length === 0 ? (
-          <p className={`mt-2 text-xs ${muted}`}>Connect your first platform below.</p>
+          <p className={`mt-2 text-xs ${muted}`}>No platforms to show yet.</p>
         ) : (
           <div className="mt-2.5 space-y-1.5">
             {platforms.map((p: PlatformStatus) => (
-              <div key={p.platform} className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-black/20"}`}>
-                <span className={`text-sm font-bold ${strong}`}>
-                  {p.platform}
-                  {p.entries > 0 ? <span className={`ml-2 text-[11px] font-medium ${muted}`}>{p.entries} entries</span> : null}
-                  {p.workflow ? <span className={`ml-2 ${chipCls}`}>{ROYALTY_WORKFLOW_LABELS[p.workflow] ?? p.workflow}</span> : null}
+              <div key={p.key} className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-black/20"}`}>
+                <span>
+                  <span className={`block text-sm font-bold ${strong}`}>{p.label}</span>
+                  <span className={`block text-[11px] ${muted}`}>
+                    {p.connected
+                      ? `Connected${p.accountLabel ? ` · ${p.accountLabel}` : ""}`
+                      : p.connectable
+                        ? "Not connected"
+                        : "Auto-sync coming soon"}
+                  </span>
                 </span>
                 {p.connected ? (
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Connected{p.accountLabel ? ` · ${p.accountLabel}` : ""}
-                  </span>
+                  <CheckCircle2 className={`h-5 w-5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 ) : p.connectable ? (
                   <button
                     type="button"
                     className={smallBtn(isLight)}
-                    disabled={platformBusy === p.platform}
-                    onClick={() => void connectPlatform(p.platform)}
+                    disabled={platformBusy === p.key}
+                    onClick={() => void connectPlatform(p.key)}
                   >
-                    {platformBusy === p.platform ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Not connected — note it
+                    {platformBusy === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    Connect
                   </button>
                 ) : (
-                  <span className={`inline-flex items-center gap-1 text-xs ${muted}`}>
-                    <Clock3 className="h-3.5 w-3.5" /> Auto-sync coming soon
-                  </span>
+                  <Clock3 className={`h-5 w-5 ${muted}`} />
                 )}
               </div>
             ))}
@@ -1607,38 +1598,42 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         {platformError ? <p className={`mt-2 text-sm font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>{platformError}</p> : null}
       </div>
 
-      {/* Payouts — the money calendar + the record form. */}
+      {/* Payouts — the tracking rows + the record form. */}
       <div className={cardCls}>
-        <SubHead isLight={isLight}><Wallet className="mr-1 inline h-3.5 w-3.5" />Payouts</SubHead>
-        <p className={`mt-1.5 text-xs ${muted}`}>Track when distributor payouts are due and whether they arrived.</p>
+        <SubHead isLight={isLight}><Wallet className="mr-1 inline h-3.5 w-3.5" />Payout tracking</SubHead>
         {payoutsError ? (
           <NativeErrorState isLight={isLight} message={payoutsError} onRetry={() => void load()} />
         ) : payouts.length === 0 ? (
-          <p className={`mt-2 text-xs ${muted}`}>No payouts recorded yet. Add your first expected payout below.</p>
+          <p className={`mt-2 text-xs leading-relaxed ${muted}`}>
+            No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.
+          </p>
         ) : (
           <div className="mt-2.5 space-y-1.5">
             {payouts.map((p: Payout) => (
-              <div key={p.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-black/20"}`}>
-                <span className={`text-sm font-bold ${strong}`}>
-                  {p.platform}
-                  <span className={`ml-2 text-[11px] font-medium ${muted}`}>
-                    {new Date(p.expectedDate).toLocaleDateString("en-US")}
-                    {p.referencePeriod ? ` · ${p.referencePeriod}` : ""}
+              <div key={p.id} className={`flex flex-wrap items-start justify-between gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-black/20"}`}>
+                <span>
+                  <span className={`block text-sm font-bold ${strong}`}>{p.distributor}</span>
+                  <span className={`block text-[11px] ${muted}`}>{p.period_start} → {p.period_end}</span>
+                  <span className={`mt-0.5 block text-xs ${muted}`}>
+                    Expected <b className={strong}>{royaltyMoneyLabel(p.expected_amount, p.currency)}</b>
+                    {p.received_amount ? (
+                      <> · Received <b className={isLight ? "text-emerald-700" : "text-emerald-300"}>{royaltyMoneyLabel(p.received_amount, p.currency)}</b></>
+                    ) : null}
                   </span>
                 </span>
-                <span className="flex items-center gap-2">
-                  <b className={strong}>${parseFloat(p.amount).toFixed(2)}</b>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${
-                      p.status === "received"
-                        ? isLight ? "border-emerald-600/40 text-emerald-700" : "border-emerald-500/40 text-emerald-300"
-                        : p.status === "overdue"
-                          ? isLight ? "border-red-600/40 text-red-700" : "border-red-500/40 text-red-300"
-                          : isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/60"
-                    }`}
-                  >
-                    {PAYOUT_STATUS_LABELS[p.status] ?? p.status}
-                  </span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    p.status === "received"
+                      ? isLight ? "bg-emerald-600/15 text-emerald-700" : "bg-emerald-400/15 text-emerald-300"
+                      : p.status === "overdue"
+                        ? isLight ? "bg-red-600/15 text-red-700" : "bg-red-400/15 text-red-300"
+                        : p.status === "partial"
+                          ? isLight ? "bg-amber-600/15 text-amber-700" : "bg-amber-400/15 text-amber-300"
+                          : isLight ? "bg-black/[0.06] text-[#6B5B36]" : "bg-white/10 text-white/60"
+                  }`}
+                >
+                  {p.status === "overdue" ? <AlertTriangle className="h-3 w-3" /> : null}
+                  {PAYOUT_STATUS_LABELS[p.status] ?? p.status}
                 </span>
               </div>
             ))}
@@ -1647,33 +1642,13 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Platform</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Distributor</span>
             <input
-              data-testid="world-coach-royalties-payout-platform"
+              data-testid="world-coach-royalties-payout-distributor"
               className={inputCls(isLight)}
-              value={payoutDraft.platform}
-              onChange={(e) => setPayoutDraft({ ...payoutDraft, platform: e.target.value })}
-              placeholder="Spotify"
-            />
-          </label>
-          <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Expected date</span>
-            <input
-              type="date"
-              className={inputCls(isLight)}
-              style={{ colorScheme: isLight ? "light" : "dark" }}
-              value={payoutDraft.expectedDate}
-              onChange={(e) => setPayoutDraft({ ...payoutDraft, expectedDate: e.target.value })}
-            />
-          </label>
-          <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Amount</span>
-            <input
-              className={inputCls(isLight)}
-              value={payoutDraft.amount}
-              onChange={(e) => setPayoutDraft({ ...payoutDraft, amount: e.target.value })}
-              placeholder="250.00"
-              inputMode="decimal"
+              value={payoutDraft.distributor}
+              onChange={(e) => setPayoutDraft({ ...payoutDraft, distributor: e.target.value })}
+              placeholder="DistroKid"
             />
           </label>
           <label className="block">
@@ -1682,21 +1657,52 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
               className={inputCls(isLight)}
               style={{ colorScheme: isLight ? "light" : "dark" }}
               value={payoutDraft.status}
-              onChange={(e) => setPayoutDraft({ ...payoutDraft, status: e.target.value as RoyaltyPayoutDraft["status"] })}
+              onChange={(e) => setPayoutDraft({ ...payoutDraft, status: e.target.value })}
             >
               <option value="expected">Expected</option>
               <option value="received">Received</option>
-              <option value="partial">Partially received</option>
+              <option value="partial">Partial</option>
               <option value="overdue">Overdue</option>
             </select>
           </label>
-          <label className="block sm:col-span-2">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Period (optional)</span>
+          <label className="block">
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Period start</span>
+            <input
+              type="date"
+              className={inputCls(isLight)}
+              style={{ colorScheme: isLight ? "light" : "dark" }}
+              value={payoutDraft.periodStart}
+              onChange={(e) => setPayoutDraft({ ...payoutDraft, periodStart: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Period end</span>
+            <input
+              type="date"
+              className={inputCls(isLight)}
+              style={{ colorScheme: isLight ? "light" : "dark" }}
+              value={payoutDraft.periodEnd}
+              onChange={(e) => setPayoutDraft({ ...payoutDraft, periodEnd: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Expected amount</span>
             <input
               className={inputCls(isLight)}
-              value={payoutDraft.referencePeriod}
-              onChange={(e) => setPayoutDraft({ ...payoutDraft, referencePeriod: e.target.value })}
-              placeholder="January 2026"
+              value={payoutDraft.expected}
+              onChange={(e) => setPayoutDraft({ ...payoutDraft, expected: e.target.value })}
+              placeholder="250.00"
+              inputMode="decimal"
+            />
+          </label>
+          <label className="block">
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Received amount (optional)</span>
+            <input
+              className={inputCls(isLight)}
+              value={payoutDraft.received}
+              onChange={(e) => setPayoutDraft({ ...payoutDraft, received: e.target.value })}
+              placeholder="250.00"
+              inputMode="decimal"
             />
           </label>
         </div>
@@ -1708,7 +1714,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
           onClick={() => void savePayout()}
         >
           {payoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Add payout
+          Save payout
         </button>
         {payoutMsg ? (
           <p className={`mt-2 text-sm font-semibold ${payoutMsg.kind === "ok" ? (isLight ? "text-emerald-700" : "text-emerald-300") : (isLight ? "text-red-700" : "text-red-300")}`}>
