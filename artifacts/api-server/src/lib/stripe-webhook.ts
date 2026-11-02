@@ -252,6 +252,47 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         }
         return;
       }
+      if (s.metadata?.purchase_kind === "live_shop") {
+        /* Live shopping (WEBHOOK-SETTLE, stack1200): before this
+           branch existed a paid live-shop session fell through the
+           whole dispatch to the credit-grant tail, which logged
+           "missing user_id in metadata" and answered 200 — so the
+           sale recorded ONLY if the buyer's browser returned and
+           the page called /live-shopping/verify. A viewer who
+           closed the tab after paying was charged with no sale
+           recorded: no delivery record, no overlay alert. The
+           settle is verify's own core (settleLiveShopSession),
+           exactly-once via the stripe_session_id unique index +
+           read-back. Business rejections (product deleted —
+           already auto-refunded by the settle; amount mismatch;
+           Q150 stream ended, which auto-refunds an UNRECORDED
+           session) are terminal: warned 200. A 500-shaped settle
+           (recording failure) 500s so Stripe retries; nothing here
+           falls through to the credit logic. */
+        if (s.payment_status !== "paid") {
+          res.status(200).json({ received: true, kind: "live_shop", warning: "session not paid" });
+          return;
+        }
+        try {
+          const { settleLiveShopSession } = await import("../routes/live-shopping");
+          const settled = await settleLiveShopSession(s, {
+            buyerUserId: s.metadata?.["buyer_user_id"] ?? "",
+          });
+          if (settled.httpStatus === 500) {
+            logger.error({ sessionId: s.id }, "Stripe webhook: live shop settle failed");
+            res.status(500).json({ error: "Live shop settle failed, retry later" });
+            return;
+          }
+          if (settled.httpStatus !== 200) {
+            logger.warn({ sessionId: s.id, httpStatus: settled.httpStatus }, "Stripe webhook: live shop session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "live_shop" });
+        } catch (liveShopErr) {
+          logger.error({ err: liveShopErr, sessionId: s.id }, "Stripe webhook: live shop settle failed");
+          res.status(500).json({ error: "Live shop settle failed, retry later" });
+        }
+        return;
+      }
       if (s.metadata?.kind === "membership_gift") {
         /* Gift membership (payfix lane 9): a one-time payment granting
            the recipient a Pro/Elite window. Fulfillment claims on
