@@ -2250,6 +2250,18 @@ export default function ArtistVault() {
     try {
       const token = await getAccessToken();
       const vault = vaults.find((v) => v.id === id);
+      /* The server delete decides: the vault leaves the screen only
+         once the server agreed, and the stored image is cleaned up
+         after — never before — so a failed delete changes nothing. */
+      const res = await fetch(`/api/artist-vaults/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setApiError(apiErrorMessage(d, t("artistVault.deleteFailed")));
+        return;
+      }
       if (vault?.reference_image_url) {
         try {
           const token = await getAccessToken().catch(() => null);
@@ -2257,14 +2269,10 @@ export default function ArtistVault() {
           if (pathToRemove) await r2Remove(pathToRemove, token);
         } catch { /* best-effort */ }
       }
-      await fetch(`/api/artist-vaults/${id}`, {
-        method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
       setVaults((prev) => prev.filter((v) => v.id !== id));
       if (editId === id) { setEditId(null); reset(); setPhotoUrl(null); setPhotoPath(null); }
-    } catch {
-      /* silent */
+    } catch (err) {
+      setApiError(plainErrorText(err, t("artistVault.deleteFailed")));
     }
   }
 
@@ -2285,13 +2293,13 @@ export default function ArtistVault() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || t("artistVault.shareUpdateFailed"));
+        setApiError(apiErrorMessage(d, t("artistVault.shareUpdateFailed")));
         return;
       }
       const data = await res.json().catch(() => ({}));
       setVaults((prev) => prev.map((v) => v.id === id ? { ...v, team_id: data.teamId ?? (sharing ? "shared" : null) } : v));
-    } catch {
-      /* silent */
+    } catch (err) {
+      setApiError(plainErrorText(err, t("artistVault.shareUpdateFailed")));
     }
   }
 
