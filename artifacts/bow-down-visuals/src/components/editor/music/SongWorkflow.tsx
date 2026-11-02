@@ -9,6 +9,7 @@ import { EditorCard } from "@/components/editor/controls";
 import type { CaptionLine, EditorSettings } from "@/lib/editor-settings";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { probeMediaDurationSec, transcribeCostForDurationSec } from "@/lib/credit-costs";
 
 /** Backstop against infinite spin — the server times out first (4 min) with a clearer message. */
 const TRANSCRIBE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -130,6 +131,11 @@ export function SongWorkflow({
     const timeout = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
     try {
       const token = await getAccessToken();
+      /* Length-priced transcription: quote the tier for the song's
+         real duration — the metadata probe above usually has it; if
+         it hasn't landed yet, probe the URL now so the confirmation
+         never quotes the flat base for a long song. */
+      const durationSec = songDuration ?? (await probeMediaDurationSec(audioUrl));
       const res = await confirmedFetch("/api/transcribe-url", {
         method: "POST",
         headers: {
@@ -138,6 +144,8 @@ export function SongWorkflow({
         },
         body: JSON.stringify({ audioUrl }),
         signal: controller.signal,
+        overrideCost: transcribeCostForDurationSec(durationSec),
+        overrideFeature: "Transcribe",
       });
       if (!res) { setTxState("idle"); return; } // user cancelled the credit confirmation
       const data = (await res.json()) as {

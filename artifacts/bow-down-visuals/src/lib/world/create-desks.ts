@@ -24,7 +24,11 @@
  * Naming law: the automatic mode is "Turbo", the manual tier is
  * "Advanced"; no provider names appear in any user-facing string.
  */
-import { getCreditCost } from "../credit-costs";
+import {
+  getCreditCost,
+  TRANSCRIBE_INCLUDED_MINUTES,
+  transcribeCostForDurationSec,
+} from "../credit-costs";
 import { getCoverArtTier } from "../cover-art";
 import { buildPublishUrl } from "../publish-protocol";
 import {
@@ -1124,6 +1128,22 @@ export function analyzeSectionsCost(): number {
 /** POST /api/transcribe — registry-priced (100). */
 export function transcribeCost(): number {
   return registryCost("/api/transcribe");
+}
+
+/** The transcription charge for a file of `durationSec` seconds —
+ *  the length tier the server charges (stack1400): base price up to
+ *  TRANSCRIBE_INCLUDED_MINUTES, +20 VB per extra minute rounded up. */
+export function transcribeCostForDuration(durationSec: unknown): number {
+  return transcribeCostForDurationSec(durationSec);
+}
+
+/** Honest price wording for the desk upload labels. Transcription is
+ *  length-priced and the desks auto-transcribe on file pick (no
+ *  second confirmation click), so the label states the SCHEDULE —
+ *  never a lone flat figure a long file would break. */
+export function transcribeCostLabel(): string {
+  const base = transcribeCost().toLocaleString("en-US");
+  return `${base} Visual Bucs for the first ${TRANSCRIBE_INCLUDED_MINUTES} min · +20 per extra min`;
 }
 
 /** POST /api/generate/ai-edit-plan — registry-priced (100). */

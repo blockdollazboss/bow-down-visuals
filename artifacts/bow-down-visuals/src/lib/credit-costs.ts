@@ -114,6 +114,14 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/watermark-removal": { cost: 200, feature: "Remove Watermark" },
   "/api/video-translator/translate": { cost: 500, feature: "Video Translator (500 VB per minute per language)" },
   "/api/analyze-sections": { cost: 100, feature: "Analyze Song Sections" },
+  /* Transcription is LENGTH-PRICED (owner ruling 2026-11-02, stack1400):
+     100 VB covers the first 5 minutes, then +20 VB per additional
+     minute, rounded up — the server measures the real bytes with
+     ffprobe before charging (lib/transcription-pricing.ts on the
+     server). The registry records the BASE price; callers that know
+     the file's real duration pass transcribeCostForDurationSec(duration)
+     as overrideCost so the confirmation quotes the exact tiered price
+     the server will charge, never the flat base for a long file. */
   "/api/transcribe": { cost: 100, feature: "Transcribe Audio" },
   "/api/transcribe-url": { cost: 100, feature: "Transcribe" },
   "/api/remove-fillers/analyze": { cost: 200, feature: "Filler-Word Remover" },
@@ -344,6 +352,77 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/storefront/claim": { cost: 0, feature: "Lead Magnet Claim (free)" },
   "/api/artist-vaults/:id/identity-photos": { cost: 0, feature: "Identity Set Photos (free)" },
 };
+
+/** Flat transcription price covering the first TRANSCRIBE_INCLUDED_MINUTES. */
+export const TRANSCRIBE_BASE_CREDIT_COST = 100;
+/** Minutes of audio included in the flat transcription base price. */
+export const TRANSCRIBE_INCLUDED_MINUTES = 5;
+/** Transcription price per additional minute (rounded up) beyond the included ones. */
+export const TRANSCRIBE_EXTRA_MINUTE_CREDIT_COST = 20;
+
+/**
+ * The transcription charge for audio of `durationSec` seconds — the
+ * client mirror of the server price (transcribeCreditCost in
+ * artifacts/api-server/src/lib/transcription-pricing.ts; keep the two
+ * in sync): 100 VB for up to 5 minutes, then +20 VB per additional
+ * minute, rounded up (5 min → 100, 6 min → 120, 11 min → 220). An
+ * unknown/invalid duration returns the base price — the same fallback
+ * the server uses when IT cannot measure the bytes. Used as
+ * overrideCost wherever the caller knows the real duration, so the
+ * spend confirmation quotes the exact amount the server charges.
+ */
+export function transcribeCostForDurationSec(durationSec: unknown): number {
+  const d = typeof durationSec === "number" ? durationSec : Number(durationSec);
+  if (!Number.isFinite(d) || d <= 0) return TRANSCRIBE_BASE_CREDIT_COST;
+  const minutes = Math.ceil(d / 60);
+  if (minutes <= TRANSCRIBE_INCLUDED_MINUTES) return TRANSCRIBE_BASE_CREDIT_COST;
+  return (
+    TRANSCRIBE_BASE_CREDIT_COST +
+    (minutes - TRANSCRIBE_INCLUDED_MINUTES) * TRANSCRIBE_EXTRA_MINUTE_CREDIT_COST
+  );
+}
+
+/**
+ * Measure a media file's duration in seconds in the browser, from the
+ * actual bytes (a Blob) or a URL — the client-side counterpart of the
+ * server's ffprobe measurement, used to quote the length-priced
+ * transcription before the spend confirmation. Resolves null when the
+ * browser cannot read the duration (unknown format, load error,
+ * timeout) — never throws, never invents a number; callers price null
+ * with transcribeCostForDurationSec(null), the documented base-price
+ * fallback.
+ */
+export function probeMediaDurationSec(source: Blob | string): Promise<number | null> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") {
+      resolve(null);
+      return;
+    }
+    const isBlob = typeof Blob !== "undefined" && source instanceof Blob;
+    const url = isBlob ? URL.createObjectURL(source as Blob) : (source as string);
+    const wantsVideo =
+      (isBlob && (source as Blob).type.startsWith("video/")) ||
+      (typeof source === "string" && /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(source));
+    const el = document.createElement(wantsVideo ? "video" : "audio");
+    let settled = false;
+    const finish = (value: number | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      el.removeAttribute("src");
+      if (isBlob) URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    const timer = window.setTimeout(() => finish(null), 10_000);
+    el.preload = "metadata";
+    el.onloadedmetadata = () => {
+      const d = el.duration;
+      finish(Number.isFinite(d) && d > 0 ? d : null);
+    };
+    el.onerror = () => finish(null);
+    el.src = url;
+  });
+}
 
 /**
  * Get the credit cost for an API endpoint.
