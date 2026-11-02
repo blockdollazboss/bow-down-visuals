@@ -467,7 +467,7 @@
           {
             "title": "Finish My Song",
             "description": "미완성 데모를 업로드하면 — AI가 나머지를 작곡하고 프로듀싱합니다.",
-            "cost": "2 VB/분"
+            "cost": "400 VB/분"
           },
           {
             "title": "업스케일",
@@ -493,7 +493,7 @@
           {
             "title": "Trend Jacker",
             "description": "트렌드를 포착하고, 몇 분 만에 내 버전을 선보이세요.",
-            "cost": "1 VB/포스트"
+            "cost": "200 VB/포스트"
           }
         ]
       },
