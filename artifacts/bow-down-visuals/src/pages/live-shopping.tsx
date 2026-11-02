@@ -14,6 +14,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { buildAlertText } from "@/lib/live-shopping";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 
 /* ─── Live Shopping ─────────────────────────────────────────────────────
    Sell products during live streams: a product catalog, a live overlay
@@ -108,6 +109,11 @@ export default function LiveShopping() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  /* The out-of-credits overlay is a true modal (fixed, backdrop,
+     page-blocking) — it carries the house dialog contract via
+     useModalA11y: focus in on open, trap while open, Escape closes,
+     focus returns to the opener on close. */
+  const outOfCreditsDialogRef = useModalA11y<HTMLDivElement>(outOfCredits, () => setOutOfCredits(false));
 
   /* product form */
   const [formOpen, setFormOpen] = useState(false);
@@ -850,7 +856,7 @@ export default function LiveShopping() {
       </main>
 
       {outOfCredits && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setOutOfCredits(false)}>
+        <div ref={outOfCreditsDialogRef} role="dialog" aria-modal="true" aria-label={t("outOfCredits.title")} tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setOutOfCredits(false)}>
           <div onClick={(e) => e.stopPropagation()}>
             <OutOfCredits />
           </div>
