@@ -181,6 +181,7 @@ CREATE TABLE digital_sales (
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
+  buyer_user_id uuid,
   event_type text NOT NULL,
   stripe_session_id text,
   payment_status text,

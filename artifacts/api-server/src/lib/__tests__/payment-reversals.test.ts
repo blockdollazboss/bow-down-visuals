@@ -316,6 +316,7 @@ CREATE TABLE shop_events (
   amount_cents integer NOT NULL DEFAULT 0,
   platform_fee_cents integer NOT NULL DEFAULT 0,
   buyer_email text,
+  buyer_user_id uuid,
   stripe_session_id text,
   payment_status text,
   quantity integer NOT NULL DEFAULT 1,

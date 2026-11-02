@@ -282,7 +282,7 @@ async function identifyRail(
     },
     async () => {
       const r = await db.execute(sql`
-        SELECT id, user_id FROM shop_events
+        SELECT id, user_id, buyer_user_id FROM shop_events
         WHERE stripe_session_id = ${sid} AND event_type IN ('sale', 'pending_sale')
         ORDER BY created_at ASC LIMIT 1
       `);
@@ -293,7 +293,16 @@ async function identifyRail(
         userId: String(row["user_id"]),
         sessionId: sid,
         grantedCredits: 0,
-        details: { sellerUserId: String(row["user_id"]), firstLineId: String(row["id"]) },
+        /* On this rail userId is the SELLER (shop_events.user_id)
+           and the seller tell depends on it — the buyer id (migration
+           0297; null on guest checkouts, which keep the email key)
+           rides in details from the session's first sale line, and
+           the buyer tell reads it from there, never from userId. */
+        details: {
+          sellerUserId: String(row["user_id"]),
+          firstLineId: String(row["id"]),
+          buyerUserId: (row["buyer_user_id"] as string | null) ?? null,
+        },
       };
     },
     async () => {
@@ -972,10 +981,19 @@ async function markPurchaseRowRefunded(input: {
        completing run's second claw is a second, distinct tell.
      · referral claw  → the referrer, same discipline.
      · entitlement    → the buyer, where the rail's identification
-       names one (membership fan, beat buyer, live-shop buyer).
-       Digital/storefront buyers carry no account identity on the
-       reversal rail and marketplace idents name the seller — no
-       buyer tell is possible there and none is faked.
+       names one (membership fan, beat buyer, live-shop buyer,
+       digital buyer, storefront buyer, marketplace buyer).
+       Digital buyers always carry an account identity
+       (digital_sales.buyer_user_id is NOT NULL and the probe names
+       it in userId); storefront buyers carry one when they checked
+       out signed in (store_orders.buyer_user_id is nullable —
+       guest orders name nobody and no tell is faked for them);
+       marketplace idents name the SELLER in userId, so that rail's
+       buyer id rides in details (shop_events.buyer_user_id, from
+       the session's first sale line; null on guest lines) and the
+       buyer tell reads it from there. Shoutout fans carry no
+       account id by design (free-form fan identity in v1), so no
+       shoutout buyer tell exists.
      · seller ledger  → the seller, EXCLUDING sponsor/performance
        (already told inside reverseEntitlement). The copy names NO
        amount: this engine never computes the seller-ledger figure,
@@ -986,6 +1004,9 @@ const REVERSAL_BUYER_LINKS: Record<string, string> = {
   membership: "/memberships",
   beat_license: "/beats",
   live_shop_sale: "/library",
+  digital_sale: "/library",
+  storefront_order: "/library",
+  marketplace_shop: "/library",
 };
 const REVERSAL_SELLER_LINKS: Record<string, string> = {
   membership: "/memberships",
@@ -1083,8 +1104,19 @@ async function tellReversalParties(
   if (legs.entitlementRevoked) {
     const link = REVERSAL_BUYER_LINKS[ident.rail];
     if (link) {
+      /* Recipient per rail: ident.userId IS the buyer on the
+         membership / beat / live-shop / digital / storefront rails
+         (null for a storefront guest order — tellReversalParty
+         no-ops on a null recipient, and no tell is faked). On the
+         marketplace rail ident.userId is the SELLER, so the buyer
+         is the id the probe carried in details (null on a guest
+         line — same no-op). */
+      const buyerId =
+        ident.rail === "marketplace_shop"
+          ? ((ident.details["buyerUserId"] as string | null) ?? null)
+          : ident.userId;
       await tellReversalParty({
-        userId: ident.userId,
+        userId: buyerId,
         claimJobId: `rev:${chargeId}:entitlement`,
         kind: "reversal_purchase_refunded",
         title: "Your purchase was reversed",

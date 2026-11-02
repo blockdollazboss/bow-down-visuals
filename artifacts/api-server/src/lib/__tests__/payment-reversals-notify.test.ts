@@ -337,6 +337,7 @@ CREATE TABLE shop_events (
   amount_cents integer NOT NULL DEFAULT 0,
   platform_fee_cents integer NOT NULL DEFAULT 0,
   buyer_email text,
+  buyer_user_id uuid,
   stripe_session_id text,
   payment_status text,
   quantity integer NOT NULL DEFAULT 1,
@@ -626,7 +627,7 @@ describe("reversal party tells — the clawed and revoked hear it", () => {
     expect(String(producerBells[0]?.["body"])).not.toMatch(/\$\d/);
   });
 
-  it("a digital-sale reversal resolves the seller through the profile and tells them", async () => {
+  it("a digital-sale reversal resolves the seller through the profile and tells them — and tells the buyer", async () => {
     sessionsByPi.set("pi_d", [{ id: "cs_d_1", metadata: {} }]);
     const profileId = "44444444-4444-4444-8444-444444444444";
     await q(sql`INSERT INTO creator_profiles (id, user_id) VALUES (${profileId}, ${CREATOR})`);
@@ -648,9 +649,171 @@ describe("reversal party tells — the clawed and revoked hear it", () => {
     const sellerBells = await bellsFor(CREATOR);
     expect(sellerBells).toHaveLength(1);
     expect(sellerBells[0]).toMatchObject({ kind: "reversal_sale_reversed", link: "/earnings" });
-    /* The digital buyer has no account identity on this rail
-       (ident.userId is null) — no buyer tell is possible, and none
-       is faked. */
+    /* The digital buyer DOES carry an account identity on this
+       rail (digital_sales.buyer_user_id is NOT NULL and the probe
+       names it) — the buyer hears the purchase was reversed too. */
+    const buyerBells = await bellsFor(BUYER);
+    expect(buyerBells).toHaveLength(1);
+    expect(buyerBells[0]).toMatchObject({ kind: "reversal_purchase_refunded", link: "/library" });
+  });
+});
+
+/* ── FIND2 (stack1200): the buyer entitlement tell reaches the
+   digital, storefront and marketplace buyers ─────────────────────
+   reverseEntitlement already revoked these buyers' access (their
+   rows flip), but REVERSAL_BUYER_LINKS named only membership /
+   beat_license / live_shop_sale, so the revocation landed in
+   silence. Identity was never the blocker:
+     · digital_sales.buyer_user_id is NOT NULL — the probe names it;
+     · store_orders.buyer_user_id is nullable (guest checkout) —
+       the probe names it when present, and a null recipient no-ops;
+     · shop_events.buyer_user_id exists (migration 0297) but the
+       marketplace probe never selected it — and on that rail
+       ident.userId is the SELLER, so the buyer id must ride in
+       ident.details and the buyer tell must read it from there.
+   (Shoutout fans carry NO account id by design — free-form fan
+   identity in v1 — so no shoutout buyer tell is wired, ever.) */
+describe("reversal buyer tells — digital / storefront / marketplace", () => {
+  const PROFILE = "44444444-4444-4444-8444-444444444444";
+
+  it("a digital buyer is told exactly once when a landed reversal revokes the purchase", async () => {
+    sessionsByPi.set("pi_d2", [{ id: "cs_d2_1", metadata: {} }]);
+    await q(sql`INSERT INTO creator_profiles (id, user_id) VALUES (${PROFILE}, ${CREATOR})`);
+    await q(sql`
+      INSERT INTO digital_sales (buyer_user_id, profile_id, stripe_session_id, amount_cents, creator_amount_cents)
+      VALUES (${BUYER}, ${PROFILE}, 'cs_d2_1', 2000, 1900)
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_d2", trigger: "charge.refunded",
+      charge: charge({ id: "ch_d2", paymentIntentId: "pi_d2", amountCents: 2000, refundedCents: 2000 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "digital_sale" });
+
+    const buyerBells = await bellsFor(BUYER);
+    expect(buyerBells).toHaveLength(1);
+    expect(buyerBells[0]).toMatchObject({
+      kind: "reversal_purchase_refunded",
+      title: "Your purchase was reversed",
+      link: "/library",
+    });
+    /* The seller tell still lands alongside — neither steals the other. */
+    expect(await bellsFor(CREATOR)).toHaveLength(1);
+    const claims = await claimRows();
+    expect(claims.map((c) => `${String(c["user_id"])}:${String(c["job_id"])}`).sort()).toEqual([
+      `${BUYER}:rev:ch_d2:entitlement`,
+      `${CREATOR}:rev:ch_d2:seller`,
+    ]);
+
+    /* A replayed webhook tells nothing twice. */
+    const out2 = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_d2", trigger: "charge.refunded",
+      charge: charge({ id: "ch_d2", paymentIntentId: "pi_d2", amountCents: 2000, refundedCents: 2000 }),
+    });
+    expect(out2).toEqual({ outcome: "duplicate" });
+    expect(await bellsFor(BUYER)).toHaveLength(1);
+  });
+
+  it("a storefront buyer is told once when a landed reversal revokes the order", async () => {
+    sessionsByPi.set("pi_s2", [{ id: "cs_s2_1", metadata: {} }]);
+    await q(sql`INSERT INTO creator_profiles (id, user_id) VALUES (${PROFILE}, ${CREATOR})`);
+    await q(sql`
+      INSERT INTO store_orders (buyer_user_id, profile_id, amount_cents, creator_amount_cents, stripe_session_id, status)
+      VALUES (${BUYER}, ${PROFILE}, 3000, 2850, 'cs_s2_1', 'completed')
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_s2", trigger: "charge.refunded",
+      charge: charge({ id: "ch_s2", paymentIntentId: "pi_s2", amountCents: 3000, refundedCents: 3000 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "storefront_order" });
+
+    const buyerBells = await bellsFor(BUYER);
+    expect(buyerBells).toHaveLength(1);
+    expect(buyerBells[0]).toMatchObject({ kind: "reversal_purchase_refunded", link: "/library" });
+    expect(await bellsFor(CREATOR)).toHaveLength(1);
+  });
+
+  it("a storefront GUEST order (buyer_user_id null) gets no buyer tell — and the reversal still lands", async () => {
+    sessionsByPi.set("pi_s3", [{ id: "cs_s3_1", metadata: {} }]);
+    await q(sql`INSERT INTO creator_profiles (id, user_id) VALUES (${PROFILE}, ${CREATOR})`);
+    await q(sql`
+      INSERT INTO store_orders (buyer_user_id, profile_id, amount_cents, creator_amount_cents, stripe_session_id, status)
+      VALUES (NULL, ${PROFILE}, 3000, 2850, 'cs_s3_1', 'completed')
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_s3", trigger: "charge.refunded",
+      charge: charge({ id: "ch_s3", paymentIntentId: "pi_s3", amountCents: 3000, refundedCents: 3000 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "storefront_order" });
+    const orders = await q(sql`SELECT status FROM store_orders WHERE stripe_session_id = 'cs_s3_1'`);
+    expect(orders[0]?.["status"]).toBe("refunded");
+    /* No account, no tell — and no tell is faked to anyone else:
+       the only bell is the seller's. */
     expect(await bellsFor(BUYER)).toHaveLength(0);
+    const sellerBells = await bellsFor(CREATOR);
+    expect(sellerBells).toHaveLength(1);
+    expect(sellerBells[0]).toMatchObject({ kind: "reversal_sale_reversed" });
+  });
+
+  it("a marketplace buyer is told once — and the seller (ident.userId on this rail) is still told", async () => {
+    sessionsByPi.set("pi_m", [{ id: "cs_m_1", metadata: {} }]);
+    await q(sql`
+      INSERT INTO shop_events (user_id, event_type, amount_cents, platform_fee_cents, buyer_email, buyer_user_id, stripe_session_id, payment_status)
+      VALUES (${CREATOR}, 'sale', 2500, 125, 'buyer@example.com', ${BUYER}, 'cs_m_1', 'paid')
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_m1", trigger: "charge.refunded",
+      charge: charge({ id: "ch_m", paymentIntentId: "pi_m", amountCents: 2500, refundedCents: 2500 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "marketplace_shop" });
+
+    const buyerBells = await bellsFor(BUYER);
+    expect(buyerBells).toHaveLength(1);
+    expect(buyerBells[0]).toMatchObject({ kind: "reversal_purchase_refunded", link: "/library" });
+
+    /* The buyer tell must NOT steal the seller's: on this rail
+       ident.userId is the seller, and the seller tell reads it. */
+    const sellerBells = await bellsFor(CREATOR);
+    expect(sellerBells).toHaveLength(1);
+    expect(sellerBells[0]).toMatchObject({ kind: "reversal_sale_reversed", link: "/earnings" });
+
+    const claims = await claimRows();
+    expect(claims.map((c) => `${String(c["user_id"])}:${String(c["job_id"])}`).sort()).toEqual([
+      `${BUYER}:rev:ch_m:entitlement`,
+      `${CREATOR}:rev:ch_m:seller`,
+    ]);
+
+    /* A replay / second completion point tells nobody twice.
+       (The replay's outcome is deliberately not pinned here: the
+       marketplace probe matches only 'sale'/'pending_sale' lines,
+       so after the flip a replay no longer identifies the rail —
+       pre-existing engine behaviour, unchanged by this fix. What
+       the claim discipline guarantees, and what this pins, is that
+       no second tell lands for either party.) */
+    await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_m1", trigger: "charge.refunded",
+      charge: charge({ id: "ch_m", paymentIntentId: "pi_m", amountCents: 2500, refundedCents: 2500 }),
+    });
+    expect(await bellsFor(BUYER)).toHaveLength(1);
+    expect(await bellsFor(CREATOR)).toHaveLength(1);
+    expect(await claimRows()).toHaveLength(2);
+  });
+
+  it("a marketplace GUEST line (buyer_user_id null) gets no buyer tell — the seller still hears it", async () => {
+    sessionsByPi.set("pi_m2", [{ id: "cs_m2_1", metadata: {} }]);
+    await q(sql`
+      INSERT INTO shop_events (user_id, event_type, amount_cents, platform_fee_cents, buyer_email, buyer_user_id, stripe_session_id, payment_status)
+      VALUES (${CREATOR}, 'sale', 2500, 125, 'guest@example.com', NULL, 'cs_m2_1', 'paid')
+    `);
+    const out = await processChargeReversal({
+      stripe: stripeFake, eventId: "evt_m2", trigger: "charge.refunded",
+      charge: charge({ id: "ch_m2", paymentIntentId: "pi_m2", amountCents: 2500, refundedCents: 2500 }),
+    });
+    expect(out).toMatchObject({ outcome: "reversed", rail: "marketplace_shop" });
+    const lines = await q(sql`SELECT event_type FROM shop_events WHERE stripe_session_id = 'cs_m2_1'`);
+    expect(lines[0]?.["event_type"]).toBe("refunded_sale");
+    expect(await bellsFor(BUYER)).toHaveLength(0);
+    const sellerBells = await bellsFor(CREATOR);
+    expect(sellerBells).toHaveLength(1);
+    expect(sellerBells[0]).toMatchObject({ kind: "reversal_sale_reversed" });
   });
 });
