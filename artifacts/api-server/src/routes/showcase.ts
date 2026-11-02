@@ -2,7 +2,7 @@ import { Router } from "express";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
-import { db, showcaseItemsTable, showcaseLikesTable } from "@workspace/db";
+import { db, showcaseItemsTable, showcaseLikesTable, creatorProfilesTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { shouldCountView, viewKey } from "../lib/view-counting";
@@ -140,7 +140,25 @@ router.get("/showcase/:slug", async (req, res) => {
         .where(eq(showcaseItemsTable.id, item.id))
         .catch(() => {});
     }
-    res.json({ item: await refreshSupabaseStorageUrlsDeep({ ...item, views: item.views + (countIt ? 1 : 0) }) });
+    /* The creator's profile slug, resolved from the item's own owner
+       record — the namespace the tip jar's probe accepts (the same
+       slug the Shorts feed carries as item.creator.slug), so a door
+       on this page can resolve the creator's jar. The row itself
+       only ever carried a display name. Null when the creator has
+       no profile slug; a slug without a jar still resolves to no
+       jar at the probe, so no dead door follows from carrying it. */
+    const [profile] = await db
+      .select({ slug: creatorProfilesTable.slug })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.userId, item.user_id))
+      .limit(1);
+    res.json({
+      item: await refreshSupabaseStorageUrlsDeep({
+        ...item,
+        views: item.views + (countIt ? 1 : 0),
+        creator_slug: profile?.slug ?? null,
+      }),
+    });
   } catch (err) {
     req.log.error({ err }, "[showcase] detail failed");
     res.status(500).json({ error: "Could not load showcase item." });

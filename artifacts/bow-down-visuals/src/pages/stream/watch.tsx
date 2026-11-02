@@ -14,6 +14,7 @@ import { MediaLinkBar } from "@/components/player/MediaLinkBar";
 import { GetPaidFinale, EarnEmptyState } from "@/components/player/GetPaidFinale";
 import { useAuth } from "@/contexts/AuthContext";
 import { CommentThread } from "@/components/player/CommentThread";
+import { WatchTipDoor } from "@/components/tips/WatchTipDoor";
 import {
   fetchVideo, fetchMoreFromArtist, formatCount, formatDuration, formatSeriesLabel,
   recordPlay, resolveMedia,
@@ -322,7 +323,7 @@ export default function StreamWatchPage() {
                 {video.duration_sec ? <><span className="mx-2 text-white/20">•</span>{formatDuration(video.duration_sec)}</> : null}
               </p>
 
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap items-center gap-2.5">
                 <MediaActions
                   kind="video"
                   id={String(video.id)}
@@ -333,6 +334,9 @@ export default function StreamWatchPage() {
                   showRepost={false}
                   size="lg"
                 />
+                {/* N4: the canonical tip jar's watch-page door — renders
+                    only when this creator actually has a tip jar. */}
+                <WatchTipDoor handleOrSlug={artist?.slug} signInNext={`/watch/${video.id}`} />
               </div>
 
               <div className="mt-3">

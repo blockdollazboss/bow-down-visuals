@@ -270,3 +270,77 @@ describe("tip jar checkout presentation", () => {
     expect(h.createCalls).toHaveLength(0);
   });
 });
+
+/* ── Return landing (stack1300 tip-return) ──────────────────────────
+   The session lands the fan where the tip started: a door that names
+   its origin (the watch-page panel passes /watch/<id>) gets its fan
+   back there; anything that is not a house-minted same-site shape is
+   refused to the tip-page default — never an open redirect. Callers
+   that pass nothing (the tip page, Shorts, profile doors) are pinned
+   byte-identical by the suite above. */
+describe("tip jar checkout return landing", () => {
+  const WATCH_PATH = "/watch/123e4567-e89b-42d3-a456-426614174000";
+
+  it("embedded + watch origin: return_url lands back on the watch page", async () => {
+    const { status, json } = await call("POST", "/tips/royal-voice/checkout", {
+      amount: 10,
+      fanName: "Big Fan",
+      message: "",
+      uiMode: "embedded",
+      returnPath: WATCH_PATH,
+    });
+    expect(status).toBe(200);
+    expect(json.clientSecret).toBe("cs_tip_1_secret");
+    const params = h.createCalls[0]!;
+    expect(params.ui_mode).toBe("embedded_page");
+    expect(params.return_url).toContain(`${WATCH_PATH}?session_id={CHECKOUT_SESSION_ID}`);
+    expect(params.return_url).not.toContain("/tips/royal-voice");
+    /* Settle is untouched by the landing: the same verify flips the
+       tip paid exactly once. */
+    const v = await call("POST", "/tips/checkout/verify", { sessionId: "cs_tip_1" });
+    expect(v.json).toMatchObject({ status: "paid", amountCents: 1000 });
+    expect(h.tips[0]!.status).toBe("paid");
+  });
+
+  it("hosted + watch origin: success and cancel land on the watch page too", async () => {
+    const { status, json } = await call("POST", "/tips/royal-voice/checkout", {
+      amount: 10,
+      fanName: "Fan",
+      message: "",
+      returnPath: WATCH_PATH,
+    });
+    expect(status).toBe(200);
+    expect(json.uiMode).toBe("hosted");
+    const params = h.createCalls[0]!;
+    expect(params.success_url).toContain(`${WATCH_PATH}?session_id={CHECKOUT_SESSION_ID}`);
+    expect(params.success_url).not.toContain("/tips/royal-voice");
+    expect(params.cancel_url).toContain(WATCH_PATH);
+    expect(params.cancel_url).not.toContain("session_id");
+    expect(params.cancel_url).not.toContain("/tips/royal-voice");
+  });
+
+  it.each([
+    "https://evil.example.com/watch/abc",
+    "//evil.example.com/watch/abc",
+    "/tips/someone-else",
+    "/watch/",
+    "/watch/a/b",
+    "/watch/../admin",
+    "/watch/abc?next=https://evil.example.com",
+    "/watch/abc#frag",
+    "watch/abc",
+    "",
+    `/watch/${"a".repeat(300)}`,
+  ])("off-shape origin %j is refused to the tip-page default", async (returnPath) => {
+    const { status } = await call("POST", "/tips/royal-voice/checkout", {
+      amount: 10,
+      fanName: "Fan",
+      message: "",
+      uiMode: "embedded",
+      returnPath,
+    });
+    expect(status).toBe(200);
+    const params = h.createCalls[0]!;
+    expect(params.return_url).toContain("/tips/royal-voice?session_id={CHECKOUT_SESSION_ID}");
+  });
+});

@@ -148,7 +148,32 @@ export const tipIntentSchema = z.object({
      in-panel; absent/"hosted" keeps the hosted-URL shape. The
      record-a-tip intent route accepts and ignores it. */
   uiMode: z.enum(["embedded", "hosted"]).optional(),
+  /* Where the fan lands when the checkout session ends — read by the
+     /checkout route only (the intent route accepts and ignores it,
+     like uiMode). A door that starts a tip away from the tip page
+     (the watch-page panel) names its own page so completing payment
+     returns the fan THERE, not to /tips/:handle. The raw value is
+     untrusted: resolveTipReturnPath admits only the same-site path
+     shapes the house itself mints and falls back to the tip page for
+     anything else — never an open redirect. */
+  returnPath: z.string().optional(),
 });
+
+/* The one off-page tip origin the house mints today: a watch page,
+   /watch/<id> — a single segment of slug/UUID characters, no query,
+   no fragment, no extra segments. Anything else a caller supplies
+   (absolute URLs, protocol-relative //host paths, other site paths,
+   traversal shapes) is refused to the default landing. */
+const TIP_RETURN_PATH_SHAPE = /^\/watch\/[A-Za-z0-9_-]+$/;
+
+/** The checkout session's landing path: the caller's origin when it
+ *  matches a house-minted shape, otherwise the tip page itself (the
+ *  behaviour every existing door — tip page, Shorts, profile — keeps,
+ *  since none of them passes a returnPath). */
+export function resolveTipReturnPath(raw: unknown, fallback: string): string {
+  if (typeof raw !== "string" || raw.length > 200) return fallback;
+  return TIP_RETURN_PATH_SHAPE.test(raw) ? raw : fallback;
+}
 
 /** Normalize suggested amounts: dedupe, sort ascending, round to cents. */
 export function normalizeSuggestedAmounts(amounts: number[]): number[] {
@@ -895,6 +920,12 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
     .returning();
   try {
     const base = getBaseUrl(req);
+    /* The fan lands where the tip started: a door that passed a
+       house-shaped returnPath (the watch-page panel) gets its fan
+       back; every other caller keeps the tip page. Settlement does
+       not ride on this — the webhook settles the tip regardless of
+       where (or whether) the browser returns. */
+    const landingPath = resolveTipReturnPath(parsed.data.returnPath, `/tips/${page.handle}`);
     const idempotencyKey = buildTipCheckoutKey({ pageOwnerId: ownerId, tipId: tip!.id });
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -909,17 +940,19 @@ router.post("/tips/:handle/checkout", publicApiLimiter, async (req, res) => {
         },
       ],
       metadata: { type: "tip_jar", tipId: tip!.id },
-      /* Embedded ui_mode: the session takes a return_url (the tip
-         page itself, which verifies on landing — the same page the
-         hosted success_url names) instead of success/cancel URLs. */
+      /* Embedded ui_mode: the session takes a return_url (the
+         landing page — the tip page itself by default, which
+         verifies on landing; a door's own page when it passed a
+         returnPath — the same page the hosted success_url names)
+         instead of success/cancel URLs. */
       ...(embeddedRequested
         ? {
             ui_mode: "embedded_page" as const,
-            return_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
+            return_url: `${base}${landingPath}?session_id={CHECKOUT_SESSION_ID}`,
           }
         : {
-            success_url: `${base}/tips/${page.handle}?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${base}/tips/${page.handle}`,
+            success_url: `${base}${landingPath}?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${base}${landingPath}`,
           }),
     }, { idempotencyKey });
     /* An embedded session without a client secret cannot be mounted
