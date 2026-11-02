@@ -12,6 +12,17 @@ import { formatBucs } from "@/lib/visual-bucs";
 import { jarPath } from "@/lib/one-tip-jar";
 import { normalizeShortsFeed, normalizeShortItem } from "@/lib/shorts-data";
 import {
+  clipDuetsPath,
+  isKingFeatured,
+  kingFeatureRequest,
+  normalizeKingDuetCandidates,
+  normalizeKingDuetRail,
+  withKingFeaturedAt,
+  type KingDuetCandidate,
+  type KingFeaturedPick,
+  type KingOpenClip,
+} from "@/lib/king-duet";
+import {
   postShortPublishHref,
   duetEditorHref,
   stitchEditorHref,
@@ -103,6 +114,11 @@ export default function ShortsFeed() {
   /* #173: my own profile id — the duet switch renders on MY shorts
      (the switch is held by the original creator, per video). */
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
+  /* N3: am I the HOUSE? The /me payload carries is_official (the same
+     toPublicProfile mapping as the public profile) — the King's-pick
+     control renders only for the official profile's owner, and the
+     king-feature rail enforces the same fact server-side (403). */
+  const [myIsOfficial, setMyIsOfficial] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -116,7 +132,7 @@ export default function ShortsFeed() {
   }, [getAccessToken]);
 
   useEffect(() => {
-    if (!user) { setMyProfileId(null); return; }
+    if (!user) { setMyProfileId(null); setMyIsOfficial(false); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -126,6 +142,7 @@ export default function ShortsFeed() {
         if (!cancelled && res.ok) {
           const data = await res.json();
           if (data?.id) setMyProfileId(String(data.id));
+          setMyIsOfficial(data?.is_official === true);
         }
       } catch { /* owner controls simply stay hidden */ }
     })();
@@ -299,7 +316,7 @@ export default function ShortsFeed() {
           <p className="text-xs text-white/50">your For You page, but you own it</p>
         </div>
         <div className="flex items-center gap-2">
-          <KingDuetPanel />
+          <KingDuetPanel isHouse={myIsOfficial} authHeaders={authHeaders} />
           <ShortsMenu />
         </div>
       </div>
@@ -847,26 +864,33 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
    the Duet button rides the exact duetEditorHref every other short
    uses, and the POST behind it is the same /videos/:id/duet. The
    featured pick is stated honestly as what it is: a HOUSE pick by
-   Thy Cheat Code, with the fan who made the duet credited on it. */
+   Thy Cheat Code, with the fan who made the duet credited on it.
+   THE HOUSE CONTROL (N3 remainder): when the signed-in viewer owns
+   the official profile, this same panel is where the pick is SET —
+   candidates are the published duets of each open clip (the children
+   rail), the stamp on each row is the server's truth, and the write
+   rides POST/DELETE /videos/:id/king-feature. The rail charges
+   nothing — featuring is free, and the fan is notified by the server
+   the moment a pick lands. Non-house viewers see the panel exactly
+   as before: display only. */
 
-interface KingClip {
-  id: string; title: string; video_url: string; thumbnail_url: string | null;
-  view_count: number; like_count: number; duet_count: number; duets_enabled: boolean;
-  creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
-}
-interface KingPick {
-  id: string; title: string; video_url: string; thumbnail_url: string | null;
-  king_featured_at: string | null; pick_kind: string;
-  creator: { id: string; slug: string; display_name: string; avatar_url: string | null } | null;
-  duet_parent: { id: string; title: string | null; creator_slug: string | null; creator_name: string | null } | null;
-}
-
-function KingDuetPanel() {
+function KingDuetPanel({ isHouse, authHeaders }: {
+  isHouse: boolean;
+  authHeaders: () => Promise<Record<string, string>>;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [clips, setClips] = useState<KingClip[]>([]);
-  const [featured, setFeatured] = useState<KingPick[]>([]);
+  const [clips, setClips] = useState<KingOpenClip[]>([]);
+  const [featured, setFeatured] = useState<KingFeaturedPick[]>([]);
+  /* house-control state: which clip's candidate list is open, the
+     candidates themselves, and the one write in flight (if any). */
+  const [pickClipId, setPickClipId] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<KingDuetCandidate[]>([]);
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [candidatesFailed, setCandidatesFailed] = useState(false);
+  const [pendingPickId, setPendingPickId] = useState<string | null>(null);
+  const [pickError, setPickError] = useState<{ id: string; message: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -875,10 +899,10 @@ function KingDuetPanel() {
     setFailed(false);
     (async () => {
       try {
-        const data = await apiGet("/api/shorts/king-duet");
+        const rail = normalizeKingDuetRail(await apiGet("/api/shorts/king-duet"));
         if (cancelled) return;
-        setClips(Array.isArray(data?.open_clips) ? data.open_clips : []);
-        setFeatured(Array.isArray(data?.featured) ? data.featured : []);
+        setClips(rail.open_clips);
+        setFeatured(rail.featured);
       } catch {
         if (!cancelled) setFailed(true);
       } finally {
@@ -887,6 +911,66 @@ function KingDuetPanel() {
     })();
     return () => { cancelled = true; };
   }, [open ]);
+
+  async function loadCandidates(clipId: string) {
+    setCandidatesLoading(true);
+    setCandidatesFailed(false);
+    try {
+      setCandidates(normalizeKingDuetCandidates(await apiGet(clipDuetsPath(clipId))));
+    } catch {
+      setCandidates([]);
+      setCandidatesFailed(true);
+    } finally {
+      setCandidatesLoading(false);
+    }
+  }
+
+  function togglePickList(clipId: string) {
+    if (pickClipId === clipId) { setPickClipId(null); return; }
+    setPickClipId(clipId);
+    setPickError(null);
+    void loadCandidates(clipId);
+  }
+
+  /* The write: POST features, DELETE lifts. While it flies, the row
+     is locked; on success the SERVER's own stamp folds into the
+     candidate rows and the rail is re-read, so the featured list is
+     always the server's truth, never a local guess. On failure
+     nothing moves — the error says why (the rail's own words when it
+     sends them) and the button stays live to retry. */
+  async function setPick(videoId: string, feature: boolean) {
+    if (pendingPickId) return;
+    setPendingPickId(videoId);
+    setPickError(null);
+    try {
+      const { path, method } = kingFeatureRequest(videoId, feature);
+      const res = await fetch(path, { method, headers: { ...(await authHeaders()) } });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setPickError({
+          id: videoId,
+          message: data && typeof data.error === "string" && data.error
+            ? data.error
+            : "The pick didn't land. Try again.",
+        });
+        return;
+      }
+      if (data && "king_featured_at" in data) {
+        const stamp = typeof data.king_featured_at === "string" ? data.king_featured_at : null;
+        setCandidates((rows) => withKingFeaturedAt(rows, videoId, stamp));
+        setFeatured((rows) => withKingFeaturedAt(rows, videoId, stamp));
+      }
+      try {
+        const rail = normalizeKingDuetRail(await apiGet("/api/shorts/king-duet"));
+        setClips(rail.open_clips);
+        setFeatured(rail.featured);
+      } catch { /* the folded server stamp above already tells the truth */ }
+    } catch {
+      setPickError({ id: videoId, message: "The pick didn't land. Try again." });
+    } finally {
+      setPendingPickId(null);
+    }
+  }
 
   return (
     <>
@@ -909,6 +993,12 @@ function KingDuetPanel() {
               The featured duet below is the King&apos;s own <b className="text-primary">house pick</b>,
               and the fan who made it is credited right on the pick.
             </p>
+            {isHouse && (
+              <p className="mb-4 rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs leading-relaxed text-white/80" data-testid="king-pick-house-note">
+                You&apos;re on the King&apos;s house account — set or lift the pick right here.
+                Open a clip&apos;s duets below and crown one. The fan is told the moment it lands.
+              </p>
+            )}
             <div className="flex-1 space-y-5 overflow-y-auto">
               {loading && <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />}
               {!loading && failed && (
@@ -935,8 +1025,66 @@ function KingDuetPanel() {
                               className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-[11px] font-black text-black hover:brightness-110">
                               <Columns2 className="h-3.5 w-3.5" /> Duet this clip
                             </Link>
+                            {isHouse && (
+                              <button type="button" onClick={() => togglePickList(c.id)} aria-expanded={pickClipId === c.id}
+                                data-testid="king-pick-open"
+                                className="ml-2 mt-2 inline-flex items-center gap-1 rounded-full border border-primary/50 px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                <Crown className="h-3.5 w-3.5" /> {pickClipId === c.id ? "Hide duets" : "Pick the featured duet"}
+                              </button>
+                            )}
                           </div>
                         </div>
+                        {isHouse && pickClipId === c.id && (
+                          <div className="mt-3 space-y-2 border-t border-white/10 pt-3" data-testid="king-pick-list">
+                            {candidatesLoading && <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary" />}
+                            {!candidatesLoading && candidatesFailed && (
+                              <p className="text-xs text-red-300" data-testid="king-pick-list-error">
+                                Those duets couldn&apos;t load.{" "}
+                                <button type="button" onClick={() => void loadCandidates(c.id)}
+                                  className="font-bold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                  Retry
+                                </button>
+                              </p>
+                            )}
+                            {!candidatesLoading && !candidatesFailed && candidates.length === 0 && (
+                              <p className="text-xs text-white/40">No duets of this clip yet — the pick waits for the first fan.</p>
+                            )}
+                            {!candidatesLoading && !candidatesFailed && candidates.map((d) => (
+                              <div key={d.id} className="flex items-center gap-2 rounded-lg bg-black/30 p-2">
+                                <Link href={`/shorts?start=${d.id}`} className="h-14 w-10 shrink-0 overflow-hidden rounded bg-zinc-900">
+                                  {d.thumbnail_url ? <img src={d.thumbnail_url} alt={d.title} className="h-full w-full object-cover" /> : null}
+                                </Link>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-bold text-white">{d.title}</p>
+                                  <p className="truncate text-[11px] text-white/50">
+                                    duet by @{d.creator?.display_name ?? "a fan"} · {fmt(d.view_count)} views
+                                  </p>
+                                  {pickError?.id === d.id && (
+                                    <p role="alert" data-testid="king-pick-error" className="text-[11px] text-red-300">{pickError.message}</p>
+                                  )}
+                                </div>
+                                {isKingFeatured(d) ? (
+                                  <>
+                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-black text-black">
+                                      <Crown className="h-3 w-3" /> King&apos;s pick
+                                    </span>
+                                    <button type="button" onClick={() => void setPick(d.id, false)} disabled={pendingPickId === d.id}
+                                      data-testid="king-pick-remove" aria-label={`Lift the King's pick from “${d.title}”`}
+                                      className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-[11px] font-bold text-white/80 hover:bg-white/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                      {pendingPickId === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Lift pick"}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button type="button" onClick={() => void setPick(d.id, true)} disabled={pendingPickId === d.id}
+                                    data-testid="king-pick-feature" aria-label={`Feature “${d.title}” as the King's pick`}
+                                    className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[11px] font-black text-black hover:brightness-110 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                    {pendingPickId === d.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Feature"}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )) : (
                       <p className="py-4 text-sm text-white/40">The King hasn&apos;t opened a clip yet — watch this space.</p>
@@ -959,6 +1107,18 @@ function KingDuetPanel() {
                             <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-black text-black">
                               <Crown className="h-3 w-3" /> HOUSE PICK — THY CHEAT CODE
                             </p>
+                            {isHouse && (
+                              <div className="mt-2">
+                                <button type="button" onClick={() => void setPick(f.id, false)} disabled={pendingPickId === f.id}
+                                  data-testid="king-pick-remove" aria-label={`Lift the King's pick from “${f.title}”`}
+                                  className="rounded-full border border-white/25 px-3 py-1.5 text-[11px] font-bold text-white/80 hover:bg-white/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                  {pendingPickId === f.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Lift pick"}
+                                </button>
+                                {pickError?.id === f.id && (
+                                  <p role="alert" data-testid="king-pick-error" className="mt-1 text-[11px] text-red-300">{pickError.message}</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
