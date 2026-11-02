@@ -742,6 +742,9 @@ describe("it W6 namespaces (Stack-28 appendix)", () => {
 
 const W7_NAMESPACES: string[] = ["lufs", "presave", "videoEditor", "release", "stabilize", "create", "nav", "press-public", "press-kit", "moveHome", "videoExport", "wave8", "outreach", "podcast", "admin", "analyticsHub", "captionSuite", "wave9", "contentIntelligence", "hubSpine", "cover-art", "playlist", "dashboard", "liveGuests", "proFinishing", "review", "wallpapers", "djSets", "settings", "share", "tutorials", "brandingKit", "paidSeries", "smartClips", "socialProof"];
 const W7_LEGIT: string[] = [
+  "admin.challenges.amountLabel",
+  "admin.challenges.status.live",
+  "admin.remixKing.title",
   "settings.billing.status.free",
   "presave.cdSecs",
   "presave.cdMins",

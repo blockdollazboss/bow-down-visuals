@@ -481,6 +481,10 @@ describe("pt W4 (Stack-28 appendix) — namespaces closed whole", () => {
 
 const W6_NAMESPACES: string[] = ["privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "locations", "websiteBuilder", "milestones", "lufs", "presave", "release", "stabilize", "create", "videoEditor", "press-public", "press-kit", "wave8", "nav", "outreach", "moveHome", "videoExport", "captionSuite", "podcast", "admin", "contentIntelligence", "hubSpine", "wave9", "cover-art", "playlist", "dashboard", "djSets", "proFinishing", "review", "share", "analyticsHub", "brandingKit", "paidSeries", "smartClips", "tutorials", "wallpapers"];
 const W6_LEGIT = new Set([
+  "admin.challenges.amountLabel",
+  "admin.challenges.statusLabel",
+  "admin.remixKing.splitsSum",
+  "admin.remixKing.title",
   "lufs.labelOriginal",
   "lufs.abOriginal",
   "milestones.manual",
