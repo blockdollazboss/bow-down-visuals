@@ -1,7 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import {
-  Check, Copy, Download, Loader2, Lock, Share2, SlidersHorizontal, Sparkles, Store,
+  Check, Copy, Download, Loader2, Lock, RotateCcw, Share2, SlidersHorizontal, Sparkles, Store,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -156,6 +156,29 @@ export function ThemeKitPanel({
       setDone("save");
     } catch (err) {
       setError(plainErrorText(err, "That save hit a snag."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /* Reset-to-pure-pack (QC-200 Q140): clears the local mix AND the
+     saved rows — the server treats an empty-mix PUT as the reset, so
+     the pack returns to its pure, as-designed state everywhere. */
+  const resetMix = async () => {
+    setBusy("reset"); setError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("signin");
+      const res = await fetch(`/api/theme-packs/customizations/${pack.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ mix: {} }),
+      });
+      if (!res.ok) throw new Error(`reset failed (${res.status})`);
+      setMix({});
+      setDone("reset");
+    } catch {
+      setError("That reset hit a snag — try again in a moment.");
     } finally {
       setBusy(null);
     }
@@ -316,6 +339,16 @@ export function ThemeKitPanel({
               >
                 {busy === "save" ? <Loader2 className="h-3 w-3 animate-spin" /> : done === "save" ? <Check className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
                 Save my mix
+              </button>
+              <button
+                type="button"
+                data-testid={`theme-kit-reset-${pack.id}`}
+                disabled={busy !== null}
+                onClick={() => void resetMix()}
+                className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground disabled:opacity-60"
+              >
+                {busy === "reset" ? <Loader2 className="h-3 w-3 animate-spin" /> : done === "reset" ? <Check className="h-3 w-3" /> : <RotateCcw className="h-3 w-3" />}
+                Reset to pure pack
               </button>
             </div>
           </details>
