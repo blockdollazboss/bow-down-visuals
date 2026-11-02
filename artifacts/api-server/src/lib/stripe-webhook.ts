@@ -666,7 +666,8 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   // refund:<sessionId>, exactly the key verify's inline refund uses,
   // so webhook-then-verify, verify-then-webhook, and webhook replays
   // can never double-refund. Deliverable items answer "not due" and
-  // fulfillment stays with verify, untouched.
+  // settle through verify's own core below (WEBHOOK-SETTLE,
+  // stack1200 — fulfillment no longer waits for the buyer's return).
   const storeMeta = session.metadata ?? {};
   if (storeMeta["buyer_user_id"] && storeMeta["profile_id"] && storeMeta["item_kind"] && storeMeta["item_id"]) {
     const itemKind = storeMeta["item_kind"];
@@ -675,7 +676,62 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       const { isStoreSessionAutoRefundDue } = await import("../routes/store");
       const refundDue = await isStoreSessionAutoRefundDue(session.id, itemKind, itemId);
       if (!refundDue) {
-        res.status(200).json({ received: true, kind: "digital_store" });
+        /* Deliverable purchase (WEBHOOK-SETTLE, stack1200): this
+           branch used to answer 200 here and leave fulfillment to
+           the buyer's verify return — a buyer who closed the tab
+           after paying got no sale recorded: no download link, no
+           license keys, no bundle grants, no seller tell. Now the
+           webhook settles through verify's own core
+           (settleDigitalStoreSession), exactly-once via the
+           digital_sales ON CONFLICT claim + read-back. The settle's
+           refunded-payment guard needs the charge witness, so the
+           session is re-retrieved WITH the
+           payment_intent.latest_charge expansion, exactly as
+           verify retrieves it; a retrieve failure 500s (Stripe
+           retries) rather than settling on a half-witnessed
+           session. Business rejections (buyer/amount/add-on
+           mismatches; the fully-refunded refusal) are terminal:
+           warned 200. A 500-shaped settle 500s for retry. */
+        try {
+          /* A sale already recorded (verify won the race, or a
+             replay) never re-enters the settle: the settle
+             re-resolves the item BEFORE its duplicate read-back,
+             so a delivered purchase whose item was since deleted
+             would be refunded by the settle's undeliverable path —
+             the stack900 "never refund a delivered purchase"
+             invariant, enforced here the same way the probe
+             enforces it on the refund side. */
+          const { storeSessionSaleExists } = await import("../routes/store");
+          if (await storeSessionSaleExists(session.id)) {
+            res.status(200).json({ received: true, kind: "digital_store", duplicate: true });
+            return;
+          }
+          const expanded = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ["payment_intent.latest_charge"],
+          });
+          if (expanded.payment_status !== "paid") {
+            res.status(200).json({ received: true, kind: "digital_store", warning: "session not paid" });
+            return;
+          }
+          const { settleDigitalStoreSession } = await import("../routes/store");
+          const settled = await settleDigitalStoreSession(expanded, {
+            userId: storeMeta["buyer_user_id"],
+            email: null,
+          });
+          if (settled.httpStatus === 500) {
+            logger.error({ sessionId: session.id }, "Stripe webhook: digital store settle failed");
+            res.status(500).json({ error: "Digital store settle failed, retry later" });
+            return;
+          }
+          if (settled.httpStatus !== 200) {
+            logger.warn({ sessionId: session.id, httpStatus: settled.httpStatus }, "Stripe webhook: digital store session did not settle");
+          }
+          res.status(200).json({ received: true, kind: "digital_store" });
+        } catch (storeSettleErr: unknown) {
+          const msg = (storeSettleErr as { message?: string })?.message ?? "unknown";
+          logger.error({ err: storeSettleErr, msg, sessionId: session.id }, "Stripe webhook: digital store settle failed");
+          res.status(500).json({ error: "Digital store settle failed, retry later" });
+        }
         return;
       }
       const { refundCheckoutSessionPayment } = await import("./stripe-checkout");
