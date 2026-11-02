@@ -2490,9 +2490,6 @@
     "errorCheckoutFailed": "Checkout fehlgeschlagen – bitte erneut versuchen.",
     "errorCheckoutSaved": "Checkout fehlgeschlagen — deine Bestellung ist gespeichert; versuch es über Meine Bestellungen zu zahlen.",
     "errorDesignFailed": "Brand-Kit-Design fehlgeschlagen – bitte erneut versuchen.",
-    "errorSaveDesignFailed": "Dieses Design konnte nicht in deinem Shop gespeichert werden — bitte versuche es erneut.",
-    "errorUpdateDesignFailed": "Dieses Design konnte nicht aktualisiert werden — bitte versuche es erneut.",
-    "errorDeleteDesignFailed": "Dieses Design konnte nicht gelöscht werden — bitte versuche es erneut.",
     "errorOrderFailed": "Bestellung fehlgeschlagen – bitte erneut versuchen.",
     "errorProducts": "Wähle mindestens ein Produkt zum Mockup.",
     "errorRefreshFailed": "Aktualisieren fehlgeschlagen.",
@@ -8979,6 +8976,9 @@
     "deadlineRequired": "Playlist-Name und ein Fälligkeitsdatum sind erforderlich.",
     "deadlineSave": "Frist speichern",
     "deadlineSaveFailed": "Diese Frist konnte nicht gespeichert werden — versuch es erneut.",
+    "deadlineUpdateFailed": "Diese Frist konnte nicht aktualisiert werden — bitte versuche es erneut.",
+    "deadlineDeleteFailed": "Diese Frist konnte nicht gelöscht werden — bitte versuche es erneut.",
+    "deleteFailed": "Dieser Pitch konnte nicht gelöscht werden — bitte versuche es erneut.",
     "deadlineStatusAnswered": "Beantwortet",
     "deadlineStatusDrafted": "Entwurf",
     "deadlineStatusFollowedUp": "Nachgefasst",
@@ -9556,6 +9556,9 @@
     "priceNote": "Preise und Einstellung sind jederzeit kostenlos änderbar. Die 15% Plattformgebühr gilt erst, sobald der Checkout live geht.",
     "errorGenerate": "Die Designs konnten nicht generiert werden — es wurden keine Visual Bucs abgebucht.",
     "errorNetwork": "Netzwerkfehler — bitte versuche es erneut. Es wurden keine Visual Bucs abgebucht.",
+    "errorSaveDesignFailed": "Dieses Design konnte nicht in deinem Shop gespeichert werden — bitte versuche es erneut.",
+    "errorUpdateDesignFailed": "Dieses Design konnte nicht aktualisiert werden — bitte versuche es erneut.",
+    "errorDeleteDesignFailed": "Dieses Design konnte nicht gelöscht werden — bitte versuche es erneut.",
     "confirmDelete": "Dieses Design löschen? Das kann nicht rückgängig gemacht werden.",
     "checkoutSoon": "Checkout kommt bald.",
     "myShopLink": "In meinem Shop verkaufen"
@@ -9865,7 +9868,8 @@
       "generationFailed": "Generierung fehlgeschlagen.",
       "missingHandleAndName": "Gib deinem Pressekit ein URL-Handle und einen Künstlernamen.",
       "network": "Netzwerkfehler — bitte versuche es erneut.",
-      "saveFailed": "Speichern fehlgeschlagen."
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "deleteFailed": "Dieses Pressekit konnte nicht gelöscht werden — bitte versuche es erneut."
     },
     "form": {
       "achievementsLabel": "Erfolge (einer pro Zeile)",
@@ -9997,7 +10001,8 @@
         "missingFacts": "Füge mindestens einen wichtigen Fakt hinzu, den die Mitteilung enthalten soll.",
         "generationFailed": "Die Pressemitteilung konnte nicht erstellt werden. Bitte versuche es erneut.",
         "network": "Netzwerkfehler. Bitte versuche es erneut.",
-        "saveFailed": "Die Mitteilung konnte nicht in deinem Pressekit gespeichert werden."
+        "saveFailed": "Die Mitteilung konnte nicht in deinem Pressekit gespeichert werden.",
+        "deleteFailed": "Diese Mitteilung konnte nicht gelöscht werden — bitte versuche es erneut."
       }
     }
   },
@@ -11464,6 +11469,7 @@
     "noPitches": "Noch keine Sync-Pitches eingetragen.",
     "noTarget": "Noch kein Ziel",
     "updateFailed": "Aktualisieren nicht möglich. Versuche es erneut.",
+    "deleteFailed": "Das konnte nicht gelöscht werden — bitte versuche es erneut.",
     "markStatus": "Als {{status}} markieren",
     "placedPrompt": "Platziert! Trage die Einnahmen in deinen Money Tracker ein:",
     "amountPlaceholder": "$ Betrag",

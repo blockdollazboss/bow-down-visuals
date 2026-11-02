@@ -2656,9 +2656,6 @@
     "errorCheckoutFailed": "Checkout failed — try again.",
     "errorCheckoutSaved": "Checkout failed — your order is saved; try paying from My Orders.",
     "errorDesignFailed": "Brand kit design failed — try again.",
-    "errorSaveDesignFailed": "Couldn't save that design to your store — try again.",
-    "errorUpdateDesignFailed": "Couldn't update that design — try again.",
-    "errorDeleteDesignFailed": "Couldn't delete that design — try again.",
     "errorOrderFailed": "Order failed — try again.",
     "errorProducts": "Pick at least one product to mock up.",
     "errorRefreshFailed": "Refresh failed.",
@@ -9488,6 +9485,9 @@
     "deadlineRequired": "Playlist name and a deadline date are required.",
     "deadlineSave": "Save deadline",
     "deadlineSaveFailed": "Couldn't save that deadline — try again.",
+    "deadlineUpdateFailed": "Couldn't update that deadline — try again.",
+    "deadlineDeleteFailed": "Couldn't delete that deadline — try again.",
+    "deleteFailed": "Couldn't delete that pitch — try again.",
     "deadlineStatusAnswered": "Answered",
     "deadlineStatusDrafted": "Drafted",
     "deadlineStatusFollowedUp": "Followed up",
@@ -10063,6 +10063,9 @@
     "priceNote": "Prices and listing are free to change anytime. The 15% platform fee only applies once checkout goes live.",
     "errorGenerate": "Could not generate the designs — no Visual Bucs were charged.",
     "errorNetwork": "Network error — please try again. No Visual Bucs were charged.",
+    "errorSaveDesignFailed": "Couldn't save that design to your store — try again.",
+    "errorUpdateDesignFailed": "Couldn't update that design — try again.",
+    "errorDeleteDesignFailed": "Couldn't delete that design — try again.",
     "confirmDelete": "Delete this design? This can't be undone.",
     "checkoutSoon": "Checkout is coming soon.",
     "myShopLink": "Sell this in my shop"
@@ -10372,7 +10375,8 @@
       "generationFailed": "Generation failed.",
       "missingHandleAndName": "Give your press kit a URL handle and an artist name.",
       "network": "Network error — please try again.",
-      "saveFailed": "Save failed."
+      "saveFailed": "Save failed.",
+      "deleteFailed": "Couldn't delete that press kit — try again."
     },
     "form": {
       "achievementsLabel": "Achievements (one per line)",
@@ -10504,7 +10508,8 @@
         "missingFacts": "Add at least one key fact for the release to include.",
         "generationFailed": "Press release generation failed. Please try again.",
         "network": "Network error. Please try again.",
-        "saveFailed": "Couldn't save the release to your press kit."
+        "saveFailed": "Couldn't save the release to your press kit.",
+        "deleteFailed": "Couldn't delete that release — try again."
       }
     }
   },
@@ -12548,6 +12553,7 @@
     "noPitches": "No sync pitches logged yet.",
     "noTarget": "No target yet",
     "updateFailed": "Couldn't update. Try again.",
+    "deleteFailed": "Couldn't delete that — try again.",
     "markStatus": "Mark {{status}}",
     "placedPrompt": "Placed! Log the income to your Money Tracker:",
     "amountPlaceholder": "$ amount",

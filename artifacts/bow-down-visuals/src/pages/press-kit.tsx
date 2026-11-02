@@ -369,12 +369,19 @@ export default function PressKitBuilder() {
 
   async function handleDelete() {
     if (!selectedKit || !window.confirm(t("press-kit.confirmDelete"))) return;
+    setError(null);
     try {
       const res = await fetch(`/api/press-kit/${selectedKit.id}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(apiErrorMessage(data, t("press-kit.errors.deleteFailed")));
+        return;
+      }
       setKits((ks) => ks.filter((k) => k.id !== selectedKit.id));
       resetForm();
-    } catch { /* non-fatal */ }
+    } catch {
+      setError(t("press-kit.errors.network"));
+    }
   }
 
   function copyLink() {

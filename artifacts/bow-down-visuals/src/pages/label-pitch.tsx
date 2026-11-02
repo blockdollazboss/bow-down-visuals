@@ -1405,21 +1405,27 @@ function PlaylistsPitchTab() {
 
   async function updateDeadlineStatus(id: string, status: string) {
     try {
-      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      if (res.ok) loadDeadlines();
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("playlistPitch.deadlineUpdateFailed")));
+      loadDeadlines();
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.deadlineUpdateFailed")));
+    }
   }
 
   async function deleteDeadline(id: string) {
     try {
-      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) loadDeadlines();
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("playlistPitch.deadlineDeleteFailed")));
+      loadDeadlines();
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.deadlineDeleteFailed")));
+    }
   }
 
   function packetAsText(p: PlaylistPacket): string {
@@ -1527,16 +1533,21 @@ function PlaylistsPitchTab() {
       if (!res.ok) throw new Error(t("playlistPitch.updateFailed"));
       const updated = (data as { pitch: PlaylistPitch }).pitch;
       setPitches((prev) => prev.map((p) => (p.id === id ? updated : p)));
-    } catch { /* non-fatal */ }
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.updateFailed")));
+    }
   }
 
   async function deletePitch(id: string) {
     try {
-      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/tracker/${id}`, {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/tracker/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) setPitches((prev) => prev.filter((p) => p.id !== id));
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("playlistPitch.deleteFailed")));
+      setPitches((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.deleteFailed")));
+    }
   }
 
   function addCuratorToTracker(c: PlaylistCurator) {

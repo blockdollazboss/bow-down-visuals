@@ -313,13 +313,14 @@ export default function SyncTab({
 
   async function deleteSheet(id: string) {
     try {
-      const { res } = await authedFetch(getAccessToken, `/api/sync-pitch/one-sheets/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setSheets((prev) => prev.filter((s) => s.id !== id));
-        if (sheet?.id === id) setSheet(null);
-        if (viewSheetId === id) setViewSheetId(null);
-      }
-    } catch { /* non-fatal */ }
+      const { res, data } = await authedFetch(getAccessToken, `/api/sync-pitch/one-sheets/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("syncPitch.deleteFailed")));
+      setSheets((prev) => prev.filter((s) => s.id !== id));
+      if (sheet?.id === id) setSheet(null);
+      if (viewSheetId === id) setViewSheetId(null);
+    } catch (err) {
+      setError(plainErrorText(err, t("syncPitch.deleteFailed")));
+    }
   }
 
   function shareUrlFor(s: OneSheet): string {
@@ -365,12 +366,13 @@ export default function SyncTab({
 
   async function deleteBrief(id: string) {
     try {
-      const { res } = await authedFetch(getAccessToken, `/api/sync-pitch/briefs/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setBriefs((prev) => prev.filter((b) => b.id !== id));
-        if (matchBriefId === id) { setMatchBriefId(null); setMatches([]); }
-      }
-    } catch { /* non-fatal */ }
+      const { res, data } = await authedFetch(getAccessToken, `/api/sync-pitch/briefs/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("syncPitch.deleteFailed")));
+      setBriefs((prev) => prev.filter((b) => b.id !== id));
+      if (matchBriefId === id) { setMatchBriefId(null); setMatches([]); }
+    } catch (err) {
+      setError(plainErrorText(err, t("syncPitch.deleteFailed")));
+    }
   }
 
   async function loadMatches(briefId: string) {
@@ -419,16 +421,21 @@ export default function SyncTab({
       if (!res.ok) throw new Error(t("syncPitch.updateFailed"));
       const updated = (data as { pitch: SyncPitch }).pitch;
       setPitches((prev) => prev.map((p) => (p.id === id ? updated : p)));
-    } catch { /* non-fatal */ }
+    } catch (err) {
+      setError(plainErrorText(err, t("syncPitch.updateFailed")));
+    }
   }
 
   async function deletePitch(id: string) {
     try {
-      const { res } = await authedFetch(getAccessToken, `/api/sync-pitch/tracker/${id}`, {
+      const { res, data } = await authedFetch(getAccessToken, `/api/sync-pitch/tracker/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) setPitches((prev) => prev.filter((p) => p.id !== id));
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("syncPitch.deleteFailed")));
+      setPitches((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setError(plainErrorText(err, t("syncPitch.deleteFailed")));
+    }
   }
 
   /* Handoff: placed sync → Money Tracker income entry. */

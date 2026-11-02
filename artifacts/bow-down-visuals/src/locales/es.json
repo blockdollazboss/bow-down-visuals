@@ -2492,9 +2492,6 @@
     "errorCheckoutFailed": "El pago falló — intenta de nuevo.",
     "errorCheckoutSaved": "El pago falló — tu pedido está guardado; intenta pagar desde Mis Pedidos.",
     "errorDesignFailed": "El diseño del kit de marca falló — intenta de nuevo.",
-    "errorSaveDesignFailed": "No se pudo guardar ese diseño en tu tienda — inténtalo de nuevo.",
-    "errorUpdateDesignFailed": "No se pudo actualizar ese diseño — inténtalo de nuevo.",
-    "errorDeleteDesignFailed": "No se pudo eliminar ese diseño — inténtalo de nuevo.",
     "errorOrderFailed": "El pedido falló — intenta de nuevo.",
     "errorProducts": "Elige al menos un producto para el mockup.",
     "errorRefreshFailed": "La actualización falló.",
@@ -8995,6 +8992,9 @@
     "deadlineRequired": "Se requieren el nombre de la playlist y una fecha límite.",
     "deadlineSave": "Guardar plazo",
     "deadlineSaveFailed": "No se pudo guardar ese plazo. Inténtalo de nuevo.",
+    "deadlineUpdateFailed": "No se pudo actualizar esa fecha límite — inténtalo de nuevo.",
+    "deadlineDeleteFailed": "No se pudo eliminar esa fecha límite — inténtalo de nuevo.",
+    "deleteFailed": "No se pudo eliminar esa propuesta — inténtalo de nuevo.",
     "deadlineStatusAnswered": "Respondido",
     "deadlineStatusDrafted": "Borrador",
     "deadlineStatusFollowedUp": "Con seguimiento",
@@ -9570,6 +9570,9 @@
     "priceNote": "Los precios y la publicación son gratis de cambiar en cualquier momento. La tarifa del 15% de la plataforma solo aplica una vez que el pago esté activo.",
     "errorGenerate": "No se pudieron generar los diseños: no se cobraron Visual Bucs.",
     "errorNetwork": "Error de red: inténtalo de nuevo. No se cobraron Visual Bucs.",
+    "errorSaveDesignFailed": "No se pudo guardar ese diseño en tu tienda — inténtalo de nuevo.",
+    "errorUpdateDesignFailed": "No se pudo actualizar ese diseño — inténtalo de nuevo.",
+    "errorDeleteDesignFailed": "No se pudo eliminar ese diseño — inténtalo de nuevo.",
     "confirmDelete": "¿Eliminar este diseño? Esto no se puede deshacer.",
     "checkoutSoon": "El pago llegará pronto.",
     "myShopLink": "Vender esto en mi tienda"
@@ -9881,7 +9884,8 @@
       "generationFailed": "La generación falló.",
       "missingHandleAndName": "Ponle a tu kit de prensa un handle de URL y un nombre de artista.",
       "network": "Error de red — inténtalo de nuevo.",
-      "saveFailed": "No se pudo guardar."
+      "saveFailed": "No se pudo guardar.",
+      "deleteFailed": "No se pudo eliminar ese kit de prensa — inténtalo de nuevo."
     },
     "form": {
       "achievementsLabel": "Logros (uno por línea)",
@@ -10016,7 +10020,8 @@
         "missingFacts": "Añade al menos un dato clave para que el comunicado lo incluya.",
         "generationFailed": "La generación del comunicado falló. Inténtalo de nuevo.",
         "network": "Error de red. Inténtalo de nuevo.",
-        "saveFailed": "No se pudo guardar el comunicado en tu kit de prensa."
+        "saveFailed": "No se pudo guardar el comunicado en tu kit de prensa.",
+        "deleteFailed": "No se pudo eliminar ese comunicado — inténtalo de nuevo."
       }
     }
   },
@@ -11487,6 +11492,7 @@
     "noPitches": "Aún no hay propuestas de sync registradas.",
     "noTarget": "Aún sin objetivo",
     "updateFailed": "No se pudo actualizar. Inténtalo de nuevo.",
+    "deleteFailed": "No se pudo eliminar — inténtalo de nuevo.",
     "markStatus": "Marcar {{status}}",
     "placedPrompt": "¡Colocada! Registra el ingreso en tu Money Tracker:",
     "amountPlaceholder": "$ monto",

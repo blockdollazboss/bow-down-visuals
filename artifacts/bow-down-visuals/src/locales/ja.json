@@ -2490,9 +2490,6 @@
     "errorCheckoutFailed": "チェックアウトに失敗しました——もう一度お試しください。",
     "errorCheckoutSaved": "チェックアウトに失敗しました——ご注文は保存されています。注文履歴からお支払いをお試しください。",
     "errorDesignFailed": "ブランドキットのデザインに失敗しました——もう一度お試しください。",
-    "errorSaveDesignFailed": "そのデザインをストアに保存できませんでした — もう一度お試しください。",
-    "errorUpdateDesignFailed": "そのデザインを更新できませんでした — もう一度お試しください。",
-    "errorDeleteDesignFailed": "そのデザインを削除できませんでした — もう一度お試しください。",
     "errorOrderFailed": "注文に失敗しました——もう一度お試しください。",
     "errorProducts": "モックアップを作成する商品を1つ以上選んでください。",
     "errorRefreshFailed": "更新に失敗しました。",
@@ -8888,6 +8885,9 @@
     "deadlineRequired": "プレイリスト名と締切日が必要です。",
     "deadlineSave": "締切を保存",
     "deadlineSaveFailed": "その締切を保存できませんでした — もう一度お試しください。",
+    "deadlineUpdateFailed": "その締め切りを更新できませんでした — もう一度お試しください。",
+    "deadlineDeleteFailed": "その締め切りを削除できませんでした — もう一度お試しください。",
+    "deleteFailed": "そのピッチを削除できませんでした — もう一度お試しください。",
     "deadlineStatusAnswered": "回答済み",
     "deadlineStatusDrafted": "下書き済み",
     "deadlineStatusFollowedUp": "フォローアップ済み",
@@ -9616,7 +9616,8 @@
       "generationFailed": "生成に失敗しました。",
       "missingHandleAndName": "プレスキットにURLハンドルとアーティスト名を設定してください。",
       "network": "ネットワークエラー — もう一度お試しください。",
-      "saveFailed": "保存に失敗しました。"
+      "saveFailed": "保存に失敗しました。",
+      "deleteFailed": "そのプレスキットを削除できませんでした — もう一度お試しください。"
     },
     "form": {
       "achievementsLabel": "実績（1行に1つ）",
@@ -9748,7 +9749,8 @@
         "missingFacts": "リリースに含める重要ポイントを少なくとも1つ追加してください。",
         "generationFailed": "プレスリリースの生成に失敗しました。もう一度お試しください。",
         "network": "ネットワークエラー。もう一度お試しください。",
-        "saveFailed": "リリースをプレスキットに保存できませんでした。"
+        "saveFailed": "リリースをプレスキットに保存できませんでした。",
+        "deleteFailed": "そのリリースを削除できませんでした — もう一度お試しください。"
       }
     }
   },
@@ -10555,6 +10557,7 @@
     "noPitches": "まだシンクピッチの記録がありません。",
     "noTarget": "まだターゲットなし",
     "updateFailed": "更新できませんでした。もう一度お試しください。",
+    "deleteFailed": "削除できませんでした — もう一度お試しください。",
     "markStatus": "{{status}}としてマーク",
     "placedPrompt": "採用！収入をマネートラッカーに記録：",
     "amountPlaceholder": "$ 金額",
@@ -12904,6 +12907,9 @@
     "priceNote": "価格と出品はいつでも無料で変更できます。15%のプラットフォーム手数料は、チェックアウト開始後のみ適用されます。",
     "errorGenerate": "デザインを生成できませんでした — Visual Bucsは請求されていません。",
     "errorNetwork": "ネットワークエラー — もう一度お試しください。Visual Bucsは請求されていません。",
+    "errorSaveDesignFailed": "そのデザインをストアに保存できませんでした — もう一度お試しください。",
+    "errorUpdateDesignFailed": "そのデザインを更新できませんでした — もう一度お試しください。",
+    "errorDeleteDesignFailed": "そのデザインを削除できませんでした — もう一度お試しください。",
     "confirmDelete": "このデザインを削除しますか？元に戻せません。",
     "checkoutSoon": "チェックアウトは近日公開です。",
     "myShopLink": "マイショップで販売する"

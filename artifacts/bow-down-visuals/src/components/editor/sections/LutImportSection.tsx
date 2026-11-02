@@ -170,8 +170,12 @@ export function LutImportSection({
         setMyLuts((prev) => prev.filter((l) => l.id !== id));
         if (source?.kind === "mylut" && source.lut.id === id) setSource(null);
         toast({ title: "LUT deleted" });
+      } else {
+        toast({ title: "Couldn't delete that LUT — try again.", variant: "destructive" });
       }
-    } catch { /* non-fatal */ }
+    } catch {
+      toast({ title: "Couldn't delete that LUT — try again.", variant: "destructive" });
+    }
   }
 
   /* ── Build the multipart payload for preview/apply ── */

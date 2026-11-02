@@ -2598,9 +2598,6 @@
     "errorCheckoutFailed": "Le paiement a échoué — réessaie.",
     "errorCheckoutSaved": "Le paiement a échoué — ta commande est enregistrée ; paie depuis Mes commandes.",
     "errorDesignFailed": "La conception du kit de marque a échoué — réessaie.",
-    "errorSaveDesignFailed": "Impossible d'enregistrer ce design dans votre boutique — veuillez réessayer.",
-    "errorUpdateDesignFailed": "Impossible de mettre à jour ce design — veuillez réessayer.",
-    "errorDeleteDesignFailed": "Impossible de supprimer ce design — veuillez réessayer.",
     "errorOrderFailed": "La commande a échoué — réessaie.",
     "errorProducts": "Choisis au moins un produit à mockuper.",
     "errorRefreshFailed": "L'actualisation a échoué.",
@@ -9285,6 +9282,9 @@
     "deadlineRequired": "Le nom de la playlist et une date d'échéance sont requis.",
     "deadlineSave": "Enregistrer l'échéance",
     "deadlineSaveFailed": "Impossible d'enregistrer cette échéance — réessayez.",
+    "deadlineUpdateFailed": "Impossible de mettre à jour cette échéance — veuillez réessayer.",
+    "deadlineDeleteFailed": "Impossible de supprimer cette échéance — veuillez réessayer.",
+    "deleteFailed": "Impossible de supprimer cette proposition — veuillez réessayer.",
     "deadlineStatusAnswered": "Répondu",
     "deadlineStatusDrafted": "Brouillon",
     "deadlineStatusFollowedUp": "Relancé",
@@ -9862,6 +9862,9 @@
     "priceNote": "Les prix et la mise en vente sont gratuits et modifiables à tout moment. Les frais de plateforme de 15 % ne s'appliqueront qu'une fois le paiement activé.",
     "errorGenerate": "Impossible de générer les designs — aucun Visual Buc n'a été débité.",
     "errorNetwork": "Erreur réseau — veuillez réessayer. Aucun Visual Buc n'a été débité.",
+    "errorSaveDesignFailed": "Impossible d'enregistrer ce design dans votre boutique — veuillez réessayer.",
+    "errorUpdateDesignFailed": "Impossible de mettre à jour ce design — veuillez réessayer.",
+    "errorDeleteDesignFailed": "Impossible de supprimer ce design — veuillez réessayer.",
     "confirmDelete": "Supprimer ce design ? Cette action est irréversible.",
     "checkoutSoon": "Le paiement arrive bientôt.",
     "myShopLink": "Vendre ceci dans ma boutique"
@@ -10173,7 +10176,8 @@
       "generationFailed": "La génération a échoué.",
       "missingHandleAndName": "Donne à ton dossier de presse un identifiant d'URL et un nom d'artiste.",
       "network": "Erreur réseau — réessaie.",
-      "saveFailed": "L'enregistrement a échoué."
+      "saveFailed": "L'enregistrement a échoué.",
+      "deleteFailed": "Impossible de supprimer ce dossier de presse — veuillez réessayer."
     },
     "form": {
       "achievementsLabel": "Réussites (une par ligne)",
@@ -10308,7 +10312,8 @@
         "missingFacts": "Ajoute au moins un fait clé à inclure dans le communiqué.",
         "generationFailed": "La génération du communiqué a échoué. Réessaie.",
         "network": "Erreur réseau. Réessaie.",
-        "saveFailed": "Impossible d'enregistrer le communiqué dans ton dossier de presse."
+        "saveFailed": "Impossible d'enregistrer le communiqué dans ton dossier de presse.",
+        "deleteFailed": "Impossible de supprimer ce communiqué — veuillez réessayer."
       }
     }
   },
@@ -11960,6 +11965,7 @@
     "noPitches": "Aucun pitch sync enregistré pour l'instant.",
     "noTarget": "Aucune cible pour l'instant",
     "updateFailed": "Échec de la mise à jour. Réessayez.",
+    "deleteFailed": "Impossible de supprimer — veuillez réessayer.",
     "markStatus": "Marquer {{status}}",
     "placedPrompt": "Placé ! Enregistrez le revenu dans votre Money Tracker :",
     "amountPlaceholder": "Montant en $",

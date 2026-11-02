@@ -2490,9 +2490,6 @@
     "errorCheckoutFailed": "결제 실패 — 다시 시도하세요.",
     "errorCheckoutSaved": "결제 실패 — 주문은 저장되었습니다. 내 주문에서 결제를 다시 시도하세요.",
     "errorDesignFailed": "브랜드 키트 디자인 실패 — 다시 시도하세요.",
-    "errorSaveDesignFailed": "해당 디자인을 스토어에 저장하지 못했습니다 — 다시 시도해 주세요.",
-    "errorUpdateDesignFailed": "해당 디자인을 업데이트하지 못했습니다 — 다시 시도해 주세요.",
-    "errorDeleteDesignFailed": "해당 디자인을 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "errorOrderFailed": "주문 실패 — 다시 시도하세요.",
     "errorProducts": "목업할 제품을 최소 1개 선택하세요.",
     "errorRefreshFailed": "새로고침 실패.",
@@ -8889,6 +8886,9 @@
     "deadlineRequired": "플레이리스트 이름과 마감 날짜가 필요합니다.",
     "deadlineSave": "마감 저장",
     "deadlineSaveFailed": "그 마감을 저장하지 못했습니다 — 다시 시도하세요.",
+    "deadlineUpdateFailed": "해당 마감일을 업데이트하지 못했습니다 — 다시 시도해 주세요.",
+    "deadlineDeleteFailed": "해당 마감일을 삭제하지 못했습니다 — 다시 시도해 주세요.",
+    "deleteFailed": "해당 피치를 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "deadlineStatusAnswered": "답변 받음",
     "deadlineStatusDrafted": "초안 작성됨",
     "deadlineStatusFollowedUp": "팔로우업함",
@@ -9617,7 +9617,8 @@
       "generationFailed": "생성에 실패했습니다.",
       "missingHandleAndName": "프레스 키트에 URL 핸들과 아티스트 이름을 지정하세요.",
       "network": "네트워크 오류 — 다시 시도하세요.",
-      "saveFailed": "저장에 실패했습니다."
+      "saveFailed": "저장에 실패했습니다.",
+      "deleteFailed": "해당 프레스 키트를 삭제하지 못했습니다 — 다시 시도해 주세요."
     },
     "form": {
       "achievementsLabel": "성과 (한 줄에 하나씩)",
@@ -9749,7 +9750,8 @@
         "missingFacts": "보도자료에 포함할 핵심 사실을 최소 하나 추가하세요.",
         "generationFailed": "보도자료 생성에 실패했습니다. 다시 시도하세요.",
         "network": "네트워크 오류입니다. 다시 시도하세요.",
-        "saveFailed": "보도자료를 프레스 키트에 저장하지 못했습니다."
+        "saveFailed": "보도자료를 프레스 키트에 저장하지 못했습니다.",
+        "deleteFailed": "해당 보도자료를 삭제하지 못했습니다 — 다시 시도해 주세요."
       }
     }
   },
@@ -10558,6 +10560,7 @@
     "noPitches": "아직 기록된 싱크 피치가 없습니다.",
     "noTarget": "아직 대상 없음",
     "updateFailed": "업데이트할 수 없었습니다. 다시 시도하세요.",
+    "deleteFailed": "삭제하지 못했습니다 — 다시 시도해 주세요.",
     "markStatus": "{{status}}로 표시",
     "placedPrompt": "배치됐습니다! 수입을 머니 트래커에 기록하세요:",
     "amountPlaceholder": "$ 금액",
@@ -12907,6 +12910,9 @@
     "priceNote": "가격과 리스팅은 언제든 무료로 변경할 수 있습니다. 15% 플랫폼 수수료는 결제가 시작될 때만 적용됩니다.",
     "errorGenerate": "디자인을 생성할 수 없었습니다 — Visual Bucs가 청구되지 않았습니다.",
     "errorNetwork": "네트워크 오류 — 다시 시도해 주세요. Visual Bucs가 청구되지 않았습니다.",
+    "errorSaveDesignFailed": "해당 디자인을 스토어에 저장하지 못했습니다 — 다시 시도해 주세요.",
+    "errorUpdateDesignFailed": "해당 디자인을 업데이트하지 못했습니다 — 다시 시도해 주세요.",
+    "errorDeleteDesignFailed": "해당 디자인을 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "confirmDelete": "이 디자인을 삭제할까요? 되돌릴 수 없습니다.",
     "checkoutSoon": "결제는 곧 출시됩니다.",
     "myShopLink": "내 샵에서 판매하기"

@@ -2491,9 +2491,6 @@
     "errorCheckoutFailed": "Checkout non riuscito — riprova.",
     "errorCheckoutSaved": "Checkout non riuscito — il tuo ordine è salvato; prova a pagare da I miei ordini.",
     "errorDesignFailed": "Progettazione del brand kit non riuscita — riprova.",
-    "errorSaveDesignFailed": "Impossibile salvare questo design nel tuo negozio — riprova.",
-    "errorUpdateDesignFailed": "Impossibile aggiornare questo design — riprova.",
-    "errorDeleteDesignFailed": "Impossibile eliminare questo design — riprova.",
     "errorOrderFailed": "Ordine non riuscito — riprova.",
     "errorProducts": "Scegli almeno un prodotto per il mockup.",
     "errorRefreshFailed": "Aggiornamento non riuscito.",
@@ -8902,6 +8899,9 @@
     "deadlineRequired": "Nome della playlist e una data di scadenza sono obbligatori.",
     "deadlineSave": "Salva scadenza",
     "deadlineSaveFailed": "Impossibile salvare quella scadenza: riprova.",
+    "deadlineUpdateFailed": "Impossibile aggiornare questa scadenza — riprova.",
+    "deadlineDeleteFailed": "Impossibile eliminare questa scadenza — riprova.",
+    "deleteFailed": "Impossibile eliminare questa proposta — riprova.",
     "deadlineStatusAnswered": "Risposto",
     "deadlineStatusDrafted": "Abbozzata",
     "deadlineStatusFollowedUp": "Follow-up fatto",
@@ -9632,7 +9632,8 @@
       "generationFailed": "Generazione non riuscita.",
       "missingHandleAndName": "Dai al tuo press kit un handle URL e un nome d'artista.",
       "network": "Errore di rete — riprova.",
-      "saveFailed": "Salvataggio non riuscito."
+      "saveFailed": "Salvataggio non riuscito.",
+      "deleteFailed": "Impossibile eliminare questo press kit — riprova."
     },
     "form": {
       "achievementsLabel": "Traguardi (uno per riga)",
@@ -9767,7 +9768,8 @@
         "missingFacts": "Aggiungi almeno un fatto chiave da includere nel comunicato.",
         "generationFailed": "Generazione del comunicato non riuscita. Riprova.",
         "network": "Errore di rete. Riprova.",
-        "saveFailed": "Impossibile salvare il comunicato nel tuo press kit."
+        "saveFailed": "Impossibile salvare il comunicato nel tuo press kit.",
+        "deleteFailed": "Impossibile eliminare questo comunicato — riprova."
       }
     }
   },
@@ -10578,6 +10580,7 @@
     "noPitches": "Ancora nessuna proposta sync registrata.",
     "noTarget": "Ancora nessun obiettivo",
     "updateFailed": "Impossibile aggiornare. Riprova.",
+    "deleteFailed": "Impossibile eliminare — riprova.",
     "markStatus": "Segna {{status}}",
     "placedPrompt": "Posizionata! Registra l'entrata nel tuo Money Tracker:",
     "amountPlaceholder": "Importo $",
@@ -12863,6 +12866,9 @@
     "dropshipTitle": "Modello dropship:",
     "errorGenerate": "Impossibile generare i design — nessun Visual Buc è stato addebitato.",
     "errorNetwork": "Errore di rete — riprova. Nessun Visual Buc è stato addebitato.",
+    "errorSaveDesignFailed": "Impossibile salvare questo design nel tuo negozio — riprova.",
+    "errorUpdateDesignFailed": "Impossibile aggiornare questo design — riprova.",
+    "errorDeleteDesignFailed": "Impossibile eliminare questo design — riprova.",
     "generateButton": "Genera 2 mockup · 300 Visual Bucs",
     "listForSale": "Metti in vendita",
     "loadingStore": "Carico il tuo negozio…",

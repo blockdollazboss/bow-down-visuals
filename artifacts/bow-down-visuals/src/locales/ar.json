@@ -2494,9 +2494,6 @@
     "errorCheckoutFailed": "فشل الدفع — حاول مجدداً.",
     "errorCheckoutSaved": "فشل الدفع — طلبك محفوظ؛ حاول الدفع من «طلباتي».",
     "errorDesignFailed": "فشل تصميم طقم العلامة — حاول مجدداً.",
-    "errorSaveDesignFailed": "تعذر حفظ ذلك التصميم في متجرك — حاول مرة أخرى.",
-    "errorUpdateDesignFailed": "تعذر تحديث ذلك التصميم — حاول مرة أخرى.",
-    "errorDeleteDesignFailed": "تعذر حذف ذلك التصميم — حاول مرة أخرى.",
     "errorOrderFailed": "فشل الطلب — حاول مجدداً.",
     "errorProducts": "اختر منتجاً واحداً على الأقل للعرض عليه.",
     "errorRefreshFailed": "فشل التحديث.",
@@ -9035,6 +9032,9 @@
     "deadlineRequired": "اسم قائمة التشغيل وتاريخ الانتهاء مطلوبان.",
     "deadlineSave": "حفظ الموعد",
     "deadlineSaveFailed": "تعذّر حفظ هذا الموعد — حاول مجددًا.",
+    "deadlineUpdateFailed": "تعذر تحديث ذلك الموعد النهائي — حاول مرة أخرى.",
+    "deadlineDeleteFailed": "تعذر حذف ذلك الموعد النهائي — حاول مرة أخرى.",
+    "deleteFailed": "تعذر حذف ذلك العرض — حاول مرة أخرى.",
     "deadlineStatusAnswered": "تم الرد",
     "deadlineStatusDrafted": "مسودة",
     "deadlineStatusFollowedUp": "تمت المتابعة",
@@ -9612,6 +9612,9 @@
     "priceNote": "الأسعار والإدراج مجانيان للتغيير في أي وقت. رسوم المنصة 15% تنطبق فقط بمجرد تفعيل إتمام الشراء.",
     "errorGenerate": "تعذّر توليد التصاميم — لم تُخصم أي Visual Bucs.",
     "errorNetwork": "خطأ في الشبكة — حاول مجدداً. لم تُخصم أي Visual Bucs.",
+    "errorSaveDesignFailed": "تعذر حفظ ذلك التصميم في متجرك — حاول مرة أخرى.",
+    "errorUpdateDesignFailed": "تعذر تحديث ذلك التصميم — حاول مرة أخرى.",
+    "errorDeleteDesignFailed": "تعذر حذف ذلك التصميم — حاول مرة أخرى.",
     "confirmDelete": "حذف هذا التصميم؟ لا يمكن التراجع عن هذا.",
     "checkoutSoon": "إتمام الشراء قادم قريباً.",
     "myShopLink": "بِع هذا في متجري"
@@ -9929,7 +9932,8 @@
       "generationFailed": "فشل التوليد.",
       "missingHandleAndName": "امنح ملفك الصحفي معرّف رابط واسم فنان.",
       "network": "خطأ في الشبكة — حاول مرة أخرى.",
-      "saveFailed": "فشل الحفظ."
+      "saveFailed": "فشل الحفظ.",
+      "deleteFailed": "تعذر حذف ملف الصحافة ذلك — حاول مرة أخرى."
     },
     "form": {
       "achievementsLabel": "الإنجازات (واحد في كل سطر)",
@@ -10073,7 +10077,8 @@
         "missingFacts": "أضف حقيقة أساسية واحدة على الأقل ليضمّنها البيان.",
         "generationFailed": "فشل إنشاء البيان الصحفي. حاول مرة أخرى.",
         "network": "خطأ في الشبكة. حاول مرة أخرى.",
-        "saveFailed": "تعذّر حفظ البيان في ملفك الصحفي."
+        "saveFailed": "تعذّر حفظ البيان في ملفك الصحفي.",
+        "deleteFailed": "تعذر حذف ذلك البيان — حاول مرة أخرى."
       }
     }
   },
@@ -11556,6 +11561,7 @@
     "noPitches": "لا عروض مزامنة مسجلة بعد.",
     "noTarget": "لا هدف بعد",
     "updateFailed": "تعذّر التحديث. حاول مجدداً.",
+    "deleteFailed": "تعذر الحذف — حاول مرة أخرى.",
     "markStatus": "تعليم {{status}}",
     "placedPrompt": "وُضع! سجّل الدخل في متتبع أموالك:",
     "amountPlaceholder": "مبلغ $",

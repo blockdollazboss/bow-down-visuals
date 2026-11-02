@@ -2491,9 +2491,6 @@
     "errorCheckoutFailed": "Falha na finalização da compra. Tente novamente.",
     "errorCheckoutSaved": "Falha na finalização da compra – seu pedido foi salvo; tente pagar em Meus Pedidos.",
     "errorDesignFailed": "Falha no design do kit da marca. Tente novamente.",
-    "errorSaveDesignFailed": "Não foi possível salvar esse design na sua loja — tente novamente.",
-    "errorUpdateDesignFailed": "Não foi possível atualizar esse design — tente novamente.",
-    "errorDeleteDesignFailed": "Não foi possível excluir esse design — tente novamente.",
     "errorOrderFailed": "Seu pedido não foi concluído — nenhuma cobrança foi feita. Seu carrinho ainda está aqui; confira seus dados e tente novamente.",
     "errorProducts": "Escolha pelo menos um produto para fazer uma simulação.",
     "errorRefreshFailed": "Falha ao atualizar.",
@@ -8902,6 +8899,9 @@
     "deadlineRequired": "Nome da playlist e uma data de prazo são obrigatórios.",
     "deadlineSave": "Salvar prazo",
     "deadlineSaveFailed": "Não foi possível salvar esse prazo: tente novamente.",
+    "deadlineUpdateFailed": "Não foi possível atualizar esse prazo — tente novamente.",
+    "deadlineDeleteFailed": "Não foi possível excluir esse prazo — tente novamente.",
+    "deleteFailed": "Não foi possível excluir essa proposta — tente novamente.",
     "deadlineStatusAnswered": "Respondido",
     "deadlineStatusDrafted": "Rascunhado",
     "deadlineStatusFollowedUp": "Follow-up feito",
@@ -9632,7 +9632,8 @@
       "generationFailed": "Falha na geração.",
       "missingHandleAndName": "Dê ao seu kit de imprensa um identificador de URL e um nome de artista.",
       "network": "Erro de rede — tente novamente.",
-      "saveFailed": "Falha ao salvar."
+      "saveFailed": "Falha ao salvar.",
+      "deleteFailed": "Não foi possível excluir esse kit de imprensa — tente novamente."
     },
     "form": {
       "achievementsLabel": "Conquistas (uma por linha)",
@@ -9767,7 +9768,8 @@
         "missingFacts": "Adicione pelo menos um fato principal para o comunicado incluir.",
         "generationFailed": "Falha ao gerar o comunicado. Tente novamente.",
         "network": "Erro de rede. Tente novamente.",
-        "saveFailed": "Não foi possível salvar o comunicado no seu kit de imprensa."
+        "saveFailed": "Não foi possível salvar o comunicado no seu kit de imprensa.",
+        "deleteFailed": "Não foi possível excluir esse comunicado — tente novamente."
       }
     }
   },
@@ -10578,6 +10580,7 @@
     "noPitches": "Nenhuma proposta de sync registrada ainda.",
     "noTarget": "Nenhum alvo ainda",
     "updateFailed": "Não foi possível atualizar. Tente novamente.",
+    "deleteFailed": "Não foi possível excluir — tente novamente.",
     "markStatus": "Marcar {{status}}",
     "placedPrompt": "Posicionado! Registre a receita no seu Rastreador de Dinheiro:",
     "amountPlaceholder": "$ valor",
@@ -12863,6 +12866,9 @@
     "dropshipTitle": "Modelo dropship:",
     "errorGenerate": "Não foi possível gerar os designs — nenhum Visual Buc foi cobrado.",
     "errorNetwork": "Erro de rede — tente novamente. Nenhum Visual Buc foi cobrado.",
+    "errorSaveDesignFailed": "Não foi possível salvar esse design na sua loja — tente novamente.",
+    "errorUpdateDesignFailed": "Não foi possível atualizar esse design — tente novamente.",
+    "errorDeleteDesignFailed": "Não foi possível excluir esse design — tente novamente.",
     "generateButton": "Gerar 2 mockups · 300 Visual Bucs",
     "listForSale": "Anunciar para venda",
     "loadingStore": "Carregando sua loja…",
