@@ -440,7 +440,7 @@ export function SongWorkflow({
         {/* ── Credits note (idle only) ── */}
         {txState === "idle" && (
           <p className="text-[10px] text-white/30 px-1">
-            Transcription uses our own engine. No Visual Bucs charged — billed to platform usage.
+            Transcription uses our own engine. 100 Visual Bucs for up to 5 minutes, plus 20 Visual Bucs per minute after that.
           </p>
         )}
       </div>
