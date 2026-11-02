@@ -79,6 +79,31 @@ describe("#65 beats station contracts", () => {
     expect(beats).toContain("without one, the full track plays as the preview");
   });
 
+  /* Stack1200 Y1-gap parity: the dashboard's "Your beats" rows carry
+     the 2D BeatRow's AI-tags affordance — the charged suggester POST
+     through the World's spend confirmation at the seam's pinned
+     price, the suggestion rendered on the row, and Apply PATCHing
+     the page's exact body, with failures named in place. */
+  it("dashboard rows carry the BeatRow AI-tags affordance on the page's rails (stack1200)", () => {
+    expect(beats).toContain("confirmedFetch(beatAiTagsPath(beat.id)");
+    expect(beats).toContain("overrideCost: BEAT_AI_TAGS_COST_VB");
+    expect(beats).toContain("overrideFeature: BEAT_AI_TAGS_FEATURE");
+    expect(beats).toContain("beatAiTagsOutcome({ status: res.status, data }, beat.genre)");
+    expect(beats).toContain('data-testid="world-beats-ai-tags"');
+    expect(beats).toContain('data-testid="world-beats-ai-tags-suggestion"');
+    expect(beats).toContain("suggestion.genre");
+    expect(beats).toContain("suggestion.moodTags.map");
+    expect(beats).toContain("fetch(beatPatchPath(beat.id)");
+    expect(beats).toContain('method: "PATCH"');
+    expect(beats).toContain("body: JSON.stringify(beatAiTagApplyPayload(suggestion))");
+    expect(beats).toContain('data-testid="world-beats-ai-tags-apply"');
+    expect(beats).toContain("Not enough Visual Bucs for AI tags");
+    expect(beats).toContain("nothing was charged");
+    /* The desk consumes only the owner's dashboard rows — the
+       public presentation rail is never touched. */
+    expect(beats).not.toContain("presentBeatPublic");
+  });
+
   it("an exclusive-sold beat closes the license box and the library delivers (X4 C1/C5)", () => {
     expect(beats).toContain("disabled={licensing || beat.exclusiveSold}");
     expect(beats).toContain("beat.exclusiveSold &&");
