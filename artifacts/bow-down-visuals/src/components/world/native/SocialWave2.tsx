@@ -163,6 +163,7 @@ export function ExploreDesk({ isLight }: { isLight: boolean }) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void runSearch()}
             placeholder="Search creators, tracks, videos, playlists…"
+            aria-label="Search creators, tracks, videos, playlists"
             className={inputCls(isLight)}
             data-testid="world-explore-search-input"
           />
@@ -576,6 +577,7 @@ export function ModerationBench({ isLight }: { isLight: boolean }) {
             onChange={(e) => setLookupInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void lookup()}
             placeholder="Paste a post / comment ID or link…"
+        aria-label="Post or comment ID or link"
             className={inputCls(isLight)}
             data-testid="world-moderation-lookup-input"
           />
@@ -636,6 +638,7 @@ export function ModerationBench({ isLight }: { isLight: boolean }) {
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Internal note (never shown to the author)"
+                    aria-label="Internal note (never shown to the author)"
                     maxLength={500}
                     className={inputCls(isLight)}
                     data-testid="world-moderation-note"
@@ -978,6 +981,7 @@ function ProfileEditor({
         maxLength={80}
         className={`${inputCls(isLight)} mt-1`}
         data-testid="world-profile-edit-name"
+        aria-label="Display name"
       />
       <label className={`mt-3 block text-xs font-bold ${muted}`}>Bio</label>
       <textarea
@@ -988,6 +992,7 @@ function ProfileEditor({
         placeholder="Tell the kingdom who you are…"
         className={`${inputCls(isLight)} mt-1`}
         data-testid="world-profile-edit-bio"
+        aria-label="Bio"
       />
       <p className={`mt-1 text-[11px] ${muted}`}>{bio.length}/2000</p>
       <button
@@ -1010,6 +1015,7 @@ function ProfileEditor({
             <span className={`w-20 shrink-0 text-xs capitalize ${muted}`}>{r.platform}</span>
             <input
               value={r.url}
+              aria-label={`${r.platform} link`}
               onChange={(e) =>
                 setRows((prev) => prev.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))
               }
@@ -1265,7 +1271,7 @@ function ThemeEditor({
       ) : (
         <>
           <label className={`text-xs font-bold ${muted}`}>Colorway</label>
-          <select value={colorway ?? ""} onChange={(e) => setColorway(e.target.value || null)} className={selectCls} data-testid="world-profile-theme-colorway">
+          <select value={colorway ?? ""} onChange={(e) => setColorway(e.target.value || null)} className={selectCls} data-testid="world-profile-theme-colorway" aria-label="Colorway">
             <option value="">No pick yet</option>
             {dto.colorways.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -1274,7 +1280,7 @@ function ThemeEditor({
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <div>
               <label className={`text-xs font-bold ${muted}`}>Heading font</label>
-              <select value={headingFont ?? ""} onChange={(e) => setHeadingFont(e.target.value || null)} className={selectCls} data-testid="world-profile-theme-heading">
+              <select value={headingFont ?? ""} onChange={(e) => setHeadingFont(e.target.value || null)} className={selectCls} data-testid="world-profile-theme-heading" aria-label="Heading font">
                 <option value="">No pick yet</option>
                 {dto.fonts.map((f) => (
                   <option key={f} value={f}>{f}</option>
@@ -1283,7 +1289,7 @@ function ThemeEditor({
             </div>
             <div>
               <label className={`text-xs font-bold ${muted}`}>Body font</label>
-              <select value={bodyFont ?? ""} onChange={(e) => setBodyFont(e.target.value || null)} className={selectCls} data-testid="world-profile-theme-body">
+              <select value={bodyFont ?? ""} onChange={(e) => setBodyFont(e.target.value || null)} className={selectCls} data-testid="world-profile-theme-body" aria-label="Body font">
                 <option value="">No pick yet</option>
                 {dto.fonts.map((f) => (
                   <option key={f} value={f}>{f}</option>
