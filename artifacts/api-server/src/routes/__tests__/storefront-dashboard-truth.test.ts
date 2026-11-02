@@ -23,6 +23,19 @@
  *    can be logged to the Money Tracker from the dashboard's one
  *    Orders list (the checklist's unlogged count covers both ledgers).
  *
+ * stack1200 leftover (G5C named it): the checklist's first two nudges
+ * — "first-product" and "activate" — keyed ONLY off profile-store
+ * products, so a seller who sells only through a customer shop was
+ * falsely nudged to list a storefront product. The second describe
+ * block below pins the unified product counts: shop products in
+ * shops the caller owns count toward both nudges (status 'active'
+ * counts as live; 'paused' counts as listed-but-not-live, the shop
+ * vocabulary's draft), the activate detail cites the COMBINED
+ * not-live count, another seller's shop products never count, and a
+ * seller with nothing anywhere sees the nudges exactly as before.
+ * (The "restock" nudge is NOT unified: shop_products carries no
+ * inventory column, so it has no sold-out semantics to fold in.)
+ *
  * Hand-computed money (both rails charge the flat 5%):
  *  4 shop sales × $5.00 → gross 2000¢, fee 4×25¢ = 100¢, net 1900¢.
  *  1 profile-store order $10.00 → fee 50¢, net 950¢.
@@ -504,5 +517,95 @@ describe("Gate #5 P2-1 — one seller, one truth", () => {
     h.userId = OTHER_SELLER;
     const foreign = await req("POST", `/storefront/orders/${saleIds[1]}/log-to-tracker`, {});
     expect(foreign.status).toBe(404);
+  });
+});
+
+describe("money-checklist shop-product nudges (stack1200 — G5C leftover)", () => {
+  async function checklistFor(userId: string) {
+    h.userId = userId;
+    const r = await req("GET", "/storefront/money-checklist");
+    expect(r.status).toBe(200);
+    return r.json as any;
+  }
+  function item(json: any, id: string) {
+    const found = (json.checklist as Array<any>).find((c) => c.id === id);
+    expect(found).toBeDefined();
+    return found;
+  }
+
+  it("(a) shops-only seller with an active shop product: first-product + activate are done", async () => {
+    /* The beforeEach seed is exactly this seller: ONE active shop
+       product in their own shop, ZERO profile-store products. */
+    const json = await checklistFor(SELLER);
+    expect(item(json, "first-product").done).toBe(true);
+    expect(item(json, "activate").done).toBe(true);
+    expect(json.nextMove?.id).not.toBe("first-product");
+    expect(json.nextMove?.id).not.toBe("activate");
+  });
+
+  it("(b) shops-only seller with only paused shop products: first-product done, activate open, detail counts it", async () => {
+    await h.db.execute(sql`
+      UPDATE shop_products SET status = 'paused' WHERE id = ${SHOP_PRODUCT_ID}`);
+    const json = await checklistFor(SELLER);
+    expect(item(json, "first-product").done).toBe(true);
+    const activate = item(json, "activate");
+    expect(activate.done).toBe(false);
+    expect(activate.detail).toContain("1 product(s) sitting in draft.");
+    expect(json.nextMove?.id).toBe("activate");
+  });
+
+  it("(c) seller with nothing anywhere: both nudges still present and unchanged", async () => {
+    /* Literally nothing anywhere: no shop products for anyone, no
+       profile-store products at all. OTHER_SELLER's shop exists but
+       is empty. Base behaviour is preserved: first-product is the
+       open top nudge; activate reads 0 drafts (with zero products
+       there is nothing to activate, so the base marks it done). */
+    await h.db.execute(sql`DELETE FROM shop_products`);
+    const json = await checklistFor(OTHER_SELLER);
+    const first = item(json, "first-product");
+    expect(first.done).toBe(false);
+    const activate = item(json, "activate");
+    expect(activate.detail).toContain("0 product(s) sitting in draft.");
+    expect(activate.done).toBe(true);
+    expect(json.nextMove?.id).toBe("first-product");
+  });
+
+  it("(d) another seller's shop products never count", async () => {
+    /* Both seeded/other sellers hold shop products: SELLER has the
+       active seeded one, and OTHER_SELLER gets an active one in
+       their own shop. A third seller with a profile but no products
+       anywhere must still be nudged as if neither existed. */
+    await h.db.execute(sql`
+      INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, status)
+      VALUES (${randomUUID()}, ${OTHER_SHOP_ID}, ${OTHER_SELLER}, 'Other Seller Active', 900, 'active')`);
+    const THIRD = randomUUID();
+    const THIRD_PROFILE = randomUUID();
+    await h.db.execute(sql`
+      INSERT INTO creator_profiles (id, user_id, slug, display_name)
+      VALUES (${THIRD_PROFILE}, ${THIRD}, 'third-seller', 'Third Seller')`);
+    const json = await checklistFor(THIRD);
+    expect(item(json, "first-product").done).toBe(false);
+    expect(item(json, "activate").detail).toContain("0 product(s) sitting in draft.");
+    expect(json.nextMove?.id).toBe("first-product");
+  });
+
+  it("(e) mixed seller: the activate detail cites the combined true not-live count", async () => {
+    /* SELLER: 1 active shop product (seeded) + 1 paused shop product
+       + 2 inactive profile-store products = 4 listed, 3 not live,
+       at least one live. Pre-fix the detail cited only the 2
+       profile-store drafts. */
+    await h.db.execute(sql`
+      INSERT INTO shop_products (id, shop_id, user_id, name, price_cents, status)
+      VALUES (${randomUUID()}, ${SHOP_ID}, ${SELLER}, 'Paused Shop Print', 700, 'paused')`);
+    for (const title of ["Draft Store Song", "Draft Store Poster"]) {
+      await h.db.execute(sql`
+        INSERT INTO store_products (profile_id, kind, title, price_cents, is_active)
+        VALUES (${PROFILE_ID}, 'digital', ${title}, 1200, false)`);
+    }
+    const json = await checklistFor(SELLER);
+    expect(item(json, "first-product").done).toBe(true);
+    const activate = item(json, "activate");
+    expect(activate.done).toBe(true);
+    expect(activate.detail).toContain("3 product(s) sitting in draft.");
   });
 });
