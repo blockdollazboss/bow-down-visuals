@@ -29,6 +29,7 @@ CREATE TABLE lip_sync_jobs (
   next_attempt_at timestamptz,
   submit_deferrals integer NOT NULL DEFAULT 0,
   history_recorded boolean NOT NULL DEFAULT false,
+  charge_refunded boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );`;

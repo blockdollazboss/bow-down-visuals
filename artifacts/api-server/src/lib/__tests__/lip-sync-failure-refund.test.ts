@@ -215,14 +215,18 @@ vi.mock("../sync-labs", async (importOriginal) => {
   };
 });
 
+import { readFileSync } from "node:fs";
 import { SyncLabsError } from "../sync-labs";
 import { chargeCredits } from "../credits";
 import { __setLipSyncEventNotifier, __testHooks } from "../job-poller";
 import {
   __setLipSyncJobsDb,
+  claimLipSyncChargeRefund,
   claimQueuedJobs,
   createLipSyncJob,
+  failLipSyncJob,
   getLipSyncJob,
+  LIP_SYNC_JOB_CHARGE_CREDITS,
   markJobSubmitted,
   type LipSyncJob,
 } from "../lip-sync-jobs";
@@ -281,6 +285,27 @@ async function chargedJob(userId: string): Promise<LipSyncJob> {
 function refundRows(): LedgerRow[] {
   return h.ledger.filter((r) => r.creditsUsed === -LIP_SYNC_COST);
 }
+
+describe("the refund gate itself", () => {
+  it("the poller's refund amount is the route's charge amount", () => {
+    const routeSrc = readFileSync(new URL("../../routes/lip-sync.ts", import.meta.url), "utf8");
+    expect(routeSrc).toContain("const LIP_SYNC_PREVIEW_CREDIT_COST = 300");
+    expect(LIP_SYNC_JOB_CHARGE_CREDITS).toBe(LIP_SYNC_COST);
+  });
+
+  it("claimLipSyncChargeRefund flips exactly once, and only on a failed job", async () => {
+    const userId = randomUUID();
+    await createLipSyncJob({ userId, params: PARAMS });
+    const [job] = await claimQueuedJobs(1);
+    /* Not failed yet — no claim. */
+    expect(await claimLipSyncChargeRefund(job.id)).toBe(false);
+    await failLipSyncJob(job.id, { message: "boom", code: "test" });
+    expect(await claimLipSyncChargeRefund(job.id)).toBe(true);
+    expect(await claimLipSyncChargeRefund(job.id)).toBe(false);
+    const after = (await getLipSyncJob(job.id))!;
+    expect(after.chargeRefunded).toBe(true);
+  });
+});
 
 describe("lip-sync generation failure refunds the up-front charge", () => {
   it("submit rejected permanently: exact total back, temporary portion back in the live pool", async () => {

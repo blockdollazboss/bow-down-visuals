@@ -1,0 +1,21 @@
+-- Lip-sync jobs — the failure-refund gate (stack1200, Gate #5 pre-proof).
+--
+-- WHY THIS FILE EXISTS: every lip-sync job row is created only AFTER an
+-- up-front charge of 300 Visual Bucs (POST /lip-sync/preview and each
+-- run-all scene, via chargeCredits). When the provider generation then
+-- failed in the background poller, the job was marked failed and the
+-- member notified — but the charge stood: no refund path existed in the
+-- poller at all. The money rule is that a failed generation refunds IN
+-- FULL through the charge rail.
+--
+-- `charge_refunded` is the exactly-once gate for that refund, the same
+-- shape as `history_recorded` beside it: the worker that atomically
+-- flips it false→true on a failed job performs the refund; every other
+-- worker (replay, recovery, a second poller) sees the flip already
+-- taken and refunds nothing. Existing failed rows keep the default
+-- false — they predate the refund path and are a one-time backfill
+-- question for the owner, not something this migration silently pays.
+--
+-- Idempotent: safe to run anywhere.
+
+ALTER TABLE lip_sync_jobs ADD COLUMN IF NOT EXISTS charge_refunded boolean NOT NULL DEFAULT false;

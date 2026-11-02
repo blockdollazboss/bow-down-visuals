@@ -71,6 +71,13 @@ export const lipSyncJobsTable = pgTable("lip_sync_jobs", {
   submit_deferrals: integer("submit_deferrals").notNull().default(0),
   /** Idempotency flag: generation_history is written only on the false→true transition. */
   history_recorded: boolean("history_recorded").notNull().default(false),
+  /**
+   * Idempotency flag (migration 0310): the up-front 300 VB charge is
+   * refunded only on the false→true transition, performed by whichever
+   * worker terminally fails the job. A replayed failure path can never
+   * refund the same job twice.
+   */
+  charge_refunded: boolean("charge_refunded").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
