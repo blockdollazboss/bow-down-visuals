@@ -237,6 +237,94 @@ export function paidWithGiftCard(payload: unknown): boolean {
   return p["paidWithGiftCard"] === true && p["paid"] === true;
 }
 
+/* ─── The seller's desk + the buyer's way back ──────────────────
+   The two reads/actions the square's desk mirrors from the
+   website's store dashboard, on the SAME rails — no second
+   computation of any figure: GET /api/gift-cards/sold answers the
+   liability truth for the caller's own store, and
+   POST /api/gift-cards/:id/refund claws back only the unspent,
+   unreserved balance of a card the caller bought. */
+
+/** The liability block of GET /api/gift-cards/sold: what was sold,
+ *  what is still out there (held for the holders — a liability,
+ *  NOT revenue; it becomes a sale, with the standard fee, only
+ *  when a holder spends it), and the rail's own note saying so. */
+export interface GiftCardLiabilityView {
+  issuedCents: number;
+  issued: string;
+  outstandingCents: number;
+  outstanding: string;
+  cardCount: number;
+  note: string;
+}
+
+export interface GiftCardsSoldView {
+  storeName: string | null;
+  liability: GiftCardLiabilityView;
+  cards: GiftCardView[];
+}
+
+/** GET /api/gift-cards/sold — the seller's mirror. Whole-answer
+ *  garbage (or a missing liability block) parses to null: the desk
+ *  shows its failed state, never invented zeros. Malformed card
+ *  rows drop out the same way the mine rows do. */
+export function parseGiftCardsSold(payload: unknown): GiftCardsSoldView | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const liability = p["liability"];
+  if (!liability || typeof liability !== "object" || !Array.isArray(p["cards"])) return null;
+  const l = liability as Record<string, unknown>;
+  const store = p["store"];
+  const s = store && typeof store === "object" ? (store as Record<string, unknown>) : null;
+  return {
+    storeName: s && typeof s["name"] === "string" ? s["name"] : null,
+    liability: {
+      issuedCents: numOr(l["issuedCents"], 0),
+      issued: typeof l["issued"] === "string" ? l["issued"] : "",
+      outstandingCents: numOr(l["outstandingCents"], 0),
+      outstanding: typeof l["outstanding"] === "string" ? l["outstanding"] : "",
+      cardCount: numOr(l["cardCount"], 0),
+      note: typeof l["note"] === "string" ? l["note"] : "",
+    },
+    cards: p["cards"]
+      .map((row) => parseGiftCardView(row))
+      .filter((c): c is GiftCardView => c !== null),
+  };
+}
+
+/** The desk's refund gate — the website tab's own: the control
+ *  rides a bought card only while it is active with money still
+ *  on it. What can actually come back (balance minus an in-flight
+ *  hold) is the rail's call at tap time; its words answer. */
+export function giftCardRefundable(card: GiftCardView): boolean {
+  return card.status === "active" && card.balanceCents > 0;
+}
+
+/** POST /api/gift-cards/:id/refund — the settled answer. The note
+ *  is the rail's own sentence (only the unspent balance came back;
+ *  what was spent stays spent; the card is closed) and rides
+ *  verbatim. A non-success or garbled answer parses to null. */
+export interface GiftCardRefundView {
+  duplicate: boolean;
+  refundedCents: number;
+  refunded: string;
+  spentKeptCents: number;
+  note: string;
+}
+
+export function parseGiftCardRefund(payload: unknown): GiftCardRefundView | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (p["success"] !== true) return null;
+  return {
+    duplicate: p["duplicate"] === true,
+    refundedCents: numOr(p["refundedCents"], 0),
+    refunded: typeof p["refunded"] === "string" ? p["refunded"] : "",
+    spentKeptCents: numOr(p["spentKeptCents"], 0),
+    note: typeof p["note"] === "string" ? p["note"] : "",
+  };
+}
+
 /** The localStorage key holding a gift purchase's unfinished
  *  session at a room/desk, so returning refreshes ITS issuance
  *  from the server instead of forgetting the card (or pretending

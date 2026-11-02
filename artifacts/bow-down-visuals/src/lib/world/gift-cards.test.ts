@@ -17,7 +17,12 @@
  *     invented empty wallet or a zero balance;
  * (e) a gift-paid checkout answer is recognized on all tender
  *     rails: { paid: true, paidWithGiftCard: true } with NO payment
- *     page is a completed purchase, not a missing URL.
+ *     page is a completed purchase, not a missing URL;
+ * (f) the seller's desk mirrors GET /api/gift-cards/sold — the
+ *     liability block parses from the rail's answer and garbage
+ *     parses to null (never invented zeros) — and the buyer's
+ *     refund gate is the website tab's own (active, money left),
+ *     with the settled answer carrying the rail's note verbatim.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -26,14 +31,18 @@ import {
   giftCardFormAmount,
   giftCardFormProblem,
   giftCardPendingKey,
+  giftCardRefundable,
   giftCardVerifyState,
   isGiftCardItem,
   paidWithGiftCard,
   parseGiftCardBalance,
   parseGiftCardPending,
+  parseGiftCardRefund,
   parseGiftCardVerify,
   parseGiftCardsMine,
+  parseGiftCardsSold,
   type GiftCardFormState,
+  type GiftCardView,
 } from "./gift-cards";
 import type { RoomStoreItem } from "./money-desks";
 
@@ -201,6 +210,131 @@ describe("gift-paid checkout answers", () => {
     expect(paidWithGiftCard({ status: "pending", paid: false, url: "https://checkout.example" })).toBe(false);
     expect(paidWithGiftCard({ paidWithGiftCard: true })).toBe(false);
     expect(paidWithGiftCard(null)).toBe(false);
+  });
+});
+
+describe("sold — the seller's liability mirror", () => {
+  const soldAnswer = {
+    store: { name: "Thy Store" },
+    liability: {
+      issuedCents: 7500,
+      issued: "$75.00",
+      outstandingCents: 5100,
+      outstanding: "$51.00",
+      cardCount: 3,
+      note: "Gift-card value is held as a liability until fans spend it — then it lands as a normal sale in your store, with the standard platform fee on that sale.",
+    },
+    cards: [
+      {
+        id: "c1",
+        codeLast4: "AAAA",
+        status: "active",
+        initialCents: 2500,
+        balanceCents: 2500,
+        reservedCents: 0,
+        availableCents: 2500,
+        recipientEmail: "fan@example.com",
+        storeName: "Thy Store",
+        createdAt: "2026-11-01T00:00:00.000Z",
+      },
+      { nope: true },
+    ],
+  };
+
+  it("the liability block and the sold rows parse from the rail's own answer", () => {
+    const parsed = parseGiftCardsSold(soldAnswer);
+    expect(parsed?.storeName).toBe("Thy Store");
+    expect(parsed?.liability).toEqual({
+      issuedCents: 7500,
+      issued: "$75.00",
+      outstandingCents: 5100,
+      outstanding: "$51.00",
+      cardCount: 3,
+      note: soldAnswer.liability.note,
+    });
+    /* The malformed row drops; the honest row survives with its hold netted out. */
+    expect(parsed?.cards).toHaveLength(1);
+    expect(parsed?.cards[0]?.recipientEmail).toBe("fan@example.com");
+    expect(parsed?.cards[0]?.availableCents).toBe(2500);
+  });
+
+  it("whole-answer garbage parses to null — never invented zeros on a money view", () => {
+    expect(parseGiftCardsSold(null)).toBeNull();
+    expect(parseGiftCardsSold("sold")).toBeNull();
+    expect(parseGiftCardsSold({ cards: [] })).toBeNull();
+    expect(parseGiftCardsSold({ liability: { issuedCents: 1 } })).toBeNull();
+    expect(parseGiftCardsSold({ liability: soldAnswer.liability, cards: "nope" })).toBeNull();
+  });
+
+  it("an honest empty store parses as zero cards, not as a failure", () => {
+    const parsed = parseGiftCardsSold({
+      store: { name: "Thy Store" },
+      liability: { issuedCents: 0, issued: "$0.00", outstandingCents: 0, outstanding: "$0.00", cardCount: 0, note: "…" },
+      cards: [],
+    });
+    expect(parsed?.liability.cardCount).toBe(0);
+    expect(parsed?.cards).toEqual([]);
+  });
+});
+
+describe("the buyer's refund — gate and settled answer", () => {
+  const card = (over: Partial<GiftCardView> = {}): GiftCardView => ({
+    id: "c1",
+    codeLast4: "AAAA",
+    status: "active",
+    initialCents: 2500,
+    balanceCents: 1200,
+    availableCents: 1200,
+    recipientEmail: "fan@example.com",
+    storeName: "Thy Store",
+    createdAt: "2026-11-01T00:00:00.000Z",
+    ...over,
+  });
+
+  it("the gate is the website tab's own: active with money still on the card", () => {
+    expect(giftCardRefundable(card())).toBe(true);
+    expect(giftCardRefundable(card({ balanceCents: 0, availableCents: 0 }))).toBe(false);
+    expect(giftCardRefundable(card({ status: "refunded", balanceCents: 0 }))).toBe(false);
+    expect(giftCardRefundable(card({ status: "redeemed", balanceCents: 0 }))).toBe(false);
+    /* A fully-held card still shows the control — the rail's CARD_IN_USE words answer the tap. */
+    expect(giftCardRefundable(card({ availableCents: 0 }))).toBe(true);
+  });
+
+  it("the settled answer parses with the rail's own note and figures", () => {
+    const parsed = parseGiftCardRefund({
+      success: true,
+      duplicate: false,
+      refundedCents: 1200,
+      refunded: "$12.00",
+      spentKeptCents: 1300,
+      note: "Only the unspent balance was refunded — what the recipient already spent stays spent, and the card is now closed.",
+    });
+    expect(parsed).toEqual({
+      duplicate: false,
+      refundedCents: 1200,
+      refunded: "$12.00",
+      spentKeptCents: 1300,
+      note: "Only the unspent balance was refunded — what the recipient already spent stays spent, and the card is now closed.",
+    });
+  });
+
+  it("an already-refunded replay parses as a duplicate success, not a second refund", () => {
+    const parsed = parseGiftCardRefund({
+      success: true,
+      duplicate: true,
+      refundedCents: 0,
+      refunded: "$0.00",
+      note: "This card was already refunded.",
+    });
+    expect(parsed?.duplicate).toBe(true);
+    expect(parsed?.refundedCents).toBe(0);
+  });
+
+  it("a non-success or garbled answer is not a refund", () => {
+    expect(parseGiftCardRefund({ success: false, error: "CARD_IN_USE" })).toBeNull();
+    expect(parseGiftCardRefund({ error: "NOTHING_TO_REFUND" })).toBeNull();
+    expect(parseGiftCardRefund(null)).toBeNull();
+    expect(parseGiftCardRefund("refunded")).toBeNull();
   });
 });
 
