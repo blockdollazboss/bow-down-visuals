@@ -92,6 +92,57 @@ function isOurApi(input: RequestInfo | URL): boolean {
 /** Requests already retried once — never intercept again (no retry loops). */
 const retried = new WeakSet<Request>();
 
+/* ─── The gate remedy (stack1300 staging-gate-api) ─────────────────────
+   isGateLockedResponse has always named the remedy — "re-enter the
+   password, not re-sign-in" — but the guard stopped at detection and
+   handed the locked answer back to surfaces that improvised badly:
+   Buy buttons printed the gate's raw message as a checkout error,
+   and /creator-pricing read the failed plans load as "price coming
+   soon". The pass falls out in a perfectly ordinary way: a DELIBERATE
+   app sign-out drops it (AuthContext signOut → /__staging_logout,
+   by design since stack800), and the SPA sign-in that follows never
+   re-presents the gate form, so the app sits signed-in while every
+   API call is locked.
+
+   The remedy is a HARD navigation to the gate's login path: the
+   server-rendered form is the only place the pass is established,
+   and after it the browser returns to / with the cookie set and the
+   Supabase session (localStorage) untouched — the same session's
+   own API calls then carry the pass and succeed. The gate itself is
+   not weakened by one inch: strangers still get this same 401, and
+   only presenting the real password at the form mints the cookie.
+
+   Bounded, so a pass that cannot stick can never become a loop:
+   once per page lifetime, and not again within the latch interval
+   across page loads (sessionStorage timestamp). Production never
+   emits staging_locked (no STAGING_PASSWORD → the gate is a no-op),
+   so this code can never fire there. */
+const GATE_LOGIN_PATH = "/__staging_login";
+const GATE_REDIRECT_LATCH_KEY = "bdv_gate_redirect_at";
+const GATE_REDIRECT_MIN_INTERVAL_MS = 30_000;
+let gateRedirectFired = false;
+
+function redirectToGateLogin(): void {
+  if (gateRedirectFired) return;
+  try {
+    const last = Number(window.sessionStorage?.getItem(GATE_REDIRECT_LATCH_KEY) ?? 0);
+    if (Number.isFinite(last) && last > 0 && Date.now() - last < GATE_REDIRECT_MIN_INTERVAL_MS) return;
+  } catch {
+    /* Storage unreadable — the per-page-lifetime latch still bounds us. */
+  }
+  gateRedirectFired = true;
+  try {
+    window.sessionStorage?.setItem(GATE_REDIRECT_LATCH_KEY, String(Date.now()));
+  } catch {
+    /* Best effort — the latch above already fired for this page. */
+  }
+  try {
+    window.location.href = GATE_LOGIN_PATH;
+  } catch {
+    /* A navigation failure must never break the caller's response. */
+  }
+}
+
 function notifySessionDead() {
   if (deathNotified) return;
   deathNotified = true;
@@ -125,9 +176,15 @@ export function installSessionGuard() {
 
     const res = await originalFetch(input, init);
     if (res.status !== 401 && res.status !== 403) return res;
-    /* The password gate's lock is not a session failure — hands off,
-       whatever the body copy says (see isGateLockedResponse). */
-    if (await isGateLockedResponse(res)) return res;
+    /* The password gate's lock is not a session failure — no refresh,
+       no death, whatever the body copy says (see isGateLockedResponse).
+       But detection alone left every surface improvising; apply the
+       remedy the classification always named and send the browser
+       back to the password form (see redirectToGateLogin). */
+    if (await isGateLockedResponse(res)) {
+      redirectToGateLogin();
+      return res;
+    }
     if (!(await isSessionError(res))) return res;
 
     /* Anonymous pass-through: session death requires a session. Public
@@ -155,8 +212,12 @@ export function installSessionGuard() {
         if (retryRes.status === 401 || retryRes.status === 403) {
           /* A gate lock answering the retry is still not session
            * death — the gate dropped between the first answer and
-           * the retry, and no token can fix that. */
-          if (await isGateLockedResponse(retryRes)) return retryRes;
+           * the retry, and no token can fix that. Same remedy as the
+           * first-answer lock: back to the password form. */
+          if (await isGateLockedResponse(retryRes)) {
+            redirectToGateLogin();
+            return retryRes;
+          }
           /* Fresh token still rejected — session is truly dead. */
           notifySessionDead();
         }

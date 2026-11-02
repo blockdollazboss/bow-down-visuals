@@ -1,5 +1,5 @@
 import { apiErrorMessage } from "../lib/api-error";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link, useSearch } from "wouter";
 import {
@@ -19,7 +19,7 @@ import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-
 import { loginPathWithNext } from "@/lib/auth-next";
 import { LocalCurrencyPrice, CurrencyHonestyNote } from "@/components/LocalCurrencyPrice";
 import { CREATOR_PLANS } from "@/lib/pricing-plans";
-import { pricingCardCta } from "@/lib/pricing-card-state";
+import { pricingCardCta, paidPlanCta } from "@/lib/pricing-card-state";
 
 /* ─── Creator pricing — Worker 12 ──────────────────────────────────────────
    The tier upgrade page. Sells the MONEY MATH, not vibes: every tier
@@ -94,33 +94,50 @@ export default function CreatorPricing() {
   }));
   const [plans, setPlans] = useState<Plan[]>(sharedPlans);
   const [loading, setLoading] = useState(true);
+  /* stack1300 staging-gate-api: a FAILED plans load is tracked as its
+     own fact. Before this, any failure (non-ok — the staging gate's
+     401 included — or a network throw) was swallowed and the static
+     fallback's priceConfigured:false rendered "price coming soon"
+     even with prices fully configured server-side. The paid cards now
+     derive through paidPlanCta: failed load → an honest retry state,
+     never a fake configuration fact. */
+  const [plansLoadFailed, setPlansLoadFailed] = useState(false);
   const [buying, setBuying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolume] = useState(1000); // monthly sales USD for the calculator
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/creator-tiers/plans");
-        if (res.ok) {
-          const data = await res.json();
-          const serverPlans: Plan[] = data.plans ?? [];
-          if (serverPlans.length > 0) {
-            // Overlay live config only — names/prices/features stay on
-            // the shared source above, never on a second copy.
-            setPlans((prev) =>
-              prev.map((sp) => {
-                const srv = serverPlans.find((x) => x.tier === sp.tier);
-                return srv
-                  ? { ...sp, priceConfigured: srv.priceConfigured, feeBps: srv.feeBps, feePct: srv.feePct, breakEvenSalesUsd: srv.breakEvenSalesUsd, savingsAt1kUsd: srv.savingsAt1kUsd }
-                  : sp;
-              }),
-            );
-          }
-        }
-      } catch { /* page shows fallback copy */ } finally { setLoading(false); }
-    })();
+  const loadPlans = useCallback(async () => {
+    try {
+      const res = await fetch("/api/creator-tiers/plans");
+      if (!res.ok) {
+        setPlansLoadFailed(true);
+        return;
+      }
+      const data = await res.json();
+      const serverPlans: Plan[] = data.plans ?? [];
+      setPlansLoadFailed(false);
+      if (serverPlans.length > 0) {
+        // Overlay live config only — names/prices/features stay on
+        // the shared source above, never on a second copy.
+        setPlans((prev) =>
+          prev.map((sp) => {
+            const srv = serverPlans.find((x) => x.tier === sp.tier);
+            return srv
+              ? { ...sp, priceConfigured: srv.priceConfigured, feeBps: srv.feeBps, feePct: srv.feePct, breakEvenSalesUsd: srv.breakEvenSalesUsd, savingsAt1kUsd: srv.savingsAt1kUsd }
+              : sp;
+          }),
+        );
+      }
+    } catch {
+      setPlansLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadPlans();
+  }, [loadPlans]);
 
   /* Embedded checkout (2026-10-26): the plan PaymentElement mounts on
      THIS page — no redirect to a Stripe-hosted page. The legacy hosted
@@ -473,16 +490,28 @@ export default function CreatorPricing() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => checkout(p.tier)}
-                    disabled={buying != null || !p.priceConfigured}
+                    onClick={() => {
+                      /* A failed plans load retries the LOAD — it never
+                         opens a checkout against unknown configuration,
+                         and it never sits there labelled as a price
+                         fact (paidPlanCta, pricing-card-state). */
+                      if (paidPlanCta(p.priceConfigured, plansLoadFailed) === "retry-load") {
+                        void loadPlans();
+                        return;
+                      }
+                      void checkout(p.tier);
+                    }}
+                    disabled={buying != null || paidPlanCta(p.priceConfigured, plansLoadFailed) === "coming-soon"}
                     className="w-full rounded-full bg-gradient-to-b from-amber-200 to-amber-500 py-2.5 text-sm font-black text-black transition hover:brightness-110 disabled:opacity-50"
                   >
                     {buying === p.tier ? (
                       <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening checkout…</span>
-                    ) : p.priceConfigured ? (
+                    ) : paidPlanCta(p.priceConfigured, plansLoadFailed) === "buy" ? (
                       currentTier === "pro" || currentTier === "elite"
                         ? `Switch to ${p.name} — $${p.priceUsdPerMonth}/mo`
                         : `Go ${p.name} — $${p.priceUsdPerMonth}/mo`
+                    ) : paidPlanCta(p.priceConfigured, plansLoadFailed) === "retry-load" ? (
+                      "Couldn't load plans — tap to retry"
                     ) : (
                       `${p.name} — price coming soon`
                     )}
