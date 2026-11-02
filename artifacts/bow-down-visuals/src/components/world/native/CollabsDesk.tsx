@@ -508,6 +508,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                         <button
                           type="button"
                           className={chipBtn(isLight)}
+                          aria-expanded={composeFor === card.userId}
                           onClick={() => {
                             setComposeFor(composeFor === card.userId ? null : card.userId);
                             setComposeText("");

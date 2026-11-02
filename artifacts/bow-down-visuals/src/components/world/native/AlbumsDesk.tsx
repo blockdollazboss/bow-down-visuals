@@ -363,7 +363,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                 Bundle your songs into albums and EPs. Drafting is free — publishing costs{" "}
                 {ALBUM_PUBLISH_COST_VB} Bucs and mints the public page.
               </p>
-              <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)}>
+              <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate}>
                 <Plus className="h-3.5 w-3.5" /> New album
               </button>
             </div>

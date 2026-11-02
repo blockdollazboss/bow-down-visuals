@@ -330,6 +330,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     type="button"
                     className={mode === "pitch" ? goldBtn : chipBtn(isLight)}
                     onClick={() => setMode(mode === "pitch" ? "none" : "pitch")}
+                    aria-expanded={mode === "pitch"}
                   >
                     Pitch an idea
                   </button>
@@ -337,6 +338,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     type="button"
                     className={mode === "fix" ? goldBtn : chipBtn(isLight)}
                     onClick={() => setMode(mode === "fix" ? "none" : "fix")}
+                    aria-expanded={mode === "fix"}
                   >
                     <Wrench className="h-3.5 w-3.5" /> Report a fix
                   </button>

@@ -945,6 +945,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               data-testid="world-coach-money-add-toggle"
               className={goldBtn}
               onClick={() => setFormOpen((o) => !o)}
+              aria-expanded={formOpen}
             >
               {formOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {formOpen ? "Close" : "Add entry"}

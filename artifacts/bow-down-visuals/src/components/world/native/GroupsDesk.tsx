@@ -151,7 +151,7 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           Crews with their own feeds and forums — browse, join, and talk without leaving the palace.
         </span>
         {!isGuest && (
-          <button type="button" data-testid="world-groups-create-toggle" onClick={() => setShowCreate((s) => !s)} className={`${goldBtn} ml-auto`}>
+          <button type="button" data-testid="world-groups-create-toggle" onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate} className={`${goldBtn} ml-auto`}>
             <Plus className="h-3.5 w-3.5" /> Start a group
           </button>
         )}

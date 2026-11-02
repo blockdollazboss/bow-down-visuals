@@ -481,6 +481,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
           type="button"
           data-testid="world-dm-new"
           onClick={() => setShowNew((v) => !v)}
+          aria-expanded={showNew}
           className={`${chipBtn(isLight)} ml-auto`}
         >
           <Plus className="h-3.5 w-3.5" /> New message
@@ -773,6 +774,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     onClick={() => setShowLink((v) => !v)}
                     className={chipBtn(isLight)}
                     data-testid="world-dm-attach-link"
+                    aria-label="Attach by link instead"
+                    aria-expanded={showLink}
                     title="Attach by link instead"
                   >
                     <Link2 className="h-3.5 w-3.5" />
@@ -992,7 +995,7 @@ function ThreadReplyNode({
             type="button"
             onClick={() => setComposerOpen((v) => !v)}
             className={chipBtn(isLight)}
-            data-testid="world-community-node-reply-open"
+            data-testid="world-community-node-reply-open" aria-expanded={composerOpen}
           >
             <Send className="h-3 w-3" /> Reply
           </button>

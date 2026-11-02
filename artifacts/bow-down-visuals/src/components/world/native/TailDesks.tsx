@@ -587,6 +587,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
             onClick={() => setShowBuilder((v) => !v)}
             className={goldBtn}
             data-testid="world-giveaway-builder-toggle"
+            aria-expanded={showBuilder}
           >
             <Plus className="h-3.5 w-3.5" /> New giveaway
           </button>
@@ -670,6 +671,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                       onClick={() => setOpenId(openId === c.id ? null : c.id)}
                       className={chipBtn(isLight)}
                       data-testid={`world-giveaway-open-${c.id}`}
+                      aria-expanded={openId === c.id}
                     >
                       {openId === c.id ? "Close" : "Open the book"}
                     </button>

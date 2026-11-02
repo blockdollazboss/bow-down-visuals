@@ -182,7 +182,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
             Streams, drops, premieres. RSVP free — show up loud.
           </p>
           {!isGuest ? (
-            <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)}>
+            <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate}>
               <CalendarPlus className="h-3.5 w-3.5" /> Host an event
             </button>
           ) : null}

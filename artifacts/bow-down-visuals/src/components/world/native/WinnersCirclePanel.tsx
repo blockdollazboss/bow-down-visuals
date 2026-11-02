@@ -298,6 +298,7 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
                   type="button"
                   data-testid="world-contest-open"
                   onClick={() => setSelectedId(selectedId === c.id ? null : c.id)}
+                  aria-expanded={selectedId === c.id}
                   className={ghostBtn(isLight)}
                 >
                   {selectedId === c.id ? "Close" : "Open"}
