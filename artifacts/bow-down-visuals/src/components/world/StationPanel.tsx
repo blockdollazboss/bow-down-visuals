@@ -192,6 +192,7 @@ const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").the
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
+const CourtGatheringBlock = lazy(() => import("@/components/world/native/CourtGatheringBlock").then((m) => ({ default: m.CourtGatheringBlock })));
 const BeatsDesk = lazy(() => import("@/components/world/native/BeatsDesk").then((m) => ({ default: m.BeatsDesk })));
 /* The pattern families round 1 believed rode the /world chunk:
    that was bundler homing, not an eager need — in the panel's own
@@ -1192,11 +1193,20 @@ export default function StationPanel(props: StationPanelProps) {
             );
           case "front-row":
             return (
-              <FrontRowGallery
-                isLight={isLight}
-                isGuest={isGuest}
-                onPlayTrack={props.onJukeboxAdd}
-              />
+              <div className="flex flex-col gap-6">
+                <FrontRowGallery
+                  isLight={isLight}
+                  isGuest={isGuest}
+                  onPlayTrack={props.onJukeboxAdd}
+                />
+                {/* Court gatherings (UPGRADE-PROGRAM 3.6): the
+                    calling door stands in the Chamber itself,
+                    under the portraits the gathering presents —
+                    the winners-circle stacked-desks shape. */}
+                <DeskDoor isLight={isLight}>
+                  <CourtGatheringBlock isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+              </div>
             );
           case "season-marks":
             return (

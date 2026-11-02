@@ -24,7 +24,8 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 
 /* ─── The Palace Calendar (UPGRADE-PROGRAM 3.9) ──────────────────
    Every happening in the World on one board: stage shows,
-   listening parties, drops, contests and office hours, grouped by
+   listening parties, drops, contests, office hours and court
+   gatherings, grouped by
    palace day (the UTC day-turn), today first and the week ahead
    after it — plus the look back at what the last seven days held.
    One further line is the quest week's own: the weekly quest
@@ -46,6 +47,7 @@ const KIND_LABELS: Record<string, string> = {
   drop: "Drop",
   contest: "Contest",
   office_hours: "Office hours",
+  royal_court: "Court gathering",
   quest_reset: "Quest week",
 };
 
@@ -204,7 +206,7 @@ export function PalaceCalendarBlock({
             <NativeEmptyState
               isLight={isLight}
               message="Nothing is booked at the palace this week."
-              detail="Booked shows, listening parties, contests, office hours and drops will read here, day by day, on their days."
+              detail="Booked shows, listening parties, contests, office hours, court gatherings and drops will read here, day by day, on their days."
             />
           ) : (
             <>

@@ -76,6 +76,7 @@ const EVENT_KIND_LABELS: Record<string, string> = {
   drop: "Drop",
   contest: "Contest",
   office_hours: "Office hours",
+  royal_court: "Court gathering",
 };
 
 export function KingdomBoardBlocks({
