@@ -117,6 +117,7 @@ export function KingdomBoardBlocks({
   const [boardFailed, setBoardFailed] = useState(false);
   const [restEvents, setRestEvents] = useState<PalaceSlateEvent[]>([]);
   const [restFailed, setRestFailed] = useState(false);
+  const [restSettled, setRestSettled] = useState(false);
   const [tables, setTables] = useState<PartyOpenRoom[] | null>(null);
   const [tablesFailed, setTablesFailed] = useState(false);
   const [tick, setTick] = useState(0);
@@ -146,13 +147,18 @@ export function KingdomBoardBlocks({
         if (!cancelled) {
           setRestEvents(normalizeWorldEventSlate(events));
           setRestFailed(false);
+          setRestSettled(true);
         }
       } catch {
         /* The directory slate still speaks — its events render below
            on their own. But the failure is recorded: while the merged
            slate is empty, the block must say the load failed, never
-           dress the failure up as an empty day. */
-        if (!cancelled) setRestFailed(true);
+           dress the failure up as an empty day. The leg has settled
+           either way, so the settled flag is set here too. */
+        if (!cancelled) {
+          setRestFailed(true);
+          setRestSettled(true);
+        }
       }
     })();
     return () => {
@@ -337,6 +343,13 @@ export function KingdomBoardBlocks({
                 setTick((n) => n + 1);
               }}
             />
+          ) : today.length === 0 && !restSettled && !kingLine ? (
+            /* The REST leg hasn't settled yet — nothing has loaded,
+               so the day can't be called empty. Directory events, if
+               any, render below on their own (today.length > 0 skips
+               this branch); until the first settle this block reads
+               as loading, never as an empty slate. */
+            <NativeLoadingState isLight={isLight} message="Reading today's slate…" />
           ) : today.length === 0 && !kingLine ? (
             <NativeEmptyState
               isLight={isLight}
