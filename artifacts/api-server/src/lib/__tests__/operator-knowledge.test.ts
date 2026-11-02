@@ -583,6 +583,78 @@ describe("operator knowledge — song duration tiers (live defect, Oct 20)", () 
   });
 });
 
+describe("operator knowledge — lip-sync duration tiers (stack1400)", () => {
+  const API_SRC = path.resolve(HERE, "..", "..");
+
+  /** Independent re-derivation of LIP_SYNC_PRICE_TIERS from
+      lib/lip-sync-jobs.ts — the test parses the lib source itself
+      rather than trusting the generator's parser, so a generator
+      drift fails here (same discipline as the song tiers above). */
+  function deriveLipSyncTiers() {
+    const src = read(path.join(API_SRC, "lib", "lip-sync-jobs.ts"));
+    const start = src.indexOf("export const LIP_SYNC_PRICE_TIERS");
+    expect(start, "LIP_SYNC_PRICE_TIERS in lip-sync-jobs.ts").toBeGreaterThanOrEqual(0);
+    const body = src.slice(start, src.indexOf("] as const;", start));
+    return [...body.matchAll(/\{\s*maxLengthMs:\s*([\d_]+),\s*cost:\s*([\d_]+)\s*\}/g)].map((m) => ({
+      upToSeconds: Number(m[1].replace(/_/g, "")) / 1000,
+      vb: Number(m[2].replace(/_/g, "")),
+    }));
+  }
+
+  it("the tiers are the ruled 300 ≤50s / 600 at 50–60s table, the charging function derives from it, and the constants agree", () => {
+    expect(deriveLipSyncTiers()).toEqual([
+      { upToSeconds: 50, vb: 300 },
+      { upToSeconds: 60, vb: 600 },
+    ]);
+    const src = read(path.join(API_SRC, "lib", "lip-sync-jobs.ts"));
+    const fnStart = src.indexOf("export function lipSyncChargeForDurationSec");
+    expect(fnStart).toBeGreaterThanOrEqual(0);
+    expect(src.slice(fnStart, fnStart + 400)).toContain("LIP_SYNC_PRICE_TIERS");
+    // The table and the long-clip constants are two spellings of one
+    // ruling — they must never drift apart.
+    expect(src).toContain("export const LIP_SYNC_LONG_CLIP_THRESHOLD_SEC = 50;");
+    expect(src).toContain("export const LIP_SYNC_LONG_CLIP_MAX_SEC = 60;");
+    expect(src).toContain("export const LIP_SYNC_LONG_CLIP_CREDIT_COST = 600;");
+    expect(src).toContain("export const LIP_SYNC_JOB_CHARGE_CREDITS = 300;");
+  });
+
+  it("every knowledge entry for the lip-sync rails carries the full tier table", () => {
+    const derived = deriveLipSyncTiers();
+    let carriers = 0;
+    for (const f of OPERATOR_FEATURES) {
+      for (const p of f.prices) {
+        if (p.endpoint !== "/api/lip-sync" && p.endpoint !== "/api/lip-sync/run-all") continue;
+        carriers++;
+        expect(p.tiers, `${f.id} ${p.endpoint} tiers`).toEqual(derived);
+        expect(p.tiersSource).toContain("lip-sync-jobs.ts");
+        expect(p.tiersSource).toContain("LIP_SYNC_PRICE_TIERS");
+        // The registry's flat base figure is the first tier's price:
+        expect(p.vb).toBe(derived[0]!.vb);
+      }
+    }
+    expect(carriers).toBeGreaterThan(5);
+  });
+
+  it("the operator's lip-sync facts quote both tiers, never the flat base alone", () => {
+    const editor = OPERATOR_FEATURES.find((f) => f.id === "video-editor")!;
+    const p = editor.prices.find((x) => x.endpoint === "/api/lip-sync");
+    expect(p).toBeTruthy();
+    expect(p!.tiers).toEqual(deriveLipSyncTiers());
+    // formatFeatureFacts prints a feature's first six prices; the
+    // editor carries 60+, so render the facts for the lip-sync price
+    // on its own entry — the string below is the operator's quote.
+    const facts = formatFeatureFacts({ ...editor, prices: [p!] });
+    expect(facts).toContain(
+      "Price: Lip Sync — priced by length: up to 50 seconds — 300 Visual Bucs; up to 1 minute — 600 Visual Bucs.",
+    );
+  });
+
+  it("the guard vouches the 600 VB tier figure", () => {
+    expect(KNOWN_VB_FIGURES.has(600)).toBe(true);
+    expect(findInventedPrice("A 55-second lip sync is 600 Visual Bucs.")).toBeNull();
+  });
+});
+
 describe("operator knowledge — takeover offers (wave 2 #2)", () => {
   const REPO_ROOT = path.resolve(HERE, "..", "..", "..", "..", "..");
 

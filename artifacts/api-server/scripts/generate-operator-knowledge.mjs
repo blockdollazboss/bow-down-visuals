@@ -78,7 +78,11 @@
                                  from the server sources independently.
      duration-tiered prices .... src/routes/generate/music-audio.ts
                                  SONG_PRICE_TIERS — the table the charging
-                                 function creditCostForLength derives from.
+                                 function creditCostForLength derives from;
+                                 and src/lib/lip-sync-jobs.ts
+                                 LIP_SYNC_PRICE_TIERS — the table
+                                 lipSyncChargeForDurationSec derives from
+                                 (300 VB ≤ 50s, 600 VB for 50–60s).
                                  The CREDIT_COSTS registry records only the
                                  first tier's flat figure for the endpoint,
                                  so the tiers ride the price entry as
@@ -1108,7 +1112,11 @@ const SERVER_PRICE_OVERRIDES = [];
     derives from, the base figure from CREDIT_COSTS, and generation
     verifies the two agree at the first tier (and that the route file
     still serves the endpoint) — drift throws rather than emitting a
-    flat price for a tiered rail.
+    flat price for a tiered rail. Two optional fields cover rails whose
+    shape differs from the song rail's: `tableFile` when the tier table
+    lives outside the route file (default: the route file), and
+    `servesPath` when the registry key is a base path rather than the
+    literal registered route (default: the endpoint minus "/api").
     attachToFeatureIds: "Make a Song" fronts this rail through HumToSong
     (which calls the rail's /extend path) — two component hops from the
     Create page, past the generator's one-hop endpoint scan — so the
@@ -1119,6 +1127,30 @@ const TIERED_PRICE_LINKS = [
     tableConstant: "SONG_PRICE_TIERS",
     routeFile: "routes/generate/music-audio.ts",
     attachToFeatureIds: ["desk-song"],
+  },
+  /* Lip sync (stack1400 duration tier): the registry keys the rail by
+     its base paths ("/api/lip-sync" fronts POST /lip-sync/preview),
+     while the tier table lives beside the charging function in
+     lib/lip-sync-jobs.ts — hence tableFile + servesPath. Both registry
+     keys (single clip + run-all per scene) charge from the same table,
+     so both carry the tiers. attachToFeatureIds stands empty: every
+     carrier already names one of the two endpoints in its page scan,
+     so the tiers attach through pricesFor like the song tiers do. */
+  {
+    endpoint: "/api/lip-sync",
+    tableConstant: "LIP_SYNC_PRICE_TIERS",
+    routeFile: "routes/lip-sync.ts",
+    tableFile: "lib/lip-sync-jobs.ts",
+    servesPath: "/lip-sync/preview",
+    attachToFeatureIds: [],
+  },
+  {
+    endpoint: "/api/lip-sync/run-all",
+    tableConstant: "LIP_SYNC_PRICE_TIERS",
+    routeFile: "routes/lip-sync.ts",
+    tableFile: "lib/lip-sync-jobs.ts",
+    servesPath: "/lip-sync/run-all",
+    attachToFeatureIds: [],
   },
 ];
 
@@ -2232,18 +2264,22 @@ function main() {
   for (const link of TIERED_PRICE_LINKS) {
     const fileLabel = `artifacts/api-server/src/${link.routeFile}`;
     const src = read(path.join(API_SRC, link.routeFile));
-    if (!src.includes(`"${link.endpoint.replace("/api", "")}"`)) {
+    const servesPath = link.servesPath ?? link.endpoint.replace("/api", "");
+    if (!src.includes(`"${servesPath}"`)) {
       throw new Error(`tiered prices: ${fileLabel} no longer serves ${link.endpoint}`);
     }
-    const tiers = extractPriceTiers(src, link.tableConstant, fileLabel);
+    const tableFile = link.tableFile ?? link.routeFile;
+    const tableLabel = `artifacts/api-server/src/${tableFile}`;
+    const tableSrc = tableFile === link.routeFile ? src : read(path.join(API_SRC, tableFile));
+    const tiers = extractPriceTiers(tableSrc, link.tableConstant, tableLabel);
     const registry = creditCosts.get(link.endpoint);
     if (!registry) throw new Error(`tiered prices: CREDIT_COSTS has no entry for ${link.endpoint} to attach tiers to`);
     if (registry.cost !== tiers[0].vb) {
-      throw new Error(`tiered prices: CREDIT_COSTS ${link.endpoint}=${registry.cost} disagrees with ${link.tableConstant} first tier=${tiers[0].vb} (${fileLabel})`);
+      throw new Error(`tiered prices: CREDIT_COSTS ${link.endpoint}=${registry.cost} disagrees with ${link.tableConstant} first tier=${tiers[0].vb} (${tableLabel})`);
     }
     tieredPrices.set(link.endpoint, {
       tiers,
-      tiersSource: `${fileLabel} ${link.tableConstant} — the table the charging function derives from`,
+      tiersSource: `${tableLabel} ${link.tableConstant} — the table the charging function derives from`,
     });
   }
 
@@ -2645,12 +2681,17 @@ function main() {
         throw new Error(`feature price links: attach target feature "${id}" for ${link.endpoint} is not in the knowledge base`);
       }
       if (!entry.prices.some((p) => p.endpoint === link.endpoint)) {
+        // A duration-tiered rail keeps its tiers on this path too —
+        // an entry attached here must never quote the flat base alone
+        // (the lip-sync run-all entry on the video editor is the case).
+        const tiered = tieredPrices.get(link.endpoint);
         entry.prices = [...entry.prices];
         entry.prices.push({
           feature: registry.feature,
           vb: registry.cost,
           endpoint: link.endpoint,
           source: CREDIT_COSTS_SOURCE,
+          ...(tiered ? { tiers: tiered.tiers, tiersSource: tiered.tiersSource } : {}),
         });
         entry.prices.sort((a, b) => a.endpoint.localeCompare(b.endpoint));
       }

@@ -51,6 +51,24 @@ export const LIP_SYNC_LONG_CLIP_MAX_SEC = 60;
 export const LIP_SYNC_LONG_CLIP_CREDIT_COST = 600;
 
 /**
+ * The duration price table lipSyncChargeForDurationSec derives from —
+ * the single source of truth for the tier, in the same
+ * `{ maxLengthMs, cost }` shape as SONG_PRICE_TIERS so the operator
+ * knowledge generator (scripts/generate-operator-knowledge.mjs,
+ * TIERED_PRICE_LINKS) can extract it and quote the tier instead of the
+ * flat base figure. The rows must stay in lock-step with the constants
+ * above (300 base / 50s threshold / 60s max / 600 long-clip); the
+ * stack1400 KB-tier tests pin them equal. NOTE the table only spans
+ * the priced range: a clip over 60s is NOT charged the top tier — it
+ * keeps the pre-tier behaviour described above (base charge, then the
+ * job fails over the provider limit and refunds it).
+ */
+export const LIP_SYNC_PRICE_TIERS = [
+  { maxLengthMs: 50_000, cost: 300 },
+  { maxLengthMs: 60_000, cost: 600 },
+] as const;
+
+/**
  * The honest up-front lip-sync charge for a clip of `durationSec`
  * seconds (the real window being synced: sceneEndSec − sceneStartSec
  * on the preview rail, the scene window on run-all):
@@ -61,8 +79,9 @@ export const LIP_SYNC_LONG_CLIP_CREDIT_COST = 600;
 export function lipSyncChargeForDurationSec(durationSec: unknown): number {
   const d = typeof durationSec === "number" ? durationSec : Number(durationSec);
   if (!Number.isFinite(d)) return LIP_SYNC_JOB_CHARGE_CREDITS;
-  if (d > LIP_SYNC_LONG_CLIP_THRESHOLD_SEC && d <= LIP_SYNC_LONG_CLIP_MAX_SEC) {
-    return LIP_SYNC_LONG_CLIP_CREDIT_COST;
+  const durationMs = d * 1000;
+  for (const tier of LIP_SYNC_PRICE_TIERS) {
+    if (durationMs <= tier.maxLengthMs) return tier.cost;
   }
   return LIP_SYNC_JOB_CHARGE_CREDITS;
 }
