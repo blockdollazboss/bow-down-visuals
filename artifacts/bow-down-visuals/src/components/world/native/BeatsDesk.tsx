@@ -9,7 +9,7 @@ import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/c
 import {
   NativeCard, NativeEmptyState, NativeErrorState, NativeLoadingState,
 } from "@/components/world/native";
-import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import { BEAT_LICENSE_FORMATS, describeTermsInline, templateTerms, type BeatLicenseTemplate } from "@/lib/beat-license-terms";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import {

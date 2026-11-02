@@ -34,12 +34,14 @@ import {
   type AudioBenchResult,
 } from "@/lib/world/audio-benches";
 import {
-  AudioResult,
   DeskSelectField,
-  QuestProgressChip,
   useDeskAuthHeaders,
+} from "./CreateDeskLeaf";
+import {
+  AudioResult,
+  QuestProgressChip,
   useQuestProgressChip,
-} from "./CreateDeskShared";
+} from "./CreateResultLeaf";
 import { NativeShelf, NativeShelfRow } from "./NativeShelf";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, FileSearch, Loader2, ShieldCheck } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   CONTRACTS_ANALYZE_PATH,
   CONTRACT_ANALYSIS_COST_VB,

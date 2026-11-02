@@ -2,7 +2,7 @@ import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
-import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   apiErrorLine,
   designationPayload,

@@ -8,7 +8,7 @@ import {
   NativeErrorState,
   NativeLoadingState,
 } from "@/components/world/native/NativeStates";
-import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
 import { sortPitches, type PitchFixSubmission, type PitchSort } from "@/lib/pitch-fix";
 import {

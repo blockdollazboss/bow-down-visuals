@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Copy, Download, Loader2, Megaphone } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskShared";
+import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   ANNOUNCEMENT_TYPE_OPTIONS,
   PRESS_RELEASE_COST_VB,
