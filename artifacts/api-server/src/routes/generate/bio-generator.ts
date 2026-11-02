@@ -15,7 +15,8 @@ const router = Router();
    Generates optimized profile bios for Instagram, TikTok, Twitter/X, and
    YouTube from a niche, personality traits, and achievements — each platform
    bio respects that platform's character limit.
-   50 Visual Bucs. */
+   100 Visual Bucs — priced by BIO_COST in ./bio-pricing, the source of
+   truth for this rail's price (do not restate a different figure here). */
 
 /** Character limits enforced per platform (generous-safe margins). */
 export const PLATFORM_LIMITS = {
