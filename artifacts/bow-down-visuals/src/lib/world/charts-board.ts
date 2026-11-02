@@ -28,6 +28,9 @@
  * rails, the same ones the website's surfaces post to:
  *   POST   /api/brand-deals/outreach  (the pitch draft — 100 VB)
  *   POST   /api/ugc-briefs            (a brief on the Promote board)
+ * Ring 4 #26 adds no endpoint either: the charts page's advanced
+ * `days` lookback rides the two windowed reads above as a query
+ * param (see the lookback seam).
  */
 
 import { resolveMedia, type MediaKind } from "@/lib/streaming";
@@ -228,14 +231,16 @@ export function chartWindowNoun(window: ChartWindow): string {
 
 /** The one charts read behind the Tracks + Videos tabs (both keys
  *  ride a single payload), at the walker's chosen window. Switching
- *  windows re-queries this path — the server aggregates per window. */
-export function chartsMediaPath(window: ChartWindow, vertical: ChartVertical = "all"): string {
-  return `/api/discovery/charts?window=${window}&limit=10${chartVerticalSuffix(vertical)}`;
+ *  windows re-queries this path — the server aggregates per window.
+ *  A chosen lookback (Ring 4 #26) rides the same path — see the
+ *  lookback seam below. */
+export function chartsMediaPath(window: ChartWindow, vertical: ChartVertical = "all", days: number | null = null): string {
+  return `/api/discovery/charts?window=${window}&limit=10${chartVerticalSuffix(vertical)}${chartLookbackSuffix(days)}`;
 }
 
 /** The creators chart at the walker's chosen window. */
-export function chartsCreatorsPath(window: ChartWindow, vertical: ChartVertical = "all"): string {
-  return `/api/discovery/charts/creators?window=${window}&limit=10${chartVerticalSuffix(vertical)}`;
+export function chartsCreatorsPath(window: ChartWindow, vertical: ChartVertical = "all", days: number | null = null): string {
+  return `/api/discovery/charts/creators?window=${window}&limit=10${chartVerticalSuffix(vertical)}${chartLookbackSuffix(days)}`;
 }
 
 /* ─── The vertical switcher seam ──────────────────────────────────────
@@ -282,6 +287,51 @@ export function chartsEarnersPath(vertical: ChartVertical = "all"): string {
 
 export function chartsBrandsPath(vertical: ChartVertical = "all"): string {
   return `/api/discovery/brands?limit=12${chartVerticalSuffix(vertical)}`;
+}
+
+/* ─── The lookback seam (Ring 4 #26) ──────────────────────────────────
+   The website /charts page's Advanced panel: a custom lookback in
+   days that OVERRIDES the window on the charts reads. The rail's
+   own contract (routes/discovery.ts ChartsQuery): `days` is an
+   integer from 1 to 90, honoured by /charts and /charts/creators,
+   and REFUSED with a 400 by the fixed-span boards (/rising,
+   /rising-earners, /brands) — so the lookback rides only the two
+   windowed reads, exactly like the window switcher, and the
+   fixed-span paths above take no days at all. The choices are the
+   page's own presets (its DAY_PRESETS: 7 / 14 / 30 / 90) plus the
+   no-lookback "Default" state, which rides no param at all and
+   keeps the windowed paths byte-identical to before. The API is
+   public and the server checks no rank for `days` — the page's
+   star gate is its own UI exposure choice, not the rail's. */
+
+export const CHART_LOOKBACK_MIN_DAYS = 1;
+export const CHART_LOOKBACK_MAX_DAYS = 90;
+
+export const CHART_LOOKBACKS: Array<{ days: number | null; label: string }> = [
+  { days: null, label: "Default" },
+  { days: 7, label: "7 days" },
+  { days: 14, label: "14 days" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+];
+
+/** The `&days=` suffix for a chosen lookback — emitted ONLY for a
+ *  value the rail itself accepts (an integer inside its 1–90
+ *  range, the ChartsQuery zod exactly). Anything else rides no
+ *  param: an out-of-range value would be the caller's 400, and the
+ *  board never sends the server a span it would refuse. */
+export function chartLookbackSuffix(days: number | null): string {
+  if (days === null) return "";
+  if (!Number.isInteger(days) || days < CHART_LOOKBACK_MIN_DAYS || days > CHART_LOOKBACK_MAX_DAYS) return "";
+  return `&days=${days}`;
+}
+
+/** The noun board titles and empty states speak with when a
+ *  lookback is chosen: "Top tracks — last 30 days". A lookback
+ *  overrides the window server-side, so a title that kept speaking
+ *  the window's noun would name a span the board isn't showing. */
+export function chartLookbackNoun(days: number): string {
+  return `last ${days} days`;
 }
 
 /* ─── The Play seam ───────────────────────────────────────────────────

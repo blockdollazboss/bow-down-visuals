@@ -10,10 +10,12 @@ import {
   NativeLoadingState,
 } from "@/components/world/native";
 import {
+  CHART_LOOKBACKS,
   CHART_VERTICALS,
   CHART_WINDOWS,
   chartLikeIdsParam,
   chartLikeKey,
+  chartLookbackNoun,
   chartRepostIdsParam,
   chartTrackPlayInput,
   chartVerticalLabel,
@@ -92,7 +94,15 @@ import type { ShelfPlayerController } from "@/components/world/native/ShelfPlaye
    outreach no longer doors to the website: BrandOutreachPanel
    drafts a pitch on the Brand Deals rail and posts a brief on the
    Promote rail, both in-world; one quiet website footer is all
-   that still points out. */
+   that still points out.
+   Ring 4 #26: the /charts page's Advanced lookback stands on the
+   board too — a chip row under the window switcher (Default / 7 /
+   14 / 30 / 90 days, the page's own presets). A chosen lookback
+   rides the two windowed reads as `days` and overrides the window
+   server-side, so those reads cache per window+vertical+lookback
+   and their titles speak the lookback's span. The fixed-span
+   boards refuse `days` outright on the rail, so — like the window
+   switcher — the lookback steps aside on those tabs. */
 
 type ChartsTab = "tracks" | "videos" | "creators" | "rising" | "earners" | "brands";
 
@@ -145,6 +155,12 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
      media rows cache PER WINDOW+VERTICAL — a vertical's rows are
      its own server read, like a window's. */
   const [vertical, setVertical] = useState<ChartVertical>("all");
+  /* The lookback switcher's choice (Ring 4 #26 — the /charts
+     page's Advanced panel): a day count that overrides the window
+     on the windowed reads, or null for the window's own span.
+     Media rows cache PER WINDOW+VERTICAL+LOOKBACK — a lookback's
+     rows are its own server read, like a window's. */
+  const [lookbackDays, setLookbackDays] = useState<number | null>(null);
   const [mediaByKey, setMediaByKey] = useState<
     Partial<Record<string, { tracks: ChartTrackRow[]; videos: ChartVideoRow[] }>>
   >({});
@@ -168,10 +184,10 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
 
   /* The active view's media rows (both media tabs share one read)
      and the cache key the current view loads under: media tabs key
-     by window+vertical, the creators tab keys by tab+window+
-     vertical, and the fixed-span tabs key by tab+vertical — their
-     span never moves, but their vertical does. */
-  const mediaKey = `${window}:${vertical}`;
+     by window+vertical+lookback, the creators tab keys by tab+
+     window+vertical+lookback, and the fixed-span tabs key by tab+
+     vertical — their span never moves, but their vertical does. */
+  const mediaKey = `${window}:${vertical}:${lookbackDays ?? "default"}`;
   const media = mediaByKey[mediaKey];
   const tracks = media?.tracks ?? null;
   const videos = media?.videos ?? null;
@@ -182,9 +198,10 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         ? `creators:${mediaKey}`
         : `${tab}:${vertical}`;
 
-  /* Load the active view's rows (once per tab+window+vertical;
-     the retry tick reloads the failed one). Switching windows or
-     verticals re-queries — each is a different server read. */
+  /* Load the active view's rows (once per tab+window+vertical+
+     lookback; the retry tick reloads the failed one). Switching
+     windows, verticals or lookbacks re-queries — each is a
+     different server read. */
   useEffect(() => {
     let cancelled = false;
     const loaded =
@@ -197,7 +214,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         if (tab === "tracks" || tab === "videos") {
           /* One payload carries both keys — the tracks and videos
              tabs are two views of the same chart read. */
-          const res = await fetch(chartsMediaPath(window, vertical));
+          const res = await fetch(chartsMediaPath(window, vertical, lookbackDays));
           if (!res.ok) throw new Error("charts");
           const payload = await res.json();
           if (!cancelled) {
@@ -213,7 +230,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         } else {
           const path =
             tab === "creators"
-              ? chartsCreatorsPath(window, vertical)
+              ? chartsCreatorsPath(window, vertical, lookbackDays)
               : tab === "rising"
                 ? chartsRisingPath(vertical)
                 : tab === "brands"
@@ -237,7 +254,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, tick, window, vertical]);
+  }, [tab, tick, window, vertical, lookbackDays]);
 
   /* The walker's follow state for the creator rows on show —
      one batched read, members only (the page's own pattern). */
@@ -527,14 +544,17 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
   /* The windowed tabs title off the chosen window; the fixed-span
      tabs keep theirs. A chosen vertical names itself in every
      title — the board never shows a filtered read under an
-     unfiltered name. */
+     unfiltered name. A chosen LOOKBACK names the span instead of
+     the window: days overrides the window server-side, so the
+     window's noun would name a span the board isn't showing. */
+  const spanNoun = lookbackDays !== null ? chartLookbackNoun(lookbackDays) : chartWindowNoun(window);
   const boardTitle =
     (tab === "tracks"
-      ? `Top tracks — ${chartWindowNoun(window)}`
+      ? `Top tracks — ${spanNoun}`
       : tab === "videos"
-        ? `Top videos — ${chartWindowNoun(window)}`
+        ? `Top videos — ${spanNoun}`
         : tab === "creators"
-          ? `Top creators — ${chartWindowNoun(window)}`
+          ? `Top creators — ${spanNoun}`
           : (FIXED_TAB_TITLES[tab] ?? "")) +
     (vertical === "all" ? "" : ` · ${chartVerticalLabel(vertical)}`);
   const windowedTab = tab === "tracks" || tab === "videos" || tab === "creators";
@@ -579,6 +599,31 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         </div>
       )}
 
+      {/* The lookback switcher — the website /charts page's
+          Advanced panel presets (Ring 4 #26). Like the window
+          switcher it stands only on the windowed tabs: the
+          fixed-span boards refuse `days` on the rail itself, so a
+          lookback that reached them would be a 400, not a span.
+          Choosing one re-queries the windowed reads with `days`,
+          which overrides the window server-side. */}
+      {windowedTab && (
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Chart lookback">
+          {CHART_LOOKBACKS.map((l) => (
+            <button
+              key={l.label}
+              type="button"
+              role="tab"
+              aria-selected={lookbackDays === l.days}
+              data-testid={`world-charts-lookback-${l.days ?? "default"}`}
+              onClick={() => setLookbackDays(l.days)}
+              className={tabBtn(lookbackDays === l.days)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* The vertical switcher — the /charts page's other switcher.
           Unlike the window switcher it stands on EVERY tab: each
           discovery read filters by vertical server-side, the
@@ -616,9 +661,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
               <NativeEmptyState
                 isLight={isLight}
                 message={
-                  window === "all"
+                  lookbackDays === null && window === "all"
                     ? "Nothing on the all-time board — yet."
-                    : `Nothing is charting ${chartWindowNoun(window)} — yet.`
+                    : `Nothing is charting ${spanNoun} — yet.`
                 }
                 detail="The lane is wide open. Publish a track and the first row is yours."
               />
@@ -685,9 +730,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
               <NativeEmptyState
                 isLight={isLight}
                 message={
-                  window === "all"
+                  lookbackDays === null && window === "all"
                     ? "No videos on the all-time board — yet."
-                    : `No videos are charting ${chartWindowNoun(window)} — yet.`
+                    : `No videos are charting ${spanNoun} — yet.`
                 }
                 detail="Publish a video and the first row is yours."
               />
@@ -739,9 +784,9 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                       ? vertical === "all"
                         ? "No creators to scout yet."
                         : `No ${chartVerticalLabel(vertical)} creators to scout yet.`
-                      : window === "all"
+                      : lookbackDays === null && window === "all"
                         ? "No creators on the all-time board — yet."
-                        : `No creators are charting ${chartWindowNoun(window)} — yet.`
+                        : `No creators are charting ${spanNoun} — yet.`
               }
               detail="Check back as the kingdom plays — or be the name that fills the first row."
             />
