@@ -824,55 +824,6 @@ const licenseVerifySchema = z.object({
    are unchanged — the settle returns the very { status, body }
    verify always answered. */
 
-/* The producer tell (BEATS-SETTLE, stack1200) — the notify-census
-   lane's fix #5 in the shape THIS lineage needs. That lane wired
-   the tell into its own verify-local completion (its finding #4
-   recorded that beats had no webhook settle — true on its base,
-   already fixed here by WEBHOOK-SETTLE). On this branch completion
-   lives in the shared settle below, so the tell hangs off the
-   settle's completion-flip win and fires identically from the
-   webhook door (buyer closed the tab) and the verify door. Same
-   claim-first shape as the storefront sale finale
-   (lib/market-sale.ts): the claim (jobType "sale", jobId
-   `beat-license:<id>`) lands on the unique (job_type, job_id)
-   key — only its winner fires the door, so racing doors and
-   replays tell exactly once. Copy names the TRUE money: the
-   producer's net from the row's own price − commission, never
-   the gross. Best-effort: a tell failure never fails the
-   buyer's completion. */
-async function notifyBeatSaleSafely(license: {
-  id: string;
-  producer_id: string;
-  price_cents: number;
-  commission_cents: number;
-  tier: string;
-}, beatTitle: string): Promise<void> {
-  const title = "Your beat just sold 👑";
-  const message = `${beatTitle} (${license.tier}) — net $${((license.price_cents - license.commission_cents) / 100).toFixed(2)} to you. See it in your beat dashboard.`;
-  try {
-    const claimed = await createJobNotification({
-      jobType: "sale",
-      jobId: `beat-license:${license.id}`,
-      userId: license.producer_id,
-      projectId: null,
-      status: "completed",
-      title,
-      message,
-    });
-    if (!claimed) return; // a twin request already claimed the tell
-    await notifyUserEvent({
-      userId: license.producer_id,
-      category: "money",
-      kind: "beat_sale",
-      title,
-      body: message,
-      link: "/beats",
-    });
-  } catch (err) {
-    logger.warn({ err, licenseId: license.id }, "[beats] producer sale tell failed (sale stands)");
-  }
-}
-
 export interface BeatLicenseSettleResult {
   httpStatus: number;
   body: Record<string, unknown>;
@@ -1109,6 +1060,55 @@ export async function settleBeatLicenseSession(
    paid checkout to a completed license; the Stripe webhook settles
    the same session through the same settle when the buyer never
    returns. */
+/* The producer tell (BEATS-SETTLE, stack1200) — the notify-census
+   lane's fix #5 in the shape THIS lineage needs. That lane wired
+   the tell into its own verify-local completion (its finding #4
+   recorded that beats had no webhook settle — true on its base,
+   already fixed here by WEBHOOK-SETTLE). On this branch completion
+   lives in the shared settle below, so the tell hangs off the
+   settle's completion-flip win and fires identically from the
+   webhook door (buyer closed the tab) and the verify door. Same
+   claim-first shape as the storefront sale finale
+   (lib/market-sale.ts): the claim (jobType "sale", jobId
+   `beat-license:<id>`) lands on the unique (job_type, job_id)
+   key — only its winner fires the door, so racing doors and
+   replays tell exactly once. Copy names the TRUE money: the
+   producer's net from the row's own price − commission, never
+   the gross. Best-effort: a tell failure never fails the
+   buyer's completion. */
+async function notifyBeatSaleSafely(license: {
+  id: string;
+  producer_id: string;
+  price_cents: number;
+  commission_cents: number;
+  tier: string;
+}, beatTitle: string): Promise<void> {
+  const title = "Your beat just sold 👑";
+  const message = `${beatTitle} (${license.tier}) — net $${((license.price_cents - license.commission_cents) / 100).toFixed(2)} to you. See it in your beat dashboard.`;
+  try {
+    const claimed = await createJobNotification({
+      jobType: "sale",
+      jobId: `beat-license:${license.id}`,
+      userId: license.producer_id,
+      projectId: null,
+      status: "completed",
+      title,
+      message,
+    });
+    if (!claimed) return; // a twin request already claimed the tell
+    await notifyUserEvent({
+      userId: license.producer_id,
+      category: "money",
+      kind: "beat_sale",
+      title,
+      body: message,
+      link: "/beats",
+    });
+  } catch (err) {
+    logger.warn({ err, licenseId: license.id }, "[beats] producer sale tell failed (sale stands)");
+  }
+}
+
 router.post("/beats/licenses/verify", requireAuth, async (req, res) => {
   const parsed = licenseVerifySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
