@@ -404,6 +404,7 @@ const W3_LEGIT_IDENTICAL = new Set([
   "logoMaker.styleLuxuryGold",
   "logoMaker.styleMinimal",
   "logoMaker.vb",
+  "makeVideo.soundAttachFailed",
   "makeVideo.genreAfrobeats",
   "makeVideo.genreCountry",
   "makeVideo.genreDancehall",

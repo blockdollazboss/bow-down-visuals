@@ -273,6 +273,7 @@ const W3_LEGIT: ReadonlySet<string> = new Set([
   "headshotStudio.visualBucs",
   "logoMaker.modelPremium",
   "logoMaker.vb",
+  "makeVideo.soundAttachFailed",
   "makeVideo.genreAfrobeats",
   "makeVideo.genreCountry",
   "makeVideo.genreDancehall",

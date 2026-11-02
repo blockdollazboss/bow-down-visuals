@@ -333,7 +333,7 @@ const W3_LEGIT = new Set([
   "logoMaker.styleGaming", "logoMaker.styleMinimal", "logoMaker.modelPremium",
   "logoMaker.modelStandard", "logoMaker.vb",
   "makeVideo.priceBadge", "makeVideo.unknownStep", "makeVideo.clipFallback",
-  "makeVideo.refundedNoticeSuffix",
+  "makeVideo.refundedNoticeSuffix", "makeVideo.soundAttachFailed",
   "makeVideo.genreHipHop", "makeVideo.genreDrill", "makeVideo.genreTrap",
   "makeVideo.genreRB", "makeVideo.genrePop", "makeVideo.genreAfrobeats",
   "makeVideo.genreDancehall", "makeVideo.genreGospel", "makeVideo.genreRock",

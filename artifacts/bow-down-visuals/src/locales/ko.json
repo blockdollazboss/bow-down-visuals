@@ -5127,6 +5127,7 @@
     "generatingScenes": "씬 생성 중…",
     "generateScenesFromSong": "곡에서 씬 생성",
     "audioSceneFailed": "이 곡에서 씬을 생성할 수 없었습니다.",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "아티스트 / 브랜드",
     "step2Short": "아티스트",
     "activeArtistReady": "활성 아티스트가 준비되었습니다.",

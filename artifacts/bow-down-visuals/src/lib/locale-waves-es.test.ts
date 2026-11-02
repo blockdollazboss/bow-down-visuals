@@ -266,6 +266,7 @@ const W3_LEGIT: ReadonlySet<string> = new Set([
   "logoMaker.styleGaming",
   "logoMaker.vb",
   "lrcExport.aiCost",
+  "makeVideo.soundAttachFailed",
   "makeVideo.clipFallback",
   "makeVideo.genreAfrobeats",
   "makeVideo.genreCountry",

@@ -216,6 +216,7 @@ const W3_ALLOW = new Set([
   "logoMaker.vb",
   "lrcExport.aiCost",
   "makeVideo.priceBadge",
+  "makeVideo.soundAttachFailed",
   "makeVideo.refundedNoticeSuffix",
   "mastering.downloadMp3",
   "mastering.downloadWav",

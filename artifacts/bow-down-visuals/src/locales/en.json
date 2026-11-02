@@ -5404,6 +5404,7 @@
     "generatingScenes": "Generating scenes...",
     "generateScenesFromSong": "Generate Scenes From Song",
     "audioSceneFailed": "Could not generate scenes from this song.",
+    "soundAttachFailed": "That sound couldn't be loaded — it may be private or removed. Upload your song or pick a different sound instead.",
     "step2Label": "Artist / Brand",
     "step2Short": "Artist",
     "activeArtistReady": "Your active artist is ready to go.",
