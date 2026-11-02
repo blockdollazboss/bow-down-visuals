@@ -11,7 +11,10 @@
  *   - the central Stripe webhook (checkout.session.completed).
  * The UPDATE is guarded on event_type='pending_sale', so webhook replays,
  * double verify calls and verify+webhook races all land exactly once —
- * the loser simply reads back the already-paid rows.
+ * the loser simply reads back the already-paid rows. It also refuses
+ * lines an expired session left behind (payment_status='expired' —
+ * expiry keeps event_type='pending_sale'), so an expired session can
+ * never be fulfilled by a late paid flip (QC-200 Q147).
  *
  * Queries use raw SQL via db.execute(sql``) — the shop surface's own
  * convention (pg-mem cannot run the drizzle query builder here).
@@ -202,6 +205,7 @@ export async function markMarketSalePaid(
     UPDATE shop_events
     SET event_type = 'sale', payment_status = 'paid', paid_at = COALESCE(paid_at, now())
     WHERE stripe_session_id = ${sessionId} AND event_type = 'pending_sale'
+      AND COALESCE(payment_status, '') <> 'expired'
     RETURNING id
   `);
   const rows = await fetchMarketSaleBySession(sessionId);
