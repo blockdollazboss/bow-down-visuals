@@ -885,11 +885,11 @@
         "slotTaken": "يوجد في تلك الغرفة حدث في ذلك الوقت بالفعل — اختر ساعة أخرى.",
         "signIn": "سجّل الدخول لحجز عرض.",
         "failed": "لم يتم الحجز — لم يُجدوَل شيء. حاول مرة أخرى.",
-        "amountRange": "يدفع الدروب الواحد بين 100 و1,000 Visual Bucs لكل مطالبة."
+        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
       },
-      "budgetLine": "تُدفع كل مطالبة من ميزانية الدروب الأسبوعية المشتركة — بحد أقصى 1,000 Visual Bucs أسبوعيًا عبر جميع الدروب.",
-      "rangeLine": "يدفع الدروب الواحد بين 100 و1,000 Visual Bucs لكل مطالبة.",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} مطالبة"
+      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
+      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
     },
     "pageTitle": "الإدارة",
     "pageDescription": "إدارة الموقع.",

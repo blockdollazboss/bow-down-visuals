@@ -885,11 +885,11 @@
         "slotTaken": "その部屋にはその時間帯にすでにイベントがあります — 別の時間を選んでください。",
         "signIn": "スペクタクルを予約するにはサインインしてください。",
         "failed": "予約が成立しませんでした — 何も予定されていません。もう一度お試しください。",
-        "amountRange": "ドロップは1請求あたり100〜1,000 Visual Bucsを支払います。"
+        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
       },
-      "budgetLine": "各請求は共有の週間ドロップ予算から支払われます — 全ドロップ合計で週あたり最大1,000 Visual Bucsです。",
-      "rangeLine": "ドロップは1請求あたり100〜1,000 Visual Bucsを支払います。",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} 件の請求"
+      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
+      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
     },
     "pageTitle": "管理者",
     "pageDescription": "サイト管理。",

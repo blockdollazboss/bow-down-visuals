@@ -885,11 +885,11 @@
         "slotTaken": "उस कमरे में उस समय पहले से एक कार्यक्रम है — कोई और घंटा चुनें।",
         "signIn": "तमाशा बुक करने के लिए साइन इन करें।",
         "failed": "बुकिंग नहीं हुई — कुछ भी निर्धारित नहीं हुआ। फिर से कोशिश करें।",
-        "amountRange": "एक ड्रॉप प्रति दावे 100 से 1,000 Visual Bucs के बीच देता है।"
+        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
       },
-      "budgetLine": "हर दावे का भुगतान साझा साप्ताहिक ड्रॉप बजट से होता है — सभी ड्रॉप्स में मिलाकर प्रति सप्ताह अधिकतम 1,000 Visual Bucs।",
-      "rangeLine": "एक ड्रॉप प्रति दावे 100 से 1,000 Visual Bucs के बीच देता है।",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} दावे"
+      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
+      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
     },
     "bowRaceDescription": "हर महीने एक गुप्त साइट-व्यापी रेस। हर साइन-इन उपयोगकर्ता के bow एक ही काउंटर में जुड़ते हैं; हर महीने 1,000–5,000 bow का एक रैंडम लक्ष्य निकाला जाता है। जिसका bow ठीक लक्ष्य पर उतरता है, वह Visual Buc इनाम जीतता है और आश्चर्यजनक \"You Cracked the Code!\" पॉपअप देखता है। रेस की घोषणा कहीं नहीं होती — यह पैनल ही एकमात्र जगह है जहां यह दिखती है।",
     "bowRaceFooterNote": "हर नया महीना अपने आप नए रैंडम लक्ष्य के साथ नई रेस शुरू करता है — कोई मैन्युअल रीसेट नहीं। ओवरराइड अगले रेस महीने पर एक बार लागू होता है, फिर खुद साफ़ हो जाता है। इनाम \"Global Bow Race\" के रूप में Visual Buc लेजर में दर्ज होते हैं।",

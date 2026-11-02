@@ -885,11 +885,11 @@
         "slotTaken": "Quella sala ha già un evento in quella fascia — scegli un'altra ora.",
         "signIn": "Accedi per prenotare uno spettacolo.",
         "failed": "La prenotazione non è andata a buon fine — niente è stato programmato. Riprova.",
-        "amountRange": "Un drop paga tra 100 e 1,000 Visual Bucs per richiesta."
+        "amountRange": "A drop pays between 100 and 1,000 Visual Bucs per claim."
       },
-      "budgetLine": "Ogni richiesta viene pagata dal budget settimanale condiviso dei drop — al massimo 1,000 Visual Bucs a settimana tra tutti i drop.",
-      "rangeLine": "Un drop paga tra 100 e 1,000 Visual Bucs per richiesta.",
-      "claimsLine": "{{amount}} Visual Bucs × {{count}} richieste"
+      "budgetLine": "Every claim pays out of the shared weekly drop budget — at most 1,000 Visual Bucs a week across all drops.",
+      "rangeLine": "A drop pays between 100 and 1,000 Visual Bucs per claim.",
+      "claimsLine": "{{amount}} Visual Bucs × {{count}} claims"
     },
     "bowRaceDescription": "Una corsa segreta al mese in tutto il sito. Gli inchini di ogni utente registrato alimentano un unico contatore; ogni mese viene estratto un obiettivo casuale tra 1.000 e 5.000 inchini. Chi atterra l'inchino esattamente sull'obiettivo vince la ricompensa in Visual Bucs e vede il popup a sorpresa \"Hai decifrato il codice!\". La corsa non viene mai annunciata da nessuna parte — questo pannello è l'unico posto in cui appare.",
     "bowRaceFooterNote": "Un nuovo mese avvia automaticamente una nuova corsa con un nuovo obiettivo casuale — nessun reset manuale. La forzatura si applica una sola volta al mese successivo, poi si cancella da sola. Le ricompense vengono registrate come \"Global Bow Race\" nel registro dei Visual Bucs.",

@@ -844,7 +844,12 @@ describe("press-kit — no untranslated English residue", () => {
      and "Pool" are the German words, spelled identically.
    - pt challenges.statusLabel "Status": spelled identically in
      Portuguese. it challenges.status.live "Live": the universal
-     on-air badge spelling (cf. jackpot.phaseLive). */
+     on-air badge spelling (cf. jackpot.phaseLive).    - all locales worldDrops.budgetLine / rangeLine / claimsLine /
+     errors.amountRange: the World Drop money-policy lines — they
+     state the rails' own figures and stay ENGLISH in every catalog
+     by the owner-decision split (money copy is never agent-drafted;
+     the stage-drop-booking-i18n pin holds them to the rails' words).
+*/
 const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
   ar: [
     "challenges.amountLabel",
@@ -853,7 +858,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "remixKing.title",
     "reversals.age",
     "users.credits",
-    "users.emailPlaceholder",
+    "users.emailPlaceholder",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   de: [
     "challenges.amountLabel",
@@ -873,7 +882,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "reversals.age",
     "tiers.tier3",
     "users.credits",
-    "users.plan",
+    "users.plan",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   es: [
     "challenges.amountLabel",
@@ -886,7 +899,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "reversals.ageDay",
     "reversals.ageHour",
     "users.credits",
-    "users.plan",
+    "users.plan",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   fr: [
     "challenges.amountLabel",
@@ -905,7 +922,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "reversals.noteLabel",
     "reversals.session",
     "tiers.tier3",
-    "users.credits",
+    "users.credits",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   hi: [
     "challenges.amountLabel",
@@ -914,7 +935,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "remixKing.title",
     "reversals.age",
     "users.credits",
-    "users.emailPlaceholder",
+    "users.emailPlaceholder",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   it: [
     "challenges.amountLabel",
@@ -929,7 +954,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "reversals.age",
     "reversals.ageHour",
     "tiers.tier3",
-    "users.credits",
+    "users.credits",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   ja: [
     "challenges.amountLabel",
@@ -939,7 +968,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "remixKing.title",
     "reversals.age",
     "users.credits",
-    "users.emailPlaceholder",
+    "users.emailPlaceholder",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   ko: [
     "challenges.amountLabel",
@@ -948,7 +981,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "remixKing.title",
     "reversals.age",
     "users.credits",
-    "users.emailPlaceholder",
+    "users.emailPlaceholder",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
   pt: [
     "challenges.amountLabel",
@@ -964,7 +1001,11 @@ const ADMIN_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "reversals.ageDay",
     "reversals.ageHour",
     "users.credits",
-    "users.emailPlaceholder",
+    "users.emailPlaceholder",    "worldDrops.budgetLine",
+    "worldDrops.claimsLine",
+    "worldDrops.errors.amountRange",
+    "worldDrops.rangeLine",
+
   ],
 };
 
