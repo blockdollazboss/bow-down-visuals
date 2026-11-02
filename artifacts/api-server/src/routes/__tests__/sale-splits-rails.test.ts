@@ -227,7 +227,7 @@ CREATE TABLE shop_products (
 CREATE TABLE shop_events (
   id uuid PRIMARY KEY, shop_id uuid NOT NULL, user_id uuid NOT NULL,
   event_type text NOT NULL, product_id uuid, amount_cents integer NOT NULL DEFAULT 0,
-  platform_fee_cents integer NOT NULL DEFAULT 0, buyer_email text,
+  platform_fee_cents integer NOT NULL DEFAULT 0, buyer_email text, buyer_user_id uuid,
   settled_payout_id uuid, settled_at timestamptz, ip_hash text,
   stripe_session_id text, payment_status text, paid_at timestamptz,
   quantity integer NOT NULL DEFAULT 1, checkout_group_id text, discount_code text,

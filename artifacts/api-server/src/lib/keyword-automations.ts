@@ -70,7 +70,7 @@ export const KW_MAX_RULES_PER_CREATOR = 25;
 /** Sends one rule may fire per rolling hour. */
 export const KW_RULE_HOURLY_SEND_CAP = 60;
 /** Sends one creator's rules may fire per rolling 24h. */
-const KW_CREATOR_DAILY_SEND_CAP = 500;
+export const KW_CREATOR_DAILY_SEND_CAP = 500;
 /** Automation DMs one fan may receive from one creator per rolling 24h. */
 export const KW_FAN_DAILY_CAP = 3;
 /** How long a pending email capture listens for the fan's reply. */

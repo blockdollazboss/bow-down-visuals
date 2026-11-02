@@ -142,7 +142,7 @@ async function isElite(userId: string, plan: unknown): Promise<boolean> {
 /** The entitlement rule, one place: included → everyone; premium →
     owned outright or live Elite; creator packs → creator, purchased,
     or free (price 0) published. */
-async function kitUnlocked(
+export async function kitUnlocked(
   req: { userId?: string; userPlan?: unknown },
   packId: string,
 ): Promise<boolean> {
