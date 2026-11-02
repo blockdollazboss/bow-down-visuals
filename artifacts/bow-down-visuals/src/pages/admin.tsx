@@ -16,6 +16,9 @@ import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
 import { PaymentReversalsAdmin } from "@/components/PaymentReversalsAdmin";
 import { OperatorActionsAdmin } from "@/components/OperatorActionsAdmin";
 import { StudioGearQueueAdmin } from "@/components/StudioGearQueueAdmin";
+import { ChallengeAdmin } from "@/components/ChallengeAdmin";
+import { CommunityGrantsAdmin } from "@/components/CommunityGrantsAdmin";
+import { RemixKingAdmin } from "@/components/RemixKingAdmin";
 import { REPORT_REASON_LABELS, type ReportReason } from "@/lib/reports";
 import { REMOVAL_REASONS, parseContentId } from "@/lib/content-removal";
 
@@ -861,6 +864,12 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
   const [loadError, setLoadError] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* The rewards rail's own verb (POST /admin/pitch-fix/rewards/process)
+     as an explicit control: opening this bench already processes the
+     queue (the rail's design), but the endpoint deserves its own
+     button — with the outcome reported from the rail's own result. */
+  const [processing, setProcessing] = useState(false);
+  const [processMsg, setProcessMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -879,6 +888,40 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
   }, [authHeaders]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function processRewards() {
+    setProcessing(true);
+    setError(null);
+    setProcessMsg(null);
+    try {
+      const res = await fetch("/api/admin/pitch-fix/rewards/process", {
+        method: "POST",
+        headers: { ...(await authHeaders()) },
+      });
+      if (!res.ok) throw new Error("process failed");
+      const data = (await res.json()) as {
+        rewards?: { paidNowVb?: number; paidIds?: string[]; failedId?: string | null };
+      };
+      const rewards = data.rewards ?? {};
+      if (rewards.failedId) {
+        setProcessMsg(t("admin.pitchFix.processRewardsFailed"));
+      } else if ((rewards.paidNowVb ?? 0) > 0) {
+        setProcessMsg(
+          t("admin.pitchFix.processRewardsDone", {
+            amount: rewards.paidNowVb ?? 0,
+            count: rewards.paidIds?.length ?? 0,
+          }),
+        );
+      } else {
+        setProcessMsg(t("admin.pitchFix.processRewardsNone"));
+      }
+      void load();
+    } catch {
+      setError(t("admin.pitchFix.statusError"));
+    } finally {
+      setProcessing(false);
+    }
+  }
 
   async function patch(id: string, body: { moderation?: string; status?: string; duplicate_of?: string }) {
     setBusyId(id);
@@ -911,6 +954,19 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
           {t("admin.pitchFix.poolLine", { spent: pool.spentVb, cap: pool.capVb, queued: pool.queuedIds.length })}
         </p>
       )}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void processRewards()}
+          disabled={processing}
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#d4a017]/50 bg-[#d4a017]/10 px-3 py-1.5 text-xs font-bold text-[#d4a017] hover:bg-[#d4a017]/20 disabled:opacity-50"
+          data-testid="pitch-fix-process-rewards"
+        >
+          {processing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          {t("admin.pitchFix.processRewards")}
+        </button>
+        {processMsg && <p className="text-xs font-semibold text-emerald-300">{processMsg}</p>}
+      </div>
       {error && <p className="mt-3 text-sm font-bold text-red-400">{error}</p>}
       {loading ? (
         <p className="mt-4 flex items-center gap-2 text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin" />{t("admin.pitchFix.loading")}</p>
@@ -2090,6 +2146,9 @@ export default function AdminPage() {
           <PaymentReversalsAdmin authHeaders={authHeaders} />
           <OperatorActionsAdmin authHeaders={authHeaders} />
           <StudioGearQueueAdmin authHeaders={authHeaders} />
+          <ChallengeAdmin authHeaders={authHeaders} />
+          <CommunityGrantsAdmin authHeaders={authHeaders} />
+          <RemixKingAdmin authHeaders={authHeaders} />
         </>
       )}
     </div>
