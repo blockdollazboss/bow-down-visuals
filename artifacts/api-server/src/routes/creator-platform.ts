@@ -47,6 +47,7 @@ import { pricePointFor } from "./store";
 import { getRecruiterBadgeForUser } from "./referrals";
 import { getPublicSocialProof } from "../lib/social-proof";
 import { playCounter, playSourceKey } from "../lib/play-counting";
+import { fanCodeFromPlayRequest, recordFanLinkArrival } from "../lib/fan-link-events";
 import { socialProofFetcher } from "./social-proof";
 import { computeAchievements } from "./generate/milestones";
 import { getActiveProducerTag } from "./generate/producer-tag-lifecycle";
@@ -2272,6 +2273,19 @@ router.post("/media/:kind/:id/play", playLimiter, optionalAuth, async (req, res)
         mediaId: media.id,
         userId: req.userId ?? null,
       });
+      /* N17: a counted play that carried a fan code is that link's
+         ARRIVAL — a fact distinct from the click the landing recorded,
+         written with the counted play it rides or not at all (an
+         uncounted play writes nothing, arrivals included). The writer
+         is best-effort by the fan-link contract: it returns whether a
+         row landed and can never break the play. */
+      const fanCode = fanCodeFromPlayRequest(req);
+      if (fanCode) {
+        await recordFanLinkArrival({
+          code: fanCode,
+          play: { kind, mediaId: media.id, userId: req.userId ?? null },
+        });
+      }
       await db.update(creatorProfilesTable)
         .set({ totalPlays: sql`${creatorProfilesTable.totalPlays} + 1`, updatedAt: new Date() })
         .where(eq(creatorProfilesTable.id, media.profileId));
