@@ -24,6 +24,7 @@ import {
   appIconSitePath,
   type KitBundleKind,
   type KitMode,
+  type KitMix,
 } from "../lib/theme-kit-build";
 import { THEME_PACK_KNOWN_IDS, THEME_PACK_PREMIUM_IDS, THEME_PACK_PRICE_VB } from "./theme-packs";
 
@@ -40,7 +41,11 @@ import { THEME_PACK_KNOWN_IDS, THEME_PACK_PREMIUM_IDS, THEME_PACK_PRICE_VB } fro
      is resolved server-side from the approved library — downloads
      ship the approved art no matter what the caller passes; the
      desk still passes the widget / Chrome-manifest / share-card
-     text builders it owns.
+     text builders it owns. The bundle is built FROM the stored
+     customization mix: the requester's saved mix for a house pack,
+     the pack's own design mix for a creator pack (never the buyer's
+     customization of the base). No stored mix → the pack defaults,
+     exactly as before.
    - GET/PUT /theme-packs/customizations/:packId — the customization
      capstone storage: every component, per device. A PUT with an
      empty mix is the reset-to-pure-pack: it clears the caller's saved
@@ -125,6 +130,40 @@ export function sanitizeMix(input: unknown): { ok: true; value: Record<string, u
     out[comp] = compOut;
   }
   return { ok: true, value: out };
+}
+
+/** The stored customization rows for one user × pack, reassembled
+    into the mix shape (component → device → settings). */
+async function readMixRows(
+  userId: string,
+  packId: string,
+): Promise<Record<string, Record<string, unknown>>> {
+  const { rows } = await db.execute(
+    sql`SELECT component, device, settings FROM theme_pack_customizations
+        WHERE user_id = ${userId} AND pack_id = ${packId}`,
+  );
+  const mix: Record<string, Record<string, unknown>> = {};
+  for (const row of rows as Array<{ component: string; device: string; settings: unknown }>) {
+    mix[row.component] = { ...(mix[row.component] ?? {}), [row.device]: row.settings };
+  }
+  return mix;
+}
+
+/** A stored mix ready for the bundle builders: reassembled (member
+    customizations) or taken as stored (creator-pack design mix),
+    re-sanitized on load — rows were sanitized on write, so this is
+    belt-and-braces against older/looser rows. Undefined when there
+    is no mix or it no longer validates: the bundle then builds from
+    the pack defaults, exactly as before the mix was consumed. */
+function sanitizedKitMix(raw: unknown): KitMix | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const clean = sanitizeMix(raw);
+  if (!clean.ok || Object.keys(clean.value).length === 0) return undefined;
+  return clean.value as KitMix;
+}
+
+async function loadStoredMix(userId: string, packId: string): Promise<KitMix | undefined> {
+  return sanitizedKitMix(await readMixRows(userId, packId));
 }
 
 async function ownedPackIds(userId: string): Promise<string[]> {
@@ -215,18 +254,23 @@ router.post("/theme-packs/kit/:packId/download", requireAuth, async (req, res) =
       return;
     }
     if (packId.startsWith("creator:")) {
-      // Creator packs download as their base pack's kit wearing the mix.
+      // Creator packs download as their base pack's kit wearing the
+      // CREATOR's stored design mix — that mix is the product. The
+      // buyer's own customization of the base pack never leaks in.
       const id = packId.slice("creator:".length);
-      const { rows } = await db.execute(sql`SELECT base_pack_id FROM creator_theme_packs WHERE id = ${id} LIMIT 1`);
-      const baseId = (rows[0] as { base_pack_id: string } | undefined)?.base_pack_id;
-      const base = baseId ? serverPackById(baseId) : undefined;
+      const { rows } = await db.execute(sql`SELECT base_pack_id, mix FROM creator_theme_packs WHERE id = ${id} LIMIT 1`);
+      const row = rows[0] as { base_pack_id: string; mix: unknown } | undefined;
+      const base = row?.base_pack_id ? serverPackById(row.base_pack_id) : undefined;
       if (!base) { res.status(404).json({ error: "PACK_UNKNOWN" }); return; }
-      await streamBundle(res, base, kind, mode, body.assets);
+      await streamBundle(res, base, kind, mode, body.assets, sanitizedKitMix(row?.mix));
       return;
     }
     const pack = serverPackById(packId);
     if (!pack) { res.status(404).json({ error: "PACK_UNKNOWN", message: "That's not a theme pack." }); return; }
-    await streamBundle(res, pack, kind, mode, body.assets);
+    // House packs wear the requester's SAVED mix (storage is the
+    // source — a client-sent mix is never trusted for a bundle).
+    const mix = await loadStoredMix(req.userId!, packId);
+    await streamBundle(res, pack, kind, mode, body.assets, mix);
   } catch (err) {
     logger.error({ err, userId: req.userId, packId }, "theme-kit download failed");
     if (!res.headersSent) res.status(500).json({ error: "DOWNLOAD_FAILED" });
@@ -239,10 +283,11 @@ async function streamBundle(
   kind: KitBundleKind,
   mode: KitMode,
   assets: { widgetSvg?: string; chromeManifest?: string; shareCardSvg?: string } | undefined,
+  mix?: KitMix,
 ): Promise<void> {
   const r = res as unknown as import("express").Response;
   if (kind === "windows") {
-    const buf = buildThemepack(pack, mode);
+    const buf = buildThemepack(pack, mode, mix);
     r.setHeader("Content-Type", "application/octet-stream");
     r.setHeader("Content-Disposition", `attachment; filename="${pack.id}-${mode}.themepack"`);
     r.setHeader("Content-Length", String(buf.length));
@@ -254,6 +299,7 @@ async function streamBundle(
     widgetSvg: assets?.widgetSvg,
     chromeManifest: assets?.chromeManifest,
     shareCardSvg: assets?.shareCardSvg,
+    mix,
   });
   r.setHeader("Content-Type", "application/zip");
   r.setHeader("Content-Disposition", `attachment; filename="${pack.id}-${mode}-${kind}.zip"`);
@@ -265,14 +311,7 @@ async function streamBundle(
 router.get("/theme-packs/customizations/:packId", requireAuth, async (req, res) => {
   const packId = String(req.params.packId);
   try {
-    const { rows } = await db.execute(
-      sql`SELECT component, device, settings FROM theme_pack_customizations
-          WHERE user_id = ${req.userId!} AND pack_id = ${packId}`,
-    );
-    const mix: Record<string, Record<string, unknown>> = {};
-    for (const row of rows as Array<{ component: string; device: string; settings: unknown }>) {
-      mix[row.component] = { ...(mix[row.component] ?? {}), [row.device]: row.settings };
-    }
+    const mix = await readMixRows(req.userId!, packId);
     res.json({ packId, mix });
   } catch (err) {
     logger.error({ err, userId: req.userId, packId }, "theme-kit customization read failed");

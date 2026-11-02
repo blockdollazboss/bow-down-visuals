@@ -338,11 +338,13 @@ export function deviceWallpaperPath(packId: string, mode: ThemePackMode, device:
   return `/wallpapers/theme-packs/devices/${packId}-${mode}-${device}.webp`;
 }
 
-/** Widget art (clock + headline widgets) as SVG per pack × mode. */
-export function renderWidgetSvg(pack: ThemePack, mode: ThemePackMode): string {
+/** Widget art (clock + headline widgets) as SVG per pack × mode.
+    accentHex overrides the pack accent — the kit panel passes the
+    saved mix's widget-art accent (through effectiveAccent). */
+export function renderWidgetSvg(pack: ThemePack, mode: ThemePackMode, accentHex?: string): string {
   const v = pack.variants[mode]!;
   const ground = hslToHex(v.tokens.background) ?? "#000000";
-  const accent = hslToHex(v.tokens.primary) ?? "#f9bc06";
+  const accent = accentHex ?? hslToHex(v.tokens.primary) ?? "#f9bc06";
   const ink = hslToHex(v.tokens.foreground) ?? "#ffffff";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" data-widget="${pack.id}-${mode}"><rect width="200" height="200" rx="36" fill="${ground}"/><circle cx="100" cy="92" r="52" fill="none" stroke="${accent}" stroke-width="5"/><path d="M100 56v36l24 14" fill="none" stroke="${ink}" stroke-width="6" stroke-linecap="round"/><text x="100" y="182" text-anchor="middle" font-family="Cinzel, serif" font-size="17" fill="${accent}">${pack.name}</text></svg>`;
 }
@@ -510,7 +512,12 @@ export function sanitizeCustomization(
   return { ok: true, value: out };
 }
 
-/** The accent a component renders with after customization. */
+/** The accent a component renders with after customization: the
+    component's own accentHex (the requested device key first, then
+    the "all devices" key the kit panel writes), then the
+    accent-color component's, then the pack's own primary. The kit
+    download builders resolve through this — the server bundle
+    builder mirrors the same chain (resolveKitAccent). */
 export function effectiveAccent(
   pack: ThemePack,
   mode: ThemePackMode,
@@ -518,8 +525,13 @@ export function effectiveAccent(
   component: KitComponentId,
   device: KitDevice = "all",
 ): string {
-  const custom = mix?.[component]?.[device]?.accentHex ?? mix?.["accent-color"]?.[device]?.accentHex;
-  if (custom) return custom;
+  const devices: KitDevice[] = device === "all" ? ["all"] : [device, "all"];
+  for (const comp of [component, "accent-color"] as const) {
+    for (const d of devices) {
+      const custom = mix?.[comp]?.[d]?.accentHex;
+      if (custom) return custom;
+    }
+  }
   return hslToHex(pack.variants[mode]!.tokens.primary) ?? "#f9bc06";
 }
 
@@ -569,10 +581,10 @@ export function lookUrl(origin: string, payload: LookPayload): string {
 
 /* ─── Share cards (subject-led, logo whole) ─────────────────────────── */
 
-export function buildShareCardSvg(pack: ThemePack, mode: ThemePackMode): string {
+export function buildShareCardSvg(pack: ThemePack, mode: ThemePackMode, accentHex?: string): string {
   const v = pack.variants[mode]!;
   const ground = hslToHex(v.tokens.background) ?? "#000000";
-  const accent = hslToHex(v.tokens.primary) ?? "#f9bc06";
+  const accent = accentHex ?? hslToHex(v.tokens.primary) ?? "#f9bc06";
   const ink = hslToHex(v.tokens.foreground) ?? "#ffffff";
   const logo = LOGO_BY_MODE[mode];
   return [

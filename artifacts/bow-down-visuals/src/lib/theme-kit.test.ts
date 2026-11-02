@@ -42,6 +42,7 @@ import {
   buildShareCardSvg,
   buildWindowsThemeText,
   decodeLook,
+  effectiveAccent,
   designedAppIconPath,
   designedIconPath,
   deviceWallpaperPath,
@@ -309,6 +310,51 @@ describe("builders — share card, chrome theme, windows theme", () => {
   });
 });
 
+describe("customization → the builders wear the mix", () => {
+  const pack = themePackById("golden-marble")!;
+  const packDefault = "#f9bc06"; // golden-marble dark primary, resolved
+
+  it("effectiveAccent: the component's own accent wins, accent-color is the fallback, pack is the floor", () => {
+    const mix = {
+      "widget-art": { all: { accentHex: "#111111" } },
+      "accent-color": { all: { accentHex: "#222222" } },
+    } as const;
+    expect(effectiveAccent(pack, "dark", mix, "widget-art")).toBe("#111111");
+    expect(effectiveAccent(pack, "dark", mix, "cursors")).toBe("#222222");
+    expect(effectiveAccent(pack, "dark", {}, "cursors")).toBe(packDefault);
+    expect(effectiveAccent(pack, "dark", undefined, "cursors")).toBe(packDefault);
+  });
+
+  it("effectiveAccent: a device key beats 'all', and 'all' covers every device", () => {
+    const perDevice = { cursors: { phone: { accentHex: "#333333" } } } as const;
+    expect(effectiveAccent(pack, "dark", perDevice, "cursors", "phone")).toBe("#333333");
+    expect(effectiveAccent(pack, "dark", perDevice, "cursors", "desktop")).toBe(packDefault);
+    const all = { cursors: { all: { accentHex: "#444444" } } } as const;
+    expect(effectiveAccent(pack, "dark", all, "cursors", "phone")).toBe("#444444");
+  });
+
+  it("widget art + share card + chrome manifest take the mix accent override", () => {
+    expect(renderWidgetSvg(pack, "dark", "#123456")).toContain('stroke="#123456"');
+    expect(renderWidgetSvg(pack, "dark")).not.toContain("#123456");
+    expect(buildShareCardSvg(pack, "dark", "#123456")).toContain('fill="#123456"');
+    const manifest = buildChromeThemeManifest(pack, "dark", "#123456") as {
+      theme: { colors: { button_background: number[] } };
+    };
+    expect(manifest.theme.colors.button_background).toEqual([18, 52, 86]);
+  });
+
+  it("the kit panel builds its download assets from the saved mix, through effectiveAccent", () => {
+    const panel = readFileSync(
+      new URL("../components/theme-packs/ThemeKitPanel.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(panel).toContain("fetchSavedMix");
+    expect(panel).toContain("renderWidgetSvg(pack, mode, effectiveAccent(");
+    expect(panel).toContain("buildChromeThemeManifest(pack, mode, effectiveAccent(");
+    expect(panel).toContain("buildShareCardSvg(pack, mode, effectiveAccent(");
+  });
+});
+
 describe("server mirror parity", () => {
   const serverBuild = readFileSync(
     new URL("../../../api-server/src/lib/theme-kit-build.ts", import.meta.url),
@@ -344,5 +390,14 @@ describe("server mirror parity", () => {
   it("the rail keeps the ruled price import — no second price constant", () => {
     expect(serverRail).toContain("THEME_PACK_PRICE_VB");
     expect(serverRail).not.toMatch(/= 1000\b/);
+  });
+
+  it("the server's mix art map names the same approved sources at the same paths", () => {
+    for (const a of APPROVED_ART_SOURCES) {
+      const path = "path" in a ? a.path : undefined;
+      if (path) expect(serverBuild).toContain(`"${a.id}": "${path}"`);
+    }
+    expect(serverBuild).toContain("resolveKitAccent");
+    expect(serverRail).toContain("loadStoredMix");
   });
 });
