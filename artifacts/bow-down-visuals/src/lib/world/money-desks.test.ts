@@ -91,6 +91,7 @@ const roomItem = (over: Partial<RoomStoreItem> = {}): RoomStoreItem => ({
   price: "$19.99",
   buyUrl: "/shop/x",
   pwyw: null,
+  giftCardDenominationsCents: null,
   ...over,
 });
 
@@ -297,6 +298,40 @@ describe("64 · the Creator Room store", () => {
   it("the room cart IS the shop cart when the creator runs that shop", () => {
     expect(roomCartKey("Gold-Shop", "some-slug")).toBe("bdv-cart-gold-shop");
     expect(roomCartKey(null, "some-slug")).toBe("bdv-cart-room-some-slug");
+  });
+});
+
+describe("64b · gift cards in the room store (stack1200 parity)", () => {
+  it("a gift-card product lands on the gift rail — the product checkout refuses it by name", () => {
+    expect(roomItemRail(roomItem({ kind: "product", productKind: "gift_card" }))).toBe("gift");
+    /* The fixture default (a shop product) and the other kinds are unchanged. */
+    expect(roomItemRail(roomItem())).toBe("market");
+    expect(roomItemRail(roomItem({ kind: "product", productKind: "digital" }))).toBe("storefront");
+  });
+
+  it("the catalog parse carries the seller's denominations only when they are clean cent amounts", () => {
+    const items = parseRoomCatalog({
+      items: [
+        { id: "g1", kind: "product", productKind: "gift_card", title: "Gift Card", priceCents: 1000, price: "$10.00", giftCardDenominationsCents: [1000, 2500, 5000] },
+        { id: "g2", kind: "product", productKind: "gift_card", title: "Gift Card", priceCents: 1000, price: "$10.00", giftCardDenominationsCents: [1000, "2500"] },
+        { id: "d1", kind: "product", productKind: "digital", title: "Download", priceCents: 500, price: "$5.00" },
+      ],
+    });
+    expect(items[0]?.giftCardDenominationsCents).toEqual([1000, 2500, 5000]);
+    /* A dirty list is no list — the buy form can never offer an amount the rail would refuse. */
+    expect(items[1]?.giftCardDenominationsCents).toBeNull();
+    expect(items[2]?.giftCardDenominationsCents).toBeNull();
+  });
+
+  it("the storefront payload carries the tender code only when one was pasted", () => {
+    const item = roomItem({ productKind: "digital" });
+    expect(storefrontCheckoutPayload(item, 2)).toEqual({ productId: "i1", quantity: 2 });
+    expect(storefrontCheckoutPayload(item, 2, "  BDV-AAAA-BBBB-CCCC  ")).toEqual({
+      productId: "i1",
+      quantity: 2,
+      giftCardCode: "BDV-AAAA-BBBB-CCCC",
+    });
+    expect(storefrontCheckoutPayload(item, 2, "   ")).toEqual({ productId: "i1", quantity: 2 });
   });
 });
 
