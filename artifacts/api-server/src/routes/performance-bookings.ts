@@ -10,7 +10,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { createGuardedStripeClient } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
 import { escrowHeldCents } from "../lib/escrow-held";
-import { refundCheckoutSessionPayment } from "../lib/stripe-checkout";
+import { checkoutBaseUrl, refundCheckoutSessionPayment } from "../lib/stripe-checkout";
 import {
   performanceFeeSplit,
   canTakeAction,
@@ -136,6 +136,34 @@ const router = Router();
 
 export function isStripeConfigured(): boolean {
   return !!process.env["STRIPE_SECRET_KEY"];
+}
+
+/**
+ * Base URL for the escrow funding session's return/success/cancel
+ * landings. This route used to derive the base from REPLIT_DOMAINS
+ * alone with an "http://localhost" fallback — the identical
+ * hand-rolled derivation the sponsor escrow rail carried (Gate #5,
+ * Nov 2) — so on Render (where REPLIT_DOMAINS is unset) every
+ * deployed funding session sent the promoter's browser to localhost
+ * after paying, killing the funded landing. Settlement never
+ * depended on that landing — it is webhook-owned — but the promoter
+ * who just paid landed on a dead page. The house helper derives the
+ * way the other checkout rails do — explicit env domain first, then
+ * the request's own forwarded host — and on a deployed runtime a
+ * loopback base is refused outright: an honest "could not start
+ * funding" beats a checkout that strands a paid booking.
+ */
+export function performanceEscrowBaseUrl(req: import("express").Request): string {
+  const base = checkoutBaseUrl(req);
+  const deployed =
+    process.env["NODE_ENV"] === "production" || !!process.env["RENDER"];
+  const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/.test(base);
+  if (deployed && isStripeConfigured() && loopback) {
+    throw new Error(
+      "Refusing to build a checkout return URL on a loopback base — no public base URL is configured for this deployment",
+    );
+  }
+  return base;
 }
 
 function uuidParam(raw: unknown): string | null {
@@ -550,8 +578,7 @@ router.post("/performance-bookings/:id/fund", requireAuth, publicApiLimiter, asy
     `);
     const slug = (prof.rows[0] as { slug?: string } | undefined)?.slug;
     const stripe = createGuardedStripeClient();
-    const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
-    const baseUrl = domain ? `https://${domain}` : "http://localhost";
+    const baseUrl = performanceEscrowBaseUrl(req);
     const successUrl = `${baseUrl}/artist/${slug ?? ""}?booking=${row.id}&funded=1`;
     /* The amount and metadata are identical either way; the
        presentation makes it a different Stripe request, so the
