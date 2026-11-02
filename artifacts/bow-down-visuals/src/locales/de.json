@@ -2050,7 +2050,7 @@
   },
   "beats": {
     "aiSuggestsPrefix": "KI schlägt vor: ",
-    "aiTagsButton": "KI-Tags · 1cr",
+    "aiTagsButton": "KI-Tags · {{cost}} Visual Bucs",
     "aiTagsHint": "Liste deinen Beat zuerst, dann starte die KI-Tags über dein Dashboard.",
     "aiTagsTooltip": "Liste deinen Beat zuerst, dann nutze die KI-Tags über das Dashboard",
     "allGenres": "Alle Genres",

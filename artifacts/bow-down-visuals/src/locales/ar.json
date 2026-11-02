@@ -2094,7 +2094,7 @@
     "moodTagsLabel": "وسوم المزاج (مفصولة بفواصل)",
     "moodTagsPlaceholder": "داكن، عدواني، مرن",
     "aiTagsTooltip": "أدرج لحنك أولاً، ثم استخدم الوسوم بالذكاء الاصطناعي من اللوحة",
-    "aiTagsButton": "وسوم بالذكاء الاصطناعي · 1cr",
+    "aiTagsButton": "وسوم بالذكاء الاصطناعي · {{cost}} Visual Bucs",
     "descriptionLabel": "الوصف",
     "descriptionPlaceholder": "ما الذي يميّز هذا اللحن؟",
     "licensePricesLabel": "أسعار الترخيص (دولار)",

@@ -2166,7 +2166,7 @@
     "moodTagsLabel": "Tags d'ambiance (séparés par des virgules)",
     "moodTagsPlaceholder": "dark, agressif, rebondissant",
     "aiTagsTooltip": "Liste d'abord ton beat, puis utilise les tags IA depuis le tableau de bord",
-    "aiTagsButton": "Tags IA · 1cr",
+    "aiTagsButton": "Tags IA · {{cost}} Visual Bucs",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Qu'est-ce qui rend ce beat spécial ?",
     "licensePricesLabel": "Prix des licences (USD)",
