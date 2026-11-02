@@ -26,6 +26,15 @@
  *    session is the room standing open under its host's name. The
  *    tick's whole job is the honest status flip (scheduled → live
  *    → done); the calendar and the room's own marker read the row.
+ *  - royal_court (3.6, migration 0313): a court gathering in the
+ *    Royal Court Chamber. Nothing takes the room over either — the
+ *    Chamber's furniture (the Front Row Gallery, the Season Marks
+ *    Wall) already stands there. At the hour the tick flips the
+ *    status AND heralds the court palace-wide through the announce
+ *    channel (the court-season settling's shape): the gathering is
+ *    called by name and the Front Row is presented — the King's
+ *    court seats, read from server truth at fire time. Honors are
+ *    honor only: no money moves anywhere in this kind.
  *
  * BOOKING RULES (owner-approved defaults, enforced server-side at
  * POST /api/world/events — the route calls the helpers here):
@@ -43,6 +52,11 @@
  *    profile server-side (never a claim), and the profile must be
  *    public: a private profile's room isn't open, so it can't hold
  *    hours either. Any signed-in member with an open room.
+ *  - royal_court: the Royal Court Chamber only; bookable ONLY by
+ *    the house (admin) — the drop precedent: a court gathering is a
+ *    house occasion until the palace booking rule is re-ruled
+ *    (UPGRADE-PROGRAM §5 Q10). Attendance is the palace's: the
+ *    Chamber is a public room and the herald is palace-wide.
  * Guests never book: booking is an authed REST route, full stop.
  *
  * THE TICK: a single cheap interval (startWorldEventScheduler in
@@ -53,7 +67,7 @@
  * rooms' own broadcasts, so late joiners land on the live truth via
  * the welcome's screen/jukebox/drop snapshots.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   db,
   worldEventsTable,
@@ -64,7 +78,13 @@ import {
   type WorldEventKind,
   type WorldEventStatus,
 } from "@workspace/db";
-import { WORLD_ROOM_ID, type WorldJukeboxTrackRef, type WorldScreenVideoRef } from "./world-room";
+import {
+  WORLD_ROOM_ID,
+  type PalaceAnnouncement,
+  type WorldJukeboxTrackRef,
+  type WorldScreenVideoRef,
+} from "./world-room";
+import { COURT_CHAMBER_ROOM_ID, COURT_CHAMBER_ROOM_NAME } from "./world-court-season";
 import type { WorldPalace, PalaceDirectoryEvent } from "./world-palace";
 import { combinedDropWeekSpendVb, STREAM_DROP_WEEKLY_CAP_VB } from "./stream-drops";
 import { currentWeekStart } from "./retention";
@@ -113,6 +133,10 @@ export function bookingRuleFor(kind: WorldEventKind): BookingRule {
       return { requiredRoomId: null, privilege: "admin", roomKind: "palace" };
     case "office_hours":
       return { requiredRoomId: null, privilege: "member", roomKind: "own-creator-room" };
+    case "royal_court":
+      /* Court gatherings are called by the house (the drop
+       * precedent) and belong to the one room built for them. */
+      return { requiredRoomId: COURT_CHAMBER_ROOM_ID, privilege: "admin", roomKind: "palace" };
   }
 }
 
@@ -176,6 +200,15 @@ export function sanitizeEventPayload(kind: WorldEventKind, raw: unknown): Payloa
   if (kind === "office_hours") {
     /* The agenda line is the whole payload: optional, trimmed, and
      * capped to a line — anything else sent along is dropped. */
+    const note = typeof p["note"] === "string" ? p["note"].trim().slice(0, 140) : "";
+    return { ok: true, payload: note ? { note } : {} };
+  }
+  if (kind === "royal_court") {
+    /* The occasion line is the whole payload — the same shape as
+     * office hours' agenda: optional, trimmed, capped to a line.
+     * Who is honored is NOT payload: the Front Row presented at
+     * the hour is read from the King's court seats at fire time,
+     * never from anything the booking claims. */
     const note = typeof p["note"] === "string" ? p["note"].trim().slice(0, 140) : "";
     return { ok: true, payload: note ? { note } : {} };
   }
@@ -299,6 +332,50 @@ export function toWorldEventDto(row: WorldEventRow, hostName: string): WorldEven
   };
 }
 
+/* ── The court gathering's herald (3.6) ───────────────────────────── */
+
+/** "A" / "A and B" / "A, B and C" — the presented court, in seat
+ *  order, in plain words. */
+function nameList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * The announcement the palace hears when a court gathering's hour
+ * comes. Built only from server truth read at fire time: the
+ * gathering's own title + occasion line, its host's name, and the
+ * Front Row as it stands THEN — the King's court seats in seat
+ * order (the same read the Front Row Gallery hangs). An unseated
+ * court is omitted, never padded (the king-moment rule): the
+ * gathering is still called, the presentation simply has nobody
+ * to name. The kind is "king" — court ceremonies speak in the
+ * King's voice on the channel, the court-season settling's shape.
+ */
+export function buildCourtGatheringAnnouncement(input: {
+  title: string;
+  note: string | null;
+  hostName: string;
+  frontRowNames: string[];
+}): PalaceAnnouncement {
+  const parts: string[] = [
+    `Court is called in ${COURT_CHAMBER_ROOM_NAME} — “${input.title}”, called by ${input.hostName}.`,
+  ];
+  if (input.note) parts.push(input.note);
+  const names = input.frontRowNames.map((n) => n.trim()).filter((n) => n.length > 0);
+  if (names.length > 0) {
+    parts.push(`The Front Row is presented: ${nameList(names)}.`);
+  }
+  return {
+    kind: "king",
+    text: parts.join(" "),
+    roomId: COURT_CHAMBER_ROOM_ID,
+    roomName: COURT_CHAMBER_ROOM_NAME,
+    name: input.hostName,
+  };
+}
+
 /* ── Drop spectacle claims — the existing drop rails ──────────────── */
 
 /**
@@ -399,6 +476,15 @@ export interface WorldEventStore {
   hostProfile(
     userId: string,
   ): Promise<{ displayName: string; slug: string | null } | null>;
+  /** The King's Front Row as it stands now: the official court's
+   *  seated members' display names, in seat order, public profiles
+   *  only (the Front Row Gallery's own read — a member who went
+   *  private is not presented). Read at a court gathering's hour
+   *  so the herald presents the court that IS, never a booking's
+   *  claim. Optional on the interface: only the court kind's start
+   *  reads it, and a store without it heralds the gathering with
+   *  an unseated court (the presentation is omitted, not faked). */
+  courtFrontRowNames?(): Promise<string[]>;
 }
 
 export const dbWorldEventStore: WorldEventStore = {
@@ -421,6 +507,42 @@ export const dbWorldEventStore: WorldEventStore = {
       .where(eq(creatorProfilesTable.userId, userId))
       .limit(1);
     return profile ?? null;
+  },
+  async courtFrontRowNames() {
+    const [king] = await db
+      .select({ id: creatorProfilesTable.id })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.isOfficial, true))
+      .limit(1);
+    if (!king) return [];
+    const seats = await db
+      .select({ memberProfileId: royalCourtTable.memberProfileId })
+      .from(royalCourtTable)
+      .where(eq(royalCourtTable.ownerProfileId, king.id))
+      .orderBy(asc(royalCourtTable.position));
+    if (seats.length === 0) return [];
+    const profiles = await db
+      .select({
+        id: creatorProfilesTable.id,
+        displayName: creatorProfilesTable.displayName,
+        isPublic: creatorProfilesTable.isPublic,
+      })
+      .from(creatorProfilesTable)
+      .where(
+        inArray(
+          creatorProfilesTable.id,
+          seats.map((s) => s.memberProfileId),
+        ),
+      );
+    const byId = new Map(profiles.map((p) => [p.id, p]));
+    const names: string[] = [];
+    for (const seat of seats) {
+      const profile = byId.get(seat.memberProfileId);
+      /* The public read's rule: a private member's portrait is not
+       * presented (their seat survives; the gap stays honest). */
+      if (profile && profile.isPublic) names.push(profile.displayName);
+    }
+    return names;
   },
 };
 
@@ -580,11 +702,13 @@ export class WorldEventScheduler {
     if (row.kind === "listening_party") {
       return palace.room(MUSIC_HALL_ROOM_ID)?.listeningPartyEventId() === row.id;
     }
-    if (row.kind === "contest" || row.kind === "office_hours") {
-      /* Neither carries room state: a contest lives on the room's
-       * board (nothing in the room plays it), and an office-hours
-       * row IS the session. Always "carried", so a live row of
-       * either kind is never re-driven. */
+    if (row.kind === "contest" || row.kind === "office_hours" || row.kind === "royal_court") {
+      /* None carries room state: a contest lives on the room's
+       * board (nothing in the room plays it), an office-hours
+       * row IS the session, and a court gathering's start is its
+       * herald (fired once, on the flip — re-driving would sound
+       * it twice). Always "carried", so a live row of any of
+       * these kinds is never re-driven. */
       return true;
     }
     return palace.room(row.roomId)?.activeDropEventId() === row.id;
@@ -596,8 +720,8 @@ export class WorldEventScheduler {
       palace.room(WORLD_ROOM_ID)?.endScheduledShow(row.id, "The show has ended.");
     } else if (row.kind === "listening_party") {
       palace.room(MUSIC_HALL_ROOM_ID)?.endListeningParty(row.id);
-    } else if (row.kind === "contest" || row.kind === "office_hours") {
-      /* Nothing to release: neither kind ever took room state. */
+    } else if (row.kind === "contest" || row.kind === "office_hours" || row.kind === "royal_court") {
+      /* Nothing to release: none of these kinds ever took room state. */
       return;
     } else {
       palace.room(row.roomId)?.endDrop(row.id);
@@ -682,6 +806,29 @@ export class WorldEventScheduler {
        * no queue is owned, nobody's room state is touched — the
        * host's room simply stands open for its hours, and the
        * calendar + the room's marker read the live row. */
+      return true;
+    }
+
+    if (row.kind === "royal_court") {
+      /* The court is called: the status flip plus ONE palace-wide
+       * herald, built from the court as it stands at the hour —
+       * the Front Row read fresh from the King's seats, so the
+       * presentation names who is honored THEN. No screen is
+       * seized and no room state is taken: the Chamber's gallery
+       * already hangs the portraits the herald presents, and the
+       * calendar + the Chamber's own slate read the live row.
+       * Fired here, on the scheduled→live transition only —
+       * roomCarries keeps a live row from ever re-driving it. A
+       * failed honors read heralds the gathering without the
+       * presentation (omitted, never faked). */
+      const frontRowNames = this.store.courtFrontRowNames
+        ? await this.store.courtFrontRowNames().catch(() => [] as string[])
+        : [];
+      const note =
+        typeof payload["note"] === "string" && payload["note"] ? (payload["note"] as string) : null;
+      palace.announce(
+        buildCourtGatheringAnnouncement({ title: row.title, note, hostName, frontRowNames }),
+      );
       return true;
     }
 

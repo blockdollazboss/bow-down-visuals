@@ -15,6 +15,10 @@
  *   The wrong room for a kind is ROOM_MISMATCH; an unknown room is
  *   UNKNOWN_ROOM.
  * - drop spectacles are admin-only (ADMIN_REQUIRED).
+ * - court gatherings (royal_court, 3.6) book the Royal Court
+ *   Chamber and are admin-only — the house calls the court, in the
+ *   court's own refusal words; the payload is an optional occasion
+ *   line, sanitized like office hours' agenda.
  * - one room, one event at a time: overlapping windows conflict
  *   (SLOT_TAKEN); back-to-back slots do not.
  * - payloads are validated per kind; windows have min/max lengths.
@@ -169,6 +173,14 @@ const drop = (over: Record<string, unknown> = {}) => ({
   payload: { amountVb: 200, claimCap: 3 },
   ...over,
 });
+const courtGathering = (over: Record<string, unknown> = {}) => ({
+  kind: "royal_court",
+  roomId: "world:royal-court",
+  title: "The Week's Honors",
+  ...windowIn(2),
+  payload: { note: "Streaks and standings, told aloud." },
+  ...over,
+});
 
 describe("booking rules", () => {
   it("a Front Row member books the Throne Hall stage", async () => {
@@ -216,6 +228,55 @@ describe("booking rules", () => {
     const ok = await post("/api/world/events", drop(), ADMIN, "king@example.test");
     expect(ok.status).toBe(201);
     expect(ok.body.event.payload).toEqual({ amountVb: 200, claimCap: 3 });
+  });
+
+  it("court gatherings are called by the house — members refused in the court's own words (3.6)", async () => {
+    /* Even a Front Row seat confers nothing here: the drop
+     * precedent — a court gathering is a house occasion. */
+    const denied = await post("/api/world/events", courtGathering(), FRONT);
+    expect(denied.status).toBe(403);
+    expect(denied.body.error).toBe("ADMIN_REQUIRED");
+    expect(denied.body.message).toBe("Court gatherings are called by the house.");
+    /* The drop refusal keeps its own words (the branch is shared). */
+    const dropDenied = await post("/api/world/events", drop(), FRONT);
+    expect(dropDenied.body.message).toBe("Drop spectacles are booked by the house.");
+  });
+
+  it("the house books a court gathering in the Chamber; the occasion line is sanitized", async () => {
+    const r = await post(
+      "/api/world/events",
+      courtGathering({ payload: { note: "  Honors night.  ", honoree: "user-x" } }),
+      ADMIN,
+      "king@example.test",
+    );
+    expect(r.status).toBe(201);
+    expect(r.body.event).toMatchObject({
+      kind: "royal_court",
+      roomId: "world:royal-court",
+      status: "scheduled",
+    });
+    /* The note is trimmed; a claimed honoree never reaches the row —
+     * who is honored is read from the King's seats at the hour. */
+    expect(r.body.event.payload).toEqual({ note: "Honors night." });
+    const bare = await post(
+      "/api/world/events",
+      courtGathering({ payload: {}, ...windowIn(4) }),
+      ADMIN,
+      "king@example.test",
+    );
+    expect(bare.status).toBe(201);
+    expect(bare.body.event.payload).toEqual({});
+  });
+
+  it("a court gathering in any other room is ROOM_MISMATCH, even for the house", async () => {
+    const r = await post(
+      "/api/world/events",
+      courtGathering({ roomId: "world:kings-hall" }),
+      ADMIN,
+      "king@example.test",
+    );
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("ROOM_MISMATCH");
   });
 
   it("unknown rooms and guests are refused before rules", async () => {

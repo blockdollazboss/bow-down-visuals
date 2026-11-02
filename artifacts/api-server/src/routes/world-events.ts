@@ -26,7 +26,9 @@
  * palace room and is admin-only; office_hours anchor to the host's
  * OWN creator room ("creator:<their slug>", read off their profile
  * server-side) and the profile must be public — a private profile's
- * room isn't open. One room, one event at a time: overlapping
+ * room isn't open; a royal_court gathering (3.6) books the Royal
+ * Court Chamber and is admin-only — the house calls the court, the
+ * drop precedent. One room, one event at a time: overlapping
  * bookings in the same room conflict (409).
  *
  * The events themselves are RUN by the scheduler tick in
@@ -63,7 +65,7 @@ const PALACE_ROOM_IDS = new Set(PALACE_ROOM_DEFS.map((r) => r.roomId));
 const ROOM_NAMES = new Map(PALACE_ROOM_DEFS.map((r) => [r.roomId, r.name]));
 
 const createSchema = z.object({
-  kind: z.enum(["stage_show", "listening_party", "drop", "office_hours"]),
+  kind: z.enum(["stage_show", "listening_party", "drop", "office_hours", "royal_court"]),
   roomId: z.string().min(1).max(64),
   title: z.string().trim().min(1).max(120),
   startsAt: z.string().datetime(),
@@ -168,7 +170,12 @@ router.post("/world/events", requireAuth, publicApiLimiter, async (req: Request,
     if (rule.privilege === "admin" && !isAdmin) {
       res.status(403).json({
         error: "ADMIN_REQUIRED",
-        message: "Drop spectacles are booked by the house.",
+        /* The refusal names the kind: each house-booked kind is
+         * the house's for its own reason, in its own words. */
+        message:
+          kind === "royal_court"
+            ? "Court gatherings are called by the house."
+            : "Drop spectacles are booked by the house.",
       });
       return;
     }
