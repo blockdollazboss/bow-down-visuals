@@ -416,7 +416,10 @@ describe("client job shape + wiring pins", () => {
 
   it("every failure tell the poller records is composed through lipSyncFailureNotice", () => {
     const tells = pollerSrc.match(/recordLipSyncOutcome\(job, "failed", "Lip sync failed", [^;]*?\)\)/gs) ?? [];
-    expect(tells.length).toBe(5);
+    /* Five live failure paths + the boot-recovery pass
+       (refundRecoveredFailures) — every one composes through the
+       helper, so no bare failure message can creep back in. */
+    expect(tells.length).toBe(6);
     for (const tell of tells) {
       expect(tell).toContain("lipSyncFailureNotice(");
     }

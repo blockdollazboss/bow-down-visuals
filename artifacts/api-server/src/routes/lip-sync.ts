@@ -103,10 +103,13 @@ function toClientLipSyncJob(job: LipSyncJob) {
     code: job.error?.code,
     /* The failure-refund verdict, straight off the job's own gate
        (migration 0310): chargeRefunded is true only when the poller's
-       exactly-once refund of this job's up-front charge has fired, and
-       refundedCredits — the amount from the job's charge record, the
-       same constant the refund rail restores — rides along only then,
-       so a failure that got no refund never wears one in the client. */
+       exactly-once refund of this job's up-front charge has landed —
+       the poller releases its claim whenever the refund write doesn't
+       complete and its sweep retries the rest, so the gate never
+       claims a refund that didn't happen — and refundedCredits, the
+       amount from the job's charge record (the same constant the
+       refund rail restores), rides along only then, so a failure
+       that got no refund never wears one in the client. */
     chargeRefunded: job.chargeRefunded,
     ...(job.chargeRefunded ? { refundedCredits: LIP_SYNC_JOB_CHARGE_CREDITS } : {}),
     durationSec: Number.isFinite(durationSec) ? durationSec : undefined,

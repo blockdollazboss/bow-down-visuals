@@ -90,7 +90,9 @@ export interface LipSyncJob {
   /** Consecutive transient submit deferrals (429/plan-limit); backoff grows 5→10→20→40 min. */
   submitDeferrals: number;
   historyRecorded: boolean;
-  /** Exactly-once gate (0310): the failure refund fires only on the false→true flip. */
+  /** Exactly-once gate (0310): the failure refund fires only on the
+   *  false→true flip, and a claim whose refund doesn't land is
+   *  released — so true means the refund actually completed. */
   chargeRefunded: boolean;
   createdAt: number;
   updatedAt: number;
@@ -454,6 +456,14 @@ export async function markHistoryRecorded(id: string): Promise<boolean> {
  * job performs the refund of the job's up-front charge. A replayed
  * failure path, a second poller, or a boot-recovery pass over the same
  * job can never refund it twice.
+ *
+ * The flip is a CLAIM, not a completion record: the winner owes the
+ * gate a release (releaseLipSyncChargeRefundClaim) whenever its
+ * refund does not land, so charge_refunded only ever reads true for
+ * a job whose refund actually completed — the same claim/re-arm
+ * discipline as the export rail's claimChargeRelease. A claim whose
+ * refund is still owed is retried by the poller's refund sweep while
+ * the failure is recent (getFailedUnrefundedLipSyncJobs).
  */
 export async function claimLipSyncChargeRefund(id: string): Promise<boolean> {
   const res = await db().execute(sql`
@@ -463,6 +473,46 @@ export async function claimLipSyncChargeRefund(id: string): Promise<boolean> {
     RETURNING id
   `);
   return res.rows.length > 0;
+}
+
+/**
+ * Release a refund claim whose refund did NOT land (the refund write
+ * threw after the flip): charge_refunded returns to false, so the
+ * durable record never claims a refund that didn't happen and the
+ * job is claimable again by the next retry. Guarded on the same
+ * failed + claimed state the claim required — a release can never
+ * un-record a refund another worker completed, because a completed
+ * refund's claim is never released (its caller returns success
+ * instead of releasing).
+ */
+export async function releaseLipSyncChargeRefundClaim(id: string): Promise<boolean> {
+  const res = await db().execute(sql`
+    UPDATE lip_sync_jobs
+    SET charge_refunded = false, updated_at = now()
+    WHERE id = ${id} AND state = 'failed' AND charge_refunded = true
+    RETURNING id
+  `);
+  return res.rows.length > 0;
+}
+
+/**
+ * The refund sweep's candidate set: terminally failed jobs whose
+ * up-front charge has not been refunded — the refund was never
+ * attempted (the process died between the failure write and the
+ * refund) or its claim was released after a failed refund write.
+ * Most-recently-updated first, so a bounded batch always covers the
+ * freshest failures; the caller applies the recency window (older
+ * rows are the pre-refund-fix history a backfill decision owns, not
+ * this sweep).
+ */
+export async function getFailedUnrefundedLipSyncJobs(limit: number): Promise<LipSyncJob[]> {
+  const res = await db().execute(sql`
+    SELECT ${JOB_COLUMNS} FROM lip_sync_jobs
+    WHERE state = 'failed' AND charge_refunded = false
+    ORDER BY updated_at DESC
+    LIMIT ${Math.max(1, Math.floor(limit))}
+  `);
+  return (res.rows as Record<string, unknown>[]).map(toLipSyncJob);
 }
 
 /**
