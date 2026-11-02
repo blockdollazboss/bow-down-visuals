@@ -1072,3 +1072,64 @@ describe("coach full panels in-world (parity P3, par-coach-depth)", () => {
     expect(panels).toContain('data-testid="world-coach-tracker-items"');
   });
 });
+
+describe("coach money sub-views in-world (Ring 4 #6)", () => {
+  const panels = readFileSync(
+    new URL("../../components/world/native/CoachPanels.tsx", import.meta.url),
+    "utf8",
+  );
+  const subViews = readFileSync(
+    new URL("../../components/world/native/CoachMoneySubViews.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("the Money Tracker card carries the page's four views under one switcher", () => {
+    expect(panels).toContain('data-testid="world-coach-money-views"');
+    expect(panels).toContain('label: "Income & Expenses"');
+    expect(panels).toContain('label: "Split Payouts"');
+    expect(panels).toContain('label: "Split Agreements"');
+    expect(panels).toContain('label: "Royalties"');
+    expect(panels).toContain("<CoachSplitsSection isLight={isLight} />");
+    expect(panels).toContain("<CoachSplitSheetsSection");
+    expect(panels).toContain("<CoachRoyaltiesSection isLight={isLight} />");
+  });
+
+  it("the splits view reads the page's rails — overview + publishing registry", () => {
+    expect(subViews).toContain('confirmedFetch("/api/splits/overview"');
+    expect(subViews).toContain("data.disclaimer");
+    expect(subViews).toContain("PUBLISHING_SPLITS_MINE_PATH");
+    expect(subViews).toContain("publishingActionPath(item.id");
+    expect(subViews).toContain("publishingSheetPath(item.id)");
+    expect(subViews).toContain("PUBLISHING_COPY.registryOnly");
+    expect(subViews).toContain('data-testid="world-coach-splits-panel"');
+    expect(subViews).toContain('data-testid="world-coach-publishing-panel"');
+  });
+
+  it("the split-sheets view rides wave8 — CRUD, the 50 VB PDF, the ledger post", () => {
+    expect(subViews).toContain('confirmedFetch("/api/wave8/splits"');
+    expect(subViews).toContain('confirmedFetch("/api/wave8/splits/pdf"');
+    expect(subViews).toContain("SPLIT_SHEET_PDF_COST_VISUAL_BUCS");
+    expect(subViews).toContain('overrideFeature: "Royalty Split Sheet PDF"');
+    expect(subViews).toContain('await import("jspdf")');
+    expect(subViews).toContain("buildSplitLedgerPostBody({");
+    expect(subViews).toContain("splitCentsLargestRemainder(totalCents");
+    expect(subViews).toContain('data-testid="world-coach-sheets-panel"');
+  });
+
+  it("the royalties view rides the page's own loader and the insights rail", () => {
+    expect(subViews).toContain("loadRoyaltySources(async (path)");
+    expect(subViews).toContain('fetch("/api/royalties/import"');
+    expect(subViews).toContain('fetch("/api/royalties/platforms"');
+    expect(subViews).toContain('fetch("/api/royalties/payouts"');
+    expect(subViews).toContain('fetch("/api/royalties/insights"');
+    expect(subViews).toContain("ROYALTY_INSIGHTS_COST_VISUAL_BUCS");
+    expect(subViews).toContain('data-testid="world-coach-royalties-panel"');
+  });
+
+  it("failure is never painted as empty — every sub-view carries a retry state", () => {
+    // One honest error state per load rail (overview, registry, sheets,
+    // royalties summary / platforms / payouts) — all with onRetry.
+    expect(subViews.match(/<NativeErrorState/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
+    expect(subViews).toContain('onRetry={() => void load()}');
+  });
+});
