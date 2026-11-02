@@ -12,6 +12,8 @@
  * shows are only the ones still standing.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   answerShowInvite,
   createShowInvitePath,
@@ -160,6 +162,38 @@ describe("upcomingInvitableShows — the host's pickable shows", () => {
       NOW,
     );
     expect(shows.map((s) => s.id)).toEqual(["standing"]);
+  });
+});
+
+describe("the wiring — the board actually renders the panels", () => {
+  const board = readFileSync(
+    resolve(__dirname, "../../components/world/native/KingdomBoardBlocks.tsx"),
+    "utf8",
+  );
+  const panel = readFileSync(
+    resolve(__dirname, "../../components/world/native/ShowInvitesBlock.tsx"),
+    "utf8",
+  );
+  it("the Kingdom Board mounts the block with the calendar's own walk threaded in", () => {
+    expect(board).toContain("ShowInvitesBlock");
+    expect(board).toContain("onEnterRoom={onEnterRoom}");
+    expect(board).toContain("onOpenStation={onOpenStation}");
+  });
+  it("both panels stand with their controls — invites for you, and the host's send", () => {
+    expect(panel).toContain('data-testid="world-show-invites-for-you"');
+    expect(panel).toContain('data-testid="world-show-invite-accept"');
+    expect(panel).toContain('data-testid="world-show-invite-decline"');
+    expect(panel).toContain('data-testid="world-show-invite-walk"');
+    expect(panel).toContain('data-testid="world-show-invites-send"');
+    expect(panel).toContain('data-testid="world-show-invite-show-picker"');
+    expect(panel).toContain('data-testid="world-show-invite-send-button"');
+  });
+  it("the panel rides the seam's calls and the room invites' member list — no second door", () => {
+    expect(panel).toContain("fetchShowInvitesMine");
+    expect(panel).toContain("sendShowInvite");
+    expect(panel).toContain("answerShowInvite");
+    expect(panel).toContain("fetchRoomInviteCandidates");
+    expect(panel).toContain("showInviteAction");
   });
 });
 
