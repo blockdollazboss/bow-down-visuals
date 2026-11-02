@@ -376,9 +376,40 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         return;
       }
     } else if (event.type === "checkout.session.expired") {
+      const s = event.data.object as Stripe.Checkout.Session;
+      /* Escrow funding sessions (stack1400 item 5): an abandoned /
+         expired funding Checkout used to leave the deal / booking in
+         'funding' forever — re-fund refused, nothing freed it. Free
+         the row back to 'unfunded' through the rail's guarded flip
+         (it only lands while the row is still 'funding' AND still
+         carries THIS session id, so replays and stale expiries for a
+         superseded session change nothing, and a funded row can
+         never be freed). A release failure 500s so Stripe retries —
+         silently dropping it would strand the item again. */
+      if (s.metadata?.sponsor_deal_id) {
+        try {
+          const { freeSponsorEscrowFundingForSession } = await import("../routes/generate/sponsors");
+          const freed = await freeSponsorEscrowFundingForSession(s.metadata.sponsor_deal_id, s.id);
+          res.status(200).json({ received: true, kind: "sponsor_escrow", expired: true, freed });
+        } catch (expiredErr) {
+          logger.error({ err: expiredErr, sessionId: s.id }, "Stripe webhook: sponsor escrow expiry release failed");
+          res.status(500).json({ error: "Sponsor escrow expiry release failed, retry later" });
+        }
+        return;
+      }
+      if (s.metadata?.performance_booking_id) {
+        try {
+          const { freePerformanceEscrowFundingForSession } = await import("../routes/performance-bookings");
+          const freed = await freePerformanceEscrowFundingForSession(s.metadata.performance_booking_id, s.id);
+          res.status(200).json({ received: true, kind: "performance_escrow", expired: true, freed });
+        } catch (expiredErr) {
+          logger.error({ err: expiredErr, sessionId: s.id }, "Stripe webhook: performance escrow expiry release failed");
+          res.status(500).json({ error: "Performance escrow expiry release failed, retry later" });
+        }
+        return;
+      }
       /* An abandoned Marketplace checkout: label its pending lines
          expired — they never become sales (0144). */
-      const s = event.data.object as Stripe.Checkout.Session;
       if (s.metadata?.type === "marketplace_shop_purchase") {
         const { markMarketSaleExpired } = await import("./market-sale");
         await markMarketSaleExpired(s.id);
