@@ -99,7 +99,7 @@ export function AutoChaptersCard({
           error?: string;
           message?: string;
         };
-        throw new Error(apiErrorMessage(err, `HTTP ${res.status}`));
+        throw new Error(apiErrorMessage(err, "Chapter generation failed."));
       }
       const data = (await res.json()) as { chapters?: VideoChapter[] };
       const next = sortChapters(data.chapters ?? []);

@@ -1771,6 +1771,7 @@
     "deleteConfirm": "Excluir este perfil de artista? Isso não pode ser desfeito.",
     "shareConfirm": "Compartilhar este cofre com sua equipe? Todos os membros poderão usá-lo.",
     "shareUpdateFailed": "Não foi possível atualizar o compartilhamento.",
+    "deleteFailed": "Não foi possível excluir esse artista — tente novamente.",
     "photoShootLook": "Look do Ensaio Fotográfico",
     "backToDashboard": "Voltar ao Painel",
     "freeBadge": "Grátis",
@@ -2139,6 +2140,8 @@
     "templatesEmpty": "Nenhuma licença personalizada ainda: os três níveis padrão são o que os compradores veem.",
     "templatesLoadFailed": "Não foi possível carregar suas licenças personalizadas.",
     "templateSaveFailed": "Não foi possível salvar esse modelo: confira os campos e tente novamente.",
+    "aiTagsApplyFailed": "Não foi possível aplicar essas etiquetas — tente novamente.",
+    "templateDeleteFailed": "Não foi possível excluir esse modelo — tente novamente.",
     "templateEdit": "Editar",
     "templateDelete": "Excluir",
     "templateName": "Nome da licença",
@@ -4632,7 +4635,9 @@
     "untitledSong": "Música sem título",
     "yourSong": "Sua música",
     "distributeThisSong": "Distribuir esta música",
-    "scheduleAnnouncement": "Agendar anúncio"
+    "scheduleAnnouncement": "Agendar anúncio",
+    "labelsLoadError": "Não foi possível carregar o diretório de gravadoras",
+    "labelsLoadErrorBody": "O diretório de gravadoras está seguro — esta página apenas não conseguiu acessá-lo. Verifique sua conexão e tente novamente."
   },
   "liveShopping": {
     "addProduct": "Adicionar produto",
@@ -8806,7 +8811,8 @@
       "importFailed": "Falha na importação.",
       "insightsFailed": "Falha nos insights — tente novamente.",
       "payoutRequired": "Distribuidora, datas do período e valor esperado são obrigatórios.",
-      "payoutSaveFailed": "Não foi possível salvar esse pagamento."
+      "payoutSaveFailed": "Não foi possível salvar esse pagamento.",
+      "connectFailed": "Não foi possível conectar essa plataforma — tente novamente."
     }
   },
   "playlistPitch": {
@@ -8895,6 +8901,9 @@
     "deadlineRequired": "Nome da playlist e uma data de prazo são obrigatórios.",
     "deadlineSave": "Salvar prazo",
     "deadlineSaveFailed": "Não foi possível salvar esse prazo: tente novamente.",
+    "deadlineUpdateFailed": "Não foi possível atualizar esse prazo — tente novamente.",
+    "deadlineDeleteFailed": "Não foi possível excluir esse prazo — tente novamente.",
+    "deleteFailed": "Não foi possível excluir essa proposta — tente novamente.",
     "deadlineStatusAnswered": "Respondido",
     "deadlineStatusDrafted": "Rascunhado",
     "deadlineStatusFollowedUp": "Follow-up feito",
@@ -8933,7 +8942,15 @@
     "packetTitle": "Pacote de pitch",
     "packetAudioLabel": "Áudio da faixa",
     "packetProfileLabel": "Perfil do artista",
-    "packetPresaveLabel": "Pré-save / smartlink"
+    "packetPresaveLabel": "Pré-save / smartlink",
+    "curatorsLoadError": "Não foi possível carregar o diretório de curadores",
+    "curatorsLoadErrorBody": "O diretório de curadores está seguro — esta página apenas não conseguiu acessá-lo. Verifique sua conexão e tente novamente.",
+    "releasesLoadError": "Não foi possível carregar seus lançamentos",
+    "releasesLoadErrorBody": "Seus lançamentos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "deadlinesLoadError": "Não foi possível carregar seus prazos",
+    "deadlinesLoadErrorBody": "Seus prazos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "packetLoadError": "Não foi possível carregar este pacote",
+    "packetLoadErrorBody": "O registro do lançamento está seguro — esta página apenas não conseguiu acessá-lo. Verifique sua conexão e tente novamente."
   },
   "refundPolicy": {
     "nav": {
@@ -9625,7 +9642,8 @@
       "generationFailed": "Falha na geração.",
       "missingHandleAndName": "Dê ao seu kit de imprensa um identificador de URL e um nome de artista.",
       "network": "Erro de rede — tente novamente.",
-      "saveFailed": "Falha ao salvar."
+      "saveFailed": "Falha ao salvar.",
+      "deleteFailed": "Não foi possível excluir esse kit de imprensa — tente novamente."
     },
     "form": {
       "achievementsLabel": "Conquistas (uma por linha)",
@@ -9760,7 +9778,8 @@
         "missingFacts": "Adicione pelo menos um fato principal para o comunicado incluir.",
         "generationFailed": "Falha ao gerar o comunicado. Tente novamente.",
         "network": "Erro de rede. Tente novamente.",
-        "saveFailed": "Não foi possível salvar o comunicado no seu kit de imprensa."
+        "saveFailed": "Não foi possível salvar o comunicado no seu kit de imprensa.",
+        "deleteFailed": "Não foi possível excluir esse comunicado — tente novamente."
       }
     }
   },
@@ -10571,6 +10590,7 @@
     "noPitches": "Nenhuma proposta de sync registrada ainda.",
     "noTarget": "Nenhum alvo ainda",
     "updateFailed": "Não foi possível atualizar. Tente novamente.",
+    "deleteFailed": "Não foi possível excluir — tente novamente.",
     "markStatus": "Marcar {{status}}",
     "placedPrompt": "Posicionado! Registre a receita no seu Rastreador de Dinheiro:",
     "amountPlaceholder": "$ valor",
@@ -10586,7 +10606,15 @@
     "publicCta": "Proponha sua própria música para TV, cinema, anúncios e games",
     "publicCtaDesc": "O Bow Down Visuals escreve o one-sheet, combina suas músicas com briefs e acompanha cada proposta — em minutos.",
     "publicCtaButton": "Fazer meu one-sheet de sync",
-    "madeWith": "Feito com o Bow Down Visuals"
+    "madeWith": "Feito com o Bow Down Visuals",
+    "sheetsLoadError": "Não foi possível carregar seus one-sheets",
+    "sheetsLoadErrorBody": "Seus one-sheets salvos estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "briefsLoadError": "Não foi possível carregar o quadro de briefs",
+    "briefsLoadErrorBody": "Seus briefs estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "trackerLoadError": "Não foi possível carregar seu rastreador de pitches",
+    "trackerLoadErrorBody": "Seus pitches registrados estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "matchesLoadError": "Não foi possível carregar as combinações para este brief",
+    "retryLoad": "Tentar novamente"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals em números",
@@ -11044,6 +11072,7 @@
       "remove": "Remover seção",
       "save": "Salvar",
       "saveError": "Não foi possível salvar esta estrutura.",
+      "deleteError": "Não foi possível excluir essa estrutura — tente novamente.",
       "saveHeading": "Estruturas salvas",
       "sendLyrics": "Enviar letra para a Linha do Tempo",
       "sendRemix": "Enviar para a Cadeia de Remix",
@@ -11576,7 +11605,11 @@
       "milestoneHeadline": "🏆 Sequência de {{days}} dias!",
       "milestoneSub": "Bônus de marco garantido 🔥",
       "freezeEarned": "🧊 +1 congelamento de sequência ganho — falte um dia e sua corrente sobrevive!",
-      "freezeUsed": "🧊 Congelamento de sequência usado — sua corrente de {{streak}} dias está salva!"
+      "freezeUsed": "🧊 Congelamento de sequência usado — sua corrente de {{streak}} dias está salva!",
+      "claimFailed": "Não conseguimos resgatar seu bônus agora — tente novamente.",
+      "alreadyClaimedToday": "Você já resgatou o bônus de hoje — volte amanhã para o próximo!",
+      "crateFailed": "Não conseguimos abrir a caixa agora — tente novamente.",
+      "crateCooldown": "Você abriu uma caixa há pouco tempo — a próxima desbloqueia em breve."
     },
     "streakWidget": {
       "atRiskTitle": "Não perca sua sequência de {{streak}} dias!",
@@ -12851,6 +12884,9 @@
     "dropshipTitle": "Modelo dropship:",
     "errorGenerate": "Não foi possível gerar os designs — nenhum Visual Buc foi cobrado.",
     "errorNetwork": "Erro de rede — tente novamente. Nenhum Visual Buc foi cobrado.",
+    "errorSaveDesignFailed": "Não foi possível salvar esse design na sua loja — tente novamente.",
+    "errorUpdateDesignFailed": "Não foi possível atualizar esse design — tente novamente.",
+    "errorDeleteDesignFailed": "Não foi possível excluir esse design — tente novamente.",
     "generateButton": "Gerar 2 mockups · 300 Visual Bucs",
     "listForSale": "Anunciar para venda",
     "loadingStore": "Carregando sua loja…",
@@ -12917,7 +12953,10 @@
     "title": "Designer de Merch",
     "titlePlaceholder": "ex.: Camiseta da Turnê Shark King",
     "unlist": "Retirar do ar",
-    "yourProfit": "Seu lucro"
+    "yourProfit": "Seu lucro",
+    "designsLoadError": "Não foi possível carregar seus designs",
+    "designsLoadErrorBody": "Seus designs estão seguros — esta página apenas não conseguiu acessá-los. Verifique sua conexão e tente novamente.",
+    "retryLoad": "Tentar novamente"
   },
   "moneyTracker": {
     "addEntry": "Adicionar lançamento",

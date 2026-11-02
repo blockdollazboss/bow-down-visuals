@@ -240,7 +240,7 @@ export function LipSyncStudio({
             if (timer) clearInterval(timer);
             return;
           }
-          throw new Error(`Status check failed (HTTP ${res.status})`);
+          throw new Error("Status check failed");
         }
         const st = (await res.json()) as RunAllStatus;
         if (cancelled) return;
@@ -288,7 +288,7 @@ export function LipSyncStudio({
         message?: string;
       };
       if (!res.ok || !body.runId) {
-        throw new Error(apiErrorMessage(body, `Failed to start (HTTP ${res.status})`));
+        throw new Error(apiErrorMessage(body, "Lip sync could not start — please try again."));
       }
       setRunId(body.runId);
       setStatus(null);
@@ -440,7 +440,7 @@ export function LipSyncStudio({
         setClipStep(data.step ?? "Working…");
         if (ticks >= 120) {
           setClipPhase("failed");
-          setClipError("Timed out. Check your connection and try again.");
+          setClipError("This is taking longer than usual — the job may still be running. Check again in a bit before starting another.");
           setClipJobId(null);
         }
       } catch {
@@ -495,7 +495,7 @@ export function LipSyncStudio({
         message?: string;
       };
       if (!res.ok || !data.jobId) {
-        throw new Error(apiErrorMessage(data, `Could not start (HTTP ${res.status})`));
+        throw new Error(apiErrorMessage(data, "Lip sync could not start — please try again."));
       }
       setClipPhase("running");
       setClipJobId(data.jobId);

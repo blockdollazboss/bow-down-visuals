@@ -1807,6 +1807,7 @@
     "shareLabel": "Teilen",
     "shareTitle": "Mit Team teilen",
     "shareUpdateFailed": "Teilen konnte nicht aktualisiert werden.",
+    "deleteFailed": "Dieser Künstler konnte nicht gelöscht werden — bitte versuche es erneut.",
     "sharedLabel": "Geteilt",
     "smoothingLoop": "Der Loop-Übergang wird geglättet…",
     "songPickerHint": "Wähle einen Song – seine Vocals werden isoliert und in die festgelegte Stimme geklont ({{credits}} Visual Bucs). Am besten mit klaren Lead-Vocals; starke Effekte oder versteckte Vocals können fehlschlagen.",
@@ -2138,6 +2139,8 @@
     "templatesEmpty": "Noch keine eigenen Lizenzen — die drei Standardstufen sind das, was Käufer sehen.",
     "templatesLoadFailed": "Deine eigenen Lizenzen konnten nicht geladen werden.",
     "templateSaveFailed": "Diese Vorlage konnte nicht gespeichert werden — prüfe die Felder und versuch es erneut.",
+    "aiTagsApplyFailed": "Diese Tags konnten nicht angewendet werden — bitte versuche es erneut.",
+    "templateDeleteFailed": "Diese Vorlage konnte nicht gelöscht werden — bitte versuche es erneut.",
     "templateEdit": "Bearbeiten",
     "templateDelete": "Löschen",
     "templateName": "Lizenzname",
@@ -4623,7 +4626,9 @@
     "untitledSong": "Song ohne Titel",
     "yourSong": "Dein Song",
     "distributeThisSong": "Diesen Song distribuieren",
-    "scheduleAnnouncement": "Ankündigung planen"
+    "scheduleAnnouncement": "Ankündigung planen",
+    "labelsLoadError": "Das Label-Verzeichnis konnte nicht geladen werden",
+    "labelsLoadErrorBody": "Das Label-Verzeichnis ist sicher — diese Seite konnte es nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut."
   },
   "liveShopping": {
     "addProduct": "Produkt hinzufügen",
@@ -8852,7 +8857,8 @@
       "importFailed": "Import fehlgeschlagen.",
       "insightsFailed": "Insights fehlgeschlagen — versuche es erneut.",
       "payoutRequired": "Distributor, Periodendaten und erwarteter Betrag sind erforderlich.",
-      "payoutSaveFailed": "Diese Auszahlung konnte nicht gespeichert werden."
+      "payoutSaveFailed": "Diese Auszahlung konnte nicht gespeichert werden.",
+      "connectFailed": "Diese Plattform konnte nicht verbunden werden — bitte versuche es erneut."
     }
   },
   "mediaDetector": {
@@ -8972,6 +8978,9 @@
     "deadlineRequired": "Playlist-Name und ein Fälligkeitsdatum sind erforderlich.",
     "deadlineSave": "Frist speichern",
     "deadlineSaveFailed": "Diese Frist konnte nicht gespeichert werden — versuch es erneut.",
+    "deadlineUpdateFailed": "Diese Frist konnte nicht aktualisiert werden — bitte versuche es erneut.",
+    "deadlineDeleteFailed": "Diese Frist konnte nicht gelöscht werden — bitte versuche es erneut.",
+    "deleteFailed": "Dieser Pitch konnte nicht gelöscht werden — bitte versuche es erneut.",
     "deadlineStatusAnswered": "Beantwortet",
     "deadlineStatusDrafted": "Entwurf",
     "deadlineStatusFollowedUp": "Nachgefasst",
@@ -9012,7 +9021,15 @@
     "packetProfileLabel": "Künstlerprofil",
     "packetPresaveLabel": "Pre-Save / Smartlink",
     "notesPlaceholder": "Notizen für den Kurator (optional)",
-    "tabPlaylists": "Playlists"
+    "tabPlaylists": "Playlists",
+    "curatorsLoadError": "Das Kuratoren-Verzeichnis konnte nicht geladen werden",
+    "curatorsLoadErrorBody": "Das Kuratoren-Verzeichnis ist sicher — diese Seite konnte es nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "releasesLoadError": "Deine Releases konnten nicht geladen werden",
+    "releasesLoadErrorBody": "Deine Releases sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "deadlinesLoadError": "Deine Fristen konnten nicht geladen werden",
+    "deadlinesLoadErrorBody": "Deine Fristen sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "packetLoadError": "Dieses Paket konnte nicht geladen werden",
+    "packetLoadErrorBody": "Der Release-Datensatz ist sicher — diese Seite konnte ihn nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut."
   },
   "refundPolicy": {
     "nav": {
@@ -9549,9 +9566,15 @@
     "priceNote": "Preise und Einstellung sind jederzeit kostenlos änderbar. Die 15% Plattformgebühr gilt erst, sobald der Checkout live geht.",
     "errorGenerate": "Die Designs konnten nicht generiert werden — es wurden keine Visual Bucs abgebucht.",
     "errorNetwork": "Netzwerkfehler — bitte versuche es erneut. Es wurden keine Visual Bucs abgebucht.",
+    "errorSaveDesignFailed": "Dieses Design konnte nicht in deinem Shop gespeichert werden — bitte versuche es erneut.",
+    "errorUpdateDesignFailed": "Dieses Design konnte nicht aktualisiert werden — bitte versuche es erneut.",
+    "errorDeleteDesignFailed": "Dieses Design konnte nicht gelöscht werden — bitte versuche es erneut.",
     "confirmDelete": "Dieses Design löschen? Das kann nicht rückgängig gemacht werden.",
     "checkoutSoon": "Checkout kommt bald.",
-    "myShopLink": "In meinem Shop verkaufen"
+    "myShopLink": "In meinem Shop verkaufen",
+    "designsLoadError": "Deine Designs konnten nicht geladen werden",
+    "designsLoadErrorBody": "Deine Designs sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "retryLoad": "Erneut versuchen"
   },
   "podcast": {
     "publish": {
@@ -9858,7 +9881,8 @@
       "generationFailed": "Generierung fehlgeschlagen.",
       "missingHandleAndName": "Gib deinem Pressekit ein URL-Handle und einen Künstlernamen.",
       "network": "Netzwerkfehler — bitte versuche es erneut.",
-      "saveFailed": "Speichern fehlgeschlagen."
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "deleteFailed": "Dieses Pressekit konnte nicht gelöscht werden — bitte versuche es erneut."
     },
     "form": {
       "achievementsLabel": "Erfolge (einer pro Zeile)",
@@ -9990,7 +10014,8 @@
         "missingFacts": "Füge mindestens einen wichtigen Fakt hinzu, den die Mitteilung enthalten soll.",
         "generationFailed": "Die Pressemitteilung konnte nicht erstellt werden. Bitte versuche es erneut.",
         "network": "Netzwerkfehler. Bitte versuche es erneut.",
-        "saveFailed": "Die Mitteilung konnte nicht in deinem Pressekit gespeichert werden."
+        "saveFailed": "Die Mitteilung konnte nicht in deinem Pressekit gespeichert werden.",
+        "deleteFailed": "Diese Mitteilung konnte nicht gelöscht werden — bitte versuche es erneut."
       }
     }
   },
@@ -11457,6 +11482,7 @@
     "noPitches": "Noch keine Sync-Pitches eingetragen.",
     "noTarget": "Noch kein Ziel",
     "updateFailed": "Aktualisieren nicht möglich. Versuche es erneut.",
+    "deleteFailed": "Das konnte nicht gelöscht werden — bitte versuche es erneut.",
     "markStatus": "Als {{status}} markieren",
     "placedPrompt": "Platziert! Trage die Einnahmen in deinen Money Tracker ein:",
     "amountPlaceholder": "$ Betrag",
@@ -11472,7 +11498,15 @@
     "publicCta": "Pitche deine eigene Musik für TV, Film, Werbung & Spiele",
     "publicCtaDesc": "Bow Down Visuals schreibt das One-Sheet, gleicht deine Songs mit Briefs ab und verfolgt jeden Pitch — in Minuten.",
     "publicCtaButton": "Mein Sync One-Sheet erstellen",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "Deine One-Sheets konnten nicht geladen werden",
+    "sheetsLoadErrorBody": "Deine gespeicherten One-Sheets sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "briefsLoadError": "Deine Briefs konnten nicht geladen werden",
+    "briefsLoadErrorBody": "Deine Briefs sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "trackerLoadError": "Dein Pitch-Tracker konnte nicht geladen werden",
+    "trackerLoadErrorBody": "Deine erfassten Pitches sind sicher — diese Seite konnte sie nur nicht erreichen. Prüfe deine Verbindung und versuche es erneut.",
+    "matchesLoadError": "Matches für dieses Brief konnten nicht geladen werden",
+    "retryLoad": "Erneut versuchen"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals in Zahlen",
@@ -11930,6 +11964,7 @@
       "remove": "Abschnitt entfernen",
       "save": "Speichern",
       "saveError": "Diese Struktur konnte nicht gespeichert werden.",
+      "deleteError": "Diese Struktur konnte nicht gelöscht werden — bitte versuche es erneut.",
       "saveHeading": "Gespeicherte Strukturen",
       "sendLyrics": "Songtexte an Timeline senden",
       "sendRemix": "An Remix-Kette senden",
@@ -12481,7 +12516,11 @@
       "milestoneHeadline": "🏆 {{days}}-Tage-Serie!",
       "milestoneSub": "Meilenstein-Bonus gesichert 🔥",
       "freezeEarned": "🧊 +1 Serien-Freeze verdient — verpasse einen Tag und deine Kette überlebt!",
-      "freezeUsed": "🧊 Serien-Freeze verwendet — deine {{streak}}-Tage-Kette ist gerettet!"
+      "freezeUsed": "🧊 Serien-Freeze verwendet — deine {{streak}}-Tage-Kette ist gerettet!",
+      "claimFailed": "Wir konnten deinen Bonus gerade nicht gutschreiben — bitte versuche es erneut.",
+      "alreadyClaimedToday": "Du hast den heutigen Bonus bereits abgeholt — komm morgen für den nächsten wieder!",
+      "crateFailed": "Wir konnten die Kiste gerade nicht öffnen — bitte versuche es erneut.",
+      "crateCooldown": "Du hast vor Kurzem eine Kiste geöffnet — die nächste wird bald freigeschaltet."
     },
     "streakWidget": {
       "atRiskTitle": "Verliere deine {{streak}}-Tage-Serie nicht!",

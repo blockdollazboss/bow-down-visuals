@@ -205,9 +205,15 @@ export default function PressReleasePanel({
         credentials: "include",
         body: JSON.stringify({ press_releases: next }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(apiErrorMessage(data, p("errors.deleteFailed")));
+        return;
+      }
       onKitUpdated({ ...kit, press_releases: next });
-    } catch { /* non-fatal */ }
+    } catch {
+      setError(p("errors.network"));
+    }
   }
 
   return (

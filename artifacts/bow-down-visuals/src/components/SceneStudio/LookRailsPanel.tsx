@@ -80,7 +80,7 @@ export function LookRailsPanel({ scene, onPick }: {
         error?: string;
       };
       if (!res.ok || !data.proposal) {
-        throw new Error(apiErrorMessage(data, `AI Director error (HTTP ${res.status})`));
+        throw new Error(apiErrorMessage(data, "AI Director failed — please try again."));
       }
       /* Proposal lands in LOCAL state only — the scene is untouched until
          the creator accepts a rail (acceptRail / acceptAllProposal). */

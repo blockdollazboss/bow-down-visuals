@@ -146,7 +146,7 @@ export function BrandingSection({ settings, setSettings, artistName, songTitle }
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        throw new Error(apiErrorMessage(body, `Upload failed (${res.status})`));
+        throw new Error(apiErrorMessage(body, "Upload failed"));
       }
       const { url } = (await res.json()) as { url: string };
       setWm({ customLogoUrl: url });

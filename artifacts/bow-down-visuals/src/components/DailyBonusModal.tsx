@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Flame, Gift, X, Check, Snowflake } from "lucide-react";
 import ConfettiBurst from "@/components/artist/confetti-burst";
+import { apiErrorMessage } from "@/lib/api-error";
 
 /* ── Daily bonus claim modal ────────────────────────────────────────────
  Shows once per session when the user has an unclaimed daily bonus.
@@ -43,7 +44,9 @@ export function DailyBonusModal() {
  const [claimed, setClaimed] = useState<ClaimResult | null>(null);
  const [crateAvailable, setCrateAvailable] = useState<boolean | null>(null);
  const [crateClaiming, setCrateClaiming] = useState(false);
- const [crateResult, setCrateResult] = useState<{ prize?: number; alreadyClaimed?: boolean } | null>(null);
+ const [crateResult, setCrateResult] = useState<{ prize?: number; alreadyClaimed?: boolean; cooldown?: boolean } | null>(null);
+ const [claimError, setClaimError] = useState<string | null>(null);
+ const [crateError, setCrateError] = useState<string | null>(null);
 
  useEffect(() => {
  if (!user) return;
@@ -80,34 +83,46 @@ export function DailyBonusModal() {
 
  async function handleCrateClaim() {
  setCrateClaiming(true);
+ setCrateError(null);
  try {
  const token = await getAccessToken();
  const res = await fetch("/api/bonus/spin-wheel", {
  method: "POST",
  headers: { Authorization: `Bearer ${token}` },
  });
- const r = await res.json();
- if (r.spun) {
+ const r = await res.json().catch(() => ({}));
+ if (res.ok && r.spun) {
  setCrateResult({ prize: r.prize });
  setCrateAvailable(false);
- } else {
+ } else if (r.spun === false && r.reason === "already_claimed_global") {
+ /* The hour's one crate is gone — someone else took it first. */
  setCrateResult({ alreadyClaimed: true });
  setCrateAvailable(false);
+ } else if (r.spun === false && r.reason === "cooldown") {
+ /* This member opened a crate recently — a different fact from the
+    global take, so it gets its own words. */
+ setCrateResult({ cooldown: true });
+ } else {
+ /* A failure is not a taken crate: say it failed, keep the crate open. */
+ setCrateError(apiErrorMessage(r, t("retention.dailyBonus.crateFailed", { defaultValue: "We couldn't open the crate just now — please try again." })));
  }
- } catch { /* silent */ }
+ } catch {
+ setCrateError(t("retention.dailyBonus.crateFailed", { defaultValue: "We couldn't open the crate just now — please try again." }));
+ }
  setCrateClaiming(false);
  }
 
  async function handleClaim() {
  setClaiming(true);
+ setClaimError(null);
  try {
  const token = await getAccessToken();
  const res = await fetch("/api/bonus/claim-daily", {
  method: "POST",
  headers: { Authorization: `Bearer ${token}` },
  });
- const r = await res.json();
- if (r.claimed) {
+ const r = await res.json().catch(() => ({}));
+ if (res.ok && r.claimed) {
  setClaimed({
  bonus: r.bonusGranted,
  streak: r.streak,
@@ -119,10 +134,19 @@ export function DailyBonusModal() {
  setStreak(r.streak);
  setStreakFreezes(r.streakFreezes ?? 0);
  setCanClaim(false);
+ } else if (res.ok && r.claimed === false && r.reason === "already_claimed") {
+ /* Already claimed today is a fact, not a failure — say it plainly
+    and stop offering the claim. */
+ setCanClaim(false);
+ setClaimError(t("retention.dailyBonus.alreadyClaimedToday", { defaultValue: "You've already claimed today's bonus — come back tomorrow for the next one!" }));
  } else {
- setVisible(false);
+ /* A failed claim is not a handled claim: the modal stays open and
+    the failure gets words. */
+ setClaimError(apiErrorMessage(r, t("retention.dailyBonus.claimFailed", { defaultValue: "We couldn't claim your bonus just now — please try again." })));
  }
- } catch { /* silent */ }
+ } catch {
+ setClaimError(t("retention.dailyBonus.claimFailed", { defaultValue: "We couldn't claim your bonus just now — please try again." }));
+ }
  setClaiming(false);
  }
 
@@ -157,6 +181,8 @@ export function DailyBonusModal() {
  const open = () => {
  setClaimed(null);
  setCrateResult(null);
+ setClaimError(null);
+ setCrateError(null);
  setVisible(true);
  void refreshStatus();
  };
@@ -293,6 +319,9 @@ export function DailyBonusModal() {
  <Gift className="h-5 w-5 mr-2" />
  {claiming ? "Claiming…" : "Claim Bonus"}
  </Button>
+ {claimError && (
+ <p className={`mt-3 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c766]"}`}>{claimError}</p>
+ )}
  {renderLadder()}
  {/* Hourly Mystery Crate — claim right here */}
  {crateAvailable !== null && (
@@ -301,6 +330,8 @@ export function DailyBonusModal() {
  <p className="text-sm font-bold text-[#c9a84c]">🎁 +{crateResult.prize.toLocaleString("en-US")} Visual Bucs from the Mystery Crate!</p>
  ) : crateResult?.alreadyClaimed ? (
  <p className="text-xs text-muted-foreground">This hour's crate was already claimed — try again next hour!</p>
+ ) : crateResult?.cooldown ? (
+ <p className="text-xs text-muted-foreground">{t("retention.dailyBonus.crateCooldown", { defaultValue: "You opened a crate not long ago — your next one unlocks soon." })}</p>
  ) : crateAvailable ? (
  <Button
  onClick={handleCrateClaim}
@@ -311,6 +342,9 @@ export function DailyBonusModal() {
  </Button>
  ) : (
  <p className="text-xs text-muted-foreground">Hourly crate claimed — next one in under an hour!</p>
+ )}
+ {crateError && (
+ <p className={`mt-2 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c766]"}`}>{crateError}</p>
  )}
  </div>
  )}

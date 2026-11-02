@@ -162,10 +162,14 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
 
   async function remove(id: string) {
     try {
-      await fetch(`/api/wave9a/versions/${id}`, { method: "DELETE", headers: await authHeaders() });
+      const res = await fetch(`/api/wave9a/versions/${id}`, { method: "DELETE", headers: await authHeaders() });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(apiErrorMessage(data, t("wave9.remix.errorGeneric")));
+      }
       setVersions((vs) => vs.filter((v) => v.id !== id));
-    } catch {
-      /* non-fatal */
+    } catch (err) {
+      setError(plainErrorText(err, t("wave9.remix.errorGeneric")));
     }
   }
 

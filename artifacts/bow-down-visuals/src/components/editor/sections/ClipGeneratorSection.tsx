@@ -218,7 +218,7 @@ export function ClipGeneratorSection({
       return () => clearTimeout(t);
     }
     if (saveState === "error") {
-      setTimelineSaveMsg("Timeline save failed — check your connection");
+      setTimelineSaveMsg("Timeline save failed — your changes are still here. Try saving again.");
       setTimelineSaveMsgType("error");
     }
     return;
@@ -612,7 +612,7 @@ export function ClipGeneratorSection({
     } else if (failed < scenes.length) {
       setEnhanceStatus({ type: "warning", message: `${scenes.length - failed} of ${scenes.length} prompts enhanced. ${failed} scene${failed !== 1 ? "s" : ""} failed — try again.` });
     } else {
-      setEnhanceStatus({ type: "error", message: "Enhancement failed. Check your connection and try again." });
+      setEnhanceStatus({ type: "error", message: "Enhancement failed — none of the scenes could be enhanced. Try again." });
     }
   }
 

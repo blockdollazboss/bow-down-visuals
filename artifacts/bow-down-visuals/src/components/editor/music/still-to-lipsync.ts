@@ -206,7 +206,7 @@ export async function runStillToLipSync(
       "animate",
       submitData.message ??
         submitData.error ??
-        `Animation failed to start (HTTP ${submitRes.status}) — no Visual Bucs were charged.`,
+        `Animation failed to start — no Visual Bucs were charged.`,
     );
   }
   const taskId = submitData.taskId;
@@ -233,7 +233,7 @@ export async function runStillToLipSync(
     if (!pollRes.ok) {
       throw new StillToLipSyncError(
         "animate",
-        `Animation status check failed (HTTP ${pollRes.status}).`,
+        `Animation status check failed.`,
       );
     }
     const pollData = (await pollRes.json().catch(() => ({}))) as {
@@ -309,7 +309,7 @@ export async function runStillToLipSync(
       "lip-sync",
       lipData.message ??
         lipData.error ??
-        `Lip sync failed to start (HTTP ${lipRes.status}). The animated clip above is yours to keep.`,
+        `Lip sync failed to start. The animated clip above is yours to keep.`,
       clipUrl,
     );
   }
@@ -329,7 +329,7 @@ export async function runStillToLipSync(
     if (!pollRes.ok) {
       throw new StillToLipSyncError(
         "lip-sync",
-        `Lip-sync status check failed (HTTP ${pollRes.status}). The animated clip above is yours to keep.`,
+        `Lip-sync status check failed. The animated clip above is yours to keep.`,
         clipUrl,
       );
     }

@@ -1808,6 +1808,7 @@
     "shareLabel": "مشاركة",
     "shareTitle": "مشاركة مع الفريق",
     "shareUpdateFailed": "تعذّر تحديث المشاركة.",
+    "deleteFailed": "تعذر حذف ذلك الفنان — حاول مرة أخرى.",
     "sharedLabel": "مشارَك",
     "smoothingLoop": "تنعيم وصلة التكرار…",
     "songPickerHint": "اختر أغنية — يُفصل غناؤها ويُستنسخ في الصوت المثبّت ({{credits}} Visual Bucs). الأفضل مع غناء رئيسي واضح؛ المؤثرات الثقيلة أو الغناء المدفون قد يفشل.",
@@ -2142,6 +2143,8 @@
     "templatesEmpty": "لا تراخيص مخصصة بعد: المستويات القياسية الثلاثة هي ما يراه المشترون.",
     "templatesLoadFailed": "تعذّر تحميل تراخيصك المخصصة.",
     "templateSaveFailed": "تعذّر حفظ ذلك القالب: تحقق من الحقول وحاول مرة أخرى.",
+    "aiTagsApplyFailed": "تعذر تطبيق تلك الوسوم — حاول مرة أخرى.",
+    "templateDeleteFailed": "تعذر حذف ذلك القالب — حاول مرة أخرى.",
     "templateEdit": "تعديل",
     "templateDelete": "حذف",
     "templateName": "اسم الترخيص",
@@ -4659,7 +4662,9 @@
     "untitledSong": "أغنية بدون عنوان",
     "yourSong": "أغنيتك",
     "distributeThisSong": "توزيع هذه الأغنية",
-    "scheduleAnnouncement": "جدولة إعلان"
+    "scheduleAnnouncement": "جدولة إعلان",
+    "labelsLoadError": "تعذّر تحميل دليل الشركات",
+    "labelsLoadErrorBody": "دليل الشركات آمن — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً."
   },
   "liveShopping": {
     "addProduct": "إضافة منتج",
@@ -8904,7 +8909,8 @@
       "importFailed": "فشل الاستيراد.",
       "insightsFailed": "فشلت الرؤى — حاول مجدداً.",
       "payoutRequired": "الموزع وتواريخ الفترة والمبلغ المتوقع مطلوبة.",
-      "payoutSaveFailed": "تعذّر حفظ تلك الدفعة."
+      "payoutSaveFailed": "تعذّر حفظ تلك الدفعة.",
+      "connectFailed": "تعذر ربط تلك المنصة — حاول مرة أخرى."
     }
   },
   "mediaDetector": {
@@ -9028,6 +9034,9 @@
     "deadlineRequired": "اسم قائمة التشغيل وتاريخ الانتهاء مطلوبان.",
     "deadlineSave": "حفظ الموعد",
     "deadlineSaveFailed": "تعذّر حفظ هذا الموعد — حاول مجددًا.",
+    "deadlineUpdateFailed": "تعذر تحديث ذلك الموعد النهائي — حاول مرة أخرى.",
+    "deadlineDeleteFailed": "تعذر حذف ذلك الموعد النهائي — حاول مرة أخرى.",
+    "deleteFailed": "تعذر حذف ذلك العرض — حاول مرة أخرى.",
     "deadlineStatusAnswered": "تم الرد",
     "deadlineStatusDrafted": "مسودة",
     "deadlineStatusFollowedUp": "تمت المتابعة",
@@ -9068,7 +9077,15 @@
     "packetProfileLabel": "ملف الفنان",
     "packetPresaveLabel": "الحفظ المسبق / الرابط الذكي",
     "notesPlaceholder": "ملاحظات للقيم (اختياري)",
-    "tabPlaylists": "قوائم التشغيل"
+    "tabPlaylists": "قوائم التشغيل",
+    "curatorsLoadError": "تعذّر تحميل دليل القيّمين",
+    "curatorsLoadErrorBody": "دليل القيّمين آمن — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً.",
+    "releasesLoadError": "تعذّر تحميل إصداراتك",
+    "releasesLoadErrorBody": "إصداراتك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "deadlinesLoadError": "تعذّر تحميل مواعيدك النهائية",
+    "deadlinesLoadErrorBody": "مواعيدك النهائية آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "packetLoadError": "تعذّر تحميل هذه الحزمة",
+    "packetLoadErrorBody": "سجل الإصدار آمن — هذه الصفحة فقط لم تتمكّن من الوصول إليه. تحقّق من اتصالك وحاول مجدداً."
   },
   "refundPolicy": {
     "nav": {
@@ -9605,9 +9622,15 @@
     "priceNote": "الأسعار والإدراج مجانيان للتغيير في أي وقت. رسوم المنصة 15% تنطبق فقط بمجرد تفعيل إتمام الشراء.",
     "errorGenerate": "تعذّر توليد التصاميم — لم تُخصم أي Visual Bucs.",
     "errorNetwork": "خطأ في الشبكة — حاول مجدداً. لم تُخصم أي Visual Bucs.",
+    "errorSaveDesignFailed": "تعذر حفظ ذلك التصميم في متجرك — حاول مرة أخرى.",
+    "errorUpdateDesignFailed": "تعذر تحديث ذلك التصميم — حاول مرة أخرى.",
+    "errorDeleteDesignFailed": "تعذر حذف ذلك التصميم — حاول مرة أخرى.",
     "confirmDelete": "حذف هذا التصميم؟ لا يمكن التراجع عن هذا.",
     "checkoutSoon": "إتمام الشراء قادم قريباً.",
-    "myShopLink": "بِع هذا في متجري"
+    "myShopLink": "بِع هذا في متجري",
+    "designsLoadError": "تعذّر تحميل تصاميمك",
+    "designsLoadErrorBody": "تصاميمك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "retryLoad": "حاول مجدداً"
   },
   "podcast": {
     "publish": {
@@ -9922,7 +9945,8 @@
       "generationFailed": "فشل التوليد.",
       "missingHandleAndName": "امنح ملفك الصحفي معرّف رابط واسم فنان.",
       "network": "خطأ في الشبكة — حاول مرة أخرى.",
-      "saveFailed": "فشل الحفظ."
+      "saveFailed": "فشل الحفظ.",
+      "deleteFailed": "تعذر حذف ملف الصحافة ذلك — حاول مرة أخرى."
     },
     "form": {
       "achievementsLabel": "الإنجازات (واحد في كل سطر)",
@@ -10066,7 +10090,8 @@
         "missingFacts": "أضف حقيقة أساسية واحدة على الأقل ليضمّنها البيان.",
         "generationFailed": "فشل إنشاء البيان الصحفي. حاول مرة أخرى.",
         "network": "خطأ في الشبكة. حاول مرة أخرى.",
-        "saveFailed": "تعذّر حفظ البيان في ملفك الصحفي."
+        "saveFailed": "تعذّر حفظ البيان في ملفك الصحفي.",
+        "deleteFailed": "تعذر حذف ذلك البيان — حاول مرة أخرى."
       }
     }
   },
@@ -11549,6 +11574,7 @@
     "noPitches": "لا عروض مزامنة مسجلة بعد.",
     "noTarget": "لا هدف بعد",
     "updateFailed": "تعذّر التحديث. حاول مجدداً.",
+    "deleteFailed": "تعذر الحذف — حاول مرة أخرى.",
     "markStatus": "تعليم {{status}}",
     "placedPrompt": "وُضع! سجّل الدخل في متتبع أموالك:",
     "amountPlaceholder": "مبلغ $",
@@ -11564,7 +11590,15 @@
     "publicCta": "اعرض موسيقاك الخاصة للتلفاز والفيلم والإعلانات والألعاب",
     "publicCtaDesc": "Bow Down Visuals يكتب الورقة الواحدة، ويطابق أغانيك مع الموجزات، ويتتبع كل عرض — في دقائق.",
     "publicCtaButton": "اصنع ورقة المزامنة الواحدة الخاصة بي",
-    "madeWith": "صُنع بـ Bow Down Visuals"
+    "madeWith": "صُنع بـ Bow Down Visuals",
+    "sheetsLoadError": "تعذّر تحميل أوراقك الواحدة",
+    "sheetsLoadErrorBody": "أوراقك الواحدة المحفوظة آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "briefsLoadError": "تعذّر تحميل لوحة الموجزات",
+    "briefsLoadErrorBody": "موجزاتك آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "trackerLoadError": "تعذّر تحميل متعقّب عروضك",
+    "trackerLoadErrorBody": "عروضك المسجّلة آمنة — هذه الصفحة فقط لم تتمكّن من الوصول إليها. تحقّق من اتصالك وحاول مجدداً.",
+    "matchesLoadError": "تعذّر تحميل المطابقات لهذا الموجز",
+    "retryLoad": "حاول مجدداً"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals بالأرقام",
@@ -12022,6 +12056,7 @@
       "remove": "إزالة القسم",
       "save": "حفظ",
       "saveError": "تعذر حفظ هذه البنية.",
+      "deleteError": "تعذر حذف تلك البنية — حاول مرة أخرى.",
       "saveHeading": "البنى المحفوظة",
       "sendLyrics": "إرسال الكلمات إلى الخط الزمني",
       "sendRemix": "إرسال إلى سلسلة الريمكس",
@@ -12554,7 +12589,11 @@
       "milestoneHeadline": "🏆 سلسلة من {{days}} يوماً!",
       "milestoneSub": "مكافأة المرحلة مضمونة 🔥",
       "freezeEarned": "🧊 كسبت +1 تجميد للسلسلة — فاتك يوم وستبقى سلسلتك حية!",
-      "freezeUsed": "🧊 استُخدم تجميد السلسلة — سلسلتك من {{streak}} يوماً محفوظة!"
+      "freezeUsed": "🧊 استُخدم تجميد السلسلة — سلسلتك من {{streak}} يوماً محفوظة!",
+      "claimFailed": "لم نتمكن من منحك المكافأة الآن — حاول مرة أخرى.",
+      "alreadyClaimedToday": "لقد حصلت على مكافأة اليوم بالفعل — عد غدًا للحصول على التالية!",
+      "crateFailed": "لم نتمكن من فتح الصندوق الآن — حاول مرة أخرى.",
+      "crateCooldown": "لقد فتحت صندوقًا منذ قليل — سيُفتح التالي قريبًا."
     },
     "streakWidget": {
       "atRiskTitle": "لا تخسر سلسلتك من {{streak}} يوماً!",

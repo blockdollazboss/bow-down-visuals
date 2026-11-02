@@ -1789,6 +1789,7 @@
     "deleteConfirm": "Delete this artist profile? This cannot be undone.",
     "shareConfirm": "Share this vault with your team? All team members will be able to use it.",
     "shareUpdateFailed": "Could not update sharing.",
+    "deleteFailed": "Couldn't delete that artist — try again.",
     "photoShootLook": "Photo Shoot Look",
     "backToDashboard": "Back to Dashboard",
     "freeBadge": "Free",
@@ -2244,6 +2245,8 @@
     "templatesEmpty": "No custom licenses yet — the three standard tiers are what buyers see.",
     "templatesLoadFailed": "Couldn't load your custom licenses.",
     "templateSaveFailed": "Couldn't save that template — check the fields and try again.",
+    "aiTagsApplyFailed": "Couldn't apply those tags — please try again.",
+    "templateDeleteFailed": "Couldn't delete that template — please try again.",
     "templateEdit": "Edit",
     "templateDelete": "Delete",
     "templateName": "License name",
@@ -4900,7 +4903,9 @@
     "untitledSong": "Untitled song",
     "yourSong": "Your song",
     "distributeThisSong": "Distribute this song",
-    "scheduleAnnouncement": "Schedule announcement"
+    "scheduleAnnouncement": "Schedule announcement",
+    "labelsLoadError": "We couldn't load the label directory",
+    "labelsLoadErrorBody": "The label directory is safe — this page just couldn't reach it. Check your connection and try again."
   },
   "liveShopping": {
     "addProduct": "Add product",
@@ -9359,7 +9364,8 @@
       "importFailed": "Import failed.",
       "insightsFailed": "Insights failed — try again.",
       "payoutRequired": "Distributor, period dates, and expected amount are required.",
-      "payoutSaveFailed": "Couldn't save that payout."
+      "payoutSaveFailed": "Couldn't save that payout.",
+      "connectFailed": "Couldn't connect that platform — try again."
     }
   },
   "mediaDetector": {
@@ -9481,6 +9487,9 @@
     "deadlineRequired": "Playlist name and a deadline date are required.",
     "deadlineSave": "Save deadline",
     "deadlineSaveFailed": "Couldn't save that deadline — try again.",
+    "deadlineUpdateFailed": "Couldn't update that deadline — try again.",
+    "deadlineDeleteFailed": "Couldn't delete that deadline — try again.",
+    "deleteFailed": "Couldn't delete that pitch — try again.",
     "deadlineStatusAnswered": "Answered",
     "deadlineStatusDrafted": "Drafted",
     "deadlineStatusFollowedUp": "Followed up",
@@ -9519,7 +9528,15 @@
     "packetTitle": "Pitch packet",
     "packetAudioLabel": "Track audio",
     "packetProfileLabel": "Artist profile",
-    "packetPresaveLabel": "Pre-save / smartlink"
+    "packetPresaveLabel": "Pre-save / smartlink",
+    "curatorsLoadError": "We couldn't load the curator directory",
+    "curatorsLoadErrorBody": "The curator directory is safe — this page just couldn't reach it. Check your connection and try again.",
+    "releasesLoadError": "We couldn't load your releases",
+    "releasesLoadErrorBody": "Your releases are safe — this page just couldn't reach them. Check your connection and try again.",
+    "deadlinesLoadError": "We couldn't load your deadlines",
+    "deadlinesLoadErrorBody": "Your deadlines are safe — this page just couldn't reach them. Check your connection and try again.",
+    "packetLoadError": "We couldn't load this packet",
+    "packetLoadErrorBody": "The release record is safe — this page just couldn't reach it. Check your connection and try again."
   },
   "refundPolicy": {
     "nav": {
@@ -10056,9 +10073,15 @@
     "priceNote": "Prices and listing are free to change anytime. The 15% platform fee only applies once checkout goes live.",
     "errorGenerate": "Could not generate the designs — no Visual Bucs were charged.",
     "errorNetwork": "Network error — please try again. No Visual Bucs were charged.",
+    "errorSaveDesignFailed": "Couldn't save that design to your store — try again.",
+    "errorUpdateDesignFailed": "Couldn't update that design — try again.",
+    "errorDeleteDesignFailed": "Couldn't delete that design — try again.",
     "confirmDelete": "Delete this design? This can't be undone.",
     "checkoutSoon": "Checkout is coming soon.",
-    "myShopLink": "Sell this in my shop"
+    "myShopLink": "Sell this in my shop",
+    "designsLoadError": "We couldn't load your designs",
+    "designsLoadErrorBody": "Your designs are safe — this page just couldn't reach them. Check your connection and try again.",
+    "retryLoad": "Try again"
   },
   "podcast": {
     "publish": {
@@ -10365,7 +10388,8 @@
       "generationFailed": "Generation failed.",
       "missingHandleAndName": "Give your press kit a URL handle and an artist name.",
       "network": "Network error — please try again.",
-      "saveFailed": "Save failed."
+      "saveFailed": "Save failed.",
+      "deleteFailed": "Couldn't delete that press kit — try again."
     },
     "form": {
       "achievementsLabel": "Achievements (one per line)",
@@ -10497,7 +10521,8 @@
         "missingFacts": "Add at least one key fact for the release to include.",
         "generationFailed": "Press release generation failed. Please try again.",
         "network": "Network error. Please try again.",
-        "saveFailed": "Couldn't save the release to your press kit."
+        "saveFailed": "Couldn't save the release to your press kit.",
+        "deleteFailed": "Couldn't delete that release — try again."
       }
     }
   },
@@ -12541,6 +12566,7 @@
     "noPitches": "No sync pitches logged yet.",
     "noTarget": "No target yet",
     "updateFailed": "Couldn't update. Try again.",
+    "deleteFailed": "Couldn't delete that — try again.",
     "markStatus": "Mark {{status}}",
     "placedPrompt": "Placed! Log the income to your Money Tracker:",
     "amountPlaceholder": "$ amount",
@@ -12556,7 +12582,15 @@
     "publicCta": "Pitch your own music for TV, film, ads & games",
     "publicCtaDesc": "Bow Down Visuals writes the one-sheet, matches your songs to briefs, and tracks every pitch — in minutes.",
     "publicCtaButton": "Make my sync one-sheet",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "We couldn't load your one-sheets",
+    "sheetsLoadErrorBody": "Your saved one-sheets are safe — this page just couldn't reach them. Check your connection and try again.",
+    "briefsLoadError": "We couldn't load the brief board",
+    "briefsLoadErrorBody": "Your briefs are safe — this page just couldn't reach them. Check your connection and try again.",
+    "trackerLoadError": "We couldn't load your pitch tracker",
+    "trackerLoadErrorBody": "Your logged pitches are safe — this page just couldn't reach them. Check your connection and try again.",
+    "matchesLoadError": "We couldn't load matches for this brief",
+    "retryLoad": "Try again"
   },
   "milestones": {
     "loadFailed": "Couldn't load milestones.",
@@ -13099,6 +13133,7 @@
       "remove": "Remove section",
       "save": "Save",
       "saveError": "Could not save this structure.",
+      "deleteError": "Couldn't delete that structure — try again.",
       "saveHeading": "Saved structures",
       "sendLyrics": "Send lyrics to Timeline",
       "sendRemix": "Send to Remix Chain",
@@ -13853,7 +13888,11 @@
       "milestoneHeadline": "🏆 {{days}}-day streak!",
       "milestoneSub": "Milestone bonus secured 🔥",
       "freezeEarned": "🧊 +1 streak freeze earned — miss a day and your chain survives!",
-      "freezeUsed": "🧊 Streak freeze used — your {{streak}}-day chain is saved!"
+      "freezeUsed": "🧊 Streak freeze used — your {{streak}}-day chain is saved!",
+      "claimFailed": "We couldn't claim your bonus just now — please try again.",
+      "alreadyClaimedToday": "You've already claimed today's bonus — come back tomorrow for the next one!",
+      "crateFailed": "We couldn't open the crate just now — please try again.",
+      "crateCooldown": "You opened a crate not long ago — your next one unlocks soon."
     },
     "streakWidget": {
       "atRiskTitle": "Don't lose your {{streak}}-day streak!",

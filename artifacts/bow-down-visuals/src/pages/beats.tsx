@@ -1021,6 +1021,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<{ genre: string; moodTags: string[] } | null>(null);
 
   async function handleAiTags() {
@@ -1031,6 +1032,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
   async function applySuggestion() {
     if (!suggestion) return;
     setApplying(true);
+    setApplyError(null);
     try {
       const res = await fetch(`/api/beats/${beat.id}`, {
         method: "PATCH",
@@ -1040,8 +1042,13 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
       if (res.ok) {
         setSuggestion(null);
         onRefresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setApplyError(apiErrorMessage(data, t("beats.aiTagsApplyFailed", { defaultValue: "Couldn't apply those tags — please try again." })));
       }
-    } catch { /* ignore */ }
+    } catch {
+      setApplyError(t("beats.aiTagsApplyFailed", { defaultValue: "Couldn't apply those tags — please try again." }));
+    }
     setApplying(false);
   }
 
@@ -1071,6 +1078,7 @@ function BeatRow({ beat, onAiTags, aiTagging, onRefresh }: {
             {applying ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
             {t("beats.applyToBeat")}
           </button>
+          {applyError && <p className="mt-2 text-xs font-semibold text-red-300">{applyError}</p>}
         </div>
       )}
     </div>
@@ -1169,6 +1177,7 @@ function LicenseTemplatesSection() {
   const [form, setForm] = useState<TemplateFormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [tplError, setTplError] = useState<string | null>(null);
 
   const cardCls = isLight
     ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]"
@@ -1221,10 +1230,18 @@ function LicenseTemplatesSection() {
   }
 
   async function deleteTemplate(id: string) {
+    setTplError(null);
     try {
       const res = await fetch(`/api/beats/license-templates/${id}`, { method: "DELETE" });
-      if (res.ok) await loadTemplates();
-    } catch { /* section reload surfaces failures */ }
+      if (res.ok) {
+        await loadTemplates();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setTplError(apiErrorMessage(data, t("beats.templateDeleteFailed", { defaultValue: "Couldn't delete that template — please try again." })));
+      }
+    } catch {
+      setTplError(t("beats.templateDeleteFailed", { defaultValue: "Couldn't delete that template — please try again." }));
+    }
   }
 
   const numField = (
@@ -1275,6 +1292,7 @@ function LicenseTemplatesSection() {
         <p className="text-white/40 text-sm">{t("beats.templatesEmpty", { defaultValue: "No custom licenses yet — the three standard tiers are what buyers see." })}</p>
       ) : (
         <div className="space-y-2 mb-4">
+          {tplError && <p className="text-sm text-red-300">{tplError}</p>}
           {templates.map((tpl) => (
             <div key={tpl.id} className={`rounded-xl border px-4 py-3 text-sm ${cardCls}`}>
               <div className="flex items-center justify-between gap-2">

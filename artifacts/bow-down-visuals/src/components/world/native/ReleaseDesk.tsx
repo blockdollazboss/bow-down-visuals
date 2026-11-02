@@ -10,6 +10,7 @@ import {
   type RoyaltySplit,
 } from "@/lib/distribution";
 import { parseVaultedCount } from "@/lib/world/business-desks";
+import { apiErrorMessage } from "@/lib/api-error";
 import {
   SMARTLINK_LINK_PLATFORMS,
   buildAiSavePayload,
@@ -105,8 +106,7 @@ const fieldLabel = (isLight: boolean) =>
   `mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`;
 
 function serverMessage(data: unknown, fallback: string): string {
-  const d = data as { message?: string; error?: string };
-  return d?.message ?? d?.error ?? fallback;
+  return apiErrorMessage(data, fallback);
 }
 
 /* ─── The wizard form (create + edit share it) ────────────────────── */

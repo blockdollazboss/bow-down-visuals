@@ -1,4 +1,4 @@
-import { plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Users, Loader2, ExternalLink, PackagePlus } from "lucide-react";
@@ -66,11 +66,7 @@ export function GroupProfileSettings({ teamId, myRole }: Props) {
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      throw new Error(
-        (typeof data["message"] === "string" && data["message"]) ||
-          (typeof data["error"] === "string" && data["error"]) ||
-          `Request failed (${res.status})`,
-      );
+      throw new Error(apiErrorMessage(data, "Request failed — please try again."));
     }
     return data;
   }

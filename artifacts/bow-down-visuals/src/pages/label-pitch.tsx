@@ -196,6 +196,8 @@ export default function LabelPitch() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [labels, setLabels] = useState<LabelEntry[]>([]);
   const [labelNotice, setLabelNotice] = useState("");
+  const [labelsLoading, setLabelsLoading] = useState(false);
+  const [labelsError, setLabelsError] = useState(false);
 
   /* ── tracker state ── */
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -222,16 +224,22 @@ export default function LabelPitch() {
   }, [user]);
 
   async function loadLabels(g: string, t: string) {
+    setLabelsLoading(true);
     try {
       const { res, data } = await authedFetch(
         getAccessToken,
         `/api/label-pitch/labels?genre=${encodeURIComponent(g)}&type=${encodeURIComponent(t)}`,
       );
-      if (res.ok) {
-        setLabels((data as { labels: LabelEntry[] }).labels ?? []);
-        setLabelNotice((data as { notice: string }).notice ?? "");
-      }
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setLabels((data as { labels: LabelEntry[] }).labels ?? []);
+      setLabelNotice((data as { notice: string }).notice ?? "");
+      setLabelsError(false);
+    } catch {
+      /* A failed load is NOT "no labels match" — the error state below
+         renders instead of the no-match line. */
+      setLabelsError(true);
+    }
+    finally { setLabelsLoading(false); }
   }
 
   async function loadTracker() {
@@ -822,7 +830,12 @@ export default function LabelPitch() {
             </div>
 
             <div className="space-y-4">
-              {labels.map((label) => {
+              {labelsLoading && (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-white/30" aria-hidden="true" />
+                </div>
+              )}
+              {!labelsLoading && labels.map((label) => {
                 const tm = TYPE_META[label.type] ?? TYPE_META["indie"]!;
                 return (
                   <div key={label.id} className={`rounded-2xl border p-5 md:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -850,7 +863,22 @@ export default function LabelPitch() {
                   </div>
                 );
               })}
-              {labels.length === 0 && (
+              {!labelsLoading && labelsError && labels.length === 0 && (
+                <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                  <Building2 className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
+                  <p className="font-semibold text-white/60">{t("labelPitch.labelsLoadError")}</p>
+                  <p className="mt-1 text-sm text-white/35">{t("labelPitch.labelsLoadErrorBody")}</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadLabels(genreFilter, typeFilter)}
+                    className="mt-4 text-sm font-semibold text-primary hover:underline"
+                    data-testid="btn-retry-labels"
+                  >
+                    {t("labelPitch.retryLoad")}
+                  </button>
+                </div>
+              )}
+              {!labelsLoading && !labelsError && labels.length === 0 && (
                 <p className="py-10 text-center text-sm text-white/40">
                   {t("labelPitch.noLabelsMatch")}
                 </p>
@@ -1275,6 +1303,8 @@ function PlaylistsPitchTab() {
   const [genreFilter, setGenreFilter] = useState("all");
   const [curators, setCurators] = useState<PlaylistCurator[]>([]);
   const [curatorNotice, setCuratorNotice] = useState("");
+  const [curatorsLoading, setCuratorsLoading] = useState(false);
+  const [curatorsError, setCuratorsError] = useState(false);
 
   /* ── tracker state ── */
   const [pitches, setPitches] = useState<PlaylistPitch[]>([]);
@@ -1287,12 +1317,16 @@ function PlaylistsPitchTab() {
 
   /* ── packet + deadlines state ── */
   const [releases, setReleases] = useState<PlaylistRelease[]>([]);
+  const [releasesLoading, setReleasesLoading] = useState(false);
+  const [releasesError, setReleasesError] = useState(false);
   const [packetReleaseId, setPacketReleaseId] = useState("");
   const [packet, setPacket] = useState<PlaylistPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
+  const [packetError, setPacketError] = useState(false);
   const [deadlines, setDeadlines] = useState<PlaylistDeadline[]>([]);
   const [dueNext, setDueNext] = useState<PlaylistDeadline | null>(null);
   const [deadlinesLoading, setDeadlinesLoading] = useState(false);
+  const [deadlinesError, setDeadlinesError] = useState(false);
   const [showDeadlineForm, setShowDeadlineForm] = useState(false);
   const [newDeadline, setNewDeadline] = useState({
     playlistName: "", curatorName: "", deadlineDate: "", releaseId: "",
@@ -1316,15 +1350,21 @@ function PlaylistsPitchTab() {
   }, [user]);
 
   async function loadCurators(g: string) {
+    setCuratorsLoading(true);
     try {
       const { res, data } = await playlistAuthedFetch(
         getAccessToken, `/api/playlist-pitch/curators?genre=${encodeURIComponent(g)}`,
       );
-      if (res.ok) {
-        setCurators((data as { curators: PlaylistCurator[] }).curators ?? []);
-        setCuratorNotice((data as { notice: string }).notice ?? "");
-      }
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setCurators((data as { curators: PlaylistCurator[] }).curators ?? []);
+      setCuratorNotice((data as { notice: string }).notice ?? "");
+      setCuratorsError(false);
+    } catch {
+      /* A failed load is NOT an empty directory — the error state below
+         renders instead of "No curators found." */
+      setCuratorsError(true);
+    }
+    finally { setCuratorsLoading(false); }
   }
 
   async function loadTracker() {
@@ -1343,24 +1383,40 @@ function PlaylistsPitchTab() {
   }
 
   async function loadReleases() {
+    setReleasesLoading(true);
     try {
       const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/releases");
-      if (res.ok) setReleases((data as { releases: PlaylistRelease[] }).releases ?? []);
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      setReleases((data as { releases: PlaylistRelease[] }).releases ?? []);
+      setReleasesError(false);
+    } catch {
+      /* A failed load is NOT "no releases" — the error state below
+         renders instead of the packet panel's no-releases line. */
+      setReleasesError(true);
+    }
+    finally { setReleasesLoading(false); }
   }
 
   async function loadPacket(releaseId: string) {
     if (!releaseId) {
       setPacket(null);
+      setPacketError(false);
       return;
     }
     setPacketLoading(true);
+    setPacketError(false);
     try {
       const { res, data } = await playlistAuthedFetch(
         getAccessToken, `/api/playlist-pitch/packet/${releaseId}`,
       );
-      setPacket(res.ok ? ((data as { packet: PlaylistPacket }).packet ?? null) : null);
-    } catch { setPacket(null); }
+      if (!res.ok) throw new Error();
+      setPacket((data as { packet: PlaylistPacket }).packet ?? null);
+    } catch {
+      /* A failed packet load is NOT "no packet" — the error state below
+         renders instead of the pick-a-release line. */
+      setPacket(null);
+      setPacketError(true);
+    }
     finally { setPacketLoading(false); }
   }
 
@@ -1368,12 +1424,16 @@ function PlaylistsPitchTab() {
     setDeadlinesLoading(true);
     try {
       const { res, data } = await playlistAuthedFetch(getAccessToken, "/api/playlist-pitch/deadlines");
-      if (res.ok) {
-        const d = data as { deadlines: PlaylistDeadline[]; dueNext: PlaylistDeadline | null };
-        setDeadlines(d.deadlines ?? []);
-        setDueNext(d.dueNext ?? null);
-      }
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error();
+      const d = data as { deadlines: PlaylistDeadline[]; dueNext: PlaylistDeadline | null };
+      setDeadlines(d.deadlines ?? []);
+      setDueNext(d.dueNext ?? null);
+      setDeadlinesError(false);
+    } catch {
+      /* A failed load is NOT "no deadlines" — the error state below
+         renders instead of the no-deadlines line. */
+      setDeadlinesError(true);
+    }
     finally { setDeadlinesLoading(false); }
   }
 
@@ -1405,21 +1465,27 @@ function PlaylistsPitchTab() {
 
   async function updateDeadlineStatus(id: string, status: string) {
     try {
-      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      if (res.ok) loadDeadlines();
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("playlistPitch.deadlineUpdateFailed")));
+      loadDeadlines();
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.deadlineUpdateFailed")));
+    }
   }
 
   async function deleteDeadline(id: string) {
     try {
-      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/deadlines/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) loadDeadlines();
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("playlistPitch.deadlineDeleteFailed")));
+      loadDeadlines();
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.deadlineDeleteFailed")));
+    }
   }
 
   function packetAsText(p: PlaylistPacket): string {
@@ -1527,16 +1593,21 @@ function PlaylistsPitchTab() {
       if (!res.ok) throw new Error(t("playlistPitch.updateFailed"));
       const updated = (data as { pitch: PlaylistPitch }).pitch;
       setPitches((prev) => prev.map((p) => (p.id === id ? updated : p)));
-    } catch { /* non-fatal */ }
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.updateFailed")));
+    }
   }
 
   async function deletePitch(id: string) {
     try {
-      const { res } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/tracker/${id}`, {
+      const { res, data } = await playlistAuthedFetch(getAccessToken, `/api/playlist-pitch/tracker/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) setPitches((prev) => prev.filter((p) => p.id !== id));
-    } catch { /* non-fatal */ }
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("playlistPitch.deleteFailed")));
+      setPitches((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setError(plainErrorText(err, t("playlistPitch.deleteFailed")));
+    }
   }
 
   function addCuratorToTracker(c: PlaylistCurator) {
@@ -1912,7 +1983,12 @@ function PlaylistsPitchTab() {
           </div>
 
           <div className="mt-5 space-y-4">
-            {curators.map((c) => (
+            {curatorsLoading && (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-white/30" aria-hidden="true" />
+              </div>
+            )}
+            {!curatorsLoading && curators.map((c) => (
               <div key={c.id} className={`rounded-3xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -1943,7 +2019,22 @@ function PlaylistsPitchTab() {
                 </button>
               </div>
             ))}
-            {curators.length === 0 && (
+            {!curatorsLoading && curatorsError && curators.length === 0 && (
+              <div className={`rounded-3xl border p-10 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <Users className="mx-auto mb-3 h-8 w-8 text-white/20" aria-hidden="true" />
+                <p className="font-semibold text-white/60">{t("playlistPitch.curatorsLoadError")}</p>
+                <p className="mt-1 text-sm text-white/35">{t("playlistPitch.curatorsLoadErrorBody")}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadCurators(genreFilter)}
+                  className="mt-4 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-curators"
+                >
+                  {t("playlistPitch.retryLoad")}
+                </button>
+              </div>
+            )}
+            {!curatorsLoading && !curatorsError && curators.length === 0 && (
               <p className="py-10 text-center text-sm text-white/40">
                 {t("playlistPitch.noCurators")}
               </p>
@@ -2105,7 +2196,21 @@ function PlaylistsPitchTab() {
                   </div>
                 );
               })}
-              {!deadlinesLoading && deadlines.length === 0 && (
+              {!deadlinesLoading && deadlinesError && deadlines.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center">
+                  <p className="text-sm font-semibold text-white/60">{t("playlistPitch.deadlinesLoadError")}</p>
+                  <p className="mt-1 text-sm text-white/40">{t("playlistPitch.deadlinesLoadErrorBody")}</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadDeadlines()}
+                    className="mt-3 text-sm font-semibold text-primary hover:underline"
+                    data-testid="btn-retry-deadlines"
+                  >
+                    {t("playlistPitch.retryLoad")}
+                  </button>
+                </div>
+              )}
+              {!deadlinesLoading && !deadlinesError && deadlines.length === 0 && (
                 <p className="py-2 text-sm text-white/45">{t("playlistPitch.deadlineNone")}</p>
               )}
             </div>
@@ -2119,7 +2224,24 @@ function PlaylistsPitchTab() {
             </h3>
             <p className="mt-1 text-sm text-white/50">{t("playlistPitch.packetIntro")}</p>
 
-            {releases.length === 0 ? (
+            {releasesLoading ? (
+              <p className="py-6 text-center text-sm text-white/40">
+                <Loader2 className="mx-auto h-5 w-5 animate-spin" aria-hidden="true" />
+              </p>
+            ) : releasesError ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-white/15 p-6 text-center">
+                <p className="text-sm font-semibold text-white/60">{t("playlistPitch.releasesLoadError")}</p>
+                <p className="mt-1 text-sm text-white/40">{t("playlistPitch.releasesLoadErrorBody")}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadReleases()}
+                  className="mt-3 text-sm font-semibold text-primary hover:underline"
+                  data-testid="btn-retry-releases"
+                >
+                  {t("playlistPitch.retryLoad")}
+                </button>
+              </div>
+            ) : releases.length === 0 ? (
               <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNoReleases")}</p>
             ) : (
               <>
@@ -2145,7 +2267,22 @@ function PlaylistsPitchTab() {
                   </p>
                 )}
 
-                {!packetLoading && !packet && (
+                {!packetLoading && packetError && (
+                  <div className="mt-4 rounded-2xl border border-dashed border-white/15 p-6 text-center">
+                    <p className="text-sm font-semibold text-white/60">{t("playlistPitch.packetLoadError")}</p>
+                    <p className="mt-1 text-sm text-white/40">{t("playlistPitch.packetLoadErrorBody")}</p>
+                    <button
+                      type="button"
+                      onClick={() => void loadPacket(packetReleaseId)}
+                      className="mt-3 text-sm font-semibold text-primary hover:underline"
+                      data-testid="btn-retry-packet"
+                    >
+                      {t("playlistPitch.retryLoad")}
+                    </button>
+                  </div>
+                )}
+
+                {!packetLoading && !packetError && !packet && (
                   <p className="mt-4 text-sm text-white/45">{t("playlistPitch.packetNone")}</p>
                 )}
 

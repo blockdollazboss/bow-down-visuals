@@ -191,12 +191,18 @@ export function PostCard({
   async function del() {
     if (!window.confirm("Delete this post?")) return;
     try {
-      await apiFetch(getAccessToken, `/api/posts/${post.id}`, {
+      /* apiFetch does not throw on a rejection — the post only leaves
+         the feed when the server actually deleted it. */
+      const res = await apiFetch(getAccessToken, `/api/posts/${post.id}`, {
         method: "DELETE",
         headers: await authed(getAccessToken),
       });
+      if (!res.ok) throw new Error("delete rejected");
       onDeleted?.(post.id);
-    } catch { /* ignore */ }
+    } catch {
+      setShareMsg("Couldn't delete that post — try again.");
+      window.setTimeout(() => setShareMsg(null), 3000);
+    }
   }
 
   async function share() {

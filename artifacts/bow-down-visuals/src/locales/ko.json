@@ -1771,6 +1771,7 @@
     "deleteConfirm": "이 아티스트 프로필을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
     "shareConfirm": "이 보관함을 팀과 공유하시겠습니까? 모든 팀원이 사용할 수 있게 됩니다.",
     "shareUpdateFailed": "공유를 업데이트할 수 없었습니다.",
+    "deleteFailed": "해당 아티스트를 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "photoShootLook": "포토슈트 룩",
     "backToDashboard": "대시보드로 돌아가기",
     "freeBadge": "무료",
@@ -2138,6 +2139,8 @@
     "templatesEmpty": "아직 커스텀 라이선스가 없습니다 — 구매자에게 보이는 것은 세 가지 표준 등급입니다.",
     "templatesLoadFailed": "커스텀 라이선스를 불러오지 못했습니다.",
     "templateSaveFailed": "그 템플릿을 저장하지 못했습니다 — 필드를 확인하고 다시 시도하세요.",
+    "aiTagsApplyFailed": "해당 태그를 적용하지 못했습니다 — 다시 시도해 주세요.",
+    "templateDeleteFailed": "해당 템플릿을 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "templateEdit": "편집",
     "templateDelete": "삭제",
     "templateName": "라이선스 이름",
@@ -4623,7 +4626,9 @@
     "untitledSong": "제목 없는 노래",
     "yourSong": "내 노래",
     "distributeThisSong": "이 노래 유통하기",
-    "scheduleAnnouncement": "발표 예약하기"
+    "scheduleAnnouncement": "발표 예약하기",
+    "labelsLoadError": "레이블 디렉토리를 불러오지 못했습니다",
+    "labelsLoadErrorBody": "레이블 디렉토리는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요."
   },
   "liveShopping": {
     "addProduct": "상품 추가",
@@ -8793,7 +8798,8 @@
       "importFailed": "가져오기에 실패했습니다.",
       "insightsFailed": "인사이트에 실패했습니다 — 다시 시도하세요.",
       "payoutRequired": "유통사, 기간 날짜, 예상 금액이 필요합니다.",
-      "payoutSaveFailed": "그 지급을 저장할 수 없었습니다."
+      "payoutSaveFailed": "그 지급을 저장할 수 없었습니다.",
+      "connectFailed": "해당 플랫폼을 연결하지 못했습니다 — 다시 시도해 주세요."
     }
   },
   "playlistPitch": {
@@ -8882,6 +8888,9 @@
     "deadlineRequired": "플레이리스트 이름과 마감 날짜가 필요합니다.",
     "deadlineSave": "마감 저장",
     "deadlineSaveFailed": "그 마감을 저장하지 못했습니다 — 다시 시도하세요.",
+    "deadlineUpdateFailed": "해당 마감일을 업데이트하지 못했습니다 — 다시 시도해 주세요.",
+    "deadlineDeleteFailed": "해당 마감일을 삭제하지 못했습니다 — 다시 시도해 주세요.",
+    "deleteFailed": "해당 피치를 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "deadlineStatusAnswered": "답변 받음",
     "deadlineStatusDrafted": "초안 작성됨",
     "deadlineStatusFollowedUp": "팔로우업함",
@@ -8920,7 +8929,15 @@
     "packetTitle": "피치 패킷",
     "packetAudioLabel": "트랙 오디오",
     "packetProfileLabel": "아티스트 프로필",
-    "packetPresaveLabel": "사전 저장 / 스마트링크"
+    "packetPresaveLabel": "사전 저장 / 스마트링크",
+    "curatorsLoadError": "큐레이터 디렉토리를 불러오지 못했습니다",
+    "curatorsLoadErrorBody": "큐레이터 디렉토리는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "releasesLoadError": "릴리스를 불러오지 못했습니다",
+    "releasesLoadErrorBody": "내 릴리스는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "deadlinesLoadError": "마감을 불러오지 못했습니다",
+    "deadlinesLoadErrorBody": "내 마감은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "packetLoadError": "이 패킷을 불러오지 못했습니다",
+    "packetLoadErrorBody": "릴리스 기록은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요."
   },
   "refundPolicy": {
     "nav": {
@@ -9610,7 +9627,8 @@
       "generationFailed": "생성에 실패했습니다.",
       "missingHandleAndName": "프레스 키트에 URL 핸들과 아티스트 이름을 지정하세요.",
       "network": "네트워크 오류 — 다시 시도하세요.",
-      "saveFailed": "저장에 실패했습니다."
+      "saveFailed": "저장에 실패했습니다.",
+      "deleteFailed": "해당 프레스 키트를 삭제하지 못했습니다 — 다시 시도해 주세요."
     },
     "form": {
       "achievementsLabel": "성과 (한 줄에 하나씩)",
@@ -9742,7 +9760,8 @@
         "missingFacts": "보도자료에 포함할 핵심 사실을 최소 하나 추가하세요.",
         "generationFailed": "보도자료 생성에 실패했습니다. 다시 시도하세요.",
         "network": "네트워크 오류입니다. 다시 시도하세요.",
-        "saveFailed": "보도자료를 프레스 키트에 저장하지 못했습니다."
+        "saveFailed": "보도자료를 프레스 키트에 저장하지 못했습니다.",
+        "deleteFailed": "해당 보도자료를 삭제하지 못했습니다 — 다시 시도해 주세요."
       }
     }
   },
@@ -10551,6 +10570,7 @@
     "noPitches": "아직 기록된 싱크 피치가 없습니다.",
     "noTarget": "아직 대상 없음",
     "updateFailed": "업데이트할 수 없었습니다. 다시 시도하세요.",
+    "deleteFailed": "삭제하지 못했습니다 — 다시 시도해 주세요.",
     "markStatus": "{{status}}로 표시",
     "placedPrompt": "배치됐습니다! 수입을 머니 트래커에 기록하세요:",
     "amountPlaceholder": "$ 금액",
@@ -10566,7 +10586,15 @@
     "publicCta": "내 음악을 TV, 영화, 광고 & 게임에 피칭하세요",
     "publicCtaDesc": "Bow Down Visuals는 원시트를 작성하고, 노래를 브리프에 매칭하고, 모든 피치를 몇 분 만에 추적합니다.",
     "publicCtaButton": "내 싱크 원시트 만들기",
-    "madeWith": "Bow Down Visuals로 제작"
+    "madeWith": "Bow Down Visuals로 제작",
+    "sheetsLoadError": "원시트를 불러오지 못했습니다",
+    "sheetsLoadErrorBody": "저장한 원시트는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "briefsLoadError": "브리프 보드를 불러오지 못했습니다",
+    "briefsLoadErrorBody": "내 브리프는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "trackerLoadError": "피치 트래커를 불러오지 못했습니다",
+    "trackerLoadErrorBody": "기록한 피치는 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "matchesLoadError": "이 브리프의 매치를 불러오지 못했습니다",
+    "retryLoad": "다시 시도"
   },
   "socialProof": {
     "ariaLabel": "숫자로 보는 Bow Down Visuals",
@@ -11024,6 +11052,7 @@
       "remove": "섹션 제거",
       "save": "저장",
       "saveError": "이 구조를 저장할 수 없었습니다.",
+      "deleteError": "해당 구성을 삭제하지 못했습니다 — 다시 시도해 주세요.",
       "saveHeading": "저장된 구조",
       "sendLyrics": "가사를 타임라인으로 보내기",
       "sendRemix": "Remix Chain으로 보내기",
@@ -11556,7 +11585,11 @@
       "milestoneHeadline": "🏆 {{days}}일 스트릭!",
       "milestoneSub": "마일스톤 보너스 확정 🔥",
       "freezeEarned": "🧊 스트릭 프리즈 +1 획득 — 하루를 놓쳐도 체인은 유지돼요!",
-      "freezeUsed": "🧊 스트릭 프리즈 사용 — {{streak}}일 체인이 구해졌어요!"
+      "freezeUsed": "🧊 스트릭 프리즈 사용 — {{streak}}일 체인이 구해졌어요!",
+      "claimFailed": "지금은 보너스를 지급하지 못했습니다 — 다시 시도해 주세요.",
+      "alreadyClaimedToday": "오늘의 보너스는 이미 받으셨습니다 — 내일 다음 보너스를 받으러 오세요!",
+      "crateFailed": "지금은 상자를 열지 못했습니다 — 다시 시도해 주세요.",
+      "crateCooldown": "방금 상자를 여셨습니다 — 다음 상자는 곧 열립니다."
     },
     "streakWidget": {
       "atRiskTitle": "{{streak}}일 스트릭을 잃지 마세요!",
@@ -12895,9 +12928,15 @@
     "priceNote": "가격과 리스팅은 언제든 무료로 변경할 수 있습니다. 15% 플랫폼 수수료는 결제가 시작될 때만 적용됩니다.",
     "errorGenerate": "디자인을 생성할 수 없었습니다 — Visual Bucs가 청구되지 않았습니다.",
     "errorNetwork": "네트워크 오류 — 다시 시도해 주세요. Visual Bucs가 청구되지 않았습니다.",
+    "errorSaveDesignFailed": "해당 디자인을 스토어에 저장하지 못했습니다 — 다시 시도해 주세요.",
+    "errorUpdateDesignFailed": "해당 디자인을 업데이트하지 못했습니다 — 다시 시도해 주세요.",
+    "errorDeleteDesignFailed": "해당 디자인을 삭제하지 못했습니다 — 다시 시도해 주세요.",
     "confirmDelete": "이 디자인을 삭제할까요? 되돌릴 수 없습니다.",
     "checkoutSoon": "결제는 곧 출시됩니다.",
-    "myShopLink": "내 샵에서 판매하기"
+    "myShopLink": "내 샵에서 판매하기",
+    "designsLoadError": "디자인을 불러오지 못했습니다",
+    "designsLoadErrorBody": "내 디자인은 안전합니다 — 이 페이지가 접근하지 못했을 뿐입니다. 연결을 확인하고 다시 시도하세요.",
+    "retryLoad": "다시 시도"
   },
   "moneyTracker": {
     "title": "머니 트래커",

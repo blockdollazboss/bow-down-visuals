@@ -200,10 +200,14 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
 
   async function deleteSaved(id: string) {
     try {
-      await fetch(`/api/wave9a/structures/${id}`, { method: "DELETE", headers: await authHeaders() });
+      const res = await fetch(`/api/wave9a/structures/${id}`, { method: "DELETE", headers: await authHeaders() });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(apiErrorMessage(data, t("wave9.structure.deleteError")));
+      }
       setSaved((s) => s.filter((x) => x.id !== id));
-    } catch {
-      /* non-fatal */
+    } catch (err) {
+      setError(plainErrorText(err, t("wave9.structure.deleteError")));
     }
   }
 

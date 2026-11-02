@@ -1771,6 +1771,7 @@
     "deleteConfirm": "¿Eliminar este perfil de artista? Esto no se puede deshacer.",
     "shareConfirm": "¿Compartir esta bóveda con tu equipo? Todos los miembros del equipo podrán usarla.",
     "shareUpdateFailed": "No se pudo actualizar el uso compartido.",
+    "deleteFailed": "No se pudo eliminar ese artista — inténtalo de nuevo.",
     "photoShootLook": "Look de la Sesión de Fotos",
     "backToDashboard": "Volver al Panel",
     "freeBadge": "Gratis",
@@ -2139,6 +2140,8 @@
     "templatesEmpty": "Aún no hay licencias personalizadas: los tres niveles estándar son lo que ven los compradores.",
     "templatesLoadFailed": "No se pudieron cargar tus licencias personalizadas.",
     "templateSaveFailed": "No se pudo guardar esa plantilla: revisa los campos e inténtalo de nuevo.",
+    "aiTagsApplyFailed": "No se pudieron aplicar esas etiquetas — inténtalo de nuevo.",
+    "templateDeleteFailed": "No se pudo eliminar esa plantilla — inténtalo de nuevo.",
     "templateEdit": "Editar",
     "templateDelete": "Eliminar",
     "templateName": "Nombre de la licencia",
@@ -4632,7 +4635,9 @@
     "untitledSong": "Canción sin título",
     "yourSong": "Tu canción",
     "distributeThisSong": "Distribuir esta canción",
-    "scheduleAnnouncement": "Programar anuncio"
+    "scheduleAnnouncement": "Programar anuncio",
+    "labelsLoadError": "No pudimos cargar el directorio de sellos",
+    "labelsLoadErrorBody": "El directorio de sellos está a salvo — esta página simplemente no pudo acceder a él. Revisa tu conexión e inténtalo de nuevo."
   },
   "liveShopping": {
     "addProduct": "Agregar producto",
@@ -8865,7 +8870,8 @@
       "importFailed": "La importación falló.",
       "insightsFailed": "Los análisis fallaron: inténtalo de nuevo.",
       "payoutRequired": "Se requieren el distribuidor, las fechas del período y el monto esperado.",
-      "payoutSaveFailed": "No se pudo guardar ese pago."
+      "payoutSaveFailed": "No se pudo guardar ese pago.",
+      "connectFailed": "No se pudo conectar esa plataforma — inténtalo de nuevo."
     }
   },
   "mediaDetector": {
@@ -8988,6 +8994,9 @@
     "deadlineRequired": "Se requieren el nombre de la playlist y una fecha límite.",
     "deadlineSave": "Guardar plazo",
     "deadlineSaveFailed": "No se pudo guardar ese plazo. Inténtalo de nuevo.",
+    "deadlineUpdateFailed": "No se pudo actualizar esa fecha límite — inténtalo de nuevo.",
+    "deadlineDeleteFailed": "No se pudo eliminar esa fecha límite — inténtalo de nuevo.",
+    "deleteFailed": "No se pudo eliminar esa propuesta — inténtalo de nuevo.",
     "deadlineStatusAnswered": "Respondido",
     "deadlineStatusDrafted": "Borrador",
     "deadlineStatusFollowedUp": "Con seguimiento",
@@ -9026,7 +9035,15 @@
     "packetTitle": "Paquete de presentación",
     "packetAudioLabel": "Audio de la canción",
     "packetProfileLabel": "Perfil del artista",
-    "packetPresaveLabel": "Preguardado / smartlink"
+    "packetPresaveLabel": "Preguardado / smartlink",
+    "curatorsLoadError": "No pudimos cargar el directorio de curadores",
+    "curatorsLoadErrorBody": "El directorio de curadores está a salvo — esta página simplemente no pudo acceder a él. Revisa tu conexión e inténtalo de nuevo.",
+    "releasesLoadError": "No pudimos cargar tus lanzamientos",
+    "releasesLoadErrorBody": "Tus lanzamientos están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "deadlinesLoadError": "No pudimos cargar tus plazos",
+    "deadlinesLoadErrorBody": "Tus plazos están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "packetLoadError": "No pudimos cargar este paquete",
+    "packetLoadErrorBody": "El registro del lanzamiento está a salvo — esta página simplemente no pudo acceder a él. Revisa tu conexión e inténtalo de nuevo."
   },
   "refundPolicy": {
     "nav": {
@@ -9563,9 +9580,15 @@
     "priceNote": "Los precios y la publicación son gratis de cambiar en cualquier momento. La tarifa del 15% de la plataforma solo aplica una vez que el pago esté activo.",
     "errorGenerate": "No se pudieron generar los diseños: no se cobraron Visual Bucs.",
     "errorNetwork": "Error de red: inténtalo de nuevo. No se cobraron Visual Bucs.",
+    "errorSaveDesignFailed": "No se pudo guardar ese diseño en tu tienda — inténtalo de nuevo.",
+    "errorUpdateDesignFailed": "No se pudo actualizar ese diseño — inténtalo de nuevo.",
+    "errorDeleteDesignFailed": "No se pudo eliminar ese diseño — inténtalo de nuevo.",
     "confirmDelete": "¿Eliminar este diseño? Esto no se puede deshacer.",
     "checkoutSoon": "El pago llegará pronto.",
-    "myShopLink": "Vender esto en mi tienda"
+    "myShopLink": "Vender esto en mi tienda",
+    "designsLoadError": "No pudimos cargar tus diseños",
+    "designsLoadErrorBody": "Tus diseños están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "retryLoad": "Intentar de nuevo"
   },
   "podcast": {
     "publish": {
@@ -9874,7 +9897,8 @@
       "generationFailed": "La generación falló.",
       "missingHandleAndName": "Ponle a tu kit de prensa un handle de URL y un nombre de artista.",
       "network": "Error de red — inténtalo de nuevo.",
-      "saveFailed": "No se pudo guardar."
+      "saveFailed": "No se pudo guardar.",
+      "deleteFailed": "No se pudo eliminar ese kit de prensa — inténtalo de nuevo."
     },
     "form": {
       "achievementsLabel": "Logros (uno por línea)",
@@ -10009,7 +10033,8 @@
         "missingFacts": "Añade al menos un dato clave para que el comunicado lo incluya.",
         "generationFailed": "La generación del comunicado falló. Inténtalo de nuevo.",
         "network": "Error de red. Inténtalo de nuevo.",
-        "saveFailed": "No se pudo guardar el comunicado en tu kit de prensa."
+        "saveFailed": "No se pudo guardar el comunicado en tu kit de prensa.",
+        "deleteFailed": "No se pudo eliminar ese comunicado — inténtalo de nuevo."
       }
     }
   },
@@ -11480,6 +11505,7 @@
     "noPitches": "Aún no hay propuestas de sync registradas.",
     "noTarget": "Aún sin objetivo",
     "updateFailed": "No se pudo actualizar. Inténtalo de nuevo.",
+    "deleteFailed": "No se pudo eliminar — inténtalo de nuevo.",
     "markStatus": "Marcar {{status}}",
     "placedPrompt": "¡Colocada! Registra el ingreso en tu Money Tracker:",
     "amountPlaceholder": "$ monto",
@@ -11495,7 +11521,15 @@
     "publicCta": "Propón tu propia música para TV, cine, anuncios y juegos",
     "publicCtaDesc": "Bow Down Visuals escribe la hoja, empareja tus canciones con los briefs y rastrea cada propuesta, en minutos.",
     "publicCtaButton": "Crear mi hoja de sync",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "No pudimos cargar tus hojas",
+    "sheetsLoadErrorBody": "Tus hojas guardadas están a salvo — esta página simplemente no pudo acceder a ellas. Revisa tu conexión e inténtalo de nuevo.",
+    "briefsLoadError": "No pudimos cargar el tablero de briefs",
+    "briefsLoadErrorBody": "Tus briefs están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "trackerLoadError": "No se pudo cargar tu registro de pitches",
+    "trackerLoadErrorBody": "Tus pitches registrados están a salvo — esta página simplemente no pudo acceder a ellos. Revisa tu conexión e inténtalo de nuevo.",
+    "matchesLoadError": "No pudimos cargar las coincidencias para este brief",
+    "retryLoad": "Intentar de nuevo"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals en cifras",
@@ -11953,6 +11987,7 @@
       "remove": "Eliminar sección",
       "save": "Guardar",
       "saveError": "No se pudo guardar esta estructura.",
+      "deleteError": "No se pudo eliminar esa estructura — inténtalo de nuevo.",
       "saveHeading": "Estructuras guardadas",
       "sendLyrics": "Enviar letra a la Línea de tiempo",
       "sendRemix": "Enviar a la Cadena de Remix",
@@ -12485,7 +12520,11 @@
       "milestoneHeadline": "🏆 ¡Racha de {{days}} días!",
       "milestoneSub": "Bono de hito asegurado 🔥",
       "freezeEarned": "🧊 +1 congelación de racha ganada: ¡falla un día y tu cadena sobrevive!",
-      "freezeUsed": "🧊 Congelación de racha usada: ¡tu cadena de {{streak}} días está salvada!"
+      "freezeUsed": "🧊 Congelación de racha usada: ¡tu cadena de {{streak}} días está salvada!",
+      "claimFailed": "No pudimos reclamar tu bono ahora — inténtalo de nuevo.",
+      "alreadyClaimedToday": "Ya reclamaste el bono de hoy — ¡vuelve mañana por el siguiente!",
+      "crateFailed": "No pudimos abrir la caja ahora — inténtalo de nuevo.",
+      "crateCooldown": "Abriste una caja hace poco — la siguiente se desbloquea pronto."
     },
     "streakWidget": {
       "atRiskTitle": "¡No pierdas tu racha de {{streak}} días!",

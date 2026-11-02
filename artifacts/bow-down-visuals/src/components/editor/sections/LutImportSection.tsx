@@ -77,6 +77,7 @@ export function LutImportSection({
   const [using, setUsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const clips = scenes.filter((s) => !!s.demoClipUrl);
   const activeScene = clips.find((s) => s.id === sceneId) ?? clips[0] ?? null;
@@ -88,20 +89,25 @@ export function LutImportSection({
 
   /* ── Load presets + saved LUTs (free) ── */
   const loadAll = useCallback(async () => {
+    let failed = false;
     try {
       const pr = await confirmedFetch("/api/lut/presets", { skipConfirm: true });
       if (pr?.ok) {
         const data = (await pr.json()) as { presets: HousePreset[] };
         setPresets(data.presets ?? []);
-      }
-    } catch { /* non-fatal */ }
+      } else failed = true;
+    } catch { failed = true; }
     try {
       const mr = await confirmedFetch("/api/lut/my", { skipConfirm: true });
       if (mr?.ok) {
         const data = (await mr.json()) as { luts: SavedLut[] };
         setMyLuts(data.luts ?? []);
-      }
-    } catch { /* non-fatal */ }
+      } else failed = true;
+    } catch { failed = true; }
+    /* A failed load is NOT an empty library — the failure line below
+       renders with a Retry instead of the sections silently standing
+       empty (house presets gone, saved LUTs reading as none). */
+    setLoadFailed(failed);
   }, [confirmedFetch]);
 
   useEffect(() => {
@@ -153,9 +159,17 @@ export function LutImportSection({
       }
       toast({ title: "Saved to My LUTs", description: `"${data.name}" is now reusable across projects.` });
       await loadAll();
-      const saved = (await (await confirmedFetch("/api/lut/my", { skipConfirm: true }))!.json()) as { luts: SavedLut[] };
-      const row = saved.luts.find((l) => l.id === data.id);
-      if (row) setSource({ kind: "mylut", lut: row });
+      /* Best-effort: re-select the saved LUT. A failed refresh here must
+         NOT misreport the save that already landed — the catch below
+         belongs to the save, not to this read. */
+      try {
+        const savedRes = await confirmedFetch("/api/lut/my", { skipConfirm: true });
+        if (savedRes?.ok) {
+          const saved = (await savedRes.json()) as { luts: SavedLut[] };
+          const row = saved.luts.find((l) => l.id === data.id);
+          if (row) setSource({ kind: "mylut", lut: row });
+        }
+      } catch { /* the save stands; the list above already refreshed */ }
     } catch {
       setError("Couldn't save that LUT.");
     } finally {
@@ -170,8 +184,12 @@ export function LutImportSection({
         setMyLuts((prev) => prev.filter((l) => l.id !== id));
         if (source?.kind === "mylut" && source.lut.id === id) setSource(null);
         toast({ title: "LUT deleted" });
+      } else {
+        toast({ title: "Couldn't delete that LUT — try again.", variant: "destructive" });
       }
-    } catch { /* non-fatal */ }
+    } catch {
+      toast({ title: "Couldn't delete that LUT — try again.", variant: "destructive" });
+    }
   }
 
   /* ── Build the multipart payload for preview/apply ── */
@@ -329,6 +347,19 @@ export function LutImportSection({
             ))}
           </div>
         </div>
+
+        {loadFailed && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5">
+            <p className="text-xs text-red-200">Couldn't load the LUT library — your saved LUTs are safe. Check your connection and try again.</p>
+            <button
+              onClick={() => void loadAll()}
+              className="shrink-0 text-xs font-bold text-red-200 underline underline-offset-2 hover:text-white"
+              data-testid="btn-retry-luts"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         {/* ── House presets ── */}
         <div>

@@ -1771,6 +1771,7 @@
     "deleteConfirm": "このアーティストプロフィールを削除しますか？ この操作は取り消せません。",
     "shareConfirm": "このボールトをチームと共有しますか？ すべてのチームメンバーが利用できるようになります。",
     "shareUpdateFailed": "共有設定を更新できませんでした。",
+    "deleteFailed": "そのアーティストを削除できませんでした — もう一度お試しください。",
     "photoShootLook": "撮影ルック",
     "backToDashboard": "ダッシュボードに戻る",
     "freeBadge": "無料",
@@ -2138,6 +2139,8 @@
     "templatesEmpty": "まだカスタムライセンスがありません — 購入者に見えるのは3つの標準ティアです。",
     "templatesLoadFailed": "カスタムライセンスを読み込めませんでした。",
     "templateSaveFailed": "そのテンプレートを保存できませんでした — 項目を確認してもう一度お試しください。",
+    "aiTagsApplyFailed": "そのタグを適用できませんでした — もう一度お試しください。",
+    "templateDeleteFailed": "そのテンプレートを削除できませんでした — もう一度お試しください。",
     "templateEdit": "編集",
     "templateDelete": "削除",
     "templateName": "ライセンス名",
@@ -4623,7 +4626,9 @@
     "untitledSong": "無題の曲",
     "yourSong": "あなたの曲",
     "distributeThisSong": "この曲を配信する",
-    "scheduleAnnouncement": "発表をスケジュール"
+    "scheduleAnnouncement": "発表をスケジュール",
+    "labelsLoadError": "レーベルディレクトリを読み込めませんでした",
+    "labelsLoadErrorBody": "レーベルディレクトリは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。"
   },
   "liveShopping": {
     "addProduct": "商品を追加",
@@ -8792,7 +8797,8 @@
       "importFailed": "取り込みに失敗しました。",
       "insightsFailed": "インサイトに失敗しました — もう一度お試しください。",
       "payoutRequired": "ディストリビューター、期間の日付、予定金額が必要です。",
-      "payoutSaveFailed": "その支払いを保存できませんでした。"
+      "payoutSaveFailed": "その支払いを保存できませんでした。",
+      "connectFailed": "そのプラットフォームを接続できませんでした — もう一度お試しください。"
     }
   },
   "playlistPitch": {
@@ -8881,6 +8887,9 @@
     "deadlineRequired": "プレイリスト名と締切日が必要です。",
     "deadlineSave": "締切を保存",
     "deadlineSaveFailed": "その締切を保存できませんでした — もう一度お試しください。",
+    "deadlineUpdateFailed": "その締め切りを更新できませんでした — もう一度お試しください。",
+    "deadlineDeleteFailed": "その締め切りを削除できませんでした — もう一度お試しください。",
+    "deleteFailed": "そのピッチを削除できませんでした — もう一度お試しください。",
     "deadlineStatusAnswered": "回答済み",
     "deadlineStatusDrafted": "下書き済み",
     "deadlineStatusFollowedUp": "フォローアップ済み",
@@ -8919,7 +8928,15 @@
     "packetTitle": "ピッチパケット",
     "packetAudioLabel": "トラック音声",
     "packetProfileLabel": "アーティストプロフィール",
-    "packetPresaveLabel": "プリセーブ / スマートリンク"
+    "packetPresaveLabel": "プリセーブ / スマートリンク",
+    "curatorsLoadError": "キュレーターディレクトリを読み込めませんでした",
+    "curatorsLoadErrorBody": "キュレーターディレクトリは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "releasesLoadError": "あなたのリリースを読み込めませんでした",
+    "releasesLoadErrorBody": "あなたのリリースは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "deadlinesLoadError": "あなたの締切を読み込めませんでした",
+    "deadlinesLoadErrorBody": "あなたの締切は安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "packetLoadError": "このパケットを読み込めませんでした",
+    "packetLoadErrorBody": "リリースの記録は安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。"
   },
   "refundPolicy": {
     "nav": {
@@ -9609,7 +9626,8 @@
       "generationFailed": "生成に失敗しました。",
       "missingHandleAndName": "プレスキットにURLハンドルとアーティスト名を設定してください。",
       "network": "ネットワークエラー — もう一度お試しください。",
-      "saveFailed": "保存に失敗しました。"
+      "saveFailed": "保存に失敗しました。",
+      "deleteFailed": "そのプレスキットを削除できませんでした — もう一度お試しください。"
     },
     "form": {
       "achievementsLabel": "実績（1行に1つ）",
@@ -9741,7 +9759,8 @@
         "missingFacts": "リリースに含める重要ポイントを少なくとも1つ追加してください。",
         "generationFailed": "プレスリリースの生成に失敗しました。もう一度お試しください。",
         "network": "ネットワークエラー。もう一度お試しください。",
-        "saveFailed": "リリースをプレスキットに保存できませんでした。"
+        "saveFailed": "リリースをプレスキットに保存できませんでした。",
+        "deleteFailed": "そのリリースを削除できませんでした — もう一度お試しください。"
       }
     }
   },
@@ -10548,6 +10567,7 @@
     "noPitches": "まだシンクピッチの記録がありません。",
     "noTarget": "まだターゲットなし",
     "updateFailed": "更新できませんでした。もう一度お試しください。",
+    "deleteFailed": "削除できませんでした — もう一度お試しください。",
     "markStatus": "{{status}}としてマーク",
     "placedPrompt": "採用！収入をマネートラッカーに記録：",
     "amountPlaceholder": "$ 金額",
@@ -10563,7 +10583,15 @@
     "publicCta": "あなたの音楽をTV、映画、広告＆ゲームにピッチしよう",
     "publicCtaDesc": "Bow Down Visualsはワンシートを書き、あなたの曲をブリーフにマッチさせ、すべてのピッチを追跡します — 数分で。",
     "publicCtaButton": "私のシンクワンシートを作る",
-    "madeWith": "Bow Down Visualsで作成"
+    "madeWith": "Bow Down Visualsで作成",
+    "sheetsLoadError": "ワンシートを読み込めませんでした",
+    "sheetsLoadErrorBody": "保存したワンシートは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "briefsLoadError": "ブリーフボードを読み込めませんでした",
+    "briefsLoadErrorBody": "あなたのブリーフは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "trackerLoadError": "ピッチトラッカーを読み込めませんでした",
+    "trackerLoadErrorBody": "記録したピッチは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "matchesLoadError": "このブリーフのマッチを読み込めませんでした",
+    "retryLoad": "もう一度試す"
   },
   "socialProof": {
     "ariaLabel": "数字で見る Bow Down Visuals",
@@ -11021,6 +11049,7 @@
       "remove": "セクションを削除",
       "save": "保存",
       "saveError": "この構成を保存できませんでした。",
+      "deleteError": "その構成を削除できませんでした — もう一度お試しください。",
       "saveHeading": "保存された構成",
       "sendLyrics": "歌詞をタイムラインへ送信",
       "sendRemix": "Remix Chainへ送信",
@@ -11553,7 +11582,11 @@
       "milestoneHeadline": "🏆 {{days}}日ストリーク！",
       "milestoneSub": "マイルストーンボーナス確定 🔥",
       "freezeEarned": "🧊 ストリークフリーズ+1を獲得 — 1日休んでもチェーンは途切れません！",
-      "freezeUsed": "🧊 ストリークフリーズを使用 — {{streak}}日間のチェーンが救われました！"
+      "freezeUsed": "🧊 ストリークフリーズを使用 — {{streak}}日間のチェーンが救われました！",
+      "claimFailed": "今はボーナスを受け取れませんでした — もう一度お試しください。",
+      "alreadyClaimedToday": "今日のボーナスはすでに受け取り済みです — 明日またお越しください！",
+      "crateFailed": "今はクレートを開けませんでした — もう一度お試しください。",
+      "crateCooldown": "少し前にクレートを開きました — 次はまもなく解放されます。"
     },
     "streakWidget": {
       "atRiskTitle": "{{streak}}日ストリークを失わないで！",
@@ -12892,9 +12925,15 @@
     "priceNote": "価格と出品はいつでも無料で変更できます。15%のプラットフォーム手数料は、チェックアウト開始後のみ適用されます。",
     "errorGenerate": "デザインを生成できませんでした — Visual Bucsは請求されていません。",
     "errorNetwork": "ネットワークエラー — もう一度お試しください。Visual Bucsは請求されていません。",
+    "errorSaveDesignFailed": "そのデザインをストアに保存できませんでした — もう一度お試しください。",
+    "errorUpdateDesignFailed": "そのデザインを更新できませんでした — もう一度お試しください。",
+    "errorDeleteDesignFailed": "そのデザインを削除できませんでした — もう一度お試しください。",
     "confirmDelete": "このデザインを削除しますか？元に戻せません。",
     "checkoutSoon": "チェックアウトは近日公開です。",
-    "myShopLink": "マイショップで販売する"
+    "myShopLink": "マイショップで販売する",
+    "designsLoadError": "あなたのデザインを読み込めませんでした",
+    "designsLoadErrorBody": "あなたのデザインは安全です — このページからアクセスできなかっただけです。接続を確認してもう一度お試しください。",
+    "retryLoad": "もう一度試す"
   },
   "moneyTracker": {
     "title": "マネートラッカー",

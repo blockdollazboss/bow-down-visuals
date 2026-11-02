@@ -184,7 +184,7 @@ export function AutoClipSection({
     if (!res) throw new Error("Export cancelled"); // user cancelled the credit confirmation
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(apiErrorMessage(body, `Export failed (HTTP ${res.status})`));
+      throw new Error(apiErrorMessage(body, "Export failed — please try again."));
     }
     // Exports render as background jobs (202 { jobId }); poll until done.
     const accepted = (await res.json()) as { jobId?: string; url?: string };

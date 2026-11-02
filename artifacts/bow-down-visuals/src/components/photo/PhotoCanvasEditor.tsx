@@ -85,6 +85,7 @@ export function PhotoCanvasEditor() {
   const [presetName, setPresetName] = useState("");
   const [presetPublic, setPresetPublic] = useState(false);
   const [presets, setPresets] = useState<PresetDto[]>([]);
+  const [presetsFailed, setPresetsFailed] = useState(false);
 
   const selected = doc.layers.find((l) => l.id === selectedId) ?? null;
   const selectedImage: ImageLayer | null = selected?.kind === "image" ? selected : null;
@@ -369,8 +370,14 @@ export function PhotoCanvasEditor() {
   const loadPresets = useCallback(async () => {
     try {
       const res = await confirmedFetch("/api/photo-presets", { skipConfirm: true });
-      if (res?.ok) setPresets(((await res.json()) as { presets: PresetDto[] }).presets);
-    } catch { /* list stays empty — honest empty state below */ }
+      if (!res?.ok) throw new Error("presets load failed");
+      setPresets(((await res.json()) as { presets: PresetDto[] }).presets);
+      setPresetsFailed(false);
+    } catch {
+      /* A failed load is NOT "No presets saved yet" — the failure line
+         below renders instead of the empty line. */
+      setPresetsFailed(true);
+    }
   }, [confirmedFetch]);
   useEffect(() => { void loadPresets(); }, [loadPresets]);
 
@@ -548,7 +555,7 @@ export function PhotoCanvasEditor() {
             <ul className="space-y-1 text-sm">
               {exportOutputs.map((o) => (
                 <li key={o.specId} className={o.ok ? "text-emerald-300" : "text-red-300"}>
-                  {o.ok ? <a className="underline" href={o.url!} target="_blank" rel="noreferrer">{o.specId}{o.watermark ? " (stamped)" : ""} — download</a> : `${o.specId} — failed: ${o.error}`}
+                  {o.ok ? <a className="underline" href={o.url!} target="_blank" rel="noreferrer">{o.specId}{o.watermark ? " (stamped)" : ""} — download</a> : `${o.specId} — failed: ${plainErrorText(o.error, "render failed")}`}
                 </li>
               ))}
             </ul>
@@ -566,7 +573,7 @@ export function PhotoCanvasEditor() {
             <ul className="space-y-1 text-xs">
               {batchRows.map((r, i) => (
                 <li key={i} className={r.ok ? "text-emerald-300" : "text-red-300"}>
-                  {r.ok ? <a className="underline" href={r.url!} target="_blank" rel="noreferrer">{r.imageUrl} — done</a> : `${r.imageUrl} — failed: ${r.error}`}
+                  {r.ok ? <a className="underline" href={r.url!} target="_blank" rel="noreferrer">{r.imageUrl} — done</a> : `${r.imageUrl} — failed: ${plainErrorText(r.error, "render failed")}`}
                 </li>
               ))}
             </ul>
@@ -584,7 +591,14 @@ export function PhotoCanvasEditor() {
             <input type="checkbox" checked={presetPublic} onChange={(e) => setPresetPublic(e.target.checked)} className="accent-amber-400" />
             Public — shareable link
           </label>
-          {presets.length === 0 && <p className="text-xs text-white/35">No presets saved yet.</p>}
+          {presetsFailed ? (
+            <p className="text-xs text-red-300">
+              Couldn't load your presets.{" "}
+              <button type="button" className="font-bold underline underline-offset-2 hover:text-white" onClick={() => void loadPresets()} data-testid="btn-retry-presets">
+                Try again
+              </button>
+            </p>
+          ) : presets.length === 0 && <p className="text-xs text-white/35">No presets saved yet.</p>}
           <ul className="space-y-1.5">
             {presets.map((p) => (
               <li key={p.id} className="flex items-center gap-2 text-sm text-white/70">

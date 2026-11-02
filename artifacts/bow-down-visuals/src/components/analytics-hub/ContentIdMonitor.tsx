@@ -321,8 +321,8 @@ export default function ContentIdMonitor() {
       const data = (await res.json().catch(() => ({}))) as { detection?: Detection; error?: string; message?: string };
       if (!res.ok || !data.detection) throw new Error(apiErrorMessage(data, "Couldn't update the detection."));
       setDetections((prev) => prev.map((x) => (x.id === d.id ? data.detection! : x)));
-    } catch {
-      /* non-fatal — list stays as-is */
+    } catch (err) {
+      setDetError(plainErrorText(err, "Couldn't update the detection."));
     }
   }
 
@@ -333,8 +333,8 @@ export default function ContentIdMonitor() {
       const res = await authed(`/api/content-id/detections/${d.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Couldn't delete the detection.");
       setDetections((prev) => prev.filter((x) => x.id !== d.id));
-    } catch {
-      /* non-fatal */
+    } catch (err) {
+      setDetError(plainErrorText(err, "Couldn't delete the detection."));
     }
   }
 

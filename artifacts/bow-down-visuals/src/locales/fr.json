@@ -1771,6 +1771,7 @@
     "deleteConfirm": "Supprimer ce profil d'artiste ? Cette action est irréversible.",
     "shareConfirm": "Partager ce coffre avec ton équipe ? Tous les membres de l'équipe pourront l'utiliser.",
     "shareUpdateFailed": "Impossible de mettre à jour le partage.",
+    "deleteFailed": "Impossible de supprimer cet artiste — veuillez réessayer.",
     "photoShootLook": "Look de séance photo",
     "backToDashboard": "Retour au tableau de bord",
     "freeBadge": "Gratuit",
@@ -2214,6 +2215,8 @@
     "templatesEmpty": "Pas encore de licences personnalisées — les trois niveaux standard sont ce que voient les acheteurs.",
     "templatesLoadFailed": "Impossible de charger vos licences personnalisées.",
     "templateSaveFailed": "Impossible d'enregistrer ce modèle — vérifiez les champs et réessayez.",
+    "aiTagsApplyFailed": "Impossible d'appliquer ces étiquettes — veuillez réessayer.",
+    "templateDeleteFailed": "Impossible de supprimer ce modèle — veuillez réessayer.",
     "templateEdit": "Modifier",
     "templateDelete": "Supprimer",
     "templateName": "Nom de la licence",
@@ -4790,7 +4793,9 @@
     "untitledSong": "Chanson sans titre",
     "yourSong": "Ta chanson",
     "distributeThisSong": "Distribuer cette chanson",
-    "scheduleAnnouncement": "Programmer une annonce"
+    "scheduleAnnouncement": "Programmer une annonce",
+    "labelsLoadError": "Impossible de charger l'annuaire des labels",
+    "labelsLoadErrorBody": "L'annuaire des labels est en sécurité — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez."
   },
   "liveShopping": {
     "addProduct": "Ajouter un produit",
@@ -9157,7 +9162,8 @@
       "importFailed": "Échec de l'import.",
       "insightsFailed": "Échec des analyses — réessayez.",
       "payoutRequired": "Le distributeur, les dates de période et le montant attendu sont requis.",
-      "payoutSaveFailed": "Impossible d'enregistrer ce paiement."
+      "payoutSaveFailed": "Impossible d'enregistrer ce paiement.",
+      "connectFailed": "Impossible de connecter cette plateforme — veuillez réessayer."
     }
   },
   "mediaDetector": {
@@ -9278,6 +9284,9 @@
     "deadlineRequired": "Le nom de la playlist et une date d'échéance sont requis.",
     "deadlineSave": "Enregistrer l'échéance",
     "deadlineSaveFailed": "Impossible d'enregistrer cette échéance — réessayez.",
+    "deadlineUpdateFailed": "Impossible de mettre à jour cette échéance — veuillez réessayer.",
+    "deadlineDeleteFailed": "Impossible de supprimer cette échéance — veuillez réessayer.",
+    "deleteFailed": "Impossible de supprimer cette proposition — veuillez réessayer.",
     "deadlineStatusAnswered": "Répondu",
     "deadlineStatusDrafted": "Brouillon",
     "deadlineStatusFollowedUp": "Relancé",
@@ -9318,7 +9327,15 @@
     "packetProfileLabel": "Profil de l'artiste",
     "packetPresaveLabel": "Pré-enregistrement / smartlink",
     "notesPlaceholder": "Notes pour le curateur (optionnel)",
-    "tabPlaylists": "Playlists"
+    "tabPlaylists": "Playlists",
+    "curatorsLoadError": "Impossible de charger l'annuaire des curateurs",
+    "curatorsLoadErrorBody": "L'annuaire des curateurs est en sécurité — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez.",
+    "releasesLoadError": "Impossible de charger vos sorties",
+    "releasesLoadErrorBody": "Vos sorties sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "deadlinesLoadError": "Impossible de charger vos échéances",
+    "deadlinesLoadErrorBody": "Vos échéances sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "packetLoadError": "Impossible de charger ce dossier",
+    "packetLoadErrorBody": "La fiche de la sortie est en sécurité — cette page n'a simplement pas pu l'atteindre. Vérifiez votre connexion et réessayez."
   },
   "refundPolicy": {
     "nav": {
@@ -9855,9 +9872,15 @@
     "priceNote": "Les prix et la mise en vente sont gratuits et modifiables à tout moment. Les frais de plateforme de 15 % ne s'appliqueront qu'une fois le paiement activé.",
     "errorGenerate": "Impossible de générer les designs — aucun Visual Buc n'a été débité.",
     "errorNetwork": "Erreur réseau — veuillez réessayer. Aucun Visual Buc n'a été débité.",
+    "errorSaveDesignFailed": "Impossible d'enregistrer ce design dans votre boutique — veuillez réessayer.",
+    "errorUpdateDesignFailed": "Impossible de mettre à jour ce design — veuillez réessayer.",
+    "errorDeleteDesignFailed": "Impossible de supprimer ce design — veuillez réessayer.",
     "confirmDelete": "Supprimer ce design ? Cette action est irréversible.",
     "checkoutSoon": "Le paiement arrive bientôt.",
-    "myShopLink": "Vendre ceci dans ma boutique"
+    "myShopLink": "Vendre ceci dans ma boutique",
+    "designsLoadError": "Impossible de charger vos designs",
+    "designsLoadErrorBody": "Vos designs sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "retryLoad": "Réessayer"
   },
   "podcast": {
     "publish": {
@@ -10166,7 +10189,8 @@
       "generationFailed": "La génération a échoué.",
       "missingHandleAndName": "Donne à ton dossier de presse un identifiant d'URL et un nom d'artiste.",
       "network": "Erreur réseau — réessaie.",
-      "saveFailed": "L'enregistrement a échoué."
+      "saveFailed": "L'enregistrement a échoué.",
+      "deleteFailed": "Impossible de supprimer ce dossier de presse — veuillez réessayer."
     },
     "form": {
       "achievementsLabel": "Réussites (une par ligne)",
@@ -10301,7 +10325,8 @@
         "missingFacts": "Ajoute au moins un fait clé à inclure dans le communiqué.",
         "generationFailed": "La génération du communiqué a échoué. Réessaie.",
         "network": "Erreur réseau. Réessaie.",
-        "saveFailed": "Impossible d'enregistrer le communiqué dans ton dossier de presse."
+        "saveFailed": "Impossible d'enregistrer le communiqué dans ton dossier de presse.",
+        "deleteFailed": "Impossible de supprimer ce communiqué — veuillez réessayer."
       }
     }
   },
@@ -11953,6 +11978,7 @@
     "noPitches": "Aucun pitch sync enregistré pour l'instant.",
     "noTarget": "Aucune cible pour l'instant",
     "updateFailed": "Échec de la mise à jour. Réessayez.",
+    "deleteFailed": "Impossible de supprimer — veuillez réessayer.",
     "markStatus": "Marquer {{status}}",
     "placedPrompt": "Placé ! Enregistrez le revenu dans votre Money Tracker :",
     "amountPlaceholder": "Montant en $",
@@ -11968,7 +11994,15 @@
     "publicCta": "Pitchez votre propre musique pour la TV, le cinéma, les pubs et les jeux",
     "publicCtaDesc": "Bow Down Visuals écrit le one-sheet, compare vos chansons aux briefs et suit chaque pitch — en quelques minutes.",
     "publicCtaButton": "Créer mon one-sheet sync",
-    "madeWith": "Made with Bow Down Visuals"
+    "madeWith": "Made with Bow Down Visuals",
+    "sheetsLoadError": "Impossible de charger vos one-sheets",
+    "sheetsLoadErrorBody": "Vos one-sheets enregistrés sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "briefsLoadError": "Impossible de charger le tableau des briefs",
+    "briefsLoadErrorBody": "Vos briefs sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "trackerLoadError": "Impossible de charger votre suivi de pitches",
+    "trackerLoadErrorBody": "Vos pitches enregistrés sont en sécurité — cette page n'a simplement pas pu les atteindre. Vérifiez votre connexion et réessayez.",
+    "matchesLoadError": "Impossible de charger les correspondances pour ce brief",
+    "retryLoad": "Réessayer"
   },
   "socialProof": {
     "ariaLabel": "Bow Down Visuals en chiffres",
@@ -12426,6 +12460,7 @@
       "remove": "Supprimer la section",
       "save": "Enregistrer",
       "saveError": "Impossible d'enregistrer cette structure.",
+      "deleteError": "Impossible de supprimer cette structure — veuillez réessayer.",
       "saveHeading": "Structures enregistrées",
       "sendLyrics": "Envoyer les paroles à la Timeline",
       "sendRemix": "Envoyer à la Chaîne de remix",
@@ -13161,7 +13196,11 @@
       "milestoneHeadline": "🏆 Série de {{days}} jours !",
       "milestoneSub": "Bonus d'étape sécurisé 🔥",
       "freezeEarned": "🧊 +1 gel de série gagné : manque un jour et ta chaîne survit !",
-      "freezeUsed": "🧊 Gel de série utilisé : ta chaîne de {{streak}} jours est sauvée !"
+      "freezeUsed": "🧊 Gel de série utilisé : ta chaîne de {{streak}} jours est sauvée !",
+      "claimFailed": "Nous n'avons pas pu récupérer votre bonus pour le moment — veuillez réessayer.",
+      "alreadyClaimedToday": "Vous avez déjà récupéré le bonus d'aujourd'hui — revenez demain pour le prochain !",
+      "crateFailed": "Nous n'avons pas pu ouvrir la caisse pour le moment — veuillez réessayer.",
+      "crateCooldown": "Vous avez ouvert une caisse il y a peu — la prochaine se débloque bientôt."
     },
     "streakWidget": {
       "atRiskTitle": "Ne perds pas ta série de {{streak}} jours !",

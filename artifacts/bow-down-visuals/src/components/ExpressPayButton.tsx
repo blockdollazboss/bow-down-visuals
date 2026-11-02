@@ -1,4 +1,4 @@
-import { plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useState, useEffect, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe, PaymentRequest } from "@stripe/stripe-js";
@@ -151,8 +151,10 @@ function ExpressPayInner({
               const vData = await vRes.json();
               if (!vRes.ok || !vData.success) {
                 fail(
-                  vData.error ??
+                  apiErrorMessage(
+                    vData,
                     "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment, and contact support if they're still missing."
+                  )
                 );
                 return;
               }

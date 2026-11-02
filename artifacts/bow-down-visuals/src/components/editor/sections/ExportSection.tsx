@@ -325,7 +325,7 @@ export function ExportSection({
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        throw new Error(apiErrorMessage(body, `Upload failed (${res.status})`));
+        throw new Error(apiErrorMessage(body, "Upload failed"));
       }
       const { url } = (await res.json()) as { url: string };
       setExport({ customWatermarkUrl: url });
@@ -357,7 +357,7 @@ export function ExportSection({
       .then((r) => {
         if (!cancelled) {
           setAudioReachable(r.ok);
-          if (!r.ok) setAudioReachError(`HTTP ${r.status} — audio file may have moved or expired`);
+          if (!r.ok) setAudioReachError("The audio file couldn't be reached — it may have moved or expired");
         }
       })
       .catch((e) => {
