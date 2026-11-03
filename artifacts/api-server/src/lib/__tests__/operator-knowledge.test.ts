@@ -1137,6 +1137,17 @@ describe("operator knowledge — Stack-28 KB integration", () => {
     expect(findFeatures("wallpapers")[0]?.id).toBe("wallpapers-desk");
   });
 
+  /* Stack1400 (audit #6): the ruled pack of 10 rides the same desk entry
+     at its registry price — the operator can now quote the 500 the rail
+     charges (PACK_OF_10_COST in routes/wallpapers.ts). */
+  it("wallpapers desk carries the pack of 10 at the ruled 500", () => {
+    const f = byId("wallpapers-desk")!;
+    const pack = f.prices.find((p) => p.endpoint === "/api/wallpapers/pack-of-10")!;
+    expect(pack).toBeTruthy();
+    expect(pack.vb).toBe(500);
+    expect(formatFeatureFacts(f)).toContain("Wallpaper Pack of 10 (clean) — 500 Visual Bucs");
+  });
+
   /* The screensaver constant cross-check is the SAFE pair (300 == 300,
      the Oct 27 living-wallpaper ruling on both sides).
      CLEAN_RENDER_COST must never be cross-checked against the render

@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "e33e31d5dcfcbe7aee4378b5a1e9739df4934f57",
+  "baseCommit": "ce0462b9c930736baf23aef7f51ca57d1e3f030b",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-02",
+  "generatedAt": "2026-11-03",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
     "features": 251,
     "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 217,
+    "pricedActions": 218,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
@@ -22,8 +22,8 @@
     "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 430,
-    "serverEndpoints": 1728,
-    "serverEndpointsVisible": 1066,
+    "serverEndpoints": 1729,
+    "serverEndpointsVisible": 1067,
     "serverFilesClassified": 100
   },
   "packs": [
@@ -4419,6 +4419,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4487,6 +4488,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4550,6 +4557,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4618,6 +4626,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4681,6 +4695,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4749,6 +4764,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4812,6 +4833,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4880,6 +4902,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4944,6 +4972,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render",
         "/api/wave8/merch-drop/plan"
@@ -5022,6 +5051,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Wallpaper Render (branded — free)",
           "vb": 0,
           "endpoint": "/api/wallpapers/render",
@@ -5088,6 +5123,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -5156,6 +5192,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -5219,6 +5261,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -5287,6 +5330,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6080,6 +6129,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6136,6 +6186,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6192,6 +6248,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6248,6 +6305,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6323,6 +6386,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6379,6 +6443,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6453,6 +6523,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6509,6 +6580,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6571,6 +6648,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6691,6 +6769,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Wallpaper Render (branded — free)",
           "vb": 0,
           "endpoint": "/api/wallpapers/render",
@@ -6768,6 +6852,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6824,6 +6909,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6900,6 +6991,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render",
         "/api/wave9d/camera/prompt",
@@ -6964,6 +7056,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -20622,8 +20720,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/wallpapers.ts",
-        "endpoints": 4,
-        "visible": 3,
+        "endpoints": 5,
+        "visible": 4,
         "unseen": [
           "/api/wallpapers/presets"
         ]
