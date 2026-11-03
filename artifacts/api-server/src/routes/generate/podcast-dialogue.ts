@@ -113,7 +113,12 @@ export interface DialogueEstimate {
 
 export function estimateDialogueCost(script: string): DialogueEstimate {
   const { turns, speakers } = parseDialogueScript(script);
+  // Count the turns' TEXT — joining the turn objects themselves would
+  // stringify them ("[object Object]") and bill every script as a
+  // single block regardless of length (repair, stack1400 ruling #32:
+  // the duration math below is unchanged).
   const wordCount = turns
+    .map((t) => t.text)
     .join(" ")
     .split(/\s+/)
     .filter(Boolean).length;
