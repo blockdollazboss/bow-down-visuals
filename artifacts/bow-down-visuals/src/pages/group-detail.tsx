@@ -2,7 +2,7 @@ import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { Users, Crown, Trash2, Send, Megaphone, ShieldAlert, Hash, MessagesSquare, Pin, Lock, ArrowLeft, Plus } from "lucide-react";
+import { Users, Crown, Trash2, Send, Megaphone, ShieldAlert, Hash, MessagesSquare, Pin, Lock, ArrowLeft, Plus, Ban } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, ShareButton, Loading, ErrorBox, profileLink, timeAgo,
@@ -28,6 +28,14 @@ interface Member {
      can_remove drives the Remove button; assignable_roles drives the
      role buttons in GroupOnboarding. The page never re-derives them. */
   can_remove: boolean; assignable_roles: string[];
+  /* can_ban (stack1400 #11) drives the Ban button — remove-and-ban:
+     the member goes AND a durable ban keeps them out until unbanned. */
+  can_ban: boolean;
+}
+/* One row of the banned list (stack1400 #11): who, by whom, when, why. */
+interface GroupBan {
+  user_id: string; banned_by_user_id: string; reason: string | null; created_at: string;
+  profile: ProfileCard | null; banned_by_profile: ProfileCard | null;
 }
 interface Post {
   id: string; body: string; like_count: number; created_at: string;
@@ -84,6 +92,12 @@ export default function GroupDetail() {
   usePageTitle(group?.name ?? "Group", "A creator community on Bow Down Visuals.");
   const [ownerProfile, setOwnerProfile] = useState<{ slug: string; displayName: string } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  /* Bans (stack1400 #11): the viewer's own ban power comes from the
+     server (can_ban on the detail payload); the banned list loads
+     lazily when a viewer who holds that power opens the members tab. */
+  const [canBan, setCanBan] = useState(false);
+  const [bans, setBans] = useState<GroupBan[]>([]);
+  const [bansLoaded, setBansLoaded] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
   const [tab, setTab] = useState<"about" | "feed" | "forum" | "members">("feed");
@@ -138,9 +152,10 @@ export default function GroupDetail() {
     try {
       const d = (await api.get(`/api/groups/${slug}`)) as {
         group: GroupDetail; owner_profile: { slug: string; displayName: string } | null;
-        members: Member[]; viewer_role: string | null;
+        members: Member[]; viewer_role: string | null; can_ban?: boolean;
       };
       setGroup(d.group); setOwnerProfile(d.owner_profile); setMembers(d.members); setViewerRole(d.viewer_role);
+      setCanBan(!!d.can_ban); setBansLoaded(false);
     } catch (e) {
       setError(friendlyLoadError(e, "this group"));
       setLoading(false);
@@ -184,6 +199,33 @@ export default function GroupDetail() {
     if (!window.confirm("Remove this member from the group?")) return;
     try { await api.del(`/api/groups/${slug}/members/${userId}`); setNotice("Member removed."); await load(); }
     catch (e) { setNotice(plainErrorText(e, "Couldn't remove them.")); }
+  }
+  /* Remove-and-ban (stack1400 #11): the member goes and a durable ban
+     keeps them out — they can't rejoin or be re-admitted until an
+     admin unbans them. Rides the member-removal door with ?ban=1. */
+  async function banMember(userId: string) {
+    if (!window.confirm("Remove and ban this member? They won't be able to rejoin until an admin unbans them.")) return;
+    try {
+      await api.del(`/api/groups/${slug}/members/${userId}?ban=1`);
+      setNotice("Member removed and banned.");
+      setBansLoaded(false);
+      await load();
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't ban them.")); }
+  }
+  async function loadBans() {
+    try {
+      const d = (await api.get(`/api/groups/${slug}/bans`)) as { bans: GroupBan[] };
+      setBans(d.bans); setBansLoaded(true);
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't load the banned list.")); }
+  }
+  useEffect(() => {
+    if (tab === "members" && canBan && !bansLoaded) { void loadBans(); }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [tab, canBan, bansLoaded]);
+  async function unban(userId: string) {
+    if (!window.confirm("Unban this person? They'll be able to join the group again.")) return;
+    try { await api.del(`/api/groups/${slug}/bans/${userId}`); setNotice("Unbanned — they can join again."); await loadBans(); }
+    catch (e) { setNotice(plainErrorText(e, "Couldn't unban them.")); }
   }
   async function sendBroadcast() {
     if (!broadcast.trim()) return;
@@ -783,15 +825,63 @@ export default function GroupDetail() {
                       </p>
                     </div>
                   </div>
-                  {m.can_remove && (
-                    <button type="button" onClick={() => removeMember(m.user_id)} data-min-stars="4"
-                      className="text-xs text-white/40 hover:text-red-400" title="Remove member">
-                      Remove
-                    </button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-3">
+                    {m.can_remove && (
+                      <button type="button" onClick={() => removeMember(m.user_id)} data-min-stars="4"
+                        className="text-xs text-white/40 hover:text-red-400" title="Remove member">
+                        Remove
+                      </button>
+                    )}
+                    {m.can_ban && (
+                      <button type="button" onClick={() => banMember(m.user_id)} data-min-stars="4"
+                        className="inline-flex items-center gap-1 text-xs text-white/40 hover:text-red-400" title="Remove and ban — they can't rejoin until unbanned">
+                        <Ban className="h-3 w-3" /> Ban
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
+
+            {canBan && (
+              <div className="mt-6 rounded-xl border border-white/10 bg-[#0d0a02] p-4" data-min-stars="4">
+                <p className="flex items-center gap-2 font-semibold text-white/80">
+                  <Ban className="h-4 w-4 text-red-400" /> Banned from this group
+                </p>
+                <p className="mt-1 text-xs text-white/40">
+                  Banned people can't rejoin or be let back in until an admin unbans them. Removing a member without a ban still lets them return.
+                </p>
+                {!bansLoaded ? (
+                  <p className="mt-3 text-sm text-white/40">Loading the banned list…</p>
+                ) : bans.length === 0 ? (
+                  <p className="mt-3 text-sm text-white/40">Nobody is banned right now.</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {bans.map((b) => (
+                      <div key={b.user_id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 p-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          {b.profile?.avatarUrl && <img src={b.profile.avatarUrl} onError={(e) => { e.currentTarget.style.display = "none"; }} alt="" className="h-8 w-8 rounded-full object-cover" />}
+                          <div className="min-w-0">
+                            {b.profile
+                              ? <Link href={profileLink(b.profile.slug)} className="font-semibold hover:text-[#e8c86a]">{b.profile.displayName}</Link>
+                              : <span className="font-semibold text-white/70">A former member</span>}
+                            <p className="truncate text-xs text-white/40">
+                              Banned {timeAgo(b.created_at)}
+                              {b.banned_by_profile ? <> by {b.banned_by_profile.displayName}</> : null}
+                              {b.reason ? <> · “{b.reason}”</> : null}
+                            </p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => unban(b.user_id)} data-min-stars="4"
+                          className="shrink-0 text-xs text-white/40 hover:text-[#e8c86a]" title="Unban — they can join again">
+                          Unban
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {isOwner && (
               <div className="mt-6 rounded-xl border border-[#e8c86a]/25 bg-[#0d0a02] p-4" data-min-stars="5">
