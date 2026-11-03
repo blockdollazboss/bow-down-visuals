@@ -19,12 +19,15 @@
  * renders the whole conversation in a single provider call with natural
  * turn-taking, instead of stitching per-voice TTS clips.
  *
- * ── PRICING: PLACEHOLDER — NOT APPROVED ──────────────────────────────
- * DIALOGUE_CREDITS_PER_10MIN (default 3, env-overridable) is a PROPOSAL.
- * DIALOGUE_PRICING_APPROVED is false until the user explicitly approves
- * the price in a reviewed commit — never flip as a drive-by. While false,
- * the server refuses every dialogue request BEFORE any provider call,
- * any credit check, or any charge: nothing generates and nothing moves.
+ * ── PRICING: APPROVED — owner ruling 2026-11-02 ─────────────────────
+ * DIALOGUE_CREDITS_PER_10MIN is 300 Visual Bucs per 10 minutes of
+ * finished dialogue audio (env-overridable), approved by the owner on
+ * 2026-11-02 (stack1400 ruling #32 — the old rate of 3 was a
+ * pre-×100-scale leftover). DIALOGUE_PRICING_APPROVED is true. The gate
+ * machinery stays in place: if approval were ever revoked by flipping
+ * it back to false in a reviewed commit, the server would refuse every
+ * dialogue request BEFORE any provider call, any credit check, or any
+ * charge: nothing would generate and nothing would move.
  * ─────────────────────────────────────────────────────────────────────
  *
  * Key gate: ELEVENLABS_API_KEY (same key as the podcast TTS path). When
@@ -62,24 +65,24 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-/* ── Pricing (PLACEHOLDER — see header) ────────────────────────────── */
+/* ── Pricing (APPROVED — see header) ───────────────────────────────── */
 
 /**
- * PLACEHOLDER — NOT USER-APPROVED. Proposed: 3 Visual Bucs per 10 minutes
- * of finished dialogue audio (mirrors the podcast studio rate). Env override
- * exists so ops can tune without a code change, but the FINAL price needs
- * the user's explicit approval — see DIALOGUE_PRICING_APPROVED.
+ * APPROVED — owner ruling 2026-11-02: 300 Visual Bucs per 10 minutes
+ * of finished dialogue audio (mirrors the podcast studio rate). Env
+ * override exists so ops can tune without a code change — the approval
+ * itself is recorded in DIALOGUE_PRICING_APPROVED / DIALOGUE_PRICING_VERSION.
  */
 export const DIALOGUE_CREDITS_PER_10MIN =
-  Number(process.env["DIALOGUE_CREDITS_PER_10MIN"]) || 3;
+  Number(process.env["DIALOGUE_CREDITS_PER_10MIN"]) || 300;
 
 /** Seconds per billable block (mirrors podcast studio). */
 export const DIALOGUE_SECONDS_PER_BLOCK = 600;
 
 /** Explicit approval gate (same pattern as VEO_PRICING_APPROVED). */
-export const DIALOGUE_PRICING_APPROVED = false;
-/** Bump when the proposed rate changes, so an approval is tied to a version. */
-const DIALOGUE_PRICING_VERSION = "2026-10-11-placeholder";
+export const DIALOGUE_PRICING_APPROVED = true;
+/** Bump when the approved rate changes, so an approval is tied to a version. */
+export const DIALOGUE_PRICING_VERSION = "2026-11-02-approved";
 
 /** Hard cap on script length (~40 minutes of audio). */
 const MAX_DIALOGUE_SCRIPT_CHARS = 36_000;
