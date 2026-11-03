@@ -48,9 +48,13 @@ describe("playback wiring", () => {
   });
 
   it("the live scheduler plays assigned sounds (not raw synthHit)", () => {
+    // Beat-join composition: the live destination is the track's mixer-FX
+    // chain input (lib/beat-mixer graph), not a bare gain node — the
+    // assigned-sound wiring through playTrackHit is unchanged.
     expect(page).toContain(
-      "playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, drums[ti]!",
+      "playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, chain.input, gain)",
     );
+    expect(page).toContain("const chain = graph.tracks[tr.id];");
   });
 
   it("the offline render plays assigned sounds and preloads bank buffers", () => {
@@ -60,10 +64,13 @@ describe("playback wiring", () => {
     expect(page).toContain("ensureBeatSampleBuffer(e, off)");
   });
 
-  it("samples share the per-track mixer gain path (dest = drums[ti])", () => {
+  it("samples share the per-track mixer path (dest = the track's chain input)", () => {
     // playTrackHit's sample gain connects into `dest`, and both call
-    // sites pass the per-track mixer gain node as dest — same as synth.
+    // sites pass the track's mixer-graph chain input as dest — the live
+    // scheduler passes chain.input directly; the offline render maps
+    // drums[ti] from the same graph's track inputs. Same path as synth.
     expect(page).toContain("g.connect(dest)");
+    expect(page).toContain("const drums = TRACKS.map((tr) => graph.tracks[tr.id]!.input);");
   });
 });
 
