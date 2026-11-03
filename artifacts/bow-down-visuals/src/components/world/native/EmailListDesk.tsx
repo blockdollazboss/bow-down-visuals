@@ -85,6 +85,8 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   const [activeListId, setActiveListId] = useState("");
   const [newList, setNewList] = useState({ name: "", handle: "", description: "" });
   const [listNote, setListNote] = useState<string | null>(null);
+  const [listsTick, setListsTick] = useState(0);
+  const [panelsTick, setPanelsTick] = useState(0);
   const [creatingList, setCreatingList] = useState(false);
 
   const [subscribers, setSubscribers] = useState<SubscriberRow[]>([]);
@@ -138,7 +140,7 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isGuest]);
+  }, [isGuest, listsTick]);
 
   const createList = async () => {
     if (!listReady(newList) || creatingList) {
@@ -200,7 +202,7 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
     if (isGuest || !activeListId) return;
     void loadListPanels(activeListId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isGuest, activeListId]);
+  }, [isGuest, activeListId, panelsTick]);
 
   const unsubscribeFan = async (sub: SubscriberRow) => {
     if (!activeListId) return;
@@ -345,9 +347,9 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   return (
     <div data-testid="world-email-list-desk" className="space-y-4">
       <NativeCard isLight={isLight} title="Email List — subscribers">
-        {listsState === "loading" ? <NativeLoadingState isLight={isLight} label="Loading your lists…" /> : null}
+        {listsState === "loading" ? <NativeLoadingState isLight={isLight} message="Loading your lists…" /> : null}
         {listsState === "failed" ? (
-          <NativeErrorState isLight={isLight} message="Your lists couldn't load — the rest of the room is unaffected." />
+          <NativeErrorState isLight={isLight} message="Your lists couldn't load — the rest of the room is unaffected." onRetry={() => setListsTick((t) => t + 1)} />
         ) : null}
         {listsState === "ready" ? (
           <div className="space-y-3">
@@ -380,8 +382,8 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
             {activeListId ? (
               <>
-                {subsState === "loading" ? <NativeLoadingState isLight={isLight} label="Loading subscribers…" /> : null}
-                {subsState === "failed" ? <NativeErrorState isLight={isLight} message="Subscribers couldn't load for this list." /> : null}
+                {subsState === "loading" ? <NativeLoadingState isLight={isLight} message="Loading subscribers…" /> : null}
+                {subsState === "failed" ? <NativeErrorState isLight={isLight} message="Subscribers couldn't load for this list." onRetry={() => setPanelsTick((t) => t + 1)} /> : null}
                 {subsState === "ready" && subscribers.length === 0 ? (
                   <NativeEmptyState isLight={isLight} message="No subscribers yet — share your join handle and this board fills in." />
                 ) : null}
@@ -466,9 +468,9 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       </NativeCard>
 
       <NativeCard isLight={isLight} title="Automations">
-        {autoState === "loading" && activeListId ? <NativeLoadingState isLight={isLight} label="Loading automations…" /> : null}
+        {autoState === "loading" && activeListId ? <NativeLoadingState isLight={isLight} message="Loading automations…" /> : null}
         {!activeListId ? <NativeEmptyState isLight={isLight} message="Pick or create a list above — its automations live here." /> : null}
-        {autoState === "failed" ? <NativeErrorState isLight={isLight} message="Automations couldn't load for this list." /> : null}
+        {autoState === "failed" ? <NativeErrorState isLight={isLight} message="Automations couldn't load for this list." onRetry={() => setPanelsTick((t) => t + 1)} /> : null}
         {autoNote ? <p className="text-xs text-red-300">{autoNote}</p> : null}
         <div className="space-y-3" data-testid="world-email-automations">
           {automations.map((a) => {
@@ -517,8 +519,8 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             {FAN_GRAPH_SORTS.map((s) => (<option key={s} value={s}>{s}</option>))}
           </select>
         </div>
-        {fanState === "loading" ? <NativeLoadingState isLight={isLight} label="Loading your fan graph…" /> : null}
-        {fanState === "failed" ? <NativeErrorState isLight={isLight} message="Your fan graph couldn't load." /> : null}
+        {fanState === "loading" ? <NativeLoadingState isLight={isLight} message="Loading your fan graph…" /> : null}
+        {fanState === "failed" ? <NativeErrorState isLight={isLight} message="Your fan graph couldn't load." onRetry={() => setFanTick((t) => t + 1)} /> : null}
         {fanState === "ready" && fans.length === 0 ? (
           <NativeEmptyState isLight={isLight} message="No fans in the graph yet — followers, subscribers, members and buyers merge here as they arrive." />
         ) : null}
