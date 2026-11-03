@@ -74,6 +74,7 @@ CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, creato
 CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0, creator_credited_at timestamptz);
+CREATE TABLE world_stage_tips (id uuid PRIMARY KEY, from_user_id text NOT NULL, to_user_id text NOT NULL, amount_vb integer NOT NULL DEFAULT 0, room_id text NOT NULL DEFAULT 'room', idempotency_key text, creator_credited_at timestamptz, created_at timestamptz);
 CREATE TABLE digital_sales (id uuid PRIMARY KEY, buyer_user_id uuid NOT NULL, profile_id uuid NOT NULL, item_kind text NOT NULL, item_id uuid NOT NULL, stripe_session_id text, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE profile_tracks (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, play_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE profile_videos (id uuid PRIMARY KEY, profile_id uuid NOT NULL, title text, view_count integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now(), thumbnail_alt_text text);
@@ -94,6 +95,7 @@ CREATE TABLE store_orders (id uuid PRIMARY KEY, profile_id uuid NOT NULL, creato
 CREATE TABLE shop_events (id uuid PRIMARY KEY, user_id uuid NOT NULL, event_type text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, affiliate_code text, bump_for_product_id uuid);
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released');
 CREATE TABLE live_stream_tips (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0, creator_credited_at timestamptz);
+CREATE TABLE world_stage_tips (id uuid PRIMARY KEY, from_user_id text NOT NULL, to_user_id text NOT NULL, amount_vb integer NOT NULL DEFAULT 0, room_id text NOT NULL DEFAULT 'room', idempotency_key text, creator_credited_at timestamptz, created_at timestamptz);
 CREATE TABLE social_accounts (id uuid PRIMARY KEY, user_id uuid NOT NULL, platform text NOT NULL, username text);
 CREATE TABLE social_stat_snapshots (id uuid PRIMARY KEY, user_id uuid NOT NULL, platform text NOT NULL, followers integer, recorded_at timestamptz NOT NULL DEFAULT now());
 ` + BEATS_TABLE;
@@ -164,6 +166,7 @@ async function seedAll() {
   await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status) VALUES (${randomUUID()}, ${USER}, 3000, 'released'), (${randomUUID()}, ${USER}, 999, 'pending')`);
   await db.execute(sql`INSERT INTO beat_licenses (id, producer_id, price_cents, commission_cents, status) VALUES (${randomUUID()}, ${USER}, 10000, 1500, 'completed'), (${randomUUID()}, ${USER}, 5000, 750, 'completed'), (${randomUUID()}, ${USER}, 8000, 1200, 'pending_payment'), (${randomUUID()}, ${USER}, 8000, 1200, 'refunded'), (${randomUUID()}, ${OTHER}, 8000, 1200, 'completed')`);
   await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${USER}, 300, now()), (${randomUUID()}, ${USER}, 200, now()), (${randomUUID()}, ${USER}, 999, NULL)`);
+  await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${OTHER}, ${USER}, 125, now()), (${randomUUID()}, ${OTHER}, ${USER}, 999, NULL), (${randomUUID()}, ${USER}, ${OTHER}, 777, now())`);
   /* Content. */
   await db.execute(sql`INSERT INTO profile_tracks (id, profile_id, title, play_count) VALUES (${randomUUID()}, ${PROFILE}, 'Top Song', 120), (${randomUUID()}, ${PROFILE}, 'Second', 30)`);
   await db.execute(sql`INSERT INTO profile_videos (id, profile_id, title, view_count) VALUES (${randomUUID()}, ${PROFILE}, 'Top Vid', 900), (${randomUUID()}, ${PROFILE}, 'Other Vid', 10)`);
@@ -253,7 +256,9 @@ describe("command revenue", () => {
     expect(body.rails.beats.totalCents).toBe(12750); // completed, net of commission
     expect(body.rails.beats.count).toBe(2);
     expect(body.totalCents).toBe(34500);
-    expect(body.totalTipsVb).toBe(500); // credited only; the uncredited 999 stays out
+    expect(body.rails.tips.stageTipsVb).toBe(125); // stage tips on their own line (ruling #28)
+    expect(body.rails.tips.stageTipCount).toBe(1);
+    expect(body.totalTipsVb).toBe(625); // stream 500 + stage 125, credited only; uncredited 999s stay out
     expect(body.partial).toBe(false);
   });
 
