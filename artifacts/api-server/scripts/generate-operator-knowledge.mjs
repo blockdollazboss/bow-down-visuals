@@ -1144,6 +1144,20 @@ const TIERED_PRICE_LINKS = [
     servesPath: "/lip-sync/preview",
     attachToFeatureIds: [],
   },
+  /* Audit #5 (stack1400): the legacy song-package rail
+     (POST /api/generate-song) charges through the SAME tier
+     function — it imports SONG_PRICE_TIERS / creditCostForLength
+     from music-audio.ts instead of keeping a flat cost — so its
+     knowledge entries carry the same tiers, extracted from the
+     same table file (tableFile), while the serving check runs
+     against its own route file. One song price story. */
+  {
+    endpoint: "/api/generate-song",
+    tableConstant: "SONG_PRICE_TIERS",
+    routeFile: "routes/generate/song.ts",
+    tableFile: "routes/generate/music-audio.ts",
+    attachToFeatureIds: [],
+  },
   {
     endpoint: "/api/lip-sync/run-all",
     tableConstant: "LIP_SYNC_PRICE_TIERS",
@@ -2275,6 +2289,18 @@ function main() {
     }
     const tableFile = link.tableFile ?? link.routeFile;
     const tableLabel = `artifacts/api-server/src/${tableFile}`;
+    /* A rail that imports its tier table from another rail's file
+       (tableFile) keeps the shared-table claim checked, not trusted:
+       the song rail must still import SONG_PRICE_TIERS /
+       creditCostForLength from music-audio.ts. (Scoped to the song
+       table at the stack1400 join: the lip-sync links' route file
+       never names its table constant — its tiers live in
+       lib/lip-sync-jobs.ts beside the charging function.) */
+    if (link.tableFile && link.tableConstant === "SONG_PRICE_TIERS") {
+      if (!src.includes(link.tableConstant) || !src.includes("creditCostForLength")) {
+        throw new Error(`tiered prices: ${fileLabel} no longer imports ${link.tableConstant} / creditCostForLength from its shared table file (${tableLabel})`);
+      }
+    }
     const tableSrc = tableFile === link.routeFile ? src : read(path.join(API_SRC, tableFile));
     const tiers = extractPriceTiers(tableSrc, link.tableConstant, tableLabel);
     const registry = creditCosts.get(link.endpoint);

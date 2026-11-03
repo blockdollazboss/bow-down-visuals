@@ -29,6 +29,8 @@ import {
   TRANSCRIBE_INCLUDED_MINUTES,
   transcribeCostForDurationSec,
 } from "../credit-costs";
+import { getCreditCost } from "../credit-costs";
+import { makeSongPackageCostForLength } from "../make-song-prices";
 import { getCoverArtTier } from "../cover-art";
 import { buildPublishUrl } from "../publish-protocol";
 import {
@@ -72,10 +74,16 @@ function registryCost(endpoint: string): number {
   return entry.cost;
 }
 
-/** Song Desk — POST /api/generate-song. Registry: 400 (the make-song
- *  page's CostBadge cost={400} and the server's CREDIT_COST agree). */
-export function songDeskCost(): number {
-  return registryCost("/api/generate-song");
+/** Song Desk — POST /api/generate-song. The rail prices by length
+ *  tier (audit #5): the registry's 400 is the ≤1-minute tier, and a
+ *  chosen songLength label prices through the make-song page's own
+ *  helper (lib/make-song-prices), which mirrors the server's tier
+ *  function. No label (Turbo) = the 400 base tier. */
+export function songDeskCost(songLength?: string | null): number {
+  if (songLength === undefined || songLength === null) {
+    return registryCost("/api/generate-song");
+  }
+  return makeSongPackageCostForLength(songLength);
 }
 
 /** Song + Video Desk — POST /api/generate-song-video. Registry: 400
@@ -929,12 +937,14 @@ export function musicAudioCost(lengthSeconds: number = SONG_AUDIO_LENGTH_SECONDS
 }
 
 /** The Song Desk's ONE up-front number: the song package
- *  (400, /api/generate-song) plus the real audio at the desk's
- *  length (400, /api/generate-music-audio) = 800 Visual Bucs. The
- *  member confirms this total once; each leg still charges exactly
- *  once on its own rail, only when that leg runs. */
-export function songDeskTotalCost(): number {
-  return songDeskCost() + musicAudioCost();
+ *  (400 at the default length, /api/generate-song — priced by the
+ *  chosen songLength tier, audit #5) plus the real audio at the
+ *  desk's length (400, /api/generate-music-audio) = 800 Visual Bucs
+ *  at the default length. The member confirms this total once; each
+ *  leg still charges exactly once on its own rail, only when that
+ *  leg runs. */
+export function songDeskTotalCost(songLength?: string | null): number {
+  return songDeskCost(songLength) + musicAudioCost();
 }
 
 /** One ## section of a song package (the hub-song section shape). */

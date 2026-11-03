@@ -17,6 +17,7 @@ import {
   MAKE_SONG_AUDIO_COST,
   MAKE_SONG_FULL_JOURNEY_COST,
   MAKE_SONG_PACKAGE_COST,
+  makeSongPackageCostForLength,
 } from "./make-song-prices";
 
 function readApi(rel: string): string {
@@ -30,13 +31,34 @@ function readPage(rel: string): string {
 }
 
 describe("F2 — Make Song journey prices (400 + 400 = 800, up front)", () => {
-  it("package figure == registry == server CREDIT_COST (400)", () => {
+  it("package figure == registry == first tier of the shared song tiers (400)", () => {
+    /* Audit #5: the legacy rail no longer keeps a flat CREDIT_COST —
+       it imports creditCostForLength from music-audio.ts and prices
+       by the same SONG_PRICE_TIERS. The package figure quoted for
+       the standard journey is the FIRST tier (the 60-second
+       default), which the registry also records. */
     const songSrc = readApi("routes/generate/song.ts");
-    const m = songSrc.match(/const\s+CREDIT_COST\s*=\s*(\d+)\b/);
-    expect(m, "CREDIT_COST in routes/generate/song.ts").toBeTruthy();
-    expect(Number(m![1])).toBe(400);
+    expect(songSrc).not.toMatch(/const\s+CREDIT_COST\s*=/);
+    expect(songSrc).toContain("creditCostForLength");
+    expect(songSrc).toMatch(/from\s+"\.\/music-audio"/);
+    const audioSrc = readApi("routes/generate/music-audio.ts");
+    const tiers = audioSrc.match(
+      /SONG_PRICE_TIERS\s*=\s*\[\s*\{\s*maxLengthMs:\s*60_000,\s*cost:\s*(\d+)\s*\}/,
+    );
+    expect(tiers, "first SONG_PRICE_TIERS rung in music-audio.ts").toBeTruthy();
+    expect(Number(tiers![1])).toBe(400);
     expect(CREDIT_COSTS["/api/generate-song"]?.cost).toBe(400);
     expect(MAKE_SONG_PACKAGE_COST).toBe(400);
+  });
+
+  it("the per-length package helper prices the labels the form sends at the server tiers", () => {
+    expect(makeSongPackageCostForLength("")).toBe(400);
+    expect(makeSongPackageCostForLength("30 seconds")).toBe(400);
+    expect(makeSongPackageCostForLength("60 seconds")).toBe(400);
+    expect(makeSongPackageCostForLength("2 minutes")).toBe(800);
+    expect(makeSongPackageCostForLength("Full song")).toBe(800);
+    expect(makeSongPackageCostForLength(null, 300)).toBe(1200);
+    expect(makeSongPackageCostForLength(null, 301)).toBe(2400);
   });
 
   it("audio figure == registry == first SONG_PRICE_TIERS rung (60s default, 400)", () => {

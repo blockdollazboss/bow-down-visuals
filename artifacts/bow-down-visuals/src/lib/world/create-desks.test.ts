@@ -96,6 +96,17 @@ describe("create desk costs — the real charges, from the pages' own sources (p
     expect(sfxCost()).toBe(getCreditCost("/api/generate-sfx")!.cost);
   });
 
+  it("the Song Desk package prices by length tier (audit #5 — same tiers as the server rail)", () => {
+    expect(songDeskCost("")).toBe(400);
+    expect(songDeskCost("30 seconds")).toBe(400);
+    expect(songDeskCost("60 seconds")).toBe(400);
+    expect(songDeskCost("2 minutes")).toBe(800);
+    expect(songDeskCost("Full song")).toBe(800);
+    expect(songDeskTotalCost("2 minutes")).toBe(800 + 400);
+    expect(songDeskTotalCost("Full song")).toBe(800 + 400);
+    expect(songDeskTotalCost()).toBe(800);
+  });
+
   it("registry values are the known server charges", () => {
     expect(songDeskCost()).toBe(400);
     expect(songVideoDeskCost()).toBe(400);

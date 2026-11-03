@@ -29,9 +29,15 @@ describe("make-song price: footnote == button == rail (400 VB)", () => {
     expect(page).toContain("<CostBadge cost={400}");
   });
 
-  it("the server rail charges exactly CREDIT_COST = 400", () => {
+  it("the server rail charges the tier for the requested length (400 at the default)", () => {
+    /* Audit #5: the flat CREDIT_COST is gone — the rail imports the
+       audio rail's tier function and charges the computed tier.
+       At the default length (and the form's footnote/badge story)
+       that tier is exactly 400. */
     const rail = read("../../../api-server/src/routes/generate/song.ts");
-    expect(rail).toContain("const CREDIT_COST = 400;");
-    expect(rail).toContain('chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Song" })');
+    expect(rail).not.toContain("const CREDIT_COST = 400;");
+    expect(rail).toContain("creditCostForLength");
+    expect(rail).toMatch(/from\s+"\.\/music-audio"/);
+    expect(rail).toContain('chargeCredits(req.userId!, creditCost, { action: "Make a Song" })');
   });
 });

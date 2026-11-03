@@ -34,6 +34,7 @@ import {
   MAKE_SONG_AUDIO_COST,
   MAKE_SONG_FULL_JOURNEY_COST,
   MAKE_SONG_PACKAGE_COST,
+  makeSongPackageCostForLength,
 } from "@/lib/make-song-prices";
 import { HumToSong } from "@/components/HumToSong";
 import { SongReworkPanel } from "@/components/SongReworkPanel";
@@ -300,10 +301,17 @@ export function MakeSongModule() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
+      /* Audit #5: the package rail prices by length tier, so the
+         spend confirmation (and the spent toast) must quote the
+         tier for THIS length — the registry's flat 400 is only the
+         ≤1-minute tier. The override carries the same figure the
+         server will charge for params.songLength. */
+      const packageCost = makeSongPackageCostForLength(params.songLength);
       const result = await callGenerateApi("/api/generate-song", {
         ...params,
         artistVault: loadedVault,
-      }, token, confirmedFetch);
+      }, token, (input, init) =>
+        confirmedFetch(input, { ...init, overrideCost: packageCost }));
       if (!result) return;
       const { rawResult, creditsRemaining } = result;
       handleSongSuccess(rawResult, creditsRemaining, {
@@ -765,7 +773,7 @@ export function MakeSongModule() {
                 ) : (
                   <>
                     <Music className="h-5 w-5" />
-                    {t("makeSong.createMySong")} <CostBadge cost={400} className="ml-2" />
+                    {t("makeSong.createMySong")} <CostBadge cost={makeSongPackageCostForLength(watched.songLength)} className="ml-2" />
                   </>
                 )}
               </Button>
