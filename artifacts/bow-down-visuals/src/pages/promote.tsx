@@ -20,6 +20,7 @@ import { ReferEarnCard } from "@/components/promote/ReferEarnCard";
 import { ResultsWallPanel } from "@/components/promote/ResultsWallPanel";
 import { ViralSpikeKitPanel } from "@/components/promote/ViralSpikeKitPanel";
 import { DropDayPanel } from "@/components/promote/DropDayPanel";
+import { AudienceAutoSegment } from "@/components/promote/AudienceAutoSegment";
 import { WidgetsDeskPanel } from "@/components/promote/WidgetsDeskPanel";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -264,6 +265,13 @@ export default function Promote() {
       {/* Refer & Earn cross-surface — visible in both tabs, above the panels */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
         <ReferEarnCard />
+      </div>
+
+      {/* Audience auto-segment (rank 6b) — the promote step attaches the
+          biggest live fan segment automatically; visible in both tabs,
+          like the panels around it. */}
+      <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
+        <AudienceAutoSegment />
       </div>
 
       {/* Results Wall (Stack-200 #177) — public, platform-verified creator

@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -204,6 +205,11 @@ export default function Books() {
           }}
         />
       )}
+
+      {/* Rank 6a: every creation ends in the Get Paid finale. */}
+      <div className="mx-auto w-full max-w-5xl px-4 pb-12">
+        <CreationFinale surfaceId="books" />
+      </div>
     </div>
   );
 }
@@ -580,6 +586,11 @@ function BookEditor({
           chapterContent={content}
           onInsert={(text) => handleContentChange(content ? `${content}\n\n${text}` : text)}
         />
+      </div>
+
+      {/* Rank 6a: every creation ends in the Get Paid finale. */}
+      <div className="mx-auto w-full max-w-5xl px-4 pb-12">
+        <CreationFinale surfaceId="books" />
       </div>
 
       {showPrint && (

@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import CommentToVideoSection from "@/components/hooks/CommentToVideoSection";
@@ -2061,6 +2062,9 @@ export default function HookStudio() {
  <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
  {t("hooks.crossLinkAfter")}
  </p>
+
+ {/* Rank 6a: every creation ends in the Get Paid finale. */}
+ <CreationFinale surfaceId="hooks" />
  </main>
 
 

@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { AltTextField } from "@/components/accessibility/AltTextField";
+import { GetPaidFinale } from "@/components/player/GetPaidFinale";
 import {
   buildShortPostBody,
   SHORT_MAX_DURATION_SEC,
@@ -1327,6 +1328,17 @@ export default function Publish() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Rank 6a: a publish is a creation too — it ends in the Get
+            Paid finale (price → promote → tips), not a dead panel. */}
+        {publishedItem && (
+          <GetPaidFinale
+            title={publishedItem.title}
+            isOwner
+            sharePath={liveItemUrl() ?? `/artist/${publishedItem.slug}`}
+            manageHref="/publish"
+          />
         )}
 
         {/* My content — drafts + published */}

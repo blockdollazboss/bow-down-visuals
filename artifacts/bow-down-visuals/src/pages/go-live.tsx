@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
@@ -578,6 +579,9 @@ export default function GoLive() {
         </Suspense>
       </div>
       <div className="mt-6"><StageRooms /></div>
+
+      {/* Rank 6a: every creation ends in the Get Paid finale. */}
+      <CreationFinale surfaceId="go-live" />
     </div>
   );
 }

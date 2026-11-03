@@ -7,6 +7,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { getLibraryTemplate, type LibraryTemplate } from "@/data/library-templates";
 import { CreateRedirect } from "@/components/create-redirect";
+import { CreationFinale } from "@/components/player/CreationFinale";
 
 /* The ten mode panels ride lazy doors (site-perf, stack1300): the
    shell renders exactly ONE panel at a time, so the other nine
@@ -288,6 +289,11 @@ export default function Create() {
             {panel === "wallpapers" && <WallpapersDesk />}
             {panel === "hub" && <HubModule />}
           </Suspense>
+        </div>
+
+        {/* Rank 6a: every creation ends in the Get Paid finale. */}
+        <div className="mx-auto w-full max-w-4xl px-1">
+          <CreationFinale surfaceId="create" />
         </div>
 
         {/* Phase 3 orphan rescue: the Media Detector's only inbound path
