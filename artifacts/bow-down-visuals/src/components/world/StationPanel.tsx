@@ -190,6 +190,7 @@ const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsS
 const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
+const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then((m) => ({ default: m.BriefDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1144,6 +1145,14 @@ export default function StationPanel(props: StationPanelProps) {
               <div className="flex flex-col gap-6">
                 <DeskDoor isLight={isLight}>
                   <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+                </DeskDoor>
+                {/* Morning Brief (stack1500 parity wave #3): the
+                    Command Center's written brief — summary + the
+                    one drafted next move — on the free
+                    /api/command/brief rail, stacked at the My
+                    Studio board under the digest's raw halves. */}
+                <DeskDoor isLight={isLight}>
+                  <BriefDesk isLight={isLight} />
                 </DeskDoor>
                 {/* My public page (stack-100 #83/#84): view as a
                     visitor + the profile editor, on the creator-
