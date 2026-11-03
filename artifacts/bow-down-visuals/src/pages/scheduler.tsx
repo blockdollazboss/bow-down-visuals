@@ -54,6 +54,7 @@ import {
   type SchedulerPlatformKey,
 } from "@/lib/scheduler";
 import { fetchProvenance, type ProvenanceRecord as AssetProvenanceRecord, type LicenceOption } from "@/lib/asset-library";
+import { deadlineFlagFor, deadlineFlagLabel, flaggedDeadlines } from "@/lib/release-deadlines";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
   parseSchedulerMediaType,
@@ -807,6 +808,12 @@ function CalendarTab(props: {
   const { gridCells, monthLabel, monthCursor, setMonthCursor, byDay } = props;
   const today = todayLocal();
 
+  /* Rank 6c: the calendar watches the deadline clock — the engine
+     flags overdue / due-today / due-soon posts across every loaded
+     day, not just the visible month, and the strip below names them. */
+  const nowMs = Date.now();
+  const flagged = flaggedDeadlines([...byDay.values()].flat(), nowMs);
+
   function shiftMonth(delta: number) {
     const d = new Date(monthCursor.y, monthCursor.m + delta, 1);
     setMonthCursor({ y: d.getFullYear(), m: d.getMonth() });
@@ -831,6 +838,38 @@ function CalendarTab(props: {
           </button>
         </div>
       </div>
+
+      {flagged.length > 0 && (
+        <div
+          data-testid="scheduler-deadline-strip"
+          className={`mb-4 rounded-2xl border p-3 ${isLight ? "border-red-300/60 bg-red-50" : "border-red-400/30 bg-red-400/[0.06]"}`}
+        >
+          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-red-300">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {t("scheduler.deadlines.title", { defaultValue: "On the clock" })}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {flagged.slice(0, 6).map(({ post: p, flag, hoursLate }) => (
+              <button
+                key={p.id}
+                onClick={() => props.onEdit(p)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                  flag === "overdue"
+                    ? "border-red-400/50 text-red-200 hover:bg-red-400/10"
+                    : "border-amber-400/40 text-amber-200 hover:bg-amber-400/10"
+                }`}
+              >
+                {deadlineFlagLabel(flag, hoursLate)} · {prettyDateTime(p.scheduledAt!)}
+              </button>
+            ))}
+            {flagged.length > 6 && (
+              <span className="inline-flex items-center px-1 text-[11px] font-bold text-white/50">
+                {t("scheduler.deadlines.more", { defaultValue: "+{{num}} more", num: flagged.length - 6 })}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-1.5">
         {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((d) => (
@@ -867,7 +906,9 @@ function CalendarTab(props: {
                 {Number(cell.date.slice(8))}
               </div>
               <div className="mt-1 space-y-1">
-                {dayPosts.slice(0, 3).map((p) => (
+                {dayPosts.slice(0, 3).map((p) => {
+                  const flag = deadlineFlagFor(p, nowMs);
+                  return (
                   <button
                     key={p.id}
                     draggable
@@ -875,9 +916,13 @@ function CalendarTab(props: {
                     onDragEnd={() => props.setDragPostId(null)}
                     onClick={(e) => { e.stopPropagation(); props.onEdit(p); }}
                     className={`flex w-full cursor-grab items-center gap-1 rounded-md px-1.5 py-1 text-left text-[10px] font-semibold active:cursor-grabbing ${
-                      p.status === "publishing" ? "bg-blue-500/20 text-blue-200" : "bg-primary/15 text-primary"
+                      flag === "overdue"
+                        ? "bg-red-500/25 text-red-200"
+                        : flag
+                          ? "bg-amber-500/20 text-amber-200"
+                          : p.status === "publishing" ? "bg-blue-500/20 text-blue-200" : "bg-primary/15 text-primary"
                     } ${props.dragPostId === p.id ? "opacity-40" : ""}`}
-                    title={t("scheduler.calendar.postTitle", { datetime: prettyDateTime(p.scheduledAt!) })}
+                    title={flag ? `${deadlineFlagLabel(flag)} — ${prettyDateTime(p.scheduledAt!)}` : t("scheduler.calendar.postTitle", { datetime: prettyDateTime(p.scheduledAt!) })}
                   >
                     <GripVertical className="h-3 w-3 shrink-0 opacity-60" />
                     <span className="truncate">
@@ -885,7 +930,8 @@ function CalendarTab(props: {
                       {" "}{new Date(p.scheduledAt!).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                     </span>
                   </button>
-                ))}
+                  );
+                })}
                 {dayPosts.length > 3 && (
                   <div className="px-1 text-[10px] text-white/40">{t("scheduler.calendar.more", { num: dayPosts.length - 3 })}</div>
                 )}
