@@ -8,6 +8,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useHubProject } from "@/lib/hub-project";
 import { useAuth } from "@/contexts/AuthContext";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -546,6 +547,11 @@ export default function CarouselMaker() {
             </div>
           </div>
         )}
+
+        {/* Rank 6a: every creation ends in the Get Paid finale. */}
+        <div className="mx-auto w-full max-w-6xl px-4 pb-12">
+          <CreationFinale surfaceId="carousel-maker" />
+        </div>
       </div>
     </div>
   );

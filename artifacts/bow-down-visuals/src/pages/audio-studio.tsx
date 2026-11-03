@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -3653,6 +3654,9 @@ export default function AudioStudio() {
           ) : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
           </Suspense>
         </div>
+
+        {/* Rank 6a: every creation ends in the Get Paid finale. */}
+        <CreationFinale surfaceId="audio-studio" />
       </main>
     </div>
   );

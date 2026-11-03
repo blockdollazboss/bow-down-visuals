@@ -11,6 +11,7 @@ import { PublishToProfileButton } from "@/components/publish/PublishToProfileBut
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -520,6 +521,10 @@ export default function Movies() {
             </div>
           )
         )}
+        {/* Rank 6a: every creation ends in the Get Paid finale. */}
+        <div className="mx-auto w-full max-w-4xl px-4 pb-10">
+          <CreationFinale surfaceId="movies" />
+        </div>
       </main>
 
       <OutOfCredits />

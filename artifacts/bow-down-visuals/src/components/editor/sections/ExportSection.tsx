@@ -4,6 +4,8 @@ import { getDefaultWatermarkUrl } from "@/lib/watermark";
 import { buildSchedulerHref } from "@/lib/scheduler-handoff";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair, CalendarClock, Rocket, Lock } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
+import { CreationFinale } from "@/components/player/CreationFinale";
+import { Link } from "wouter";
 import ChallengeEnterStrip from "@/components/challenges/ChallengeEnterStrip";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
 import { MultiRatioExportCard, ExtractAudioCard } from "@/components/editor/MultiRatioExport";
@@ -1207,6 +1209,29 @@ export function ExportSection({
         audioUrl={resolvedAudioUrl}
         getAccessToken={getAccessToken}
       />
+
+      {/* Rank 6a: the export is not the end — the Get Paid finale is.
+          The publish door is pre-wired with the finished video when
+          there is one, so the drop lands on the publish desk ready. */}
+      <CreationFinale
+        surface={{
+          id: "video-editor",
+          path: "/video-editor",
+          label: "Video Editor",
+          publishType: "video",
+        }}
+      />
+      {finalVideoUrl && (
+        <p className="text-xs text-white/45">
+          Finished video in hand?{" "}
+          <Link
+            href={`/publish?type=video&videoUrl=${encodeURIComponent(finalVideoUrl)}&from=${encodeURIComponent("/video-editor")}&fromLabel=${encodeURIComponent("Video Editor")}`}
+            className="font-bold text-[#e8c86a] hover:underline"
+          >
+            Publish this exact export →
+          </Link>
+        </p>
+      )}
 
     </div>
   );

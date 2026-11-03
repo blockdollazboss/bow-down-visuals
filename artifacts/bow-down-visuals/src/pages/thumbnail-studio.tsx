@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { lazy, Suspense, useState, useRef, useEffect } from "react";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -1987,6 +1988,9 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
           {tab === "editor" && <PhotoCanvasEditor />}
         </Suspense>
         {tab === "library" && <ThumbnailLibrary onGoGenerate={() => switchTab("generate")} />}
+
+        {/* Rank 6a: every creation ends in the Get Paid finale. */}
+        <CreationFinale surfaceId="thumbnail-studio" />
       </div>
     </div>
   );
