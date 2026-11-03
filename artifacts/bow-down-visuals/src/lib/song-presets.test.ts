@@ -1,0 +1,180 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import {
+  SONG_PRESETS,
+  SONG_PRESET_GROUPS,
+  SONG_PRESET_GENRES,
+  SONG_PRESET_MOODS,
+  SONG_PRESET_LENGTHS,
+  songPresetsByGroup,
+  songPresetPatch,
+  getSongPreset,
+  type SongPresetGroup,
+} from "./song-presets";
+
+const pageSrc = readFileSync(new URL("../pages/make-song.tsx", import.meta.url), "utf8");
+const registrySrc = readFileSync(new URL("./song-presets.ts", import.meta.url), "utf8");
+
+/* The real Advanced form fields (SongFormValues in make-song.tsx).
+   A preset patch key outside this set would be an invented field. */
+const REAL_FORM_FIELDS = [
+  "artistName",
+  "songTitle",
+  "genre",
+  "mood",
+  "songTopic",
+  "cleanOrExplicit",
+  "voiceStyle",
+  "beatStyle",
+  "songLength",
+  "specialInstructions",
+];
+
+function functionBody(src: string, name: string): string {
+  const start = src.indexOf(`function ${name}`);
+  expect(start, `${name} exists`).toBeGreaterThan(-1);
+  const rest = src.slice(start);
+  const next = rest.indexOf("\n  function ", 10);
+  const nextAsync = rest.indexOf("\n  async function ", 10);
+  const ends = [next, nextAsync].filter((n) => n > 0);
+  return rest.slice(0, ends.length ? Math.min(...ends) : rest.length);
+}
+
+describe("song preset registry — exists and is organised", () => {
+  it("carries 18 presets: 6 by genre, 6 by mood & vibe, 6 by structure", () => {
+    expect(SONG_PRESETS).toHaveLength(18);
+    expect(SONG_PRESET_GROUPS.map((g) => g.id)).toEqual(["genre", "mood", "structure"]);
+    for (const group of SONG_PRESET_GROUPS) {
+      expect(songPresetsByGroup(group.id as SongPresetGroup)).toHaveLength(6);
+    }
+  });
+
+  it("ids and labels are unique; every preset has an emoji and a Simple prompt", () => {
+    expect(new Set(SONG_PRESETS.map((p) => p.id)).size).toBe(SONG_PRESETS.length);
+    expect(new Set(SONG_PRESETS.map((p) => p.label)).size).toBe(SONG_PRESETS.length);
+    for (const preset of SONG_PRESETS) {
+      expect(preset.emoji.length).toBeGreaterThan(0);
+      expect(preset.simplePrompt.trim().length).toBeGreaterThan(10);
+      expect(getSongPreset(preset.id)).toBe(preset);
+    }
+    expect(getSongPreset("no-such-preset")).toBeUndefined();
+    expect(getSongPreset(null)).toBeUndefined();
+  });
+
+  it("keeps all six original hard-coded chips as registry presets", () => {
+    const prompts = SONG_PRESETS.map((p) => p.simplePrompt);
+    expect(prompts).toContain("catchy pop song with memorable chorus");
+    expect(prompts).toContain("hard-hitting hip hop track with confident flow");
+    expect(prompts).toContain("powerful rock anthem with epic guitars");
+    expect(prompts).toContain("high-energy dance track with infectious beat");
+    expect(prompts).toContain("emotional ballad with heartfelt lyrics");
+    expect(prompts).toContain("chill lo-fi track with mellow vibes");
+  });
+});
+
+describe("chips render FROM the registry — no hard-coded literals left in the component", () => {
+  it("make-song imports the registry and renders groups from it in both modes", () => {
+    expect(pageSrc).toContain('from "@/lib/song-presets"');
+    expect(pageSrc).toContain("songPresetsByGroup(group.id)");
+    expect(pageSrc).toContain("renderPresetGroups(applySimplePreset)");
+    expect(pageSrc).toContain("renderPresetGroups(applyFormPreset)");
+    expect(pageSrc).toContain('data-testid="song-presets-simple"');
+    expect(pageSrc).toContain('data-testid="song-presets-advanced"');
+  });
+
+  it("no preset prompt or label literal remains hard-coded in make-song.tsx", () => {
+    for (const preset of SONG_PRESETS) {
+      expect(pageSrc, `prompt leaked: ${preset.id}`).not.toContain(preset.simplePrompt);
+      /* The old chip array's shape — an inline { label: "… <label>" } —
+         must be gone. (Genre names like "Hip Hop" legitimately remain
+         as keys of the i18n label-key map for the canonical values.) */
+      expect(pageSrc, `chip literal leaked: ${preset.id}`).not.toContain(
+        `{ label: "${preset.emoji} ${preset.label}"`,
+      );
+    }
+    expect(pageSrc).not.toContain("Quick styles");
+    expect(pageSrc).not.toMatch(/\{\s*label:\s*"🎵/);
+  });
+});
+
+describe("every preset field maps to a real song-form field", () => {
+  it("patch keys are only real form fields, and select values are canonical", () => {
+    for (const preset of SONG_PRESETS) {
+      const patch = songPresetPatch(preset);
+      expect(Object.keys(patch).length).toBeGreaterThan(0);
+      for (const key of Object.keys(patch)) {
+        expect(REAL_FORM_FIELDS, `${preset.id}.${key}`).toContain(key);
+      }
+      if (patch.genre) expect(SONG_PRESET_GENRES).toContain(patch.genre);
+      if (patch.mood) expect(SONG_PRESET_MOODS).toContain(patch.mood);
+      if (patch.songLength) expect(SONG_PRESET_LENGTHS).toContain(patch.songLength);
+      /* The form has no tempo/BPM or structure field — a preset must
+         never claim one. Structure rides specialInstructions only. */
+      expect(patch).not.toHaveProperty("tempo");
+      expect(patch).not.toHaveProperty("bpm");
+      expect(patch).not.toHaveProperty("structure");
+    }
+  });
+
+  it("the form's select options derive from the same canonical lists (source)", () => {
+    expect(pageSrc).toContain("SONG_PRESET_GENRES.map");
+    expect(pageSrc).toContain("SONG_PRESET_MOODS.map");
+    expect(pageSrc).toContain("SONG_PRESET_LENGTHS.map");
+    /* …and the page registers exactly the real form fields the patches use. */
+    for (const field of ["genre", "mood", "songLength", "beatStyle", "specialInstructions"]) {
+      expect(pageSrc).toContain(field);
+    }
+  });
+
+  it("a preset sets exactly what its label says, group by group", () => {
+    for (const preset of songPresetsByGroup("genre")) {
+      expect(preset.form.genre, preset.id).toBeDefined();
+    }
+    for (const preset of songPresetsByGroup("mood")) {
+      /* Mood presets set the mood select — except Lo-Fi Chill, which the
+         registry documents as beat-style only (no Lo-Fi mood exists). */
+      if (preset.id === "lo-fi-chill") {
+        expect(preset.form.mood).toBeUndefined();
+        expect(preset.form.beatStyle).toContain("Lo-fi");
+      } else {
+        expect(preset.form.mood, preset.id).toBeDefined();
+      }
+    }
+    for (const preset of songPresetsByGroup("structure")) {
+      expect(preset.form.specialInstructions, preset.id).toContain("Structure:");
+    }
+    expect(songPresetPatch(getSongPreset("pop-hit")!)).toEqual({ genre: "Pop" });
+    expect(songPresetPatch(getSongPreset("sixty-second-hook")!)).toEqual({
+      songLength: "60 seconds",
+      specialInstructions:
+        "Structure: one tight hook built for a 60-second clip — hook in the first five seconds.",
+    });
+  });
+});
+
+describe("applying a preset prefills — it never submits and never charges", () => {
+  it("the registry itself contains no generation, fetch, or charging code", () => {
+    expect(registrySrc).not.toMatch(/callGenerateApi|generateSong|chargeCredits|confirmedFetch|fetch\(/);
+  });
+
+  it("the Simple apply path only fills the description box (source)", () => {
+    const body = functionBody(pageSrc, "applySimplePreset");
+    expect(body).toContain("setSimplePrompt(preset.simplePrompt)");
+    expect(body).not.toMatch(/generateSong|onSimpleSubmit|handleSubmit|callGenerateApi/);
+  });
+
+  it("the Advanced apply path only setValue()s the patch fields (source)", () => {
+    const body = functionBody(pageSrc, "applyFormPreset");
+    expect(body).toContain("songPresetPatch(preset)");
+    for (const field of ["genre", "mood", "songLength", "beatStyle", "specialInstructions"]) {
+      expect(body).toContain(`setValue("${field}"`);
+    }
+    expect(body).not.toMatch(/generateSong|onSubmit|handleSubmit|callGenerateApi/);
+  });
+
+  it("preset buttons are type=button inside the Advanced form, so a tap cannot submit it", () => {
+    const renderBody = functionBody(pageSrc, "renderPresetGroups");
+    expect(renderBody).toContain('type="button"');
+    expect(renderBody).toContain("onClick={() => onPick(preset)}");
+  });
+});
