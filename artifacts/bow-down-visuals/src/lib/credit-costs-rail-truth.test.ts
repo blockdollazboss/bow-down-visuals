@@ -48,6 +48,17 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(CREDIT_COSTS["/api/jewelry/export-stl"]?.cost).toBe(rail);
   });
 
+  // Price audit #1 (2026-11-02): the Gen4.5 Standard clip registry entry
+  // is the figure Scene Studio now quotes (display + spend-confirm
+  // override, pinned in components/scene-studio-price-wiring.test.ts).
+  // It must equal the rail's flat charge — the audit found the component
+  // quoting 5 against this 400 charge.
+  it("generate runway clip (Gen4.5): registry == GEN45_CREDIT_COST (400)", () => {
+    const rail = deriveServerConstant("routes/generate/clip-pricing.ts", "GEN45_CREDIT_COST");
+    expect(rail).toBe(400);
+    expect(CREDIT_COSTS["/api/generate-runway-clip"]?.cost).toBe(rail);
+  });
+
   it("auto grade: registry == PRO_TOOLS_AI_CREDITS (100)", () => {
     const rail = deriveServerConstant("routes/generate/pro-tools-ai.ts", "PRO_TOOLS_AI_CREDITS");
     expect(rail).toBe(100);
