@@ -531,7 +531,7 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     expect(jukeboxTrackIdOf(undefined)).toBeNull();
   });
 
-  it("all seven create stations are registry pattern 'create' and known to the dispatch", () => {
+  it("all eight create stations are registry pattern 'create' and known to the dispatch", () => {
     const createStations = PALACE_STATIONS.filter(
       (s) => s.panel.kind === "native" && s.panel.pattern === "create",
     );
@@ -539,6 +539,7 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
       "audio-desk",
       "cover-art-desk",
       "hook-desk",
+      "movies-desk",
       "song-desk",
       "song-video-desk",
       "thumbnail-desk",
