@@ -2518,6 +2518,10 @@ export default function VideoEditor() {
                           /api/style-subtitles, /api/translate-captions. ── */}
                       <AiCaptionSuite
                         getAccessToken={getAccessToken}
+                        captionSettings={settings.captions}
+                        onCaptionSettingsChange={(nextCaptions) => {
+                          setSettings((prev) => ({ ...prev, captions: nextCaptions }));
+                        }}
                         timelineVideos={scenes
                           .filter((s) => s.demoClipUrl?.startsWith("http"))
                           .map((s) => ({
