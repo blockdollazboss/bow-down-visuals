@@ -10,6 +10,7 @@ import {
   createGuardedStripeClient,
 } from "../lib/stripe-client";
 import { stripeTaxSessionFields, isStripeTaxEnabled } from "../lib/stripe-tax";
+import { canBuyCreditPack, CREDIT_PACK_SALES_PAUSED_MESSAGE } from "../lib/credits";
 
 const router = Router();
 
@@ -116,6 +117,17 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
   const packInfo = pack ? PACK_MAP[pack] : undefined;
   if (!packInfo) {
     res.status(400).json({ error: "Invalid pack size. Must be 10, 50, 150, or 500." });
+    return;
+  }
+
+  /* Lockdown buy gate (ruling H-4): this endpoint's ONLY product is a
+     credit pack (the pack branch above is the whole session), so the
+     gate sits inside it — while the credit lockdown is on, a member
+     who could not spend must not buy either. Creation only, before
+     any Stripe object exists; /checkout/verify below stays ungated
+     so an already-created session still delivers what was paid for. */
+  if (!(await canBuyCreditPack(req.userId!))) {
+    res.status(403).json({ error: CREDIT_PACK_SALES_PAUSED_MESSAGE });
     return;
   }
 
