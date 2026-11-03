@@ -7,6 +7,13 @@
        transitions, color grades) — everything else stays one click away
        via "Show all"
      - the default caption style + AI-edit style
+     - the EXECUTION spec Turbo runs when the template is picked
+       (captionAnimation, transitionDurationSec, overlaySequence):
+       picking a template no longer just sets two defaults — it builds
+       the timeline (see lib/template-execution.ts): clips sequenced in
+       scene order with the template's transitions, its effects, its
+       caption style + animation, and its title/hook overlay steps
+       placed. Advanced/manual control stays available afterwards.
    Templates are starting points, never locks: every setting stays fully
    customizable after picking one.
 ------------------------------------------------------------------------ */
@@ -15,7 +22,31 @@ import type {
   VideoFormat,
   CaptionStylePreset,
   AiEditStylePreset,
+  CaptionAnimation,
+  OverlayItem,
+  OverlayPosition,
 } from "./editor-settings";
+
+/**
+ * One overlay step in a template's execution sequence. Steps run in
+ * array order. Content is resolved at execution time from the project
+ * (title = the project's song/video title, hook = the project's hook
+ * text or first lyric line); a step whose content the project does not
+ * have is skipped and reported, never filled with invented text.
+ *  - "title" → a timed text OverlayItem on the timeline.
+ *  - "hook"  → the editor's hook caption (captions.hookText + the
+ *              0–3s opening line, via withOpeningHook).
+ */
+export interface TemplateOverlayStep {
+  role: "title" | "hook";
+  position: OverlayPosition;
+  /** Seconds from the start of the timeline. */
+  startSec: number;
+  /** Seconds the step stays on screen. */
+  durationSec: number;
+  /** Overlay entrance animation (title steps). */
+  animation?: OverlayItem["animation"];
+}
 
 export type VideoTemplateId =
   | "music-video"
@@ -48,6 +79,12 @@ interface VideoTemplate {
   transitions: string[];
   colorGrades: string[];
   aiEditStyle: AiEditStylePreset;
+  /** Caption entrance animation Turbo applies with the caption preset. */
+  captionAnimation: CaptionAnimation;
+  /** Seconds per transition when Turbo sequences the clips. */
+  transitionDurationSec: number;
+  /** Title/hook overlay steps Turbo places, in order. */
+  overlaySequence: TemplateOverlayStep[];
 }
 
 export const VIDEO_TEMPLATES: VideoTemplate[] = [
@@ -66,6 +103,12 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Crossfade", "Flash", "Zoom", "Whip Pan", "Light Leak"],
     colorGrades: ["Cinematic Contrast", "Warm Grade", "Luxury Gold", "Dark Drill", "Teal & Orange"],
     aiEditStyle: "clean-music-video",
+    captionAnimation: "word-pop",
+    transitionDurationSec: 0.5,
+    overlaySequence: [
+      { role: "title", position: "top-center", startSec: 0, durationSec: 3, animation: "fade-in-out" },
+      { role: "hook", position: "bottom-center", startSec: 0, durationSec: 3 },
+    ],
   },
   {
     id: "promo-ad",
@@ -82,6 +125,12 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Flash", "Zoom", "Whip Pan", "Glitch", "Spin"],
     colorGrades: ["Vibrant Pop", "Luxury Gold", "Teal & Orange"],
     aiEditStyle: "high-energy-promo",
+    captionAnimation: "pop",
+    transitionDurationSec: 0.4,
+    overlaySequence: [
+      { role: "title", position: "top-center", startSec: 0, durationSec: 2.5, animation: "fade-in-out" },
+      { role: "hook", position: "bottom-center", startSec: 0, durationSec: 3 },
+    ],
   },
   {
     id: "lyric-video",
@@ -98,6 +147,11 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Crossfade", "Fade to Black", "Blur Dissolve"],
     colorGrades: ["Moody Desaturated", "Cinematic Contrast", "Cool Grade"],
     aiEditStyle: "cinematic-story",
+    captionAnimation: "word-pop",
+    transitionDurationSec: 0.5,
+    overlaySequence: [
+      { role: "title", position: "top-center", startSec: 0, durationSec: 3, animation: "fade-in-out" },
+    ],
   },
   {
     id: "vlog",
@@ -114,6 +168,11 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Cut", "Crossfade", "Fade to Black"],
     colorGrades: ["Warm Grade", "Vibrant Pop"],
     aiEditStyle: "clean-music-video",
+    captionAnimation: "fade",
+    transitionDurationSec: 0.5,
+    overlaySequence: [
+      { role: "title", position: "bottom-left", startSec: 0, durationSec: 3, animation: "fade-in-out" },
+    ],
   },
   {
     id: "social-short",
@@ -130,6 +189,12 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Whip Pan", "Zoom", "Flash", "Glitch", "Cut"],
     colorGrades: ["Vibrant Pop", "Street Night", "Teal & Orange"],
     aiEditStyle: "viral-tiktok",
+    captionAnimation: "word-pop",
+    transitionDurationSec: 0.35,
+    overlaySequence: [
+      { role: "hook", position: "bottom-center", startSec: 0, durationSec: 3 },
+      { role: "title", position: "center", startSec: 0, durationSec: 2, animation: "fade-in-out" },
+    ],
   },
   {
     id: "slideshow",
@@ -146,6 +211,11 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Crossfade", "Slide", "Fade to Black", "Blur Dissolve", "Light Leak"],
     colorGrades: ["Warm Grade", "Cinematic Contrast"],
     aiEditStyle: "cinematic-story",
+    captionAnimation: "fade",
+    transitionDurationSec: 0.8,
+    overlaySequence: [
+      { role: "title", position: "center", startSec: 0, durationSec: 3, animation: "fade-in-out" },
+    ],
   },
   {
     id: "intro-outro",
@@ -162,6 +232,11 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: ["Fade to Black", "Flash", "Zoom", "Light Leak"],
     colorGrades: ["Luxury Gold", "Cinematic Contrast", "Dark Drill"],
     aiEditStyle: "gold-luxury-brand",
+    captionAnimation: "pop",
+    transitionDurationSec: 0.5,
+    overlaySequence: [
+      { role: "title", position: "center", startSec: 0, durationSec: 3, animation: "fade-in-out" },
+    ],
   },
   {
     id: "blank-canvas",
@@ -178,6 +253,9 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     transitions: [],
     colorGrades: [],
     aiEditStyle: "clean-music-video",
+    captionAnimation: "none",
+    transitionDurationSec: 0.5,
+    overlaySequence: [],
   },
 ];
 
