@@ -14,6 +14,7 @@ import {
 import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   BOOKS_PATH,
+  BOOK_AI_ASSIST_PATH,
   BOOK_AI_ASSIST_COST_VB,
   BOOK_AI_ASSIST_FEATURE,
   BOOK_COVER_COST_VB,

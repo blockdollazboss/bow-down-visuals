@@ -195,7 +195,8 @@ export interface BookDetail {
 
 export function normalizeBookDetail(payload: unknown): BookDetail | null {
   const root = asRecord(payload);
-  const bookRaw = root ? asRecord(root["book"]) : null;
+  if (!root) return null;
+  const bookRaw = asRecord(root["book"]);
   if (!bookRaw) return null;
   const book = normalizeBookRow(bookRaw);
   if (!book) return null;
