@@ -192,6 +192,7 @@ const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").the
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
 const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then((m) => ({ default: m.BriefDesk })));
 const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
+const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1187,6 +1188,13 @@ export default function StationPanel(props: StationPanelProps) {
                     like the locked /academy route on the website. */}
                 <DeskDoor isLight={isLight}>
                   <AcademyDesk isLight={isLight} />
+                </DeskDoor>
+                {/* DJ Set Prep (stack1500 parity wave #3): tempo +
+                    key analysis, crates, the harmonic order
+                    proposal and Rekordbox/M3U export on the free
+                    /api/dj rails, stacked at the My Studio board. */}
+                <DeskDoor isLight={isLight}>
+                  <DjDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
