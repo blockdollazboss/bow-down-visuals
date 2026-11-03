@@ -14,6 +14,16 @@ import { TARGET_LANGUAGES } from "@/lib/video-translator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls";
+import type { CaptionSettings } from "@/lib/editor-settings";
+import {
+  suiteBurnStyleFromSettings,
+  settingsWithSuiteBurnStyle,
+  captionVttStyleBlock,
+  captionVttCueSettings,
+  type SuiteBurnMode,
+  type SuitePosition,
+  type SuiteFontSize,
+} from "@/lib/caption-style-once";
 
 /* ─── AI Caption Suite — the single user-facing concept for captions ───
  * Orchestrates the four caption backend routes as one guided flow:
@@ -37,6 +47,14 @@ interface Props {
   timelineVideos: CaptionSuiteVideo[];
   /** Push caption lines into the editor timeline's caption track. */
   onPushToTimeline?: (lines: { startSec: number; endSec: number; text: string }[]) => void;
+  /** THE one project caption style (settings.captions) — styled once.
+   *  When provided, the Suite's burn controls START from this style and
+   *  every pick writes back into it, so the preview layer, the saved
+   *  project/file and the burned export all inherit the same choice
+   *  (lib/caption-style-once). Absent = standalone local behavior. */
+  captionSettings?: CaptionSettings;
+  /** Write a burn-style pick back into the project caption style. */
+  onCaptionSettingsChange?: (next: CaptionSettings) => void;
 }
 
 interface WordTiming {
@@ -115,11 +133,19 @@ function buildSrt(lines: SuiteLine[]) {
       .join("\n") + "\n"
   );
 }
-function buildVtt(lines: SuiteLine[]) {
+function buildVtt(lines: SuiteLine[], captions?: CaptionSettings) {
+  /* Styled once: when the project caption style is known, the saved .vtt
+     carries it — a STYLE block + per-cue placement — instead of dropping
+     the style the user already chose (audit §4.4 #10). SRT has no
+     standard styling and stays plain timed text. */
+  const style = captions ? `\nSTYLE\n${captionVttStyleBlock(captions)}\n` : "";
+  const cue = captions ? ` ${captionVttCueSettings(captions)}` : "";
   return (
-    "WEBVTT\n\n" +
+    "WEBVTT\n" +
+    style +
+    "\n" +
     lines
-      .map((l) => `${secToVtt(l.start)} --> ${secToVtt(l.end)}\n${l.text.trim() || "(empty)"}\n`)
+      .map((l) => `${secToVtt(l.start)} --> ${secToVtt(l.end)}${cue}\n${l.text.trim() || "(empty)"}\n`)
       .join("\n") +
     "\n"
   );
@@ -158,7 +184,7 @@ const GEN_TIPS = [
   "Aligning word-level timings for the karaoke effect…",
   "Burning the preview captions into the video…",
 ];
-export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimeline }: Props) {
+export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimeline, captionSettings, onCaptionSettingsChange }: Props) {
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   /* Caption uploads ride the disk-backed rails (/api/upload-clip into
@@ -181,9 +207,51 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
   const [pushed, setPushed] = useState(false);
 
   const [burnMode, setBurnMode] = useState<BurnMode>("wordsync");
-  const [styleKey, setStyleKey] = useState<string>("hormozi");
-  const [position, setPosition] = useState<"top" | "middle" | "bottom">("bottom");
-  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium");
+  /* Styled ONCE: the burn controls start from the project's one caption
+     style (settings.captions) instead of a fresh local default the user
+     must re-pick (audit §4.4 #10). Standalone (no project style wired)
+     keeps the historical local defaults. */
+  const [styleKey, setStyleKey] = useState<string>(() =>
+    captionSettings ? suiteBurnStyleFromSettings(captionSettings, "wordsync").styleKey : "hormozi",
+  );
+  const [position, setPosition] = useState<"top" | "middle" | "bottom">(() =>
+    captionSettings ? suiteBurnStyleFromSettings(captionSettings, "wordsync").position : "bottom",
+  );
+  const [fontSize, setFontSize] = useState<"small" | "medium" | "large">(() =>
+    captionSettings ? suiteBurnStyleFromSettings(captionSettings, "wordsync").fontSize : "medium",
+  );
+
+  /* Write a burn pick back into the ONE project caption style so the
+     preview layer, the saved project/file and the main export inherit
+     it — the Suite never keeps a private style again. */
+  function writeBackStyle(pick: { styleKey?: string; position?: SuitePosition; fontSize?: SuiteFontSize }, mode: SuiteBurnMode = burnMode) {
+    if (!captionSettings || !onCaptionSettingsChange) return;
+    onCaptionSettingsChange(settingsWithSuiteBurnStyle(captionSettings, mode, pick));
+  }
+  function pickStyle(key: string) {
+    setStyleKey(key);
+    writeBackStyle({ styleKey: key });
+  }
+  function pickPosition(v: "top" | "middle" | "bottom") {
+    setPosition(v);
+    writeBackStyle({ position: v });
+  }
+  function pickFontSize(v: "small" | "medium" | "large") {
+    setFontSize(v);
+    writeBackStyle({ fontSize: v });
+  }
+
+  /* Keep the burn controls in step when the project style is changed
+     elsewhere in the editor (CaptionsSection, templates, AI edit) —
+     one style, every surface follows. */
+  useEffect(() => {
+    if (!captionSettings) return;
+    const derived = suiteBurnStyleFromSettings(captionSettings, burnMode);
+    setStyleKey((cur) => (cur === derived.styleKey ? cur : derived.styleKey));
+    setPosition((cur) => (cur === derived.position ? cur : derived.position));
+    setFontSize((cur) => (cur === derived.fontSize ? cur : derived.fontSize));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [captionSettings, burnMode]);
   const [withEmoji, setWithEmoji] = useState(false);
   const [burnStatus, setBurnStatus] = useState<BurnStatus>("idle");
   const [burnJobStatus, setBurnJobStatus] = useState<string | null>(null);
@@ -420,6 +488,10 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
       setBurnStatus("working");
       setBurnJobStatus(null);
       setBurnResultUrl(null);
+      /* The style about to burn becomes the project's one caption style
+         (idempotent when the pick already came from there) — a burn can
+         never silently diverge from what preview/save/main-export use. */
+      writeBackStyle({ styleKey, position, fontSize });
 
       if (burnMode === "wordsync") {
         /* Canonical AI path: POST /api/caption-styler (300). The server
@@ -580,7 +652,13 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
   const styleCatalog = burnMode === "wordsync" ? WORDSYNC_STYLES : TRANSCRIPT_STYLES;
   useEffect(() => {
     if (!styleCatalog.some((s) => s.key === styleKey)) {
-      setStyleKey(styleCatalog[0]?.key ?? "hormozi");
+      /* Switching burn mode re-derives the style from the ONE project
+         caption style — never a fresh re-ask at the catalogue default. */
+      setStyleKey(
+        captionSettings
+          ? suiteBurnStyleFromSettings(captionSettings, burnMode).styleKey
+          : styleCatalog[0]?.key ?? "hormozi",
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [burnMode]);
@@ -882,7 +960,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                     <button
                       key={s.key}
                       type="button"
-                      onClick={() => setStyleKey(s.key)}
+                      onClick={() => pickStyle(s.key)}
                       data-testid={`caption-suite-style-${s.key}`}
                       title={s.blurb}
                       className={`rounded-xl border p-3 text-left transition-colors ${
@@ -901,7 +979,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   <Field label={t("captionSuite.positionLabel")}>
                     <Segmented
                       value={position}
-                      onChange={(v: string) => setPosition(v as "bottom" | "middle" | "top")}
+                      onChange={(v: string) => pickPosition(v as "bottom" | "middle" | "top")}
                       options={[
                         { value: "top", label: t("captionSuite.posTop") },
                         { value: "middle", label: t("captionSuite.posMiddle") },
@@ -912,7 +990,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                   <Field label={t("captionSuite.sizeLabel")}>
                     <Segmented
                       value={fontSize}
-                      onChange={(v: string) => setFontSize(v as "large" | "medium" | "small")}
+                      onChange={(v: string) => pickFontSize(v as "large" | "medium" | "small")}
                       options={[
                         { value: "small", label: t("captionSuite.sizeSmall") },
                         { value: "medium", label: t("captionSuite.sizeMedium") },
@@ -1023,7 +1101,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                     <Button type="button" variant="outline" size="sm" onClick={() => downloadTextFile("captions.srt", buildSrt(lines), "text/plain")}>
                       <Download className="h-3.5 w-3.5 mr-1.5" />SRT
                     </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => downloadTextFile("captions.vtt", buildVtt(lines), "text/vtt")}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => downloadTextFile("captions.vtt", buildVtt(lines, captionSettings), "text/vtt")}>
                       <Download className="h-3.5 w-3.5 mr-1.5" />VTT
                     </Button>
                     <Button type="button" onClick={() => setStep(3)} className="bg-[#E8C468] text-black font-black hover:bg-[#f0d47e]" size="sm">
@@ -1162,7 +1240,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
                       </Button>
                       <Button
                         type="button" variant="outline" size="sm"
-                        onClick={() => downloadTextFile(`captions-${activeLang}.vtt`, buildVtt(activeTranslated), "text/vtt")}
+                        onClick={() => downloadTextFile(`captions-${activeLang}.vtt`, buildVtt(activeTranslated, captionSettings), "text/vtt")}
                       >
                         <Download className="h-3.5 w-3.5 mr-1.5" />VTT
                       </Button>
