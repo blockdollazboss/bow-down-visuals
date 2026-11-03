@@ -795,6 +795,74 @@ describe("resend webhook verification", () => {
   });
 });
 
+/* ── Bounce suppression (stack1400 ruling #13 / Y6) ──────────────── */
+
+describe("resend webhook bounce suppression", () => {
+  /* Fire one verified email.bounced event for a fresh subscriber's
+     delivery; bounce === undefined sends the minimal payload shape
+     every payload in this repo has always carried (no classification). */
+  async function fireBounce(bounce?: Record<string, unknown>) {
+    const sub = await addSubscriber("a@x.com");
+    const campaign = await sendCampaign();
+    const delivery = await deliveryFor(campaign.id);
+    const data: Record<string, unknown> = { email_id: delivery.providerMessageId };
+    if (bounce !== undefined) data["bounce"] = bounce;
+    const body = JSON.stringify({ type: "email.bounced", data });
+    const r = await api(`/api/resend-webhook`, { method: "POST", headers: signWebhook(body), body });
+    expect(r.status).toBe(200);
+    const subs = await db.select().from(emailSubscribersTable);
+    const afterSub = subs.find((s: any) => s.id === sub.id);
+    const deliveries = await db.select().from(emailCampaignDeliveriesTable);
+    const afterDelivery = deliveries.find((d: any) => d.id === delivery.id);
+    return { afterSub, afterDelivery };
+  }
+
+  it("a HARD (Permanent) bounce suppresses the subscriber, delivery marked bounced, engagement kept", async () => {
+    const { afterSub, afterDelivery } = await fireBounce({
+      type: "Permanent",
+      subType: "NoEmail",
+      message: "smtp; 550 5.1.1 Address does not exist",
+    });
+    expect(afterDelivery.status).toBe("bounced");
+    expect(afterSub.unsubscribedAt).not.toBeNull();
+    expect(await eventCount()).toBe(1);
+  });
+
+  it("a Temporary bounce does NOT suppress — delivery still marked bounced, engagement kept", async () => {
+    const { afterSub, afterDelivery } = await fireBounce({
+      type: "Temporary",
+      subType: "MailboxFull",
+      message: "smtp; 452 4.2.2 Mailbox full",
+    });
+    expect(afterDelivery.status).toBe("bounced");
+    expect(afterSub.unsubscribedAt ?? null).toBeNull(); /* fake-db rows leave untouched columns undefined */
+    expect(await eventCount()).toBe(1);
+  });
+
+  it("a Transient bounce does NOT suppress (alias, any case)", async () => {
+    const { afterSub, afterDelivery } = await fireBounce({ type: "transient" });
+    expect(afterDelivery.status).toBe("bounced");
+    expect(afterSub.unsubscribedAt ?? null).toBeNull(); /* fake-db rows leave untouched columns undefined */
+    expect(await eventCount()).toBe(1);
+  });
+
+  it("an unclassified bounce (no bounce object) suppresses — email.bounced is Resend's permanent-rejection event", async () => {
+    const { afterSub, afterDelivery } = await fireBounce(undefined);
+    expect(afterDelivery.status).toBe("bounced");
+    expect(afterSub.unsubscribedAt).not.toBeNull();
+    expect(await eventCount()).toBe(1);
+  });
+
+  it("suppression from a hard bounce is absolute: the address receives no later campaign", async () => {
+    await fireBounce({ type: "Permanent", subType: "General", message: "smtp; 550 5.5.0 mailbox unavailable" });
+    await addSubscriber("b@x.com");
+    await sendCampaign();
+    /* a@x.com's only send is the first campaign (before the bounce);
+       the second campaign reaches b@x.com alone. */
+    expect(mail.sends.map((s) => s.to)).toEqual(["a@x.com", "b@x.com"]);
+  });
+});
+
 /* ── Dispatch + absolute suppression ─────────────────────────────── */
 
 describe("campaign dispatch", () => {

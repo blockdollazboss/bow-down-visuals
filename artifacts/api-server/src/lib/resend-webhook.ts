@@ -12,10 +12,26 @@
  * Events handled: email.opened / email.clicked feed the engagement
  * recorder (first-signal-wins against the house pixel/redirect, so
  * an open is counted once whichever path reports it); email.bounced
- * marks the delivery; email.complained marks the delivery and
- * suppresses the subscriber (unsubscribed_at set — a complaint is an
- * unsubscribe with legal weight). Everything else is acknowledged and
- * ignored so Resend doesn't retry noise forever.
+ * marks the delivery and — when the bounce is HARD — suppresses the
+ * subscriber exactly like a complaint (ruling stack1400 #13/Y6);
+ * email.complained marks the delivery and suppresses the subscriber
+ * (unsubscribed_at set — a complaint is an unsubscribe with legal
+ * weight). Everything else is acknowledged and ignored so Resend
+ * doesn't retry noise forever.
+ *
+ * Hard vs soft classification (data.bounce.type): Resend's bounce
+ * object carries `type` ("Permanent" / "Temporary"), `subType` and
+ * `message`. A bounce is HARD when its type is "Permanent" (or the
+ * alias "hard"); it is SOFT when its type is explicitly temporary —
+ * "Temporary", "Transient" or "soft", matched case-insensitively —
+ * and a soft bounce NEVER suppresses (the mailbox may recover).
+ * A payload carrying NO classification at all (no bounce object, or
+ * no type — the only shape any payload in this repo's tests has ever
+ * carried) is treated as HARD: Resend fires email.bounced for a
+ * permanent rejection, while transient delivery trouble is reported
+ * on the separate email.delivery_delayed event and soft bounces
+ * always carry the explicit Temporary type — so the absence of a
+ * soft classification is not a soft signal.
  */
 import { createHmac, timingSafeEqual } from "crypto";
 import type { Request, Response } from "express";
@@ -77,8 +93,27 @@ interface ResendEvent {
     to?: string[] | string;
     tags?: Record<string, string>;
     click?: { link?: string };
+    /* Resend's bounce object on email.bounced events. */
+    bounce?: {
+      type?: string;
+      subType?: string;
+      message?: string;
+      [key: string]: unknown;
+    };
     [key: string]: unknown;
   };
+}
+
+/* The bounce types Resend uses for a TEMPORARY (soft) failure — the
+   only classifications that must NOT suppress. Everything else on an
+   email.bounced event is hard (see the file header for why an
+   unclassified bounce counts as hard). */
+const SOFT_BOUNCE_TYPES = new Set(["temporary", "transient", "soft"]);
+
+function isHardBounce(event: ResendEvent): boolean {
+  const raw = event.data?.bounce?.type;
+  const bounceType = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return !SOFT_BOUNCE_TYPES.has(bounceType);
 }
 
 async function findDelivery(event: ResendEvent) {
@@ -194,6 +229,15 @@ export async function resendWebhookHandler(req: Request, res: Response): Promise
         .update(emailCampaignDeliveriesTable)
         .set({ status: "bounced" })
         .where(eq(emailCampaignDeliveriesTable.id, delivery.id));
+      if (isHardBounce(event)) {
+        /* A hard bounce suppresses the address, same as a complaint:
+           the mailbox is gone, so every future send is waste and
+           deliverability harm. A soft bounce does not reach here. */
+        await db
+          .update(emailSubscribersTable)
+          .set({ unsubscribedAt: new Date() })
+          .where(and(eq(emailSubscribersTable.id, delivery.subscriberId), isNull(emailSubscribersTable.unsubscribedAt)));
+      }
     } else if (type === "email.complained") {
       await recordEngagement({
         deliveryId: delivery.id,
