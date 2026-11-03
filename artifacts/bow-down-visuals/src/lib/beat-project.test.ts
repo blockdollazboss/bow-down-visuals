@@ -12,11 +12,13 @@ import {
   arrangementTotalBars,
   arrangementTotalSteps,
   bassStepGain,
+  bassStepGainWithFeel,
   bassStepVelocity,
   clonePatternVariation,
   defaultBeatProject,
   deserializeBeatProject,
   drumStepGain,
+  drumStepGainWithFeel,
   emptyBeatPattern,
   expandArrangement,
   isEmptyBeatPattern,
@@ -629,5 +631,59 @@ describe("beat join composition — one project shape", () => {
     const back = deserializeBeatProject(serializeBeatProject(p));
     expect(back.mixerFx.tracks["kick"]!.pan).toBe(-0.5);
     expect(back.mixerFx.master.volume).toBe(0.7);
+  });
+});
+
+describe("feel slice (stack1500)", () => {
+  it("a fresh project carries feel OFF with the default seed", async () => {
+    const { BEAT_FEEL_DEFAULT_SEED } = await import("@/lib/beat-feel");
+    const p = defaultBeatProject();
+    expect(p.feel).toEqual({ timing: 0, velocity: 0, seed: BEAT_FEEL_DEFAULT_SEED });
+  });
+
+  it("feel round-trips through serialize/deserialize", () => {
+    const p = defaultBeatProject();
+    p.feel = { timing: 0.4, velocity: 0.65, seed: 123456789 };
+    const back = deserializeBeatProject(serializeBeatProject(p));
+    expect(back.feel).toEqual({ timing: 0.4, velocity: 0.65, seed: 123456789 });
+  });
+
+  it("a legacy project JSON (no feel field) loads with feel OFF — unchanged sound", async () => {
+    const { BEAT_FEEL_DEFAULT_SEED } = await import("@/lib/beat-feel");
+    const legacy = JSON.parse(serializeBeatProject(defaultBeatProject())) as Record<string, unknown>;
+    delete legacy.feel;
+    const p = normalizeBeatProject(legacy)!;
+    expect(p.feel).toEqual({ timing: 0, velocity: 0, seed: BEAT_FEEL_DEFAULT_SEED });
+  });
+
+  it("garbled feel values clamp instead of throwing", async () => {
+    const { BEAT_FEEL_DEFAULT_SEED } = await import("@/lib/beat-feel");
+    const p = normalizeBeatProject({ feel: { timing: 5, velocity: -2, seed: "nope" } })!;
+    expect(p.feel).toEqual({ timing: 1, velocity: 0, seed: BEAT_FEEL_DEFAULT_SEED });
+    const q = normalizeBeatProject({ feel: "junk" })!;
+    expect(q.feel).toEqual({ timing: 0, velocity: 0, seed: BEAT_FEEL_DEFAULT_SEED });
+  });
+
+  it("feel-composed gains equal the plain gains at velocity 0, and scale by the factor when on", async () => {
+    const { humanizeVelocityFactor } = await import("@/lib/beat-feel");
+    const p = projectWithTrapA();
+    const off = { timing: 0, velocity: 0, seed: 777 };
+    const on = { timing: 0, velocity: 0.8, seed: 777 };
+    for (let ti = 0; ti < BEAT_TRACK_COUNT; ti++) {
+      for (let s = 0; s < BEAT_STEPS; s++) {
+        expect(drumStepGainWithFeel(p.patterns.A, off, "A", ti, s)).toBe(drumStepGain(p.patterns.A, ti, s));
+        const plain = drumStepGain(p.patterns.A, ti, s);
+        const felt = drumStepGainWithFeel(p.patterns.A, on, "A", ti, s);
+        if (plain === 0) expect(felt).toBe(0); // silence is never resurrected
+        else expect(felt).toBeCloseTo(plain * humanizeVelocityFactor(on, "A", "drum", `${ti}:${s}`), 12);
+      }
+    }
+    for (let s = 0; s < BEAT_STEPS; s++) {
+      expect(bassStepGainWithFeel(p.patterns.A, off, "A", s)).toBe(bassStepGain(p.patterns.A, s));
+      const plain = bassStepGain(p.patterns.A, s);
+      const felt = bassStepGainWithFeel(p.patterns.A, on, "A", s);
+      if (plain === 0) expect(felt).toBe(0);
+      else expect(felt).toBeCloseTo(plain * humanizeVelocityFactor(on, "A", "bass", s), 12);
+    }
   });
 });

@@ -29,6 +29,12 @@ import {
   type BeatMelodyLanes,
   type BeatMelodyNote,
 } from "@/lib/beat-melody";
+import {
+  BEAT_QUANTIZE_GRIDS,
+  BEAT_QUANTIZE_STRENGTHS,
+  quantizeBeatNotes,
+  type BeatQuantizeGridId,
+} from "@/lib/beat-feel";
 
 const ROW_H = 14;
 const STEP_W = 36;
@@ -52,6 +58,11 @@ export function BeatMelodyRoll({ melody, onChange, currentStep, playing }: BeatM
   const [voice, setVoice] = useState<BeatMelodicVoiceId>("keys");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [announce, setAnnounce] = useState("");
+  /* Quantize (stack1500): grid + pull strength for the Apply action
+   * below — an ordinary edit through onChange, so the page's save
+   * flow persists it like any note move (lib/beat-feel). */
+  const [qGrid, setQGrid] = useState<BeatQuantizeGridId>("16");
+  const [qStrength, setQStrength] = useState<number>(1);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     id: string;
@@ -97,6 +108,25 @@ export function BeatMelodyRoll({ melody, onChange, currentStep, playing }: BeatM
   function deleteNote(id: string) {
     setLane(removeBeatNote(notes, id));
     if (selectedId === id) setSelectedId(null);
+  }
+
+  /* Quantize applies to the selected note when one is selected, else
+   * to every note in the current voice — the scope line under the
+   * controls says which, before the click. Starts only. */
+  function applyQuantize() {
+    const grid = BEAT_QUANTIZE_GRIDS.find((g) => g.id === qGrid) ?? BEAT_QUANTIZE_GRIDS[0]!;
+    setLane(
+      quantizeBeatNotes(notes, {
+        gridSteps: grid.steps,
+        strength: qStrength,
+        onlyIds: selected ? [selected.id] : null,
+      }),
+    );
+    setAnnounce(
+      selected
+        ? `Quantized the selected note toward the ${grid.label} grid`
+        : `Quantized the ${voice} notes toward the ${grid.label} grid`,
+    );
   }
 
   function handleGridPointerDown(e: React.PointerEvent) {
@@ -300,6 +330,60 @@ export function BeatMelodyRoll({ melody, onChange, currentStep, playing }: BeatM
             );
           })}
         </div>
+      </div>
+
+      {/* Quantize row (stack1500): pick a grid + how hard to pull, then
+          Apply. Melody notes are the sequencer's only sub-step events,
+          so this is where quantize lives; it moves note starts only. */}
+      <div className="flex flex-wrap items-center gap-2" data-testid="beat-melody-quantize">
+        <span className={`text-[11px] font-bold uppercase tracking-wider ${labelCls}`}>Quantize</span>
+        <div className="flex items-center gap-1.5">
+          {BEAT_QUANTIZE_GRIDS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setQGrid(g.id)}
+              aria-pressed={qGrid === g.id}
+              data-testid={`beat-quantize-grid-${g.id}`}
+              className={`px-2.5 py-1 rounded-full text-[11px] border font-bold transition-colors ${
+                qGrid === g.id ? "bg-primary text-black border-transparent" : tabOff
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {BEAT_QUANTIZE_STRENGTHS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setQStrength(s)}
+              aria-pressed={qStrength === s}
+              data-testid={`beat-quantize-strength-${Math.round(s * 100)}`}
+              className={`px-2.5 py-1 rounded-full text-[11px] border font-bold transition-colors ${
+                qStrength === s ? "bg-primary text-black border-transparent" : tabOff
+              }`}
+            >
+              {Math.round(s * 100)}%
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={applyQuantize}
+          disabled={notes.length === 0}
+          data-testid="btn-beat-quantize-apply"
+          className="px-3 py-1.5 rounded-full text-xs border font-bold transition-colors bg-primary text-black border-transparent disabled:opacity-40"
+          title="Pull note starts toward the grid — lengths stay as written"
+        >
+          Apply
+        </button>
+        <span className={`text-[10px] ${dimCls}`}>
+          {selected
+            ? "Applies to the selected note · starts only"
+            : `Applies to all ${voice} notes · starts only`}
+        </span>
       </div>
 
       <div aria-live="polite" className="sr-only">{announce}</div>

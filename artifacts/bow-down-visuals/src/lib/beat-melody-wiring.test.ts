@@ -28,7 +28,12 @@ describe("beat melodic roll wiring (W1-L2)", () => {
     /* Composed call sites: live reads the playing pattern's lanes at the
      * bar-relative step; the render walks each play's lanes per bar. */
     expect(aiAudio).toContain("notesStartingAtStep(pat.melody[v.id], s % BEAT_STEPS, bpmRef.current)");
-    expect(aiAudio).toContain("beatLaneToMidi(pat.melody[v.id], bpmRef.current, sw)");
+    /* stack1500: BOTH paths convert through the one feel-aware
+     * converter (humanizedBeatNoteMidi, lib/beat-feel) — at feel 0 it
+     * is exactly beatLaneToMidi's output, so this stays the single
+     * conversion truth the render/playback agreement rests on. */
+    expect(aiAudio).toContain("humanizedBeatNoteMidi(note, bpmRef.current, swingRef.current, feelRef.current, patId, v.id)");
+    expect(aiAudio).toContain("humanizedBeatNoteMidi(note, bpmRef.current, sw, feelRef.current, pid, v.id)");
     // both call sites schedule via the one exported voice scheduler
     expect(aiAudio.match(/scheduleMidiVoice\(/g)?.length).toBeGreaterThanOrEqual(2);
     expect(midiSynth).toContain("export function scheduleMidiVoice(");

@@ -13,14 +13,13 @@ import {
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano, Metronome,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers,
+  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers, Dices,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BeatMelodyRoll } from "@/components/beat-studio/BeatMelodyRoll";
 import {
   BEAT_MELODIC_VOICES,
-  beatLaneToMidi,
   cloneBeatMelody,
   emptyBeatMelody,
   notesStartingAtStep,
@@ -41,10 +40,10 @@ import {
   arrangementDurationSec,
   arrangementTotalBars,
   arrangementTotalSteps,
-  bassStepGain,
+  bassStepGainWithFeel,
   cloneBeatPattern,
   clonePatternVariation,
-  drumStepGain,
+  drumStepGainWithFeel,
   emptyBeatPattern,
   fetchServerBeatProject,
   isSongModeActive,
@@ -74,6 +73,13 @@ import {
   type BeatProject,
   type BeatTransportMode,
 } from "@/lib/beat-project";
+import {
+  defaultBeatFeel,
+  humanizeStepOffsetSec,
+  humanizedBeatNoteMidi,
+  rerollBeatFeelSeed,
+  type BeatFeelState,
+} from "@/lib/beat-feel";
 import {
   BUILTIN_BEAT_SOUNDS,
   decodeAndRegisterUpload,
@@ -823,6 +829,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [activePat, setActivePat] = useState<PatternId>(() => restored?.activePattern ?? "A");
   const [bpm, setBpm] = useState(() => restored?.bpm ?? 140);
   const [swing, setSwing] = useState(() => restored?.swing ?? 0);
+  /* Feel tools (stack1500): humanize timing/velocity amounts + the
+   * seed — project state beside swing, restored / auto-saved /
+   * rendered from the project exactly like it (lib/beat-feel). */
+  const [feel, setFeel] = useState<BeatFeelState>(() => restored?.feel ?? defaultBeatFeel());
   const [playing, setPlaying] = useState(false);
   const [step, setStep] = useState(-1);
   const [exporting, setExporting] = useState(false);
@@ -932,8 +942,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const stepResolver = stepsResolverForPatterns(patterns);
   const bpmRef = useRef(bpm);
   const swingRef = useRef(swing);
+  const feelRef = useRef(feel);
   bpmRef.current = bpm;
   swingRef.current = swing;
+  feelRef.current = feel;
   /* Transport/render read the WHOLE project through refs so song mode
    * can cross pattern boundaries inside the lookahead scheduler. */
   const patternsRef = useRef(patterns);
@@ -961,6 +973,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     activePattern: activePatRef.current,
     bpm: bpmRef.current,
     swing: swingRef.current,
+    feel: feelRef.current,
     mixer: { vol, mute, solo, bassVol, bassMute },
     mixerFx: mixerFxRef.current,
     arrangement: arrangementRef.current,
@@ -979,6 +992,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     setActivePat(p.activePattern);
     setBpm(p.bpm);
     setSwing(p.swing);
+    setFeel(p.feel);
     setVol([...p.mixer.vol]);
     setMute([...p.mixer.mute]);
     setSolo([...p.mixer.solo]);
@@ -1025,7 +1039,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }, 1200);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames, mixerFx]);
+  }, [patterns, activePat, bpm, swing, feel, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames, mixerFx]);
 
   /* ── theme tones ── */
   const T = {
@@ -1150,9 +1164,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const pat = patternsRef.current[patId] ?? patternsRef.current.A!;
     const s = resolved ? resolved.stepInPattern : globalStep % patternStepCount(pat);
     // Swing delays off-beat 16ths (odd steps), 0–100%
-    const when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
+    let when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
+    /* Feel (stack1500): the step's humanize offset — ONE deterministic
+     * value per (pattern, step) shared by everything scheduled on this
+     * step, computed by the same lib function the offline render uses,
+     * so playback and bounce land on the identical instants. */
+    when += humanizeStepOffsetSec(feelRef.current, patId, s, bpmRef.current);
     TRACKS.forEach((tr, ti) => {
-      const gain = drumStepGain(pat, ti, s);
+      const gain = drumStepGainWithFeel(pat, feelRef.current, patId, ti, s);
       const chain = graph.tracks[tr.id];
       if (gain > 0 && chain) playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, chain.input, gain);
     });
@@ -1160,7 +1179,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const bassChain = graph.tracks["bass"];
     if (bn != null && bassChain) {
       const prev = s > 0 ? pat.bass[s - 1] : null;
-      synthBass(ctx, bn, when, bassChain.input, bassStepGain(pat, s), prev);
+      synthBass(ctx, bn, when, bassChain.input, bassStepGainWithFeel(pat, feelRef.current, patId, s), prev);
     }
     // Melodic lanes: notes starting on this step (half-step starts fire
     // half a step later) sound through the midi-synth voices, velocity on.
@@ -1171,14 +1190,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       const dest = melodyGains[v.id];
       if (!dest) continue;
       for (const { note, offsetSec } of notesStartingAtStep(pat.melody[v.id], s % BEAT_STEPS, bpmRef.current)) {
-        const [midi] = beatLaneToMidi([note], bpmRef.current, swingRef.current);
-        if (midi) scheduleMidiVoice(ctx, dest, v.id, midi, when + offsetSec);
+        const midi = humanizedBeatNoteMidi(note, bpmRef.current, swingRef.current, feelRef.current, patId, v.id);
+        scheduleMidiVoice(ctx, dest, v.id, midi, when + offsetSec);
       }
     }
     /* Metronome: tick on the beats of the pattern being played, accent
      * on its step 0 — straight to the destination, so track mutes/solos
-     * never silence the click. Beats are even steps, so the swing
-     * offset in `when` is zero on every tick step. */
+     * never silence the click. The click rides the step's own `when`
+     * (swing + feel included), so it counts the grid the hits play. */
     if (metroOnRef.current) {
       const tick = resolveMetronomeTick(globalStep, s, BEAT_STEPS);
       if (tick.tick) synthClick(ctx, when, ctx.destination, tick.accent);
@@ -1428,9 +1447,11 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const plays: PatternId[] = scope.plays;
     /* Each play lasts its own pattern's length (1/2/4 bars) — the scope
      * sums per-pattern steps (stepsForPattern), in song mode and in the
-     * classic ×4 pattern render alike. Gains come from the same
-     * drumStepGain/bassStepGain the live transport uses, so the bounce
-     * sounds exactly like playback. */
+     * classic ×4 pattern render alike. Gains and step times come from
+     * the same functions the live transport uses — the feel-composed
+     * gains (drumStepGainWithFeel / bassStepGainWithFeel) and the
+     * humanize step offset — so the bounce sounds exactly like
+     * playback, humanize included. */
     const totalSteps = scope.totalSteps;
     const stepDur = scope.stepDurSec;
     const totalDur = scope.durationSec;
@@ -1463,13 +1484,17 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       const pat = patternsRef.current[pid] ?? patternsRef.current.A!;
       const n = patternStepCount(pat);
       for (let si = 0; si < n; si++, s++) {
-        const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
+        /* Feel (stack1500): the (pattern, step) humanize offset joins
+         * the swing offset — the same lib value the live transport
+         * adds, so the bounce lands where playback lands. */
+        const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0)
+          + humanizeStepOffsetSec(feelRef.current, pid, si, bpmRef.current);
         TRACKS.forEach((tr, ti) => {
-          const gain = drumStepGain(pat, ti, si);
+          const gain = drumStepGainWithFeel(pat, feelRef.current, pid, ti, si);
           if (gain > 0) playTrackHit(off, tr.id, ti, trackSoundsRef.current[ti], tt, drums[ti]!, gain);
         });
         const note = pat.bass[si];
-        if (note != null) synthBass(off, note, tt, bassG, bassStepGain(pat, si), si > 0 ? pat.bass[si - 1] : null);
+        if (note != null) synthBass(off, note, tt, bassG, bassStepGainWithFeel(pat, feelRef.current, pid, si), si > 0 ? pat.bass[si - 1] : null);
       }
     }
     // Melodic lanes render into the same offline graph through the same
@@ -1496,8 +1521,19 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           for (const v of BEAT_MELODIC_VOICES) {
             const dest = melodyGains[v.id];
             if (!dest) continue;
-            for (const midi of beatLaneToMidi(pat.melody[v.id], bpmRef.current, sw)) {
-              scheduleMidiVoice(off, dest, v.id, midi, (playStartStep + bar * BEAT_STEPS) * stepDur + midi.start);
+            for (const note of pat.melody[v.id]) {
+              /* Humanized conversion (velocity) + the note's pattern
+               * step offset (timing) — keyed exactly as the live
+               * scheduler keys them (bar × 16 + the note's start step),
+               * so a note lands at the same instant in both paths. */
+              const midi = humanizedBeatNoteMidi(note, bpmRef.current, sw, feelRef.current, pid, v.id);
+              const stepOffset = humanizeStepOffsetSec(
+                feelRef.current,
+                pid,
+                bar * BEAT_STEPS + Math.floor(note.startStep),
+                bpmRef.current,
+              );
+              scheduleMidiVoice(off, dest, v.id, midi, (playStartStep + bar * BEAT_STEPS) * stepDur + midi.start + stepOffset);
             }
           }
         }
@@ -1734,6 +1770,45 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
             aria-label="Swing"
           />
           <span className={`text-xs tabular-nums w-10 ${T.dim}`}>{Math.round(swing * 100)}%</span>
+        </div>
+        {/* Feel tools (stack1500): humanize — project state beside swing.
+            The offsets hash from the seed stored in the project, so what
+            you hear is exactly what every export renders (lib/beat-feel). */}
+        <div className="flex items-center gap-2 flex-1 min-w-[180px]" data-testid="beat-feel-controls">
+          <Label className={`${T.label} text-xs whitespace-nowrap`}>
+            {t("beatMaker.humanizeTimingLabel", { defaultValue: "Humanize timing" })}
+          </Label>
+          <input
+            type="range" min={0} max={1} step={0.01} value={feel.timing}
+            onChange={(e) => setFeel((f) => ({ ...f, timing: Number(e.target.value) }))}
+            className={`flex-1 ${T.slider}`}
+            aria-label="Humanize timing"
+            data-testid="beat-feel-timing"
+            title={t("beatMaker.humanizeTimingHint", { defaultValue: "Steps land a touch early or late — the same feel in playback and in every export" })}
+          />
+          <span className={`text-xs tabular-nums w-10 ${T.dim}`}>{Math.round(feel.timing * 100)}%</span>
+        </div>
+        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+          <Label className={`${T.label} text-xs whitespace-nowrap`}>
+            {t("beatMaker.humanizeVelocityLabel", { defaultValue: "Humanize velocity" })}
+          </Label>
+          <input
+            type="range" min={0} max={1} step={0.01} value={feel.velocity}
+            onChange={(e) => setFeel((f) => ({ ...f, velocity: Number(e.target.value) }))}
+            className={`flex-1 ${T.slider}`}
+            aria-label="Humanize velocity"
+            data-testid="beat-feel-velocity"
+            title={t("beatMaker.humanizeVelocityHint", { defaultValue: "Hits play a touch louder or softer — the same feel in playback and in every export" })}
+          />
+          <span className={`text-xs tabular-nums w-10 ${T.dim}`}>{Math.round(feel.velocity * 100)}%</span>
+          <button
+            type="button" data-testid="beat-feel-reroll"
+            onClick={() => setFeel((f) => rerollBeatFeelSeed(f, Math.floor(Math.random() * 4294967296)))}
+            className={`h-9 px-3 rounded-xl text-xs font-bold border transition-colors ${T.pill}`}
+            title={t("beatMaker.humanizeRerollHint", { defaultValue: "Roll a fresh set of humanize offsets — saved in the project, so playback and exports stay in step" })}
+          >
+            <Dices className="w-3.5 h-3.5 mr-1.5 inline -mt-0.5" />{t("beatMaker.humanizeReroll", { defaultValue: "New feel" })}
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <button

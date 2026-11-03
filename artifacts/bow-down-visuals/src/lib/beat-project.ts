@@ -46,6 +46,11 @@
  * honestly after a reload, when playback falls back to the synth voice).
  * Older projects without these fields normalize to the built-in synth
  * voices — exactly the sounds they always played.
+ *
+ * Feel (stack1500, additive): the project carries a `feel` slice —
+ * humanize timing/velocity amounts + the seed the offsets hash from
+ * (lib/beat-feel) — project-level beside swing, normalized with
+ * defaults OFF so older projects load and sound exactly as before.
  */
 
 import { defaultSoundIdForTrack, normalizeTrackSoundId } from "@/lib/beat-sounds";
@@ -61,6 +66,12 @@ import {
   normalizeBeatMixerFxState,
   type BeatMixerFxState,
 } from "@/lib/beat-mixer";
+import {
+  defaultBeatFeel,
+  humanizeVelocityFactor,
+  normalizeBeatFeel,
+  type BeatFeelState,
+} from "@/lib/beat-feel";
 
 export type BeatPatternId = "A" | "B" | "C" | "D";
 export const BEAT_PATTERN_IDS: BeatPatternId[] = ["A", "B", "C", "D"];
@@ -144,6 +155,12 @@ export interface BeatProject {
   bpm: number;
   /** 0–1 (the UI shows it as a percentage). */
   swing: number;
+  /** Feel tools (stack1500, lib/beat-feel): humanize timing + velocity
+   *  amounts and the seed the offsets hash from. Project-level, right
+   *  beside swing — swing is the precedent for project-wide timing
+   *  feel. Older projects without it normalize to both amounts 0,
+   *  which plays and renders bit-identical to the pre-feel build. */
+  feel: BeatFeelState;
   mixer: BeatMixerState;
   /** W1-L3, composed at the beat join: per-channel FX + pan and the
    *  master bus (lib/beat-mixer). One project shape — the FX state
@@ -292,6 +309,35 @@ export function bassStepGain(p: BeatPatternData, step: number): number {
   return p.bass[step] == null ? 0 : bassStepVelocity(p, step);
 }
 
+/* ─── Feel-composed gains (stack1500, lib/beat-feel) ─────────────────────
+ * The single gain formula the live transport and the offline render
+ * both use when humanize is on: the written gain (drumStepGain /
+ * bassStepGain, untouched above) times the step's deterministic
+ * velocity factor. Silent steps stay silent (the factor never
+ * resurrects an off cell), and at velocity amount 0 the factor is
+ * exactly 1 — these return the plain gains bit-for-bit. */
+
+export function drumStepGainWithFeel(
+  p: BeatPatternData,
+  feel: BeatFeelState,
+  patternId: BeatPatternId,
+  track: number,
+  step: number,
+): number {
+  const gain = drumStepGain(p, track, step);
+  return gain > 0 ? gain * humanizeVelocityFactor(feel, patternId, "drum", `${track}:${step}`) : 0;
+}
+
+export function bassStepGainWithFeel(
+  p: BeatPatternData,
+  feel: BeatFeelState,
+  patternId: BeatPatternId,
+  step: number,
+): number {
+  const gain = bassStepGain(p, step);
+  return gain > 0 ? gain * humanizeVelocityFactor(feel, patternId, "bass", step) : 0;
+}
+
 /** Set an 808 step's velocity (pure — returns a new pattern). */
 export function setBassStepVelocity(
   p: BeatPatternData,
@@ -348,6 +394,7 @@ export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
     activePattern: "A",
     bpm: 140,
     swing: 0,
+    feel: defaultBeatFeel(),
     mixer: defaultBeatMixer(),
     mixerFx: defaultBeatMixerFxState(),
     arrangement: [],
@@ -532,6 +579,7 @@ export function normalizeBeatProject(raw: unknown): BeatProject | null {
       : base.activePattern,
     bpm: Math.round(clampN(r.bpm, BEAT_BPM_MIN, BEAT_BPM_MAX, base.bpm)),
     swing: clampN(r.swing, 0, 1, 0),
+    feel: normalizeBeatFeel(r.feel),
     mixer: normalizeMixer(r.mixer),
     mixerFx: normalizeBeatMixerFxState(r.mixerFx),
     arrangement: normalizeArrangement(r.arrangement),
