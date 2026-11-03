@@ -16,6 +16,7 @@ import {
 } from "@/lib/world/money-desks";
 import { CHECKOUT_TRANSFER_LABEL } from "@/lib/world/shop-stands";
 import { EmbeddedPaymentForm, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
+import { checkoutFailureCopy } from "@/lib/checkout-fetch";
 
 /* ─── PacksDesk — Buy Visual Bucs in the Treasury (Stack-100 #61) ──
    The packs desk: the four real credit packs, priced exactly as
@@ -101,7 +102,17 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
     try {
       /* JOIN2: embedded first (never leave the site) — the intent
          answers a clientSecret and the desk mounts the shared form.
-         Any intent failure falls through to the hosted rail below. */
+         HONESTY (stack1400 ruling #18, mirroring PlansDesk and the
+         pricing page): ANY intent failure STOPS here with the
+         honest error — a server answer shows its message, or names
+         its HTTP status with the nothing-charged line when it sent
+         none; an OK answer with no usable secret is a failed start,
+         named as such; and a transport failure is named by
+         checkoutFailureCopy. The desk NEVER falls through to the hosted rail
+         on a failed intent: leaving for a hosted page on an error breaks
+         never-leave-the-site. The hosted rail below
+         serves ONLY the no-publishable-key configuration,
+         where embedded checkout cannot run at all. */
       if (hasStripePublishableKey()) {
         try {
           const ires = await fetch("/api/embedded-checkout/credit-pack/intent", {
@@ -114,7 +125,21 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
             setEmbedded({ packKey: pack.key, clientSecret: idata.clientSecret, label: `${pack.creditsLabel} — ${pack.priceLabel}` });
             return;
           }
-        } catch { /* fall through to the hosted rail */ }
+          if (ires.ok) {
+            setFailed("Checkout didn't start — nothing was charged. Try again in a minute.");
+            return;
+          }
+          setFailed(
+            apiErrorMessage(
+              idata,
+              `The checkout server answered with an error (HTTP ${ires.status}) — nothing was charged. Give it a moment and try again.`,
+            ),
+          );
+          return;
+        } catch (err) {
+          setFailed(checkoutFailureCopy(err));
+          return;
+        }
       }
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",

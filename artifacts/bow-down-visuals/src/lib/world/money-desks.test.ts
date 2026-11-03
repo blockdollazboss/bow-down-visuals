@@ -117,6 +117,29 @@ describe("61 · credit packs", () => {
     }
   });
 
+  it("the packs desk stops honest on an intent failure — no hosted fall-through (ruling #18)", () => {
+    /* The desk component is the third source of truth for this
+       pack rail: with a publishable key present, every embedded
+       intent outcome (success, non-OK, OK-but-no-secret, transport
+       throw) returns inside the branch — the hosted
+       /api/create-checkout-session call below it serves ONLY the
+       no-publishable-key configuration. A fall-through regression
+       drops the return count and fails here. */
+    const desk = readFileSync(
+      new URL("../../components/world/native/PacksDesk.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(desk).not.toContain("Any intent failure falls through");
+    expect(desk).not.toContain("/* fall through to the hosted rail */");
+    const branch = desk.slice(
+      desk.indexOf("if (hasStripePublishableKey())"),
+      desk.indexOf('fetch("/api/create-checkout-session"'),
+    );
+    expect(branch).toContain("setFailed(");
+    expect(branch).toContain("checkoutFailureCopy(err)");
+    expect(branch.match(/return;/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("the checkout body is exactly { pack } and the URL reads off { url } only", () => {
     expect(packCheckoutPayload(CREDIT_PACKS[0]!)).toEqual({ pack: "10" });
     expect(packCheckoutUrl({ url: "https://checkout.stripe.com/x" })).toBe("https://checkout.stripe.com/x");
