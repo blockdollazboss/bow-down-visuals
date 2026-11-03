@@ -206,6 +206,7 @@ const ListeningBooth = lazy(() => import("@/components/world/native/ListeningBoo
 const BrandingKitDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.BrandingKitDesk })));
 const PressKitDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PressKitDesk })));
 const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PromoteDesk })));
+const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDesk").then((m) => ({ default: m.LabelPitchDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1177,9 +1178,21 @@ export default function StationPanel(props: StationPanelProps) {
                 <MerchBench isLight={isLight} isGuest={isGuest} />
               </DeskDoor>
             ) : resolution.pattern === "business" && station.id === "promote-room" ? (
-              <DeskDoor isLight={isLight}>
-                <PromoteDesk isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              <div className="flex flex-col gap-6">
+                <DeskDoor isLight={isLight}>
+                  <PromoteDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Label Pitch (stack1400 parity wave #1): the
+                    label-pitch family — demo kit + directory +
+                    tracker, playlist kit + curators + tracker, and
+                    the release pitch packet + deadlines — on the
+                    /api/label-pitch + /api/playlist-pitch rails,
+                    stacked in the Promote Room like the Hall's and
+                    Studio's stacked desks. */}
+                <DeskDoor isLight={isLight}>
+                  <LabelPitchDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+              </div>
             ) : (
               <NativePlaceholder station={station} isLight={isLight} />
             )}
