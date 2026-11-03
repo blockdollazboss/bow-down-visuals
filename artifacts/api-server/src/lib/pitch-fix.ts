@@ -41,6 +41,7 @@ import {
   type FixSeverity,
 } from "@workspace/db";
 import { and, eq, sql } from "drizzle-orm";
+import { nyWeekStartKey, nyWeekWindow } from "./period-anchors";
 
 export const FEEDBACK_PROMPT_CAP_MS = 7 * 24 * 60 * 60 * 1000;
 /** Chance a qualifying moment becomes a prompt (before cap/suppression). */
@@ -250,7 +251,8 @@ export const drizzlePitchFixStore: PitchFixStore = {
    The ruled amounts live in @workspace/db (PITCH_REWARD_VB etc.) next
    to the schema; the pool cap is PITCH_FIX_WEEKLY_POOL_VB = 1,000 VB,
    a SEPARATE envelope from lib/quest-pool's 300 VB/member/week — the
-   two share only the week anchor shape (Monday, UTC), never funds.
+   two share only the week anchor (Monday at New York midnight, from
+   the ONE period anchor in lib/period-anchors), never funds.
    This pool is GLOBAL (all members together): first-shipped is
    first-paid, and anything that doesn't fit queues into next week. */
 
@@ -263,14 +265,13 @@ export function rewardAmountFor(sub: Pick<SubmissionWire, "kind" | "severity">):
   return sub.severity === "blocks_me" ? FIX_CRITICAL_REWARD_VB : FIX_REWARD_VB;
 }
 
-/** Monday (UTC) of the week containing `now`, as YYYY-MM-DD — the
- *  same anchor lib/quest-pool uses, reimplemented so this envelope
- *  stays independent of the quest pool's module and funds. */
+/** Monday of the week containing `now`, as YYYY-MM-DD, on the New
+ *  York calendar — the same anchor lib/quest-pool uses, read from
+ *  the shared lib/period-anchors helper (not reimplemented) so this
+ *  envelope stays independent of the quest pool's module and funds
+ *  while never drifting from its anchor. Was Monday-UTC. */
 function pitchFixWeekStart(now: Date): string {
-  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
-  day.setUTCDate(day.getUTCDate() - dow);
-  return day.toISOString().slice(0, 10);
+  return nyWeekStartKey(now);
 }
 
 interface RewardPoolState {
@@ -289,10 +290,17 @@ interface RewardPoolState {
  *  (first-shipped first). */
 export async function getRewardPoolState(store: PitchFixStore, now: Date = new Date()): Promise<RewardPoolState> {
   const weekStart = pitchFixWeekStart(now);
-  const weekEnd = new Date(new Date(`${weekStart}T00:00:00.000Z`).getTime() + 7 * 24 * 3600 * 1000).toISOString();
+  /* The week's [start, end) INSTANTS are NY midnights (04:00Z in
+     EDT, 05:00Z in EST) from lib/period-anchors. The old strings —
+     `${weekStart}T00:00:00.000Z` and start + 7×24h — opened the
+     window at UTC midnight, and a flat 168h would close it an hour
+     early or late across a DST switch (a NY week is 167h or 169h
+     long then). rewardPaidAt values are ISO instants, so string
+     comparison against these ISO bounds stays exact. */
+  const { startIso: weekStartIso, endIso: weekEnd } = nyWeekWindow(weekStart);
   const all = await store.listSubmissions();
   const spentVb = all
-    .filter((s) => s.rewardStatus === "paid" && s.rewardPaidAt && s.rewardPaidAt >= `${weekStart}T00:00:00.000Z` && s.rewardPaidAt < weekEnd)
+    .filter((s) => s.rewardStatus === "paid" && s.rewardPaidAt && s.rewardPaidAt >= weekStartIso && s.rewardPaidAt < weekEnd)
     .reduce((sum, s) => sum + (s.rewardAmount ?? 0), 0);
   const queued = all
     .filter((s) => s.rewardStatus === "queued")

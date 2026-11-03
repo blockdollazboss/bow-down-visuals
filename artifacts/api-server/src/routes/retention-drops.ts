@@ -3,6 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { getRetentionPrefs, getStreakStatus } from "../lib/retention";
+import { nyMonthKey } from "../lib/period-anchors";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   db,
@@ -289,7 +290,13 @@ router.get("/retention/away-digest", requireAuth, publicApiLimiter, async (req: 
       return;
     }
 
-    const currentPeriod = now.toISOString().slice(0, 7); // YYYY-MM
+    // YYYY-MM — the SAME Bow Race period key routes/bow-challenge
+    // stamps, from the ONE period anchor (lib/period-anchors,
+    // stack1400 ruling #8). This used to be the UTC month
+    // (toISOString().slice(0, 7)), a second anchor that named the
+    // NEXT race for hours around a month boundary while New York
+    // was still in the old one (and vice versa in the small hours).
+    const currentPeriod = nyMonthKey(now);
 
     // The projects table has no drizzle model — use the admin client like
     // routes/projects.ts does.

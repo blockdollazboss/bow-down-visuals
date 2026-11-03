@@ -2,7 +2,8 @@
    Two retention systems sharing the same creation-event hook:
      • Creation Streaks — consecutive days the user CREATED something
        (project save, song, thumbnail, video export). Milestone VB payouts.
-     • Weekly Quests — 3 fixed weekly quests, reset Monday (UTC).
+     • Weekly Quests — 3 fixed weekly quests, reset Monday at
+       New York midnight (the ONE period anchor, lib/period-anchors).
    Both honor retention_prefs (creation_streaks_enabled / quests_enabled).
    recordCreation() is fire-and-forget safe: it never throws. */
 
@@ -18,6 +19,7 @@ import {
   type DailyQuestDef,
 } from "./daily-quests";
 import { logger } from "./logger";
+import { nyWeekStartKey, nyWeekStartOfDayKey } from "./period-anchors";
 
 export type CreationKind = "project" | "song" | "thumbnail" | "export" | "share";
 
@@ -29,7 +31,8 @@ export const STREAK_MILESTONES = [
   { days: 30, reward: 1000 },
 ] as const;
 
-/* ── Weekly quests: fixed, simple set. Reset every Monday (UTC). ───────── */
+/* ── Weekly quests: fixed, simple set. Reset every Monday at New
+   York midnight (lib/period-anchors). ─────────────────────────────── */
 export interface QuestDef {
   key: string;
   /** Display name — mirrors the en locale quest titles
@@ -55,12 +58,18 @@ function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Monday (UTC) of the current week as YYYY-MM-DD. New week ⇒ new quests. */
-export function currentWeekStart(): string {
-  const now = new Date();
-  const dayIdx = (now.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayIdx));
-  return monday.toISOString().slice(0, 10);
+/** Monday of the current week as YYYY-MM-DD, on the New York
+ *  calendar (lib/period-anchors — stack1400 ruling #8: period
+ *  anchors roll at America/New_York midnight, ONE anchor
+ *  everywhere). This was Monday-UTC: the quest week used to roll
+ *  hours before New York's Monday began. New NY week ⇒ new quests.
+ *  CONSEQUENCE, stated plainly: this key is the shared weekly
+ *  envelope's anchor — lib/quest-pool's questPoolWeekStart and
+ *  lib/pitch-fix's pool week delegate to the same helper, and every
+ *  consumer of this function (stream drops, World events, reach)
+ *  now rolls at NY midnight too, together, never split. */
+export function currentWeekStart(now: Date = new Date()): string {
+  return nyWeekStartKey(now);
 }
 
 interface Prefs {
@@ -621,15 +630,12 @@ export interface TreasuryHistory {
 const TREASURY_ENTRY_CAP = 50;
 const TREASURY_WEEK_CAP = 8;
 
-/** Monday (UTC) of the week containing a YYYY-MM-DD day key — the
- *  quest pool's week anchor (lib/quest-pool's questPoolWeekStart
- *  math, on a day key instead of a Date). */
+/** Monday of the week containing a YYYY-MM-DD day key — the quest
+ *  pool's week anchor (lib/period-anchors' nyWeekStartOfDayKey, on
+ *  a day key instead of a Date; the key is already a calendar date,
+ *  so the Monday math is the same calendar math, shared). */
 function weekStartOfDayKey(dayKey: string): string {
-  const [y, m, d] = dayKey.split("-").map((p) => Number(p));
-  const day = new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1));
-  const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
-  day.setUTCDate(day.getUTCDate() - dow);
-  return day.toISOString().slice(0, 10);
+  return nyWeekStartOfDayKey(dayKey);
 }
 
 export async function getTreasuryHistory(userId: string): Promise<TreasuryHistory> {

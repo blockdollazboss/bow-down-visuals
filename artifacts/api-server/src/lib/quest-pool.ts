@@ -15,8 +15,12 @@
  * refuses with the pool reason. (The Daily Drop / bonus rail is a
  * separate, separately-ruled issuance and does NOT draw here.)
  *
- * The week is Monday-anchored (UTC) — the same week the retention
- * quest rails run on (lib/retention's currentWeekStart).
+ * The week is Monday-anchored at New York midnight — the same
+ * week the retention quest rails run on (lib/retention's
+ * currentWeekStart). Both delegate to the ONE period anchor,
+ * lib/period-anchors (stack1400 ruling #8): the shared weekly
+ * envelope keeps ONE anchor, so it rolled from Monday-UTC to
+ * Monday-NY together with the rails that mirror it.
  */
 
 import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
@@ -28,19 +32,18 @@ import {
   dailyQuestProgressTable,
 } from "@workspace/db";
 import { QUEST_DEFS } from "./retention";
+import { nyWeekStartKey, nyWeekWindow } from "./period-anchors";
 
 /** The weekly free-credit envelope, in Visual Bucs. Also the sum
  *  of the QUEST_DEFS rewards (40 + 80 + 120 + 60) — the pool was
  *  sized by the quest slate; the game's other rewards share it. */
 export const WEEKLY_QUEST_POOL_VB = 300;
 
-/** Monday (UTC) of the week containing `now`, as YYYY-MM-DD — the
- *  retention rails' week key. */
+/** Monday of the week containing `now`, as YYYY-MM-DD, on the New
+ *  York calendar — the retention rails' week key, from the ONE
+ *  period anchor (lib/period-anchors). Was Monday-UTC. */
 export function questPoolWeekStart(now: Date): string {
-  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const dow = (day.getUTCDay() + 6) % 7; // Monday = 0
-  day.setUTCDate(day.getUTCDate() - dow);
-  return day.toISOString().slice(0, 10);
+  return nyWeekStartKey(now);
 }
 
 /** The pool's four source sums for one member + week. Injectable
@@ -97,7 +100,11 @@ export const dbQuestPoolStore: QuestPoolStore = {
         and(
           eq(worldTutorialProgressTable.userId, userId),
           isNotNull(worldTutorialProgressTable.rewardClaimedAt),
-          gte(worldTutorialProgressTable.rewardClaimedAt, new Date(`${weekStart}T00:00:00.000Z`)),
+          // The week's opening INSTANT is NY midnight on the
+          // Monday key (lib/period-anchors), not UTC midnight —
+          // `${weekStart}T00:00:00.000Z` opened the window hours
+          // before the NY week it names.
+          gte(worldTutorialProgressTable.rewardClaimedAt, new Date(nyWeekWindow(weekStart).startIso)),
         ),
       );
     return rows.reduce((sum, r) => sum + (r.amountVb ?? 0), 0);

@@ -5,14 +5,18 @@ import { requireAdmin } from "./admin";
 import { getSupabaseAdmin, addCreditsAtomic } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
 import { sweepTtlIfLarge, capMapSize } from "../lib/sweep-map";
+import { nyMonthKey } from "../lib/period-anchors";
 
 const router = Router();
 
-/* Current period key: YYYY-MM. A new month automatically starts a new
-   race (the month row is created on the first bow) — no cron needed. */
+/* Current period key: YYYY-MM on the New York calendar — the ONE
+   period anchor (lib/period-anchors, stack1400 ruling #8). It used
+   to read the server's local calendar, so the race month rolled
+   whenever the host's midnight passed. A new NY month automatically
+   starts a new race (the month row is created on the first bow) —
+   no cron needed. */
 function currentPeriod(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return nyMonthKey(new Date());
 }
 
 /* ── Anti-farming rate limit: in-memory per-user token bucket ──────────
