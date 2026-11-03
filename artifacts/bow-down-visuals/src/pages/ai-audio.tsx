@@ -13,7 +13,7 @@ import {
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat,
+  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -37,12 +37,26 @@ import {
   setArrangementEntryPattern,
   setArrangementEntryRepeats,
   isEmptyBeatPattern,
+  defaultTrackSoundNames,
+  defaultTrackSounds,
   type BeatArrangementEntry,
   type BeatPatternData,
   type BeatPatternId,
   type BeatProject,
   type BeatTransportMode,
 } from "@/lib/beat-project";
+import {
+  BUILTIN_BEAT_SOUNDS,
+  decodeAndRegisterUpload,
+  defaultSoundIdForTrack,
+  ensureBeatSampleBuffer,
+  getBeatSound,
+  isUnavailableSampleAssignment,
+  listBeatSoundsBySource,
+  playSampleBuffer,
+  resolveTrackSound,
+  type BeatSoundEntry,
+} from "@/lib/beat-sounds";
 import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -336,8 +350,11 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
 }
 
 /* ─── Step Sequencer ────────────────────────────────────────────────────────
-   100% client-side: every drum is synthesized live with the Web Audio API,
-   so playing and exporting costs nothing (no provider calls → free). */
+   100% client-side: the built-in drums are synthesized live with the Web
+   Audio API, and any track can instead play a loaded sample (your own
+   file, or a sound-bank sound once the bank lands) through the sound
+   registry in lib/beat-sounds.ts. Playing and exporting cost nothing
+   (no provider calls → free). */
 
 const TRACKS = [
   { id: "kick",  labelKey: "beatMaker.trackKick",      color: "bg-amber-400" },
@@ -404,6 +421,32 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
   } else { // shk
     noiseBurst(ctx, t, 0.09, 6000, g, 0.18, "highpass");
   }
+}
+
+/* Play one drum hit for a track through its assigned registry sound
+   (W2-L2). Synth assignments call synthHit with the entry's voice key —
+   the recipes above are untouched. Sample assignments (bank/upload)
+   schedule an AudioBufferSourceNode at rate 1.0 through a gain carrying
+   velocity/accent × the sound's default volume, into the SAME per-track
+   mixer gain synth hits use. If the sample's buffer is not available in
+   this session, resolution has already substituted the track's built-in
+   synth voice — the hit always sounds, never a silent dead track. */
+function playTrackHit(
+  ctx: BaseAudioContext, trackId: TrackId, ti: number,
+  soundId: string | undefined, t: number, dest: AudioNode, vel = 1,
+) {
+  const resolved = resolveTrackSound(soundId, ti);
+  const entry = resolved.entry;
+  if (entry.source !== "synth") {
+    const g = ctx.createGain();
+    g.gain.value = vel * entry.defaultVolume;
+    g.connect(dest);
+    if (playSampleBuffer(ctx, entry, t, g)) return;
+    // Buffer vanished between resolve and schedule — synth fallback.
+    synthHit(ctx, trackId, t, dest, vel);
+    return;
+  }
+  synthHit(ctx, entry.synthKey ?? trackId, t, dest, vel * entry.defaultVolume);
 }
 
 /* 808 bass note with a short pitch glide into the target. midi: 24 (C1)..47 (B2). */
@@ -603,6 +646,21 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [playEntry, setPlayEntry] = useState(-1);
   const [playBar, setPlayBar] = useState(0);
   const [bassPaint, setBassPaint] = useState(36); // C2 — pitch painted by bass roll clicks
+  /* W2-L2: per-track sound assignments (registry ids + captured names),
+   * restored with the project and auto-saved with it like everything
+   * else. Upload bytes live only in this session (lib/beat-sounds.ts);
+   * sessionUploads lists the files loaded since this page mounted. */
+  const [trackSounds, setTrackSounds] = useState<string[]>(() =>
+    restored ? [...restored.trackSounds] : defaultTrackSounds(),
+  );
+  const [trackSoundNames, setTrackSoundNames] = useState<(string | null)[]>(() =>
+    restored ? [...restored.trackSoundNames] : defaultTrackSoundNames(),
+  );
+  const [sessionUploads, setSessionUploads] = useState<BeatSoundEntry[]>([]);
+  const [uploadingTrack, setUploadingTrack] = useState<number | null>(null);
+  const [soundError, setSoundError] = useState<string | null>(null);
+  const [, setSoundLoadTick] = useState(0); // re-render when a bank buffer lands
+  const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number | null>(null);
   const nextTimeRef = useRef(0);
@@ -622,10 +680,12 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const activePatRef = useRef(activePat);
   const arrangementRef = useRef(arrangement);
   const modeRef = useRef(transportMode);
+  const trackSoundsRef = useRef(trackSounds);
   patternsRef.current = patterns;
   activePatRef.current = activePat;
   arrangementRef.current = arrangement;
   modeRef.current = transportMode;
+  trackSoundsRef.current = trackSounds;
   const globalStepRef = useRef(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverReadyRef = useRef(false);
@@ -640,8 +700,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     mixer: { vol, mute, solo, bassVol, bassMute },
     arrangement: arrangementRef.current,
     mode: modeRef.current,
+    trackSounds,
+    trackSoundNames,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [vol, mute, solo, bassVol, bassMute]);
+  }), [vol, mute, solo, bassVol, bassMute, trackSounds, trackSoundNames]);
 
   const applyProject = useCallback((p: BeatProject) => {
     setPatterns(
@@ -659,6 +721,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     setBassMute(p.mixer.bassMute);
     setArrangement(p.arrangement);
     setTransportMode(p.mode);
+    setTrackSounds([...p.trackSounds]);
+    setTrackSoundNames([...p.trackSoundNames]);
   }, []);
 
   /* Server draft restore — only fills in when this browser has no
@@ -695,7 +759,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }, 1200);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode]);
+  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames]);
 
   /* ── theme tones ── */
   const T = {
@@ -780,7 +844,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
     TRACKS.forEach((tr, ti) => {
       const v = pat.grid[ti]?.[s] ?? 0;
-      if (v > 0) synthHit(ctx, tr.id, when, drums[ti]!, v === 2 ? 1.4 : 1);
+      if (v > 0) playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, drums[ti]!, v === 2 ? 1.4 : 1);
     });
     const bn = pat.bass[s];
     if (bn != null) {
@@ -829,6 +893,51 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     if (timerRef.current) window.clearInterval(timerRef.current);
     void ctxRef.current?.close().catch(() => {});
   }, []);
+
+  /* ── track sounds (W2-L2): assign a registry sound to a track, or
+   * load the creator's own file onto it. Assignment persists in the
+   * beat project; upload bytes stay in this session only. ── */
+  const assignTrackSound = useCallback((ti: number, soundId: string) => {
+    const entry = getBeatSound(soundId);
+    setTrackSounds((prev) => prev.map((s, i) => (i === ti ? soundId : s)));
+    setTrackSoundNames((prev) =>
+      prev.map((n, i) =>
+        i === ti
+          ? soundId === defaultSoundIdForTrack(ti)
+            ? null
+            : (entry?.name ?? n)
+          : n,
+      ),
+    );
+    // A bank sound loads its buffer on first assignment so the live
+    // transport can play it; until it lands, hits use the synth voice.
+    if (entry && entry.source === "bank") {
+      const ctx = getCtx();
+      void ensureBeatSampleBuffer(entry, ctx).then(() => setSoundLoadTick((x) => x + 1));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onUploadSoundFile = async (ti: number, file: File | null) => {
+    if (!file) return;
+    setSoundError(null);
+    const token = await getAccessToken().catch(() => null);
+    if (!token) {
+      setSoundError(t("beatMaker.soundSignIn", { defaultValue: "Sign in to load your own sounds onto a track." }));
+      return;
+    }
+    setUploadingTrack(ti);
+    try {
+      const ctx = getCtx();
+      const entry = await decodeAndRegisterUpload(file, TRACKS[ti]!.id, ctx);
+      setSessionUploads((prev) => [...prev.filter((u) => u.id !== entry.id), entry]);
+      assignTrackSound(ti, entry.id);
+    } catch {
+      setSoundError(t("beatMaker.soundLoadFailed", { defaultValue: "That file couldn't be loaded as a sound — try a WAV or MP3 file." }));
+    } finally {
+      setUploadingTrack(null);
+    }
+  };
 
   /* ── grid editing: click toggles, right-click toggles accent ── */
   const patchActive = (fn: (p: PatternData) => PatternData) => {
@@ -945,6 +1054,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
     applyMixer(off, vol, mute, solo, bassVol, bassMute);
     const { drums, bass: bassG } = getGains(off);
+    /* Sample-backed tracks render from their decoded buffers too:
+     * uploads are already in the session cache; bank sounds load from
+     * their URL into the cache first. A sound that can't load renders
+     * as the track's synth voice (playTrackHit's honest fallback). */
+    await Promise.all(
+      trackSoundsRef.current.map(async (sid) => {
+        const e = sid ? getBeatSound(sid) : null;
+        if (e && e.source === "bank") await ensureBeatSampleBuffer(e, off);
+      }),
+    );
     const sw = swingRef.current;
     for (let s = 0; s < totalSteps; s++) {
       const pat = patternsRef.current[plays[Math.floor(s / STEPS)]!]!;
@@ -952,7 +1071,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
       TRACKS.forEach((tr, ti) => {
         const v = pat.grid[ti]?.[si] ?? 0;
-        if (v > 0) synthHit(off, tr.id, tt, drums[ti]!, v === 2 ? 1.4 : 1);
+        if (v > 0) playTrackHit(off, tr.id, ti, trackSoundsRef.current[ti], tt, drums[ti]!, v === 2 ? 1.4 : 1);
       });
       const note = pat.bass[si];
       if (note != null) synthBass(off, note, tt, bassG, 1, si > 0 ? pat.bass[si - 1] : null);
@@ -1013,6 +1132,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const chainBars = arrangementTotalBars(arrangement);
   const chainSecs = arrangementDurationSec(arrangement, bpm);
   const chainLengthLabel = `${Math.floor(chainSecs / 60)}:${String(Math.round(chainSecs % 60)).padStart(2, "0")}`;
+
+  /* W2-L2: bank sounds registered by a manifest (empty until the sound
+   * bank lands — the picker shows that section honestly empty). */
+  const bankSounds = listBeatSoundsBySource("bank");
 
   return (
     <div className={`rounded-2xl border p-6 space-y-5 ${T.card}`}>
@@ -1150,9 +1273,18 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       {/* Drum grid — click toggles, right-click toggles accent */}
       <div className="overflow-x-auto -mx-1 px-1">
         <div className="min-w-[640px] space-y-1.5">
-          {TRACKS.map((tr, ti) => (
+          {TRACKS.map((tr, ti) => {
+            const soundId = trackSounds[ti] ?? defaultSoundIdForTrack(ti);
+            const soundKnown =
+              BUILTIN_BEAT_SOUNDS.some((s) => s.id === soundId) ||
+              bankSounds.some((s) => s.id === soundId) ||
+              sessionUploads.some((s) => s.id === soundId);
+            const soundUnavailable = isUnavailableSampleAssignment(soundId, ti);
+            const capturedName = trackSoundNames[ti];
+            return (
             <div key={tr.id} className="flex items-center gap-1.5">
-              <div className="w-24 shrink-0 flex items-center gap-1">
+              <div className="w-44 shrink-0 space-y-1">
+                <div className="flex items-center gap-1">
                 <button aria-pressed={mute[ti]}
                   type="button" onClick={() => setMute((m) => m.map((v, i) => (i === ti ? !v : v)))}
                   className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${mute[ti] ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}
@@ -1164,6 +1296,87 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                   title={t("beatMaker.solo", { defaultValue: "Solo" })}
                 >S</button>
                 <span className={`text-xs font-medium truncate ${T.label}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+                </div>
+                {/* Sound picker (W2-L2): built-in voices, the sound bank
+                    (honestly empty until the bank lands), your loaded
+                    files, and loading your own file onto this track. */}
+                <div className="flex items-center gap-1" data-testid={`beat-sound-picker-${tr.id}`}>
+                  <select
+                    value={soundId}
+                    onChange={(e) => assignTrackSound(ti, e.target.value)}
+                    aria-label={t("beatMaker.soundPickerAria", { label: t(tr.labelKey, { defaultValue: tr.id }), defaultValue: "{{label}} sound" })}
+                    className={`flex-1 min-w-0 text-[11px] rounded-md border px-1 py-1 ${isLight ? "bg-[#FFFDF8] text-[#2A2118] border-[#c9a84c]/40" : "bg-[#14100a] text-white/80 border-white/15"}`}
+                  >
+                    {!soundKnown && (
+                      <option value={soundId}>
+                        {capturedName ?? t("beatMaker.soundSaved", { defaultValue: "Saved sound" })}
+                        {soundUnavailable ? ` (${t("beatMaker.soundNotLoadedShort", { defaultValue: "not loaded" })})` : ""}
+                      </option>
+                    )}
+                    <optgroup label={t("beatMaker.soundGroupBuiltIn", { defaultValue: "Built-in sounds" })}>
+                      {BUILTIN_BEAT_SOUNDS.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label={t("beatMaker.soundGroupBank", { defaultValue: "Sound Bank" })}>
+                      {bankSounds.length > 0 ? (
+                        bankSounds.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))
+                      ) : (
+                        <option disabled value="__bank-empty">
+                          {t("beatMaker.soundBankComing", { defaultValue: "Coming with the sound bank" })}
+                        </option>
+                      )}
+                    </optgroup>
+                    <optgroup label={t("beatMaker.soundGroupYours", { defaultValue: "Your sounds" })}>
+                      {sessionUploads.length > 0 ? (
+                        sessionUploads.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))
+                      ) : (
+                        <option disabled value="__yours-empty">
+                          {t("beatMaker.soundNoneLoaded", { defaultValue: "No sounds loaded yet" })}
+                        </option>
+                      )}
+                    </optgroup>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRefs.current[ti]?.click()}
+                    disabled={uploadingTrack === ti}
+                    className={`shrink-0 w-6 h-6 rounded-md border flex items-center justify-center transition-colors disabled:opacity-50 ${T.pill}`}
+                    title={t("beatMaker.soundLoadOwn", { defaultValue: "Load your own sound (WAV or MP3)" })}
+                    aria-label={t("beatMaker.soundLoadOwn", { defaultValue: "Load your own sound (WAV or MP3)" })}
+                  >
+                    {uploadingTrack === ti ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                  </button>
+                  <input
+                    ref={(el) => { fileInputRefs.current[ti] = el; }}
+                    type="file"
+                    accept="audio/*,.wav,.mp3,.ogg,.m4a,.flac"
+                    className="hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      e.target.value = "";
+                      void onUploadSoundFile(ti, f);
+                    }}
+                  />
+                </div>
+                {soundUnavailable && (
+                  <p className={`text-[10px] leading-tight flex items-start gap-1 ${isLight ? "text-amber-700" : "text-amber-300/90"}`} data-testid={`beat-sound-fallback-${tr.id}`}>
+                    <AlertTriangle className="w-3 h-3 shrink-0 mt-px" />
+                    <span>
+                      {t("beatMaker.soundFallbackNotice", {
+                        name: capturedName ?? t("beatMaker.soundSaved", { defaultValue: "Saved sound" }),
+                        label: t(tr.labelKey, { defaultValue: tr.id }),
+                        defaultValue: "“{{name}}” isn't loaded in this session, so the built-in {{label}} sound is playing. Load the file again to use yours.",
+                      })}
+                    </span>
+                  </p>
+                )}
               </div>
               <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
                 {Array.from({ length: STEPS }, (_, s) => {
@@ -1186,12 +1399,21 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <p className={`text-xs ${T.dim}`}>
         {t("beatMaker.accentHint", { defaultValue: "Click a step to toggle · right-click for accent · gold ring = accent hit" })}
       </p>
+      <p className={`text-xs ${T.dim}`}>
+        {t("beatMaker.soundHint", { defaultValue: "Pick a sound for each track, or load your own WAV or MP3 onto it — free, and it plays on that track's steps and in your export." })}
+      </p>
+      {soundError && (
+        <p role="alert" className={`text-xs flex items-center gap-1.5 ${isLight ? "text-red-700" : "text-red-300"}`}>
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {soundError}
+        </p>
+      )}
 
       {/* Mixer */}
       {showMixer && (
@@ -1481,7 +1703,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         </Link>
       </div>
       <p className={`text-xs ${T.dim}`}>
-        {t("beatMaker.sequencerNote", { defaultValue: "100% client-side Web Audio synthesis — playing and exporting costs nothing." })}
+        {t("beatMaker.sequencerNoteSounds", { defaultValue: "100% client-side — built-in sounds are synthesized in your browser and your own loaded files never leave it, so playing and exporting cost nothing." })}
       </p>
     </div>
   );
