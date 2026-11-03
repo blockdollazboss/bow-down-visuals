@@ -42,6 +42,4 @@ const insertReviewCommentSchema = createInsertSchema(reviewCommentsTable).omit({
   created_at: true,
 });
 
-export const selectReviewLinkSchema = createSelectSchema(reviewLinksTable);
-export const selectReviewCommentSchema = createSelectSchema(reviewCommentsTable);
 

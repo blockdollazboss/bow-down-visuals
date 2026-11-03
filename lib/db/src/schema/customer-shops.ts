@@ -114,21 +114,9 @@ export const shopProductsTable = pgTable("shop_products", {
   check("shop_products_bump_percent_off_range", sql`${t.bump_percent_off} >= 0 AND ${t.bump_percent_off} <= 90`),
 ]);
 
-export const insertShopSchema = createInsertSchema(shopsTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const selectShopSchema = createSelectSchema(shopsTable);
 
-export const insertShopProductSchema = createInsertSchema(shopProductsTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const selectShopProductSchema = createSelectSchema(shopProductsTable);
 
 /* ── Shop events (analytics) ─────────────────────────────────────────────
    Event log powering per-shop analytics. Views are recorded on
@@ -228,21 +216,10 @@ const shopDiscountCodesTable = pgTable("shop_discount_codes", {
   index("shop_discount_codes_shop_idx").on(t.shop_id),
 ]);
 
-export const insertShopDiscountCodeSchema = createInsertSchema(shopDiscountCodesTable).omit({
-  id: true,
-  created_at: true,
-  used_count: true,
-});
-
-export const selectShopDiscountCodeSchema = createSelectSchema(shopDiscountCodesTable);
 
 
-export const insertShopEventSchema = createInsertSchema(shopEventsTable).omit({
-  id: true,
-  created_at: true,
-});
 
-export const selectShopEventSchema = createSelectSchema(shopEventsTable);
+
 
 /** Shop product listing state (migration 0176). */
 type ShopProductStatus = "active" | "paused";
@@ -283,10 +260,5 @@ const shopDeliveriesTable = pgTable("shop_deliveries", {
   index("shop_deliveries_buyer_user_idx").on(t.buyer_user_id),
 ]);
 
-export const insertShopDeliverySchema = createInsertSchema(shopDeliveriesTable).omit({
-  id: true,
-  created_at: true,
-});
-export const selectShopDeliverySchema = createSelectSchema(shopDeliveriesTable);
 
 export type Shop = typeof shopsTable.$inferSelect;

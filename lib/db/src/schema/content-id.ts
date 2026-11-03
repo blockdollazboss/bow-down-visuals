@@ -78,6 +78,4 @@ export const insertContentIdDetectionSchema = createInsertSchema(contentIdDetect
       .nullable(),
   });
 
-export const selectContentIdOptinSchema = createSelectSchema(contentIdOptinsTable);
-export const selectContentIdDetectionSchema = createSelectSchema(contentIdDetectionsTable);
 

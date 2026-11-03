@@ -30,5 +30,4 @@ const insertLabelPitchSchema = createInsertSchema(labelPitchesTable).omit({
   updated_at: true,
 });
 
-export const selectLabelPitchSchema = createSelectSchema(labelPitchesTable);
 

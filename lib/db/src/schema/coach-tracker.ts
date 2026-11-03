@@ -35,15 +35,5 @@ export const coachGoalsTable = pgTable("coach_goals", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertCoachActionItemSchema = createInsertSchema(coachActionItemsTable)
-  .omit({ id: true, created_at: true, updated_at: true, completed_at: true })
-  .extend({
-    title: z.string().trim().min(1).max(300),
-    source: z.enum(COACH_ACTION_SOURCES).default("custom"),
-    done: z.boolean().default(false),
-    sort_order: z.number().int().min(0).max(100000).default(0),
-  });
 
-export const selectCoachActionItemSchema = createSelectSchema(coachActionItemsTable);
-export const selectCoachGoalSchema = createSelectSchema(coachGoalsTable);
 

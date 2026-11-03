@@ -33,7 +33,6 @@ const insertPlaylistPitchSchema = createInsertSchema(playlistPitchesTable).omit(
   updated_at: true,
 });
 
-export const selectPlaylistPitchSchema = createSelectSchema(playlistPitchesTable);
 
 
 /* Pitch submission deadlines (migration 0199, competitor gap G7).
@@ -76,5 +75,4 @@ const insertPitchDeadlineSchema = createInsertSchema(pitchDeadlinesTable).omit({
   created_at: true,
   updated_at: true,
 });
-export const selectPitchDeadlineSchema = createSelectSchema(pitchDeadlinesTable);
 

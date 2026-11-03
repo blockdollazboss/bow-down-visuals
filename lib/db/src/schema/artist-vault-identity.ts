@@ -53,5 +53,4 @@ const insertArtistVaultIdentityPhotoSchema = createInsertSchema(artistVaultIdent
   deleted_at: true,
 });
 
-export const selectArtistVaultIdentityPhotoSchema = createSelectSchema(artistVaultIdentityPhotosTable);
 

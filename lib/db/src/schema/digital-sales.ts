@@ -48,18 +48,6 @@ export const digitalSalesTable = pgTable("digital_sales", {
 /** Order-bump attachments for digital-store items (migration 0219):
     items span three catalog tables, so the attachment lives in one
     keyed table instead of columns on each catalog. */
-export const digitalBumpOffersTable = pgTable("digital_bump_offers", {
-  itemKind:   text("item_kind").notNull().$type<DigitalItemKind>(),
-  itemId:     uuid("item_id").notNull(),
-  bumpKind:   text("bump_kind").notNull().$type<DigitalItemKind>(),
-  bumpItemId: uuid("bump_item_id").notNull(),
-  percentOff: integer("percent_off").notNull().default(0),
-  createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt:  timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (t) => [
-  primaryKey({ columns: [t.itemKind, t.itemId] }),
-  check("digital_bump_offers_percent_off_range", sql`${t.percentOff} >= 0 AND ${t.percentOff} <= 90`),
-]);
 
 const insertDigitalSaleSchema = createInsertSchema(digitalSalesTable).omit({ id: true, createdAt: true });
 export type DigitalSale = typeof digitalSalesTable.$inferSelect;

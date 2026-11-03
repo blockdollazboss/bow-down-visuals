@@ -18,11 +18,6 @@ export const locationsTable = pgTable("locations", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertLocationSchema = createInsertSchema(locationsTable).omit({
-  id: true,
-  created_at: true,
-});
 
-export const selectLocationSchema = createSelectSchema(locationsTable);
 
 export type Location = typeof locationsTable.$inferSelect;

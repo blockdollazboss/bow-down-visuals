@@ -25,5 +25,4 @@ const insertContentPlanSchema = createInsertSchema(contentPlansTable).omit({
   created_at: true,
 });
 
-export const selectContentPlanSchema = createSelectSchema(contentPlansTable);
 

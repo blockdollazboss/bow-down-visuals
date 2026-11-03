@@ -52,10 +52,4 @@ export const sampleDeclarationsTable = pgTable(
   (t) => [index("sample_declarations_song_idx").on(t.song_id), index("sample_declarations_user_idx").on(t.user_id)],
 );
 
-export const insertSampleDeclarationSchema = createInsertSchema(sampleDeclarationsTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
-export const selectSampleDeclarationSchema = createSelectSchema(sampleDeclarationsTable);
 

@@ -30,12 +30,6 @@ export const videoAutoChaptersTable = pgTable("video_auto_chapters", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertVideoAutoChaptersSchema = createInsertSchema(videoAutoChaptersTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
-export const selectVideoAutoChaptersSchema = createSelectSchema(videoAutoChaptersTable);
 
 /* ── #174: Thumbnail Duels ───────────────────────────────────────────────────
    A creator ships cover A + cover B for one published video. The audience is
@@ -66,12 +60,6 @@ export const thumbnailDuelsTable = pgTable("thumbnail_duels", {
   resolved_at: timestamp("resolved_at", { withTimezone: true }),
 });
 
-export const insertThumbnailDuelSchema = createInsertSchema(thumbnailDuelsTable).omit({
-  id: true,
-  created_at: true,
-  resolved_at: true,
-});
-export const selectThumbnailDuelSchema = createSelectSchema(thumbnailDuelsTable);
 
 /* One counted click per audience member per cover (same voter-fingerprint
    dedupe the showcase like rail uses). */
@@ -110,11 +98,6 @@ export const karaokeSingalongsTable = pgTable("karaoke_singalongs", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertKaraokeSingalongSchema = createInsertSchema(karaokeSingalongsTable).omit({
-  id: true,
-  created_at: true,
-});
-export const selectKaraokeSingalongSchema = createSelectSchema(karaokeSingalongsTable);
 
 export const karaokeSettingsSchema = z.object({
   enabled: z.boolean().optional(),

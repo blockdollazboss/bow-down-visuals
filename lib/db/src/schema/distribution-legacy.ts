@@ -133,11 +133,4 @@ export const socialUnlockGatesTable = pgTable("social_unlock_gates", {
 
 /** A share action WE recorded for a signed-in fan on a specific gate.
  *  Anonymous or unrecorded shares never unlock anything. */
-export const socialUnlockShareRecordsTable = pgTable("social_unlock_share_records", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  gate_id: uuid("gate_id").notNull(),
-  user_id: uuid("user_id").notNull(),
-  channel: text("channel").notNull().default(""),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("social_unlock_shares_gate_user_uidx").on(t.gate_id, t.user_id), index("social_unlock_shares_gate_idx").on(t.gate_id)]);
 

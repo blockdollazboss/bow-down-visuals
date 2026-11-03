@@ -120,25 +120,11 @@ export const beatLicenseTemplatesTable = pgTable("beat_license_templates", {
   index("beat_license_templates_producer_idx").on(t.producer_id),
 ]);
 
-export const insertBeatLicenseTemplateSchema = createInsertSchema(beatLicenseTemplatesTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const selectBeatLicenseTemplateSchema = createSelectSchema(beatLicenseTemplatesTable);
 
 export type BeatLicenseTemplate = typeof beatLicenseTemplatesTable.$inferSelect;
 
-export const insertBeatSchema = createInsertSchema(beatsTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-  plays: true,
-  exclusive_sold: true,
-});
 
-export const selectBeatSchema = createSelectSchema(beatsTable);
 
 export type Beat = typeof beatsTable.$inferSelect;
 
@@ -185,10 +171,5 @@ export const beatLicensesTable = pgTable("beat_licenses", {
   uniqueIndex("beat_licenses_stripe_session_ux").on(t.stripe_session_id),
 ]);
 
-export const insertBeatLicenseSchema = createInsertSchema(beatLicensesTable).omit({
-  id: true,
-  created_at: true,
-});
 
-export const selectBeatLicenseSchema = createSelectSchema(beatLicensesTable);
 

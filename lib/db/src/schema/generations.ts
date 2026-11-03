@@ -26,5 +26,4 @@ const insertGenerationSchema = createInsertSchema(generationsTable).omit({
   deleted_at: true,
 });
 
-export const selectGenerationSchema = createSelectSchema(generationsTable);
 

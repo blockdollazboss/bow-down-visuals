@@ -38,15 +38,7 @@ export const pressKitReleaseSchema = z.object({
   createdAt: z.string().min(1).max(40),
 });
 
-export const pressKitTrackSchema = z.object({
-  title: z.string().min(1).max(120),
-  url: z.string().url().max(500),
-});
 
-export const pressKitQuoteSchema = z.object({
-  quote: z.string().min(1).max(500),
-  source: z.string().min(1).max(120),
-});
 
 /* ── Page layout ─────────────────────────────────────────────────────────
    Which of the public page's sections show, and in what order. The

@@ -118,9 +118,4 @@ export const catalogImportItemsTable = pgTable(
   ],
 );
 
-export const insertCatalogImportItemSchema = createInsertSchema(catalogImportItemsTable).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 export type CatalogImportItem = typeof catalogImportItemsTable.$inferSelect;

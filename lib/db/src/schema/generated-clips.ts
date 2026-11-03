@@ -25,5 +25,4 @@ const insertGeneratedClipSchema = createInsertSchema(generatedClipsTable).omit({
   created_at: true,
 });
 
-export const selectGeneratedClipSchema = createSelectSchema(generatedClipsTable);
 

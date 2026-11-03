@@ -53,6 +53,5 @@ const insertGenerationChargeIntentSchema = createInsertSchema(generationChargeIn
   created_at: true,
   resolved_at: true,
 });
-export const selectGenerationChargeIntentSchema = createSelectSchema(generationChargeIntentsTable);
 
 export type GenerationChargeIntentRow = typeof generationChargeIntentsTable.$inferSelect;

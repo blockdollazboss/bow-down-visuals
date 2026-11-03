@@ -33,7 +33,6 @@ const insertTipJarTipSchema = createInsertSchema(tipJarTipsTable).omit({
   created_at: true,
 });
 
-export const selectTipJarTipSchema = createSelectSchema(tipJarTipsTable);
 
 /* ─── Tip pages (migration 0316) ─────────────────────────────────────
    The tip PAGE itself: one row per account (user_id PK — the jar is

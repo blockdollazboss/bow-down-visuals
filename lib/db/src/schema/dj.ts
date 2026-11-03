@@ -67,13 +67,5 @@ export const djCrateItemsTable = pgTable("dj_crate_items", {
   added_at: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertSongDjAnalysisSchema = createInsertSchema(songDjAnalysisTable);
-export const selectSongDjAnalysisSchema = createSelectSchema(songDjAnalysisTable);
-export const insertDjCrateSchema = createInsertSchema(djCratesTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
-export const selectDjCrateSchema = createSelectSchema(djCratesTable);
 
 export type DjCrate = typeof djCratesTable.$inferSelect;

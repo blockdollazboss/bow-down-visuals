@@ -31,6 +31,5 @@ const insertHubProjectSchema = createInsertSchema(hubProjectsTable).omit({
   created_at: true,
 });
 
-export const selectHubProjectSchema = createSelectSchema(hubProjectsTable);
 
 export type HubProjectRow = typeof hubProjectsTable.$inferSelect;

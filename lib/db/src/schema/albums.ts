@@ -42,5 +42,4 @@ const insertAlbumSchema = createInsertSchema(albumsTable).omit({
   updated_at: true,
 });
 
-export const selectAlbumSchema = createSelectSchema(albumsTable);
 
