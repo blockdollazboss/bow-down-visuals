@@ -549,9 +549,19 @@ export async function chargeGenerationReserve(
     });
     return { ok: true, balance };
   } catch (err) {
-    if (err instanceof OutOfCreditsError) return { ok: false, reason: "insufficient", err };
-    if (err instanceof CreditsDisabledError) return { ok: false, reason: "disabled", err };
-    if (err instanceof LedgerWriteError) return { ok: false, reason: "ledger", err };
+    /* instanceof against the real classes, with a name fallback so a
+       partially-mocked credits module in a test can never turn the
+       mapping itself into a TypeError. */
+    const errName = (err as { name?: unknown } | null)?.name;
+    if ((typeof OutOfCreditsError === "function" && err instanceof OutOfCreditsError) || errName === "OutOfCreditsError") {
+      return { ok: false, reason: "insufficient", err };
+    }
+    if ((typeof CreditsDisabledError === "function" && err instanceof CreditsDisabledError) || errName === "CreditsDisabledError") {
+      return { ok: false, reason: "disabled", err };
+    }
+    if ((typeof LedgerWriteError === "function" && err instanceof LedgerWriteError) || errName === "LedgerWriteError") {
+      return { ok: false, reason: "ledger", err };
+    }
     return { ok: false, reason: "error", err };
   }
 }
