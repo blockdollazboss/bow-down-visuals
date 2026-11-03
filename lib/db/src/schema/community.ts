@@ -52,6 +52,30 @@ export const groupMembersTable = pgTable("group_members", {
   index("group_members_user_idx").on(t.userId),
 ]);
 
+/* ── Group bans (stack1400 ruling #11, migration 0317) ──────────────────
+   A ban is its OWN durable row, keyed exactly the way membership is
+   keyed — (group_id, user_id) — and deliberately NOT a status on the
+   membership row: removing a member deletes their group_members row,
+   and a ban that lived on that row would die with it, letting a
+   removed-and-banned user walk straight back in. Bans are issued
+   only on an owner/admin's command (peace law — never automatic),
+   and while a ban row stands the user cannot rejoin through ANY
+   entry door: direct join, a fresh join request, or an approved
+   join request. Unbanning deletes the row and restores joining. */
+export const groupBansTable = pgTable("group_bans", {
+  groupId:       uuid("group_id").notNull().references(() => groupsTable.id, { onDelete: "cascade" }),
+  userId:        uuid("user_id").notNull(),
+  bannedByUserId: uuid("banned_by_user_id").notNull(),
+  reason:        text("reason"),
+  createdAt:     timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.groupId, t.userId] }),
+  index("group_bans_user_idx").on(t.userId),
+  index("group_bans_group_idx").on(t.groupId, t.createdAt),
+]);
+
+export type GroupBan = typeof groupBansTable.$inferSelect;
+
 
 /* ── Group-scoped posts ─────────────────────────────────────────────────
    Worker 8's `posts` table landed (0096) with nullable group_id — but

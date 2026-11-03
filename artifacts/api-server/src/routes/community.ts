@@ -7,6 +7,7 @@ import { db } from "@workspace/db";
 import {
   groupsTable,
   groupMembersTable,
+  groupBansTable,
   groupJoinQuestionsTable,
   groupPostsTable,
   groupForumChannelsTable,
@@ -85,7 +86,10 @@ function param(req: Request, name: string): string {
        GET    /groups/:slug/feed            group posts (auth for private)
        POST   /groups/:slug/posts           (auth; member only)
        DELETE /groups/:slug/posts/:postId   (auth; moderator+ on the ladder, or post author)
-       DELETE /groups/:slug/members/:userId (auth; admin+ on the ladder, target strictly below the actor)
+       DELETE /groups/:slug/members/:userId (auth; admin+ on the ladder, target strictly below the actor; ?ban=1 also bans)
+       POST   /groups/:slug/bans            (auth; admin+ on the ladder — ban a member or a non-member; a member is removed as part of the ban)
+       GET    /groups/:slug/bans            (auth; admin+ on the ladder — the banned list)
+       DELETE /groups/:slug/bans/:userId    (auth; admin+ on the ladder — unban; joining is restored)
      Group forums (0185 — channels inside the group, threads inside a
      channel, replies inside a thread; the group's own visibility and
      role ladder govern every path):
@@ -454,6 +458,23 @@ async function membershipRole(groupId: string, userId: string | undefined): Prom
   return rows[0]?.role ?? null;
 }
 
+/* ── Group bans (stack1400 #11) ─────────────────────────────────────────
+   A ban is a durable group_bans row, separate from the membership row:
+   removal deletes the membership row, and the ban must survive that.
+   While the row stands, EVERY entry door refuses the user — direct
+   join here, join-request create + review-approve in routes/trust.ts.
+   Bans are written only by the ban endpoints below, on an owner/admin's
+   command (peace law — never automatic). */
+async function groupBanRow(groupId: string, userId: string | undefined) {
+  if (!userId) return null;
+  const rows = await db.select().from(groupBansTable)
+    .where(and(eq(groupBansTable.groupId, groupId), eq(groupBansTable.userId, userId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+const GROUP_BANNED_ERROR = "You're banned from this group — the crew's admins have closed the door, and it stays closed until they reopen it.";
+
 /** Ladder rank of a stored role value; an unparseable legacy value
  *  ranks below everyone (it can be moderated/removed, never act). */
 function roleRank(v: unknown): number {
@@ -685,9 +706,18 @@ router.get("/groups/:slug", async (req, res) => {
         can_remove: req.userId != null && m.userId !== req.userId
           && canGroupAction(viewerRole, "removeMember")
           && roleRank(m.role) < roleRank(viewerRole),
+        /* can_ban mirrors POST /groups/:slug/bans for a member target:
+           the banMember rung (admin+), never self, target strictly
+           below the viewer's rung — the same shape as can_remove. */
+        can_ban: req.userId != null && m.userId !== req.userId
+          && canGroupAction(viewerRole, "banMember")
+          && roleRank(m.role) < roleRank(viewerRole),
         assignable_roles: ASSIGNABLE_ROLES.filter((cand) => canAssignRole(viewerRole, m.role, cand)),
       })),
       viewer_role: viewerRole,
+      /* Whether the viewer may use the ban doors at all (the banned
+         list + unban controls render only for them). */
+      can_ban: canGroupAction(viewerRole, "banMember"),
     }));
   } catch (err) {
     console.error("[community] GET /groups/:slug failed", err);
@@ -705,6 +735,15 @@ router.post("/groups/:slug/join", requireAuth, async (req, res) => {
     const userId = req.userId!;
     const existing = await membershipRole(group.id, userId);
     if (existing) { res.status(409).json({ error: "You're already in this crew." }); return; }
+    /* Ban gate (stack1400 #11): a banned user cannot rejoin while the
+       ban stands — checked before the questions gate so a banned user
+       gets the true answer, not a detour through a request the admins
+       could never approve. The ban row lives outside membership, so
+       it survives the removal that may have come with the ban. */
+    if (await groupBanRow(group.id, userId)) {
+      res.status(403).json({ error: GROUP_BANNED_ERROR });
+      return;
+    }
     /* Join questions are the group's approval gate: when admins have
        set them, membership only lands through an approved join
        request (routes/trust.ts) — a direct join must not walk around
@@ -847,7 +886,8 @@ router.delete("/groups/:slug/posts/:postId", requireAuth, async (req, res) => {
  *  rung is admin+ (the my-role caps advertise exactly that); the
  *  target must sit strictly below the actor's own rung — the same
  *  rule role edits follow (canAssignRole) — so nobody removes the
- *  owner and an admin cannot remove a peer admin. Can't remove self. */
+ *  owner and an admin cannot remove a peer admin. Can't remove self.
+ *  ?ban=1 makes it a remove-and-ban (see the handler body). */
 router.delete("/groups/:slug/members/:userId", requireAuth, async (req, res) => {
   try {
     const group = await getGroupBySlug(param(req, "slug"));
@@ -863,16 +903,133 @@ router.delete("/groups/:slug/members/:userId", requireAuth, async (req, res) => 
       res.status(403).json({ error: "You can't remove someone at or above your own rung on the ladder." });
       return;
     }
+    /* Remove-and-ban (?ban=1, stack1400 #11): the durable ban row is
+       written BEFORE the membership row goes, so the removed user
+       cannot walk straight back in. The ban needs the banMember rung
+       too — same admin+ today, checked separately so the two powers
+       can never drift apart silently. A plain removal (no ?ban=1)
+       stays what it always was: the person may rejoin. */
+    const alsoBan = req.query["ban"] === "1" || req.query["ban"] === "true";
+    if (alsoBan) {
+      if (!canGroupAction(role, "banMember")) { res.status(403).json({ error: "Only the crew's admins and owner can ban members." }); return; }
+      const reasonRaw = typeof req.query["reason"] === "string" ? req.query["reason"].trim().slice(0, 500) : "";
+      if (!(await groupBanRow(group.id, target))) {
+        await db.insert(groupBansTable).values({
+          groupId: group.id, userId: target, bannedByUserId: userId,
+          reason: reasonRaw ? reasonRaw : null,
+        });
+      }
+    }
     await db.delete(groupMembersTable)
       .where(and(eq(groupMembersTable.groupId, group.id), eq(groupMembersTable.userId, target)));
     await db.update(groupsTable)
       .set({ memberCount: sql`GREATEST(0, ${groupsTable.memberCount} - 1)` })
       .where(eq(groupsTable.id, group.id));
-    res.json({ ok: true });
+    res.json({ ok: true, banned: alsoBan });
   } catch (err) {
     if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid user id." }); return; }
     console.error("[community] DELETE /groups/:slug/members failed", err);
     res.status(500).json({ error: "Couldn't remove them — try again." });
+  }
+});
+
+/* ── GROUPS: bans (stack1400 #11) ─────────────────────────────────────────
+   Issued only on an owner/admin's command — the ladder's banMember
+   rung is admin+, and a member target must sit strictly below the
+   actor's rung (the removal rule): nobody bans the owner, an admin
+   cannot ban a peer admin, and nobody bans themself. A non-member
+   target carries no rung, so an admin+ may ban them outright (the
+   door stays closed to someone who was never in, or who left).
+   Banning a member removes them in the same breath — membership and
+   ban never coexist. Unban is the unbanMember rung (admin+): it
+   deletes the ban row and nothing else; the person joins again
+   through the normal doors. */
+
+const groupBanSchema = z.object({
+  userId: z.string().uuid(),
+  reason: z.string().trim().max(500).optional(),
+});
+
+/** Ban a user from the group (standalone ban door). */
+router.post("/groups/:slug/bans", requireAuth, async (req, res) => {
+  try {
+    const group = await getGroupBySlug(param(req, "slug"));
+    if (!group) { res.status(404).json({ error: "Group not found." }); return; }
+    const userId = req.userId!;
+    const role = await membershipRole(group.id, userId);
+    if (!canGroupAction(role, "banMember")) { res.status(403).json({ error: "Only the crew's admins and owner can ban people from this group." }); return; }
+    const body = groupBanSchema.parse(req.body ?? {});
+    if (body.userId === userId) { res.status(400).json({ error: "You can't ban yourself." }); return; }
+    const targetRole = await membershipRole(group.id, body.userId);
+    if (targetRole && !(roleRank(targetRole) < roleRank(role))) {
+      res.status(403).json({ error: "You can't ban someone at or above your own rung on the ladder." }); return;
+    }
+    const existingBan = await groupBanRow(group.id, body.userId);
+    if (!existingBan) {
+      await db.insert(groupBansTable).values({
+        groupId: group.id, userId: body.userId, bannedByUserId: userId,
+        reason: body.reason ? body.reason : null,
+      });
+    }
+    if (targetRole) {
+      await db.delete(groupMembersTable)
+        .where(and(eq(groupMembersTable.groupId, group.id), eq(groupMembersTable.userId, body.userId)));
+      await db.update(groupsTable)
+        .set({ memberCount: sql`GREATEST(0, ${groupsTable.memberCount} - 1)` })
+        .where(eq(groupsTable.id, group.id));
+    }
+    res.status(existingBan ? 200 : 201).json({ ok: true, banned: true, already_banned: !!existingBan });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid ban." }); return; }
+    console.error("[community] POST /groups/:slug/bans failed", err);
+    res.status(500).json({ error: "Couldn't ban them — try again." });
+  }
+});
+
+/** The banned list: who is banned, by whom, when, and why (admin+). */
+router.get("/groups/:slug/bans", requireAuth, async (req, res) => {
+  try {
+    const group = await getGroupBySlug(param(req, "slug"));
+    if (!group) { res.status(404).json({ error: "Group not found." }); return; }
+    const role = await membershipRole(group.id, req.userId);
+    if (!canGroupAction(role, "banMember")) { res.status(403).json({ error: "Only the crew's admins and owner can see the banned list." }); return; }
+    const rows = await db.select().from(groupBansTable)
+      .where(eq(groupBansTable.groupId, group.id))
+      .orderBy(desc(groupBansTable.createdAt));
+    const cards = await profileCards(rows.flatMap((b) => [b.userId, b.bannedByUserId]));
+    res.json(await refreshSupabaseStorageUrlsDeep({
+      bans: rows.map((b) => ({
+        user_id: b.userId,
+        banned_by_user_id: b.bannedByUserId,
+        reason: b.reason,
+        created_at: b.createdAt,
+        profile: cards[b.userId] ?? null,
+        banned_by_profile: cards[b.bannedByUserId] ?? null,
+      })),
+    }));
+  } catch (err) {
+    console.error("[community] GET /groups/:slug/bans failed", err);
+    res.status(500).json({ error: "Couldn't load the banned list — try again." });
+  }
+});
+
+/** Unban: delete the ban row; the normal entry doors reopen. */
+router.delete("/groups/:slug/bans/:userId", requireAuth, async (req, res) => {
+  try {
+    const group = await getGroupBySlug(param(req, "slug"));
+    if (!group) { res.status(404).json({ error: "Group not found." }); return; }
+    const role = await membershipRole(group.id, req.userId);
+    if (!canGroupAction(role, "unbanMember")) { res.status(403).json({ error: "Only the crew's admins and owner can unban people." }); return; }
+    const target = z.string().uuid().parse(param(req, "userId"));
+    const ban = await groupBanRow(group.id, target);
+    if (!ban) { res.status(404).json({ error: "They're not banned from this group." }); return; }
+    await db.delete(groupBansTable)
+      .where(and(eq(groupBansTable.groupId, group.id), eq(groupBansTable.userId, target)));
+    res.json({ ok: true, banned: false });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid user id." }); return; }
+    console.error("[community] DELETE /groups/:slug/bans failed", err);
+    res.status(500).json({ error: "Couldn't unban them — try again." });
   }
 });
 

@@ -17,6 +17,8 @@ const GROUP_ACTIONS = {
   reviewJoinRequests: "moderator",
   setJoinQuestions: "admin",
   removeMember: "admin",
+  banMember: "admin",            // stack1400 #11: bans issue only on an owner/admin's command (peace law)
+  unbanMember: "admin",
   setMemberRole: "admin",
   transferOwnership: "owner",
   deleteGroup: "owner",

@@ -35,6 +35,10 @@ const EXPECTED: Array<{ method: string; path: string }> = [
   { method: "POST", path: "/groups/:slug/posts" },
   { method: "DELETE", path: "/groups/:slug/posts/:postId" },
   { method: "DELETE", path: "/groups/:slug/members/:userId" },
+  // Group bans (stack1400 #11)
+  { method: "POST", path: "/groups/:slug/bans" },
+  { method: "GET", path: "/groups/:slug/bans" },
+  { method: "DELETE", path: "/groups/:slug/bans/:userId" },
   { method: "POST", path: "/groups/:slug/broadcast" },
   // Group forums (0185, Wave 3 #13)
   { method: "GET", path: "/groups/:slug/forum/channels" },
