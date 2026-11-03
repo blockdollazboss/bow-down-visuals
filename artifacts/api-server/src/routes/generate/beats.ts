@@ -971,11 +971,12 @@ async function autoRefundUndeliverableLicense(
     )
     .returning();
   if (flipped.length > 0 && license.tier === "exclusive") {
-    await db
-      .update(beatsTable)
-      .set({ exclusive_sold: false, updated_at: new Date() })
-      .where(and(eq(beatsTable.id, license.beat_id), eq(beatsTable.exclusive_sold, true)))
-      .catch(() => {});
+    try {
+      await db
+        .update(beatsTable)
+        .set({ exclusive_sold: false, updated_at: new Date() })
+        .where(and(eq(beatsTable.id, license.beat_id), eq(beatsTable.exclusive_sold, true)));
+    } catch { /* the refund stands even if the release needs a retry */ }
   }
   return flipped.length > 0;
 }
