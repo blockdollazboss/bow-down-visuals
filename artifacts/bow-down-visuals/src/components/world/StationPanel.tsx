@@ -190,6 +190,7 @@ const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsS
 const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
+const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1169,6 +1170,18 @@ export default function StationPanel(props: StationPanelProps) {
                     like the locked /academy route on the website. */}
                 <DeskDoor isLight={isLight}>
                   <AcademyDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Team Workspace (stack1500 parity wave #4a): the
+                    Team family — my teams + invites, the shared
+                    credit pool with funding, member roles, pool
+                    spending and the duo/group public profile on the
+                    /api/teams rails, in the room — stacked at the My
+                    Studio board like its neighbours. Members only,
+                    like the board itself and like the locked /team
+                    route on the website; under Shot Caller the desk
+                    renders the rail's own tier gate. */}
+                <DeskDoor isLight={isLight}>
+                  <TeamDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
