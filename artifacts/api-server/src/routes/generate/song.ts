@@ -6,10 +6,100 @@ import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { isAdminRequest } from "../../lib/admin";
+import {
+  creditCostForLength,
+  SongTooLongError,
+  SONG_PRICE_TIERS,
+  MAX_LENGTH_MS,
+} from "./music-audio";
 
 const router = Router();
 
-const CREDIT_COST = 400;
+/* ── Pricing — the SAME duration tiers as the audio rail ──────────
+   Price-accuracy audit #5 (2026-11-02): this legacy rail used to
+   charge a flat 400 VB regardless of the requested length, so any
+   long song reaching it bypassed the ruled duration tiers and the
+   site told two song price stories. The charge now derives from
+   routes/generate/music-audio.ts — SONG_PRICE_TIERS /
+   creditCostForLength are IMPORTED here, never copied — so there
+   is one song price story: 400 (≤1 min) / 800 (≤3 min) / 1,200
+   (≤5 min) / 2,400 (≤10 min).
+
+   This rail's length arrives as a descriptive label (the Make Song
+   form's songLength select: "30 seconds", "2 minutes", "Full
+   song", …), not the audio rail's numeric lengthSeconds — so the
+   label is parsed to milliseconds and priced through the same
+   function. A caller may also send the audio rail's numeric
+   lengthSeconds, which wins when present. Two reviewed defaults:
+   - no / unrecognised length → 60 seconds (the audio rail's own
+     DEFAULT_LENGTH_MS), i.e. the 400 first tier — the price this
+     rail always charged for an unspecified length;
+   - "Full song" → 180 seconds, the site's standard full-song
+     length (the "Standard (3 min)" default the song-and-video
+     journey posts), i.e. the 800 tier.
+   Past 10 minutes the tier function throws SongTooLongError and a
+   member is refused plainly BEFORE any charge — the audio rail's
+   exact behaviour — while an admin caller (fail-closed
+   ADMIN_EMAILS allowlist) is priced at the 2,400 top tier, the
+   audio rail's owner exemption. */
+export const DEFAULT_SONG_LENGTH_MS = 60_000;
+export const FULL_SONG_LENGTH_MS = 180_000;
+
+/** Parse a descriptive song-length label to milliseconds.
+ *  Returns null when the label names no length we can price. */
+export function songLengthMsFromLabel(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  const text = raw.trim().toLowerCase();
+  if (!text) return null;
+  if (text.includes("full song")) return FULL_SONG_LENGTH_MS;
+  const clock = text.match(/(\d+):([0-5]\d)/);
+  if (clock) return Number(clock[1]) * 60_000 + Number(clock[2]) * 1_000;
+  let ms = 0;
+  let found = false;
+  const minutes = text.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?)\b/);
+  if (minutes) {
+    ms += Math.round(Number(minutes[1]) * 60_000);
+    found = true;
+  }
+  const seconds = text.match(/(\d+(?:\.\d+)?)\s*(?:seconds?|secs?)\b/);
+  if (seconds) {
+    ms += Math.round(Number(seconds[1]) * 1_000);
+    found = true;
+  }
+  return found ? ms : null;
+}
+
+/** The length a generate-song request is priced on: an explicit
+ *  numeric lengthSeconds wins, then the songLength label, then the
+ *  60-second default. */
+export function songLengthMsForRequest(input: {
+  songLength?: string | null;
+  lengthSeconds?: number | null;
+}): number {
+  if (
+    typeof input.lengthSeconds === "number" &&
+    Number.isFinite(input.lengthSeconds) &&
+    input.lengthSeconds > 0
+  ) {
+    return Math.round(input.lengthSeconds * 1000);
+  }
+  return songLengthMsFromLabel(input.songLength) ?? DEFAULT_SONG_LENGTH_MS;
+}
+
+/** This rail's charge for a request, through the audio rail's tier
+ *  function. Throws SongTooLongError past 10 minutes for a member;
+ *  an admin caller past the top tier pays the top tier instead. */
+export function creditCostForSongRequest(
+  input: { songLength?: string | null; lengthSeconds?: number | null },
+  isAdmin: boolean,
+): number {
+  const lengthMs = songLengthMsForRequest(input);
+  if (isAdmin && lengthMs > MAX_LENGTH_MS) {
+    return SONG_PRICE_TIERS[SONG_PRICE_TIERS.length - 1]!.cost;
+  }
+  return creditCostForLength(lengthMs);
+}
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
@@ -82,6 +172,9 @@ const songGenerateSchema = z.object({
   voiceStyle: z.string().max(200).optional(),
   beatStyle: z.string().max(200).optional(),
   songLength: z.string().max(50).optional(),
+  /** The audio rail's numeric length (seconds) — wins over the
+   *  songLength label when present; priced on the same tiers. */
+  lengthSeconds: z.number().optional(),
   instructions: z.string().max(5000).optional(),
   artistVault: z.record(z.string(), z.string().nullable().optional()).nullable().optional(),
 });
@@ -102,14 +195,36 @@ router.post("/generate-song", requireAuth, async (req, res) => {
 
   const artistVault = parsed.data.artistVault as VaultData | null | undefined;
 
+  /* The tiered charge for THIS request's length (see the pricing
+     note at the top of the file). Priced before the affordability
+     check; a member past 10 minutes is refused plainly here,
+     before any charge — the audio rail's song_too_long answer. */
+  let creditCost: number;
+  try {
+    creditCost = creditCostForSongRequest(
+      { songLength, lengthSeconds: parsed.data.lengthSeconds },
+      isAdminRequest(req),
+    );
+  } catch (pricingErr) {
+    if (pricingErr instanceof SongTooLongError) {
+      res.status(400).json({
+        error:
+          "Songs can be up to 10 minutes long — pick a length of 10 minutes or less and try again. Nothing was charged.",
+        code: "song_too_long",
+      });
+      return;
+    }
+    throw pricingErr;
+  }
+
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
-    console.log(`[generate-song] userId=${req.userId} credits=${currentCredits} required=${CREDIT_COST}`);
+    console.log(`[generate-song] userId=${req.userId} credits=${currentCredits} required=${creditCost}`);
   }
 
   const isDev = process.env["NODE_ENV"] === "development";
-  if (!isDev && currentCredits < CREDIT_COST) {
+  if (!isDev && currentCredits < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
@@ -126,7 +241,7 @@ router.post("/generate-song", requireAuth, async (req, res) => {
      all but the first charge failed. Same price, same action. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Song" });
+    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Make a Song" });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -146,7 +261,7 @@ router.post("/generate-song", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Make a Song — Refund" }).catch(() => {});
+    await refundCredits(req.userId!, creditCost, { action: "Make a Song — Refund" }).catch(() => {});
   };
 
   const isExplicit = explicit?.toLowerCase() === "explicit";
@@ -237,7 +352,7 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
       content,
       artistName:     artistName || undefined,
       songTitle:      songTitle  || undefined,
-      creditsUsed:    CREDIT_COST,
+      creditsUsed:    creditCost,
     });
 
     // (The charge already landed at reserve-at-start, above.)
@@ -245,7 +360,7 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
     // Step 3: Fire-and-forget — mark charged (usage already logged by chargeCredits)
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
+    res.json({ result: content, creditsRemaining: creditsAfter, creditsUsed: creditCost, genHistoryId });
     // Retention hook: counts as a creation day + feeds the song quest.
     void recordCreation(req.userId!, "song");
   } catch (err: unknown) {
