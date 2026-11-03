@@ -44,6 +44,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
     creatorProfiles: actual.creatorProfilesTable,
     groups: actual.groupsTable,
     groupMembers: actual.groupMembersTable,
+    groupBans: actual.groupBansTable,
     follows: actual.followsTable,
     liveChannelModerators: actual.liveChannelModeratorsTable,
     liveStreams: actual.liveStreamsTable,
