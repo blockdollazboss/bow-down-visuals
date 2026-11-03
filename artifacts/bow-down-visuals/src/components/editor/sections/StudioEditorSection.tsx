@@ -33,6 +33,7 @@ import { computeSceneTimings } from "@/lib/scene-timing";
 import type { EditorSettings } from "@/lib/editor-settings";
 import { defaultClipEdit } from "@/lib/editor-settings";
 import { isTimelineLocked, TIMELINE_LOCKED_MESSAGE } from "@/lib/timeline-lock";
+import { MovieStageTruthCard } from "@/components/editor/MovieStageTruthCard";
 import { Button } from "@/components/ui/button";
 
 /* ─── Types ────────────────────────────────────────────────────────── */
@@ -602,6 +603,10 @@ export function StudioEditorSection({
           </Button>
         </div>
       </div>
+
+      {/* ── Movie stages: each stage's real state, derived from the
+          project's own scenes + saved settings (audit §3.7) ── */}
+      <MovieStageTruthCard scenes={scenes} settings={settings} audioDuration={audioDuration} />
 
       {/* ── Validation error banner ── */}
       {validationError && (
