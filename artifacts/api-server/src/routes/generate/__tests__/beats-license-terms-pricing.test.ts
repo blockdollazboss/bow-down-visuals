@@ -22,7 +22,7 @@ describe("fixed tier standing terms (from the tier blurbs)", () => {
     expect(terms.isExclusive).toBe(false);
   });
 
-  it("premium: WAV + MP3 · 2 music videos · 500k streams", () => {
+  it("premium: 2 music videos · 500k streams", () => {
     const terms = defaultTermsForTier("premium");
     expect(terms.format).toBe("wav_mp3");
     expect(terms.musicVideosCap).toBe(2);

@@ -26,8 +26,8 @@ export interface PlainTermsSection {
 
 const FORMAT_LINES: Record<BeatLicenseTerms["format"], string> = {
   mp3: "The beat as an MP3 file.",
-  wav_mp3: "The beat as WAV + MP3 files.",
-  wav_mp3_stems: "The beat as WAV + MP3 files, plus the separate track stems.",
+  wav_mp3: "The beat as the producer uploaded it — one audio file.",
+  wav_mp3_stems: "The beat as the producer uploaded it — one audio file, plus the producer's uploaded track stems.",
   ownership_stems: "The beat itself — full ownership, plus the separate track stems.",
 };
 
