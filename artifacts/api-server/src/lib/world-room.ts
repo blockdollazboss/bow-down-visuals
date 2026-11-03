@@ -2612,11 +2612,16 @@ export class WorldRoom {
         return;
       }
       case "action": {
-        /* Perform an avatar action. Everyone present performs —
-         * guests included: an action is presence, not speech, and
-         * the rate limit keeps it sane. The id must be one of the
+        /* Guests are look/listen-only: no voice, no text, and no
+         * emotes/avatar actions either (stack1400 ruling #40).
+         * Guests stay out of emotes entirely. The client doesn't
+         * offer them an action bar; this is the server-side
+         * backstop, mirroring case "say" below. */
+        if (peer.guest) return;
+        /* Perform an avatar action. The id must be one of the
          * shared WORLD_ACTIONS; anything else is ignored, so a
-         * modified client can't invent poses the room renders. */
+         * modified client can't invent poses the room renders.
+         * The rate limit keeps it sane. */
         if (now - peer.lastActionAt < ACTION_MIN_INTERVAL_MS) return;
         const raw = frame["action"];
         if (raw === null) {

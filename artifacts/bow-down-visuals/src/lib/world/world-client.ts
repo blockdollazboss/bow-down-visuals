@@ -1238,14 +1238,17 @@ export class WorldClient {
     this.room = null;
   }
 
-  /** Perform an avatar action (or stop one with null). Everyone
-   *  present performs — guests too: an action is presence, not
-   *  speech. The page resolves a toggle press to the state it
-   *  wants (pressing Dance while dancing sends null), so this is a
-   *  plain setter: the scene performs my own action optimistically
-   *  from the same call, and the room relays it to everyone else. */
+  /** Perform an avatar action (or stop one with null). Guests
+   *  are look/listen-only: no voice, no text, and no emotes/avatar
+   *  actions either (stack1400 ruling #40) — a guest call sends
+   *  nothing and changes nothing, mirroring say() below and the
+   *  server's case "action" guard. For members, the page resolves
+   *  a toggle press to the state it wants (pressing Dance while
+   *  dancing sends null), so this is a plain setter: the scene
+   *  performs my own action optimistically from the same call,
+   *  and the room relays it to everyone else. */
   performAction(action: WorldActionId | null): void {
-    if (this.status !== "inside" || !this.self) return;
+    if (this.status !== "inside" || !this.self || this.self.guest) return;
     this.self.action = action;
     this.send({ type: "action", action });
   }

@@ -1078,15 +1078,20 @@ describe("avatar actions", () => {
     expect(room.peerFor(a)?.action).toBe("bow");
   });
 
-  it("guests act too — an action is presence, not speech", () => {
+  it("guests cannot act — guests are out of emotes entirely (ruling #40)", () => {
     const room = new WorldRoom(new RoomHub());
     const a = fakeSocket();
     const g = fakeSocket();
     room.attach(a, member("Alpha"));
     room.attach(g, guest());
+    a.sent = [];
     frame(g, room, { type: "action", action: "clap" }, 1_000);
-    expect(room.peerFor(g)?.action).toBe("clap");
-    expect(a.sent.filter((m) => m.type === "peer.action")).toHaveLength(1);
+    expect(room.peerFor(g)?.action).toBeNull();
+    expect(a.sent.filter((m) => m.type === "peer.action")).toHaveLength(0);
+    // Clearing / a null action from a guest is likewise a no-op.
+    frame(g, room, { type: "action", action: null }, 2_000);
+    expect(room.peerFor(g)?.action).toBeNull();
+    expect(a.sent.filter((m) => m.type === "peer.action")).toHaveLength(0);
   });
 });
 
