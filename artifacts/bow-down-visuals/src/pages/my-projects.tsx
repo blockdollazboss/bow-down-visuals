@@ -27,6 +27,7 @@ import MyClips from "@/pages/my-clips";
 import SongsPage from "@/pages/songs";
 import { parseMyProjectsTab, type MyProjectsTab } from "@/lib/my-projects-tabs";
 import HubProjectsSection from "@/components/HubProjectsSection";
+import { deriveProjectTruth } from "@/lib/project-truth";
 import { ThemedSharkImage } from "@/components/ThemedSharkImage";
 
 /** Project types that can be opened in the Video Editor. */
@@ -401,6 +402,12 @@ function ProjectCard({
     ? "from-[#FFFDF8] via-[#F7F1E3] to-[#EFE6D0]"
     : (TYPE_GRADIENTS[project.project_type] ?? "from-primary/30 via-primary/10 to-black/40");
 
+  /* Project truth (audit rank 8): the card states what the project
+     actually is — completed, export-failed, or in-progress with the
+     real scene counts — derived only from the row's saved data,
+     never an invented percentage. */
+  const truth = deriveProjectTruth(project, isVideoProject(project.project_type));
+
   const savedScenes = (project.output_data?.scenes ?? []) as { demoClipUrl?: string | null; provider?: string | null }[];
   const clipCount = savedScenes.filter((s) => s.demoClipUrl).length;
   const clipUrls = savedScenes
@@ -512,6 +519,34 @@ function ProjectCard({
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+          <span
+            data-testid={`project-truth-${project.id}`}
+            data-state={truth.state}
+            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              truth.state === "completed"
+                ? isLight
+                  ? "border-[#c9a84c]/30 bg-[#c9a84c]/15 text-[#8a6d2f]"
+                  : "border-green-500/30 bg-green-500/10 text-green-400"
+                : truth.state === "export-failed"
+                  ? "border-red-400/20 bg-red-400/10 text-red-400"
+                  : "border-white/10 bg-white/5 text-white/40"
+            }`}
+          >
+            {truth.state === "completed" ? (
+              <><Check className="h-2.5 w-2.5" /> {t("myProjects.projectCompleted", { defaultValue: "Completed" })}</>
+            ) : truth.state === "export-failed" ? (
+              <><X className="h-2.5 w-2.5" /> {t("myProjects.projectExportFailed", { defaultValue: "Export failed" })}</>
+            ) : truth.scenesTotal > 0 ? (
+              <><Clock className="h-2.5 w-2.5" /> {t("myProjects.projectInProgressScenes", { defaultValue: "In progress — {{clips}} of {{total}} scenes have clips", clips: truth.scenesWithClips, total: truth.scenesTotal })}</>
+            ) : isVideoProject(project.project_type) ? (
+              <><Clock className="h-2.5 w-2.5" /> {t("myProjects.projectInProgressNoVideo", { defaultValue: "In progress — no final video yet" })}</>
+            ) : (
+              <><Clock className="h-2.5 w-2.5" /> {t("myProjects.projectInProgress", { defaultValue: "In progress" })}</>
+            )}
+          </span>
         </div>
 
         {clipCount > 0 && (

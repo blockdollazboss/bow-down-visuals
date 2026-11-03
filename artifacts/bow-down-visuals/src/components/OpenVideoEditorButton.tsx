@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Clapperboard } from "lucide-react";
+import { editorProjectHref } from "@/lib/project-truth";
 import { Button } from "@/components/ui/button";
 import type { ButtonProps } from "@/components/ui/button";
 
@@ -26,7 +27,7 @@ export function OpenVideoEditorButton({
   testId,
 }: OpenVideoEditorButtonProps) {
   return (
-    <Link href={`/video-editor?project=${projectId}`}>
+    <Link href={editorProjectHref(projectId)}>
       <Button
         size={size}
         variant={variant}
