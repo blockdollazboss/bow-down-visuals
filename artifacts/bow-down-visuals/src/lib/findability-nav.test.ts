@@ -328,7 +328,7 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
     expect(app).toContain('to="/branding-kit?tab=shop&subtab=merch"');
   });
 
-  it("never double-hosts Thy Cheat Code on /coach or /academy (no-double-host pin)", () => {
+  it("never double-hosts Thy Cheat Code on /coach, /academy or /brand-deals (no-double-host pin)", () => {
     /* The shell renders a marketing ThyCheatCodeHost for the routes in
        marketingCoachRoute AND an in-main host inside AuthedLayout. A
        wrapped page still listed there would render the host twice. */
@@ -337,7 +337,11 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
     const list = app.slice(listAt, app.indexOf("]", listAt));
     expect(list).not.toContain('"/coach"');
     expect(list).not.toContain('"/academy"');
-    for (const kept of ['"/pricing"', '"/shows"', '"/brand-deals"']) {
+    /* stack1400 org wave: /brand-deals moved inside AuthedLayout, so it
+       leaves the marketing list too — the shell's in-main host is his
+       one host there now, exactly like /coach and /academy. */
+    expect(list).not.toContain('"/brand-deals"');
+    for (const kept of ['"/pricing"', '"/shows"']) {
       expect(list, `${kept} keeps the marketing host`).toContain(kept);
     }
   });

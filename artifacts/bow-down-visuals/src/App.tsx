@@ -531,7 +531,7 @@ function AppShell() {
   const hideFooter = location.startsWith("/video-editor") || location.startsWith("/review");
   /* Marketing pages (outside the sidebar layout) where Thy Cheat Code coaches
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
-  const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals"]
+  const marketingCoachRoute = ["/pricing", "/shows"]
     .includes(location.split("?")[0].split("#")[0]);
   /* Stream overlays (stack900 C2 + D3): /overlay/* pages are browser
    * sources for OBS / Streamlabs — the program output itself. They
@@ -688,13 +688,6 @@ function AppShell() {
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
           {/* Cursor Settings — permanent page (linked from Settings; no sidebar link) */}
           <Route path="/cursor-lab"><CursorLab /></Route>
-          <Route path="/tour"><TourPlanner /></Route>
-          {/* Phase 2: de-hosted money-hub pages — real routes, no
-              ProtectedRoute (parity with their Coach-tab rendering;
-              the pages own their signed-out states). */}
-          <Route path="/brand-deals"><BrandDealsRoute /></Route>
-          <Route path="/distribute"><DistributeRoute /></Route>
-          <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
@@ -723,10 +716,8 @@ function AppShell() {
           <Route path="/shop"><Redirect to="/storefronts" /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>
           <Route path="/storefront/product/:id"><StorefrontProduct /></Route>
-          <Route path="/interview-prep"><InterviewPrep /></Route>
           <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
-          <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected" /></Route>
           <Route path="/import"><ProtectedRoute><MediaImport /></ProtectedRoute></Route>
           <Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>
@@ -895,6 +886,26 @@ function AppShell() {
                 <Route path="/coach"><MonetizationCoach /></Route>
                 <Route path="/academy"><CreatorAcademy /></Route>
                 <Route path="/branding-kit"><BrandingKit /></Route>
+                {/* One-website shell, money-flow ring (stack1400 org wave,
+                    audit §1a): the Phase 2 de-hosted money-hub pages —
+                    /brand-deals and /distribute — plus the Brand Deals
+                    calculator and the Promote orphans (Tour, Interview
+                    Prep, Setlist) rendered OUTSIDE the sidebar layout,
+                    so following the nav dropped the menu mid-flow. Same
+                    pages, same elements, same wrappers and signed-out
+                    states (no ProtectedRoute — parity with their
+                    Coach-tab rendering; GuestGate still judges by path
+                    above both Switches) — now inside AuthedLayout.
+                    /brand-deals leaves marketingCoachRoute above for the
+                    same reason /coach and /academy did: AuthedLayout
+                    already renders ThyCheatCodeHost in <main>, and the
+                    shell-level marketing host would double-render him. */}
+                <Route path="/brand-deals"><BrandDealsRoute /></Route>
+                <Route path="/distribute"><DistributeRoute /></Route>
+                <Route path="/brand-calculator"><BrandDealCalculator /></Route>
+                <Route path="/tour"><TourPlanner /></Route>
+                <Route path="/interview-prep"><InterviewPrep /></Route>
+                <Route path="/setlist"><SetlistBuilder /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
