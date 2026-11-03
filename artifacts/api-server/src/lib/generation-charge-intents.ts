@@ -4,7 +4,13 @@ import {
   generationChargeIntentsTable,
   type GenerationChargeIntentRow,
 } from "@workspace/db";
-import { chargeCredits, LedgerWriteError } from "./credits";
+import {
+  chargeCredits,
+  refundCredits,
+  LedgerWriteError,
+  OutOfCreditsError,
+  CreditsDisabledError,
+} from "./credits";
 import { logger } from "./logger";
 
 /* Durable submit-time charge intents for poll-charged generations
@@ -43,7 +49,46 @@ import { logger } from "./logger";
    successful charge and markCharged, the row still reads 'awaiting' —
    the sweeper's retry then hits the idempotency key, chargeCredits
    returns the balance WITHOUT charging again, and the row is marked
-   'charged'. No double charge, no lost charge. */
+   'charged'. No double charge, no lost charge.
+
+   ── RESERVE-AT-SUBMIT (stack1400 ruling #43 Part A; migration 0317) ──
+   The four intent rails (runway-clip, artist-image, intro-outro, logo)
+   reversed to the stack1000 music-rail precedent: the charge lands at
+   SUBMIT, before the provider call, through chargeCredits with a
+   fresh balance read — the balance itself now paces concurrent
+   submits, closing the Owner-Decision-2 concurrency window (a member
+   whose balance drained mid-flight could previously receive a success
+   whose poll-time charge never landed). The intent row flips role:
+   it is the RESERVE RECORD (status 'reserved', charged amount, and
+   the charge idempotency key in extra.chargeKey).
+     · charge key — 'gen-charge:<taskId>' whenever the task id is ours
+       (Veo veo-<uuid>, sync rails' sync-<uuid>); when the provider
+       mints the task id (Runway/Seedance), the submit mints a local
+       job id first ('job-<uuid>') and charges under
+       'gen-charge:<jobId>' BEFORE the provider submission — the
+       provider task id keys the intent row as before, and the row's
+       extra.chargeKey names the charge.
+     · submit — a refused charge (insufficient / disabled / ledger)
+       refuses the submit with the rail's existing 402/500 shape and
+       the provider is never called.
+     · success poll — CONFIRM: 'reserved' → 'charged'. No money moves;
+       there is no second charge to suppress.
+     · failure / no-output / save failure — REFUND the exact reserve,
+       exactly once: the 'reserved' → 'refunded' flip is the claim
+       (refundCredits carries no idempotency key, so the row is the
+       gate — the clip-charge-obligations discipline). If the refund
+       call itself throws after the claim, the claim is released back
+       to 'reserved' so a later poll/sweep retries it.
+     · provider submission failure AFTER the reserve (the provider
+       call throws) — the submit refunds its own reserve immediately
+       in-request, so no orphan reserve waits for a poll that will
+       never come; a failed refund logs CRITICAL under the job/task
+       id, with the charge's ledger row as the reconciliation trail.
+     · sweeper — reserve reconciliation, never late-charging a
+       reserve: delivered reserves are confirmed, abandoned reserves
+       (never delivered past the stale window) are claim-refunded.
+   Legacy 'awaiting' rows (submitted before this reversal) keep the
+   settle discipline above untouched. */
 
 const GEN_CHARGE_IDEMPOTENCY_PREFIX = "gen-charge:";
 
@@ -51,14 +96,22 @@ export const GEN_CHARGE_RETRY_AFTER_MS =
   Number(process.env["GEN_CHARGE_RETRY_AFTER_MS"]) || 2 * 60 * 1000;
 export const GEN_CHARGE_EXPIRE_AFTER_MS =
   Number(process.env["GEN_CHARGE_EXPIRE_AFTER_MS"]) || 24 * 60 * 60 * 1000;
+/* A reserve that was never delivered within this window is abandoned:
+   the sweeper claim-refunds it in full. Defaults to the retention
+   window — provider tasks on these rails resolve in minutes, so a
+   full day without a delivery poll means nobody is coming back. */
+export const GEN_CHARGE_RESERVE_STALE_MS =
+  Number(process.env["GEN_CHARGE_RESERVE_STALE_MS"]) || GEN_CHARGE_EXPIRE_AFTER_MS;
 const SWEEP_INTERVAL_MS =
   Number(process.env["GEN_CHARGE_SWEEP_INTERVAL_MS"]) || 10 * 60 * 1000;
 const SWEEP_STARTUP_DELAY_MS =
   Number(process.env["GEN_CHARGE_SWEEP_STARTUP_DELAY_MS"]) || 30 * 1000;
 
 export interface GenerationChargeIntentStore {
-  /** Insert one 'awaiting' intent. task_id is UNIQUE — a duplicate
-      record (re-submit race) is a no-op. */
+  /** Insert one intent. task_id is UNIQUE — a duplicate record
+      (re-submit race) is a no-op. `status` defaults to the legacy
+      'awaiting'; reserve-at-submit records pass 'reserved' (the
+      charge already landed — see recordGenerationReserve). */
   recordIntent(input: {
     taskId: string;
     rail: string;
@@ -67,6 +120,7 @@ export interface GenerationChargeIntentStore {
     projectId?: string | null;
     action: string;
     extra?: Record<string, unknown> | null;
+    status?: "awaiting" | "reserved";
   }): Promise<void>;
   getIntent(taskId: string): Promise<GenerationChargeIntentRow | null>;
   /** Move 'awaiting'|'expired' → 'charged'. Returns true when this call
@@ -82,6 +136,23 @@ export interface GenerationChargeIntentStore {
   /** Claim undelivered 'awaiting' intents older than the cutoff for
       expiry bookkeeping. Returns the rows it expired. */
   expireUndelivered(cutoff: Date): Promise<GenerationChargeIntentRow[]>;
+  /* ── Reserve-at-submit (0317) ── */
+  /** Move 'reserved' → 'charged' (success poll confirms the reserve;
+      no money moves). Returns true when this call moved the row. */
+  confirmReserve(taskId: string): Promise<boolean>;
+  /** Atomically claim a reserve for refund: 'reserved' → 'refunded'.
+      Returns the claimed row, or null when the row is absent or not
+      in 'reserved' — the exactly-once gate for every refund path. */
+  claimReserveRefund(taskId: string): Promise<GenerationChargeIntentRow | null>;
+  /** Release a refund claim whose refund call threw ('refunded' →
+      'reserved') so a later poll or sweep can retry the refund. */
+  releaseReserveRefundClaim(taskId: string): Promise<boolean>;
+  /** Reserves that were delivered but never confirmed, delivery older
+      than the cutoff — the sweeper confirms these (no money moves). */
+  listDeliveredReserves(cutoff: Date): Promise<GenerationChargeIntentRow[]>;
+  /** Reserves never delivered and older than the cutoff — the
+      sweeper's abandoned-reserve refund set. */
+  listStaleReserves(cutoff: Date): Promise<GenerationChargeIntentRow[]>;
 }
 
 type Db = typeof defaultDb;
@@ -100,7 +171,7 @@ function createDrizzleGenerationChargeIntentStore(db: Db = defaultDb): Generatio
           project_id: input.projectId ?? null,
           action: input.action,
           extra: input.extra ?? null,
-          status: "awaiting",
+          status: input.status ?? "awaiting",
         })
         .onConflictDoNothing({ target: T.task_id });
     },
@@ -167,6 +238,61 @@ function createDrizzleGenerationChargeIntentStore(db: Db = defaultDb): Generatio
         )
         .returning();
     },
+
+    async confirmReserve(taskId) {
+      const rows = await db
+        .update(T)
+        .set({ status: "charged", resolved_at: new Date() })
+        .where(and(eq(T.task_id, taskId), eq(T.status, "reserved")))
+        .returning({ id: T.id });
+      return rows.length > 0;
+    },
+
+    async claimReserveRefund(taskId) {
+      const rows = await db
+        .update(T)
+        .set({ status: "refunded", resolved_at: new Date() })
+        .where(and(eq(T.task_id, taskId), eq(T.status, "reserved")))
+        .returning();
+      return rows[0] ?? null;
+    },
+
+    async releaseReserveRefundClaim(taskId) {
+      const rows = await db
+        .update(T)
+        .set({ status: "reserved", resolved_at: null })
+        .where(and(eq(T.task_id, taskId), eq(T.status, "refunded")))
+        .returning({ id: T.id });
+      return rows.length > 0;
+    },
+
+    async listDeliveredReserves(cutoff) {
+      return db
+        .select()
+        .from(T)
+        .where(
+          and(
+            eq(T.status, "reserved"),
+            isNotNull(T.delivered_at),
+            lt(T.delivered_at, cutoff),
+          ),
+        )
+        .orderBy(T.created_at);
+    },
+
+    async listStaleReserves(cutoff) {
+      return db
+        .select()
+        .from(T)
+        .where(
+          and(
+            eq(T.status, "reserved"),
+            isNull(T.delivered_at),
+            lt(T.created_at, cutoff),
+          ),
+        )
+        .orderBy(T.created_at);
+    },
   };
 }
 
@@ -219,7 +345,7 @@ export async function markGenerationIntentFailed(
 
 /* ── Settle ─────────────────────────────────────────────────────────── */
 
-interface ResolvedPendingCharge {
+export interface ResolvedPendingCharge {
   userId: string;
   credits: number;
   projectId: string | null;
@@ -229,6 +355,21 @@ interface ResolvedPendingCharge {
       (a task submitted before migration 0298, or a failed record). */
   intentStatus: string | null;
   source: "memory" | "intent";
+  /** Reserve-at-submit: true when the charge already landed at submit
+      (the row reads 'reserved', or the in-memory entry says so when
+      the row's record failed). A reserved resolution CONFIRMS on
+      success and REFUNDS on failure — it never charges again. */
+  reserved: boolean;
+  /** The charge's idempotency key ('gen-charge:<taskOrJobId>'), when
+      known — recorded on the reserve row's extra and carried by the
+      in-memory entry. Bookkeeping/reconciliation only: the refund
+      gate is the row's status flip, not this key. */
+  chargeKey: string | null;
+}
+
+function chargeKeyOf(extra: Record<string, unknown> | null | undefined): string | null {
+  const k = extra?.["chargeKey"];
+  return typeof k === "string" && k.length > 0 ? k : null;
 }
 
 /** What a rail's poll handler charges from: its in-memory pending entry
@@ -246,6 +387,8 @@ export async function resolvePendingCharge(
     projectId?: string | null;
     action: string;
     extra?: Record<string, unknown> | null;
+    reserved?: boolean;
+    chargeKey?: string | null;
   } | null,
 ): Promise<ResolvedPendingCharge | null> {
   let intent: GenerationChargeIntentRow | null = null;
@@ -264,6 +407,10 @@ export async function resolvePendingCharge(
       extra: memory.extra ?? null,
       intentStatus: intent?.status ?? null,
       source: "memory",
+      reserved: intent?.status === "reserved" || intent?.status === "refunded"
+        ? true
+        : (memory.reserved ?? false),
+      chargeKey: chargeKeyOf(intent?.extra) ?? memory.chargeKey ?? chargeKeyOf(memory.extra),
     };
   }
   if (intent) {
@@ -275,6 +422,8 @@ export async function resolvePendingCharge(
       extra: intent.extra ?? null,
       intentStatus: intent.status,
       source: "intent",
+      reserved: intent.status === "reserved" || intent.status === "refunded",
+      chargeKey: chargeKeyOf(intent.extra),
     };
   }
   return null;
@@ -353,24 +502,257 @@ export async function settleGenerationCharge(
   return unledgered ? "charged_unledgered" : "charged";
 }
 
+/* ── Reserve-at-submit (0317) ─────────────────────────────────────── */
+
+export type RefundFn = (
+  userId: string,
+  credits: number,
+  record: { action: string; projectId: string | null },
+) => Promise<void>;
+
+const defaultRefundFn: RefundFn = (userId, credits, record) =>
+  refundCredits(userId, credits, record);
+
+export function generationChargeKey(taskOrJobId: string): string {
+  return `${GEN_CHARGE_IDEMPOTENCY_PREFIX}${taskOrJobId}`;
+}
+
+export type ReserveOutcome =
+  | { ok: true; balance: number }
+  | { ok: false; reason: "insufficient" | "disabled" | "ledger" | "error"; err: unknown };
+
+/** Charge the reserve at submit, BEFORE the provider call. Goes
+    through chargeCredits only (fresh balance read — the balance is
+    the pace), keyed by the caller-minted task/job id. The value is
+    NOT delivered yet, so a ledger failure rolls the deduction back
+    (rollbackOnLedgerFailure: true): a LedgerWriteError here means
+    nothing was taken and the submit is refused, exactly like an
+    insufficient balance. Never throws — the rail maps the outcome
+    onto its existing 402/403/500 response shapes. */
+export async function chargeGenerationReserve(
+  input: {
+    userId: string;
+    credits: number;
+    projectId?: string | null;
+    action: string;
+    chargeKey: string;
+  },
+  chargeFn: ChargeFn = defaultChargeFn,
+): Promise<ReserveOutcome> {
+  try {
+    const balance = await chargeFn(input.userId, input.credits, {
+      action: input.action,
+      projectId: input.projectId ?? null,
+    }, {
+      idempotencyKey: input.chargeKey,
+      rollbackOnLedgerFailure: true,
+    });
+    return { ok: true, balance };
+  } catch (err) {
+    /* instanceof against the real classes, with a name fallback so a
+       partially-mocked credits module in a test can never turn the
+       mapping itself into a TypeError. */
+    const errName = (err as { name?: unknown } | null)?.name;
+    if ((typeof OutOfCreditsError === "function" && err instanceof OutOfCreditsError) || errName === "OutOfCreditsError") {
+      return { ok: false, reason: "insufficient", err };
+    }
+    if ((typeof CreditsDisabledError === "function" && err instanceof CreditsDisabledError) || errName === "CreditsDisabledError") {
+      return { ok: false, reason: "disabled", err };
+    }
+    if ((typeof LedgerWriteError === "function" && err instanceof LedgerWriteError) || errName === "LedgerWriteError") {
+      return { ok: false, reason: "ledger", err };
+    }
+    return { ok: false, reason: "error", err };
+  }
+}
+
+/** Record the reserve row after the charge landed (and, for
+    provider-minted task ids, after the provider submission returned
+    the id). Never throws: a failed record is logged CRITICAL — the
+    in-memory entry still carries the reserve for this process, and
+    the charge's ledger row (under chargeKey) is the reconciliation
+    trail. The charge key rides extra.chargeKey. */
+export async function recordGenerationReserve(
+  store: GenerationChargeIntentStore,
+  input: Parameters<GenerationChargeIntentStore["recordIntent"]>[0] & { chargeKey: string },
+): Promise<void> {
+  const { chargeKey, ...rest } = input;
+  try {
+    await store.recordIntent({
+      ...rest,
+      status: "reserved",
+      extra: { ...(rest.extra ?? {}), chargeKey },
+    });
+  } catch (err) {
+    logger.error(
+      { err, taskId: input.taskId, rail: input.rail, userId: input.userId, credits: input.credits, chargeKey },
+      "[gen-charge] CRITICAL: reserve record failed after the submit charge landed — this task's reserve is in-memory only; reconcile via the charge ledger key",
+    );
+  }
+}
+
+export type ConfirmOutcome = "confirmed" | "already" | "refunded" | "not_reserved";
+
+/** Confirm a reserve on success: the money stays, NO second charge.
+    'already' = a previous poll/sweep confirmed it. 'refunded' = the
+    reserve was already returned (a failure path resolved first) —
+    the caller delivers but must not treat it as paid. Returns
+    'not_reserved' for legacy resolutions so the caller falls back to
+    settleGenerationCharge. Never throws. */
+export async function confirmGenerationReserve(
+  store: GenerationChargeIntentStore,
+  taskId: string,
+  resolved: ResolvedPendingCharge,
+): Promise<ConfirmOutcome> {
+  if (resolved.intentStatus === "charged") return "already";
+  if (resolved.intentStatus === "refunded") return "refunded";
+  if (resolved.intentStatus === "reserved") {
+    try {
+      const moved = await store.confirmReserve(taskId);
+      return moved ? "confirmed" : "already";
+    } catch (err) {
+      /* The reserve stays 'reserved'; the sweeper confirms delivered
+         reserves later. Delivery is never hostage to this flip. */
+      logger.error({ err, taskId }, "[gen-charge] CRITICAL: reserve confirm failed — sweeper will confirm the delivered reserve");
+      return "confirmed";
+    }
+  }
+  if (resolved.intentStatus === null && resolved.reserved && resolved.source === "memory") {
+    /* Memory-only reserve (the durable record failed at submit): the
+       caller's map entry is the record; consuming it confirms. */
+    return "confirmed";
+  }
+  return "not_reserved";
+}
+
+export type ReserveRefundOutcome = "refunded" | "already" | "not_reserved" | "refund_failed";
+
+/** Refund a reserve in full, exactly once. The claim is the row flip
+    'reserved' → 'refunded': only the claim winner calls refundFn.
+    The refund action follows the house convention
+    "<charge action> — Refund (<reason>)" so refundCredits' pool
+    pairing finds the charge it reverses. If refundFn throws after
+    the claim, the claim is released back to 'reserved' so a later
+    poll or the sweeper retries (refundCredits restores the balance
+    before its ledger write and only swallows ledger failures, so a
+    throw means the restore itself did not complete). For a
+    memory-only reserve (no durable row), the caller must consume
+    its map entry around this call — that consumption is its claim.
+    Never throws. */
+export async function refundGenerationReserve(
+  store: GenerationChargeIntentStore,
+  taskId: string,
+  resolved: ResolvedPendingCharge,
+  reason: string,
+  refundFn: RefundFn = defaultRefundFn,
+): Promise<ReserveRefundOutcome> {
+  if (resolved.intentStatus === "refunded") return "already";
+  if (resolved.intentStatus === "charged") {
+    logger.error(
+      { taskId, userId: resolved.userId, credits: resolved.credits },
+      "[gen-charge] CRITICAL: refund requested for a CONFIRMED reserve — refusing (a confirmed generation was delivered; reconcile manually)",
+    );
+    return "already";
+  }
+  const refundRecord = {
+    action: `${resolved.action} — Refund (${reason})`,
+    projectId: resolved.projectId,
+  };
+  if (resolved.intentStatus === "reserved") {
+    let claimed: GenerationChargeIntentRow | null = null;
+    try {
+      claimed = await store.claimReserveRefund(taskId);
+    } catch (err) {
+      logger.error({ err, taskId }, "[gen-charge] CRITICAL: reserve refund claim failed — reserve stays reserved for the sweeper");
+      return "refund_failed";
+    }
+    if (!claimed) return "already"; /* a racing path claimed it first */
+    try {
+      await refundFn(claimed.user_id, claimed.credits, {
+        action: `${claimed.action} — Refund (${reason})`,
+        projectId: claimed.project_id ?? null,
+      });
+      return "refunded";
+    } catch (err) {
+      logger.error(
+        { err, taskId, userId: claimed.user_id, credits: claimed.credits },
+        "[gen-charge] CRITICAL: reserve refund failed after claim — releasing the claim so a later poll/sweep retries",
+      );
+      try {
+        await store.releaseReserveRefundClaim(taskId);
+      } catch (releaseErr) {
+        logger.error({ err: releaseErr, taskId }, "[gen-charge] CRITICAL: failed to release a failed refund claim — row reads 'refunded' without a refund; reconcile manually");
+      }
+      return "refund_failed";
+    }
+  }
+  if (resolved.intentStatus === null && resolved.reserved && resolved.source === "memory") {
+    try {
+      await refundFn(resolved.userId, resolved.credits, refundRecord);
+      return "refunded";
+    } catch (err) {
+      logger.error({ err, taskId, userId: resolved.userId, credits: resolved.credits }, "[gen-charge] CRITICAL: memory-only reserve refund failed");
+      return "refund_failed";
+    }
+  }
+  return "not_reserved";
+}
+
+/** Bookkeeping for a task that will never be polled with a reserve
+    held (provider submission failed after the reserve, or a sync
+    rail's provider call failed in-request): refund via the reserve
+    machinery when a row exists, else mark a legacy intent failed.
+    Never throws. */
+export async function refundOrFailGenerationIntent(
+  store: GenerationChargeIntentStore,
+  taskId: string,
+  resolved: ResolvedPendingCharge,
+  reason: string,
+  refundFn: RefundFn = defaultRefundFn,
+): Promise<ReserveRefundOutcome | "failed_bookkeeping"> {
+  if (resolved.reserved) {
+    return refundGenerationReserve(store, taskId, resolved, reason, refundFn);
+  }
+  await markGenerationIntentFailed(store, taskId);
+  return "failed_bookkeeping";
+}
+
 /* ── Sweeper ────────────────────────────────────────────────────────── */
 
 interface GenerationChargeSweepDeps {
   store?: GenerationChargeIntentStore;
   chargeFn?: ChargeFn;
+  refundFn?: RefundFn;
   now?: () => number;
 }
 
-/** One sweep: retry charges for generations that were DELIVERED but
+export interface GenerationChargeSweepResult {
+  retried: number;
+  charged: number;
+  stillFailing: number;
+  expired: number;
+  reservesConfirmed: number;
+  reservesRefunded: number;
+  reserveRefundFailures: number;
+}
+
+/** One sweep:
+    LEGACY — retry charges for generations that were DELIVERED but
     never charged (a poll-time charge failure, or a crash between the
     charge and its bookkeeping), then expire intents that were never
     delivered inside the retention window (no charge is owed on those —
-    expiry is bookkeeping so the table stays honest). */
+    expiry is bookkeeping so the table stays honest).
+    RESERVES (0317) — reconciliation only, never a late charge:
+    delivered-but-unconfirmed reserves are confirmed (no money moves —
+    a success poll's confirm flip was lost), and abandoned reserves
+    (never delivered past the stale window) are claim-refunded in
+    full, exactly once. */
 export async function sweepGenerationChargeIntents(
   depsIn: GenerationChargeSweepDeps = {},
-): Promise<{ retried: number; charged: number; stillFailing: number; expired: number }> {
+): Promise<GenerationChargeSweepResult> {
   const store = depsIn.store ?? generationChargeIntentStore;
   const chargeFn = depsIn.chargeFn ?? defaultChargeFn;
+  const refundFn = depsIn.refundFn ?? defaultRefundFn;
   const now = depsIn.now ? depsIn.now() : Date.now();
 
   let charged = 0;
@@ -386,6 +768,8 @@ export async function sweepGenerationChargeIntents(
       extra: row.extra ?? null,
       intentStatus: row.status,
       source: "intent",
+      reserved: false,
+      chargeKey: chargeKeyOf(row.extra),
     }, chargeFn);
     if (outcome === "charged" || outcome === "charged_unledgered" || outcome === "already") {
       charged += 1;
@@ -398,6 +782,51 @@ export async function sweepGenerationChargeIntents(
     }
   }
 
+  /* Reserves delivered but never confirmed — confirm, no money moves. */
+  let reservesConfirmed = 0;
+  const deliveredReserves = await store.listDeliveredReserves(retryCutoff);
+  for (const row of deliveredReserves) {
+    try {
+      if (await store.confirmReserve(row.task_id)) {
+        reservesConfirmed += 1;
+        logger.info(
+          { taskId: row.task_id, userId: row.user_id, credits: row.credits },
+          "[gen-charge] sweeper confirmed a delivered reserve",
+        );
+      }
+    } catch (err) {
+      logger.error({ err, taskId: row.task_id }, "[gen-charge] sweeper reserve confirm failed — will retry next sweep");
+    }
+  }
+
+  /* Abandoned reserves — claim + refund in full, exactly once. */
+  let reservesRefunded = 0;
+  let reserveRefundFailures = 0;
+  const staleCutoff = new Date(now - GEN_CHARGE_RESERVE_STALE_MS);
+  const staleReserves = await store.listStaleReserves(staleCutoff);
+  for (const row of staleReserves) {
+    const outcome = await refundGenerationReserve(store, row.task_id, {
+      userId: row.user_id,
+      credits: row.credits,
+      projectId: row.project_id ?? null,
+      action: row.action,
+      extra: row.extra ?? null,
+      intentStatus: row.status,
+      source: "intent",
+      reserved: true,
+      chargeKey: chargeKeyOf(row.extra),
+    }, "abandoned — never delivered", refundFn);
+    if (outcome === "refunded") {
+      reservesRefunded += 1;
+      logger.info(
+        { taskId: row.task_id, userId: row.user_id, credits: row.credits },
+        "[gen-charge] sweeper refunded an abandoned reserve",
+      );
+    } else if (outcome === "refund_failed") {
+      reserveRefundFailures += 1;
+    }
+  }
+
   const expireCutoff = new Date(now - GEN_CHARGE_EXPIRE_AFTER_MS);
   const expiredRows = await store.expireUndelivered(expireCutoff);
   if (expiredRows.length > 0) {
@@ -407,13 +836,21 @@ export async function sweepGenerationChargeIntents(
     );
   }
 
-  if (retrySet.length > 0 || expiredRows.length > 0) {
+  if (retrySet.length > 0 || expiredRows.length > 0 || deliveredReserves.length > 0 || staleReserves.length > 0) {
     logger.info(
-      { retried: retrySet.length, charged, stillFailing, expired: expiredRows.length },
+      { retried: retrySet.length, charged, stillFailing, expired: expiredRows.length, reservesConfirmed, reservesRefunded, reserveRefundFailures },
       "[gen-charge] intent sweep complete",
     );
   }
-  return { retried: retrySet.length, charged, stillFailing, expired: expiredRows.length };
+  return {
+    retried: retrySet.length,
+    charged,
+    stillFailing,
+    expired: expiredRows.length,
+    reservesConfirmed,
+    reservesRefunded,
+    reserveRefundFailures,
+  };
 }
 
 /* Starts the intent sweeper: one run shortly after boot (the

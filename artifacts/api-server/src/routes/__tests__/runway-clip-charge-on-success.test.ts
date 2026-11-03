@@ -1,25 +1,26 @@
 /**
- * Stack-24 Lane 7 — invariant 5 at the rail: the Gen 4.5 video rail
- * charges on JOB SUCCESS, not on submission, and never for a failed
- * job. This is the layer where money actually moves for the
- * operator's generate.video tool (its handler defers the charge to
- * this rail and audits 0 at submission — pinned in
- * operator-tier3.test.ts); here the REAL submit + poll handlers run
- * over HTTP with the provider SDK, the credit ledger, and storage
- * faked at the edges.
+ * Stack-24 Lane 7, REVERSED by stack1400 ruling #43 (reserve-at-
+ * submit): the Gen 4.5 video rail now charges at SUBMISSION — before
+ * the provider call — and a failed job refunds that reserve in full.
+ * (The old charge-on-success pins below were rewritten to the
+ * reserve contract; the amounts, owner, and exactly-once discipline
+ * are unchanged.) This is the layer where money actually moves for
+ * the operator's generate.video tool (its handler rides this rail's
+ * charge — pinned in operator-tier3.test.ts); here the REAL submit
+ * + poll handlers run over HTTP with the provider SDK, the credit
+ * ledger, and storage faked at the edges.
  *
  * The pins (routes/generate/runway-clip.ts):
- *  - submit registers the task and charges NOTHING;
- *  - a still-running poll charges nothing;
- *  - a FAILED task charges nothing — on the first poll or any later
- *    one (its pending entry is gone; there is no path back to a
- *    charge);
- *  - a SUCCEEDED task charges EXACTLY ONCE, the server-computed
- *    plan price (GEN45_CREDIT_COST = 400), to the task's owner,
- *    with the durable charge→refund obligation recorded once;
- *  - repeat polls after success never re-charge (the pending entry
- *    was consumed by the first successful poll);
- *  - a different member's poll cannot trigger the charge at all.
+ *  - submit charges EXACTLY ONCE, up front, at the server-computed
+ *    plan price (GEN45_CREDIT_COST = 400), to the task's owner;
+ *  - a still-running poll moves no money (no second charge, no refund);
+ *  - a FAILED task refunds the reserve in full, exactly once — on
+ *    the first poll; any later poll refunds nothing more;
+ *  - a SUCCEEDED task keeps the reserve (no second charge, no
+ *    refund), with the durable charge→refund obligation recorded
+ *    once at confirm;
+ *  - repeat polls after success never re-charge or refund;
+ *  - a different member's poll can neither confirm nor refund.
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import { randomUUID } from "crypto";
@@ -30,6 +31,7 @@ const h = vi.hoisted(() => ({
   taskSeq: 0,
   taskStates: new Map<string, any>(),
   chargeCalls: [] as any[],
+  refundCalls: [] as any[],
   recordCalls: [] as any[],
 }));
 
@@ -79,6 +81,15 @@ vi.mock("../../lib/credits", () => ({
   chargeCredits: async (userId: string, amount: number, meta: unknown) => {
     h.chargeCalls.push([userId, amount, meta]);
     return { success: true, creditsAfter: 1_000_000 - amount };
+  },
+  refundCredits: async (userId: string, amount: number, meta: unknown) => {
+    h.refundCalls.push([userId, amount, meta]);
+  },
+  OutOfCreditsError: class OutOfCreditsError extends Error {
+    constructor() { super("out_of_credits"); this.name = "OutOfCreditsError"; }
+  },
+  CreditsDisabledError: class CreditsDisabledError extends Error {
+    constructor() { super("credits_disabled"); this.name = "CreditsDisabledError"; }
   },
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
@@ -141,6 +152,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   h.chargeCalls = [];
+  h.refundCalls = [];
   h.recordCalls = [];
 });
 
@@ -160,76 +172,93 @@ async function poll(userId: string, taskId: string) {
   return { status: r.status, json: (await r.json()) as any };
 }
 
-describe("Gen 4.5 rail — charge on success only", () => {
-  it("submission registers the task at the server-computed price and charges NOTHING", async () => {
+describe("Gen 4.5 rail — reserve at submit, confirm on success, refund on failure", () => {
+  it("submission charges EXACTLY ONCE up front at the server-computed price", async () => {
     const { status, json } = await submit(OWNER);
     expect(status).toBe(200);
     expect(json.taskId).toBeTruthy();
     expect(json.creditCost).toBe(GEN45_CREDIT_COST);
-    expect(h.chargeCalls).toHaveLength(0);
-    expect(h.recordCalls).toHaveLength(0);
-  });
-
-  it("a still-running task charges nothing", async () => {
-    const { json } = await submit(OWNER);
-    h.taskStates.set(json.taskId, { status: "RUNNING", progress: 0.4 });
-    const p = await poll(OWNER, json.taskId);
-    expect(p.json.status).toBe("processing");
-    expect(h.chargeCalls).toHaveLength(0);
-  });
-
-  it("a FAILED task charges nothing — not on the first poll, not on any later one", async () => {
-    const { json } = await submit(OWNER);
-    h.taskStates.set(json.taskId, { status: "FAILED", failure: "provider boom", failureCode: "UNKNOWN" });
-    const p1 = await poll(OWNER, json.taskId);
-    expect(p1.json.status).toBe("failed");
-    expect(h.chargeCalls).toHaveLength(0);
-    const p2 = await poll(OWNER, json.taskId);
-    expect(p2.json.status).toBe("failed");
-    expect(h.chargeCalls).toHaveLength(0);
-    expect(h.recordCalls).toHaveLength(0);
-  });
-
-  it("a CANCELLED task charges nothing", async () => {
-    const { json } = await submit(OWNER);
-    h.taskStates.set(json.taskId, { status: "CANCELLED" });
-    const p = await poll(OWNER, json.taskId);
-    expect(p.json.status).toBe("cancelled");
-    expect(h.chargeCalls).toHaveLength(0);
-  });
-
-  it("a SUCCEEDED task charges exactly once at the plan price — repeat polls never re-charge", async () => {
-    const { json } = await submit(OWNER);
-    h.taskStates.set(json.taskId, { status: "SUCCEEDED", output: ["https://runway.test/clip.mp4"] });
-
-    const p1 = await poll(OWNER, json.taskId);
-    expect(p1.json.status).toBe("succeeded");
     expect(h.chargeCalls).toHaveLength(1);
     const [chargedUser, amount, meta] = h.chargeCalls[0];
     expect(chargedUser).toBe(OWNER);
     expect(amount).toBe(GEN45_CREDIT_COST);
     expect(meta).toMatchObject({ action: "Runway Video Clip" });
+    expect(h.refundCalls).toHaveLength(0);
+    /* The save-failure obligation records at CONFIRM, not at submit. */
+    expect(h.recordCalls).toHaveLength(0);
+  });
+
+  it("a still-running task moves no more money", async () => {
+    const { json } = await submit(OWNER);
+    h.taskStates.set(json.taskId, { status: "RUNNING", progress: 0.4 });
+    const p = await poll(OWNER, json.taskId);
+    expect(p.json.status).toBe("processing");
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(0);
+  });
+
+  it("a FAILED task refunds the reserve in full, exactly once — later polls refund nothing more", async () => {
+    const { json } = await submit(OWNER);
+    expect(h.chargeCalls).toHaveLength(1);
+    h.taskStates.set(json.taskId, { status: "FAILED", failure: "provider boom", failureCode: "UNKNOWN" });
+    const p1 = await poll(OWNER, json.taskId);
+    expect(p1.json.status).toBe("failed");
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.refundCalls[0][0]).toBe(OWNER);
+    expect(h.refundCalls[0][1]).toBe(GEN45_CREDIT_COST);
+    expect(h.refundCalls[0][2]).toMatchObject({ action: "Runway Video Clip — Refund (provider failed)" });
+    const p2 = await poll(OWNER, json.taskId);
+    expect(p2.json.status).toBe("failed");
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.recordCalls).toHaveLength(0);
+  });
+
+  it("a CANCELLED task refunds the reserve in full", async () => {
+    const { json } = await submit(OWNER);
+    h.taskStates.set(json.taskId, { status: "CANCELLED" });
+    const p = await poll(OWNER, json.taskId);
+    expect(p.json.status).toBe("cancelled");
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.refundCalls[0][2]).toMatchObject({ action: "Runway Video Clip — Refund (provider cancelled)" });
+  });
+
+  it("a SUCCEEDED task keeps the reserve — no second charge, no refund; repeat polls move nothing", async () => {
+    const { json } = await submit(OWNER);
+    expect(h.chargeCalls).toHaveLength(1);
+    h.taskStates.set(json.taskId, { status: "SUCCEEDED", output: ["https://runway.test/clip.mp4"] });
+
+    const p1 = await poll(OWNER, json.taskId);
+    expect(p1.json.status).toBe("succeeded");
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(0);
     expect(h.recordCalls).toHaveLength(1);
     expect(h.recordCalls[0]).toMatchObject({ taskId: json.taskId, userId: OWNER, credits: GEN45_CREDIT_COST });
 
     const p2 = await poll(OWNER, json.taskId);
     expect(p2.json.status).toBe("succeeded");
     expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(0);
     expect(h.recordCalls).toHaveLength(1);
   });
 
-  it("another member's poll cannot trigger the charge — the owner's own later poll charges once", async () => {
+  it("another member's poll can neither confirm nor refund — the owner's later poll confirms; the charge stays exactly one (from submit)", async () => {
     const { json } = await submit(OWNER);
+    expect(h.chargeCalls).toHaveLength(1);
     h.taskStates.set(json.taskId, { status: "SUCCEEDED", output: ["https://runway.test/clip.mp4"] });
 
     const stranger = await poll(OTHER, json.taskId);
     expect(stranger.json.status).toBe("succeeded");
-    expect(h.chargeCalls).toHaveLength(0);
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(0);
+    expect(h.recordCalls).toHaveLength(0);
 
     const owner = await poll(OWNER, json.taskId);
     expect(owner.json.status).toBe("succeeded");
     expect(h.chargeCalls).toHaveLength(1);
     expect(h.chargeCalls[0][0]).toBe(OWNER);
     expect(h.chargeCalls[0][1]).toBe(GEN45_CREDIT_COST);
+    expect(h.recordCalls).toHaveLength(1);
   });
 });

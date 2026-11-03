@@ -20,11 +20,15 @@ import {
 } from "../../lib/objectStorage";
 import {
   generationChargeIntentStore,
-  recordGenerationChargeIntent,
   resolvePendingCharge,
   settleGenerationCharge,
   markGenerationIntentDelivered,
   markGenerationIntentFailed,
+  chargeGenerationReserve,
+  recordGenerationReserve,
+  confirmGenerationReserve,
+  refundOrFailGenerationIntent,
+  generationChargeKey,
 } from "../../lib/generation-charge-intents";
 import { recordClipCharge } from "../../lib/clip-charge-obligations";
 import {
@@ -80,17 +84,21 @@ const VEO_CREDITS_PER_SEC =
   VEO_CREDITS_PER_SEC_DEFAULT;
 
 /**
- * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
- * Key: Runway taskId (or veo-<uuid> for Veo)  Value: { userId, projectId, credits, veoOperation? }
- * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
+ * Tracks submitted Runway tasks. Reserve-at-submit (stack1400 ruling
+ * #43): credits are CHARGED at submit, before the provider call; the
+ * success poll CONFIRMS the reserve (no second charge), a failure /
+ * no-output poll REFUNDS it in full, exactly once.
+ * Key: Runway taskId (or veo-<uuid> for Veo)  Value: { userId, projectId, credits, veoOperation?, chargeKey }
+ * Cleared on SUCCEEDED (after confirming) or FAILED/CANCELLED.
  *
- * This map is now only the FAST PATH (Stack400 Lane 4): every submit also
- * writes a durable generation_charge_intents row (migration 0298), and the
- * poller settles from that row when this map has lost the entry — a server
- * restart between submit and the success poll used to deliver the clip
- * with NO charge and NO ledger row (payments gate Pass 3), under a log
- * line that falsely claimed the charge was "already processed". Exactly-
- * once rides the credit_usage idempotency key 'gen-charge:<taskId>'.
+ * This map is now only the FAST PATH: every submit also writes a
+ * durable generation_charge_intents row (migration 0298; reserve
+ * record since 0317), and the poller resolves the reserve from that
+ * row when this map has lost the entry — a server restart between
+ * submit and the success poll used to lose the charge entirely
+ * (payments gate Pass 3). The reserve charge rides the credit_usage
+ * idempotency key in extra.chargeKey ('gen-charge:<taskOrJobId>');
+ * the refund's exactly-once gate is the row's reserved→refunded flip.
  */
 /** Feed-format delivery tracked per task (#30): when delivery is "reframe",
  *  the poller Smart-Reframes the generated clip to reframeTarget before
@@ -105,7 +113,7 @@ interface PendingFormatDelivery {
  * so a task the client abandoned lived forever. The house job-map TTL
  * (2h — the lip-sync precedent) bounds it; provider tasks settle in
  * minutes, so a 2h-old pending entry is an abandoned one. */
-const pendingTasks = attachJobMapTtl(new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string; formatDelivery?: PendingFormatDelivery }>());
+const pendingTasks = attachJobMapTtl(new Map<string, { userId: string; projectId: string | null; credits: number; veoOperation?: string; formatDelivery?: PendingFormatDelivery; chargeKey: string }>());
 
 /**
  * Tracks successfully charged tasks so generated-clips.ts can issue a refund
@@ -232,9 +240,10 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /generate-runway-clip
    1. Credit pre-check — always enforced (no dev bypass).
-   2. Submit job to Runway.
-   3. Track task in pendingTasks — credits NOT yet charged.
-   4. Return { taskId }.
+   2. RESERVE the charge (ruling #43) — a refused reserve refuses the submit.
+   3. Submit job to Runway/Veo.
+   4. Track task in pendingTasks — credits RESERVED, confirmed at the success poll.
+   5. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
 /* ── Request validation ── */
 const runwayClipSchema = z.object({
@@ -627,6 +636,62 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
     "[runway-clip] credit check PASSED",
   );
 
+  /* ── RESERVE at submit (ruling #43) ────────────────────────────────
+     Charge BEFORE either provider submission, through chargeCredits
+     (fresh balance read — the snapshot above is only the fast path).
+     Veo's task id is ours (veo-<uuid>), minted here so the charge
+     keys to it directly ('gen-charge:<taskId>', as today); Runway /
+     Seedance mint their task id at the provider, so their charge
+     keys to a submit-minted job id and the intent row recorded after
+     submission carries the key in extra.chargeKey. A refused charge
+     refuses the submit (the snapshot's 402 shape) — the provider is
+     never called. */
+  const veoTaskId = useVeo ? `veo-${randomUUID()}` : null;
+  const chargeTaskOrJobId = veoTaskId ?? `job-${randomUUID()}`;
+  const chargeKey = generationChargeKey(chargeTaskOrJobId);
+  const reserveAction = useVeo ? "Veo Video Clip" : "Runway Video Clip";
+  const reserve = await chargeGenerationReserve({
+    userId: req.userId!,
+    credits: creditCost,
+    projectId: projectId ?? null,
+    action: reserveAction,
+    chargeKey,
+  });
+  if (!reserve.ok) {
+    if (reserve.reason === "insufficient") {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+      });
+      return;
+    }
+    if (reserve.reason === "disabled") {
+      res.status(403).json({ error: "credits_disabled", message: "Credit spending is not enabled for this account." });
+      return;
+    }
+    req.log.error({ err: reserve.err }, "[runway-clip] reserve charge failed at submit — submission refused");
+    res.status(500).json({ error: "Could not reserve your Visual Bucs. Please try again." });
+    return;
+  }
+  /* Provider submission failure after the reserve: refund in full
+     in-request — no poll will ever come for a task that never was. */
+  const refundSubmitReserve = async () => {
+    const out = await refundOrFailGenerationIntent(generationChargeIntentStore, chargeTaskOrJobId, {
+      userId: req.userId!,
+      credits: creditCost,
+      projectId: projectId ?? null,
+      action: reserveAction,
+      extra: null,
+      intentStatus: null,
+      source: "memory",
+      reserved: true,
+      chargeKey,
+    }, "submission failed");
+    if (out === "refund_failed") {
+      req.log.error({ taskId: chargeTaskOrJobId, userId: req.userId }, "[runway-clip] CRITICAL: submission-failure refund failed — reserve stands under the job/task id for manual reconciliation");
+    }
+  };
+
   /* ── Motion enhancement ────────────────────────────────────────────────────
      Always inject motion direction so Runway generates real moving video
      instead of a still-image-style clip.
@@ -679,8 +744,8 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
   /* ── Veo 3.1 (Google) path: cinematic clips with native audio ────────────
      Async like Runway: submit the long-running operation, track it in
      pendingTasks under a veo-<uuid> id, and let the GET poller below drive
-     it to completion. Credits are only charged on success. Positioned after
-     the credit pre-check above — no free generations. */
+     it to completion. The reserve already landed above (ruling #43);
+     the poller confirms it on success and refunds it on failure. */
   if (useVeo) {
     try {
       let imageBase64: string | undefined;
@@ -732,27 +797,28 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         lastFrameMimeType,
         resolution: "720p",
       });
-      const veoTaskId = `veo-${randomUUID()}`;
-      pendingTasks.set(veoTaskId, {
+      pendingTasks.set(veoTaskId!, {
         userId: req.userId!,
         projectId: projectId ?? null,
         credits: creditCost,
         veoOperation: operation,
         formatDelivery: pendingFormat,
+        chargeKey,
       });
-      /* Durable charge intent (Lane 4): the map entry dies with the
+      /* Durable reserve record (0317): the map entry dies with the
          process; this row lets a post-restart poll recover the task —
          including the Veo operation name, which exists nowhere else. */
-      await recordGenerationChargeIntent(generationChargeIntentStore, {
-        taskId: veoTaskId,
+      await recordGenerationReserve(generationChargeIntentStore, {
+        taskId: veoTaskId!,
         rail: "runway-clip",
         userId: req.userId!,
         credits: creditCost,
         projectId: projectId ?? null,
         action: "Veo Video Clip",
         extra: { veoOperation: operation, formatDelivery: pendingFormat ?? null },
+        chargeKey,
       });
-      req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits pending on success");
+      req.log.info({ taskId: veoTaskId, userId: req.userId, operation }, "[runway-clip] Veo 3.1 task submitted — credits reserved at submit");
       res.json({
         taskId: veoTaskId,
         referenceSource: responseReferenceSource,
@@ -767,8 +833,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
         formatNotice: fmtDelivery.notice,
       });
     } catch (err: unknown) {
+      await refundSubmitReserve();
       const msg = err instanceof Error ? err.message : "Veo 3.1 submission failed";
-      req.log.error({ err: msg }, "[runway-clip] Veo 3.1 submission failed — no credits charged");
+      req.log.error({ err: msg }, "[runway-clip] Veo 3.1 submission failed — reserve refunded");
       res.status(500).json({ error: msg });
     }
     return;
@@ -886,11 +953,11 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
           ratio: gen45Ratio as "1280:720" | "720:1280",
         });
 
-    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost, formatDelivery: pendingFormat });
-    /* Durable charge intent (Lane 4): survives the restarts the
-       in-memory map cannot — the success poll settles from this row
-       when the map entry is gone. */
-    await recordGenerationChargeIntent(generationChargeIntentStore, {
+    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost, formatDelivery: pendingFormat, chargeKey });
+    /* Durable reserve record (0317): survives the restarts the
+       in-memory map cannot — the success poll confirms from this row
+       when the map entry is gone, a failure poll refunds from it. */
+    await recordGenerationReserve(generationChargeIntentStore, {
       taskId: task.id,
       rail: "runway-clip",
       userId: req.userId!,
@@ -898,8 +965,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       projectId: projectId ?? null,
       action: "Runway Video Clip",
       extra: { formatDelivery: pendingFormat ?? null },
+      chargeKey,
     });
-    req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
+    req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits reserved at submit");
 
     res.json({
       taskId: task.id,
@@ -916,8 +984,9 @@ const submitRunwayClipHandler = async (req: Request, res: Response) => {
       ...(useSeedance ? { seed: resolvedSeed, isDraft } : {}),
     });
   } catch (err: unknown) {
+    await refundSubmitReserve();
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
-    req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");
+    req.log.error({ err: msg }, "[runway-clip] submission failed — reserve refunded");
     res.status(500).json({ error: msg });
   }
 };
@@ -926,9 +995,9 @@ router.post("/generate-runway-clip", requireAuth, generationLimiter, submitRunwa
 
 /* Operator core (Phase 2 Lane E): the Tier 3 generate.video tool
    submits through this exact handler in-process (lib/rail-core) —
-   same pre-check; credits stay pending on SUCCEEDED exactly as the
-   page's flow leaves them. (HTTP rate limiting stays on the route;
-   the operator path carries the executor's own gates.) */
+   same pre-check and same reserve-at-submit charge as the page's
+   flow. (HTTP rate limiting stays on the route; the operator path
+   carries the executor's own gates.) */
 export async function runSubmitRunwayClip(
   deps: RailCoreDeps,
   body: unknown,
@@ -939,8 +1008,8 @@ export async function runSubmitRunwayClip(
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /generate-runway-clip/:taskId
    Poll Runway task status.
-   - SUCCEEDED → fresh credit read → deduct 5 credits → record usage → return signed URL
-   - FAILED/CANCELLED → no charge → return error
+   - SUCCEEDED → confirm the submit reserve → record usage → return signed URL
+   - FAILED/CANCELLED → refund the reserve in full → return error
    - Still running → return { status: "processing", progress }
 ───────────────────────────────────────────────────────────────────────────── */
 /* ── Feed-format delivery at poll time (#30) ───────────────────────────────
@@ -1014,6 +1083,8 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
               veoOperation: memPending.veoOperation,
               formatDelivery: memPending.formatDelivery ?? null,
             },
+            reserved: true,
+            chargeKey: memPending.chargeKey,
           }
         : null,
     );
@@ -1041,15 +1112,18 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
         return;
       }
       if (poll.error || !poll.videoUri) {
+        /* Provider failure / no output — refund the reserve in full,
+           exactly once (legacy rows: bookkeeping only). */
         pendingTasks.delete(taskId);
-        await markGenerationIntentFailed(generationChargeIntentStore, taskId);
-        req.log.info({ taskId, error: poll.error }, "[runway-clip] Veo 3.1 task failed — no credits charged");
+        await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolved, poll.error ? "provider failed" : "no output");
+        req.log.info({ taskId, error: poll.error }, "[runway-clip] Veo 3.1 task failed — reserve refunded");
         res.json({ status: "failed", error: poll.error ?? "Veo 3.1 generation failed." });
         return;
       }
       /* ── Download from Google, persist to Supabase Storage ──
-         Charge happens ONLY after the clip is safely stored: if the
-         download/upload fails, no credits move and the user can retry. */
+         The reserve is CONFIRMED only after the clip is safely
+         stored: if the download/upload fails, the reserve is
+         refunded in full and the user can retry. */
       const tmpFile = path.join(os.tmpdir(), `veo-${randomUUID()}.mp4`);
       try {
         req.log.info({ taskId }, "[runway-clip] downloading clip from Veo");
@@ -1063,21 +1137,32 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
         const storageRef = await uploadFileStreamToSupabaseStorage(SUPABASE_CLIPS_BUCKET, objectName, delivery.file, "video/mp4");
         const previewUrl = await refreshSupabaseStorageUrl(storageRef);
 
-        /* ── Charge once, settled through the durable intent (Lane 4) ── */
+        /* ── Confirm the reserve through the durable intent (0317):
+           NO second charge. Legacy pre-0317 rows still settle. ── */
         if (pending.userId === req.userId) {
           const cost = pending.credits;
-          const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
-          if (outcome !== "charge_failed") {
-            req.log.info({ taskId, userId: req.userId, deducted: cost, source: resolved.source }, "[runway-clip] Veo 3.1 credits deducted");
+          let kept = false;
+          if (resolved.reserved) {
+            const c = await confirmGenerationReserve(generationChargeIntentStore, taskId, resolved);
+            kept = c === "confirmed" || c === "already";
+            if (c === "refunded") {
+              req.log.error({ taskId }, "[runway-clip] Veo SUCCEEDED poll found the reserve already refunded — delivering; the member was not charged");
+            }
+          } else {
+            const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
+            kept = outcome !== "charge_failed";
+            /* charge_failed: settle logged CRITICAL and left the intent
+               awaiting — delivery proceeds and is stamped below, so the
+               retry sweeper settles it. Never a silent free clip. */
+          }
+          if (kept) {
+            req.log.info({ taskId, userId: req.userId, deducted: cost, source: resolved.source }, "[runway-clip] Veo 3.1 credits confirmed (reserved at submit)");
             chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
             setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000);
             await recordDurableClipCharge(req.log, taskId, req.userId!, cost, pending.projectId ?? null);
           }
-          /* charge_failed: settle logged CRITICAL and left the intent
-             awaiting — delivery proceeds and is stamped below, so the
-             retry sweeper settles it. Never a silent free clip. */
         } else {
-          req.log.warn({ taskId }, "[runway-clip] Veo userId mismatch on poll — skipping charge");
+          req.log.warn({ taskId }, "[runway-clip] Veo userId mismatch on poll — skipping confirm");
         }
         pendingTasks.delete(taskId);
         await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
@@ -1088,8 +1173,10 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
           if (delivery.cleanupFile) cleanup(delivery.cleanupFile);
         }
       } catch (uploadErr: unknown) {
-        req.log.error({ err: uploadErr }, "[runway-clip] Veo clip download/upload failed — no credits charged");
-        res.json({ status: "failed", error: "Veo generated the clip but saving it failed. No Visual Bucs were charged — please try again." });
+        /* Save failure — refund the reserve in full, exactly once. */
+        await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolved, "save failed");
+        req.log.error({ err: uploadErr }, "[runway-clip] Veo clip download/upload failed — reserve refunded");
+        res.json({ status: "failed", error: "Veo generated the clip but saving it failed. Your Visual Bucs were refunded — please try again." });
       } finally {
         cleanup(tmpFile);
       }
@@ -1114,24 +1201,8 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
 
     /* ── SUCCEEDED ── */
     if (task.status === "SUCCEEDED") {
-      const runwayUrl = (task.output as string[] | undefined)?.[0] ?? null;
-      if (!runwayUrl) {
-        pendingTasks.delete(taskId);
-        req.log.warn({ taskId }, "[runway-clip] SUCCEEDED but no output URL — no credits charged");
-        res.json({ status: "succeeded", url: null });
-        return;
-      }
-
       const pending = pendingTasks.get(taskId);
-
-      /* ── Charge credits (only once) — resolved from the in-memory map
-         OR the durable submit-time intent (Lane 4). The pre-fix code
-         treated a missing map entry as "charge already processed" and
-         delivered free; that assumption is gone: a missing entry now
-         means the intent row settles the charge, and when NEITHER
-         exists the delivery is logged as unchargeable at error level,
-         never silently assumed paid. ── */
-      const resolved = await resolvePendingCharge(
+      const resolvedEarly = await resolvePendingCharge(
         generationChargeIntentStore,
         taskId,
         pending
@@ -1141,9 +1212,33 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
               projectId: pending.projectId,
               action: "Runway Video Clip",
               extra: { formatDelivery: pending.formatDelivery ?? null },
+              reserved: true,
+              chargeKey: pending.chargeKey,
             }
           : null,
       );
+      const runwayUrl = (task.output as string[] | undefined)?.[0] ?? null;
+      if (!runwayUrl) {
+        /* SUCCEEDED but no output — refund the reserve in full,
+           exactly once (legacy rows: bookkeeping only). */
+        pendingTasks.delete(taskId);
+        if (resolvedEarly) {
+          await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolvedEarly, "no output");
+        } else {
+          await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+        }
+        req.log.warn({ taskId }, "[runway-clip] SUCCEEDED but no output URL — reserve refunded");
+        res.json({ status: "succeeded", url: null });
+        return;
+      }
+
+      /* ── Confirm the reserve (only once) — resolved above from the
+         in-memory map OR the durable reserve row (0317). Confirming
+         moves NO money: the charge landed at submit. Legacy pre-0317
+         rows still settle here via settleGenerationCharge. When
+         NEITHER record exists the delivery is logged as unchargeable
+         at error level, never silently assumed paid. ── */
+      const resolved = resolvedEarly;
       /* The delivery shape rides the same resolution (a restart loses
          the map's formatDelivery too). */
       const resolvedFormatDelivery =
@@ -1154,23 +1249,35 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
       if (resolved && resolved.userId === req.userId) {
         /* Duration-proportional cost for Seedance, flat 5 for gen4.5. */
         const cost = resolved.credits ?? GEN45_CREDIT_COST;
-        const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
-        if (outcome !== "charge_failed") {
+        let kept = false;
+        if (resolved.reserved) {
+          const c = await confirmGenerationReserve(generationChargeIntentStore, taskId, resolved);
+          kept = c === "confirmed" || c === "already";
+          if (c === "refunded") {
+            req.log.error({ taskId }, "[runway-clip] SUCCEEDED poll found the reserve already refunded — delivering; the member was not charged");
+          }
+        } else {
+          const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
+          kept = outcome !== "charge_failed";
+          /* legacy charge_failed: settle logged CRITICAL and left the
+             intent awaiting — delivery proceeds and is stamped below,
+             so the retry sweeper settles it. Never a silent free clip. */
+        }
+        if (kept) {
           req.log.info(
             { taskId, userId: req.userId, deducted: cost, source: resolved.source },
-            "[runway-clip] credits deducted",
+            "[runway-clip] credits confirmed (reserved at submit)",
           );
-          /* Track for possible refund if the subsequent save fails */
+          /* Track for possible refund if the subsequent save fails —
+             the clip_charge_obligations row is recorded at confirm
+             time, the same point the charge used to land. */
           chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
           setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000); /* expire after 1 h */
           await recordDurableClipCharge(req.log, taskId, req.userId!, cost, resolved.projectId ?? null);
         }
-        /* charge_failed: settle logged CRITICAL and left the intent
-           awaiting — delivery proceeds and is stamped below, so the
-           retry sweeper settles it. Never a silent free clip. */
         pendingTasks.delete(taskId);
       } else if (resolved && resolved.userId !== req.userId) {
-        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[runway-clip] userId mismatch on poll — skipping charge");
+        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[runway-clip] userId mismatch on poll — skipping confirm");
       } else if (!resolved) {
         req.log.error(
           { taskId },
@@ -1215,17 +1322,37 @@ const pollRunwayClipHandler = async (req: Request, res: Response) => {
         if (reframedFile) cleanup(reframedFile);
       }
 
-    /* ── FAILED / CANCELLED — credits were never charged ── */
+    /* ── FAILED / CANCELLED — refund the reserve in full ── */
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
       const rawFailure = (task as { failure?: string }).failure ?? null;
       const failureCode = (task as { failureCode?: string }).failureCode ?? null;
       const errMsg = describeRunwayFailure(failureCode, rawFailure);
       req.log.info(
         { taskId, status: task.status, failureCode, rawFailure },
-        "[runway-clip] task failed — no credits charged",
+        "[runway-clip] task failed — reserve refunded",
+      );
+      const pendingF = pendingTasks.get(taskId);
+      const resolvedF = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pendingF
+          ? {
+              userId: pendingF.userId,
+              credits: pendingF.credits,
+              projectId: pendingF.projectId,
+              action: "Runway Video Clip",
+              extra: { formatDelivery: pendingF.formatDelivery ?? null },
+              reserved: true,
+              chargeKey: pendingF.chargeKey,
+            }
+          : null,
       );
       pendingTasks.delete(taskId);
-      await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+      if (resolvedF) {
+        await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolvedF, task.status === "CANCELLED" ? "provider cancelled" : "provider failed");
+      } else {
+        await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+      }
       const status = task.status === "CANCELLED" ? "cancelled" : "failed";
       res.json({ status, error: errMsg });
 
@@ -1245,8 +1372,8 @@ router.get("/generate-runway-clip/:taskId", requireAuth, pollRunwayClipHandler);
 
 /* Operator core (Phase 2 Lane E): the generate.video completion
    driver polls through this exact handler in-process (lib/rail-core)
-   so an operator-started clip finishes — and is charged on success —
-   by the rail's own code, not a copy of it. */
+   so an operator-started clip finishes — its reserve confirmed on
+   success — by the rail's own code, not a copy of it. */
 export async function runPollRunwayClip(
   deps: RailCoreDeps,
   taskId: string,

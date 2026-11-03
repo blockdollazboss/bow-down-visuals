@@ -14,20 +14,32 @@ import { z } from "zod/v4";
  * finished generation was delivered with no charge and no ledger row.
  *
  * One row per submitted task, written at SUBMIT time:
- *   awaiting  → the provider work is in flight (or its poll was lost);
- *               the success poll settles the charge from this row when
- *               the in-memory entry is gone.
- *   charged   → the charge landed (the credit_usage row carries the
- *               idempotency key 'gen-charge:<task_id>').
- *   failed    → the provider task failed/cancelled; no charge is owed.
+ *   awaiting  → LEGACY (0298 poll-charge): the provider work is in
+ *               flight (or its poll was lost); the success poll settles
+ *               the charge from this row when the in-memory entry is
+ *               gone.
+ *   reserved  → RESERVE-AT-SUBMIT (0317, stack1400 ruling #43): the
+ *               charge already landed at submit (the credit_usage row
+ *               carries the reserve's idempotency key, recorded in
+ *               extra.chargeKey); the provider work is in flight. A
+ *               success poll CONFIRMS the reserve (→ 'charged', no
+ *               second charge); a failure poll refunds it in full.
+ *   charged   → the charge landed and is KEPT (a settled legacy
+ *               intent, or a confirmed reserve).
+ *   refunded  → the reserve was refunded in full, exactly once — the
+ *               'reserved' → 'refunded' flip is the refund claim.
+ *   failed    → the provider task failed/cancelled; no charge is owed
+ *               (legacy rows only — a reserved row that fails goes to
+ *               'refunded', never 'failed').
  *   expired   → bookkeeping only: never delivered through a poll inside
  *               the retention window. A late poll may still settle it —
  *               exactly once, via the same idempotency key.
  *
  * delivered_at is stamped when a poll hands over the finished work;
- * the retry sweeper re-charges only delivered-but-uncharged intents.
+ * the retry sweeper re-charges only delivered-but-uncharged LEGACY
+ * intents, confirms delivered reserves, and refunds abandoned ones.
  */
-const GENERATION_CHARGE_INTENT_STATUSES = ["awaiting", "charged", "failed", "expired"] as const;
+const GENERATION_CHARGE_INTENT_STATUSES = ["awaiting", "charged", "failed", "expired", "reserved", "refunded"] as const;
 
 export const generationChargeIntentsTable = pgTable("generation_charge_intents", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -43,7 +55,7 @@ export const generationChargeIntentsTable = pgTable("generation_charge_intents",
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolved_at: timestamp("resolved_at", { withTimezone: true }),
 }, (t) => [
-  check("generation_charge_intents_status_check", sql`${t.status} IN ('awaiting', 'charged', 'failed', 'expired')`),
+  check("generation_charge_intents_status_check", sql`${t.status} IN ('awaiting', 'charged', 'failed', 'expired', 'reserved', 'refunded')`),
   uniqueIndex("generation_charge_intents_task_idx").on(t.task_id),
   index("generation_charge_intents_status_idx").on(t.status, t.created_at),
 ]);

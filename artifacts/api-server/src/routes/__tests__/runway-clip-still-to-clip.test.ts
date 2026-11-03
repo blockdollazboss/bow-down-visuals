@@ -9,9 +9,11 @@
  *  - a submission carrying a reference image goes to the provider's
  *    imageToVideo.create with that exact image as promptImage, and
  *    reports referenceSource "vault_photo";
- *  - submission charges NOTHING; a FAILED image-to-video task charges
- *    nothing on any poll;
- *  - a SUCCEEDED task charges EXACTLY ONCE at the rail's own constant
+ *  - submission charges EXACTLY ONCE up front (reserve-at-submit,
+ *    stack1400 ruling #43); a FAILED image-to-video task refunds that
+ *    reserve in full, exactly once, on the first failure poll;
+ *  - a SUCCEEDED task keeps the reserve — charged EXACTLY ONCE in
+ *    total at the rail's own constant
  *    (GEN45_CREDIT_COST from clip-pricing.ts — the same flat price as
  *    every gen4.5 clip; no still-specific price exists or is invented),
  *    and the poll response carries the stored clip's playable URL +
@@ -29,6 +31,7 @@ const h = vi.hoisted(() => ({
   imageToVideoCalls: [] as any[],
   textToVideoCalls: [] as any[],
   chargeCalls: [] as any[],
+  refundCalls: [] as any[],
   recordCalls: [] as any[],
 }));
 
@@ -84,6 +87,15 @@ vi.mock("../../lib/credits", () => ({
   chargeCredits: async (userId: string, amount: number, meta: unknown) => {
     h.chargeCalls.push([userId, amount, meta]);
     return 1_000_000 - amount;
+  },
+  refundCredits: async (userId: string, amount: number, meta: unknown) => {
+    h.refundCalls.push([userId, amount, meta]);
+  },
+  OutOfCreditsError: class OutOfCreditsError extends Error {
+    constructor() { super("out_of_credits"); this.name = "OutOfCreditsError"; }
+  },
+  CreditsDisabledError: class CreditsDisabledError extends Error {
+    constructor() { super("credits_disabled"); this.name = "CreditsDisabledError"; }
   },
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
@@ -148,6 +160,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   h.chargeCalls = [];
+  h.refundCalls = [];
   h.recordCalls = [];
   h.imageToVideoCalls = [];
   h.textToVideoCalls = [];
@@ -175,7 +188,7 @@ async function poll(userId: string, taskId: string) {
 }
 
 describe("still → clip on the runway rail (image-to-video)", () => {
-  it("submits the still to imageToVideo as promptImage — never text-to-video — and charges nothing at submit", async () => {
+  it("submits the still to imageToVideo as promptImage — never text-to-video — and reserves the charge at submit", async () => {
     const { status, json } = await submitStill(OWNER);
     expect(status).toBe(200);
     expect(json.taskId).toBeTruthy();
@@ -190,11 +203,15 @@ describe("still → clip on the runway rail (image-to-video)", () => {
       ratio: "720:1280",
     });
     expect(h.textToVideoCalls).toHaveLength(0);
-    expect(h.chargeCalls).toHaveLength(0);
+    /* Reserve-at-submit: exactly one charge, up front. */
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.chargeCalls[0][1]).toBe(GEN45_CREDIT_COST);
+    expect(h.refundCalls).toHaveLength(0);
   });
 
-  it("a FAILED still animation charges nothing, on the first poll or any later one", async () => {
+  it("a FAILED still animation refunds the reserve in full, exactly once — later polls refund nothing more", async () => {
     const { json } = await submitStill(OWNER);
+    expect(h.chargeCalls).toHaveLength(1);
     h.taskStates.set(json.taskId, {
       status: "FAILED",
       failure: "moderation hit",
@@ -203,14 +220,16 @@ describe("still → clip on the runway rail (image-to-video)", () => {
     const p1 = await poll(OWNER, json.taskId);
     expect(p1.json.status).toBe("failed");
     expect(p1.json.error).toContain("content moderation");
-    expect(h.chargeCalls).toHaveLength(0);
+    expect(h.refundCalls).toHaveLength(1);
+    expect(h.refundCalls[0][1]).toBe(GEN45_CREDIT_COST);
     const p2 = await poll(OWNER, json.taskId);
     expect(p2.json.status).toBe("failed");
-    expect(h.chargeCalls).toHaveLength(0);
+    expect(h.chargeCalls).toHaveLength(1);
+    expect(h.refundCalls).toHaveLength(1);
     expect(h.recordCalls).toHaveLength(0);
   });
 
-  it("a SUCCEEDED still animation charges exactly once at GEN45_CREDIT_COST and hands back the clip lip-sync consumes", async () => {
+  it("a SUCCEEDED still animation charges exactly once in total (the submit reserve) at GEN45_CREDIT_COST and hands back the clip lip-sync consumes", async () => {
     const { json } = await submitStill(OWNER);
     h.taskStates.set(json.taskId, { status: "SUCCEEDED", output: ["https://runway.test/still-clip.mp4"] });
 
