@@ -189,7 +189,7 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
   {
     id: "royal-showcase",
     name: "Royal Showcase",
-    blurb: "The classic layout with Cinzel headlines — the throne-room voice over the standard shelf.",
+    blurb: "The classic layout with ceremonial serif headlines — the throne-room voice over the standard shelf.",
     bestFor: "Flagship drops and luxury goods.",
     settings: { layout_style: "showcase", font_style: "royal" },
   },
@@ -203,7 +203,7 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
   {
     id: "royal-gallery",
     name: "Royal Gallery",
-    blurb: "The dense wall, dressed royal: Cinzel titles over a four-across grid.",
+    blurb: "The dense wall, dressed royal: serif titles over a four-across grid.",
     bestFor: "Art prints, photography, and visual work.",
     settings: { layout_style: "gallery", font_style: "royal" },
   },
@@ -217,7 +217,7 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
   {
     id: "royal-list",
     name: "The Royal List",
-    blurb: "Full-width rows with Cinzel headlines — a short catalog that reads like a program.",
+    blurb: "Full-width rows with ceremonial serif headlines — a short catalog that reads like a program.",
     bestFor: "Limited runs, commissions, and short menus.",
     settings: { layout_style: "list", font_style: "royal" },
   },

@@ -108,19 +108,19 @@ export const SHOP_FONT_SPECS: ShopFontSpec[] = [
   {
     id: "house",
     name: "House",
-    blurb: "Manrope throughout — the clean, modern platform voice.",
+    blurb: "The clean, modern platform voice throughout.",
     displayClass: "",
   },
   {
     id: "royal",
     name: "Royal",
-    blurb: "Cinzel headlines over a Manrope read — the throne-room voice.",
+    blurb: "Ceremonial serif headlines over a clean modern read — the throne-room voice.",
     displayClass: "font-display",
   },
   {
     id: "classic",
     name: "Classic",
-    blurb: "Cinzel headlines with a Georgia serif read — bookish and warm.",
+    blurb: "Ceremonial serif headlines with a warm, bookish serif read.",
     displayClass: "font-display",
     bodyFontFamily: "Georgia, 'Times New Roman', serif",
   },
