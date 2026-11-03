@@ -321,7 +321,10 @@ async function producerStats() {
 
 describe("Gate #5 — beat purchase failure paths", () => {
   it("1a. checkout creation fails: no license survives, no sale, offers unchanged", async () => {
-    const beat = seedBeat();
+    /* Stems on file so the whole shelf (incl. the stems-format
+       Exclusive) reads available — the stems guard's own cases are
+       pinned in beats-plain-offers (ruling #2). */
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
     h.checkoutFails = true;
     const start = await call("POST", `/beats/${beat.id}/license`, { tier: "premium" });
     expect(start.status).toBe(500);
@@ -358,7 +361,7 @@ describe("Gate #5 — beat purchase failure paths", () => {
   });
 
   it("2a. unpaid session (declined/incomplete payment): no license, no payout, beat not sold", async () => {
-    const beat = seedBeat();
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
     const start = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
     expect(start.status).toBe(201);
     h.session = { ...paidSession(start, beat.id, "exclusive", 49999), payment_status: "unpaid" };
@@ -396,7 +399,7 @@ describe("Gate #5 — beat purchase failure paths", () => {
   });
 
   it("3a. an in-flight premium paid AFTER the exclusive completes is refused and refunded — the exclusive closes it too", async () => {
-    const beat = seedBeat();
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
     /* Premium checkout opens first, exclusive second; the exclusive
        settles first. Creation-side closure cannot see this order —
        the settle is the last door. */
@@ -429,7 +432,7 @@ describe("Gate #5 — beat purchase failure paths", () => {
   });
 
   it("3b. the losing exclusive buyer is refunded, not just 409'd; the winner is paid exactly once", async () => {
-    const beat = seedBeat();
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
     const startA = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
     const startB = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" }, {
       "x-test-user": BUYER2,
@@ -509,7 +512,7 @@ describe("Gate #5 — beat purchase failure paths", () => {
   });
 
   it("6. contrast: non-exclusive sales close nothing — offers stay open, a second buyer completes, exclusive still sellable", async () => {
-    const beat = seedBeat();
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
     const s1 = await call("POST", `/beats/${beat.id}/license`, { tier: "premium" });
     h.session = paidSession(s1, beat.id, "premium", 9999);
     const v1 = await call("POST", "/beats/licenses/verify", { sessionId: s1.data.sessionId });

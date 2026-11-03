@@ -208,6 +208,8 @@ function seedBeat(overrides: Record<string, any> = {}): Record<string, any> {
     audio_url: "https://cdn.example.com/beat.mp3",
     audio_path: null,
     preview_url: null,
+    stems_url: null,
+    stems_path: null,
     genre: "trap",
     bpm: 140,
     musical_key: "C min",
@@ -275,7 +277,11 @@ const flatLines = (offer: any) => (offer.plainWords as any[]).flatMap((s) => s.l
 
 describe("one-tap beat leases (N11)", () => {
   it("the offers shelf renders every priced tier + template in plain words", async () => {
-    const beat = seedBeat();
+    /* Stems on file, so every offer — including the stems-format
+       ones (Exclusive tier, the default stems template) — is
+       available; the stems guard's unavailable cases are pinned in
+       the ruling-#2 describe below. */
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
     seedTemplate();
     const r = await call("GET", `/beats/${beat.id}/offers`);
     expect(r.status).toBe(200);
@@ -337,5 +343,68 @@ describe("one-tap beat leases (N11)", () => {
     expect(lic.termsAcceptedAt).toBeTruthy();
     const lines = (lic.plainWords as any[]).flatMap((s) => s.lines as string[]);
     expect(lines).toContain("Up to 50,000 streams of your song.");
+  });
+});
+
+describe("stems-sale guard (stack1400 ruling #2, Beats OD2)", () => {
+  it("the offers shelf marks ONLY the stems offers unavailable when no stems are on file", async () => {
+    const beat = seedBeat(); /* stems_url null */
+    seedTemplate(); /* wav_mp3_stems — a stems offer */
+    seedTemplate({ name: "Plain WAV Lease", format: "wav_mp3" });
+    const r = await call("GET", `/beats/${beat.id}/offers`);
+    expect(r.status).toBe(200);
+    const byName = new Map((r.json.offers as any[]).map((o) => [o.name, o]));
+    /* Non-stems offers stay buyable. */
+    expect(byName.get("Basic")!.available).toBe(true);
+    expect(byName.get("Premium")!.available).toBe(true);
+    expect(byName.get("Plain WAV Lease")!.available).toBe(true);
+    /* Stems offers — the fixed Exclusive tier (ownership_stems) and
+       the wav_mp3_stems template — are unavailable: nothing to deliver. */
+    expect(byName.get("Exclusive")!.available).toBe(false);
+    expect(byName.get("Unlimited Lease")!.available).toBe(false);
+    /* The public browse/detail reads carry the has_stems boolean —
+       and still never the stems URL itself. */
+    const detail = await call("GET", `/beats/${beat.id}`);
+    expect(detail.json.beat.has_stems).toBe(false);
+    expect(detail.json.beat.stems_url).toBeNull();
+  });
+
+  it("with stems on file every offer is available again", async () => {
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip" });
+    seedTemplate();
+    const r = await call("GET", `/beats/${beat.id}/offers`);
+    for (const o of r.json.offers as any[]) expect(o.available, o.name).toBe(true);
+    const detail = await call("GET", `/beats/${beat.id}`);
+    expect(detail.json.beat.has_stems).toBe(true);
+    expect(detail.json.beat.stems_url).toBeNull();
+  });
+
+  it("license creation refuses a stems offer with no stems on file — 409, no row, no checkout", async () => {
+    const beat = seedBeat();
+    const tpl = seedTemplate(); /* wav_mp3_stems */
+    for (const body of [{ tier: "exclusive" }, { templateId: tpl.id }]) {
+      const r = await call("POST", `/beats/${beat.id}/license`, body);
+      expect(r.status, JSON.stringify(body)).toBe(409);
+      expect(r.json.error).toContain("no stems on file");
+    }
+    expect(h.stores.get("beat_licenses")).toHaveLength(0);
+    expect(h.checkoutCalls).toHaveLength(0);
+  });
+
+  it("non-stems offers on the same no-stems beat still sell", async () => {
+    const beat = seedBeat();
+    const plain = seedTemplate({ name: "Plain WAV Lease", format: "wav_mp3" });
+    for (const body of [{ tier: "basic" }, { tier: "premium" }, { templateId: plain.id }]) {
+      const r = await call("POST", `/beats/${beat.id}/license`, body);
+      expect(r.status, JSON.stringify(body)).toBe(201);
+    }
+    expect(h.stores.get("beat_licenses")).toHaveLength(3);
+  });
+
+  it("the exclusive tier sells when stems ARE on file", async () => {
+    const beat = seedBeat({ stems_path: "r2://beats/stems.zip" });
+    const r = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
+    expect(r.status).toBe(201);
+    expect(h.checkoutCalls).toHaveLength(1);
   });
 });
