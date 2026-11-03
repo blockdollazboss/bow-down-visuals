@@ -151,15 +151,18 @@ function poolOf(store: FakeKingStore, tutorialVb = 0): import("../quest-pool").Q
 }
 
 describe("the palace calendar math", () => {
-  it("the palace day is the UTC date; the week starts Monday (UTC)", () => {
+  it("the palace day is the UTC date; the quest week starts Monday at New York midnight", () => {
     expect(kingMomentDate(new Date("2026-10-17T23:59:59.000Z"))).toBe("2026-10-17");
     expect(kingMomentDate(new Date("2026-10-18T00:00:00.000Z"))).toBe("2026-10-18");
     // Saturday Oct 17 2026 → Monday Oct 12.
     expect(kingWeekStart(new Date("2026-10-17T12:00:00.000Z"))).toBe("2026-10-12");
     // Sunday Oct 18 → still the week of Monday Oct 12.
     expect(kingWeekStart(new Date("2026-10-18T12:00:00.000Z"))).toBe("2026-10-12");
-    // Monday Oct 19 opens a new week.
-    expect(kingWeekStart(new Date("2026-10-19T00:00:00.000Z"))).toBe("2026-10-19");
+    // Monday 00:00 UTC is Sunday 20:00 in New York — still the OLD
+    // week under the NY anchor (lib/period-anchors, stack1400 #8);
+    // the new quest week opens at 04:00 UTC, Monday 00:00 EDT.
+    expect(kingWeekStart(new Date("2026-10-19T00:00:00.000Z"))).toBe("2026-10-12");
+    expect(kingWeekStart(new Date("2026-10-19T04:00:00.000Z"))).toBe("2026-10-19");
   });
 });
 
