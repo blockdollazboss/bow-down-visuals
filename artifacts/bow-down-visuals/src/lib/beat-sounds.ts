@@ -169,6 +169,10 @@ export function registerBeatSoundManifest(entries: readonly unknown[]): number {
   return accepted;
 }
 
+/** Short alias for the bank's registration call, as named in the lane
+ *  brief: registerManifest(manifestEntries). Same function. */
+export const registerManifest = registerBeatSoundManifest;
+
 /** Remove one registered (non-built-in) entry + any decoded buffer. */
 export function unregisterBeatSound(id: string): boolean {
   sampleBuffers.delete(id);
