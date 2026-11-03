@@ -1,0 +1,32 @@
+-- Shop layout + font settings (stack1500 store-starters lane, 2026-11-03).
+--
+-- WHY THIS FILE EXISTS: a shop persisted exactly TWO design settings —
+-- banner_color and accent_color (the shop color starters of org/design
+-- wave #3 write those through PATCH /api/shops/:id). Layout and font
+-- choices had NO persisted home: the storefront's layout was hardcoded
+-- in the page (banner band + 3-across card grid) and its typography
+-- was whatever the site shell inherited. Wave #3 refused to fake
+-- layout/font starters on top of nothing; this migration is the real
+-- schema those starters write to.
+--
+-- Two plain TEXT columns on shops, following the banner_color /
+-- accent_color shape exactly (text, NOT NULL, column default):
+--   layout_style — 'showcase' | 'gallery' | 'list'
+--     'showcase' is the storefront as it has always rendered (banner
+--     band, cards three across); it is the column default, so every
+--     existing shop keeps its exact current layout untouched.
+--   font_style — 'house' | 'royal' | 'classic'
+--     'house' is today's inherited look (Manrope throughout); it is
+--     the column default, so every existing shop keeps its exact
+--     current typography untouched.
+-- The vocabulary is validated app-side (zod enum on the PATCH rail +
+-- a read sanitizer that falls back to the defaults on any bent stored
+-- value), mirroring how shop_products.status is governed — no DB
+-- CHECK, by the same precedent.
+--
+-- Idempotent: ADD COLUMN IF NOT EXISTS, safe to re-run as a no-op.
+-- No BEGIN/COMMIT, no CONCURRENTLY. 0320 > BASELINE (55), so the boot
+-- runner applies it on fresh and existing databases alike.
+
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS layout_style TEXT NOT NULL DEFAULT 'showcase';
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS font_style TEXT NOT NULL DEFAULT 'house';
