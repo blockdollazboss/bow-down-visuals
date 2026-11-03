@@ -342,7 +342,6 @@ router.get("/distribution/toolost/status", requireAuth, async (req, res) => {
      the metadata call always carries both fields. */
 
 const TOOLOST_RECONNECT_MESSAGE = "Your delivery connection needs a refresh — reconnect your delivery account, then send again.";
-const TOOLOST_REFRESH_FAILED = "toolost_refresh_failed";
 
 interface ToolostStoredTokens {
   accessToken: string;
@@ -371,29 +370,31 @@ async function loadToolostStoredTokens(userId: string): Promise<ToolostStoredTok
 
 /** Refresh + persist in the callback's shape (DELETE + INSERT, identity
     fields preserved). Any refresh failure becomes ONE sanitized
-    reconnect error — the caller never proceeds on a dead token. */
+    reconnect error — the only error in this section whose userMessage
+    is TOOLOST_RECONNECT_MESSAGE, which is how the submit route tells
+    it apart — and the caller never proceeds on a dead token. */
 async function refreshToolostStoredTokens(
   userId: string,
   cfg: NonNullable<ReturnType<typeof toolostOAuthConfig>>,
   current: ToolostStoredTokens,
 ): Promise<ToolostStoredTokens> {
   if (!current.refreshToken) {
-    throw new TooLostApiError(TOOLOST_RECONNECT_MESSAGE, undefined, TOOLOST_REFRESH_FAILED);
+    throw new TooLostApiError(TOOLOST_RECONNECT_MESSAGE, undefined, "refresh token missing");
   }
   let tokens: ToolostTokens;
   try {
     tokens = await refreshToolostTokens(cfg, current.refreshToken);
   } catch {
-    throw new TooLostApiError(TOOLOST_RECONNECT_MESSAGE, undefined, TOOLOST_REFRESH_FAILED);
+    throw new TooLostApiError(TOOLOST_RECONNECT_MESSAGE, undefined, "refresh failed");
   }
-  const expiresAt = tokens.expiresAt ? tokens.expiresAt.toISOString() : null;
+  const expiresAt = new Date(Date.now() + tokens.expiresInSec * 1000);
   await db.execute(sql`DELETE FROM social_accounts WHERE user_id = ${userId} AND platform = 'toolost'`);
   await db.execute(sql`INSERT INTO social_accounts (id, user_id, platform, provider_user_id, username, access_token_encrypted, refresh_token_encrypted, token_expires_at)
-    VALUES (${randomUUID()}, ${userId}, 'toolost', ${current.providerUserId}, ${current.username}, ${encryptToken(tokens.accessToken)}, ${tokens.refreshToken ? encryptToken(tokens.refreshToken) : null}, ${expiresAt})`);
+    VALUES (${randomUUID()}, ${userId}, 'toolost', ${current.providerUserId}, ${current.username}, ${encryptToken(tokens.accessToken)}, ${encryptToken(tokens.refreshToken)}, ${expiresAt.toISOString()})`);
   return {
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
-    expiresAt: tokens.expiresAt,
+    expiresAt,
     providerUserId: current.providerUserId,
     username: current.username,
   };
@@ -619,7 +620,7 @@ router.post("/distribution/toolost/releases/:id/submit", requireAuth, async (req
   } catch (err) {
     if (err instanceof TooLostApiError) {
       if (submissionOpen) await markToolostSubmission(releaseId, "failed", err.userMessage).catch(() => {});
-      if (err.toolostReason === TOOLOST_REFRESH_FAILED) {
+      if (err.userMessage === TOOLOST_RECONNECT_MESSAGE) {
         res.status(409).json({ error: "toolost_reconnect", message: err.userMessage, connectRequired: true });
         return;
       }
