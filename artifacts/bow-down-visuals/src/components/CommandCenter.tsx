@@ -322,8 +322,11 @@ export default function CommandCenter({ getToken, isLight }: {
               </span>
               <span className={`text-lg font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
                 {briefDigest.digest.revenue.totalCents === null ? "—" : fmtMoney(briefDigest.digest.revenue.totalCents)}
-                {briefDigest.digest.revenue.totalTipsVb !== null && (
-                  <span className="ml-2 text-[11px] font-bold text-white/35">+ {fmtInt(briefDigest.digest.revenue.totalTipsVb)} VB {t("command.rev_tips", { defaultValue: "Stream tips" })}</span>
+                {briefDigest.digest.revenue.rails.tipsVb !== null && (
+                  <span className="ml-2 text-[11px] font-bold text-white/35">+ {fmtInt(briefDigest.digest.revenue.rails.tipsVb)} VB {t("command.rev_tips", { defaultValue: "Stream tips" })}</span>
+                )}
+                {briefDigest.digest.revenue.rails.stageTipsVb !== null && briefDigest.digest.revenue.rails.stageTipsVb > 0 && (
+                  <span className="ml-2 text-[11px] font-bold text-white/35">+ {fmtInt(briefDigest.digest.revenue.rails.stageTipsVb)} VB {t("command.rev_stage_tips", { defaultValue: "Stage tips" })}</span>
                 )}
               </span>
             </div>
@@ -497,6 +500,19 @@ export default function CommandCenter({ getToken, isLight }: {
                   ) : (
                     <span className={`text-sm font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
                       {fmtInt(revenue.rails.tipsVb)} VB
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5 py-1.5">
+                  <span className="text-primary/70"><Coffee className="h-4 w-4" /></span>
+                  <span className={`flex-1 text-sm font-bold ${isLight ? "text-[#2A1E07]/70" : "text-white/60"}`}>
+                    {t("command.rev_stage_tips", { defaultValue: "Stage tips" })}
+                  </span>
+                  {revenue.rails.stageTipsVb === null ? (
+                    <span className="text-sm font-bold text-white/30">Unavailable</span>
+                  ) : (
+                    <span className={`text-sm font-black ${isLight ? "text-[#2A1E07]" : "text-white"}`}>
+                      {fmtInt(revenue.rails.stageTipsVb)} VB
                     </span>
                   )}
                 </div>

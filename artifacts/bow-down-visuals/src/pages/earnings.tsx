@@ -263,7 +263,9 @@ export default function Earnings() {
           <div className="mt-1 text-xs text-destructive">Some sources couldn&apos;t load — this total covers the ones that did.</div>
         )}
         <div className="mt-2 text-sm text-muted-foreground">
-          Stream tips: {data.totalTipsVb === null ? "couldn't load" : `${data.totalTipsVb.toLocaleString("en-US")} Visual Bucs`}
+          Stream tips: {sources.tips.status === "error" ? "couldn't load" : `${(sources.tips.streamTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
+          {" · "}
+          Stage tips: {sources.tips.status === "error" ? "couldn't load" : `${(sources.tips.stageTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
         </div>
       </div>
 
@@ -360,9 +362,17 @@ export default function Earnings() {
             </>
           ) : (
             <>
-              <div className="mt-2 text-2xl font-bold">{(sources.tips.streamTipsVb ?? 0).toLocaleString("en-US")} VB</div>
+              <div className="mt-2 text-2xl font-bold">
+                {((sources.tips.streamTipsVb ?? 0) + (sources.tips.stageTipsVb ?? 0)).toLocaleString("en-US")} VB
+              </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {sources.tips.streamTipCount ?? 0} stream tips credited · tip jar:{" "}
+                Stream tips: {(sources.tips.streamTipsVb ?? 0).toLocaleString("en-US")} VB ({sources.tips.streamTipCount ?? 0} credited)
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Stage tips: {(sources.tips.stageTipsVb ?? 0).toLocaleString("en-US")} VB ({sources.tips.stageTipCount ?? 0} credited)
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                tip jar:{" "}
                 {usd(sources.tips.tipJarPendingCents ?? 0)} pending payment ({sources.tips.tipJarPendingCount ?? 0} fans) — not yet earnings
               </div>
             </>

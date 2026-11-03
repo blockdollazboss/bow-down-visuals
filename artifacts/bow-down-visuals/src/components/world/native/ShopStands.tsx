@@ -1233,6 +1233,15 @@ function StandManager({
                   — Visual Bucs, kept apart from the money above.
                 </p>
               )}
+              {earnings.stageTipsVb !== null && (earnings.stageTipsVb > 0 || (earnings.stageTipCount ?? 0) > 0) && (
+                <p className={`text-[11px] ${muted(isLight)}`}>
+                  Stage tips: <span className="font-bold text-[#d4af37]">{earnings.stageTipsVb.toLocaleString()} VB</span>
+                  {earnings.stageTipCount !== null && earnings.stageTipCount > 0
+                    ? ` from ${earnings.stageTipCount} ${earnings.stageTipCount === 1 ? "tip" : "tips"}`
+                    : ""}{" "}
+                  — Visual Bucs, kept apart from the money above.
+                </p>
+              )}
               {earnings.tipJarPendingCount !== null && earnings.tipJarPendingCount > 0 && (
                 <p className={`text-[11px] ${muted(isLight)}`}>
                   {earnings.tipJarPendingCount} tip-jar {earnings.tipJarPendingCount === 1 ? "gift" : "gifts"}
