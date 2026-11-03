@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
   ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck, Share2, TrendingUp,
-  AlertTriangle, RotateCcw, Pause, Play, Tag,
+  AlertTriangle, RotateCcw, Pause, Play, Tag, LayoutGrid, Type,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -18,8 +18,14 @@ import CommercePixelsSettings, {
 import { centsToDisplay, dollarsToCents, shopHandleError } from "@/lib/shops";
 import {
   SHOP_DESIGN_STARTERS, shopStarterPatch, isStarterApplied,
-  type ShopDesignStarter,
+  SHOP_LOOK_STARTERS, shopLookPatch, isLookStarterApplied,
+  type ShopDesignStarter, type ShopLookStarter,
 } from "@/lib/shop-starters";
+import {
+  SHOP_FONT_SPECS, SHOP_LAYOUT_SPECS,
+  normalizeShopFontId, normalizeShopLayoutId,
+  type ShopFontId, type ShopLayoutId,
+} from "@/lib/shop-design";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import SellerOffersInbox from "@/components/offers/SellerOffersInbox";
 import { useTranslation } from "react-i18next";
@@ -45,6 +51,10 @@ interface Shop {
   description: string | null;
   banner_color: string;
   accent_color: string;
+  /* Layout + font settings (migration 0320): the rail presents the
+     sanitized pair on owner reads; optional for older cached rows. */
+  layout_style?: string | null;
+  font_style?: string | null;
   banner_image_url: string | null;
   custom_domain: string | null;
   domain_verified: boolean;
@@ -137,10 +147,15 @@ export default function MyShop() {
   const [editDescription, setEditDescription] = useState("");
   const [editBannerColor, setEditBannerColor] = useState("#0a0a0a");
   const [editAccentColor, setEditAccentColor] = useState("#d4af37");
+  /* Layout + font settings (migration 0320): seeded from the shop's
+     presented design on select, saved through the same PATCH. */
+  const [editLayout, setEditLayout] = useState<ShopLayoutId>("showcase");
+  const [editFont, setEditFont] = useState<ShopFontId>("house");
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(false);
   /* Design starters (lib/shop-starters): which starter is mid-apply. */
   const [applyingStarterId, setApplyingStarterId] = useState<string | null>(null);
+  const [applyingLookId, setApplyingLookId] = useState<string | null>(null);
   const [aiShopDescLoading, setAiShopDescLoading] = useState(false);
   const [niche, setNiche] = useState("");
 
@@ -226,6 +241,8 @@ export default function MyShop() {
     setEditDescription(shop.description ?? "");
     setEditBannerColor(shop.banner_color);
     setEditAccentColor(shop.accent_color);
+    setEditLayout(normalizeShopLayoutId(shop.layout_style));
+    setEditFont(normalizeShopFontId(shop.font_style));
     loadProducts(shop);
   }
 
@@ -291,6 +308,8 @@ export default function MyShop() {
           description: editDescription.trim(),
           banner_color: editBannerColor,
           accent_color: editAccentColor,
+          layout_style: editLayout,
+          font_style: editFont,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
@@ -361,6 +380,44 @@ export default function MyShop() {
     if (!res.ok || !data.shop) throw new Error(apiErrorMessage(data, t("commercePixels.saveFailed")));
     setActiveShop(data.shop);
     setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
+  }
+
+  /* Look starters: the layout + font axis of the starter shelf
+     (migration 0320). Applying one writes ONLY layout_style +
+     font_style through the same PATCH rail saveShop uses — colors
+     and copy are never touched, so a look and a color starter mix
+     freely. Same discipline as the color starters: the pickers flip
+     first, a failed PATCH reverts them and surfaces the error, and
+     the editor adopts the server's returned row on success. Free. */
+  async function applyLookStarter(starter: ShopLookStarter) {
+    if (!activeShop || applyingLookId) return;
+    if (isLookStarterApplied(activeShop, starter)) return;
+    const prevLayout = editLayout;
+    const prevFont = editFont;
+    setApplyingLookId(starter.id);
+    setError(null);
+    setEditLayout(starter.settings.layout_style);
+    setEditFont(starter.settings.font_style);
+    try {
+      const res = await authed(`/api/shops/${activeShop.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(shopLookPatch(starter)),
+      });
+      const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
+      if (!res.ok || !data.shop) throw new Error(apiErrorMessage(data, t("myShop.saveShopFailed")));
+      setActiveShop(data.shop);
+      setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
+      setEditLayout(normalizeShopLayoutId(data.shop.layout_style));
+      setEditFont(normalizeShopFontId(data.shop.font_style));
+      setSavedTick(true);
+      setTimeout(() => setSavedTick(false), 2000);
+    } catch (err) {
+      setEditLayout(prevLayout);
+      setEditFont(prevFont);
+      setError(plainErrorText(err, t("myShop.saveShopFailed")));
+    } finally {
+      setApplyingLookId(null);
+    }
   }
 
   async function deleteShop() {
@@ -850,6 +907,29 @@ export default function MyShop() {
                       </div>
                     </div>
                   </div>
+                  {/* Layout + font pickers (migration 0320): the two
+                      design settings beside the colors — saved by the
+                      same Save button, through the same PATCH. */}
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label htmlFor="myshop-layout-style" className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><LayoutGrid className="w-3.5 h-3.5" /> Storefront layout</label>
+                      <select id="myshop-layout-style" className={`${inputClass} mt-1`} value={editLayout} onChange={(e) => setEditLayout(normalizeShopLayoutId(e.target.value))}>
+                        {SHOP_LAYOUT_SPECS.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <p className={`mt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>{SHOP_LAYOUT_SPECS.find((s) => s.id === editLayout)?.blurb}</p>
+                    </div>
+                    <div>
+                      <label htmlFor="myshop-font-style" className="text-xs font-semibold text-white/50 flex items-center gap-1.5"><Type className="w-3.5 h-3.5" /> Storefront type</label>
+                      <select id="myshop-font-style" className={`${inputClass} mt-1`} value={editFont} onChange={(e) => setEditFont(normalizeShopFontId(e.target.value))}>
+                        {SHOP_FONT_SPECS.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <p className={`mt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>{SHOP_FONT_SPECS.find((s) => s.id === editFont)?.blurb}</p>
+                    </div>
+                  </div>
                   {/* Live banner preview — mirrors the live storefront's
                       own banner math (shop.tsx: gradient from the banner
                       color to black, accent on the eyebrow + prices), so
@@ -902,6 +982,60 @@ export default function MyShop() {
                                 disabled={applied || applyingStarterId !== null}
                                 onClick={() => applyStarter(starter)}
                                 aria-label={applied ? `${starter.name} applied` : `Apply the ${starter.name} design starter`}
+                              >
+                                {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : applied ? <Check className="w-4 h-4" /> : null}
+                                {applied ? "Applied" : applying ? "Applying…" : "Apply"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Look starters — the layout + font axis of the
+                      shelf (migration 0320): one tap re-lines and
+                      re-types the storefront through the real
+                      layout/font settings (free). Colors are never
+                      touched, so a look mixes with any color starter.
+                      Cards are data from lib/shop-starters. */}
+                  <div className="mt-6" data-testid="myshop-look-starters">
+                    <h3 className="text-sm font-bold flex items-center gap-1.5">
+                      <LayoutGrid className="w-4 h-4 text-amber-300" /> Look starters
+                      <span className="text-[11px] font-semibold text-white/40">free — applies instantly</span>
+                    </h3>
+                    <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
+                      A look sets your storefront's layout and type — how products line up and the voice they're set in. Your colors, name, tagline, and about blurb stay exactly as they are.
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {SHOP_LOOK_STARTERS.map((look) => {
+                        const applied = isLookStarterApplied(
+                          { layout_style: editLayout, font_style: editFont },
+                          look,
+                        );
+                        const applying = applyingLookId === look.id;
+                        const layoutName = SHOP_LAYOUT_SPECS.find((s) => s.id === look.settings.layout_style)?.name ?? look.settings.layout_style;
+                        const fontSpec = SHOP_FONT_SPECS.find((s) => s.id === look.settings.font_style);
+                        return (
+                          <div
+                            key={look.id}
+                            data-testid={`shop-look-${look.id}`}
+                            className={`overflow-hidden rounded-xl border ${applied ? "border-amber-400 ring-1 ring-amber-400/50" : isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}
+                          >
+                            <div data-dark-lock className="flex h-16 items-end p-3" style={{ background: `linear-gradient(135deg, ${editBannerColor}, #000)` }}>
+                              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black ${fontSpec?.displayClass ?? ""}`} style={{ background: editAccentColor }}>
+                                {layoutName} · {fontSpec?.name ?? look.settings.font_style}
+                              </span>
+                            </div>
+                            <div className={`p-3 ${isLight ? "bg-[#F7ECD2]/80" : "bg-black/40"}`}>
+                              <div className={`text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{look.name}</div>
+                              <p className={`mt-1 text-xs leading-relaxed ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{look.blurb}</p>
+                              <p className={`mt-1 text-[11px] ${isLight ? "text-[#6B5B36]/80" : "text-white/35"}`}>{look.bestFor}</p>
+                              <button
+                                type="button"
+                                className={applied ? ghostBtn : goldBtn}
+                                disabled={applied || applyingLookId !== null}
+                                onClick={() => applyLookStarter(look)}
+                                aria-label={applied ? `${look.name} applied` : `Apply the ${look.name} look starter`}
                               >
                                 {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : applied ? <Check className="w-4 h-4" /> : null}
                                 {applied ? "Applied" : applying ? "Applying…" : "Apply"}
