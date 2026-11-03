@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 
 /* ─── Promoter HQ — the referral program as a job ──────────────────────────
    Each user gets a personal referral link. New user signs up via link and
-   gets 1,000 welcome Visual Bucs. Referrers climb 6 Kingpin-style stars: higher
+   gets 1,000 welcome Visual Bucs. Referrers climb 6 Promoter stars: higher
    stars = higher revenue-share rate + one-time milestone bonuses.
 
    VIRALITY WAVE:
@@ -600,7 +600,7 @@ export default function Referrals() {
           </p>
         ) : info && (
           <>
-            {/* Rank card — your Kingpin standing + window ranks */}
+            {/* Rank card — your Promoter standing + window ranks */}
             <div className="lux-card p-6 mb-8 text-center relative overflow-hidden">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[120px] bg-primary/10 rounded-full blur-[60px] pointer-events-none" />
               <div className="relative z-10">
