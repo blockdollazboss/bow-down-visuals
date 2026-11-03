@@ -537,6 +537,7 @@ describe("the jukebox gate + registry coverage (pins e, f)", () => {
     );
     expect(createStations.map((s) => s.id).sort()).toEqual([
       "audio-desk",
+      "carousel-desk",
       "cover-art-desk",
       "hook-desk",
       "movies-desk",

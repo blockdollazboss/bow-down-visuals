@@ -1,6 +1,7 @@
 import type { PalaceStation } from "@/lib/world/stations";
 import { NativePlaceholder } from "./NativePlaceholder";
 import { AudioDesk } from "./AudioDesk";
+import { CarouselDesk } from "./CarouselDesk";
 import { HookDesk } from "./HookDesk";
 import { MoviesDesk } from "./MoviesDesk";
 import {
@@ -41,6 +42,8 @@ export function CreateDeskPanel({ station, ...props }: CreateDeskPanelProps) {
       return <HookDesk {...props} />;
     case "movies-desk":
       return <MoviesDesk {...props} />;
+    case "carousel-desk":
+      return <CarouselDesk {...props} />;
     default:
       return <NativePlaceholder station={station} isLight={props.isLight} />;
   }

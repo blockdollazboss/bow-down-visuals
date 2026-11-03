@@ -319,15 +319,15 @@ describe("Q171 perf sliver — the adaptive ladder's coded thresholds + rung sca
 });
 
 /* ─── Q173 — parity registry ──────────────────────────────────────
- * stations.test.ts pins the count (44), the kinds census
- * (25 native / 18 custom / 1 stepthrough), unique ids, the full
+ * stations.test.ts pins the count (45), the kinds census
+ * (26 native / 18 custom / 1 stepthrough), unique ids, the full
  * websitePath table and per-room coverage. NOT pinned there: the
  * CREATE / BRAND / PROMOTE / MONEY family census the ledger line
  * names, desk by desk. Pinned here. */
-describe("Q173 parity registry — 44 stations, no page kind, all four families present", () => {
-  it("counts: 44 fixed stations, unique ids, zero panel.kind \"page\" — creator-room doors included", () => {
-    expect(PALACE_STATIONS).toHaveLength(44);
-    expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(44);
+describe("Q173 parity registry — 45 stations, no page kind, all four families present", () => {
+  it("counts: 45 fixed stations, unique ids, zero panel.kind \"page\" — creator-room doors included", () => {
+    expect(PALACE_STATIONS).toHaveLength(45);
+    expect(new Set(PALACE_STATIONS.map((s) => s.id)).size).toBe(45);
     for (const s of PALACE_STATIONS) {
       expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
       expect(s.panel.kind, s.id).not.toBe("page");
@@ -336,11 +336,11 @@ describe("Q173 parity registry — 44 stations, no page kind, all four families 
     expect(creator).toHaveLength(4);
     for (const s of creator) expect(s.panel.kind).toBe("custom");
     // Two stations share a NAME (the Kingdom Board stands in the
-    // hall and on the plaza monument) — 43 unique names over 44 ids.
-    expect(new Set(PALACE_STATIONS.map((s) => s.name)).size).toBe(43);
+    // hall and on the plaza monument) — 44 unique names over 45 ids.
+    expect(new Set(PALACE_STATIONS.map((s) => s.name)).size).toBe(44);
   });
 
-  it("CREATE family: the editor step-through + the eight create desks + Beats", () => {
+  it("CREATE family: the editor step-through + the nine create desks + Beats", () => {
     expect(STATION_BY_ID.get("visual-vibes-editor")!.panel).toEqual({
       kind: "stepthrough",
       path: "/video-editor",
@@ -354,6 +354,7 @@ describe("Q173 parity registry — 44 stations, no page kind, all four families 
       "thumbnail-desk",
       "hook-desk",
       "movies-desk",
+      "carousel-desk",
     ]) {
       expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern: "create" });
     }
@@ -365,6 +366,7 @@ describe("Q173 parity registry — 44 stations, no page kind, all four families 
     expect(STATION_BY_ID.get("thumbnail-desk")!.name).toBe("Thumbnail Desk");
     expect(STATION_BY_ID.get("hook-desk")!.name).toBe("Hook Desk");
     expect(STATION_BY_ID.get("movies-desk")!.name).toBe("Movies Desk");
+    expect(STATION_BY_ID.get("carousel-desk")!.name).toBe("Carousel Desk");
     expect(STATION_BY_ID.get("beats-desk")!.name).toBe("Beat Marketplace");
   });
 

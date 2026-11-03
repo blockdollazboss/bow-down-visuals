@@ -48,8 +48,9 @@ describe("the station registry", () => {
      * item 97's closing part (the Hook Desk) and item 36
      * (Heights Slate) + parity P3-C (the Smart Cards stand
      * and the Merch Bench) + stack1400 parity wave #2 item 4
-     * (the Movies Desk). */
-    expect(PALACE_STATIONS.length).toBe(44);
+     * (the Movies Desk) + stack1400 parity wave #2 item 5
+     * (the Carousel Desk). */
+    expect(PALACE_STATIONS.length).toBe(45);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -72,7 +73,7 @@ describe("the station registry", () => {
       expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
       expect(s.panel.kind, s.id).not.toBe("page");
     }
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(25);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(26);
     /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
      * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
      * + the plaza monument's Kingdom Board (Open World Phase 1)
@@ -107,6 +108,7 @@ describe("the station registry", () => {
       "thumbnail-desk": "create",
       "hook-desk": "create",
       "movies-desk": "create",
+      "carousel-desk": "create",
       "crowns-desk": "shop",
       "branding-kit-desk": "business",
       "branding-shop-desk": "shop",
@@ -119,7 +121,7 @@ describe("the station registry", () => {
       "promote-room": "business",
       "get-paid-room": "board",
     };
-    expect(Object.keys(patterns).length).toBe(25);
+    expect(Object.keys(patterns).length).toBe(26);
     for (const [id, pattern] of Object.entries(patterns)) {
       expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern });
     }
@@ -145,6 +147,7 @@ describe("the station registry", () => {
       "thumbnail-desk": "/thumbnail-studio",
       "hook-desk": "/hooks",
       "movies-desk": "/movies",
+      "carousel-desk": "/carousel-maker",
       "daily-drop": null,
       "shark-drops": null,
       "quest-board": null,

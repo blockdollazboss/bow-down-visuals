@@ -322,6 +322,28 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "create" },
     websitePath: "/movies",
   },
+  {
+    /* Stack1400 parity wave #2 item 5: the Carousel Maker's native
+       desk — templates, slide building, ordering and the 100-Buc
+       PNG export on the /carousel-maker page's own rail
+       (POST /api/carousel/export), with the schedule hand-off
+       opening the in-world scheduler compose. JOIN NOTE (stack1400
+       join #2): the lane placed it at the Movies Desk's own spot
+       (23.5, -6) — two stands cannot share a prompt — so on the
+       joined tree it stands mid-room on the wing's east side,
+       south of the Movies Desk on the My Studio board's row,
+       4.0m+ clear of every other prompt in the wing. Members-only
+       exactly as the export rail is (requireAuth on the route). */
+    id: "carousel-desk",
+    roomId: CREATE_WING_ID,
+    name: "Carousel Desk",
+    tagline: "Swipeable carousels — build the slides, export the PNGs, schedule the post.",
+    x: 23.5,
+    z: -2,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/carousel-maker",
+  },
 
   /* ── Treasury ────────────────────────────────────────────────── */
   {
