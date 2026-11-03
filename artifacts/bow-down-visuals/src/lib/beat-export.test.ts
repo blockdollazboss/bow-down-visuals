@@ -15,6 +15,7 @@ import {
   enumerateBeatStems,
   isolateStemMixer,
   isolateStemMixerFx,
+  mixFileName,
   renderScopesEqual,
   sanitizeFilePart,
   stemFileName,
@@ -264,6 +265,22 @@ describe("file naming", () => {
     expect(sanitizeFilePart("My Beat!! Vol. 2")).toBe("my-beat-vol-2");
     expect(sanitizeFilePart("")).toBe("beat");
     expect(stemFileName("My Beat", 97.6, enumerateBeatStems(DRUM_IDS)[1]!)).toBe("my-beat-98bpm-snare.wav");
+  });
+
+  it("MP3 format swaps only the extension — stem slugs and ZIP name are unchanged", () => {
+    const stems = enumerateBeatStems(DRUM_IDS);
+    expect(stemFileName("beat", 140, stems[0]!, "mp3")).toBe("beat-140bpm-kick.mp3");
+    expect(stemFileName("beat", 140, stems[9]!, "mp3")).toBe("beat-140bpm-808-bass.mp3");
+    expect(stemFileName("My Beat", 97.6, enumerateBeatStems(DRUM_IDS)[1]!, "mp3")).toBe("my-beat-98bpm-snare.mp3");
+    // explicit "wav" is the default's own name
+    expect(stemFileName("beat", 140, stems[0]!, "wav")).toBe(stemFileName("beat", 140, stems[0]!));
+  });
+
+  it("mix download name: beat-<bpm>bpm.<format>, WAV default byte-identical to the legacy inline name", () => {
+    expect(mixFileName(140)).toBe("beat-140bpm.wav");
+    expect(mixFileName(140, "wav")).toBe("beat-140bpm.wav");
+    expect(mixFileName(140, "mp3")).toBe("beat-140bpm.mp3");
+    expect(mixFileName(97.6)).toBe("beat-97.6bpm.wav");
   });
 });
 
