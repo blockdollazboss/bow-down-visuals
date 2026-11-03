@@ -59,8 +59,8 @@ export interface BeatLicenseTerms {
 
 /** The standing terms of the three fixed tiers — exactly what their
     marketplace blurbs have always promised (en.json beats.tier*Blurb):
-    Basic "MP3 lease · 1 music video · 50k streams", Premium "WAV + MP3 ·
-    2 music videos · 500k streams", Exclusive "Full ownership · stems ·
+    Basic "MP3 lease · 1 music video · 50k streams", Premium
+    "2 music videos · 500k streams", Exclusive "Full ownership · stems ·
     unlimited". Fixed-tier purchases snapshot these terms, so a buyer's
     record shows the same terms a custom template would. */
 export function defaultTermsForTier(tier: BeatLicenseTier): BeatLicenseTerms {

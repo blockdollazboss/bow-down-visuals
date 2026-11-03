@@ -46,8 +46,10 @@ describe("plainWordsForTerms", () => {
 
   it("renders each delivery format in words", () => {
     expect(allLines({ ...base, format: "mp3" })[0]).toBe("The beat as an MP3 file.");
-    expect(allLines({ ...base, format: "wav_mp3" })[0]).toBe("The beat as WAV + MP3 files.");
-    expect(allLines({ ...base, format: "wav_mp3_stems" })[0]).toContain("track stems");
+    expect(allLines({ ...base, format: "wav_mp3" })[0]).toBe("The beat as the producer uploaded it — one audio file.");
+    expect(allLines({ ...base, format: "wav_mp3_stems" })[0]).toBe(
+      "The beat as the producer uploaded it — one audio file, plus the producer's uploaded track stems.",
+    );
     expect(allLines({ ...base, format: "ownership_stems" })[0]).toContain("full ownership");
   });
 

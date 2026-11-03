@@ -77,8 +77,8 @@ export function templateTerms(t: BeatLicenseTemplate): BeatLicenseTerms {
 
 /** The standing terms of the three fixed tiers — the same values the
     API snapshots for fixed-tier purchases (from the tier blurbs:
-    Basic "MP3 lease · 1 music video · 50k streams", Premium "WAV + MP3 ·
-    2 music videos · 500k streams", Exclusive "Full ownership · stems ·
+    Basic "MP3 lease · 1 music video · 50k streams", Premium
+    "2 music videos · 500k streams", Exclusive "Full ownership · stems ·
     unlimited"). Display-only mirror; the server snapshot is binding. */
 export function defaultTermsForTier(tier: string): BeatLicenseTerms {
   const base: BeatLicenseTerms = {
@@ -102,8 +102,8 @@ export function defaultTermsForTier(tier: string): BeatLicenseTerms {
 
 const FORMAT_LABELS: Record<BeatLicenseFormat, string> = {
   mp3: "MP3",
-  wav_mp3: "WAV + MP3",
-  wav_mp3_stems: "WAV + MP3 + stems",
+  wav_mp3: "Producer's uploaded file",
+  wav_mp3_stems: "Producer's uploaded file + stems",
   ownership_stems: "Full ownership + stems",
 };
 
@@ -153,8 +153,8 @@ export interface PlainTermsSection {
 
 const PLAIN_FORMAT_LINES: Record<BeatLicenseFormat, string> = {
   mp3: "The beat as an MP3 file.",
-  wav_mp3: "The beat as WAV + MP3 files.",
-  wav_mp3_stems: "The beat as WAV + MP3 files, plus the separate track stems.",
+  wav_mp3: "The beat as the producer uploaded it — one audio file.",
+  wav_mp3_stems: "The beat as the producer uploaded it — one audio file, plus the producer's uploaded track stems.",
   ownership_stems: "The beat itself — full ownership, plus the separate track stems.",
 };
 

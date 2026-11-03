@@ -237,7 +237,7 @@ interface BeatTierOffer {
 export function beatTierOffers(beat: BeatDto): BeatTierOffer[] {
   const tiers: Array<{ key: BeatTierOffer["key"]; label: string; blurb: string; priceCents: number }> = [
     { key: "basic", label: "Basic", blurb: "MP3 lease · 1 music video · 50k streams", priceCents: beat.basicPriceCents },
-    { key: "premium", label: "Premium", blurb: "WAV + MP3 · 2 music videos · 500k streams", priceCents: beat.premiumPriceCents },
+    { key: "premium", label: "Premium", blurb: "2 music videos · 500k streams", priceCents: beat.premiumPriceCents },
     { key: "exclusive", label: "Exclusive", blurb: "Full ownership · stems · unlimited", priceCents: beat.exclusivePriceCents },
   ];
   return tiers.map((t) => ({
