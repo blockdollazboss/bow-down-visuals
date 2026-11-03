@@ -43,7 +43,8 @@ describe("playback wiring", () => {
   it("playTrackHit resolves through the registry and falls back to synthHit", () => {
     expect(page).toContain("function playTrackHit(");
     expect(page).toContain("resolveTrackSound(soundId, ti)");
-    expect(page).toContain("playSampleBuffer(ctx, entry, t, g)");
+    // W3b: playTrackHit passes the track's slice region (null = whole).
+    expect(page).toContain("playSampleBuffer(ctx, entry, t, g, region)");
     expect(page).toContain("entry.synthKey ?? trackId");
   });
 
@@ -52,7 +53,7 @@ describe("playback wiring", () => {
     // chain input (lib/beat-mixer graph), not a bare gain node — the
     // assigned-sound wiring through playTrackHit is unchanged.
     expect(page).toContain(
-      "playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, chain.input, gain)",
+      "playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, chain.input, gain, trackSlicesRef.current[ti])",
     );
     expect(page).toContain("const chain = graph.tracks[tr.id];");
   });

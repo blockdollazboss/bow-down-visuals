@@ -46,6 +46,17 @@
  * honestly after a reload, when playback falls back to the synth voice).
  * Older projects without these fields normalize to the built-in synth
  * voices — exactly the sounds they always played.
+ *
+ * W3b (pads + slicing, additive): a track can carry a SLICE of its
+ * assigned sample — `trackSlices[trackIndex]` is either null (the
+ * track plays its sound whole, the only behavior before this wave) or
+ * { soundId, index, count }: "when this track plays soundId, play
+ * slice index of count equal slices of it" (region math in
+ * lib/beat-pads.ts, resolved against the decoded buffer at play time).
+ * The slice binds to the sound it was cut from by id — if the track's
+ * sound changes, the slice simply stops applying (and the page clears
+ * it). Older projects without the field normalize to all-null slices,
+ * so they load and render exactly as before.
  */
 
 import { defaultSoundIdForTrack, normalizeTrackSoundId } from "@/lib/beat-sounds";
@@ -135,6 +146,20 @@ export interface BeatArrangementEntry {
 
 export type BeatTransportMode = "pattern" | "song";
 
+/** W3b: a slice of a track's assigned sample. The region is NOT stored
+ *  in seconds — `index`/`count` name an equal slice of whatever buffer
+ *  the sound decodes to, resolved at play time (lib/beat-pads.ts), so
+ *  the same project slices identically live and in the offline render. */
+export interface BeatTrackSlice {
+  /** The sound this slice was cut from. The slice applies only while
+   *  the track's assigned sound id equals this. */
+  soundId: string;
+  /** 0-based slice index within the file. */
+  index: number;
+  /** Total equal slices the file was cut into (2–64). */
+  count: number;
+}
+
 export interface BeatProject {
   /** v1 = fixed 16-step patterns; v2 = per-pattern length + velocity.
    *  normalizeBeatProject accepts both and always returns v2. */
@@ -163,6 +188,9 @@ export interface BeatProject {
    *  (uploads especially), index-aligned with trackSounds; null for
    *  built-in voices / when no name was captured. */
   trackSoundNames: (string | null)[];
+  /** W3b: per-track slice of the assigned sample, index-aligned with
+   *  trackSounds; null = the track plays its sound whole. */
+  trackSlices: (BeatTrackSlice | null)[];
 }
 
 /* ─── Factories ────────────────────────────────────────────────────────── */
@@ -334,6 +362,12 @@ export function defaultTrackSoundNames(): (string | null)[] {
   return Array(BEAT_TRACK_COUNT).fill(null);
 }
 
+/** The default per-track slices: none — every track plays its sound
+ *  whole, exactly the pre-W3b behavior. */
+export function defaultTrackSlices(): (BeatTrackSlice | null)[] {
+  return Array(BEAT_TRACK_COUNT).fill(null);
+}
+
 /** A fresh project: empty patterns, classic pattern-loop behavior.
  *  `seed` optionally supplies pattern A (the page seeds its preset). */
 export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
@@ -354,6 +388,7 @@ export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
     mode: "pattern",
     trackSounds: defaultTrackSounds(),
     trackSoundNames: defaultTrackSoundNames(),
+    trackSlices: defaultTrackSlices(),
   };
 }
 
@@ -472,6 +507,29 @@ function normalizeTrackSoundNames(
   });
 }
 
+/** One stored slice, salvaged only when every part is well-formed:
+ *  a non-empty sound id, an integer count in 2–64 and an integer index
+ *  inside it. Anything else is not a slice — the track plays whole. */
+export function normalizeTrackSlice(raw: unknown): BeatTrackSlice | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Partial<BeatTrackSlice>;
+  if (typeof r.soundId !== "string" || r.soundId.trim() === "" || r.soundId.length > 200) {
+    return null;
+  }
+  if (typeof r.count !== "number" || !Number.isInteger(r.count) || r.count < 2 || r.count > 64) {
+    return null;
+  }
+  if (typeof r.index !== "number" || !Number.isInteger(r.index) || r.index < 0 || r.index >= r.count) {
+    return null;
+  }
+  return { soundId: r.soundId, index: r.index, count: r.count };
+}
+
+function normalizeTrackSlices(raw: unknown): (BeatTrackSlice | null)[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return Array.from({ length: BEAT_TRACK_COUNT }, (_, i) => normalizeTrackSlice(arr[i]));
+}
+
 /** Pure op: assign a registry sound to one track (immutable). */
 export function setTrackSound(
   project: BeatProject,
@@ -491,6 +549,21 @@ export function setTrackSound(
       : n,
   );
   return { ...project, trackSounds, trackSoundNames };
+}
+
+/** Pure op: set or clear one track's slice (immutable). The slice is
+ *  normalized first — garbage in means the slice is cleared, never a
+ *  broken project. */
+export function setTrackSlice(
+  project: BeatProject,
+  trackIndex: number,
+  slice: BeatTrackSlice | null,
+): BeatProject {
+  if (trackIndex < 0 || trackIndex >= BEAT_TRACK_COUNT) return project;
+  const trackSlices = project.trackSlices.map((s, i) =>
+    i === trackIndex ? normalizeTrackSlice(slice) : s,
+  );
+  return { ...project, trackSlices };
 }
 
 export function normalizeArrangement(raw: unknown): BeatArrangementEntry[] {
@@ -541,6 +614,7 @@ export function normalizeBeatProject(raw: unknown): BeatProject | null {
       (r as { trackSoundNames?: unknown }).trackSoundNames,
       trackSounds,
     ),
+    trackSlices: normalizeTrackSlices((r as { trackSlices?: unknown }).trackSlices),
   };
 }
 

@@ -253,3 +253,44 @@ describe("uploads", () => {
     expect(createUploadSoundId()).not.toBe(createUploadSoundId());
   });
 });
+
+describe("slice regions (W3b)", () => {
+  function fakeCtxWithStartArgs() {
+    const starts: Array<{ at: number; args: unknown[] }> = [];
+    const ctx = {
+      createBufferSource: () => ({
+        buffer: null as unknown,
+        playbackRate: { value: 0 },
+        connect: () => {},
+        start: (...args: unknown[]) => { starts.push({ at: args[0] as number, args }); },
+      }),
+    };
+    return { ctx: ctx as unknown as BaseAudioContext, starts };
+  }
+
+  it("playSampleBuffer with a region starts the buffer at (t, offset, duration)", () => {
+    const buf = { duration: 8 } as AudioBuffer;
+    const entry = registerUploadSound({ name: "Loop", kind: "perc", buffer: buf });
+    const { ctx, starts } = fakeCtxWithStartArgs();
+    const dest = {} as AudioNode;
+    expect(playSampleBuffer(ctx, entry, 3.25, dest, { offset: 2, duration: 2 })).toBe(true);
+    expect(starts).toHaveLength(1);
+    expect(starts[0]!.args).toEqual([3.25, 2, 2]);
+  });
+
+  it("playSampleBuffer without a region still starts at (t) only — legacy shape", () => {
+    const buf = { duration: 8 } as AudioBuffer;
+    const entry = registerUploadSound({ name: "Whole", kind: "perc", buffer: buf });
+    const { ctx, starts } = fakeCtxWithStartArgs();
+    expect(playSampleBuffer(ctx, entry, 1.5, {} as AudioNode)).toBe(true);
+    expect(starts[0]!.args).toEqual([1.5]);
+  });
+
+  it("an out-of-buffer region is ignored, never scheduled as silence", () => {
+    const buf = { duration: 4 } as AudioBuffer;
+    const entry = registerUploadSound({ name: "Short", kind: "perc", buffer: buf });
+    const { ctx, starts } = fakeCtxWithStartArgs();
+    expect(playSampleBuffer(ctx, entry, 0.5, {} as AudioNode, { offset: 9, duration: 1 })).toBe(true);
+    expect(starts[0]!.args).toEqual([0.5]);
+  });
+});

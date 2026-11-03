@@ -273,17 +273,31 @@ export function hasSampleBuffer(entry: BeatSoundEntry): boolean {
   return sampleBuffers.has(entry.id);
 }
 
+/** A region of a buffer to play instead of the whole buffer — the
+ *  slice unit (W3b, lib/beat-pads.ts). Seconds, resolved against the
+ *  decoded buffer at schedule time. */
+export interface BeatSampleRegion {
+  offset: number;
+  duration: number;
+}
+
 /** Schedule one sample hit through the caller's per-track gain path.
  *  The caller owns velocity/accent: it passes a destination whose gain
  *  already carries vel × defaultVolume (the same node synth hits use),
  *  so mixer/velocity behavior is identical for samples and synths.
  *  Playback rate stays 1.0 — no stretch/pitch features in this lane.
- *  Returns false when no buffer is available (caller falls back). */
+ *  With a `region` (a slice), only that span of the buffer plays —
+ *  the live transport and the offline render pass the same region, so
+ *  a slice sounds identical in playback and in every export. An
+ *  invalid region is ignored (the whole buffer plays) rather than
+ *  scheduling silence. Returns false when no buffer is available
+ *  (caller falls back). */
 export function playSampleBuffer(
   ctx: BaseAudioContext,
   entry: BeatSoundEntry,
   t: number,
   dest: AudioNode,
+  region?: BeatSampleRegion | null,
 ): boolean {
   const buffer = sampleBuffers.get(entry.id);
   if (!buffer) return false;
@@ -291,7 +305,18 @@ export function playSampleBuffer(
   src.buffer = buffer;
   src.playbackRate.value = 1.0;
   src.connect(dest);
-  src.start(t);
+  if (
+    region &&
+    Number.isFinite(region.offset) &&
+    Number.isFinite(region.duration) &&
+    region.offset >= 0 &&
+    region.duration > 0 &&
+    region.offset < buffer.duration
+  ) {
+    src.start(t, region.offset, region.duration);
+  } else {
+    src.start(t);
+  }
   return true;
 }
 

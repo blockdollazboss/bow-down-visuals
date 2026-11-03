@@ -14,6 +14,7 @@ import {
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano, Metronome,
   Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers,
+  FolderDown, LayoutGrid,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -65,12 +66,14 @@ import {
   isEmptyBeatPattern,
   defaultTrackSoundNames,
   defaultTrackSounds,
+  defaultTrackSlices,
   type BeatArrangementEntry,
   type BeatMixerState,
   type BeatPatternBars,
   type BeatPatternData,
   type BeatPatternId,
   type BeatProject,
+  type BeatTrackSlice,
   type BeatTransportMode,
 } from "@/lib/beat-project";
 import {
@@ -79,12 +82,24 @@ import {
   defaultSoundIdForTrack,
   ensureBeatSampleBuffer,
   getBeatSound,
+  getSampleBuffer,
   isUnavailableSampleAssignment,
   listBeatSoundsBySource,
   playSampleBuffer,
   resolveTrackSound,
   type BeatSoundEntry,
 } from "@/lib/beat-sounds";
+import {
+  BEAT_PACK_MAX_BYTES,
+  BEAT_SLICE_COUNTS,
+  padHitVelocity,
+  planPackLoad,
+  planSliceSpread,
+  resolveSliceRegion,
+  type BeatPackFileResult,
+  type BeatPackRejectReason,
+  type BeatPadVelocityMode,
+} from "@/lib/beat-pads";
 import {
   beatMixerGraphSignature,
   buildBeatMixerGraph,
@@ -476,10 +491,16 @@ function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode
    velocity/accent × the sound's default volume, into the SAME per-track
    mixer gain synth hits use. If the sample's buffer is not available in
    this session, resolution has already substituted the track's built-in
-   synth voice — the hit always sounds, never a silent dead track. */
+   synth voice — the hit always sounds, never a silent dead track.
+   W3b: when the track carries a slice of its assigned sample, only
+   that slice's region plays — resolved here, in the ONE scheduling
+   helper, so the live transport, the pads and the offline render
+   (WAV + stems, and any encode of this same render) all slice
+   identically. */
 function playTrackHit(
   ctx: BaseAudioContext, trackId: TrackId, ti: number,
   soundId: string | undefined, t: number, dest: AudioNode, vel = 1,
+  slice?: BeatTrackSlice | null,
 ) {
   const resolved = resolveTrackSound(soundId, ti);
   const entry = resolved.entry;
@@ -487,7 +508,10 @@ function playTrackHit(
     const g = ctx.createGain();
     g.gain.value = vel * entry.defaultVolume;
     g.connect(dest);
-    if (playSampleBuffer(ctx, entry, t, g)) return;
+    const region = slice
+      ? resolveSliceRegion(slice, soundId, getSampleBuffer(entry.id)?.duration)
+      : null;
+    if (playSampleBuffer(ctx, entry, t, g, region)) return;
     // Buffer vanished between resolve and schedule — synth fallback.
     synthHit(ctx, trackId, t, dest, vel);
     return;
@@ -886,6 +910,24 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [trackSoundNames, setTrackSoundNames] = useState<(string | null)[]>(() =>
     restored ? [...restored.trackSoundNames] : defaultTrackSoundNames(),
   );
+  /* W3b: per-track slices of the assigned sample (null = whole sound),
+   * persisted with the project exactly like the sound assignments.
+   * The pads view + pack-load state below is session UI only. */
+  const [trackSlices, setTrackSlices] = useState<(BeatTrackSlice | null)[]>(() =>
+    restored ? [...restored.trackSlices] : defaultTrackSlices(),
+  );
+  const [showPads, setShowPads] = useState(false);
+  const [padVelMode, setPadVelMode] = useState<BeatPadVelocityMode>("hit");
+  const [padFixedVel, setPadFixedVel] = useState(0.8);
+  const [lastPadHit, setLastPadHit] = useState<{ ti: number; vel: number; at: number } | null>(null);
+  const [sliceSoundId, setSliceSoundId] = useState<string>("");
+  const [sliceCountSel, setSliceCountSel] = useState<number>(8);
+  const [sliceStartSel, setSliceStartSel] = useState<number>(0);
+  const [sliceNote, setSliceNote] = useState<string | null>(null);
+  const [packResults, setPackResults] = useState<BeatPackFileResult[] | null>(null);
+  const [packBusy, setPackBusy] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
+  const packInputRef = useRef<HTMLInputElement | null>(null);
   const [sessionUploads, setSessionUploads] = useState<BeatSoundEntry[]>([]);
   const [uploadingTrack, setUploadingTrack] = useState<number | null>(null);
   const [soundError, setSoundError] = useState<string | null>(null);
@@ -934,11 +976,13 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const arrangementRef = useRef(arrangement);
   const modeRef = useRef(transportMode);
   const trackSoundsRef = useRef(trackSounds);
+  const trackSlicesRef = useRef(trackSlices);
   patternsRef.current = patterns;
   activePatRef.current = activePat;
   arrangementRef.current = arrangement;
   modeRef.current = transportMode;
   trackSoundsRef.current = trackSounds;
+  trackSlicesRef.current = trackSlices;
   const metroOnRef = useRef(metroOn);
   const metroCountInRef = useRef(metroCountIn);
   metroOnRef.current = metroOn;
@@ -960,8 +1004,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     mode: modeRef.current,
     trackSounds,
     trackSoundNames,
+    trackSlices,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [vol, mute, solo, bassVol, bassMute, trackSounds, trackSoundNames]);
+  }), [vol, mute, solo, bassVol, bassMute, trackSounds, trackSoundNames, trackSlices]);
 
   const applyProject = useCallback((p: BeatProject) => {
     setPatterns(
@@ -981,6 +1026,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     setTransportMode(p.mode);
     setTrackSounds([...p.trackSounds]);
     setTrackSoundNames([...p.trackSoundNames]);
+    setTrackSlices([...p.trackSlices]);
     setMixerFx(p.mixerFx);
   }, []);
 
@@ -1018,7 +1064,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }, 1200);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames, mixerFx]);
+  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames, trackSlices, mixerFx]);
 
   /* ── theme tones ── */
   const T = {
@@ -1147,7 +1193,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     TRACKS.forEach((tr, ti) => {
       const gain = drumStepGain(pat, ti, s);
       const chain = graph.tracks[tr.id];
-      if (gain > 0 && chain) playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, chain.input, gain);
+      if (gain > 0 && chain) playTrackHit(ctx, tr.id, ti, trackSoundsRef.current[ti], when, chain.input, gain, trackSlicesRef.current[ti]);
     });
     const bn = pat.bass[s];
     const bassChain = graph.tracks["bass"];
@@ -1238,6 +1284,11 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const assignTrackSound = useCallback((ti: number, soundId: string) => {
     const entry = getBeatSound(soundId);
     setTrackSounds((prev) => prev.map((s, i) => (i === ti ? soundId : s)));
+    // W3b: a slice belongs to the sound it was cut from — assigning a
+    // different sound clears it (assigning the same sound keeps it).
+    setTrackSlices((prev) =>
+      prev.map((sl, i) => (i === ti && sl && sl.soundId !== soundId ? null : sl)),
+    );
     setTrackSoundNames((prev) =>
       prev.map((n, i) =>
         i === ti
@@ -1275,6 +1326,139 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     } finally {
       setUploadingTrack(null);
     }
+  };
+
+  /* ── pads, slicing + pack load (W3b) ────────────────────────────────
+   * Pads play the track's assigned sound through playTrackHit — the
+   * same helper the sequencer steps and the offline render use — so a
+   * pad, a step and an export of the same hit are the same sound. */
+
+  const previewPadHit = (ti: number, ratioFromTop: number) => {
+    const vel = padHitVelocity(padVelMode, ratioFromTop, padFixedVel);
+    const ctx = getCtx();
+    const graph = ensureMixerGraph(ctx);
+    const tr = TRACKS[ti]!;
+    const chain = graph.tracks[tr.id];
+    if (!chain) return;
+    playTrackHit(ctx, tr.id, ti, trackSounds[ti], ctx.currentTime, chain.input, vel, trackSlices[ti]);
+    const hit = { ti, vel, at: Date.now() };
+    setLastPadHit(hit);
+    window.setTimeout(() => {
+      setLastPadHit((prev) => (prev && prev.at === hit.at ? null : prev));
+    }, 350);
+  };
+
+  const clearTrackSlice = (ti: number) => {
+    setTrackSlices((prev) => prev.map((sl, i) => (i === ti ? null : sl)));
+  };
+
+  /* Cut the chosen loaded sound into equal slices and spread them
+   * across consecutive pads: each pad takes the sound AND its slice,
+   * so its steps (and pads) play just that slice. The spread stops at
+   * the last pad; the note says so when slices are left over. */
+  const applySliceSpread = () => {
+    const entry = sessionUploads.find((u) => u.id === sliceSoundId) ?? null;
+    if (!entry) return;
+    const targets = planSliceSpread(sliceStartSel, sliceCountSel);
+    targets.forEach((ti, k) => {
+      assignTrackSound(ti, entry.id);
+      setTrackSlices((prev) =>
+        prev.map((sl, i) => (i === ti ? { soundId: entry.id, index: k, count: sliceCountSel } : sl)),
+      );
+    });
+    setSliceNote(
+      targets.length < sliceCountSel
+        ? t("beatMaker.slicePartialNote", {
+            placed: targets.length,
+            total: sliceCountSel,
+            defaultValue: "Placed {{placed}} of {{total}} slices — the pads ran out. The rest weren't placed.",
+          })
+        : t("beatMaker.sliceDoneNote", {
+            total: sliceCountSel,
+            name: entry.name,
+            defaultValue: "“{{name}}” is cut into {{total}} slices across the pads.",
+          }),
+    );
+  };
+
+  const packReasonText = (reason: BeatPackRejectReason): string => {
+    switch (reason) {
+      case "format":
+        return t("beatMaker.packReasonFormat", { defaultValue: "not an audio file we can read" });
+      case "size":
+        return t("beatMaker.packReasonSize", {
+          mb: Math.round(BEAT_PACK_MAX_BYTES / (1024 * 1024)),
+          defaultValue: "too large — files up to {{mb}} MB",
+        });
+      case "empty":
+        return t("beatMaker.packReasonEmpty", { defaultValue: "the file is empty" });
+      case "no-track":
+        return t("beatMaker.packReasonNoTrack", { defaultValue: "every pad already has its own sound — free one up and drop it again" });
+      case "decode":
+        return t("beatMaker.packReasonDecode", { defaultValue: "couldn't be read as audio" });
+      case "sign-in":
+        return t("beatMaker.soundSignIn", { defaultValue: "Sign in to load your own sounds onto a track." });
+    }
+  };
+
+  /* Drop/pick a whole pack: every file is planned first (pure —
+   * lib/beat-pads), then the assignable ones decode through the same
+   * upload seam as a single-track load. The results list covers EVERY
+   * file, loaded or not, with the reason — nothing silently dropped.
+   * Loads serialize through a chain: a drop that lands while another
+   * pack is still decoding queues behind it instead of being lost,
+   * and each run plans against the latest track state. */
+  const packChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  const handlePackFiles = (files: File[]) => {
+    if (files.length === 0) return;
+    setShowPads(true);
+    packChainRef.current = packChainRef.current
+      .then(() => runPackLoad(files))
+      .catch(() => undefined);
+  };
+
+  const runPackLoad = async (files: File[]) => {
+    const plan = planPackLoad(files, trackSoundsRef.current, trackSlicesRef.current);
+    const results: BeatPackFileResult[] = plan.map((entry) => {
+      const f = files[entry.fileIndex]!;
+      return entry.action === "reject"
+        ? { name: f.name, status: "rejected" as const, reason: entry.reason }
+        : { name: f.name, status: "loaded" as const, trackIndex: entry.trackIndex };
+    });
+    const assignable = plan.filter((e) => e.action === "assign");
+    if (assignable.length > 0) {
+      setPackBusy(true);
+      try {
+        const token = await getAccessToken().catch(() => null);
+        if (!token) {
+          for (const entry of assignable) {
+            if (entry.action !== "assign") continue;
+            results[entry.fileIndex] = {
+              name: files[entry.fileIndex]!.name,
+              status: "rejected",
+              reason: "sign-in",
+            };
+          }
+        } else {
+          const ctx = getCtx();
+          for (const entry of assignable) {
+            if (entry.action !== "assign") continue;
+            const f = files[entry.fileIndex]!;
+            try {
+              const loaded = await decodeAndRegisterUpload(f, TRACKS[entry.trackIndex]!.id, ctx);
+              setSessionUploads((prev) => [...prev.filter((u) => u.id !== loaded.id), loaded]);
+              assignTrackSound(entry.trackIndex, loaded.id);
+            } catch {
+              results[entry.fileIndex] = { name: f.name, status: "rejected", reason: "decode" };
+            }
+          }
+        }
+      } finally {
+        setPackBusy(false);
+      }
+    }
+    setPackResults(results);
   };
 
   /* ── grid editing: click toggles, right-click toggles accent ── */
@@ -1459,7 +1643,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
         TRACKS.forEach((tr, ti) => {
           const gain = drumStepGain(pat, ti, si);
-          if (gain > 0) playTrackHit(off, tr.id, ti, trackSoundsRef.current[ti], tt, drums[ti]!, gain);
+          if (gain > 0) playTrackHit(off, tr.id, ti, trackSoundsRef.current[ti], tt, drums[ti]!, gain, trackSlicesRef.current[ti]);
         });
         const note = pat.bass[si];
         if (note != null) synthBass(off, note, tt, bassG, bassStepGain(pat, si), si > 0 ? pat.bass[si - 1] : null);
@@ -1684,7 +1868,28 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const bankSounds = listBeatSoundsBySource("bank");
 
   return (
-    <div className={`rounded-2xl border p-6 space-y-5 ${T.card}`}>
+    <div
+      className={`relative rounded-2xl border p-6 space-y-5 ${T.card}`}
+      data-testid="beat-sequencer"
+      onDragOver={(e) => { e.preventDefault(); setDropActive(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropActive(false); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDropActive(false);
+        void handlePackFiles(Array.from(e.dataTransfer.files ?? []));
+      }}
+    >
+      {dropActive && (
+        <div
+          className={`absolute inset-0 z-20 rounded-2xl flex items-center justify-center pointer-events-none border-2 border-dashed ${isLight ? "bg-[#FFFDF8]/85 border-[#C9A84C] text-[#2A2118]" : "bg-[#0d0a04]/85 border-[#C9A84C] text-white"}`}
+          data-testid="beat-pack-drop-overlay"
+        >
+          <span className="text-sm font-bold flex items-center gap-2">
+            <FolderDown className="w-4 h-4" />
+            {t("beatMaker.packDropHint", { defaultValue: "Drop audio files to load them onto the pads" })}
+          </span>
+        </div>
+      )}
       {/* Transport */}
       <div className="flex flex-wrap items-center gap-3">
         <Button
@@ -1869,7 +2074,265 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Piano className="w-3.5 h-3.5" /> {t("beatMaker.melody", { defaultValue: "Melody" })}
         </button>
+        <button aria-expanded={showPads}
+          type="button" data-testid="beat-pads-toggle"
+          onClick={() => setShowPads((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showPads ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
+        >
+          <LayoutGrid className="w-3.5 h-3.5" /> {t("beatMaker.pads", { defaultValue: "Pads" })}
+        </button>
       </div>
+
+      {/* Pads (W3b) — a 3×3 pad view over the nine tracks: hit a pad to
+          hear its track's sound (top of the pad = hardest hit, or a
+          fixed velocity), slice one loaded sound across the pads, and
+          load whole packs by dropping files anywhere on the studio.
+          Everything here is a manual tool — free. */}
+      {showPads && (
+        <div className="space-y-3" data-testid="beat-pads-panel">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>
+              {t("beatMaker.padVelocity", { defaultValue: "Pad velocity" })}
+            </span>
+            <button
+              type="button" aria-pressed={padVelMode === "hit"} data-testid="beat-pad-vel-hit"
+              onClick={() => setPadVelMode("hit")}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${padVelMode === "hit" ? T.patActive : T.pill}`}
+            >
+              {t("beatMaker.padVelHit", { defaultValue: "From hit position" })}
+            </button>
+            <button
+              type="button" aria-pressed={padVelMode === "fixed"} data-testid="beat-pad-vel-fixed"
+              onClick={() => setPadVelMode("fixed")}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${padVelMode === "fixed" ? T.patActive : T.pill}`}
+            >
+              {t("beatMaker.padVelFixed", { defaultValue: "Fixed" })}
+            </button>
+            {padVelMode === "fixed" && (
+              <span className="flex items-center gap-2">
+                <input
+                  type="range" min={10} max={100} value={Math.round(padFixedVel * 100)}
+                  onChange={(e) => setPadFixedVel(Number(e.target.value) / 100)}
+                  className={`w-28 ${T.slider}`}
+                  aria-label={t("beatMaker.padVelFixedAria", { defaultValue: "Fixed pad velocity" })}
+                />
+                <span className={`text-xs tabular-nums ${T.dim}`}>{Math.round(padFixedVel * 100)}%</span>
+              </span>
+            )}
+            <span className={`text-xs ${T.dim}`}>
+              {lastPadHit
+                ? t("beatMaker.padLastHit", {
+                    label: t(TRACKS[lastPadHit.ti]!.labelKey, { defaultValue: TRACKS[lastPadHit.ti]!.id }),
+                    pct: Math.round(lastPadHit.vel * 100),
+                    defaultValue: "Last hit: {{label}} at {{pct}}%",
+                  })
+                : t("beatMaker.padHint", { defaultValue: "Hit a pad — the higher up the pad, the harder it plays." })}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 max-w-xl" data-testid="beat-pad-grid">
+            {TRACKS.map((tr, ti) => {
+              const soundId = trackSounds[ti] ?? defaultSoundIdForTrack(ti);
+              const entry = getBeatSound(soundId);
+              const unavailable = isUnavailableSampleAssignment(soundId, ti);
+              const slice = trackSlices[ti];
+              const sliceApplies = !!slice && slice.soundId === soundId;
+              const name = entry?.name ?? trackSoundNames[ti] ?? t("beatMaker.soundSaved", { defaultValue: "Saved sound" });
+              const flash = lastPadHit && lastPadHit.ti === ti && Date.now() - lastPadHit.at < 400;
+              return (
+                <div key={tr.id} className="relative">
+                  <button
+                    type="button"
+                    data-testid={`beat-pad-${tr.id}`}
+                    aria-label={t("beatMaker.padAria", {
+                      label: t(tr.labelKey, { defaultValue: tr.id }),
+                      name,
+                      defaultValue: "Play {{label}} — {{name}}",
+                    })}
+                    onPointerDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const ratio = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0;
+                      previewPadHit(ti, ratio);
+                    }}
+                    className={`w-full aspect-[4/3] rounded-xl border text-left p-2.5 flex flex-col justify-between transition-all select-none touch-none ${
+                      flash ? "ring-2 ring-[#C9A84C] scale-[0.98]" : ""
+                    } ${isLight ? "bg-[#8a6d2f]/[0.06] border-[#8a6d2f]/25 hover:bg-[#8a6d2f]/[0.14]" : "bg-white/[0.04] border-white/10 hover:bg-white/[0.09]"}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-2.5 h-2.5 rounded-sm ${tr.color}`} />
+                      <span className={`text-xs font-bold ${T.heading}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+                    </span>
+                    <span className={`text-[11px] leading-tight truncate ${T.label}`}>
+                      {name}
+                      {unavailable ? ` (${t("beatMaker.soundNotLoadedShort", { defaultValue: "not loaded" })})` : ""}
+                    </span>
+                    {sliceApplies && slice && (
+                      <span className="text-[10px] font-bold text-[#C9A84C]">
+                        {t("beatMaker.sliceBadge", {
+                          n: slice.index + 1,
+                          total: slice.count,
+                          defaultValue: "Slice {{n}} of {{total}}",
+                        })}
+                      </span>
+                    )}
+                  </button>
+                  {sliceApplies && slice && (
+                    <button
+                      type="button"
+                      data-testid={`beat-pad-slice-clear-${tr.id}`}
+                      onClick={() => clearTrackSlice(ti)}
+                      className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-md border flex items-center justify-center ${T.pill}`}
+                      title={t("beatMaker.sliceClear", { defaultValue: "Play the whole sound again" })}
+                      aria-label={t("beatMaker.sliceClear", { defaultValue: "Play the whole sound again" })}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Slice a loaded sound across the pads */}
+          <div className="flex flex-wrap items-center gap-2" data-testid="beat-slice-controls">
+            <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>
+              {t("beatMaker.sliceTitle", { defaultValue: "Slice a sound" })}
+            </span>
+            <select
+              value={sliceSoundId}
+              onChange={(e) => setSliceSoundId(e.target.value)}
+              aria-label={t("beatMaker.sliceSoundAria", { defaultValue: "Sound to slice" })}
+              className={`text-xs rounded-md border px-2 py-1.5 ${isLight ? "bg-[#FFFDF8] text-[#2A2118] border-[#c9a84c]/40" : "bg-[#14100a] text-white/80 border-white/15"}`}
+            >
+              <option value="">{t("beatMaker.slicePickSound", { defaultValue: "Pick a loaded sound…" })}</option>
+              {sessionUploads.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <select
+              value={sliceCountSel}
+              onChange={(e) => setSliceCountSel(Number(e.target.value))}
+              aria-label={t("beatMaker.sliceCountAria", { defaultValue: "Number of slices" })}
+              className={`text-xs rounded-md border px-2 py-1.5 ${isLight ? "bg-[#FFFDF8] text-[#2A2118] border-[#c9a84c]/40" : "bg-[#14100a] text-white/80 border-white/15"}`}
+            >
+              {BEAT_SLICE_COUNTS.map((c) => (
+                <option key={c} value={c}>{t("beatMaker.sliceCount", { n: c, defaultValue: "{{n}} slices" })}</option>
+              ))}
+            </select>
+            <select
+              value={sliceStartSel}
+              onChange={(e) => setSliceStartSel(Number(e.target.value))}
+              aria-label={t("beatMaker.sliceStartAria", { defaultValue: "First pad" })}
+              className={`text-xs rounded-md border px-2 py-1.5 ${isLight ? "bg-[#FFFDF8] text-[#2A2118] border-[#c9a84c]/40" : "bg-[#14100a] text-white/80 border-white/15"}`}
+            >
+              {TRACKS.map((tr, ti) => (
+                <option key={tr.id} value={ti}>
+                  {t("beatMaker.sliceStartAt", { label: t(tr.labelKey, { defaultValue: tr.id }), defaultValue: "Start at {{label}}" })}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              data-testid="beat-slice-apply"
+              disabled={!sliceSoundId}
+              onClick={applySliceSpread}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 transition-colors disabled:opacity-40 ${T.pill}`}
+            >
+              <Scissors className="w-3.5 h-3.5" /> {t("beatMaker.sliceApply", { defaultValue: "Slice across pads" })}
+            </button>
+            {trackSlices.some(Boolean) && (
+              <button
+                type="button"
+                onClick={() => { setTrackSlices(defaultTrackSlices()); setSliceNote(null); }}
+                className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${T.pill}`}
+              >
+                {t("beatMaker.sliceClearAll", { defaultValue: "Clear all slices" })}
+              </button>
+            )}
+            {sessionUploads.length === 0 && (
+              <span className={`text-xs ${T.dim}`}>
+                {t("beatMaker.sliceNeedsUpload", { defaultValue: "Load one of your sounds onto a track first — then you can slice it here." })}
+              </span>
+            )}
+            {sliceNote && <span className={`text-xs ${T.label}`} role="status">{sliceNote}</span>}
+          </div>
+
+          {/* Pack load: button + results (drag-drop lives on the whole
+              sequencer card above). Every dropped file gets a line. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              data-testid="beat-pack-load-button"
+              disabled={packBusy}
+              onClick={() => packInputRef.current?.click()}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 transition-colors disabled:opacity-50 ${T.pill}`}
+            >
+              {packBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderDown className="w-3.5 h-3.5" />}
+              {t("beatMaker.packLoad", { defaultValue: "Load a pack" })}
+            </button>
+            <input
+              ref={packInputRef}
+              type="file"
+              multiple
+              accept="audio/*,.wav,.mp3,.ogg,.m4a,.flac"
+              className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={(e) => {
+                const list = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                void handlePackFiles(list);
+              }}
+            />
+            <span className={`text-xs ${T.dim}`}>
+              {t("beatMaker.packHint", { defaultValue: "…or drop audio files anywhere on the sequencer. Each one lands on its own pad." })}
+            </span>
+          </div>
+          {packResults && (
+            <div className="space-y-1" data-testid="beat-pack-results">
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>
+                  {t("beatMaker.packResultsTitle", { defaultValue: "Pack load" })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPackResults(null)}
+                  className={`text-xs underline ${T.dim}`}
+                >
+                  {t("beatMaker.packDismiss", { defaultValue: "Dismiss" })}
+                </button>
+              </div>
+              {packResults.map((r, i) => (
+                <p key={`${r.name}-${i}`} className={`text-xs flex items-start gap-1.5 ${T.label}`}>
+                  {r.status === "loaded" ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 shrink-0 mt-px text-emerald-500" />
+                      <span>
+                        {t("beatMaker.packLoadedLine", {
+                          name: r.name,
+                          label: t(TRACKS[r.trackIndex ?? 0]!.labelKey, { defaultValue: TRACKS[r.trackIndex ?? 0]!.id }),
+                          defaultValue: "“{{name}}” → {{label}} pad",
+                        })}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px text-amber-500" />
+                      <span>
+                        {t("beatMaker.packRejectedLine", {
+                          name: r.name,
+                          reason: packReasonText(r.reason ?? "decode"),
+                          defaultValue: "“{{name}}” wasn't loaded — {{reason}}",
+                        })}
+                      </span>
+                    </>
+                  )}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Bar pager — long patterns show one bar at a time */}
       {pageCount > 1 && (
