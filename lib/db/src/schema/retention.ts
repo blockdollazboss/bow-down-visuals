@@ -1,4 +1,5 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, date, primaryKey, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, date, primaryKey, uniqueIndex, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /** Consecutive days the user created something (not just logged in). */
 export const creationStreaksTable = pgTable("creation_streaks", {
@@ -141,3 +142,46 @@ export const retentionClaimRecordsTable = pgTable("retention_claim_records", {
   uniqueIndex("retention_claim_records_user_kind_ref_uidx").on(t.userId, t.kind, t.refKey),
   index("retention_claim_records_user_created_idx").on(t.userId, t.createdAt),
 ]);
+
+/** Temporary Bucs expiry warnings (stack1400 ruling #12 / Y6,
+ *  migration 0317). The delivery ledger for the ONE warning email a
+ *  member gets before their Temporary Visual Bucs (the profiles
+ *  bonus pool) expire. One row per (user_id, pool_expires_at): the
+ *  pool's expiry instant is the warning's identity — a new grant
+ *  refreshes the pool expiry, which is a new pool and may earn its
+ *  own warning; the same pool can never be warned twice. Claimed
+ *  insert-first (ON CONFLICT DO NOTHING on the unique index) before
+ *  any send — the presave_release_deliveries discipline (0186):
+ *  only a claim that lands may send, so a retried sweep, a racing
+ *  sweeper, or a restart can never email a member twice.
+ *    pending    → a claim landed; the send has not resolved yet.
+ *    sent       → the provider accepted the email (provider_id kept).
+ *    failed     → the send attempt failed (last_error kept); a later
+ *                 sweep may retry while attempts < the cap.
+ *    dead       → attempts exhausted; terminal, never retried.
+ *    suppressed → the address is unsubscribed/suppressed (checked at
+ *                 send time); terminal — never mailed.
+ *  amount_vb / email are denormalized at claim time: the ledger is
+ *  the durable record of the one allowed warning. */
+export const tempBucsExpiryWarningsTable = pgTable("temp_bucs_expiry_warnings", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  userId:        uuid("user_id").notNull(),
+  poolExpiresAt: timestamp("pool_expires_at", { withTimezone: true }).notNull(),
+  email:         text("email").notNull(),
+  amountVb:      integer("amount_vb").notNull(),
+  status:        text("status").notNull().default("pending"),
+  attempts:      integer("attempts").notNull().default(0),
+  providerId:    text("provider_id"),
+  lastError:     text("last_error"),
+  sentAt:        timestamp("sent_at", { withTimezone: true }),
+  createdAt:     timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:     timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  check(
+    "temp_bucs_expiry_warnings_status_check",
+    sql`${t.status} IN ('pending', 'sent', 'failed', 'dead', 'suppressed')`,
+  ),
+  uniqueIndex("temp_bucs_expiry_warnings_user_pool_uidx").on(t.userId, t.poolExpiresAt),
+  index("temp_bucs_expiry_warnings_status_idx").on(t.status),
+]);
+export type TempBucsExpiryWarning = typeof tempBucsExpiryWarningsTable.$inferSelect;
