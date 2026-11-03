@@ -4,6 +4,7 @@ import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
   KeyRound, FlaskConical, ScanSearch, ShieldCheck, Copy,
+  Sparkles,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import { getSceneTiming, computeManualTimings, type SceneTiming } from "@/lib/scene-timing";
@@ -22,6 +23,12 @@ import {
   withLipSyncRefundNote,
   type LipSyncResultMeta,
 } from "@/lib/lip-sync-result-meta";
+import {
+  LIP_SYNC_PRESETS,
+  applyLipSyncPreset,
+  lipSyncPresetSummary,
+  lipSyncSettingsMatchPreset,
+} from "@/lib/lip-sync-presets";
 import i18n from "@/lib/i18n";
 import { PollFailureBudget, isTransientPollHttpStatus } from "@/lib/poll-tolerance";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
@@ -1602,6 +1609,65 @@ export function LipSyncSection({
           label="Enable Lip Sync"
           sub="Applies lip sync to video clips using project vocals"
         />
+      </EditorCard>
+
+      {/* ── Starter presets — a prefill only: picking one sets the dials
+          below (and turns Lip Sync on) via the pure applyLipSyncPreset
+          helper. It never starts a job and never charges; generation
+          keeps charging on its existing rail when a job is submitted. ── */}
+      <EditorCard
+        title="Lip Sync Starters"
+        subtitle="Pick a starting setup — it only fills in the settings on this page"
+        icon={<Sparkles className="h-4 w-4" />}
+      >
+        <div className="space-y-3" data-testid="lipsync-starter-presets">
+          <div className="grid grid-cols-1 gap-2">
+            {LIP_SYNC_PRESETS.map((preset) => {
+              const isActive = lipSyncSettingsMatchPreset(ls, preset);
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  data-testid={`lipsync-starter-${preset.id}`}
+                  onClick={() =>
+                    setSettings((prev) => applyLipSyncPreset(prev, preset))
+                  }
+                  className={`px-3 py-2.5 rounded-xl border text-left transition-colors ${
+                    isActive
+                      ? "border-primary/50 bg-primary/[0.08] text-white"
+                      : "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[11px] font-bold truncate">
+                        {preset.name}
+                      </span>
+                      <span className="block text-[10px] text-white/40 truncate">
+                        {preset.tagline}
+                      </span>
+                    </span>
+                    {isActive && (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                    )}
+                  </span>
+                  <span className="block mt-1.5 text-[10px] leading-snug text-white/45">
+                    {preset.description}
+                  </span>
+                  <span className="block mt-1 text-[10px] font-semibold text-white/55">
+                    {lipSyncPresetSummary(preset)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-white/35 leading-relaxed">
+            Choosing a starter is free and never starts a job — it only
+            fills in the settings below. When you apply lip sync to a clip,
+            generation is charged as usual.
+          </p>
+        </div>
       </EditorCard>
 
       {ls.enabled && (
