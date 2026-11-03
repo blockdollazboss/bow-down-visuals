@@ -56,6 +56,11 @@ import {
   normalizeBeatMelody,
   type BeatMelodyLanes,
 } from "@/lib/beat-melody";
+import {
+  defaultBeatMixerFxState,
+  normalizeBeatMixerFxState,
+  type BeatMixerFxState,
+} from "@/lib/beat-mixer";
 
 export type BeatPatternId = "A" | "B" | "C" | "D";
 export const BEAT_PATTERN_IDS: BeatPatternId[] = ["A", "B", "C", "D"];
@@ -140,6 +145,13 @@ export interface BeatProject {
   /** 0–1 (the UI shows it as a percentage). */
   swing: number;
   mixer: BeatMixerState;
+  /** W1-L3, composed at the beat join: per-channel FX + pan and the
+   *  master bus (lib/beat-mixer). One project shape — the FX state
+   *  persists WITH the project (localStorage + server draft) exactly
+   *  like the gain mixer above; the page's FX panel edits this field.
+   *  Older projects without it normalize to the no-FX defaults, which
+   *  build a graph sonically identical to the pre-FX gains-only path. */
+  mixerFx: BeatMixerFxState;
   arrangement: BeatArrangementEntry[];
   mode: BeatTransportMode;
   /** W2-L2: sound-registry id per drum track, index-aligned with the
@@ -337,6 +349,7 @@ export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
     bpm: 140,
     swing: 0,
     mixer: defaultBeatMixer(),
+    mixerFx: defaultBeatMixerFxState(),
     arrangement: [],
     mode: "pattern",
     trackSounds: defaultTrackSounds(),
@@ -520,6 +533,7 @@ export function normalizeBeatProject(raw: unknown): BeatProject | null {
     bpm: Math.round(clampN(r.bpm, BEAT_BPM_MIN, BEAT_BPM_MAX, base.bpm)),
     swing: clampN(r.swing, 0, 1, 0),
     mixer: normalizeMixer(r.mixer),
+    mixerFx: normalizeBeatMixerFxState(r.mixerFx),
     arrangement: normalizeArrangement(r.arrangement),
     mode: r.mode === "song" ? "song" : "pattern",
     trackSounds,

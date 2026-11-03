@@ -898,7 +898,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
    * per drum track plus the "bass" bassline channel, and the master bus.
    * Types + defaults live in lib/beat-mixer.ts (shared graph builder). */
   const [mixerFx, setMixerFx] = useState<BeatMixerFxState>(() =>
-    defaultBeatMixerFxState([...TRACKS.map((tr) => tr.id), "bass"]));
+    restored?.mixerFx ?? defaultBeatMixerFxState([...TRACKS.map((tr) => tr.id), "bass"]));
   const [expandedFx, setExpandedFx] = useState<string | null>(null);
   const mixerFxRef = useRef(mixerFx);
   mixerFxRef.current = mixerFx;
@@ -958,6 +958,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     bpm: bpmRef.current,
     swing: swingRef.current,
     mixer: { vol, mute, solo, bassVol, bassMute },
+    mixerFx: mixerFxRef.current,
     arrangement: arrangementRef.current,
     mode: modeRef.current,
     trackSounds,
@@ -983,6 +984,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     setTransportMode(p.mode);
     setTrackSounds([...p.trackSounds]);
     setTrackSoundNames([...p.trackSoundNames]);
+    setMixerFx(p.mixerFx);
   }, []);
 
   /* Server draft restore — only fills in when this browser has no
@@ -1019,7 +1021,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }, 1200);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames]);
+  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode, trackSounds, trackSoundNames, mixerFx]);
 
   /* ── theme tones ── */
   const T = {

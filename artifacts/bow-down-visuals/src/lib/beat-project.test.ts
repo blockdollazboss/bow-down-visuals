@@ -556,3 +556,78 @@ describe("local persistence", () => {
     expect(loadLocalBeatProject()).toBeNull();
   });
 });
+
+/* ─── Beat join composition ──────────────────────────────────────────────
+ * The seven lanes' state lives in ONE project shape: melody rides each
+ * pattern, mixerFx rides the project. Legacy projects (written before
+ * the join: no melody, no mixerFx, no sound fields) must load with the
+ * new slices defaulted and their audible gains EXACTLY as before. */
+describe("beat join composition — one project shape", () => {
+  const legacyProjectJson = () =>
+    JSON.stringify({
+      version: 1,
+      patterns: {
+        A: {
+          grid: [
+            [2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            ...Array.from({ length: 8 }, () => Array(16).fill(0)),
+          ],
+          bass: [36, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+        },
+      },
+      activePattern: "A",
+      bpm: 140,
+      swing: 0,
+      mixer: {
+        vol: Array(9).fill(1),
+        mute: Array(9).fill(false),
+        solo: Array(9).fill(false),
+        bassVol: 0.9,
+        bassMute: false,
+      },
+      arrangement: [],
+      mode: "pattern",
+    });
+
+  it("a legacy project loads with melody + mixerFx defaulted, gains untouched", async () => {
+    const { emptyBeatMelody } = await import("@/lib/beat-melody");
+    const { defaultBeatMixerFxState } = await import("@/lib/beat-mixer");
+    const p = deserializeBeatProject(legacyProjectJson());
+    // new slices present and defaulted
+    expect(p.patterns.A.melody).toEqual(emptyBeatMelody());
+    expect(p.mixerFx).toEqual(defaultBeatMixerFxState());
+    // legacy gains EXACTLY: accent cell (2) = accent gain, plain hit = 1,
+    // bass note = 1 — the v1 render math, unchanged by the join
+    expect(drumStepGain(p.patterns.A, 0, 0)).toBe(BEAT_ACCENT_GAIN);
+    expect(drumStepGain(p.patterns.A, 0, 4)).toBe(1);
+    expect(bassStepGain(p.patterns.A, 0)).toBe(1);
+    expect(patternStepCount(p.patterns.A)).toBe(16);
+  });
+
+  it("melody notes round-trip through serialize/deserialize and survive a bars change", async () => {
+    const { addBeatNote, emptyBeatMelody, withBeatLane } = await import("@/lib/beat-melody");
+    const p = defaultBeatProject();
+    const lanes = withBeatLane(emptyBeatMelody(), "keys", addBeatNote([], {
+      id: "n1", pitch: 60, startStep: 0, lengthSteps: 2, velocity: 96,
+    }));
+    p.patterns.A = { ...p.patterns.A, melody: lanes };
+    const back = deserializeBeatProject(serializeBeatProject(p));
+    expect(back.patterns.A.melody.keys).toHaveLength(1);
+    expect(back.patterns.A.melody.keys[0]).toMatchObject({ pitch: 60, velocity: 96 });
+    // melody is bar-sized and loops: growing the pattern keeps it whole
+    const grown = setPatternBars(back.patterns.A, 4);
+    expect(grown.melody.keys).toHaveLength(1);
+    // a pattern with ONLY melody notes is not "empty"
+    const melodyOnly = { ...emptyBeatPattern(), melody: lanes };
+    expect(isEmptyBeatPattern(melodyOnly)).toBe(false);
+  });
+
+  it("mixerFx round-trips through serialize/deserialize", () => {
+    const p = defaultBeatProject();
+    p.mixerFx.tracks["kick"]!.pan = -0.5;
+    p.mixerFx.master.volume = 0.7;
+    const back = deserializeBeatProject(serializeBeatProject(p));
+    expect(back.mixerFx.tracks["kick"]!.pan).toBe(-0.5);
+    expect(back.mixerFx.master.volume).toBe(0.7);
+  });
+});
