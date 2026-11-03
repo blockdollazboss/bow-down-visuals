@@ -22,7 +22,6 @@ import {
   buildBeatMixerGraph,
   defaultBeatMixerFxState,
   effectiveChannelGain,
-  type BeatMasterConfig,
   type BeatMixerFxState,
   type BeatMixerGraph,
   type BeatTrackFxConfig,
