@@ -381,8 +381,8 @@ describe("live vs offline render parity", () => {
     const seq = src.slice(seqStart, seqEnd);
     // One shared ensure-path used for the live ctx and the offline ctx.
     expect(seq).toContain("buildBeatMixerGraph");
-    expect(seq).toContain("ensureMixerGraph(ctxRef.current");
-    expect(seq).toContain("ensureMixerGraph(off");
+    expect(seq).toContain("ensureMixerGraph(ctx)"); // live scheduleStep path
+    expect(seq).toContain("ensureMixerGraph(off"); // offline render path
     expect(seq).toContain("new OfflineAudioContext");
     // The legacy straight-to-destination wiring is gone from the sequencer.
     expect(seq).not.toContain("gn.connect(ctx.destination)");

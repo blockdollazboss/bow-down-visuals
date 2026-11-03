@@ -1,5 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,21 @@ import {
   SlidersHorizontal, Lock, Tag, AudioWaveform, ArrowLeft, AlertTriangle,
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
-  Volume2, VolumeX, Clapperboard, Piano,
+  Volume2, VolumeX, Clapperboard, Piano, ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
+import {
+  beatMixerGraphSignature,
+  buildBeatMixerGraph,
+  defaultBeatMixerFxState,
+  effectiveChannelGain,
+  type BeatMasterConfig,
+  type BeatMixerFxState,
+  type BeatMixerGraph,
+  type BeatTrackFxConfig,
+} from "@/lib/beat-mixer";
 import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -522,6 +532,126 @@ type PatternId = "A" | "B" | "C" | "D";
 const PATTERN_IDS: PatternId[] = ["A", "B", "C", "D"];
 interface PatternData { grid: number[][]; bass: (number | null)[] }
 
+/* ── Mixer FX panel (W1-L3) ─────────────────────────────────────────────
+   Per-track channel strip controls: pan + the five effect sections from
+   lib/beat-mixer.ts. Pure editing UI — free, no charges. Copy uses our
+   own names only. The graph itself lives in the shared builder so live
+   playback and the WAV render use the identical chain. */
+
+function FxSlider({ label, min, max, step, value, unit, disabled, onChange, sliderClass, labelClass, dimClass }: {
+  label: string; min: number; max: number; step: number; value: number; unit?: string;
+  disabled?: boolean; onChange: (v: number) => void;
+  sliderClass: string; labelClass: string; dimClass: string;
+}) {
+  return (
+    <label className={`flex items-center gap-2 ${disabled ? "opacity-40" : ""}`}>
+      <span className={`w-16 shrink-0 text-[11px] ${labelClass}`}>{label}</span>
+      <input
+        type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={`flex-1 h-1 ${sliderClass}`} aria-label={label}
+      />
+      <span className={`w-14 shrink-0 text-right text-[11px] tabular-nums ${dimClass}`}>{value}{unit ?? ""}</span>
+    </label>
+  );
+}
+
+function BeatFxPanel({ fx, onChange, isLight, sliderClass, labelClass, dimClass }: {
+  fx: BeatTrackFxConfig;
+  onChange: (fx: BeatTrackFxConfig) => void;
+  isLight: boolean;
+  sliderClass: string; labelClass: string; dimClass: string;
+}) {
+  const { t } = useTranslation();
+  const set = (patch: Partial<BeatTrackFxConfig>) => onChange({ ...fx, ...patch });
+  const sectionBox = isLight ? "border-[#c9a84c]/25 bg-white/40" : "border-white/10 bg-white/[0.03]";
+  const toggleCls = (on: boolean) =>
+    `px-2 py-0.5 rounded text-[10px] font-black border transition-colors ${on ? "bg-[#C9A84C] border-[#C9A84C] text-black" : isLight ? "border-[#c9a84c]/30 text-[#4A3B22]" : "border-white/15 text-white/60"}`;
+  const section = (
+    title: string,
+    enabled: boolean,
+    onToggle: () => void,
+    children: ReactNode,
+  ) => (
+    <div className={`rounded-lg border p-2.5 space-y-1.5 ${sectionBox}`}>
+      <div className="flex items-center justify-between">
+        <span className={`text-[11px] font-black uppercase tracking-wider ${labelClass}`}>{title}</span>
+        <button type="button" aria-pressed={enabled} onClick={onToggle} className={toggleCls(enabled)}>
+          {enabled ? t("beatMaker.fxOn", { defaultValue: "On" }) : t("beatMaker.fxOff", { defaultValue: "Off" })}
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+  const s = { sliderClass, labelClass, dimClass };
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 pt-1">
+      {section(t("beatMaker.fxEq", { defaultValue: "EQ" }), fx.eq.enabled,
+        () => set({ eq: { ...fx.eq, enabled: !fx.eq.enabled } }),
+        <>
+          {(["Low", "Mid", "High"] as const).map((name, i) => (
+            <FxSlider key={name} {...s} label={t(`beatMaker.fxEq${name}`, { defaultValue: `${name}` })}
+              min={-24} max={24} step={0.5} unit=" dB" disabled={!fx.eq.enabled}
+              value={fx.eq.bands[i]!.gain}
+              onChange={(v) => set({ eq: { ...fx.eq, bands: fx.eq.bands.map((b, bi) => (bi === i ? { ...b, gain: v } : b)) } })} />
+          ))}
+        </>)}
+      {section(t("beatMaker.fxFilter", { defaultValue: "Filter" }), fx.filter.enabled,
+        () => set({ filter: { ...fx.filter, enabled: !fx.filter.enabled } }),
+        <>
+          <FxSlider {...s} label={t("beatMaker.fxHighPass", { defaultValue: "High-pass" })}
+            min={20} max={2000} step={10} unit=" Hz" disabled={!fx.filter.enabled}
+            value={fx.filter.highpassFreq}
+            onChange={(v) => set({ filter: { ...fx.filter, highpassFreq: v } })} />
+          <FxSlider {...s} label={t("beatMaker.fxLowPass", { defaultValue: "Low-pass" })}
+            min={200} max={20000} step={100} unit=" Hz" disabled={!fx.filter.enabled}
+            value={fx.filter.lowpassFreq}
+            onChange={(v) => set({ filter: { ...fx.filter, lowpassFreq: v } })} />
+        </>)}
+      {section(t("beatMaker.fxCompressor", { defaultValue: "Compressor" }), fx.compressor.enabled,
+        () => set({ compressor: { ...fx.compressor, enabled: !fx.compressor.enabled } }),
+        <>
+          <FxSlider {...s} label={t("beatMaker.fxThreshold", { defaultValue: "Threshold" })}
+            min={-60} max={0} step={1} unit=" dB" disabled={!fx.compressor.enabled}
+            value={fx.compressor.thresholdDb}
+            onChange={(v) => set({ compressor: { ...fx.compressor, thresholdDb: v } })} />
+          <FxSlider {...s} label={t("beatMaker.fxRatio", { defaultValue: "Ratio" })}
+            min={1} max={20} step={0.5} unit=":1" disabled={!fx.compressor.enabled}
+            value={fx.compressor.ratio}
+            onChange={(v) => set({ compressor: { ...fx.compressor, ratio: v } })} />
+        </>)}
+      {section(t("beatMaker.fxDelay", { defaultValue: "Delay" }), fx.delay.enabled,
+        () => set({ delay: { ...fx.delay, enabled: !fx.delay.enabled } }),
+        <>
+          <FxSlider {...s} label={t("beatMaker.fxTime", { defaultValue: "Time" })}
+            min={10} max={1000} step={5} unit=" ms" disabled={!fx.delay.enabled}
+            value={fx.delay.timeMs}
+            onChange={(v) => set({ delay: { ...fx.delay, timeMs: v } })} />
+          <FxSlider {...s} label={t("beatMaker.fxFeedback", { defaultValue: "Feedback" })}
+            min={0} max={80} step={1} unit="%" disabled={!fx.delay.enabled}
+            value={fx.delay.feedback}
+            onChange={(v) => set({ delay: { ...fx.delay, feedback: v } })} />
+          <FxSlider {...s} label={t("beatMaker.fxMix", { defaultValue: "Mix" })}
+            min={0} max={100} step={1} unit="%" disabled={!fx.delay.enabled}
+            value={fx.delay.mix}
+            onChange={(v) => set({ delay: { ...fx.delay, mix: v } })} />
+        </>)}
+      {section(t("beatMaker.fxReverb", { defaultValue: "Reverb" }), fx.reverb.enabled,
+        () => set({ reverb: { ...fx.reverb, enabled: !fx.reverb.enabled } }),
+        <>
+          <FxSlider {...s} label={t("beatMaker.fxMix", { defaultValue: "Mix" })}
+            min={0} max={100} step={1} unit="%" disabled={!fx.reverb.enabled}
+            value={fx.reverb.mix}
+            onChange={(v) => set({ reverb: { ...fx.reverb, mix: v } })} />
+          <FxSlider {...s} label={t("beatMaker.fxRoomSize", { defaultValue: "Room size" })}
+            min={0.1} max={5} step={0.1} unit=" s" disabled={!fx.reverb.enabled}
+            value={fx.reverb.durationSec}
+            onChange={(v) => set({ reverb: { ...fx.reverb, durationSec: v } })} />
+        </>)}
+    </div>
+  );
+}
+
 function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
@@ -547,13 +677,21 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [bassVol, setBassVol] = useState(0.9);
   const [bassMute, setBassMute] = useState(false);
   const [bassPaint, setBassPaint] = useState(36); // C2 — pitch painted by bass roll clicks
+  /* Mixer FX state — extends the mixer state above in place: one FX config
+   * per drum track plus the "bass" bassline channel, and the master bus.
+   * Types + defaults live in lib/beat-mixer.ts (shared graph builder). */
+  const [mixerFx, setMixerFx] = useState<BeatMixerFxState>(() =>
+    defaultBeatMixerFxState([...TRACKS.map((tr) => tr.id), "bass"]));
+  const [expandedFx, setExpandedFx] = useState<string | null>(null);
+  const mixerFxRef = useRef(mixerFx);
+  mixerFxRef.current = mixerFx;
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number | null>(null);
   const stepRef = useRef(0);
   const nextTimeRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
   const clipRef = useRef<{ grid: number[][]; bass: (number | null)[] } | null>(null);
-  const gainCache = useRef(new WeakMap<BaseAudioContext, { drums: GainNode[]; bass: GainNode }>());
+  const graphCache = useRef(new WeakMap<BaseAudioContext, { graph: BeatMixerGraph; sig: string }>());
 
   const grid = patterns[activePat]!.grid;
   const bass = patterns[activePat]!.bass;
@@ -587,30 +725,33 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     slider: "accent-[#C9A84C]",
   };
 
-  /* ── mixer gain graph ── */
-  const getGains = (ctx: BaseAudioContext) => {
-    let e = gainCache.current.get(ctx);
-    if (!e) {
-      const drums = TRACKS.map(() => {
-        const gn = ctx.createGain();
-        gn.connect(ctx.destination);
-        return gn;
-      });
-      const bassG = ctx.createGain();
-      bassG.connect(ctx.destination);
-      e = { drums, bass: bassG };
-      gainCache.current.set(ctx, e);
+  /* ── mixer graph (shared builder — lib/beat-mixer.ts) ──
+   * ONE builder for live playback and the offline WAV render: per-track
+   * chains (EQ → filter → compressor → delay → reverb → pan → track gain)
+   * route through the master bus (master gain → limiter) to destination.
+   * The graph is rebuilt only when an enable/bypass flag changes the
+   * topology signature; every other parameter updates live on the nodes. */
+  const ensureMixerGraph = (ctx: BaseAudioContext) => {
+    const state = mixerFxRef.current;
+    const sig = beatMixerGraphSignature(state);
+    let e = graphCache.current.get(ctx);
+    if (!e || e.sig !== sig) {
+      if (e) e.graph.disconnect();
+      e = { graph: buildBeatMixerGraph(ctx, state), sig };
+      graphCache.current.set(ctx, e);
     }
-    return e;
+    e.graph.update(state);
+    return e.graph;
   };
   const applyMixer = useCallback((ctx: BaseAudioContext, v: number[], m: boolean[], s: boolean[], bv: number, bm: boolean) => {
-    const { drums, bass: bassG } = getGains(ctx);
+    const graph = ensureMixerGraph(ctx);
     const anySolo = s.some(Boolean);
-    TRACKS.forEach((_, ti) => {
-      const audible = anySolo ? s[ti] : !m[ti];
-      drums[ti]!.gain.value = audible ? v[ti]! : 0;
+    TRACKS.forEach((tr, ti) => {
+      const chain = graph.tracks[tr.id];
+      if (chain) chain.trackGain.gain.value = effectiveChannelGain(v[ti]!, m[ti]!, s[ti]!, anySolo);
     });
-    bassG.gain.value = bm ? 0 : bv;
+    const bassChain = graph.tracks["bass"];
+    if (bassChain) bassChain.trackGain.gain.value = bm ? 0 : bv;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -620,28 +761,30 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     applyMixer(ctxRef.current, vol, mute, solo, bassVol, bassMute);
     return ctxRef.current;
   };
-  // Re-apply mixer when faders change during playback
+  // Re-apply mixer when faders, pan or FX change during playback
   useEffect(() => {
     if (ctxRef.current && playing) applyMixer(ctxRef.current, vol, mute, solo, bassVol, bassMute);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vol, mute, solo, bassVol, bassMute]);
+  }, [vol, mute, solo, bassVol, bassMute, mixerFx]);
 
   const scheduleStep = useCallback((s: number, time: number) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
-    const { drums, bass: bassG } = getGains(ctx);
+    const graph = ensureMixerGraph(ctx);
     const sw = swingRef.current;
     // Swing delays off-beat 16ths (odd steps), 0–100%
     const when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
     const g = gridRef.current;
     TRACKS.forEach((tr, ti) => {
       const v = g[ti]?.[s] ?? 0;
-      if (v > 0) synthHit(ctx, tr.id, when, drums[ti]!, v === 2 ? 1.4 : 1);
+      const chain = graph.tracks[tr.id];
+      if (v > 0 && chain) synthHit(ctx, tr.id, when, chain.input, v === 2 ? 1.4 : 1);
     });
     const bn = bassRef.current[s];
-    if (bn != null) {
+    const bassChain = graph.tracks["bass"];
+    if (bn != null && bassChain) {
       const prev = s > 0 ? bassRef.current[s - 1] : null;
-      synthBass(ctx, bn, when, bassG, 1, prev);
+      synthBass(ctx, bn, when, bassChain.input, 1, prev);
     }
     // UI highlight slightly ahead-safe: update on the audio clock via timeout
     const ms = Math.max(0, (when - ctx.currentTime) * 1000);
@@ -762,7 +905,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const sampleRate = 44100;
     const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
     applyMixer(off, vol, mute, solo, bassVol, bassMute);
-    const { drums, bass: bassG } = getGains(off);
+    /* Identical chains to live playback — the same shared builder. */
+    const graph = ensureMixerGraph(off);
+    const drums = TRACKS.map((tr) => graph.tracks[tr.id]!.input);
+    const bassG = graph.tracks["bass"]!.input;
     const g = gridRef.current;
     const bn = bassRef.current;
     const sw = swingRef.current;
@@ -968,31 +1114,105 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         {t("beatMaker.accentHint", { defaultValue: "Click a step to toggle · right-click for accent · gold ring = accent hit" })}
       </p>
 
-      {/* Mixer */}
+      {/* Mixer — volume / pan / per-track FX / master bus (W1-L3) */}
       {showMixer && (
         <div className={`rounded-xl border p-4 space-y-2 ${isLight ? "border-[#c9a84c]/25 bg-[#8a6d2f]/[0.04]" : "border-white/10 bg-black/30"}`}>
           <p className={`text-xs font-black uppercase tracking-wider ${T.label}`}>{t("beatMaker.mixerTitle", { defaultValue: "Mixer" })}</p>
-          {TRACKS.map((tr, ti) => (
-            <div key={tr.id} className="flex items-center gap-2">
-              <span className={`w-20 text-xs truncate ${T.label}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+          {TRACKS.map((tr, ti) => {
+            const fx = mixerFx.tracks[tr.id]!;
+            const setFx = (next: BeatTrackFxConfig) =>
+              setMixerFx((prev) => ({ ...prev, tracks: { ...prev.tracks, [tr.id]: next } }));
+            const expanded = expandedFx === tr.id;
+            return (
+              <div key={tr.id} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className={`w-20 text-xs truncate ${T.label}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+                  <input
+                    type="range" min={0} max={1.5} step={0.01} value={vol[ti]}
+                    onChange={(e) => setVol((v) => v.map((x, i) => (i === ti ? Number(e.target.value) : x)))}
+                    className={`flex-1 h-1 ${T.slider}`} aria-label={`${tr.id} volume`}
+                  />
+                  <span className={`text-xs tabular-nums w-9 text-right ${T.dim}`}>{Math.round((vol[ti] ?? 0) * 100)}%</span>
+                  {mute[ti] && <VolumeX className="w-3.5 h-3.5 text-red-400" />}
+                  {!mute[ti] && <Volume2 className={`w-3.5 h-3.5 ${T.dim}`} />}
+                  <span className={`text-[10px] uppercase tracking-wide ${T.dim}`}>{t("beatMaker.pan", { defaultValue: "Pan" })}</span>
+                  <input
+                    type="range" min={-1} max={1} step={0.01} value={fx.pan}
+                    onChange={(e) => setFx({ ...fx, pan: Number(e.target.value) })}
+                    className={`w-20 h-1 ${T.slider}`} aria-label={`${tr.id} pan`}
+                  />
+                  <span className={`text-[11px] tabular-nums w-8 text-right ${T.dim}`}>
+                    {fx.pan === 0 ? "C" : fx.pan < 0 ? `L${Math.round(-fx.pan * 100)}` : `R${Math.round(fx.pan * 100)}`}
+                  </span>
+                  <button type="button" aria-expanded={expanded} aria-label={`${tr.id} effects`}
+                    onClick={() => setExpandedFx(expanded ? null : tr.id)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-black border flex items-center gap-1 transition-colors ${expanded ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}>
+                    {t("beatMaker.fx", { defaultValue: "FX" })}
+                    <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+                {expanded && (
+                  <BeatFxPanel fx={fx} onChange={setFx} isLight={isLight}
+                    sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+                )}
+              </div>
+            );
+          })}
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center gap-2">
+              <span className={`w-20 text-xs font-bold ${T.label}`}>{t("beatMaker.bassVol", { defaultValue: "808 Bass" })}</span>
               <input
-                type="range" min={0} max={1.5} step={0.01} value={vol[ti]}
-                onChange={(e) => setVol((v) => v.map((x, i) => (i === ti ? Number(e.target.value) : x)))}
-                className={`flex-1 h-1 ${T.slider}`} aria-label={`${tr.id} volume`}
+                type="range" min={0} max={1.5} step={0.01} value={bassVol}
+                onChange={(e) => setBassVol(Number(e.target.value))}
+                className={`flex-1 h-1 ${T.slider}`} aria-label="808 bass volume"
               />
-              <span className={`text-xs tabular-nums w-9 text-right ${T.dim}`}>{Math.round((vol[ti] ?? 0) * 100)}%</span>
-              {mute[ti] && <VolumeX className="w-3.5 h-3.5 text-red-400" />}
-              {!mute[ti] && <Volume2 className={`w-3.5 h-3.5 ${T.dim}`} />}
+              <button type="button" aria-pressed={bassMute} aria-label={bassMute ? "Unmute 808 bass" : "Mute 808 bass"} onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
+              <span className={`text-[10px] uppercase tracking-wide ${T.dim}`}>{t("beatMaker.pan", { defaultValue: "Pan" })}</span>
+              <input
+                type="range" min={-1} max={1} step={0.01} value={mixerFx.tracks["bass"]!.pan}
+                onChange={(e) => setMixerFx((prev) => ({ ...prev, tracks: { ...prev.tracks, bass: { ...prev.tracks["bass"]!, pan: Number(e.target.value) } } }))}
+                className={`w-20 h-1 ${T.slider}`} aria-label="808 bass pan"
+              />
+              <span className={`text-[11px] tabular-nums w-8 text-right ${T.dim}`}>
+                {mixerFx.tracks["bass"]!.pan === 0 ? "C" : mixerFx.tracks["bass"]!.pan < 0 ? `L${Math.round(-mixerFx.tracks["bass"]!.pan * 100)}` : `R${Math.round(mixerFx.tracks["bass"]!.pan * 100)}`}
+              </span>
+              <button type="button" aria-expanded={expandedFx === "bass"} aria-label="808 bass effects"
+                onClick={() => setExpandedFx(expandedFx === "bass" ? null : "bass")}
+                className={`px-2 py-0.5 rounded text-[10px] font-black border flex items-center gap-1 transition-colors ${expandedFx === "bass" ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}>
+                {t("beatMaker.fx", { defaultValue: "FX" })}
+                <ChevronDown className={`w-3 h-3 transition-transform ${expandedFx === "bass" ? "rotate-180" : ""}`} />
+              </button>
             </div>
-          ))}
-          <div className="flex items-center gap-2 pt-1">
-            <span className={`w-20 text-xs font-bold ${T.label}`}>{t("beatMaker.bassVol", { defaultValue: "808 Bass" })}</span>
-            <input
-              type="range" min={0} max={1.5} step={0.01} value={bassVol}
-              onChange={(e) => setBassVol(Number(e.target.value))}
-              className={`flex-1 h-1 ${T.slider}`} aria-label="808 bass volume"
-            />
-            <button type="button" aria-pressed={bassMute} aria-label={bassMute ? "Unmute 808 bass" : "Mute 808 bass"} onClick={() => setBassMute((v) => !v)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${bassMute ? "bg-red-500/80 border-red-400 text-white" : T.pill}`}>M</button>
+            {expandedFx === "bass" && (
+              <BeatFxPanel fx={mixerFx.tracks["bass"]!}
+                onChange={(next) => setMixerFx((prev) => ({ ...prev, tracks: { ...prev.tracks, bass: next } }))}
+                isLight={isLight} sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+            )}
+          </div>
+          {/* Master bus — master gain + limiter, shared by live + render */}
+          <div className={`mt-2 rounded-lg border p-3 space-y-2 ${isLight ? "border-[#c9a84c]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
+            <div className="flex items-center gap-2">
+              <span className={`w-20 text-xs font-black uppercase tracking-wider ${T.label}`}>{t("beatMaker.master", { defaultValue: "Master" })}</span>
+              <input
+                type="range" min={0} max={1.5} step={0.01} value={mixerFx.master.volume}
+                onChange={(e) => setMixerFx((prev) => ({ ...prev, master: { ...prev.master, volume: Number(e.target.value) } }))}
+                className={`flex-1 h-1 ${T.slider}`} aria-label="Master volume"
+              />
+              <span className={`text-xs tabular-nums w-9 text-right ${T.dim}`}>{Math.round(mixerFx.master.volume * 100)}%</span>
+              <button type="button" aria-pressed={mixerFx.master.limiter.enabled}
+                aria-label={t("beatMaker.masterLimiter", { defaultValue: "Master limiter" })}
+                onClick={() => setMixerFx((prev) => ({ ...prev, master: { ...prev.master, limiter: { ...prev.master.limiter, enabled: !prev.master.limiter.enabled } } }))}
+                className={`px-2 py-0.5 rounded text-[10px] font-black border transition-colors ${mixerFx.master.limiter.enabled ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}>
+                {t("beatMaker.masterLimiter", { defaultValue: "Limiter" })}
+              </button>
+            </div>
+            {mixerFx.master.limiter.enabled && (
+              <FxSlider label={t("beatMaker.fxThreshold", { defaultValue: "Threshold" })}
+                min={-24} max={0} step={0.5} unit=" dB"
+                value={mixerFx.master.limiter.thresholdDb}
+                onChange={(v) => setMixerFx((prev) => ({ ...prev, master: { ...prev.master, limiter: { ...prev.master.limiter, thresholdDb: v } } }))}
+                sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+            )}
           </div>
         </div>
       )}
