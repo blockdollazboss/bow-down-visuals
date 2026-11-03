@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { db, apiKeysTable, type ApiKey } from "@workspace/db";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 
 /* ─── Public Creator API keys (Stack-100 #3, feature #9) ─────────────────
@@ -108,12 +108,45 @@ function toPublic(row: ApiKey): ApiKeyPublic {
   };
 }
 
+/* ─── Active-key cap (owner ruling, stack1400 #9 / X6) ──────────────────
+   At most 10 ACTIVE keys per account. Revoked keys (revoked_at set) do
+   not count — revoking one frees a slot immediately. Enforcement lives
+   HERE, in the one creation path every caller shares: count the active
+   keys, refuse at the cap, only then insert. */
+export const API_KEY_ACTIVE_LIMIT = 10;
+
+export const API_KEY_LIMIT_MESSAGE = `You've reached the limit of ${API_KEY_ACTIVE_LIMIT} active API keys. Revoke one to create another.`;
+
+/** Thrown by createApiKey at the cap. The route maps it to a 409 with
+ *  error code "api_key_limit_reached" — never a generic 500. */
+export class ApiKeyLimitError extends Error {
+  readonly code = "api_key_limit_reached";
+  readonly limit = API_KEY_ACTIVE_LIMIT;
+  readonly activeCount: number;
+  constructor(activeCount: number) {
+    super(API_KEY_LIMIT_MESSAGE);
+    this.name = "ApiKeyLimitError";
+    this.activeCount = activeCount;
+  }
+}
+
+/** How many keys `userId` holds that are still live (revoked_at IS NULL). */
+export async function countActiveApiKeys(userId: string): Promise<number> {
+  const rows = await db
+    .select({ n: count() })
+    .from(apiKeysTable)
+    .where(and(eq(apiKeysTable.userId, userId), isNull(apiKeysTable.revokedAt)));
+  return rows[0]?.n ?? 0;
+}
+
 /** Create a key for `userId`. Returns the public row + the one-time plaintext. */
 export async function createApiKey(
   userId: string,
   name: string,
   scopes: ApiKeyScope[],
 ): Promise<{ key: ApiKeyPublic; plaintext: string }> {
+  const activeCount = await countActiveApiKeys(userId);
+  if (activeCount >= API_KEY_ACTIVE_LIMIT) throw new ApiKeyLimitError(activeCount);
   const gen = generateApiKey();
   const [row] = await db
     .insert(apiKeysTable)
