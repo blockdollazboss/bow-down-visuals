@@ -10,6 +10,7 @@ import type { PalaceStation } from "@/lib/world/stations";
 import { NativeCard } from "./NativeCard";
 import { DomainsDesk } from "./DomainsDesk";
 import { GiftCardsDesk } from "./GiftCardsDesk";
+import { StoreGrowthDesk } from "./StoreGrowthDesk";
 import { paidWithGiftCard } from "@/lib/world/gift-cards";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay, cartKey } from "@/lib/shops";
@@ -660,6 +661,13 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           }}
         />
       )}
+      {/* Store growth trio (stack1400 parity wave #1 item 3): lead
+          magnets, order bumps and the post-purchase upsell
+          designation for the seller's own storefront store, on the
+          storefront rails — its own desk component
+          (StoreGrowthDesk), self-gating (members only; a
+          no-profile account gets its honest setup state). */}
+      {!isGuest && <StoreGrowthDesk isLight={isLight} isGuest={isGuest} />}
     </div>
   );
 }
