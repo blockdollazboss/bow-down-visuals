@@ -63,6 +63,8 @@ export const CREATE_DESK_IDS: readonly CreateDeskId[] = [
   "hook-desk",
   "movies-desk",
   "carousel-desk",
+  "detector-desk",
+  "wallpapers-desk",
 ];
 
 export function isCreateDeskId(id: string): id is CreateDeskId {

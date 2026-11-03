@@ -344,6 +344,43 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "create" },
     websitePath: "/carousel-maker",
   },
+  {
+    /* Stack1500 world parity wave #3, item 12: the Detector Desk —
+       the AI Media Detector's native desk (image URL, image /
+       video / audio file checks on the /api/detect/media rail).
+       It stands mid-room in the Create Wing at (19, -2) — 3.9m+
+       clear of every other prompt in the wing (My Studio board
+       3.9m west, Hook Desk 4.0m north, Carousel Desk 4.5m east).
+       Members-only exactly as the rail is (requireAuth). */
+    id: "detector-desk",
+    roomId: CREATE_WING_ID,
+    name: "Detector Desk",
+    tagline: "Real or AI-made? Check a picture, a video, or a track before you post it.",
+    x: 19,
+    z: -2,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/detector",
+  },
+  {
+    /* Stack1500 world parity wave #3, item 34: the Wallpapers Desk —
+       the wallpaper flow's native desk (generate art, exact-size
+       renders branded or clean, the pack of 10, living wallpapers).
+       It stands in the Create Wing's last open pocket at (17, -4.2),
+       2.6m+ clear of the Thumbnail, Hook, My Studio and Detector
+       prompts around it — the wing is full at the older 4m spacing,
+       and the registry's nearest-wins rule covers prompt overlap.
+       Members-only exactly as every rail it rides is. */
+    id: "wallpapers-desk",
+    roomId: CREATE_WING_ID,
+    name: "Wallpapers Desk",
+    tagline: "Wallpapers in your exact screen size — your brand on them, or clean.",
+    x: 17,
+    z: -4.2,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/wallpapers",
+  },
 
   /* ── Treasury ────────────────────────────────────────────────── */
   {
