@@ -13,10 +13,36 @@ import {
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano,
+  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
+import {
+  addArrangementEntry,
+  arrangementDurationSec,
+  arrangementTotalBars,
+  arrangementTotalSteps,
+  cloneBeatPattern,
+  clonePatternVariation,
+  fetchServerBeatProject,
+  isSongModeActive,
+  loadLocalBeatProject,
+  moveArrangementEntry,
+  removeArrangementEntry,
+  renderPatternSequence,
+  resolveArrangementStep,
+  saveLocalBeatProject,
+  saveServerBeatProject,
+  setArrangementEntryPattern,
+  setArrangementEntryRepeats,
+  isEmptyBeatPattern,
+  type BeatArrangementEntry,
+  type BeatPatternData,
+  type BeatPatternId,
+  type BeatProject,
+  type BeatTransportMode,
+} from "@/lib/beat-project";
 import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -518,38 +544,67 @@ const emptyBass = (): (number | null)[] => Array(STEPS).fill(null);
 const BASS_LO = 24;
 const BASS_HI = 47;
 
-type PatternId = "A" | "B" | "C" | "D";
+type PatternId = BeatPatternId;
 const PATTERN_IDS: PatternId[] = ["A", "B", "C", "D"];
-interface PatternData { grid: number[][]; bass: (number | null)[] }
+type PatternData = BeatPatternData;
 
 function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [, navigate] = useLocation();
-  const [patterns, setPatterns] = useState<Record<PatternId, PatternData>>(() => ({
-    A: { grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass] },
-    B: { grid: emptyGrid(), bass: emptyBass() },
-    C: { grid: emptyGrid(), bass: emptyBass() },
-    D: { grid: emptyGrid(), bass: emptyBass() },
-  }));
-  const [activePat, setActivePat] = useState<PatternId>("A");
-  const [bpm, setBpm] = useState(140);
-  const [swing, setSwing] = useState(0);
+  const { getAccessToken } = useAuth();
+  /* The whole sequencer is one beat project (lib/beat-project.ts):
+   * restored from the local auto-save on mount, then the server draft
+   * when this browser has nothing saved yet. No saved project → the
+   * classic starting state (Trap preset in A, pattern-loop mode). */
+  const [restored] = useState<BeatProject | null>(() => loadLocalBeatProject());
+  const [patterns, setPatterns] = useState<Record<PatternId, PatternData>>(() =>
+    restored
+      ? (Object.fromEntries(
+          PATTERN_IDS.map((id) => [id, cloneBeatPattern(restored.patterns[id])]),
+        ) as Record<PatternId, PatternData>)
+      : {
+          A: { grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass] },
+          B: { grid: emptyGrid(), bass: emptyBass() },
+          C: { grid: emptyGrid(), bass: emptyBass() },
+          D: { grid: emptyGrid(), bass: emptyBass() },
+        },
+  );
+  const [activePat, setActivePat] = useState<PatternId>(() => restored?.activePattern ?? "A");
+  const [bpm, setBpm] = useState(() => restored?.bpm ?? 140);
+  const [swing, setSwing] = useState(() => restored?.swing ?? 0);
   const [playing, setPlaying] = useState(false);
   const [step, setStep] = useState(-1);
   const [exporting, setExporting] = useState(false);
   const [sending, setSending] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [showBass, setShowBass] = useState(false);
-  const [vol, setVol] = useState<number[]>(() => TRACKS.map(() => 1));
-  const [mute, setMute] = useState<boolean[]>(() => TRACKS.map(() => false));
-  const [solo, setSolo] = useState<boolean[]>(() => TRACKS.map(() => false));
-  const [bassVol, setBassVol] = useState(0.9);
-  const [bassMute, setBassMute] = useState(false);
+  const [vol, setVol] = useState<number[]>(() =>
+    restored ? [...restored.mixer.vol] : TRACKS.map(() => 1),
+  );
+  const [mute, setMute] = useState<boolean[]>(() =>
+    restored ? [...restored.mixer.mute] : TRACKS.map(() => false),
+  );
+  const [solo, setSolo] = useState<boolean[]>(() =>
+    restored ? [...restored.mixer.solo] : TRACKS.map(() => false),
+  );
+  const [bassVol, setBassVol] = useState(() => restored?.mixer.bassVol ?? 0.9);
+  const [bassMute, setBassMute] = useState(() => restored?.mixer.bassMute ?? false);
+  /* Song arrangement: the chain + which transport mode plays it. */
+  const [arrangement, setArrangement] = useState<BeatArrangementEntry[]>(
+    () => restored?.arrangement ?? [],
+  );
+  const [transportMode, setTransportMode] = useState<BeatTransportMode>(
+    () => restored?.mode ?? "pattern",
+  );
+  /* What the transport is actually playing right now (song mode can be
+   * on a different pattern than the one being edited). */
+  const [playPat, setPlayPat] = useState<PatternId>(() => restored?.activePattern ?? "A");
+  const [playEntry, setPlayEntry] = useState(-1);
+  const [playBar, setPlayBar] = useState(0);
   const [bassPaint, setBassPaint] = useState(36); // C2 — pitch painted by bass roll clicks
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number | null>(null);
-  const stepRef = useRef(0);
   const nextTimeRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
   const clipRef = useRef<{ grid: number[][]; bass: (number | null)[] } | null>(null);
@@ -557,14 +612,90 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
   const grid = patterns[activePat]!.grid;
   const bass = patterns[activePat]!.bass;
-  const gridRef = useRef(grid);
-  const bassRef = useRef(bass);
   const bpmRef = useRef(bpm);
   const swingRef = useRef(swing);
-  gridRef.current = grid;
-  bassRef.current = bass;
   bpmRef.current = bpm;
   swingRef.current = swing;
+  /* Transport/render read the WHOLE project through refs so song mode
+   * can cross pattern boundaries inside the lookahead scheduler. */
+  const patternsRef = useRef(patterns);
+  const activePatRef = useRef(activePat);
+  const arrangementRef = useRef(arrangement);
+  const modeRef = useRef(transportMode);
+  patternsRef.current = patterns;
+  activePatRef.current = activePat;
+  arrangementRef.current = arrangement;
+  modeRef.current = transportMode;
+  const globalStepRef = useRef(0);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serverReadyRef = useRef(false);
+
+  /* ── beat-project persistence (localStorage + server draft) ── */
+  const buildProject = useCallback((): BeatProject => ({
+    version: 1,
+    patterns: patternsRef.current,
+    activePattern: activePatRef.current,
+    bpm: bpmRef.current,
+    swing: swingRef.current,
+    mixer: { vol, mute, solo, bassVol, bassMute },
+    arrangement: arrangementRef.current,
+    mode: modeRef.current,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [vol, mute, solo, bassVol, bassMute]);
+
+  const applyProject = useCallback((p: BeatProject) => {
+    setPatterns(
+      Object.fromEntries(
+        PATTERN_IDS.map((id) => [id, cloneBeatPattern(p.patterns[id])]),
+      ) as Record<PatternId, PatternData>,
+    );
+    setActivePat(p.activePattern);
+    setBpm(p.bpm);
+    setSwing(p.swing);
+    setVol([...p.mixer.vol]);
+    setMute([...p.mixer.mute]);
+    setSolo([...p.mixer.solo]);
+    setBassVol(p.mixer.bassVol);
+    setBassMute(p.mixer.bassMute);
+    setArrangement(p.arrangement);
+    setTransportMode(p.mode);
+  }, []);
+
+  /* Server draft restore — only fills in when this browser has no
+   * local save yet (local wins, the house pattern). */
+  useEffect(() => {
+    if (restored) {
+      serverReadyRef.current = true;
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const token = await getAccessToken().catch(() => null);
+      const server = token ? await fetchServerBeatProject(token) : null;
+      if (!cancelled && server) applyProject(server);
+      if (!cancelled) serverReadyRef.current = true;
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Debounced auto-save: local immediately on every edit, server when
+   * signed in (and never before the restore attempt has settled, so a
+   * fresh mount can't overwrite the server draft with defaults). */
+  useEffect(() => {
+    const project = buildProject();
+    saveLocalBeatProject(project);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void (async () => {
+        if (!serverReadyRef.current) return;
+        const token = await getAccessToken().catch(() => null);
+        if (token) await saveServerBeatProject(token, project);
+      })();
+    }, 1200);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patterns, activePat, bpm, swing, vol, mute, solo, bassVol, bassMute, arrangement, transportMode]);
 
   /* ── theme tones ── */
   const T = {
@@ -626,40 +757,60 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vol, mute, solo, bassVol, bassMute]);
 
-  const scheduleStep = useCallback((s: number, time: number) => {
+  /* One scheduler for both transport modes. Pattern mode loops the
+   * active pattern (classic behavior). Song mode walks the arrangement
+   * chain: the global step resolves through the chain, patterns switch
+   * at entry boundaries inside the lookahead — playback never stops —
+   * and the chain loops when it ends. Swing, mixer and bass resolve
+   * identically in both modes (per pattern being played). */
+  const scheduleStep = useCallback((globalStep: number, time: number) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     const { drums, bass: bassG } = getGains(ctx);
     const sw = swingRef.current;
+    const chain = arrangementRef.current;
+    const song = isSongModeActive({ mode: modeRef.current, arrangement: chain });
+    const total = song ? arrangementTotalSteps(chain) : 0;
+    const wrapped = song && total > 0 ? globalStep % total : globalStep;
+    const resolved = song ? resolveArrangementStep(wrapped, chain) : null;
+    const patId: PatternId = resolved ? resolved.patternId : activePatRef.current;
+    const s = resolved ? resolved.stepInPattern : globalStep % STEPS;
+    const pat = patternsRef.current[patId] ?? patternsRef.current.A!;
     // Swing delays off-beat 16ths (odd steps), 0–100%
     const when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
-    const g = gridRef.current;
     TRACKS.forEach((tr, ti) => {
-      const v = g[ti]?.[s] ?? 0;
+      const v = pat.grid[ti]?.[s] ?? 0;
       if (v > 0) synthHit(ctx, tr.id, when, drums[ti]!, v === 2 ? 1.4 : 1);
     });
-    const bn = bassRef.current[s];
+    const bn = pat.bass[s];
     if (bn != null) {
-      const prev = s > 0 ? bassRef.current[s - 1] : null;
+      const prev = s > 0 ? pat.bass[s - 1] : null;
       synthBass(ctx, bn, when, bassG, 1, prev);
     }
     // UI highlight slightly ahead-safe: update on the audio clock via timeout
     const ms = Math.max(0, (when - ctx.currentTime) * 1000);
-    window.setTimeout(() => setStep(s), ms);
+    const bar = Math.floor(wrapped / STEPS);
+    const entryIndex = resolved ? resolved.entryIndex : -1;
+    window.setTimeout(() => {
+      setStep(s);
+      setPlayPat(patId);
+      setPlayEntry(entryIndex);
+      setPlayBar(bar);
+    }, ms);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const start = useCallback(() => {
     const ctx = getCtx();
     setPlaying(true);
-    stepRef.current = 0;
+    globalStepRef.current = 0;
     nextTimeRef.current = ctx.currentTime + 0.06;
     timerRef.current = window.setInterval(() => {
       const ahead = 0.12;
       while (nextTimeRef.current < ctx.currentTime + ahead) {
-        scheduleStep(stepRef.current, nextTimeRef.current);
+        scheduleStep(globalStepRef.current, nextTimeRef.current);
         nextTimeRef.current += 60 / bpmRef.current / 4;
-        stepRef.current = (stepRef.current + 1) % STEPS;
+        globalStepRef.current += 1;
       }
     }, 25);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -670,6 +821,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     timerRef.current = null;
     setPlaying(false);
     setStep(-1);
+    setPlayEntry(-1);
+    setPlayBar(0);
   }, []);
 
   useEffect(() => () => {
@@ -727,10 +880,11 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   };
 
   /* ── patterns A/B/C/D ── */
-  const copyPattern = () => {
-    const p = patterns[activePat]!;
+  const copyPatternData = (pid: PatternId) => {
+    const p = patterns[pid]!;
     clipRef.current = { grid: p.grid.map((r) => [...r]), bass: [...p.bass] };
   };
+  const copyPattern = () => copyPatternData(activePat);
   const pastePattern = () => {
     if (!clipRef.current) return;
     const c = clipRef.current;
@@ -740,6 +894,25 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     stop();
     patchActive(() => ({ grid: emptyGrid(), bass: emptyBass() }));
   };
+
+  /* Variation: clone an arrangement entry's pattern into the first
+   * free slot (through the copy clipboard, like copy/paste) and point
+   * the entry at the clone — the original pattern stays untouched, and
+   * the clone becomes the pattern being edited so it can be tweaked
+   * right away. No free slot → nothing happens (button disables). */
+  const cloneVariationForEntry = (entryIndex: number) => {
+    const entry = arrangement[entryIndex];
+    if (!entry) return;
+    copyPatternData(entry.patternId);
+    const res = clonePatternVariation(buildProject(), entry.patternId);
+    if (!res) return;
+    setPatterns(res.project.patterns);
+    setArrangement((prev) =>
+      setArrangementEntryPattern(prev, entryIndex, res.patternId),
+    );
+    setActivePat(res.patternId);
+  };
+  const hasFreePatternSlot = PATTERN_IDS.some((id) => isEmptyBeatPattern(patterns[id]));
 
   /* ── tap tempo ── */
   const tapTempo = () => {
@@ -754,38 +927,46 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }
   };
 
-  /* ── offline render (shared by WAV export + Send to Visual Vibes) ── */
-  const renderBeat = async (bars = 4) => {
-    const totalSteps = STEPS * bars;
+  /* ── offline render (shared by WAV export + Send to Visual Vibes) ──
+   * Song mode with a chain: render the full arrangement sequence once
+   * (+ tail). Otherwise the classic render: the active pattern ×4. One
+   * code path either way — the sequence of pattern-plays is the only
+   * difference, and every play goes through the same synth + mixer. */
+  const renderBeat = async () => {
+    const sequence = renderPatternSequence({
+      mode: modeRef.current,
+      arrangement: arrangementRef.current,
+    });
+    const plays: PatternId[] = sequence ?? Array<PatternId>(4).fill(activePatRef.current);
+    const totalSteps = STEPS * plays.length;
     const stepDur = 60 / bpmRef.current / 4;
     const totalDur = totalSteps * stepDur + 1.2;
     const sampleRate = 44100;
     const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
     applyMixer(off, vol, mute, solo, bassVol, bassMute);
     const { drums, bass: bassG } = getGains(off);
-    const g = gridRef.current;
-    const bn = bassRef.current;
     const sw = swingRef.current;
     for (let s = 0; s < totalSteps; s++) {
+      const pat = patternsRef.current[plays[Math.floor(s / STEPS)]!]!;
       const si = s % STEPS;
       const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
       TRACKS.forEach((tr, ti) => {
-        const v = g[ti]?.[si] ?? 0;
+        const v = pat.grid[ti]?.[si] ?? 0;
         if (v > 0) synthHit(off, tr.id, tt, drums[ti]!, v === 2 ? 1.4 : 1);
       });
-      const note = bn[si];
-      if (note != null) synthBass(off, note, tt, bassG, 1, si > 0 ? bn[si - 1] : null);
+      const note = pat.bass[si];
+      if (note != null) synthBass(off, note, tt, bassG, 1, si > 0 ? pat.bass[si - 1] : null);
     }
     const rendered = await off.startRendering();
     const blob = audioBufferToWav(rendered);
-    return { blob, url: URL.createObjectURL(blob), durationSec: totalDur };
+    return { blob, url: URL.createObjectURL(blob), durationSec: totalDur, song: sequence != null };
   };
 
-  /* Render 4 bars offline → WAV → download. Pure client-side. */
+  /* Render offline → WAV → download. Pure client-side. */
   const exportWav = async () => {
     setExporting(true);
     try {
-      const { blob, url, durationSec } = await renderBeat(4);
+      const { blob, url, durationSec, song } = await renderBeat();
       const a = document.createElement("a");
       a.href = url;
       a.download = `beat-${bpm}bpm.wav`;
@@ -795,7 +976,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         url,
         title: t("beatMaker.sequencerBeatTitle", { bpm, defaultValue: `Sequencer beat · ${bpm} BPM` }),
         durationMs: Math.round(durationSec * 1000),
-        meta: { bpm: String(bpm), source: "sequencer", sessionOnly: "1" },
+        meta: {
+          bpm: String(bpm), source: "sequencer", sessionOnly: "1",
+          ...(song ? { arrangement: "song", bars: String(chainBars) } : {}),
+        },
       });
       void blob;
     } finally {
@@ -807,7 +991,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const sendToVisualVibes = async () => {
     setSending(true);
     try {
-      const { blob, url, durationSec } = await renderBeat(4);
+      const { blob, url, durationSec } = await renderBeat();
       const id = stashBeatHandoff({
         blob,
         url,
@@ -823,6 +1007,12 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   };
 
   const bassRows = Array.from({ length: BASS_HI - BASS_LO + 1 }, (_, i) => BASS_HI - i);
+
+  /* Song-mode facts for the transport + chain editor. */
+  const songActive = isSongModeActive({ mode: transportMode, arrangement });
+  const chainBars = arrangementTotalBars(arrangement);
+  const chainSecs = arrangementDurationSec(arrangement, bpm);
+  const chainLengthLabel = `${Math.floor(chainSecs / 60)}:${String(Math.round(chainSecs % 60)).padStart(2, "0")}`;
 
   return (
     <div className={`rounded-2xl border p-6 space-y-5 ${T.card}`}>
@@ -866,13 +1056,48 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         </div>
       </div>
 
+      {/* Transport mode — Pattern loops one pattern; Song plays the chain */}
+      <div className="flex flex-wrap items-center gap-2" data-testid="beat-transport-mode">
+        <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>{t("beatMaker.playMode", { defaultValue: "Play" })}</span>
+        <button
+          type="button" aria-pressed={transportMode === "pattern"} data-testid="beat-mode-pattern"
+          onClick={() => setTransportMode("pattern")}
+          className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${transportMode === "pattern" ? T.patActive : T.pill}`}
+        >
+          <Repeat className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />{t("beatMaker.modePattern", { defaultValue: "Pattern" })}
+        </button>
+        <button
+          type="button" aria-pressed={transportMode === "song"} data-testid="beat-mode-song"
+          onClick={() => setTransportMode("song")}
+          className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${transportMode === "song" ? T.patActive : T.pill}`}
+        >
+          <ListMusic className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />{t("beatMaker.modeSong", { defaultValue: "Song" })}
+        </button>
+        {playing && songActive && playEntry >= 0 ? (
+          <span className={`text-xs font-bold ${T.heading}`} data-testid="beat-song-progress" aria-live="polite">
+            {t("beatMaker.songProgress", {
+              defaultValue: "Playing entry {{entry}} of {{entries}} · Pattern {{pattern}} · Bar {{bar}} of {{bars}}",
+              entry: playEntry + 1, entries: arrangement.length, pattern: playPat, bar: playBar + 1, bars: chainBars,
+            })}
+          </span>
+        ) : playing ? (
+          <span className={`text-xs ${T.dim}`} data-testid="beat-pattern-progress" aria-live="polite">
+            {t("beatMaker.patternProgress", { defaultValue: "Looping pattern {{pattern}}", pattern: playPat })}
+          </span>
+        ) : transportMode === "song" && !songActive ? (
+          <span className={`text-xs ${T.dim}`}>
+            {t("beatMaker.songNeedsChain", { defaultValue: "Add patterns to the Song Arrangement below — with an empty chain, Play loops the pattern you're editing." })}
+          </span>
+        ) : null}
+      </div>
+
       {/* Pattern slots + tools */}
       <div className="flex flex-wrap items-center gap-2">
         <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>{t("beatMaker.pattern", { defaultValue: "Pattern" })}</span>
         {PATTERN_IDS.map((pid) => (
           <button
             key={pid} type="button"
-            onClick={() => { stop(); setActivePat(pid); }}
+            onClick={() => setActivePat(pid)}
             className={`w-9 h-9 rounded-lg border text-sm transition-colors ${activePat === pid ? T.patActive : T.pill}`}
           >
             {pid}
@@ -954,7 +1179,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                         v > 0
                           ? `${tr.color} border-transparent shadow-[0_0_8px_rgba(255,255,255,0.25)] ${v === 2 ? "outline outline-2 outline-[#C9A84C] outline-offset-1" : ""}`
                           : isBeat ? T.cellOffBeat : T.cellOff
-                      } ${step === s && playing ? "ring-2 ring-white/70" : ""}`}
+                      } ${step === s && playing && playPat === activePat ? "ring-2 ring-white/70" : ""}`}
                       aria-label={t("beatMaker.stepAria", { label: t(tr.labelKey, { defaultValue: tr.id }), n: s + 1, state: v === 2 ? t("beatMaker.stepAccent", { defaultValue: "accent" }) : v === 1 ? t("beatMaker.stepOn", { defaultValue: "on" }) : t("beatMaker.stepOff", { defaultValue: "off" }) })}
                     />
                   );
@@ -1049,7 +1274,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                                   : isBlack
                                     ? isLight ? "bg-[#2A2118]/[0.06] border-[#8a6d2f]/10 hover:bg-violet-400/30" : "bg-white/[0.06] border-white/[0.08] hover:bg-violet-400/30"
                                     : isLight ? "bg-[#8a6d2f]/[0.08] border-[#8a6d2f]/15 hover:bg-violet-400/30" : "bg-white/[0.03] border-white/[0.06] hover:bg-violet-400/30"
-                              } ${step === s && playing ? "ring-1 ring-white/70" : ""}`}
+                              } ${step === s && playing && playPat === activePat ? "ring-1 ring-white/70" : ""}`}
                               aria-label={`Bass ${name} step ${s + 1}`}
                             />
                           );
@@ -1064,6 +1289,160 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         </div>
       )}
 
+      {/* Song arrangement — chain editor. Entries play in order in Song
+          mode; each entry can be re-pointed, repeated, reordered,
+          cloned into a variation, or removed. Free — pure UI. */}
+      <div
+        className={`rounded-xl border p-4 space-y-3 ${isLight ? "border-[#c9a84c]/25 bg-[#8a6d2f]/[0.04]" : "border-white/10 bg-black/30"}`}
+        data-testid="beat-arrangement"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <p className={`text-xs font-black uppercase tracking-wider ${T.label} flex items-center gap-1.5`}>
+            <ListMusic className="w-4 h-4" /> {t("beatMaker.arrangementTitle", { defaultValue: "Song Arrangement" })}
+          </p>
+          <span className={`text-xs ${T.dim}`}>
+            {arrangement.length === 0
+              ? t("beatMaker.arrangementEmptySummary", { defaultValue: "No chain yet" })
+              : t("beatMaker.arrangementSummary", {
+                  defaultValue: "{{entries}} entries · {{bars}} bars · {{length}}",
+                  entries: arrangement.length, bars: chainBars, length: chainLengthLabel,
+                })}
+          </span>
+          <span className="ml-auto flex items-center gap-1.5">
+            <span className={`text-xs ${T.label}`}>{t("beatMaker.arrangementAdd", { defaultValue: "Add" })}</span>
+            {PATTERN_IDS.map((pid) => (
+              <button
+                key={pid} type="button" data-testid={`beat-arr-add-${pid}`}
+                onClick={() => {
+                  setArrangement((prev) => addArrangementEntry(prev, pid));
+                  if (transportMode !== "song") setTransportMode("song");
+                }}
+                className={`w-7 h-7 rounded-lg border text-xs font-black transition-colors ${T.pill}`}
+                aria-label={t("beatMaker.arrangementAddPattern", { defaultValue: "Add pattern {{pattern}} to the chain", pattern: pid })}
+              >
+                {pid}
+              </button>
+            ))}
+          </span>
+        </div>
+
+        {arrangement.length === 0 ? (
+          <p className={`text-xs ${T.dim}`}>
+            {t("beatMaker.arrangementEmpty", { defaultValue: "Chain patterns together and they play as one song — in order, start to finish, then loop. Add a pattern above to start the chain; Song play mode turns on automatically." })}
+          </p>
+        ) : (
+          <>
+            <ol className="space-y-1.5">
+              {arrangement.map((entry, i) => {
+                const isPlayingEntry = playing && songActive && playEntry === i;
+                const sourceEmpty = isEmptyBeatPattern(patterns[entry.patternId]);
+                return (
+                  <li
+                    key={`${i}-${entry.patternId}`}
+                    data-testid={`beat-arr-entry-${i}`}
+                    className={`flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
+                      isPlayingEntry
+                        ? "border-[#C9A84C] bg-[#C9A84C]/10"
+                        : isLight ? "border-[#c9a84c]/20 bg-white/40" : "border-white/10 bg-white/[0.03]"
+                    }`}
+                  >
+                    <span className={`text-[10px] font-black w-5 tabular-nums ${T.dim}`}>{i + 1}</span>
+                    <select
+                      aria-label={t("beatMaker.arrangementEntryPattern", { defaultValue: "Entry {{n}} pattern", n: i + 1 })}
+                      value={entry.patternId}
+                      onChange={(e) =>
+                        setArrangement((prev) =>
+                          setArrangementEntryPattern(prev, i, e.target.value as PatternId),
+                        )
+                      }
+                      className={`h-8 rounded-lg border text-xs font-black px-2 ${isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5] text-[#2A2118]" : "border-white/15 bg-black text-white"}`}
+                    >
+                      {PATTERN_IDS.map((pid) => (
+                        <option key={pid} value={pid}>{pid}</option>
+                      ))}
+                    </select>
+                    {isPlayingEntry && (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#C9A84C]">
+                        {t("beatMaker.arrangementPlaying", { defaultValue: "Playing" })}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button" aria-label={t("beatMaker.arrangementFewerRepeats", { defaultValue: "Fewer repeats" })}
+                        onClick={() => setArrangement((prev) => setArrangementEntryRepeats(prev, i, entry.repeats - 1))}
+                        disabled={entry.repeats <= 1}
+                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors disabled:opacity-40 ${T.pill}`}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className={`text-xs font-bold tabular-nums min-w-[3.5rem] text-center ${T.heading}`}>
+                        <Repeat className="w-3 h-3 inline mr-1 -mt-0.5" />×{entry.repeats}
+                      </span>
+                      <button
+                        type="button" aria-label={t("beatMaker.arrangementMoreRepeats", { defaultValue: "More repeats" })}
+                        onClick={() => setArrangement((prev) => setArrangementEntryRepeats(prev, i, entry.repeats + 1))}
+                        disabled={entry.repeats >= 32}
+                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors disabled:opacity-40 ${T.pill}`}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </span>
+                    <span className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button" aria-label={t("beatMaker.arrangementMoveEarlier", { defaultValue: "Move earlier" })}
+                        onClick={() => setArrangement((prev) => moveArrangementEntry(prev, i, i - 1))}
+                        disabled={i === 0}
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center transition-colors disabled:opacity-40 ${T.pill}`}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button" aria-label={t("beatMaker.arrangementMoveLater", { defaultValue: "Move later" })}
+                        onClick={() => setArrangement((prev) => moveArrangementEntry(prev, i, i + 1))}
+                        disabled={i === arrangement.length - 1}
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center transition-colors disabled:opacity-40 ${T.pill}`}
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button" data-testid={`beat-arr-variation-${i}`}
+                        onClick={() => cloneVariationForEntry(i)}
+                        disabled={!hasFreePatternSlot || sourceEmpty}
+                        title={t("beatMaker.arrangementVariationHint", { defaultValue: "Clone this pattern into a free slot and point this entry at the clone — edit the clone without touching the original" })}
+                        className={`px-2.5 h-7 rounded-md border text-[11px] font-bold flex items-center gap-1 transition-colors disabled:opacity-40 ${T.pill}`}
+                      >
+                        <Copy className="w-3 h-3" /> {t("beatMaker.arrangementVariation", { defaultValue: "Variation" })}
+                      </button>
+                      <button
+                        type="button" aria-label={t("beatMaker.arrangementRemove", { defaultValue: "Remove entry" })}
+                        onClick={() => setArrangement((prev) => removeArrangementEntry(prev, i))}
+                        className={`w-7 h-7 rounded-md border flex items-center justify-center transition-colors ${T.pill} hover:!border-red-400/60`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button" data-testid="beat-arr-clear"
+                onClick={() => setArrangement([])}
+                className={`px-3 py-1.5 rounded-full text-xs border flex items-center gap-1.5 transition-colors ${T.pill} hover:!border-red-400/60`}
+              >
+                <Trash2 className="w-3.5 h-3.5" /> {t("beatMaker.arrangementClear", { defaultValue: "Clear chain" })}
+              </button>
+              {!hasFreePatternSlot && (
+                <span className={`text-xs ${T.dim}`}>
+                  {t("beatMaker.arrangementNoFreeSlot", { defaultValue: "All four pattern slots are in use — clear one to make a variation." })}
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Export + handoffs */}
       <div className="flex flex-wrap gap-2 pt-1">
         <Button
@@ -1074,6 +1453,11 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
           {t("beatMaker.exportWavFree", { defaultValue: "Export WAV (free)" })}
         </Button>
+        {songActive && (
+          <span className={`text-xs self-center ${T.dim}`} data-testid="beat-export-song-note">
+            {t("beatMaker.exportSongNote", { defaultValue: "Song mode: the export bounces the whole chain — {{bars}} bars, every pattern in order.", bars: chainBars })}
+          </span>
+        )}
         <Button
           onClick={sendToVisualVibes}
           disabled={sending}
