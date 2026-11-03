@@ -38,7 +38,17 @@
  *     EXACTLY the v1 gains (1.0 / 1.4) — legacy-identical by
  *     construction, and proven by test. The 808 bass line has no
  *     accent state, so its gain is the velocity itself (v1: 1.0).
+ *
+ * W2-L2 (additive): each drum track carries a sound assignment —
+ * `trackSounds[trackIndex]` is a sound-registry id (lib/beat-sounds.ts)
+ * and `trackSoundNames[trackIndex]` its display name at assignment time
+ * (so an upload whose bytes live only in this session can still be named
+ * honestly after a reload, when playback falls back to the synth voice).
+ * Older projects without these fields normalize to the built-in synth
+ * voices — exactly the sounds they always played.
  */
+
+import { defaultSoundIdForTrack, normalizeTrackSoundId } from "@/lib/beat-sounds";
 
 export type BeatPatternId = "A" | "B" | "C" | "D";
 export const BEAT_PATTERN_IDS: BeatPatternId[] = ["A", "B", "C", "D"];
@@ -120,6 +130,15 @@ export interface BeatProject {
   mixer: BeatMixerState;
   arrangement: BeatArrangementEntry[];
   mode: BeatTransportMode;
+  /** W2-L2: sound-registry id per drum track, index-aligned with the
+   *  tracks (like the mixer arrays). Defaults to the built-in synth
+   *  voice for that track. Project-wide, not per-pattern — the same
+   *  composition as the mixer state. */
+  trackSounds: string[];
+  /** W2-L2: display name captured when a non-synth sound was assigned
+   *  (uploads especially), index-aligned with trackSounds; null for
+   *  built-in voices / when no name was captured. */
+  trackSoundNames: (string | null)[];
 }
 
 /* ─── Factories ────────────────────────────────────────────────────────── */
@@ -276,6 +295,15 @@ export function defaultBeatMixer(): BeatMixerState {
   };
 }
 
+/** The default per-track sound assignments: the built-in synth voices. */
+export function defaultTrackSounds(): string[] {
+  return Array.from({ length: BEAT_TRACK_COUNT }, (_, i) => defaultSoundIdForTrack(i));
+}
+
+export function defaultTrackSoundNames(): (string | null)[] {
+  return Array(BEAT_TRACK_COUNT).fill(null);
+}
+
 /** A fresh project: empty patterns, classic pattern-loop behavior.
  *  `seed` optionally supplies pattern A (the page seeds its preset). */
 export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
@@ -293,6 +321,8 @@ export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
     mixer: defaultBeatMixer(),
     arrangement: [],
     mode: "pattern",
+    trackSounds: defaultTrackSounds(),
+    trackSoundNames: defaultTrackSoundNames(),
   };
 }
 
@@ -390,6 +420,47 @@ function normalizeMixer(raw: unknown): BeatMixerState {
   };
 }
 
+function normalizeTrackSounds(raw: unknown): string[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return Array.from({ length: BEAT_TRACK_COUNT }, (_, i) =>
+    normalizeTrackSoundId(arr[i], i),
+  );
+}
+
+function normalizeTrackSoundNames(
+  raw: unknown,
+  trackSounds: string[],
+): (string | null)[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return Array.from({ length: BEAT_TRACK_COUNT }, (_, i) => {
+    const v = arr[i];
+    // A built-in synth assignment never carries a captured name.
+    if (trackSounds[i] === defaultSoundIdForTrack(i)) return null;
+    return typeof v === "string" && v.trim() !== "" ? v.trim().slice(0, 120) : null;
+  });
+}
+
+/** Pure op: assign a registry sound to one track (immutable). */
+export function setTrackSound(
+  project: BeatProject,
+  trackIndex: number,
+  soundId: string,
+  soundName?: string | null,
+): BeatProject {
+  if (trackIndex < 0 || trackIndex >= BEAT_TRACK_COUNT) return project;
+  const trackSounds = project.trackSounds.map((s, i) =>
+    i === trackIndex ? normalizeTrackSoundId(soundId, trackIndex) : s,
+  );
+  const trackSoundNames = project.trackSoundNames.map((n, i) =>
+    i === trackIndex
+      ? trackSounds[i] === defaultSoundIdForTrack(i)
+        ? null
+        : (soundName?.trim().slice(0, 120) || null)
+      : n,
+  );
+  return { ...project, trackSounds, trackSoundNames };
+}
+
 export function normalizeArrangement(raw: unknown): BeatArrangementEntry[] {
   if (!Array.isArray(raw)) return [];
   const out: BeatArrangementEntry[] = [];
@@ -418,6 +489,9 @@ export function normalizeBeatProject(raw: unknown): BeatProject | null {
   for (const id of BEAT_PATTERN_IDS) {
     patterns[id] = normalizePattern(r.patterns?.[id]);
   }
+  const trackSounds = normalizeTrackSounds(
+    (r as { trackSounds?: unknown }).trackSounds,
+  );
   return {
     version: 2,
     patterns,
@@ -429,6 +503,11 @@ export function normalizeBeatProject(raw: unknown): BeatProject | null {
     mixer: normalizeMixer(r.mixer),
     arrangement: normalizeArrangement(r.arrangement),
     mode: r.mode === "song" ? "song" : "pattern",
+    trackSounds,
+    trackSoundNames: normalizeTrackSoundNames(
+      (r as { trackSoundNames?: unknown }).trackSoundNames,
+      trackSounds,
+    ),
   };
 }
 
