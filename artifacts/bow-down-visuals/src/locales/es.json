@@ -342,7 +342,7 @@
           {
             "title": "Termina Mi Canción",
             "description": "Sube tu demo sin terminar — la IA escribe el resto y lo produce.",
-            "cost": "2 VB/min"
+            "cost": "400 VB/min"
           },
           {
             "title": "Escalar",
@@ -368,7 +368,7 @@
           {
             "title": "Trend Jacker",
             "description": "Detecta la tendencia, lanza tu versión en minutos.",
-            "cost": "1 VB/publicación"
+            "cost": "200 VB/publicación"
           }
         ]
       },

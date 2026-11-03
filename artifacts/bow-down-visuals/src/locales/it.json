@@ -342,7 +342,7 @@
           {
             "title": "Finish My Song",
             "description": "Carica il tuo demo incompiuto — l'AI scrive il resto e lo produce.",
-            "cost": "2 VB/min"
+            "cost": "400 VB/min"
           },
           {
             "title": "Upscale",
@@ -368,7 +368,7 @@
           {
             "title": "Trend Jacker",
             "description": "Individua il trend, pubblica la tua versione in pochi minuti.",
-            "cost": "1 VB/post"
+            "cost": "200 VB/post"
           }
         ]
       },

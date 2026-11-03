@@ -342,7 +342,7 @@
           {
             "title": "Voix off IA",
             "description": "Narration de qualité studio avec n'importe quelle voix.",
-            "cost": "2 VB/min"
+            "cost": "400 VB/min"
           },
           {
             "title": "Haut de gamme",
@@ -368,7 +368,7 @@
           {
             "title": "Planificateur",
             "description": "Publication auto sur Instagram, TikTok et Facebook.",
-            "cost": "1 VB/poste"
+            "cost": "200 VB/poste"
           }
         ]
       },

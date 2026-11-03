@@ -465,7 +465,7 @@
             "title": "Visual Vibes"
           },
           {
-            "cost": "2 VB/min",
+            "cost": "400 VB/min",
             "description": "Envie sua demo inacabada — a IA escreve o resto e produz para você.",
             "title": "Finish My Song"
           },
@@ -491,7 +491,7 @@
             "title": "Estúdio de Ganchos"
           },
           {
-            "cost": "1 VB/post",
+            "cost": "200 VB/post",
             "description": "Identifique a tendência e lance sua versão em minutos.",
             "title": "Trend Jacker"
           }
