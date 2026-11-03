@@ -1,5 +1,6 @@
 /* ─── The Screen panel's Go-Live desks, as one lazy unit ───────
-   The seven Live desks (Live Wave I + II) render only inside the
+   The seven Live desks (Live Wave I + II) plus the Live Shopping
+   desk (parity wave 1) render only inside the
    World's Screen panel, yet they rode the /world first-load graph
    statically through pages/world.tsx. This wrapper exists so the
    page can hold them behind the same lazy() door the station
@@ -16,6 +17,7 @@ import {
   LiveWatchDesk,
   LivePremiereDesk,
 } from "./LiveDesk";
+import { LiveShoppingDesk } from "./LiveShoppingDesk";
 
 export interface LiveDesksPanelProps {
   isLight: boolean;
@@ -42,6 +44,12 @@ export default function LiveDesksPanel({ isLight, screen, onStreamChange }: Live
       <LiveControllerDesk isLight={isLight} />
       <LiveWatchDesk isLight={isLight} screen={screen} />
       <LivePremiereDesk isLight={isLight} />
+      {/* World parity wave 1, item 1: Live Shopping — pin products
+          to a live selling session, the pinned card + purchase
+          alerts + per-stream revenue, on the 2D page's own rails;
+          buying is embedded-first with the by-design new-tab
+          fallback (see LiveShoppingDesk). Same members-only panel. */}
+      <LiveShoppingDesk isLight={isLight} />
     </div>
   );
 }
