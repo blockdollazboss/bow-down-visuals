@@ -69,6 +69,36 @@ export const freeAiLimiter = rateLimit({
 });
 
 /**
+ * Per-member hourly limiter for FREE chat voice transcription
+ * (POST /chat/voice/transcribe — stack1400 ruling #42, spend-pacing).
+ * The endpoint charges 0 credits by design, so every call's provider
+ * cost lands on the house; without a per-member cap one account can
+ * loop it and burn shared provider quota. 60 transcriptions per hour
+ * per member — far above real chat use (an utterance is a sentence,
+ * not a song file; the route's 30s / 5 MB caps already block files),
+ * useless for scripted abuse. This is deliberately NOT freeAiLimiter
+ * (30/hr): the ruling sets 60/hr for this rail. Keys on userId, same
+ * as generationLimiter, and carries the house admin skip. The
+ * 30/min-per-IP publicApiLimiter stays mounted on the route as a
+ * backstop; this limiter is the per-member pacing wall.
+ */
+export const chatVoiceTranscribeLimiter = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: skipIfAdmin,
+  keyGenerator: (req) => {
+    // Prefer authenticated user ID; fall back to IP (IPv6-safe helper)
+    const userId = (req as { userId?: string }).userId;
+    return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: {
+    error: "You've hit the hourly limit for chat voice transcription. Please try again later.",
+  },
+});
+
+/**
  * Tighter per-user hourly limiter for FREE endpoints whose provider
  * calls are expensive per request (video generation, lip-sync job
  * creation, voice cloning). 5 requests per hour per user still lets
