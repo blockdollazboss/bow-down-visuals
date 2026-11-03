@@ -16,6 +16,16 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { BeatMelodyRoll } from "@/components/beat-studio/BeatMelodyRoll";
+import {
+  BEAT_MELODIC_VOICES,
+  beatLaneToMidi,
+  cloneBeatMelody,
+  emptyBeatMelody,
+  notesStartingAtStep,
+  type BeatMelodyLanes,
+} from "@/lib/beat-melody";
+import { scheduleMidiVoice } from "@/lib/midi-synth";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
 import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
 import { useAuth } from "@/contexts/AuthContext";
@@ -433,7 +443,7 @@ function noiseBurst(
 
 /* Presets — classic starting patterns. Values: 0 = off, 1 = hit, 2 = accent.
    Rows: kick,snare,clap,chat,ohat,808,perc,shk,crash. Bass: MIDI notes per step (null = rest). */
-const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; grid: number[][]; bass: (number | null)[] }> = {
+const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; grid: number[][]; bass: (number | null)[]; melody?: BeatMelodyLanes }> = {
   trap: {
     nameKey: "beatMaker.presetTrap", fallback: "Trap", bpm: 140,
     grid: [
@@ -448,6 +458,22 @@ const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; 
       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ],
     bass: [36,null,null,null,null,null,36,null,null,null,34,null,32,null,31,null],
+    /* Simple melodic seed in the same step shape the roll edits. */
+    melody: {
+      keys: [
+        { id: "seed-trap-keys-1", pitch: 60, startStep: 0, lengthSteps: 2, velocity: 90 },
+        { id: "seed-trap-keys-2", pitch: 63, startStep: 4, lengthSteps: 2, velocity: 85 },
+        { id: "seed-trap-keys-3", pitch: 65, startStep: 8, lengthSteps: 2, velocity: 90 },
+        { id: "seed-trap-keys-4", pitch: 63, startStep: 12, lengthSteps: 2, velocity: 80 },
+      ],
+      pluck: [
+        { id: "seed-trap-pluck-1", pitch: 72, startStep: 2, lengthSteps: 0.5, velocity: 80 },
+        { id: "seed-trap-pluck-2", pitch: 72, startStep: 6, lengthSteps: 0.5, velocity: 80 },
+        { id: "seed-trap-pluck-3", pitch: 70, startStep: 10, lengthSteps: 0.5, velocity: 75 },
+        { id: "seed-trap-pluck-4", pitch: 72, startStep: 14, lengthSteps: 0.5, velocity: 80 },
+      ],
+      pad: [],
+    },
   },
   drill: {
     nameKey: "beatMaker.presetDrill", fallback: "Drill", bpm: 142,
@@ -478,6 +504,18 @@ const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; 
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ],
     bass: [36,null,null,null,null,null,null,null,43,null,null,null,41,null,null,null],
+    melody: {
+      keys: [
+        { id: "seed-boombap-keys-1", pitch: 69, startStep: 0, lengthSteps: 1, velocity: 85 },
+        { id: "seed-boombap-keys-2", pitch: 67, startStep: 4, lengthSteps: 1, velocity: 80 },
+        { id: "seed-boombap-keys-3", pitch: 65, startStep: 10, lengthSteps: 1, velocity: 80 },
+      ],
+      pluck: [],
+      pad: [
+        { id: "seed-boombap-pad-1", pitch: 57, startStep: 0, lengthSteps: 8, velocity: 70 },
+        { id: "seed-boombap-pad-2", pitch: 53, startStep: 8, lengthSteps: 8, velocity: 70 },
+      ],
+    },
   },
   afrobeats: {
     nameKey: "beatMaker.presetAfrobeats", fallback: "Afrobeats", bpm: 102,
@@ -520,17 +558,17 @@ const BASS_HI = 47;
 
 type PatternId = "A" | "B" | "C" | "D";
 const PATTERN_IDS: PatternId[] = ["A", "B", "C", "D"];
-interface PatternData { grid: number[][]; bass: (number | null)[] }
+interface PatternData { grid: number[][]; bass: (number | null)[]; melody: BeatMelodyLanes }
 
 function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const [, navigate] = useLocation();
   const [patterns, setPatterns] = useState<Record<PatternId, PatternData>>(() => ({
-    A: { grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass] },
-    B: { grid: emptyGrid(), bass: emptyBass() },
-    C: { grid: emptyGrid(), bass: emptyBass() },
-    D: { grid: emptyGrid(), bass: emptyBass() },
+    A: { grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass], melody: cloneBeatMelody(PRESETS.trap.melody ?? emptyBeatMelody()) },
+    B: { grid: emptyGrid(), bass: emptyBass(), melody: emptyBeatMelody() },
+    C: { grid: emptyGrid(), bass: emptyBass(), melody: emptyBeatMelody() },
+    D: { grid: emptyGrid(), bass: emptyBass(), melody: emptyBeatMelody() },
   }));
   const [activePat, setActivePat] = useState<PatternId>("A");
   const [bpm, setBpm] = useState(140);
@@ -546,23 +584,26 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [solo, setSolo] = useState<boolean[]>(() => TRACKS.map(() => false));
   const [bassVol, setBassVol] = useState(0.9);
   const [bassMute, setBassMute] = useState(false);
-  const [bassPaint, setBassPaint] = useState(36); // C2 — pitch painted by bass roll clicks
+  const [showMelody, setShowMelody] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number | null>(null);
   const stepRef = useRef(0);
   const nextTimeRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
-  const clipRef = useRef<{ grid: number[][]; bass: (number | null)[] } | null>(null);
-  const gainCache = useRef(new WeakMap<BaseAudioContext, { drums: GainNode[]; bass: GainNode }>());
+  const clipRef = useRef<PatternData | null>(null);
+  const gainCache = useRef(new WeakMap<BaseAudioContext, { drums: GainNode[]; bass: GainNode; melody: Record<string, GainNode> }>());
 
   const grid = patterns[activePat]!.grid;
   const bass = patterns[activePat]!.bass;
+  const melody = patterns[activePat]!.melody;
   const gridRef = useRef(grid);
   const bassRef = useRef(bass);
+  const melodyRef = useRef(melody);
   const bpmRef = useRef(bpm);
   const swingRef = useRef(swing);
   gridRef.current = grid;
   bassRef.current = bass;
+  melodyRef.current = melody;
   bpmRef.current = bpm;
   swingRef.current = swing;
 
@@ -598,7 +639,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       });
       const bassG = ctx.createGain();
       bassG.connect(ctx.destination);
-      e = { drums, bass: bassG };
+      const melodyGains: Record<string, GainNode> = {};
+      for (const v of BEAT_MELODIC_VOICES) {
+        const gn = ctx.createGain();
+        gn.gain.value = 0.9;
+        gn.connect(ctx.destination);
+        melodyGains[v.id] = gn;
+      }
+      e = { drums, bass: bassG, melody: melodyGains };
       gainCache.current.set(ctx, e);
     }
     return e;
@@ -643,6 +691,17 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       const prev = s > 0 ? bassRef.current[s - 1] : null;
       synthBass(ctx, bn, when, bassG, 1, prev);
     }
+    // Melodic lanes: notes starting on this step (half-step starts fire
+    // half a step later) sound through the midi-synth voices, velocity on.
+    const { melody: melodyGains } = getGains(ctx);
+    for (const v of BEAT_MELODIC_VOICES) {
+      const dest = melodyGains[v.id];
+      if (!dest) continue;
+      for (const { note, offsetSec } of notesStartingAtStep(melodyRef.current[v.id], s, bpmRef.current)) {
+        const [midi] = beatLaneToMidi([note], bpmRef.current, swingRef.current);
+        if (midi) scheduleMidiVoice(ctx, dest, v.id, midi, when + offsetSec);
+      }
+    }
     // UI highlight slightly ahead-safe: update on the audio clock via timeout
     const ms = Math.max(0, (when - ctx.currentTime) * 1000);
     window.setTimeout(() => setStep(s), ms);
@@ -679,7 +738,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
   /* ── grid editing: click toggles, right-click toggles accent ── */
   const patchActive = (fn: (p: PatternData) => PatternData) => {
-    setPatterns((prev) => ({ ...prev, [activePat]: fn({ grid: prev[activePat]!.grid.map((r) => [...r]), bass: [...prev[activePat]!.bass] }) }));
+    setPatterns((prev) => ({ ...prev, [activePat]: fn({ grid: prev[activePat]!.grid.map((r) => [...r]), bass: [...prev[activePat]!.bass], melody: cloneBeatMelody(prev[activePat]!.melody) }) }));
   };
   const toggle = (ti: number, s: number) => {
     patchActive((p) => {
@@ -705,13 +764,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const p = PRESETS[key];
     if (!p) return;
     stop();
-    patchActive(() => ({ grid: p.grid.map((r) => [...r]), bass: [...p.bass] }));
+    patchActive(() => ({ grid: p.grid.map((r) => [...r]), bass: [...p.bass], melody: cloneBeatMelody(p.melody ?? emptyBeatMelody()) }));
     setBpm(p.bpm);
   };
 
   const randomize = () => {
     stop();
-    patchActive(() => ({
+    patchActive((cur) => ({
+      melody: cur.melody,
       grid: TRACKS.map((_, ti) =>
         Array.from({ length: STEPS }, (_, s) => {
           const density = [0.35, 0.14, 0.1, 0.75, 0.08, 0.3, 0.22, 0.4, 0.05][ti] ?? 0.2;
@@ -729,16 +789,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   /* ── patterns A/B/C/D ── */
   const copyPattern = () => {
     const p = patterns[activePat]!;
-    clipRef.current = { grid: p.grid.map((r) => [...r]), bass: [...p.bass] };
+    clipRef.current = { grid: p.grid.map((r) => [...r]), bass: [...p.bass], melody: cloneBeatMelody(p.melody) };
   };
   const pastePattern = () => {
     if (!clipRef.current) return;
     const c = clipRef.current;
-    patchActive(() => ({ grid: c.grid.map((r) => [...r]), bass: [...c.bass] }));
+    patchActive(() => ({ grid: c.grid.map((r) => [...r]), bass: [...c.bass], melody: cloneBeatMelody(c.melody) }));
   };
   const clearPattern = () => {
     stop();
-    patchActive(() => ({ grid: emptyGrid(), bass: emptyBass() }));
+    patchActive(() => ({ grid: emptyGrid(), bass: emptyBass(), melody: emptyBeatMelody() }));
   };
 
   /* ── tap tempo ── */
@@ -762,7 +822,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const sampleRate = 44100;
     const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
     applyMixer(off, vol, mute, solo, bassVol, bassMute);
-    const { drums, bass: bassG } = getGains(off);
+    const { drums, bass: bassG, melody: melodyGains } = getGains(off);
     const g = gridRef.current;
     const bn = bassRef.current;
     const sw = swingRef.current;
@@ -775,6 +835,19 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       });
       const note = bn[si];
       if (note != null) synthBass(off, note, tt, bassG, 1, si > 0 ? bn[si - 1] : null);
+    }
+    // Melodic lanes render into the same offline graph through the same
+    // midi-synth voices as live playback (per bar, swing applied by the
+    // step→seconds conversion in lib/beat-melody).
+    const barDur = STEPS * stepDur;
+    for (let bar = 0; bar < bars; bar++) {
+      for (const v of BEAT_MELODIC_VOICES) {
+        const dest = melodyGains[v.id];
+        if (!dest) continue;
+        for (const midi of beatLaneToMidi(melodyRef.current[v.id], bpmRef.current, sw)) {
+          scheduleMidiVoice(off, dest, v.id, midi, bar * barDur + midi.start);
+        }
+      }
     }
     const rendered = await off.startRendering();
     const blob = audioBufferToWav(rendered);
@@ -920,6 +993,13 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Piano className="w-3.5 h-3.5" /> {t("beatMaker.bassline", { defaultValue: "808 Bass" })}
         </button>
+        <button aria-expanded={showMelody}
+          type="button"
+          onClick={() => setShowMelody((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showMelody ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
+        >
+          <Piano className="w-3.5 h-3.5" /> {t("beatMaker.melody", { defaultValue: "Melody" })}
+        </button>
       </div>
 
       {/* Drum grid — click toggles, right-click toggles accent */}
@@ -1003,20 +1083,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           <div className="flex items-center justify-between">
             <p className={`text-xs font-black uppercase tracking-wider ${T.label}`}>
               {t("beatMaker.bassTitle", { defaultValue: "808 Bassline" })}
-              <span className={`ml-2 font-medium normal-case ${T.dim}`}>{t("beatMaker.bassHint", { defaultValue: "Click a cell to place the selected pitch · click again to clear" })}</span>
+              {/* The row you click IS the pitch — the old "Pitch" dropdown
+                  set a paint pitch nothing ever read, so it was removed. */}
+              <span className={`ml-2 font-medium normal-case ${T.dim}`}>{t("beatMaker.bassHint", { defaultValue: "Click a cell to place that pitch · click again to clear" })}</span>
             </p>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-xs ${T.label}`}>{t("beatMaker.bassPitch", { defaultValue: "Pitch" })}</span>
-              <select aria-label={t("beatMaker.bassPitch", { defaultValue: "Pitch" })}
-                value={bassPaint}
-                onChange={(e) => setBassPaint(Number(e.target.value))}
-                className={`h-8 rounded-lg border text-xs font-bold px-2 ${isLight ? "border-[#c9a84c]/40 bg-[#FDFBF5] text-[#2A2118]" : "border-white/15 bg-black text-white"}`}
-              >
-                {Array.from({ length: BASS_HI - BASS_LO + 1 }, (_, i) => BASS_LO + i).map((m) => (
-                  <option key={m} value={m}>{midiToNoteName(m)}</option>
-                ))}
-              </select>
-            </div>
           </div>
           <div className="overflow-x-auto">
             <div className="min-w-[640px]">
@@ -1062,6 +1132,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Melodic piano roll — Keys / Pluck / Pad lanes for this pattern */}
+      {showMelody && (
+        <BeatMelodyRoll
+          melody={melody}
+          onChange={(next) => patchActive((p) => ({ ...p, melody: next }))}
+          currentStep={step}
+          playing={playing}
+        />
       )}
 
       {/* Export + handoffs */}
