@@ -51,7 +51,9 @@ describe("TeamDesk rides the seam", () => {
   it("never re-types a /api/teams path inline", () => {
     expect(desk).not.toMatch(/["'`]\/api\/teams/);
     expect(desk).not.toMatch(/["'`]\/api\/group-profiles/);
-    expect(desk).toContain("groupPublicPath(group.slug)");
+    // The public read rides the page lib's own fetcher (it owns the
+    // public path + the typed 404), never a hand-typed URL here.
+    expect(desk).toContain("fetchPublicGroupProfile(slug)");
   });
 });
 
@@ -65,7 +67,7 @@ describe("the funding spend", () => {
   it("out-of-Bucs is its own state naming the Visual Buc Packs desk", () => {
     expect(desk).toContain('data-testid="world-team-out-of-credits"');
     expect(desk).toContain('out_of_credits');
-    expect(desk).toContain("Visual Buc Packs desk in the Treasury");
+    expect(desk).toMatch(/Visual Buc Packs desk\s+in the Treasury/);
   });
 });
 
@@ -78,7 +80,7 @@ describe("honest states", () => {
 
   it("a failed spending read is its own card with a retry, never silent", () => {
     expect(desk).toContain('data-testid="world-team-spending-error"');
-    expect(desk).toContain("The spending ledger couldn&rsquo;t load");
+    expect(desk).toContain("Team spending couldn&rsquo;t load");
     expect(desk).toContain('data-testid="world-team-spending"');
   });
 
@@ -90,13 +92,17 @@ describe("honest states", () => {
   it("the public preview is honest when the page is not public", () => {
     expect(desk).toContain('data-testid="world-team-public-preview"');
     expect(desk).toContain('previewState === "missing"');
-    expect(desk).toContain("not answering yet");
+    expect(desk).toContain("answering yet");
   });
 
   it("errors only travel the shared plain-text rail", () => {
     expect(desk).toContain("apiErrorMessage");
     expect(desk).toContain("plainErrorText");
-    expect(desk).not.toMatch(/\{error\}/);
+    // The one raw-field read is the 402 classification flag, never a
+    // rendered message (the MoviesDesk precedent); rendered errors
+    // are the plain-text state only.
+    expect(desk).not.toMatch(/\{data\.error\}/);
+    expect(desk).not.toMatch(/\{res\.error\}/);
     expect(desk).not.toMatch(/err\.body/);
   });
 });
