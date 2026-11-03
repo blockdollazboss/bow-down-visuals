@@ -26,6 +26,7 @@ import { startPresaveReleaseSweeper } from "./lib/presave-release-notify";
 import { startViralSpikeSweeper } from "./lib/viral-spike-service";
 import { startProductDropSweeper } from "./lib/product-drop-notify";
 import { startEmailAutomationSweeper } from "./lib/email-automations";
+import { startTempBucsExpiryWarningSweeper } from "./lib/temp-bucs-expiry-warning";
 import { startJobPoller } from "./lib/job-poller";
 import { startMemoryWatchdog, setMemoryCriticalHandler } from "./lib/memory-watchdog";
 import { startRtmpIngestServer } from "./lib/rtmp-ingest";
@@ -164,6 +165,14 @@ const server = app.listen(port, (err) => {
   // through the tracked campaign rail. DB-claimed per trigger, so a
   // restart or a second instance can never double-email a fan.
   startEmailAutomationSweeper();
+  // Temporary Bucs expiry warnings (stack1400 ruling #12, migration
+  // 0317): a member whose temporary pool is inside its final 3 days
+  // gets ONE warning email (amount + exact expiry date, from the same
+  // composition the balance display reads), claimed insert-first on
+  // the temp_bucs_expiry_warnings ledger so no sweep, race, or
+  // restart ever sends twice for the same pool. Suppression is
+  // re-checked at send time and is absolute.
+  startTempBucsExpiryWarningSweeper();
 
   // Server-owned background poller: drives lip-sync jobs through Sync.so's
   // long runs and raises exactly-once completion notifications — no tab needed.
