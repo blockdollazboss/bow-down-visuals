@@ -23,9 +23,10 @@
  *    removing the owner, no admin removing a peer admin. The detail
  *    DTO carries per-member can_remove / assignable_roles computed
  *    from the same rules so clients render only honourable controls.
- *  F5 — The owner-leave refusal pointed at a handoff flow that does
- *    not exist ("hand off ownership first"); the copy now says the
- *    handoff isn't possible yet.
+ *  F5 — The owner-leave refusal pointed at a handoff flow that did
+ *    not exist ("hand off ownership first"); stack1100 made the copy
+ *    admit that, and stack1400 ruling #10 built the transfer door, so
+ *    the copy now points at the real handoff.
  *
  * Harness mirrors community-forum.test.ts: the REAL router + REAL
  * table objects, a fake db that renders drizzle conditions with
@@ -482,12 +483,17 @@ describe("F2 — direct join honours the join-questions gate", () => {
   });
 });
 
-describe("F5 — the owner-leave refusal names no phantom handoff", () => {
-  it("owner leave is refused with copy that admits the handoff doesn't exist yet", async () => {
+describe("F5 — the owner-leave refusal names the handoff that now exists", () => {
+  /* Stack1400 ruling #10 supersedes the stack1100 copy: the transfer
+     door (POST /groups/:slug/transfer) is real now, so the refusal
+     points AT it instead of admitting it doesn't exist. The full
+     transfer behaviour is pinned in
+     community-groups-transfer-settings.test.ts. */
+  it("owner leave is refused with copy that points at the transfer door", async () => {
     const r = await call("POST", "/groups/wave-makers/leave", "owner-token");
     expect(r.status).toBe(400);
-    expect(r.json.error).not.toMatch(/hand off ownership first/i);
-    expect(r.json.error).toMatch(/can't be handed off yet/i);
+    expect(r.json.error).toMatch(/transfer ownership/i);
+    expect(r.json.error).not.toMatch(/can't be handed off yet/i);
     expect(memberRow(OWNER)).toBeDefined();
   });
 });

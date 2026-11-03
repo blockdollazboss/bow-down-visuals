@@ -2,7 +2,7 @@ import { plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { Users, Crown, Trash2, Send, Megaphone, ShieldAlert, Hash, MessagesSquare, Pin, Lock, ArrowLeft, Plus, Ban } from "lucide-react";
+import { Users, Crown, Trash2, Send, Megaphone, ShieldAlert, Hash, MessagesSquare, Pin, Lock, ArrowLeft, Plus, Ban, Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCommunityApi, ShareButton, Loading, ErrorBox, profileLink, timeAgo,
@@ -15,7 +15,11 @@ import { GroupOnboarding } from "@/components/trust/GroupOnboarding";
 /* ─── /groups/:slug — group detail ─────────────────────────────────────────
    About / feed / members. Join & chat never gated (1 star). Moderation tools
    (remove member, delete posts) sit at 4+ stars; broadcast DMs at 5+.
-   Money path: owners get the paid-tier nudge -> /memberships. */
+   Money path: owners get the paid-tier nudge -> /memberships.
+   Group settings (stack1400 ruling #10): name / description / cover /
+   public-private, edited by owner+admin from the About tab; ownership
+   transfer (owner only) rides the Members tab's "Make owner" button.
+   Group deletion stays admin-assisted — no delete control here. */
 
 interface ProfileCard { slug: string; displayName: string; avatarUrl: string | null }
 interface GroupDetail {
@@ -108,6 +112,15 @@ export default function GroupDetail() {
   const [broadcast, setBroadcast] = useState("");
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  /* Group settings form (owner/admin): seeded from the loaded group
+     when opened; save sends only what actually changed. A blank cover
+     field on a group that HAS a cover means "clear it" (explicit null
+     on the wire — the API's absent-vs-null rule). */
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsDesc, setSettingsDesc] = useState("");
+  const [settingsCover, setSettingsCover] = useState("");
+  const [settingsPublic, setSettingsPublic] = useState(true);
   /* Forum state: channel list -> threads of the open channel -> one
      open thread with its replies. Loaded lazily on first forum visit. */
   const [channels, setChannels] = useState<ForumChannel[]>([]);
@@ -226,6 +239,44 @@ export default function GroupDetail() {
     if (!window.confirm("Unban this person? They'll be able to join the group again.")) return;
     try { await api.del(`/api/groups/${slug}/bans/${userId}`); setNotice("Unbanned — they can join again."); await loadBans(); }
     catch (e) { setNotice(plainErrorText(e, "Couldn't unban them.")); }
+  /* ── Group settings + ownership (stack1400 ruling #10) ─────────────── */
+  function openSettings() {
+    if (!group) return;
+    setSettingsName(group.name);
+    setSettingsDesc(group.description);
+    setSettingsCover(group.cover_url ?? "");
+    setSettingsPublic(group.is_public);
+    setShowSettings(true);
+  }
+  async function saveSettings() {
+    if (!group) return;
+    const patch: { name?: string; description?: string; cover_url?: string | null; is_public?: boolean } = {};
+    if (settingsName.trim() && settingsName.trim() !== group.name) patch.name = settingsName.trim();
+    if (settingsDesc !== group.description) patch.description = settingsDesc;
+    const cover = settingsCover.trim();
+    if (cover && cover !== group.cover_url) patch.cover_url = cover;
+    if (!cover && group.cover_url) patch.cover_url = null;
+    if (settingsPublic !== group.is_public) patch.is_public = settingsPublic;
+    if (Object.keys(patch).length === 0) { setNotice("Nothing changed."); setShowSettings(false); return; }
+    setBusy(true);
+    try {
+      await api.patch(`/api/groups/${slug}`, patch);
+      setNotice("Group settings saved.");
+      setShowSettings(false);
+      await load();
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't save settings.")); }
+    finally { setBusy(false); }
+  }
+  async function transferOwnership(m: Member) {
+    const name = m.profile?.displayName ?? "this member";
+    if (!window.confirm(`Hand ownership of "${group?.name}" to ${name}? They become the owner and you step into the role they hold now. Only the new owner can hand it back.`)) return;
+    setBusy(true);
+    try {
+      await api.post(`/api/groups/${slug}/transfer`, { user_id: m.user_id });
+      setNotice(`👑 ${name} owns the crew now.`);
+      await load();
+    } catch (e) { setNotice(plainErrorText(e, "Couldn't transfer ownership.")); }
+    finally { setBusy(false); }
   }
   async function sendBroadcast() {
     if (!broadcast.trim()) return;
@@ -401,6 +452,8 @@ export default function GroupDetail() {
   const isOwner = viewerRole === "owner";
   const isMod = viewerRole === "owner" || viewerRole === "admin" || viewerRole === "mod" || viewerRole === "moderator";
   const isMember = !!viewerRole;
+  /* Settings editing rides the ladder's editSettings rung (admin+). */
+  const canEditSettings = viewerRole === "owner" || viewerRole === "admin";
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -463,6 +516,39 @@ export default function GroupDetail() {
               <Link href="/events" className="text-[#e8c86a]/80 hover:text-[#e8c86a]">→ Upcoming events</Link>
               <Link href="/explore" className="text-[#e8c86a]/80 hover:text-[#e8c86a]">→ Explore everything</Link>
             </div>
+          </div>
+        )}
+
+        {tab === "about" && canEditSettings && (
+          <div className={`mt-4 rounded-3xl border p-5 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+            <div className="flex items-center justify-between">
+              <p className="flex items-center gap-2 font-semibold text-[#e8c86a]">
+                <Settings2 className="h-4 w-4" /> Group settings
+                <span className="text-xs font-normal text-white/40">(owner &amp; admins)</span>
+              </p>
+              <button aria-expanded={showSettings} type="button" onClick={() => (showSettings ? setShowSettings(false) : openSettings())} className={ghostButton}>
+                {showSettings ? "Hide" : "Edit"}
+              </button>
+            </div>
+            {showSettings && (
+              <div className="mt-4 space-y-3">
+                <input aria-label="Group name" value={settingsName} onChange={(e) => setSettingsName(e.target.value)} maxLength={80}
+                  placeholder="Group name" className={goldInput} />
+                <textarea aria-label="Group description" value={settingsDesc} onChange={(e) => setSettingsDesc(e.target.value)} rows={3} maxLength={2000}
+                  placeholder="What is this crew about?" className={goldInput} />
+                <input aria-label="Cover image URL (leave blank to clear the cover)" value={settingsCover} onChange={(e) => setSettingsCover(e.target.value)} maxLength={500}
+                  placeholder="Cover image URL (leave blank to clear the cover)" className={goldInput} />
+                <label className="flex items-center gap-2 text-sm text-white/80">
+                  <input type="checkbox" checked={settingsPublic} onChange={(e) => setSettingsPublic(e.target.checked)} className="h-4 w-4 accent-[#e8c86a]" />
+                  Public group — anyone can find it and see inside. Uncheck for private: members only.
+                </label>
+                <div className="flex justify-end">
+                  <button type="button" onClick={saveSettings} disabled={busy || !settingsName.trim()} className={goldButton}>
+                    {busy ? "Saving…" : "Save settings"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -826,6 +912,12 @@ export default function GroupDetail() {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
+                    {isOwner && m.role !== "owner" && (
+                      <button type="button" onClick={() => transferOwnership(m)} disabled={busy}
+                        className="inline-flex items-center gap-1 text-xs text-[#e8c86a]/80 hover:text-[#e8c86a]" title="Hand ownership of this group to this member">
+                        <Crown className="h-3 w-3" /> Make owner
+                      </button>
+                    )}
                     {m.can_remove && (
                       <button type="button" onClick={() => removeMember(m.user_id)} data-min-stars="4"
                         className="text-xs text-white/40 hover:text-red-400" title="Remove member">

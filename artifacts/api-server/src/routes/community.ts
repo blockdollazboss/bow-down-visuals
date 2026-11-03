@@ -90,6 +90,9 @@ function param(req: Request, name: string): string {
        POST   /groups/:slug/bans            (auth; admin+ on the ladder — ban a member or a non-member; a member is removed as part of the ban)
        GET    /groups/:slug/bans            (auth; admin+ on the ladder — the banned list)
        DELETE /groups/:slug/bans/:userId    (auth; admin+ on the ladder — unban; joining is restored)
+       DELETE /groups/:slug/members/:userId (auth; admin+ on the ladder, target strictly below the actor)
+       PATCH  /groups/:slug                 (auth; owner/admin — group settings: name, description, cover_url, is_public)
+       POST   /groups/:slug/transfer        (auth; owner only — hand ownership to a current member; the two member rows swap rungs and groups.ownerProfileId moves)
      Group forums (0185 — channels inside the group, threads inside a
      channel, replies inside a thread; the group's own visibility and
      role ladder govern every path):
@@ -153,6 +156,22 @@ const createGroupSchema = z.object({
   cover_url: z.string().url().max(500).optional().nullable(),
   is_public: z.boolean().optional().default(true),
 });
+
+/* Group settings edit (stack1400 ruling #10): the same field rules
+   as creation, every field optional, at least one required. cover_url
+   present-as-null clears the cover; absent leaves it alone. */
+const updateGroupSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  description: z.string().max(2000).optional(),
+  cover_url: z.string().url().max(500).optional().nullable(),
+  is_public: z.boolean().optional(),
+}).refine((v) => v.name !== undefined || v.description !== undefined || v.cover_url !== undefined || v.is_public !== undefined, {
+  message: "Nothing to change.",
+});
+
+/* Ownership transfer (stack1400 ruling #10): the target is a user_id,
+   like every other member-addressed door in this router. */
+const transferGroupSchema = z.object({ user_id: uuidSchema });
 
 const groupPostSchema = z.object({
   body: z.string().trim().min(1).max(2000),
@@ -792,7 +811,7 @@ router.post("/groups/:slug/leave", requireAuth, async (req, res) => {
     const role = await membershipRole(group.id, userId);
     if (!role) { res.status(404).json({ error: "You're not in this group." }); return; }
     if (role === "owner") {
-      res.status(400).json({ error: "Owners can't ghost their own crew — ownership can't be handed off yet, so the group stays with you." });
+      res.status(400).json({ error: "Owners can't ghost their own crew — transfer ownership to a member first (Members tab), then you can leave." });
       return;
     }
     await db.delete(groupMembersTable)
@@ -1030,6 +1049,89 @@ router.delete("/groups/:slug/bans/:userId", requireAuth, async (req, res) => {
     if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid user id." }); return; }
     console.error("[community] DELETE /groups/:slug/bans failed", err);
     res.status(500).json({ error: "Couldn't unban them — try again." });
+/* ── GROUPS: settings + ownership (stack1400 ruling #10) ─────────────────
+   Group deletion stays admin-assisted by ruling — there is deliberately
+   NO delete door here. What the owner/admin crew can do themselves:
+   edit the group's settings, and (owner only) hand ownership over. */
+
+/** Group settings edit: owner/admin on the ladder (the editSettings
+ *  rung). Validated exactly like group creation; only the fields sent
+ *  change. The cover rides the mirror-on-save law, same as creation. */
+router.patch("/groups/:slug", requireAuth, async (req, res) => {
+  try {
+    const group = await getGroupBySlug(param(req, "slug"));
+    if (!group) { res.status(404).json({ error: "Group not found." }); return; }
+    const userId = req.userId!;
+    const role = await membershipRole(group.id, userId);
+    if (!canGroupAction(role, "editSettings")) {
+      res.status(403).json({ error: "Only the group owner and admins can change group settings." });
+      return;
+    }
+    const body = updateGroupSchema.parse(req.body);
+    const patch: Partial<{ name: string; description: string; coverUrl: string | null; isPublic: boolean }> = {};
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.description !== undefined) patch.description = body.description;
+    if (body.cover_url !== undefined) {
+      patch.coverUrl = body.cover_url === null
+        ? null
+        : (await mirrorExternalMediaUrl(body.cover_url, { kind: "image", ownerKey: userId })) ?? null;
+    }
+    if (body.is_public !== undefined) patch.isPublic = body.is_public;
+    const [updated] = await db.update(groupsTable).set(patch).where(eq(groupsTable.id, group.id)).returning();
+    res.json({ group: await refreshSupabaseStorageUrlsDeep(toGroupDto(updated ?? group)) });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: err.issues[0]?.message ?? "Invalid input." }); return; }
+    console.error("[community] PATCH /groups/:slug failed", err);
+    res.status(500).json({ error: "Couldn't save the group settings — try again." });
+  }
+});
+
+/** Transfer ownership to a current member (owner only — the ladder's
+ *  transferOwnership rung). The two member rows swap rungs: the target
+ *  takes "owner", the outgoing owner steps into the rung the target
+ *  vacated (normalized — a legacy "mod" hands back "moderator"), so the
+ *  crew keeps its leadership shape and the old owner stays a member
+ *  who can now leave like anyone else. groups.ownerProfileId moves to
+ *  the target's creator profile (null when they have none — the same
+ *  state a profile-less creator's own group starts in). The target is
+ *  promoted BEFORE the actor steps down, so the group never sits
+ *  ownerless mid-swap. */
+router.post("/groups/:slug/transfer", requireAuth, async (req, res) => {
+  try {
+    const group = await getGroupBySlug(param(req, "slug"));
+    if (!group) { res.status(404).json({ error: "Group not found." }); return; }
+    const userId = req.userId!;
+    const role = await membershipRole(group.id, userId);
+    if (!canGroupAction(role, "transferOwnership")) {
+      res.status(403).json({ error: "Only the group owner can hand over ownership." });
+      return;
+    }
+    const { user_id: targetId } = transferGroupSchema.parse(req.body);
+    if (targetId === userId) { res.status(400).json({ error: "You already own this group." }); return; }
+    const targetRole = await membershipRole(group.id, targetId);
+    if (!targetRole) { res.status(404).json({ error: "They're not in this group — ownership can only pass to a current member." }); return; }
+    const steppedDownTo = normalizeGroupRole(targetRole) ?? "member";
+    const targetProfile = await getMyProfile(targetId);
+    await db.update(groupMembersTable).set({ role: "owner" })
+      .where(and(eq(groupMembersTable.groupId, group.id), eq(groupMembersTable.userId, targetId)));
+    await db.update(groupMembersTable).set({ role: steppedDownTo })
+      .where(and(eq(groupMembersTable.groupId, group.id), eq(groupMembersTable.userId, userId)));
+    const [updated] = await db.update(groupsTable).set({ ownerProfileId: targetProfile?.id ?? null })
+      .where(eq(groupsTable.id, group.id)).returning();
+    const myCard = await profileCards([userId]);
+    const who = myCard[userId]?.displayName ?? "The group owner";
+    await notify({
+      userId: targetId,
+      kind: "group_ownership",
+      title: `👑 ${who} handed you ownership of "${group.name}"`,
+      body: "The crew is yours now — settings, members and moderation all answer to you.",
+      link: `/groups/${group.slug}`,
+    });
+    res.json({ ok: true, group: await refreshSupabaseStorageUrlsDeep(toGroupDto(updated ?? group)) });
+  } catch (err) {
+    if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid user id." }); return; }
+    console.error("[community] POST /groups/:slug/transfer failed", err);
+    res.status(500).json({ error: "Couldn't transfer ownership — try again." });
   }
 });
 
