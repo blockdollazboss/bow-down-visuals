@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "e33e31d5dcfcbe7aee4378b5a1e9739df4934f57",
+  "baseCommit": "b2181009ecb043f4f8aed3156d08a85d1aa38684",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-02",
+  "generatedAt": "2026-11-03",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
     "features": 251,
     "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 217,
+    "pricedActions": 218,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
@@ -1174,6 +1174,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -1410,6 +1416,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -1639,6 +1651,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -1859,6 +1877,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2085,6 +2109,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -2305,6 +2335,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2535,6 +2571,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -2759,6 +2801,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2992,6 +3040,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -3215,6 +3269,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -3421,6 +3481,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3654,6 +3720,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -3883,6 +3955,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
