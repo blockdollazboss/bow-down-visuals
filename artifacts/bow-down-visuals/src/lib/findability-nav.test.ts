@@ -33,6 +33,9 @@ const WIRED_KEYS = [
   /* Stack-200 lane 1: the back-office trio's keys — nav.contracts was
      missing from ALL ten locales before this pass. */
   "contracts", "llcGuide", "copyright",
+  /* stack1400 org wave: the Publish door hangs on this key until the
+     labels lane adds a real nav.publish (none exists in any locale). */
+  "releaseChecklist",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
 
@@ -267,6 +270,76 @@ describe("findability — the doors are hung in their home sections", () => {
       expect(read(`../locales/${loc}.json`), `${loc} raw`).not.toContain("Thy Vision");
     }
     expect(readJson("../locales/en.json").notFound.myProjects).toBe("My Projects");
+  });
+});
+
+describe("org wave (stack1400) — the §1b missing-doors census", () => {
+  /* Audit §1b/§5-rank-3 listed 14 signed-in surfaces as having no sidebar
+     door. Re-verified against this tree: 13 already had doors in their
+     home sections (the 2026-10-18 findability pass + Stack-200 lane 1
+     banked them); /publish was the only true orphan. These pins hold the
+     whole census so no door can silently fall off again. */
+  const CENSUS: Array<{ href: string; section: string }> = [
+    { href: "/earnings", section: "nav.getPaid" },
+    { href: "/team", section: "nav.getPaid" },
+    { href: "/contracts", section: "nav.getPaid" },
+    { href: "/copyright", section: "nav.getPaid" },
+    { href: "/llc-guide", section: "nav.getPaid" },
+    { href: "/tips", section: "nav.getPaid" },
+    { href: "/memberships", section: "nav.getPaid" },
+    /* Fan Shoutouts' door was banked in Social (pinned above) — it has
+       a door; the census records where it actually hangs. */
+    { href: "/shoutouts", section: "nav.social" },
+    { href: "/community", section: "nav.social" },
+    { href: "/beats", section: "nav.create" },
+    { href: "/nfc-cards", section: "nav.branding" },
+    { href: "/live-shopping", section: "nav.promote" },
+    { href: "/publish", section: "nav.promote" },
+  ];
+  const SECTION_ORDER = [
+    "nav.myStudio", "nav.create", "nav.branding",
+    "nav.promote", "nav.social", "nav.getPaid",
+  ];
+  const sectionBlock = (titleKey: string) => {
+    const at = sidebar.indexOf(`titleKey: "${titleKey}"`);
+    expect(at, titleKey).toBeGreaterThan(-1);
+    const next = SECTION_ORDER.map((k) => sidebar.indexOf(`titleKey: "${k}"`, at + 1))
+      .filter((i) => i > at);
+    const end = next.length > 0 ? Math.min(...next) : sidebar.indexOf("const FOOTER_LINKS");
+    return sidebar.slice(at, end);
+  };
+
+  it("every census surface is a real route in App.tsx", () => {
+    for (const { href } of [...CENSUS, { href: "/features", section: "footer" }]) {
+      expect(app, href).toContain(`<Route path="${href}">`);
+    }
+  });
+
+  it("every census door renders in its home section and links to its route", () => {
+    for (const { href, section } of CENSUS) {
+      expect(sectionBlock(section), `${href} in ${section}`).toContain(`href: "${href}"`);
+    }
+    const footerBlock = sidebar.slice(
+      sidebar.indexOf("const FOOTER_LINKS"),
+      sidebar.indexOf("function SidebarSection"),
+    );
+    expect(footerBlock, "/features in the sidebar footer").toContain('href: "/features"');
+    expect(footerBlock).toContain('labelKey: "nav.allFeatures"');
+  });
+
+  it("the Publish door — the one true orphan — hangs in Promote with publish aliases", () => {
+    const promote = sectionBlock("nav.promote");
+    expect(promote).toContain('{ href: "/publish", labelKey: "nav.releaseChecklist"');
+    const at = sidebar.indexOf('href: "/publish"');
+    const entry = sidebar.slice(at, sidebar.indexOf("}", at));
+    expect(entry).toContain("searchTerms:");
+    expect(entry.toLowerCase()).toContain("publish");
+  });
+
+  it("renders /publish inside AuthedLayout, so the authed sidebar door leads somewhere real", () => {
+    const shellAt = app.indexOf("<AuthedLayout>");
+    expect(app.slice(shellAt), "/publish inside shell").toContain('<Route path="/publish">');
+    expect(app.slice(0, shellAt), "/publish not outside shell").not.toContain('<Route path="/publish">');
   });
 });
 
