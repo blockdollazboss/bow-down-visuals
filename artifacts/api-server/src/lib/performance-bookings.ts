@@ -184,11 +184,25 @@ export function buildPerformanceEscrowCheckoutKey(args: {
    *  request, not just the booking — a parameter change under a
    *  reused key is what Stripe refuses. */
   requestParams?: unknown;
+  /** Set ONLY when this attempt supersedes a proven-dead (expired /
+   *  abandoned) Checkout session. A re-fund under the original key
+   *  would make Stripe replay the dead session instead of minting a
+   *  payable one, so the new attempt keys on the act PLUS the session
+   *  it replaces: retries of THAT attempt reuse its key (and its one
+   *  session), and a later supersede gets its own. Absent on a first
+   *  attempt, so first-attempt keys are byte-identical to before. */
+  supersededSessionId?: string | null;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.promoterUserId,
     rail: "performance-escrow",
-    purchaseIntent: { bookingId: args.bookingId, feeCents: args.feeCents },
+    purchaseIntent: {
+      bookingId: args.bookingId,
+      feeCents: args.feeCents,
+      ...(args.supersededSessionId
+        ? { supersededSessionId: args.supersededSessionId }
+        : {}),
+    },
     requestFingerprint:
       args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });

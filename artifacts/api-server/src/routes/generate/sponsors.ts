@@ -954,6 +954,14 @@ export function buildSponsorEscrowCheckoutKey(args: {
    *  request, not just the funding act — a parameter change under a
    *  reused key is what Stripe refuses. */
   requestParams?: unknown;
+  /** Set ONLY when this attempt supersedes a proven-dead (expired /
+   *  abandoned) Checkout session. A re-fund under the original key
+   *  would make Stripe replay the dead session instead of minting a
+   *  payable one, so the new attempt keys on the act PLUS the session
+   *  it replaces: retries of THAT attempt reuse its key (and its one
+   *  session), and a later supersede gets its own. Absent on a first
+   *  attempt, so first-attempt keys are byte-identical to before. */
+  supersededSessionId?: string | null;
 }): string {
   return buildCheckoutSessionIdempotencyKey({
     memberId: args.brandUserId,
@@ -962,10 +970,80 @@ export function buildSponsorEscrowCheckoutKey(args: {
       dealId: args.dealId,
       acceptedApplicationId: args.acceptedApplicationId,
       amountCents: args.amountCents,
+      ...(args.supersededSessionId
+        ? { supersededSessionId: args.supersededSessionId }
+        : {}),
     },
     requestFingerprint:
       args.requestParams === undefined ? undefined : fingerprintStripeRequestParams(args.requestParams),
   });
+}
+
+/* ── Abandoned-checkout re-fund (stack1400 item 5) ────────────────────
+   A brand who opened the funding Checkout and walked away left the
+   deal in 'funding' forever: the fund door refused every later attempt
+   ("already funding") and nothing ever freed it — the session's
+   expiry was handled by no webhook branch and no re-fund path. The
+   fix has two doors, both keyed on the STORED session id so neither
+   can free (or double-charge) a live or paid attempt:
+   1. checkout.session.expired (webhook) and the sandbox supersede
+      call freeSponsorEscrowFundingForSession — a guarded flip that
+      only lands while the row is still 'funding' AND still carries
+      that exact session id. Replays land zero rows: idempotent.
+   2. A re-fund attempt lazily reconciles a 'funding' row against
+      Stripe (a missed webhook must not strand the deal either):
+      expired → free it and mint a fresh session; still open → hand
+      back the SAME session (resume, never a second payable one);
+      already paid → refuse (the webhook owns settlement); anything
+      unverifiable → refuse with no state change. */
+
+/** What a stored funding Checkout session's live Stripe state means
+ *  for a re-fund attempt. Pure — pinned by unit tests. */
+export type EscrowCheckoutSessionVerdict = "expired" | "open" | "paid" | "pending";
+
+export function classifyEscrowCheckoutSession(session: {
+  status?: string | null;
+  payment_status?: string | null;
+}): EscrowCheckoutSessionVerdict {
+  if (session.status === "expired") return "expired";
+  if (session.status === "complete" && session.payment_status === "paid") return "paid";
+  if (session.status === "open") return "open";
+  /* complete-but-unpaid (delayed payment settling) or anything
+     unrecognized: not provably dead, not resumable here — the caller
+     fails closed and changes nothing. */
+  return "pending";
+}
+
+/**
+ * Free a deal stuck in 'funding' back to 'unfunded', but ONLY for the
+ * exact session that died. The guard (escrow_status='funding' AND
+ * stripe_session_id = the dead session) is the whole safety story:
+ * a webhook replay, a racing re-fund, or a stale expiry for a session
+ * the deal has already moved past matches zero rows and changes
+ * nothing — and a funded deal can never be freed by it. Returns
+ * whether the flip landed.
+ */
+export async function freeSponsorEscrowFundingForSession(
+  dealId: string,
+  sessionId: string | null,
+): Promise<boolean> {
+  const freed = sessionId
+    ? await db.execute(sql`
+        UPDATE sponsor_deals
+        SET escrow_status = 'unfunded', stripe_session_id = NULL
+        WHERE id = ${dealId} AND escrow_status = 'funding' AND stripe_session_id = ${sessionId}
+        RETURNING id
+      `)
+    : await db.execute(sql`
+        UPDATE sponsor_deals
+        SET escrow_status = 'unfunded', stripe_session_id = NULL
+        WHERE id = ${dealId} AND escrow_status = 'funding' AND stripe_session_id IS NULL
+        RETURNING id
+      `);
+  if (freed.rows.length > 0) {
+    logger.info({ dealId, sessionId }, "[sponsors] stale funding freed — deal is re-fundable");
+  }
+  return freed.rows.length > 0;
 }
 
 /**
@@ -1023,7 +1101,77 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
       res.status(409).json({ error: "Accept a creator's application before funding the deal." });
       return;
     }
-    if (deal.escrow_status !== "unfunded") {
+    /* The session this attempt supersedes, when it frees a proven-dead
+       one below — folded into the new session's idempotency key. */
+    let supersededSessionId: string | null = null;
+    if (deal.escrow_status === "funding") {
+      /* Re-fund reconciliation (stack1400 item 5): 'funding' used to be
+         a life sentence for an abandoned Checkout. Reconcile against
+         the stored session before refusing — see the block comment at
+         freeSponsorEscrowFundingForSession. */
+      const staleSessionId = deal.stripe_session_id;
+      if (!isStripeConfigured()) {
+        /* Sandbox sessions carry no real money and never expire at a
+           provider — an unconfirmed sandbox funding is abandoned by
+           definition (confirm is what moves it to 'funded'), so a
+           re-fund supersedes it with a fresh sandbox session. */
+        const freed = await freeSponsorEscrowFundingForSession(dealId, staleSessionId);
+        if (!freed) {
+          const now = await findDeal(dealId);
+          res.status(409).json({ error: `This deal is already ${now?.escrow_status ?? "funding"}.` });
+          return;
+        }
+        supersededSessionId = staleSessionId;
+      } else {
+        if (!staleSessionId || staleSessionId.startsWith("sandbox_")) {
+          /* No verifiable Stripe session is stored for this funding
+             claim — freeing it on a guess could orphan a payable
+             session. Fail closed, exactly as before. */
+          res.status(409).json({ error: `This deal is already ${deal.escrow_status}.` });
+          return;
+        }
+        let staleSession: Stripe.Checkout.Session;
+        try {
+          staleSession = await createGuardedStripeClient().checkout.sessions.retrieve(staleSessionId);
+        } catch (err) {
+          logger.warn({ err, dealId, staleSessionId }, "[sponsors] could not verify stale funding session — re-fund refused, nothing changed");
+          res.status(503).json({ error: "Couldn't check the earlier checkout just now — no new payment was started. Try again in a moment." });
+          return;
+        }
+        const verdict = classifyEscrowCheckoutSession(staleSession);
+        if (verdict === "expired") {
+          const freed = await freeSponsorEscrowFundingForSession(dealId, staleSessionId);
+          if (!freed) {
+            const now = await findDeal(dealId);
+            res.status(409).json({ error: `This deal is already ${now?.escrow_status ?? "funding"}.` });
+            return;
+          }
+          supersededSessionId = staleSessionId;
+          /* fall through — the deal is 'unfunded' again */
+        } else if (verdict === "open") {
+          /* Still payable: hand back the SAME session. Minting a
+             second one is how a brand pays twice. */
+          if (staleSession.url) {
+            res.json({ sandbox: false, checkoutUrl: staleSession.url, sessionId: staleSession.id, resumed: true });
+            return;
+          }
+          if (staleSession.client_secret) {
+            res.json({ sandbox: false, checkoutUrl: null, clientSecret: staleSession.client_secret, uiMode: "embedded", sessionId: staleSession.id, resumed: true });
+            return;
+          }
+          res.status(409).json({ error: `This deal is already ${deal.escrow_status}.` });
+          return;
+        } else if (verdict === "paid") {
+          /* The money already landed — settlement is webhook-owned;
+             a second session would double-charge the brand. */
+          res.status(409).json({ error: "This deal already paid — the escrow is settling." });
+          return;
+        } else {
+          res.status(409).json({ error: `This deal is already ${deal.escrow_status}.` });
+          return;
+        }
+      }
+    } else if (deal.escrow_status !== "unfunded") {
       res.status(409).json({ error: `This deal is already ${deal.escrow_status}.` });
       return;
     }
@@ -1099,6 +1247,7 @@ router.post("/sponsors/deals/:id/fund", requireAuth, publicApiLimiter, async (re
       acceptedApplicationId: deal.accepted_application_id,
       amountCents,
       requestParams: sessionParams,
+      supersededSessionId,
     });
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     if (embeddedRequested && !session.client_secret) {
