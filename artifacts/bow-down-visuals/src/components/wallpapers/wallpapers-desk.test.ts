@@ -15,6 +15,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getCreditCost } from "../../lib/credit-costs";
+import { WALLPAPER_PACK_OF_10_COUNT } from "../../lib/wallpapers-prices";
 
 const desk = readFileSync(new URL("./WallpapersDesk.tsx", import.meta.url), "utf8");
 
@@ -113,6 +114,39 @@ describe("Stack-28 item 16 — store listing attaches the full set it promises",
     const slice = desk.slice(start, desk.indexOf("async function downloadZip(", start));
     expect(slice).toContain("mediaUrls: [pack.phoneUrl, pack.desktopUrl]");
     expect(slice).not.toContain("mediaUrls: [pack.phoneUrl]");
+  });
+});
+
+describe("Stack1400 audit #6 — pack of 10 wallpapers at the ruled 500", () => {
+  function makePackOf10Body(): string {
+    const start = desk.indexOf("async function makePackOf10()");
+    expect(start, "makePackOf10 exists").toBeGreaterThan(-1);
+    const end = desk.indexOf("async function applyPack()", start);
+    expect(end, "applyPack follows makePackOf10").toBeGreaterThan(start);
+    return desk.slice(start, end);
+  }
+
+  it("drives the real pack rail through the confirmed-charge path at the derived 500", () => {
+    const body = makePackOf10Body();
+    expect(body).toContain('confirmedFetch("/api/wallpapers/pack-of-10"');
+    expect(body).toContain("overrideCost: WALLPAPER_PACK_OF_10_COST");
+    expect(body).toContain("pack10Selected.map((url) => ({ sourceUrl: url, presetKey }))");
+    expect(getCreditCost("/api/wallpapers/pack-of-10")?.cost).toBe(500);
+    expect(WALLPAPER_PACK_OF_10_COUNT).toBe(10);
+  });
+
+  it("only fires at exactly ten picks — the guard and the button both hold the count constant", () => {
+    const body = makePackOf10Body();
+    expect(body).toContain("pack10Selected.length !== WALLPAPER_PACK_OF_10_COUNT");
+    expect(desk).toContain("disabled={pack10Busy || pack10Selected.length !== WALLPAPER_PACK_OF_10_COUNT}");
+    expect(desk).toContain("prev.length >= WALLPAPER_PACK_OF_10_COUNT");
+  });
+
+  it("the pack renders land in Your renders and the pack zip rides the free pack-download rail", () => {
+    const body = makePackOf10Body();
+    expect(body).toContain("setPack10Result(out)");
+    expect(body).toContain("setRenders((prev) => [...out, ...prev])");
+    expect(desk).toContain('downloadZip(pack10Result.map((r) => r.url), "wallpaper-pack-of-10"');
   });
 });
 

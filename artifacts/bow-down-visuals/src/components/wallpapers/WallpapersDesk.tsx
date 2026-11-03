@@ -23,6 +23,8 @@ import {
   WALLPAPER_CLEAN_PACK_COST,
   WALLPAPER_CLEAN_RENDER_COST,
   WALLPAPER_GENERATE_COST,
+  WALLPAPER_PACK_OF_10_COST,
+  WALLPAPER_PACK_OF_10_COUNT,
   WALLPAPER_SCREENSAVER_RENDER_COST,
   WALLPAPER_SCREENSAVER_VIDEO_COST,
 } from "@/lib/wallpapers-prices";
@@ -40,6 +42,9 @@ import {
    price (400 Visual Bucs), stated on the switch before any spend.
    Screensaver loop renders (the living wallpaper) are 300 Visual Bucs
    branded or clean — the owner's Oct 27, 2026 ruled desk price.
+   The pack of 10 (same ruling, built stack1400 for audit #6) is ten
+   clean wallpapers for one flat 500 Visual Bucs charge on
+   /api/wallpapers/pack-of-10 — never ten per-render charges.
 
    LOGO RULE (owner law): a logo is composited ONLY as the complete,
    intact artwork — never cropped, never sliced into parts, never
@@ -102,6 +107,13 @@ export function WallpapersDesk() {
   const [listError, setListError] = useState<string | null>(null);
   const [listedId, setListedId] = useState<string | null>(null);
   const [zipBusy, setZipBusy] = useState(false);
+
+  /* Pack of 10 (stack1400, audit #6) */
+  const [pack10Selected, setPack10Selected] = useState<string[]>([]);
+  const [pack10Busy, setPack10Busy] = useState(false);
+  const [pack10Error, setPack10Error] = useState<string | null>(null);
+  const [pack10Result, setPack10Result] = useState<RenderedImage[] | null>(null);
+  const [pack10ZipBusy, setPack10ZipBusy] = useState(false);
 
   /* Screensaver */
   const [videoPrompt, setVideoPrompt] = useState("");
@@ -308,6 +320,60 @@ export function WallpapersDesk() {
       setPackError(plainErrorText(e, t("wallpapers.renderFailed", { defaultValue: "That render could not be made. Try again in a moment." })));
     } finally {
       setPackBusy(false);
+    }
+  }
+
+  /* ── Pack of 10 clean wallpapers ───────────────────────────────────── */
+  /* Stack1400 (price-accuracy audit #6): the owner-ruled bundle that was
+     never built. The user picks exactly ten pieces from My Art; the rail
+     (POST /api/wallpapers/pack-of-10) charges WALLPAPER_PACK_OF_10_COST
+     exactly once and renders all ten clean at the device size picked
+     above — all-or-nothing, full refund on any failure server-side.
+     The confirmation quote rides the same derived constant the rail
+     charges (overrideCost below), pinned in wallpapers-prices.test.ts. */
+  function togglePack10(url: string) {
+    setPack10Result(null);
+    setPack10Selected((prev) => {
+      if (prev.includes(url)) return prev.filter((u) => u !== url);
+      if (prev.length >= WALLPAPER_PACK_OF_10_COUNT) return prev;
+      return [...prev, url];
+    });
+  }
+
+  async function makePackOf10() {
+    if (pack10Busy || pack10Selected.length !== WALLPAPER_PACK_OF_10_COUNT) return;
+    setPack10Busy(true);
+    setPack10Error(null);
+    try {
+      const res = await confirmedFetch("/api/wallpapers/pack-of-10", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: pack10Selected.map((url) => ({ sourceUrl: url, presetKey })),
+          aiDisclosure,
+        }),
+        overrideCost: WALLPAPER_PACK_OF_10_COST,
+        overrideFeature: "Wallpaper Pack of 10 (clean)",
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as {
+        renders?: Array<{ url: string; presetKey: string; width: number; height: number }>;
+        error?: string; message?: string;
+      };
+      if (!res.ok || !data.renders) {
+        throw new Error(apiErrorMessage(data, t("wallpapers.pack10Failed", { defaultValue: "The pack could not be made. Any charge was refunded — try again in a moment." })));
+      }
+      const out: RenderedImage[] = data.renders.map((r) => {
+        const target = wallpaperPresetByKey(r.presetKey);
+        return { url: r.url, presetKey: r.presetKey, label: target.label, width: r.width, height: r.height };
+      });
+      setPack10Result(out);
+      setRenders((prev) => [...out, ...prev]);
+      refreshProfile();
+    } catch (e) {
+      setPack10Error(plainErrorText(e, t("wallpapers.pack10Failed", { defaultValue: "The pack could not be made. Any charge was refunded — try again in a moment." })));
+    } finally {
+      setPack10Busy(false);
     }
   }
 
@@ -1041,6 +1107,90 @@ export function WallpapersDesk() {
                 </p>
               )}
             </div>
+          </div>
+        )}
+      </section>
+
+      {/* PACK OF 10 — the ruled bundle (stack1400, audit #6): ten clean
+          wallpapers for one flat pack price, picked from My Art and
+          rendered at the device size chosen above. */}
+      <section className={panel} aria-label={t("wallpapers.pack10Title", { defaultValue: "Pack of 10 wallpapers" })}>
+        <h3 className={sectionTitle}>
+          <Package className="h-4 w-4 text-primary" />
+          {t("wallpapers.pack10Title", { defaultValue: "Pack of 10 wallpapers" })}
+        </h3>
+        <p className={`mt-2 text-sm ${isLight ? "text-stone-500" : "text-white/50"}`}>
+          {t("wallpapers.pack10Blurb", { defaultValue: "Pick ten pieces of your art and get all ten as clean wallpapers — no logo, no name — at the device size picked above, for one flat pack price. A single clean render on its own costs more per piece; branded renders stay free one at a time." })}
+        </p>
+        {assetsLoading && (
+          <p className={`mt-4 flex items-center gap-2 text-sm ${isLight ? "text-stone-500" : "text-white/40"}`}>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t("wallpapers.myArtLoading", { defaultValue: "Loading your art…" })}
+          </p>
+        )}
+        {!assetsLoading && imageAssets.length === 0 && (
+          <p className={`mt-4 text-sm ${isLight ? "text-stone-500" : "text-white/40"}`}>
+            {t("wallpapers.pack10Empty", { defaultValue: "No art yet — generate pieces above and they will be waiting here to pick from." })}
+          </p>
+        )}
+        {imageAssets.length > 0 && (
+          <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {imageAssets.map((asset) => {
+              const selected = pack10Selected.includes(asset.url);
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  onClick={() => togglePack10(asset.url)}
+                  aria-pressed={selected}
+                  className={`relative aspect-square overflow-hidden rounded-xl border transition ${
+                    selected ? "border-primary ring-2 ring-primary/50" : "border-white/10 hover:border-primary/50"
+                  }`}
+                  title={asset.label}
+                >
+                  <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" loading="lazy" />
+                  {selected && (
+                    <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-black"><Check className="h-3 w-3" /></span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <p className={`mt-3 text-sm font-bold ${isLight ? "text-stone-600" : "text-white/70"}`}>
+          {pack10Selected.length} / {WALLPAPER_PACK_OF_10_COUNT} {t("wallpapers.pack10Picked", { defaultValue: "picked" })} — {preset.label} ({preset.width} × {preset.height})
+        </p>
+        {pack10Error && <p className="mt-3 text-sm text-red-400">{pack10Error}</p>}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={makePackOf10} disabled={pack10Busy || pack10Selected.length !== WALLPAPER_PACK_OF_10_COUNT} className={goldButton}>
+            {pack10Busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+            {pack10Busy
+              ? t("wallpapers.pack10Making", { defaultValue: "Building your pack…" })
+              : `${t("wallpapers.pack10MakeButton", { defaultValue: "Make my pack of 10, clean" })} — ${WALLPAPER_PACK_OF_10_COST} Visual Bucs`}
+          </button>
+          {pack10Selected.length !== WALLPAPER_PACK_OF_10_COUNT && (
+            <span className={`text-xs ${isLight ? "text-stone-500" : "text-white/40"}`}>
+              {t("wallpapers.pack10Need", { defaultValue: "Pick exactly ten pieces to build the pack." })}
+            </span>
+          )}
+        </div>
+        {pack10Result && (
+          <div className="mt-5">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-primary">
+              <Check className="h-4 w-4" />
+              {t("wallpapers.pack10Done", { defaultValue: "Your pack of 10 is ready — every piece is in Your renders above." })}
+            </p>
+            <button
+              type="button"
+              onClick={() => void downloadZip(pack10Result.map((r) => r.url), "wallpaper-pack-of-10", setPack10ZipBusy, "wallpapers.zipFailed")}
+              disabled={pack10ZipBusy}
+              className={`${ghostButton} mt-3`}
+            >
+              {pack10ZipBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {pack10ZipBusy
+                ? t("wallpapers.zipMaking", { defaultValue: "Preparing…" })
+                : t("wallpapers.pack10ZipButton", { defaultValue: "Download the pack of 10 (.zip)" })}
+            </button>
           </div>
         )}
       </section>

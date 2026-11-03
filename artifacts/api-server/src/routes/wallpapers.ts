@@ -28,6 +28,15 @@ const SCREENSAVER_RENDER_COST = Number(process.env["WALLPAPER_SCREENSAVER_CREDIT
 // from the site's clean-export rail (/api/export-final-video: branded
 // exports free, clean export 400).
 const CLEAN_RENDER_COST = Number(process.env["WALLPAPER_CLEAN_CREDITS"]) || 400;
+// Pack of 10 clean wallpapers — the owner-ruled bundle price (Oct 27, 2026,
+// ruled by delegation; price-accuracy audit #6, Nov 2, 2026: the ruled
+// "pack of 10 = 500" was never built and the desk showed an 800 VB
+// 3-piece clean set instead). One flat charge for exactly ten clean
+// (unbranded) renders — never ten per-render charges. Branded renders
+// stay free and single clean renders stay at CLEAN_RENDER_COST; this
+// pack is the bulk deal between them.
+const PACK_OF_10_COST = Number(process.env["WALLPAPER_PACK10_CREDITS"]) || 500;
+export const PACK_OF_10_COUNT = 10;
 
 export const BRAND_FONT_CANDIDATES = [
   "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -121,7 +130,20 @@ const packDownloadSchema = z.object({
   name: z.string().trim().max(120).optional(),
 });
 
-export { SCREENSAVER_RENDER_COST, CLEAN_RENDER_COST };
+export const packOf10Schema = z.object({
+  items: z
+    .array(
+      z.object({
+        sourceUrl: httpUrlSchema,
+        presetKey: z.string().trim().min(1),
+      }),
+    )
+    .length(PACK_OF_10_COUNT),
+  /** AI disclosure (lane F7): absent = ON; explicit false opts out. */
+  aiDisclosure: z.boolean().optional(),
+});
+
+export { SCREENSAVER_RENDER_COST, CLEAN_RENDER_COST, PACK_OF_10_COST };
 
 export function buildWallpaperScaleFilter(preset: WallpaperPreset): string {
   return `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=increase,crop=${preset.width}:${preset.height}`;
@@ -542,6 +564,100 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
     req.log?.error?.({ err: message }, "[wallpapers] screensaver failed");
     await refundCredits(req.userId!, SCREENSAVER_RENDER_COST, {
       action: "Screensaver Loop Render — Refund",
+    }).catch(() => {});
+    res.status(502).json({ error: message });
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+});
+
+/* Pack of 10 clean wallpapers — ONE flat 500 charge for exactly ten
+   clean (unbranded) renders, all-or-nothing: every preset is validated
+   before the charge, and any render failure refunds the full 500 and
+   answers 502 with no partial pack delivered. Each finished render is
+   recorded in generation history at its share of the pack price
+   (500 / 10 = 50), so the ten history rows sum to the one charge. */
+router.post("/wallpapers/pack-of-10", requireAuth, async (req, res) => {
+  const parsed = packOf10Schema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    validationError(res, parsed);
+    return;
+  }
+  const presets: WallpaperPreset[] = [];
+  for (const item of parsed.data.items) {
+    const preset = presetByKey(item.presetKey);
+    if (!preset) {
+      res.status(400).json({ error: "Invalid request.", details: [{ field: "presetKey", message: "unknown preset" }] });
+      return;
+    }
+    presets.push(preset);
+  }
+
+  const currentCredits = req.userCredits ?? 0;
+  if (currentCredits < PACK_OF_10_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
+    });
+    return;
+  }
+  try {
+    await chargeCredits(req.userId!, PACK_OF_10_COST, {
+      action: "Wallpaper Pack of 10",
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
+      return;
+    }
+    throw err;
+  }
+
+  const workDir = await mkdtemp(join(tmpdir(), "wallpaper-pack10-"));
+  try {
+    const renders: Array<{ url: string; presetKey: string; width: number; height: number }> = [];
+    for (let i = 0; i < parsed.data.items.length; i++) {
+      const item = parsed.data.items[i]!;
+      const preset = presets[i]!;
+      const inputPath = join(workDir, `input-${i}`);
+      const outputPath = join(workDir, `wallpaper-${i}.png`);
+      await downloadToFile(item.sourceUrl, inputPath);
+      // Clean by definition: no logo, no brand-name overlay — the same
+      // ffmpeg builder the single clean render uses, minus branding.
+      const args = buildWallpaperFfmpegArgs({ inputPath, outputPath, preset });
+      await execFileAsync("ffmpeg", args, { timeout: 300_000 });
+
+      let buffer: Buffer = await readFile(outputPath);
+      let aiDisclosureState: "embedded" | "off" | "stamp_failed" =
+        parsed.data.aiDisclosure === false ? "off" : "embedded";
+      if (parsed.data.aiDisclosure !== false) {
+        const stamped = stampImageWithDisclosure(buffer, {
+          text: aiDisclosureMetadataText({ createdWith: { tool: "Wallpaper Studio", model: null, platform: PROVENANCE_PLATFORM } }),
+          tool: "Wallpaper Studio",
+          title: preset.label,
+        });
+        if (stamped.applied) buffer = stamped.buffer;
+        else aiDisclosureState = "stamp_failed";
+      }
+      void aiDisclosureState;
+      const objectName = `wallpapers/${req.userId}/${randomUUID()}.png`;
+      const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
+      const url = await refreshSupabaseStorageUrl(storageRef);
+      await saveGeneration({
+        userId: req.userId!,
+        type: "wallpaper",
+        title: preset.label,
+        fileUrl: url,
+        creditsSpent: PACK_OF_10_COST / PACK_OF_10_COUNT,
+      });
+      renders.push({ url, presetKey: preset.key, width: preset.width, height: preset.height });
+    }
+    res.json({ renders, count: renders.length, creditCost: PACK_OF_10_COST, branded: false });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Wallpaper pack failed.";
+    req.log?.error?.({ err: message }, "[wallpapers] pack of 10 failed");
+    await refundCredits(req.userId!, PACK_OF_10_COST, {
+      action: "Wallpaper Pack of 10 — Refund",
     }).catch(() => {});
     res.status(502).json({ error: message });
   } finally {

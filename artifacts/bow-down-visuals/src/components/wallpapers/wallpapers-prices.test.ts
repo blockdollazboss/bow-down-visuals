@@ -22,6 +22,8 @@ import {
   WALLPAPER_CLEAN_PACK_COST,
   WALLPAPER_CLEAN_RENDER_COST,
   WALLPAPER_GENERATE_COST,
+  WALLPAPER_PACK_OF_10_COST,
+  WALLPAPER_PACK_OF_10_COUNT,
   WALLPAPER_SCREENSAVER_RENDER_COST,
   WALLPAPER_SCREENSAVER_VIDEO_COST,
 } from "../../lib/wallpapers-prices";
@@ -84,11 +86,28 @@ describe("Stack-28 item 15 — desk prices are derived and pinned to the rails",
     expect(WALLPAPER_SCREENSAVER_VIDEO_COST).toBe(rail);
   });
 
+  it("pack of 10 cost == registry == server PACK_OF_10_COST (500 — the ruled bundle, audit #6)", () => {
+    const rail = deriveServerConstant("routes/wallpapers.ts", "PACK_OF_10_COST");
+    expect(rail).toBe(500);
+    expect(getCreditCost("/api/wallpapers/pack-of-10")?.cost).toBe(rail);
+    expect(WALLPAPER_PACK_OF_10_COST).toBe(rail);
+    expect(WALLPAPER_PACK_OF_10_COUNT).toBe(10);
+    expect(pricesSrc).toContain('getCreditCost("/api/wallpapers/pack-of-10")');
+    // The bundle is a flat charge — never a multiple of the single prices.
+    expect(WALLPAPER_PACK_OF_10_COST).not.toBe(WALLPAPER_CLEAN_RENDER_COST * WALLPAPER_PACK_OF_10_COUNT);
+    expect(WALLPAPER_PACK_OF_10_COST).not.toBe(WALLPAPER_GENERATE_COST * WALLPAPER_PACK_OF_10_COUNT);
+    // And it does not disturb the neighbouring ruled prices:
+    expect(WALLPAPER_GENERATE_COST).toBe(100);
+    expect(WALLPAPER_SCREENSAVER_RENDER_COST).toBe(300);
+    expect(WALLPAPER_CLEAN_PACK_COST).toBe(800);
+  });
+
   it("the desk carries no price literals and renders every figure from the derived constants", () => {
     expect(desk).not.toMatch(/const (GENERATE_COST|CLEAN_RENDER_COST)\s*=/);
     expect(desk).not.toMatch(/— \d+ Visual Bucs/);
     expect(desk).toContain("overrideCost: WALLPAPER_GENERATE_COST");
     expect(desk).toContain("overrideCost: WALLPAPER_CLEAN_RENDER_COST");
+    expect(desk).toContain("overrideCost: WALLPAPER_PACK_OF_10_COST");
     expect(desk).toContain("cost: WALLPAPER_CLEAN_PACK_COST");
     for (const name of [
       "WALLPAPER_GENERATE_COST",
@@ -96,6 +115,7 @@ describe("Stack-28 item 15 — desk prices are derived and pinned to the rails",
       "WALLPAPER_CLEAN_PACK_COST",
       "WALLPAPER_SCREENSAVER_VIDEO_COST",
       "WALLPAPER_SCREENSAVER_RENDER_COST",
+      "WALLPAPER_PACK_OF_10_COST",
     ]) {
       expect(desk, name).toContain(`\${${name}} Visual Bucs`);
     }

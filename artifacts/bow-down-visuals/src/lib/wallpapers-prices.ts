@@ -33,16 +33,15 @@
  *   rail). Pinned in wallpapers-prices.test.ts.
  * - "Living wallpaper = 300" — WALLPAPER_SCREENSAVER_RENDER_COST,
  *   landed on both rails (registry + server constant).
- * - "Pack of 10 = 500" — THE DESK SELLS NO PACK OF 10. Its only pack
- *   is the 3-piece theme pack (phone + lock + desktop), priced as
- *   two clean renders (WALLPAPER_CLEAN_PACK_COST = 2 × 400 = 800,
- *   branded free), and /api/wallpapers/pack-download zips renders the
- *   user already made for free. The clean figures stay mapped from
- *   the clean-export rail (branded free / clean 400 — the site-wide
- *   clean-output price), so no 500 figure was forced onto either
- *   surface; a 10-wallpaper bundle at 500 would be a new product,
- *   not a price wiring. Recorded here so the gap is explicit, never
- *   silently papered over.
+ * - "Pack of 10 = 500" — BUILT (stack1400, price-accuracy audit #6):
+ *   POST /api/wallpapers/pack-of-10 charges exactly WALLPAPER_PACK_OF_10_COST
+ *   once for exactly ten clean (unbranded) renders, all-or-nothing with
+ *   a full refund on any failure. It sits BESIDE the desk's other pack,
+ *   the 3-piece theme pack (phone + lock + desktop), which stays priced
+ *   as two clean renders (WALLPAPER_CLEAN_PACK_COST = 2 × 400 = 800,
+ *   branded free); /api/wallpapers/pack-download still zips renders the
+ *   user already made for free. The two packs are different products
+ *   and the desk labels each with its own count and price.
  */
 import { getCreditCost } from "./credit-costs";
 import { ARTIST_IMAGE_MODELS } from "../components/generate-artist-image";
@@ -66,3 +65,13 @@ export const WALLPAPER_SCREENSAVER_RENDER_COST: number =
 /** Screensaver source video (POST /api/generate-runway-clip, gen4.5). */
 export const WALLPAPER_SCREENSAVER_VIDEO_COST: number =
   getCreditCost("/api/generate-runway-clip")?.cost ?? 400;
+
+/** How many clean wallpapers the pack of 10 delivers — exactly ten. */
+export const WALLPAPER_PACK_OF_10_COUNT = 10;
+
+/** Pack of 10 clean wallpapers (POST /api/wallpapers/pack-of-10) — the
+    owner-ruled bundle price, derived from the registry entry that
+    mirrors the server's PACK_OF_10_COST. One flat charge, never
+    10 × the single clean render. */
+export const WALLPAPER_PACK_OF_10_COST: number =
+  getCreditCost("/api/wallpapers/pack-of-10")?.cost ?? 500;

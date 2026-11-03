@@ -148,6 +148,11 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // pack-download charges nothing, so it stays off this registry.
   "/api/wallpapers/render": { cost: 0, feature: "Wallpaper Render (branded — free)" },
   "/api/wallpapers/screensaver-render": { cost: 300, feature: "Screensaver Loop Render" },
+  // Pack of 10 clean wallpapers: mirrors PACK_OF_10_COST in api-server
+  // routes/wallpapers.ts — the owner's ruled bundle price (Oct 27, 2026,
+  // ruled by delegation; built for price-accuracy audit #6, Nov 2, 2026).
+  // One flat charge for exactly ten clean renders, never per-render.
+  "/api/wallpapers/pack-of-10": { cost: 500, feature: "Wallpaper Pack of 10 (clean)" },
   // Single-shot thumbnail: the rail (routes/generate/thumbnail.ts)
   // charges TEXT_CREDIT_COST 100 + IMAGE_CREDIT_COST 200 = 300 when the
   // image lands, and its 402 pre-check requires the full 300 up front.

@@ -89,6 +89,9 @@ import wallpapersRouter, {
   screensaverSchema,
   SCREENSAVER_RENDER_COST,
   CLEAN_RENDER_COST,
+  PACK_OF_10_COST,
+  PACK_OF_10_COUNT,
+  packOf10Schema,
 } from "../wallpapers";
 import { WALLPAPER_PRESETS, presetByKey } from "../../lib/wallpaper-presets";
 import { chargeCredits, refundCredits } from "../../lib/credits";
@@ -583,6 +586,98 @@ describe("wallpapers routes (HTTP)", () => {
   });
 });
 
+/* Stack1400 (price-accuracy audit #6) — the ruled pack of 10: exactly
+   ten clean renders for ONE flat 500 charge on
+   POST /api/wallpapers/pack-of-10. The desk display derives from the
+   registry entry that mirrors PACK_OF_10_COST, so display = charge. */
+describe("pack of 10 clean wallpapers (audit #6)", () => {
+  const tenItems = () =>
+    Array.from({ length: 10 }, (_, i) => ({
+      sourceUrl: `https://files.example/art-${i}.png`,
+      presetKey: "desktop-fhd",
+    }));
+
+  it("the ruled constants are exactly 500 for exactly 10", () => {
+    expect(PACK_OF_10_COST).toBe(500);
+    expect(PACK_OF_10_COUNT).toBe(10);
+  });
+
+  it("schema rejects 9 or 11 items and non-http sources", () => {
+    expect(packOf10Schema.safeParse({ items: tenItems().slice(0, 9) }).success).toBe(false);
+    expect(packOf10Schema.safeParse({ items: [...tenItems(), tenItems()[0]!] }).success).toBe(false);
+    expect(packOf10Schema.safeParse({ items: tenItems() }).success).toBe(true);
+    const bad = tenItems();
+    bad[3] = { sourceUrl: "ftp://files.example/x.png", presetKey: "desktop-fhd" };
+    expect(packOf10Schema.safeParse({ items: bad }).success).toBe(false);
+  });
+
+  it("rejects a pack that is not exactly 10 with 400, before any charge", async () => {
+    const { status } = await call("POST", "/wallpapers/pack-of-10", { items: tenItems().slice(0, 3) });
+    expect(status).toBe(400);
+    expect(vi.mocked(chargeCredits)).not.toHaveBeenCalled();
+    expect(h.ffmpegCalls).toHaveLength(0);
+  });
+
+  it("rejects an unknown preset with 400, before any charge", async () => {
+    const items = tenItems();
+    items[7] = { sourceUrl: "https://files.example/art-7.png", presetKey: "does-not-exist" };
+    const { status } = await call("POST", "/wallpapers/pack-of-10", { items });
+    expect(status).toBe(400);
+    expect(vi.mocked(chargeCredits)).not.toHaveBeenCalled();
+  });
+
+  it("returns 402 when credits are under the flat 500, before any charge call", async () => {
+    const { status, json } = await call("POST", "/wallpapers/pack-of-10", { items: tenItems() }, 499);
+    expect(status).toBe(402);
+    expect(json.error).toBe("out_of_credits");
+    expect(vi.mocked(chargeCredits)).not.toHaveBeenCalled();
+    expect(h.ffmpegCalls).toHaveLength(0);
+  });
+
+  it("succeeds: ONE charge of exactly 500, ten clean renders, history sums to 500", async () => {
+    const { status, json } = await call("POST", "/wallpapers/pack-of-10", { items: tenItems() });
+    expect(status).toBe(200);
+    expect(json.creditCost).toBe(500);
+    expect(json.count).toBe(10);
+    expect(json.branded).toBe(false);
+    expect(json.renders).toHaveLength(10);
+    for (const r of json.renders) {
+      expect(r).toMatchObject({ presetKey: "desktop-fhd", width: 1920, height: 1080 });
+      expect(r.url).toContain("https://cdn.example/");
+    }
+    // Exactly one charge, of exactly the ruled 500 — never 10 × 400.
+    expect(vi.mocked(chargeCredits)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(chargeCredits)).toHaveBeenCalledWith(
+      "user-1",
+      500,
+      expect.objectContaining({ action: "Wallpaper Pack of 10" }),
+    );
+    expect(h.ffmpegCalls).toHaveLength(10);
+    // Clean renders: no branding overlays on any render in the pack.
+    for (const args of h.ffmpegCalls) {
+      expect(args.join(" ")).not.toContain("drawtext");
+      expect(args.join(" ")).not.toContain("overlay=");
+    }
+    // History: ten wallpaper rows at 50 each — summing to the one charge.
+    const saves = vi.mocked(saveGeneration).mock.calls.map((c) => c[0] as any);
+    expect(saves).toHaveLength(10);
+    expect(saves.reduce((sum, s) => sum + s.creditsSpent, 0)).toBe(500);
+    for (const s of saves) expect(s).toMatchObject({ type: "wallpaper", creditsSpent: 50, userId: "user-1" });
+  });
+
+  it("refunds the full 500 on a render failure and answers 502", async () => {
+    h.ffmpegFail = true;
+    const { status } = await call("POST", "/wallpapers/pack-of-10", { items: tenItems() });
+    expect(status).toBe(502);
+    expect(vi.mocked(chargeCredits)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(refundCredits)).toHaveBeenCalledWith(
+      "user-1",
+      500,
+      expect.objectContaining({ action: expect.stringContaining("Wallpaper Pack of 10") }),
+    );
+  });
+});
+
 /* Stack-28 item 13 — King's Set integration: the desk's starter-pack
    assets ship as site-relative paths (FE lib/kings-set.ts), which both
    rails' http(s)-only schemas rejected with 400. The desk now
@@ -661,20 +756,24 @@ describe("desk price derivations land on the server constants (Stack-28 item 15)
     expect(registry).toContain('"/api/generate-runway-clip": { cost: 400');
     expect(registry).toContain('"/api/export-final-video": { cost: 400');
     expect(registry).toContain('"/api/wallpapers/render": { cost: 0');
+    expect(registry).toContain('"/api/wallpapers/pack-of-10": { cost: 500');
 
     // Those registry figures equal this suite's imported rail constants:
     expect(SCREENSAVER_RENDER_COST).toBe(300);
     expect(CLEAN_RENDER_COST).toBe(400);
+    expect(PACK_OF_10_COST).toBe(500);
 
     // The price module derives (never hardcodes) each desk figure:
     expect(prices).toContain('getCreditCost("/api/wallpapers/screensaver-render")');
     expect(prices).toContain('getCreditCost("/api/generate-runway-clip")');
     expect(prices).toContain('getCreditCost("/api/export-final-video")');
+    expect(prices).toContain('getCreditCost("/api/wallpapers/pack-of-10")');
     expect(prices).toContain("WALLPAPER_CLEAN_RENDER_COST * 2");
 
     // And the desk renders/quotes only through those constants:
     expect(deskSrc).not.toMatch(/— \d+ Visual Bucs/);
     expect(deskSrc).not.toMatch(/const (GENERATE_COST|CLEAN_RENDER_COST)\s*=/);
     expect(deskSrc).toContain("WALLPAPER_CLEAN_PACK_COST");
+    expect(deskSrc).toContain("WALLPAPER_PACK_OF_10_COST");
   });
 });
