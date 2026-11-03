@@ -33,8 +33,13 @@ const WIRED_KEYS = [
   /* Stack-200 lane 1: the back-office trio's keys — nav.contracts was
      missing from ALL ten locales before this pass. */
   "contracts", "llcGuide", "copyright",
-  /* stack1400 org wave: the Publish door hangs on this key until the
-     labels lane adds a real nav.publish (none exists in any locale). */
+  /* stack1400 org wave: nav.releaseChecklist stays pinned as a catalog
+     key present in all ten locales. It is no longer the Publish door's
+     label — the door now uses nav.publish, which exists in en ONLY at
+     this step (non-EN locales resolve it through the en fallback), so
+     nav.publish is asserted in the en-only tests below, NOT here: this
+     list is asserted for every locale. The locale wave translates
+     nav.publish and then moves it into this list. */
   "releaseChecklist",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
@@ -63,6 +68,7 @@ describe("findability — nav labels are the features' real names", () => {
     expect(nav.allFeatures).toBe("All Features");
     expect(nav.beatsMarketplace).toBe("Beats Marketplace");
     expect(nav.fanShoutouts).toBe("Fan Shoutouts");
+    expect(nav.publish).toBe("Publish");
     expect(nav.contracts).toBe("Contracts");
     expect(nav.llcGuide).toBe("LLC Guide");
     expect(nav.copyright).toBe("Copyright");
@@ -109,6 +115,7 @@ describe("findability — nav labels are the features' real names", () => {
       ["creatorAcademy", "academy"],
       ["pricing", "pricing"],
       ["myProjects", "projects"],
+      ["publish", "publish"],
     ];
     for (const [key, word] of searchable) {
       expect(nav[key].toLowerCase(), `nav.${key}`).toContain(word);
@@ -329,7 +336,7 @@ describe("org wave (stack1400) — the §1b missing-doors census", () => {
 
   it("the Publish door — the one true orphan — hangs in Promote with publish aliases", () => {
     const promote = sectionBlock("nav.promote");
-    expect(promote).toContain('{ href: "/publish", labelKey: "nav.releaseChecklist"');
+    expect(promote).toContain('{ href: "/publish", labelKey: "nav.publish"');
     const at = sidebar.indexOf('href: "/publish"');
     const entry = sidebar.slice(at, sidebar.indexOf("}", at));
     expect(entry).toContain("searchTerms:");
