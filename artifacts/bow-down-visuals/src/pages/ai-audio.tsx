@@ -13,11 +13,16 @@ import {
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat,
+  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
+import {
+  assembleStemsZip, beatRenderScope, enumerateBeatStems, isolateStemMixer,
+  stemFileName, stemsZipFileName,
+  type BeatStemDescriptor, type BeatStemMixer,
+} from "@/lib/beat-export";
 import {
   addArrangementEntry,
   arrangementDurationSec,
@@ -30,7 +35,6 @@ import {
   loadLocalBeatProject,
   moveArrangementEntry,
   removeArrangementEntry,
-  renderPatternSequence,
   resolveArrangementStep,
   saveLocalBeatProject,
   saveServerBeatProject,
@@ -38,6 +42,7 @@ import {
   setArrangementEntryRepeats,
   isEmptyBeatPattern,
   type BeatArrangementEntry,
+  type BeatMixerState,
   type BeatPatternData,
   type BeatPatternId,
   type BeatProject,
@@ -576,7 +581,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [playing, setPlaying] = useState(false);
   const [step, setStep] = useState(-1);
   const [exporting, setExporting] = useState(false);
+  const [exportingStems, setExportingStems] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendingStems, setSendingStems] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [showBass, setShowBass] = useState(false);
   const [vol, setVol] = useState<number[]>(() =>
@@ -932,18 +939,29 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
    * (+ tail). Otherwise the classic render: the active pattern ×4. One
    * code path either way — the sequence of pattern-plays is the only
    * difference, and every play goes through the same synth + mixer. */
-  const renderBeat = async () => {
-    const sequence = renderPatternSequence({
+  const renderBeat = async (stemMixer?: BeatStemMixer) => {
+    /* One scope for the mix and every stem (lib/beat-export): song mode
+     * bounces the whole chain, pattern mode the ×4 loop — identical
+     * plays/steps/duration either way, so stems line up with the mix. */
+    const scope = beatRenderScope({
       mode: modeRef.current,
       arrangement: arrangementRef.current,
+      activePattern: activePatRef.current,
+      bpm: bpmRef.current,
     });
-    const plays: PatternId[] = sequence ?? Array<PatternId>(4).fill(activePatRef.current);
-    const totalSteps = STEPS * plays.length;
-    const stepDur = 60 / bpmRef.current / 4;
-    const totalDur = totalSteps * stepDur + 1.2;
+    const plays: PatternId[] = scope.plays;
+    const totalSteps = scope.totalSteps;
+    const stepDur = scope.stepDurSec;
+    const totalDur = scope.durationSec;
     const sampleRate = 44100;
     const off = new OfflineAudioContext(2, Math.ceil(totalDur * sampleRate), sampleRate);
-    applyMixer(off, vol, mute, solo, bassVol, bassMute);
+    /* A stem bounce is this SAME render with a solo-isolated mixer —
+     * never a second synth path. */
+    if (stemMixer) {
+      applyMixer(off, stemMixer.vol, stemMixer.mute, stemMixer.solo, stemMixer.bassVol, stemMixer.bassMute);
+    } else {
+      applyMixer(off, vol, mute, solo, bassVol, bassMute);
+    }
     const { drums, bass: bassG } = getGains(off);
     const sw = swingRef.current;
     for (let s = 0; s < totalSteps; s++) {
@@ -959,7 +977,44 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }
     const rendered = await off.startRendering();
     const blob = audioBufferToWav(rendered);
-    return { blob, url: URL.createObjectURL(blob), durationSec: totalDur, song: sequence != null };
+    return { blob, url: URL.createObjectURL(blob), durationSec: totalDur, song: scope.song };
+  };
+
+  /* ── Stems bounce (W2-L3 export pack) ──
+   * Render the current scope once PER TRACK with solo isolation: the
+   * stem list comes from the render's own track enumeration (TRACKS)
+   * + the 808 bass line. Every stem is the same renderBeat path with
+   * an isolated mixer, so scope/steps/duration match the mix exactly. */
+  const renderStems = async (): Promise<{ stem: BeatStemDescriptor; blob: Blob; name: string }[]> => {
+    const mixer: BeatMixerState = { vol, mute, solo, bassVol, bassMute };
+    const out: { stem: BeatStemDescriptor; blob: Blob; name: string }[] = [];
+    for (const stem of enumerateBeatStems(TRACKS)) {
+      const isolated = isolateStemMixer(mixer, stem);
+      if (!isolated) continue; // kind the current render has no rail for
+      const { blob } = await renderBeat(isolated);
+      out.push({ stem, blob, name: stemFileName("beat", bpm, stem) });
+    }
+    return out;
+  };
+
+  /* Stems → one ZIP download (repo's store-only ZIP writer via
+   * lib/beat-export). Pure client-side, free. */
+  const exportStems = async () => {
+    setExportingStems(true);
+    try {
+      const files = await renderStems();
+      const entries = await Promise.all(
+        files.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) })),
+      );
+      const zip = assembleStemsZip(entries);
+      const url = URL.createObjectURL(new Blob([zip.buffer as ArrayBuffer], { type: "application/zip" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = stemsZipFileName("beat", bpm);
+      a.click();
+    } finally {
+      setExportingStems(false);
+    }
   };
 
   /* Render offline → WAV → download. Pure client-side. */
@@ -1003,6 +1058,34 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       navigate(`/video-editor?beathandoff=${id}&tab=music`);
     } finally {
       setSending(false);
+    }
+  };
+
+  /* Mix + stems → Visual Vibes: the same handoff, with each stem
+   * riding along so the editor adds them as separate timeline audio
+   * stems (the mix still lands exactly as before). */
+  const sendStemsToVisualVibes = async () => {
+    setSendingStems(true);
+    try {
+      const mix = await renderBeat();
+      const files = await renderStems();
+      const title = t("beatMaker.sequencerBeatTitle", { bpm, defaultValue: `Sequencer beat · ${bpm} BPM` });
+      const id = stashBeatHandoff({
+        blob: mix.blob,
+        url: mix.url,
+        title,
+        bpm,
+        durationSec: mix.durationSec,
+        stems: files.map((f) => ({
+          blob: f.blob,
+          url: URL.createObjectURL(f.blob),
+          title: `${title} — ${f.stem.label}`,
+        })),
+      });
+      stop();
+      navigate(`/video-editor?beathandoff=${id}&tab=music`);
+    } finally {
+      setSendingStems(false);
     }
   };
 
@@ -1459,6 +1542,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           </span>
         )}
         <Button
+          onClick={exportStems}
+          disabled={exportingStems}
+          data-testid="beat-export-stems"
+          className={`h-11 px-5 rounded-xl font-bold border transition-colors ${isLight ? "border-[#c9a84c]/50 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"} disabled:opacity-50`}
+          variant="outline"
+        >
+          {exportingStems ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileArchive className="w-4 h-4 mr-2" />}
+          {t("beatMaker.exportStemsFree", { defaultValue: "Export Stems ZIP (free)" })}
+        </Button>
+        <Button
           onClick={sendToVisualVibes}
           disabled={sending}
           className={`h-11 px-5 rounded-xl font-bold border transition-colors ${isLight ? "border-[#c9a84c]/50 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"} disabled:opacity-50`}
@@ -1473,6 +1566,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Scissors className="w-4 h-4" /> {t("beatMaker.splitExportedStems", { defaultValue: "Split exported stems" })}
         </Link>
+        <Button
+          onClick={sendStemsToVisualVibes}
+          disabled={sendingStems}
+          data-testid="beat-send-stems-editor"
+          className={`h-11 px-5 rounded-xl font-bold border transition-colors ${isLight ? "border-[#c9a84c]/50 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"} disabled:opacity-50`}
+          variant="outline"
+        >
+          {sendingStems ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Layers className="w-4 h-4 mr-2" />}
+          {t("beatMaker.sendStemsToVisualVibes", { defaultValue: "Send mix + stems to Visual Vibes" })}
+        </Button>
         <Link
           href="/beats"
           className={`flex items-center gap-2 h-11 px-5 rounded-xl border text-sm transition-colors ${T.pill}`}
@@ -1480,6 +1583,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace", { defaultValue: "Sell on the marketplace" })}
         </Link>
       </div>
+      <p className={`text-xs ${T.dim}`} data-testid="beat-stems-note">
+        {t("beatMaker.stemsNote", { defaultValue: "Stems ZIP: one WAV per track — every drum plus the 808 bass line — each the full length of the mix, ready to sell as trackouts or drop into the editor as separate stems." })}
+      </p>
       <p className={`text-xs ${T.dim}`}>
         {t("beatMaker.sequencerNote", { defaultValue: "100% client-side Web Audio synthesis — playing and exporting costs nothing." })}
       </p>

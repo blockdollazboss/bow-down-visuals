@@ -665,33 +665,45 @@ export default function VideoEditor() {
       import("@/lib/beat-handoff").then(({ takeBeatHandoff }) => {
         const beat = takeBeatHandoff(id);
         if (!beat) return;
+        /* The mix lands exactly as before; when the beat handoff
+           carries stems (W2-L3 export pack), each one follows it as
+           its own timeline audio stem with the same duration. */
+        const stemEntry = (
+          idSuffix: string,
+          name: string,
+          stemUrl: string,
+          size: number,
+        ) => ({
+          id: `beat-${Date.now()}-${idSuffix}`,
+          name,
+          type: "beat" as const,
+          url: stemUrl,
+          storagePath: "",
+          fileType: "audio/wav",
+          fileSize: size,
+          uploadedAt: new Date().toISOString(),
+          durationSec: beat.durationSec,
+          muted: false,
+          solo: false,
+          locked: false,
+          volume: 100,
+          pan: 0,
+          trimStart: 0,
+          trimEnd: 0,
+          startTime: 0,
+          effects: defaultStemEffects(),
+          fxChain: [],
+        });
         setSettings((prev) => ({
           ...prev,
           musicStudio: {
             ...prev.musicStudio,
             stems: [
               ...prev.musicStudio.stems,
-              {
-                id: `beat-${Date.now()}`,
-                name: beat.title,
-                type: "beat",
-                url: beat.url,
-                storagePath: "",
-                fileType: "audio/wav",
-                fileSize: beat.blob.size,
-                uploadedAt: new Date().toISOString(),
-                durationSec: beat.durationSec,
-                muted: false,
-                solo: false,
-                locked: false,
-                volume: 100,
-                pan: 0,
-                trimStart: 0,
-                trimEnd: 0,
-                startTime: 0,
-                effects: defaultStemEffects(),
-                fxChain: [],
-              },
+              stemEntry("mix", beat.title, beat.url, beat.blob.size),
+              ...(beat.stems ?? []).map((stem, i) =>
+                stemEntry(`stem-${i}`, stem.title, stem.url, stem.blob.size),
+              ),
             ],
           },
         }));
