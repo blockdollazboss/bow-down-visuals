@@ -353,6 +353,10 @@ export function SongDesk(props: CreateDeskProps) {
 
   const useAdvanced = Object.values(adv).some((v) => v.trim().length > 0);
   const set = (k: keyof SongAdvanced) => (v: string) => setAdv((a) => ({ ...a, [k]: v }));
+  /* Audit #5: the package leg prices by the chosen length tier, so
+     the desk's one up-front total follows the Advanced length pick
+     (Turbo posts no length and prices at the base tier). */
+  const deskTotalCost = songDeskTotalCost(useAdvanced ? adv.songLength : "");
 
   /* Ring 2 (2.5): Artist Vault preset loading — the selector's own
      rail (GET /api/artist-vaults); picking one posts the whole
@@ -430,13 +434,14 @@ export function SongDesk(props: CreateDeskProps) {
     void quest.snapshot();
     try {
       /* ONE confirmation for the whole song — the package plus the
-         real audio, 800 Visual Bucs total, named up front. Each leg
+         real audio, priced by the chosen length and named up front
+         (800 Visual Bucs total at the default length). Each leg
          still charges exactly once on its own rail, only when that
          leg actually runs: decline here and nothing moves at all;
          make the package and skip the audio and only the package
          leg ever charged. */
       const confirmed = await confirmSpend({
-        cost: songDeskTotalCost(),
+        cost: deskTotalCost,
         feature: "Make the song — package + real audio",
       });
       if (!confirmed) {
@@ -531,7 +536,7 @@ export function SongDesk(props: CreateDeskProps) {
       </AdvancedExpander>
       <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
         One price for the whole song — the package plus the real audio,{" "}
-        {songDeskTotalCost().toLocaleString("en-US")} Visual Bucs, confirmed once before anything runs.
+        {deskTotalCost.toLocaleString("en-US")} Visual Bucs, confirmed once before anything runs.
         Each part charges only when it lands.
       </p>
       <CreateDeskRunner
@@ -539,7 +544,7 @@ export function SongDesk(props: CreateDeskProps) {
         promptLabel="Describe the song"
         prompt={prompt}
         onPromptChange={setPrompt}
-        costVisualBucs={songDeskTotalCost()}
+        costVisualBucs={deskTotalCost}
         state={state}
         errorMessage={error}
         onRun={run}
@@ -556,7 +561,7 @@ export function SongDesk(props: CreateDeskProps) {
                 title={title}
                 costVisualBucs={rail.audioCost}
                 onMakeAudio={() => void rail.makeAudio()}
-                includedInTotal={songDeskTotalCost()}
+                includedInTotal={deskTotalCost}
               />
               {/* Stack-100 #49 — the finished-song finishers: the
                   site's OWN CoverSongModal + LrcExportModal docked

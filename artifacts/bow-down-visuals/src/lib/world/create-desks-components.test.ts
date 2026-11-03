@@ -59,13 +59,16 @@ describe("creation desk contracts (stack300)", () => {
   });
 
   it("the Song Desk shows ONE total and confirms it once", () => {
-    /* The runner's price is the combined 800 (package + audio),
-       confirmed a single time before the package leg runs. */
-    expect(desks).toContain("costVisualBucs={songDeskTotalCost()}");
-    expect(desks).toContain("cost: songDeskTotalCost(),");
+    /* The runner's price is the combined total (package + audio —
+       800 at the default length, priced by the chosen length tier
+       since audit #5), confirmed a single time before the package
+       leg runs. */
+    expect(desks).toContain("const deskTotalCost = songDeskTotalCost(useAdvanced ? adv.songLength : \"\")");
+    expect(desks).toContain("costVisualBucs={deskTotalCost}");
+    expect(desks).toContain("cost: deskTotalCost,");
     /* The audio leg rides that confirmation — its rail shows the
        covered-total note instead of a second price. */
-    expect(desks).toContain("includedInTotal={songDeskTotalCost()}");
+    expect(desks).toContain("includedInTotal={deskTotalCost}");
     expect(resultLeaf).toContain("includedInTotal");
   });
 });
