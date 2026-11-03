@@ -6,7 +6,7 @@ import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable, CHARACTER_LINK_ROLES } from "@workspace/db";
 import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
-import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../lib/credits";
+import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError, OutOfCreditsError, voidChargeIdempotencyKey } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { r2Upload } from "../lib/r2-client";
 import { getUserActiveTeam } from "../lib/teams";
@@ -441,19 +441,51 @@ router.delete("/artist-vaults/:id/links/:linkId", requireAuth, async (req, res) 
 
 /* ── Character reference video (paid) ────────────────────────────────────
  * Generates a 5s "living portrait" video from the character's reference photo
- * via Seedance 2.5 image-to-video. Credits are charged only on SUCCEEDED.
+ * via Seedance 2.5 image-to-video. RESERVE-AT-SUBMIT (stack1400 ruling
+ * #43 Part B): credits are charged in full at submit, before the provider
+ * call; provider failure / no-output / save failure refunds in full.
  * When set, character selection shows the autoplaying video instead of the photo. */
 
 const REF_VIDEO_DURATION_SEC = 5;
 const REF_VIDEO_CREDITS =
   REF_VIDEO_DURATION_SEC * SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT; // 1500
 
+interface RefVideoTask {
+  userId: string;
+  vaultId: string;
+  credits: number;
+  /** Reserve-at-submit bookkeeping: amount actually charged at submit,
+   *  its idempotency key, and the exactly-once refund claim. */
+  chargedAmount?: number;
+  chargeKey?: string;
+  refunded?: boolean;
+}
+
 /* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
- * by the house job-map TTL (2h), like the other pending-task maps. */
-const refVideoTasks = attachJobMapTtl(new Map<
-  string,
-  { userId: string; vaultId: string; credits: number }
->());
+ * by the house job-map TTL (2h), like the other pending-task maps.
+ * NOTE (pre-existing exposure): this map is in-memory only, so a server
+ * restart between submit and poll loses the task record — and with it
+ * the refund path for a job whose charge already landed at submit.
+ * Durable job storage is out of this lane. */
+const refVideoTasks = attachJobMapTtl(new Map<string, RefVideoTask>());
+
+/** Refund a reference-video reserve exactly once. Returns true when a
+ *  refund actually landed; no-op (false) for never-charged tasks and
+ *  for tasks whose refund was already claimed. The claim flag is set
+ *  synchronously before the refund awaits, so a replayed/concurrent
+ *  completion cannot double-refund. */
+async function refundRefVideoCharge(pending: RefVideoTask, action: string): Promise<boolean> {
+  const amount = pending.chargedAmount ?? 0;
+  if (amount <= 0 || pending.refunded) return false;
+  pending.refunded = true; // claim synchronously — exactly once
+  try {
+    await refundCredits(pending.userId, amount, { action, projectId: null });
+    if (pending.chargeKey) await voidChargeIdempotencyKey(pending.chargeKey);
+    return true;
+  } catch {
+    return false; // caller logs CRITICAL with its request logger
+  }
+}
 
 /** Submit a reference-video generation for a character. */
 router.post("/artist-vaults/:id/reference-video", requireAuth, generationLimiter, async (req, res) => {
@@ -504,7 +536,41 @@ router.post("/artist-vaults/:id/reference-video", requireAuth, generationLimiter
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   if (!apiKey) {
+    // Unconfigured → no charge, ever (checked before the reserve).
     res.status(500).json({ error: "Video generation is not configured on the server" });
+    return;
+  }
+
+  /* RESERVE-AT-SUBMIT: charge the full price BEFORE the provider call.
+     chargeCredits re-reads the balance fresh (the snapshot check above
+     only shapes the early 402); an insufficient balance refuses here
+     and the provider is never called. The charge is keyed on a local
+     submit id — the provider task id does not exist yet — and that key
+     is carried on the task record for the poll's refund path. */
+  const chargeKey = `artist-vault-ref-video:${randomUUID()}`;
+  try {
+    await chargeCreditsAtomic(req.userId!, REF_VIDEO_CREDITS, {
+      action: "Character Reference Video",
+      projectId: null,
+    }, { idempotencyKey: chargeKey });
+  } catch (e) {
+    if (e instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: `Not enough Visual Bucs. A character video costs ${REF_VIDEO_CREDITS.toLocaleString("en-US")} Visual Bucs.`,
+        required: REF_VIDEO_CREDITS,
+        balance: credits,
+      });
+      return;
+    }
+    if (e instanceof LedgerWriteError) {
+      // chargeCredits rolled the deduction itself back — no standing charge.
+      req.log.error({ vaultId: id, err: e.message }, "[ref-video] ledger write failed on reserve — no charge stands");
+      res.status(500).json({ error: "Charging failed — no Visual Bucs were taken and nothing was generated." });
+      return;
+    }
+    req.log.error({ vaultId: id, err: e instanceof Error ? e.message : String(e) }, "[ref-video] reserve charge failed");
+    res.status(500).json({ error: "Charging failed — no Visual Bucs were taken and nothing was generated." });
     return;
   }
 
@@ -528,17 +594,32 @@ router.post("/artist-vaults/:id/reference-video", requireAuth, generationLimiter
       userId: req.userId!,
       vaultId: id,
       credits: REF_VIDEO_CREDITS,
+      chargedAmount: REF_VIDEO_CREDITS,
+      chargeKey,
+      refunded: false,
     });
-    req.log.info({ taskId: task.id, vaultId: id }, "[ref-video] task submitted — credits pending on SUCCEEDED");
+    req.log.info({ taskId: task.id, vaultId: id }, "[ref-video] task submitted — credits reserved at submit");
     res.json({ taskId: task.id, creditCost: REF_VIDEO_CREDITS });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    req.log.error({ err: msg }, "[ref-video] submission failed — no credits charged");
-    res.status(502).json({ error: "Video generation failed to start. No Visual Bucs were charged." });
+    // The reserve already landed — a provider submission failure
+    // refunds it in full, exactly once.
+    const refunded = await refundRefVideoCharge(
+      { userId: req.userId!, vaultId: id, credits: REF_VIDEO_CREDITS, chargedAmount: REF_VIDEO_CREDITS, chargeKey, refunded: false },
+      "Character Reference Video — Refund (provider failed to start)",
+    );
+    if (!refunded) {
+      req.log.error({ err: msg }, "[ref-video] CRITICAL: refund failed after submission failure — manual reconciliation required");
+    }
+    req.log.error({ err: msg }, "[ref-video] submission failed — reserve refunded");
+    res.status(502).json({ error: "Video generation failed to start. Your Visual Bucs were refunded." });
   }
 });
 
-/** Poll a reference-video task. On SUCCEEDED: charge credits + save to the vault. */
+/** Poll a reference-video task. Charged at SUBMIT; on SUCCEEDED this
+ *  only saves to the vault (the reserve is kept). Any terminal failure
+ *  — provider FAILED/CANCELLED, no output, ownership lost, or a save
+ *  failure — refunds the reserve exactly once. */
 router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
   const taskId = String(req.params["taskId"]);
@@ -555,53 +636,49 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
     return;
   }
 
-  /* Set once the charge below actually lands. The save after the charge
-     can still fail (DB write), and that failure must give the money back
-     — the pending-task entry is already deleted by then, so the member
-     cannot retry the poll (D5 sweep G1). */
-  let chargedCredits = 0;
+  /* Set once this poll claims the terminal state (task record deleted).
+     Only a claimed poll may refund: an unclaimed (still-processing or
+     transiently errored) poll leaves the record — and the reserve —
+     in place for the next poll. */
+  let claimed = false;
   try {
     const client = new RunwayML({ apiKey });
     const task = await client.tasks.retrieve(taskId);
 
     if (task.status === "SUCCEEDED") {
       const videoUrl = (task.output as string[] | undefined)?.[0] ?? null;
+      claimed = true;
       refVideoTasks.delete(taskId);
       if (!videoUrl) {
-        res.json({ status: "succeeded", url: null });
+        // No-output: the provider delivered nothing — refund in full.
+        const refunded = await refundRefVideoCharge(pending, "Character Reference Video — Refund (no output)");
+        if (!refunded && (pending.chargedAmount ?? 0) > 0) {
+          req.log.error({ taskId }, "[ref-video] CRITICAL: refund failed after no-output — manual reconciliation required");
+        }
+        res.json({ status: "failed", error: "The video finished without any output — your Visual Bucs were refunded." });
         return;
       }
-      /* The save below is owner-scoped; never charge ahead of a write
-         that cannot land. Ownership was proven at submit — re-check it
-         here so the charge can only ever precede a save that matches
-         (Stack-4 wave-2 #1). */
+      /* The save below is owner-scoped; a save that cannot land must
+         not keep the reserve. Ownership was proven at submit —
+         re-check it here before saving (Stack-4 wave-2 #1). */
       const owned = await getOwnedVaultRow(req.userId!, id);
       if (!owned) {
+        const refunded = await refundRefVideoCharge(pending, "Character Reference Video — Refund (character no longer yours)");
+        if (!refunded && (pending.chargedAmount ?? 0) > 0) {
+          req.log.error({ taskId }, "[ref-video] CRITICAL: refund failed after ownership loss — manual reconciliation required");
+        }
         res.json({ status: "failed" });
         return;
-      }
-      /* Charge credits (once — guarded by pendingTasks presence). */
-      try {
-        await chargeCreditsAtomic(req.userId!, pending.credits, {
-          action: "Character Reference Video",
-          projectId: null,
-        });
-        chargedCredits = pending.credits;
-      } catch (e) {
-        if (e instanceof LedgerWriteError) {
-          /* chargeCredits rolled the deduction itself back when the
-             ledger write failed — no standing charge to refund. */
-          req.log.error({ taskId, err: e.message }, "[ref-video] ledger write failed after charge");
-        } else {
-          throw e;
-        }
       }
       /* Mirror-on-save: the provider's output URL is a CDN link that can
          vanish — re-host it into permanent storage before saving to the
          vault, same as the reference photo above (2026-10-13 law). */
       const storedVideoUrl =
         (await mirrorExternalMediaUrl(videoUrl, { kind: "video", ownerKey: req.userId! })) ?? videoUrl;
-      /* Save to the vault. */
+      /* Save to the vault. Success after save keeps the reserve — no
+         charge happens here any more. A save throw lands in the catch,
+         which refunds (the record is already deleted, so that refund
+         is the member's only path back to whole — D5 sweep G1). */
       await db
         .update(artistVaultsTable)
         .set({ reference_video_url: storedVideoUrl, updated_at: new Date() })
@@ -616,7 +693,12 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
     }
 
     if (task.status === "FAILED" || task.status === "CANCELLED") {
+      claimed = true;
       refVideoTasks.delete(taskId);
+      const refunded = await refundRefVideoCharge(pending, "Character Reference Video — Refund (provider failed)");
+      if (!refunded && (pending.chargedAmount ?? 0) > 0) {
+        req.log.error({ taskId }, "[ref-video] CRITICAL: refund failed after provider failure — manual reconciliation required");
+      }
       res.json({ status: "failed" });
       return;
     }
@@ -625,17 +707,12 @@ router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     req.log.error({ taskId, err: msg }, "[ref-video] poll failed");
-    if (chargedCredits > 0) {
-      /* The charge landed but the save after it failed — refund the
-         exact charged amount. The task record is gone, so this refund
-         is the member's only path back to whole. */
-      try {
-        await refundCredits(req.userId!, chargedCredits, {
-          action: "Character Reference Video — Refund (save failed)",
-          projectId: null,
-        });
-      } catch (refundErr) {
-        req.log.error({ taskId, err: refundErr }, "[ref-video] CRITICAL: refund failed after save failure — manual reconciliation required");
+    if (claimed) {
+      /* Terminal was claimed but the save after it failed — refund the
+         exact reserved amount, exactly once. */
+      const refunded = await refundRefVideoCharge(pending, "Character Reference Video — Refund (save failed)");
+      if (!refunded && (pending.chargedAmount ?? 0) > 0) {
+        req.log.error({ taskId }, "[ref-video] CRITICAL: refund failed after save failure — manual reconciliation required");
       }
       res.status(502).json({ error: "The video finished but saving it failed — your Visual Bucs were refunded." });
       return;
@@ -737,10 +814,35 @@ interface RefVideoLoopTask {
   url?: string;
   path?: string | null;
   error?: string;
+  /** Reserve-at-submit bookkeeping (stack1400 ruling #43 Part B):
+   *  amount charged at submit, its idempotency key, the balance the
+   *  charge returned (reported on success, as the old poll-charge
+   *  did), and the exactly-once refund claim. */
+  chargedAmount?: number;
+  chargeKey?: string;
+  newBalance?: number;
+  refunded?: boolean;
+}
+
+/** Refund a loop reserve exactly once (same claim pattern as
+ *  refundRefVideoCharge). True when a refund actually landed. */
+async function refundLoopCharge(task: RefVideoLoopTask, action: string): Promise<boolean> {
+  const amount = task.chargedAmount ?? 0;
+  if (amount <= 0 || task.refunded) return false;
+  task.refunded = true; // claim synchronously — exactly once
+  try {
+    await refundCredits(task.userId, amount, { action, projectId: null });
+    if (task.chargeKey) await voidChargeIdempotencyKey(task.chargeKey);
+    return true;
+  } catch {
+    return false; // caller logs CRITICAL with its request logger
+  }
 }
 
 /** In-memory; mirrors refVideoTasks (durable export-jobs upgrade tracked separately).
- *  OOM fix (2026-10-25): bounded by the house job-map TTL (2h). */
+ *  OOM fix (2026-10-25): bounded by the house job-map TTL (2h).
+ *  Same restart exposure as refVideoTasks: a restart between submit
+ *  and poll loses the record — and the refund path for the reserve. */
 const refVideoLoopTasks = attachJobMapTtl(new Map<string, RefVideoLoopTask>());
 
 async function runRefVideoLoop(taskId: string, videoUrl: string) {
@@ -797,7 +899,10 @@ router.post("/artist-vaults/:id/share", requireAuth, async (req, res) => {
   }
 });
 
-/** Start a seamless-loop job for the vault's current reference video. Credits pre-checked; charged on poll. */
+/** Start a seamless-loop job for the vault's current reference video.
+ *  RESERVE-AT-SUBMIT: credits charged in full here, before the loop job
+ *  starts; the poll keeps the reserve on a successful save and refunds
+ *  it exactly once on processing failure or save failure. */
 router.post("/artist-vaults/:id/reference-video/loop", requireAuth, generationLimiter, async (req, res) => {
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0]! : rawId;
@@ -833,8 +938,41 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, generationLi
       res.status(402).json({ error: `Not enough Visual Bucs. This costs ${LOOP_VIDEO_CREDITS.toLocaleString("en-US")} Visual Bucs.`, required: LOOP_VIDEO_CREDITS, balance });
       return;
     }
+    /* RESERVE-AT-SUBMIT: charge the full price BEFORE the loop job
+       starts. chargeCredits re-reads the balance fresh (the snapshot
+       check above only shapes the early 402); insufficient refuses
+       here and no job is created. Keyed on the job's task id. */
     const taskId = randomUUID();
-    refVideoLoopTasks.set(taskId, { userId: req.userId!, vaultId: id, credits: LOOP_VIDEO_CREDITS, status: "processing" });
+    const chargeKey = `artist-vault-ref-video-loop:${taskId}`;
+    let newBalance: number;
+    try {
+      newBalance = await chargeCreditsAtomic(req.userId!, LOOP_VIDEO_CREDITS, {
+        action: "Artist Vault Video Loop",
+        projectId: null,
+      }, { idempotencyKey: chargeKey });
+    } catch (e) {
+      if (e instanceof OutOfCreditsError) {
+        res.status(402).json({ error: `Not enough Visual Bucs. This costs ${LOOP_VIDEO_CREDITS.toLocaleString("en-US")} Visual Bucs.`, required: LOOP_VIDEO_CREDITS, balance });
+        return;
+      }
+      if (e instanceof LedgerWriteError) {
+        req.log.error({ vaultId: id, err: e.message }, "[ref-video-loop] ledger write failed on reserve — no charge stands");
+      } else {
+        req.log.error({ vaultId: id, err: e instanceof Error ? e.message : String(e) }, "[ref-video-loop] reserve charge failed");
+      }
+      res.status(500).json({ error: "Charging failed — no Visual Bucs were taken and nothing was generated." });
+      return;
+    }
+    refVideoLoopTasks.set(taskId, {
+      userId: req.userId!,
+      vaultId: id,
+      credits: LOOP_VIDEO_CREDITS,
+      status: "processing",
+      chargedAmount: LOOP_VIDEO_CREDITS,
+      chargeKey,
+      newBalance,
+      refunded: false,
+    });
     void runRefVideoLoop(taskId, src);
     res.json({ taskId, creditCost: LOOP_VIDEO_CREDITS, status: "processing" });
   } catch (err) {
@@ -842,7 +980,10 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, generationLi
   }
 });
 
-/** Poll a seamless-loop job. On success: charge once and swap the vault's video to the looped version. */
+/** Poll a seamless-loop job. Charged at SUBMIT; on success this only
+ *  swaps the vault's video to the looped version (reserve kept).
+ *  Processing failure, ownership loss, or a save failure refunds the
+ *  reserve exactly once. */
 router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async (req, res) => {
   const rawId = req.params.id;
   const rawTaskId = req.params.taskId;
@@ -857,27 +998,30 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
     res.json({ status: "processing" });
     return;
   }
-  // Terminal — delete first so charging happens exactly once even on retry.
+  // Terminal — delete first so the refund/save below happens exactly
+  // once even on retry (a second poll 404s).
   refVideoLoopTasks.delete(taskId);
   if (task.status === "failed" || !task.url) {
+    const refunded = await refundLoopCharge(task, "Artist Vault Video Loop — Refund (processing failed)");
+    if (!refunded && (task.chargedAmount ?? 0) > 0) {
+      req.log.error({ taskId }, "[ref-video-loop] CRITICAL: refund failed after processing failure — manual reconciliation required");
+    }
     res.json({ status: "failed", error: task.error ?? "Loop processing failed." });
     return;
   }
-  /* The save below is owner-scoped; never charge ahead of a write
-     that cannot land. Ownership was proven at submit — re-check it
-     here, before the charge (Stack-4 wave-2 #1). */
+  /* The save below is owner-scoped; a save that cannot land must not
+     keep the reserve. Ownership was proven at submit — re-check it
+     here, before the save (Stack-4 wave-2 #1). */
   const owned = await getOwnedVaultRow(req.userId!, id);
   if (!owned) {
-    res.json({ status: "failed", error: "This character isn't yours to change — nothing was charged." });
+    const refunded = await refundLoopCharge(task, "Artist Vault Video Loop — Refund (character no longer yours)");
+    if (!refunded && (task.chargedAmount ?? 0) > 0) {
+      req.log.error({ taskId }, "[ref-video-loop] CRITICAL: refund failed after ownership loss — manual reconciliation required");
+    }
+    res.json({ status: "failed", error: "This character isn't yours to change — your Visual Bucs were refunded." });
     return;
   }
-  let charged = false;
   try {
-    const newBalance = await chargeCreditsAtomic(req.userId!, task.credits, {
-      action: "Artist Vault Video Loop",
-      projectId: null,
-    });
-    charged = true;
     await db
       .update(artistVaultsTable)
       .set({
@@ -886,31 +1030,17 @@ router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async
         updated_at: new Date(),
       })
       .where(and(eq(artistVaultsTable.id, id), eq(artistVaultsTable.user_id, req.userId!)));
-    res.json({ status: "succeeded", url: task.url, newBalance });
+    res.json({ status: "succeeded", url: task.url, newBalance: task.newBalance });
   } catch (err) {
-    if (err instanceof LedgerWriteError) {
-      /* chargeCredits rolled the deduction itself back — no standing
-         charge to refund. */
-      res.json({ status: "failed", error: "Credit ledger write failed — no video was changed." });
+    /* The save failed — refund the exact reserved amount, exactly
+       once (D5 sweep G4). */
+    const refunded = await refundLoopCharge(task, "Artist Vault Video Loop — Refund (save failed)");
+    if (!refunded) {
+      req.log.error({ taskId, err }, "[ref-video-loop] CRITICAL: refund failed after save failure — manual reconciliation required");
+      res.json({ status: "failed", error: "Saving the looped video failed." });
       return;
     }
-    if (charged) {
-      /* The charge landed but the save after it failed — refund the
-         exact charged amount (D5 sweep G4). */
-      try {
-        await refundCredits(req.userId!, task.credits, {
-          action: "Artist Vault Video Loop — Refund (save failed)",
-          projectId: null,
-        });
-      } catch (refundErr) {
-        req.log.error({ taskId, err: refundErr }, "[ref-video-loop] CRITICAL: refund failed after save failure — manual reconciliation required");
-        res.json({ status: "failed", error: "Saving the looped video failed." });
-        return;
-      }
-      res.json({ status: "failed", error: "Saving the looped video failed — your Visual Bucs were refunded." });
-      return;
-    }
-    res.json({ status: "failed", error: err instanceof Error ? err.message : "Loop failed." });
+    res.json({ status: "failed", error: "Saving the looped video failed — your Visual Bucs were refunded." });
   }
 });
 
