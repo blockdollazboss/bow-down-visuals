@@ -20,6 +20,8 @@
       /beats with the listing form prefilled; beats.tsx parses the same
       params back through parseBeatSellPrefill. */
 
+import { apiThrowMessage } from "./api-error";
+
 /* ── 1. Metronome math ────────────────────────────────────────────────────
    The sequencer grid is 16 steps per bar (one pattern = one bar of
    16ths). A beat is a quarter note = every 4 steps. The tick accents
@@ -118,7 +120,7 @@ export async function uploadRenderedBeat(
   });
   const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
   if (!res.ok || !data.url) {
-    throw new Error(data.message || data.error || `Upload failed (${res.status}).`);
+    throw new Error(apiThrowMessage(data, `Upload failed (${res.status}) — please try again.`, res.status));
   }
   return data.url;
 }
