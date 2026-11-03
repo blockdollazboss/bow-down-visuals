@@ -57,6 +57,5 @@ const insertClipChargeObligationSchema = createInsertSchema(clipChargeObligation
   created_at: true,
   resolved_at: true,
 });
-export const selectClipChargeObligationSchema = createSelectSchema(clipChargeObligationsTable);
 
 export type ClipChargeObligationRow = typeof clipChargeObligationsTable.$inferSelect;

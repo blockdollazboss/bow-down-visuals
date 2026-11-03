@@ -19,5 +19,4 @@ const insertInspoVibePresetSchema = createInsertSchema(inspoVibePresetsTable).om
   created_at: true,
 });
 
-export const selectInspoVibePresetSchema = createSelectSchema(inspoVibePresetsTable);
 

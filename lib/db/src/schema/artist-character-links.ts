@@ -33,9 +33,6 @@ const insertArtistCharacterLinkSchema = createInsertSchema(
   artistCharacterLinksTable,
 ).omit({ id: true, created_at: true });
 
-export const selectArtistCharacterLinkSchema = createSelectSchema(
-  artistCharacterLinksTable,
-);
 
 
 /** Roles a linked character can play in another character's content. */

@@ -30,5 +30,3 @@ export const trackStemsTable = pgTable("track_stems", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertTrackStemSchema = createInsertSchema(trackStemsTable);
-export const selectTrackStemSchema = createSelectSchema(trackStemsTable);

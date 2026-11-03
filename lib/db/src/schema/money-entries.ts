@@ -43,6 +43,5 @@ const insertMoneyEntrySchema = createInsertSchema(moneyEntriesTable)
       .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
   });
 
-export const selectMoneyEntrySchema = createSelectSchema(moneyEntriesTable);
 
 export type MoneyEntry = typeof moneyEntriesTable.$inferSelect;

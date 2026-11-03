@@ -285,7 +285,6 @@ export const APPROVED_ART_IDS: readonly string[] = APPROVED_ART_SOURCES.map((a) 
     living loops (King's Set) — the same loops for every pack because
     they are the approved library; the pack's own ground still is its
     static screensaver frame. */
-export const LIVING_SOURCES = APPROVED_ART_SOURCES.filter((a) => a.kind === "loop");
 
 /* ─── Designed icon set (the approved art — never code-drawn) ────────
    QC-200 G3: the kit ships the owner-approved DESIGNED emblem set

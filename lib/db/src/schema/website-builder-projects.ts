@@ -90,11 +90,9 @@ const insertWebsiteBuilderProjectSchema = createInsertSchema(websiteBuilderProje
   created_at: true,
   updated_at: true,
 });
-export const selectWebsiteBuilderProjectSchema = createSelectSchema(websiteBuilderProjectsTable);
 
 const insertWebsiteBuilderVersionSchema = createInsertSchema(websiteBuilderVersionsTable).omit({
   id: true,
   created_at: true,
 });
-export const selectWebsiteBuilderVersionSchema = createSelectSchema(websiteBuilderVersionsTable);
 

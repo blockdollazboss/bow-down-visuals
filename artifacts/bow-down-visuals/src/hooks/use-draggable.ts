@@ -302,4 +302,3 @@ export function useDraggable(
 }
 
 /** Number of snap positions (8 cols × 5 rows). */
-export const SNAP_POSITION_COUNT = COLS * ROWS;

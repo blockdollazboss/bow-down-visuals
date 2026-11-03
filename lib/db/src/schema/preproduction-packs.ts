@@ -139,11 +139,5 @@ export const preproductionPacksTable = pgTable("preproduction_packs", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertPreproductionPackSchema = createInsertSchema(preproductionPacksTable).omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const selectPreproductionPackSchema = createSelectSchema(preproductionPacksTable);
 

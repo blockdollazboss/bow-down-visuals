@@ -76,14 +76,6 @@ CREATE INDEX IF NOT EXISTS service_bookings_product_idx ON service_bookings (pro
 CREATE UNIQUE INDEX IF NOT EXISTS service_bookings_slot_start_ux ON service_bookings (product_id, slot_start) WHERE status IN ('held', 'confirmed');
 `.trim();
 
-export const SERVICE_BOOKINGS_EXCLUSION_SQL = `
-ALTER TABLE service_bookings DROP CONSTRAINT IF EXISTS service_bookings_no_overlap;
-ALTER TABLE service_bookings ADD CONSTRAINT service_bookings_no_overlap
-  EXCLUDE USING gist (
-    product_id WITH =,
-    tstzrange(slot_start, slot_end) WITH &&
-  ) WHERE (status IN ('held', 'confirmed'));
-`.trim();
 
 /* ═══════════════════════ Errors + detection ══════════════════════════ */
 

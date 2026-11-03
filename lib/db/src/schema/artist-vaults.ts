@@ -67,5 +67,4 @@ const insertArtistVaultSchema = createInsertSchema(artistVaultsTable).omit({
   deleted_at: true,
 });
 
-export const selectArtistVaultSchema = createSelectSchema(artistVaultsTable);
 

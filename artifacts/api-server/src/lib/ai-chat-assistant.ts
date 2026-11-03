@@ -57,7 +57,6 @@ export function buildChatSystemPrompt(message: string): string {
 /** Static prompt (rules + index, no message-specific facts). Kept for
     callers that don't have a message yet; routes/chat.ts uses
     buildChatSystemPrompt per request. */
-export const CHAT_SYSTEM_PROMPT = buildChatSystemPrompt("");
 
 /* ─── Cost model ──────────────────────────────────────────────────────────
    The operator knowledge block is larger than the old hand-typed prompt

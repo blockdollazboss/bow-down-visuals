@@ -50,7 +50,6 @@ export const priorityDmSettingsTable = pgTable("priority_dm_settings", {
   updatedAt:        timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertPriorityDmSettingsSchema = createInsertSchema(priorityDmSettingsTable);
 
 export const priorityDmsTable = pgTable("priority_dms", {
   id:             uuid("id").primaryKey().defaultRandom(),

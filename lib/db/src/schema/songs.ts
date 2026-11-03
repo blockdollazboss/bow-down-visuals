@@ -44,11 +44,6 @@ export const songsTable = pgTable("songs", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertSongSchema = createInsertSchema(songsTable).omit({
-  id: true,
-  created_at: true,
-});
 
-export const selectSongSchema = createSelectSchema(songsTable);
 
 export type Song = typeof songsTable.$inferSelect;

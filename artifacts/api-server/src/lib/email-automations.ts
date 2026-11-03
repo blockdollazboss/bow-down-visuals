@@ -123,15 +123,10 @@ export type { AutomationDefaultCopy };
 
 const EN_COPY = automationCopyFor("en");
 
-export const AUTOMATION_DEFAULTS: Record<EmailAutomationKind, AutomationDefaultCopy> =
-  EN_COPY.defaults;
 
 /** Plain-language statement of what fires each automation — including
  *  its blind spots. Rendered verbatim in the UI; never overclaim. */
-export const AUTOMATION_TRIGGER_NOTES: Record<EmailAutomationKind, string> =
-  EN_COPY.triggerNotes;
 
-export const AUTOMATION_LABELS: Record<EmailAutomationKind, string> = EN_COPY.labels;
 
 /* ── Provisioning ───────────────────────────────────────────────────── */
 

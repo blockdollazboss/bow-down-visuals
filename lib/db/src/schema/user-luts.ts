@@ -17,5 +17,4 @@ const insertUserLutSchema = createInsertSchema(userLutsTable).omit({
   created_at: true,
 });
 
-export const selectUserLutSchema = createSelectSchema(userLutsTable);
 

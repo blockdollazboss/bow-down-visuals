@@ -59,28 +59,7 @@ export const syncPitchesTable = pgTable("sync_pitches", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertSyncOneSheetSchema = createInsertSchema(syncOneSheetsTable).omit({
-  id: true,
-  user_id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const insertSyncBriefSchema = createInsertSchema(syncBriefsTable).omit({
-  id: true,
-  user_id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const insertSyncPitchSchema = createInsertSchema(syncPitchesTable).omit({
-  id: true,
-  user_id: true,
-  created_at: true,
-  updated_at: true,
-});
 
-export const selectSyncOneSheetSchema = createSelectSchema(syncOneSheetsTable);
-export const selectSyncBriefSchema = createSelectSchema(syncBriefsTable);
-export const selectSyncPitchSchema = createSelectSchema(syncPitchesTable);
 

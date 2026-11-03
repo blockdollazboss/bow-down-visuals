@@ -106,6 +106,5 @@ const insertProductReviewSchema = createInsertSchema(productReviewsTable).omit({
   createdAt: true,
   updatedAt: true,
 });
-export const selectProductReviewSchema = createSelectSchema(productReviewsTable);
 
 export type ProductReview = typeof productReviewsTable.$inferSelect;

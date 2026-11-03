@@ -23,5 +23,4 @@ const insertArtistOutfitSchema = createInsertSchema(artistOutfitsTable).omit({
   created_at: true,
 });
 
-export const selectArtistOutfitSchema = createSelectSchema(artistOutfitsTable);
 

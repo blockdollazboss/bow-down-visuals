@@ -32,5 +32,4 @@ const insertShowcaseItemSchema = createInsertSchema(showcaseItemsTable).omit({
   created_at: true,
 });
 
-export const selectShowcaseItemSchema = createSelectSchema(showcaseItemsTable);
 
