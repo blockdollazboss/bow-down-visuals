@@ -62,7 +62,7 @@ export type TemplateIconName =
   | "music" | "megaphone" | "mic" | "video"
   | "smartphone" | "images" | "sparkles" | "layout";
 
-interface VideoTemplate {
+export interface VideoTemplate {
   id: VideoTemplateId;
   name: string;
   tagline: string;

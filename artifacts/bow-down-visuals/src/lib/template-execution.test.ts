@@ -22,6 +22,7 @@ import {
 } from "./editor-settings";
 import { VIDEO_TEMPLATES, getVideoTemplate } from "./video-templates";
 import { executeVideoTemplate } from "./template-execution";
+import { lanesToCaptionLines, lanesToOverlayItems, resolveLanes } from "./timeline-lanes";
 import type { SceneData } from "./scene-parser";
 
 function scene(id: string, n: number, lyricLine = ""): SceneData {
@@ -233,6 +234,27 @@ describe("executeVideoTemplate — Blank Canvas stays a no-op beyond today's def
     expect(report.transitionsApplied).toBe(0);
     expect(report.overlaysPlaced).toBe(0);
     expect(report.overlaysSkipped).toBe(0);
+  });
+});
+
+describe("executeVideoTemplate — lanes interplay", () => {
+  it("executed title/hook win over stale stored lanes at export resolution (last writer wins)", () => {
+    const base = defaultEditorSettings();
+    // Lanes materialized from the pre-execution (empty) legacy lists.
+    const staleLanes = resolveLanes({ lanes: null, overlayItems: base.overlayItems, captionLines: base.captions.lines });
+    const { settings } = executeVideoTemplate(
+      { ...base, lanes: staleLanes },
+      getVideoTemplate("music-video"),
+      scenes(2, ["hook from the lyric"]),
+      { title: "Midnight Crown" },
+    );
+    const resolved = resolveLanes({
+      lanes: settings.lanes,
+      overlayItems: settings.overlayItems,
+      captionLines: settings.captions.lines,
+    });
+    expect(lanesToOverlayItems(resolved).map((o) => o.content)).toContain("Midnight Crown");
+    expect(lanesToCaptionLines(resolved).map((l) => l.text)).toContain("hook from the lyric");
   });
 });
 
