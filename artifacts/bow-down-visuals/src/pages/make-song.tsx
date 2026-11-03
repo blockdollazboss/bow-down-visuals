@@ -40,6 +40,18 @@ import { SongReworkPanel } from "@/components/SongReworkPanel";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import {
+  SONG_PRESET_GROUPS,
+  SONG_PRESET_GENRES,
+  SONG_PRESET_MOODS,
+  SONG_PRESET_LENGTHS,
+  songPresetsByGroup,
+  songPresetPatch,
+  type SongPreset,
+  type SongPresetGenre,
+  type SongPresetMood,
+  type SongPresetLength,
+} from "@/lib/song-presets";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -58,42 +70,57 @@ interface SongFormValues {
 
 /* ─────────────────────────── DROPDOWN OPTIONS ─────────────────────────── */
 
-const GENRES: Array<{ value: string; labelKey: string }> = [
-  { value: "Hip Hop", labelKey: "makeSong.genreHipHop" },
-  { value: "Drill", labelKey: "makeSong.genreDrill" },
-  { value: "Trap", labelKey: "makeSong.genreTrap" },
-  { value: "R&B", labelKey: "makeSong.genreRB" },
-  { value: "Pop", labelKey: "makeSong.genrePop" },
-  { value: "Afrobeats", labelKey: "makeSong.genreAfrobeats" },
-  { value: "Dancehall", labelKey: "makeSong.genreDancehall" },
-  { value: "Gospel", labelKey: "makeSong.genreGospel" },
-  { value: "Kids Music", labelKey: "makeSong.genreKidsMusic" },
-  { value: "Rock", labelKey: "makeSong.genreRock" },
-  { value: "Country", labelKey: "makeSong.genreCountry" },
-  { value: "Other", labelKey: "makeSong.genreOther" },
-];
+/* The select VALUES come from lib/song-presets (the preset registry) so a
+   preset's genre/mood/length can never name a value the form rejects;
+   only the i18n label keys live here, one per canonical value. */
+const GENRE_LABEL_KEYS: Record<SongPresetGenre, string> = {
+  "Hip Hop": "makeSong.genreHipHop",
+  Drill: "makeSong.genreDrill",
+  Trap: "makeSong.genreTrap",
+  "R&B": "makeSong.genreRB",
+  Pop: "makeSong.genrePop",
+  Afrobeats: "makeSong.genreAfrobeats",
+  Dancehall: "makeSong.genreDancehall",
+  Gospel: "makeSong.genreGospel",
+  "Kids Music": "makeSong.genreKidsMusic",
+  Rock: "makeSong.genreRock",
+  Country: "makeSong.genreCountry",
+  Other: "makeSong.genreOther",
+};
+const GENRES: Array<{ value: string; labelKey: string }> = SONG_PRESET_GENRES.map((value) => ({
+  value,
+  labelKey: GENRE_LABEL_KEYS[value],
+}));
 
-const MOODS: Array<{ value: string; labelKey: string }> = [
-  { value: "Luxury", labelKey: "makeSong.moodLuxury" },
-  { value: "Dark", labelKey: "makeSong.moodDark" },
-  { value: "Emotional", labelKey: "makeSong.moodEmotional" },
-  { value: "Street", labelKey: "makeSong.moodStreet" },
-  { value: "Romantic", labelKey: "makeSong.moodRomantic" },
-  { value: "Energetic", labelKey: "makeSong.moodEnergetic" },
-  { value: "Pain", labelKey: "makeSong.moodPain" },
-  { value: "Victory", labelKey: "makeSong.moodVictory" },
-  { value: "Party", labelKey: "makeSong.moodParty" },
-  { value: "Inspirational", labelKey: "makeSong.moodInspirational" },
-  { value: "Funny", labelKey: "makeSong.moodFunny" },
-  { value: "Kid-Friendly", labelKey: "makeSong.moodKidFriendly" },
-];
+const MOOD_LABEL_KEYS: Record<SongPresetMood, string> = {
+  Luxury: "makeSong.moodLuxury",
+  Dark: "makeSong.moodDark",
+  Emotional: "makeSong.moodEmotional",
+  Street: "makeSong.moodStreet",
+  Romantic: "makeSong.moodRomantic",
+  Energetic: "makeSong.moodEnergetic",
+  Pain: "makeSong.moodPain",
+  Victory: "makeSong.moodVictory",
+  Party: "makeSong.moodParty",
+  Inspirational: "makeSong.moodInspirational",
+  Funny: "makeSong.moodFunny",
+  "Kid-Friendly": "makeSong.moodKidFriendly",
+};
+const MOODS: Array<{ value: string; labelKey: string }> = SONG_PRESET_MOODS.map((value) => ({
+  value,
+  labelKey: MOOD_LABEL_KEYS[value],
+}));
 
-const LENGTHS: Array<{ value: string; labelKey: string }> = [
-  { value: "30 seconds", labelKey: "makeSong.length30s" },
-  { value: "60 seconds", labelKey: "makeSong.length60s" },
-  { value: "2 minutes", labelKey: "makeSong.length2min" },
-  { value: "Full song", labelKey: "makeSong.lengthFull" },
-];
+const LENGTH_LABEL_KEYS: Record<SongPresetLength, string> = {
+  "30 seconds": "makeSong.length30s",
+  "60 seconds": "makeSong.length60s",
+  "2 minutes": "makeSong.length2min",
+  "Full song": "makeSong.lengthFull",
+};
+const LENGTHS: Array<{ value: string; labelKey: string }> = SONG_PRESET_LENGTHS.map((value) => ({
+  value,
+  labelKey: LENGTH_LABEL_KEYS[value],
+}));
 
 
 
@@ -168,6 +195,7 @@ export function MakeSongModule() {
   const [mashupA, setMashupA] = useState<string | null>(null);
   const [mashupB, setMashupB] = useState<string | null>(null);
   const [simplePrompt, setSimplePrompt] = useState("");
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -256,6 +284,50 @@ export function MakeSongModule() {
     if (!watched.artistName) setValue("artistName", vault.artist_name);
     if (!watched.genre && vault.genre) setValue("genre", vault.genre);
     setLoadedVault(vault);
+  }
+
+  /* Song presets (lib/song-presets) — a tap ONLY prefills. It never
+     submits and never charges: Simple mode gets the description text,
+     Advanced mode gets the preset's real form fields. Generation still
+     happens only from the desk's own Generate buttons. */
+  function applySimplePreset(preset: SongPreset) {
+    setActivePresetId(preset.id);
+    setSimplePrompt(preset.simplePrompt);
+  }
+
+  function applyFormPreset(preset: SongPreset) {
+    setActivePresetId(preset.id);
+    const patch = songPresetPatch(preset);
+    if (patch.genre) setValue("genre", patch.genre, { shouldDirty: true });
+    if (patch.mood) setValue("mood", patch.mood, { shouldDirty: true });
+    if (patch.songLength) setValue("songLength", patch.songLength, { shouldDirty: true });
+    if (patch.beatStyle) setValue("beatStyle", patch.beatStyle, { shouldDirty: true });
+    if (patch.specialInstructions) setValue("specialInstructions", patch.specialInstructions, { shouldDirty: true });
+  }
+
+  function renderPresetGroups(onPick: (preset: SongPreset) => void) {
+    return SONG_PRESET_GROUPS.map((group) => (
+      <div key={group.id}>
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">{group.label}</p>
+        <div className="flex flex-wrap gap-2">
+          {songPresetsByGroup(group.id).map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              aria-pressed={activePresetId === preset.id}
+              onClick={() => onPick(preset)}
+              className={`px-4 py-2 border rounded-lg text-sm transition-all ${
+                activePresetId === preset.id
+                  ? "bg-primary/10 border-primary/60 text-white"
+                  : "bg-white/5 border-white/10 hover:border-primary/50 hover:bg-primary/5"
+              }`}
+            >
+              {preset.emoji} {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    ));
   }
 
   async function onSubmit(values: SongFormValues) {
@@ -574,30 +646,19 @@ export function MakeSongModule() {
                 </p>
               </div>
 
-              {/* One-click genre presets */}
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">
-                  Quick styles
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: "🎵 Pop Hit", prompt: "catchy pop song with memorable chorus" },
-                    { label: "🎤 Hip Hop", prompt: "hard-hitting hip hop track with confident flow" },
-                    { label: "🎸 Rock Anthem", prompt: "powerful rock anthem with epic guitars" },
-                    { label: "💃 Dance", prompt: "high-energy dance track with infectious beat" },
-                    { label: "😢 Ballad", prompt: "emotional ballad with heartfelt lyrics" },
-                    { label: "🌙 Lo-Fi", prompt: "chill lo-fi track with mellow vibes" },
-                  ].map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => setSimplePrompt(preset.prompt)}
-                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm hover:border-primary/50 hover:bg-primary/5 transition-all"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
+              {/* Song presets — data from lib/song-presets, grouped by
+                  genre / mood / structure. A tap only fills the box
+                  above; presets are free and never generate on their own. */}
+              <div data-testid="song-presets-simple" className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/70 mb-1">
+                    Song presets
+                  </label>
+                  <p className="text-xs text-white/40">
+                    Free starters — a tap fills in the description. Generating is the paid step, and only when you tap Generate.
+                  </p>
                 </div>
+                {renderPresetGroups(applySimplePreset)}
               </div>
 
               <button
@@ -611,6 +672,19 @@ export function MakeSongModule() {
             </div>
           ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
+            {/* Song presets — same registry as Simple mode. A tap fills
+                the real fields below (genre, mood, length, beat style,
+                structure in Special Instructions); it never submits. */}
+            <div data-testid="song-presets-advanced" className="space-y-4 rounded-xl border border-white/[0.08] bg-white/[0.015] p-5">
+              <div>
+                <p className="text-sm font-bold text-white">Song presets</p>
+                <p className="text-xs text-white/40 mt-1">
+                  Free starters — a tap fills in the fields below. Nothing generates until you tap Create My Song.
+                </p>
+              </div>
+              {renderPresetGroups(applyFormPreset)}
+            </div>
 
             {/* Upload your own song — skip generation, go straight to video */}
             <div className="rounded-xl border border-dashed border-white/[0.12] bg-white/[0.015] p-5">
