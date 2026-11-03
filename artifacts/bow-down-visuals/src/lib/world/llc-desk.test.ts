@@ -39,7 +39,7 @@ describe("prices — registry-pinned, route-matched", () => {
     expect(LLC_ASK_COST).toBe(100);
     expect(LLC_PLAN_COST).toBe(100);
     const route = apiSrc("routes/generate/llc-guide.ts");
-    const constant = route.match(/LLC_GUIDE_CREDIT_COST\s*=\s*(\d+)/);
+    const constant = route.match(/LLC_GUIDE_CREDIT_COST\s*=\s*\n?\s*Number\(process\.env\["LLC_GUIDE_CREDIT_COST"\]\) \|\| (\d+)/);
     expect(constant).not.toBeNull();
     expect(LLC_ASK_COST).toBe(Number(constant![1]));
   });
