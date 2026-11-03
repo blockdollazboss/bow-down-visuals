@@ -193,6 +193,7 @@ const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").t
 const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then((m) => ({ default: m.BriefDesk })));
 const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
 const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
+const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1195,6 +1196,13 @@ export default function StationPanel(props: StationPanelProps) {
                     /api/dj rails, stacked at the My Studio board. */}
                 <DeskDoor isLight={isLight}>
                   <DjDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Saved (stack1500 parity wave #3): the bookmark
+                    shelf — posts, tracks, videos, profiles — on
+                    the /api/saves rails, stacked at the My Studio
+                    board. */}
+                <DeskDoor isLight={isLight}>
+                  <SavedDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
