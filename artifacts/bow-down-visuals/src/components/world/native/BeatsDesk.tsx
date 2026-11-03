@@ -31,6 +31,7 @@ import {
   beatListingProblem,
   beatSaleStatusLabel,
   beatTemplateFormFromDto,
+  beatSelectedOfferUnavailable,
   beatTemplateOffer,
   beatTierOffers,
   beatsBrowsePath,
@@ -537,7 +538,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                           className={`w-full rounded-xl border p-3 text-left transition disabled:opacity-40 ${offerKey === offer.key ? "border-[#d4af37] bg-[#d4af37]/10" : isLight ? "border-[#7A5A12]/25" : "border-white/10"}`}>
                           <span className="flex items-center justify-between gap-2">
                             <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{offer.label}</span>
-                            <span className="text-sm font-bold text-[#d4af37]">{offer.soldOut ? "Sold out" : moneyCents(offer.priceCents)}</span>
+                            <span className="text-sm font-bold text-[#d4af37]">{offer.stemsBlocked && !beat.exclusiveSold ? "No stems on file" : offer.soldOut ? "Sold out" : moneyCents(offer.priceCents)}</span>
                           </span>
                           <span className={`block text-[11px] ${muted}`}>{offer.blurb}</span>
                           <span className={`block text-[11px] ${muted}`}>{offer.termsLine}</span>
@@ -554,7 +555,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                             className={`w-full rounded-xl border p-3 text-left transition disabled:opacity-40 ${offerKey === key ? "border-[#d4af37] bg-[#d4af37]/10" : isLight ? "border-[#7A5A12]/25" : "border-white/10"}`}>
                             <span className="flex items-center justify-between gap-2">
                               <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{offer.name}</span>
-                              <span className="text-sm font-bold text-[#d4af37]">{offer.soldOut ? "Sold out" : moneyCents(offer.priceCents)}</span>
+                              <span className="text-sm font-bold text-[#d4af37]">{offer.stemsBlocked && !beat.exclusiveSold ? "No stems on file" : offer.soldOut ? "Sold out" : moneyCents(offer.priceCents)}</span>
                             </span>
                             <span className={`block text-[11px] ${muted}`}>{offer.termsLine}</span>
                           </button>
@@ -563,7 +564,7 @@ export function BeatsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                       <p className={`rounded-xl border border-yellow-500/25 bg-yellow-500/[0.06] p-3 text-[11px] ${isLight ? "text-[#92600a]" : "text-yellow-200/80"}`}>{BEATS_PAYMENT_NOTE}</p>
                       {licenseNote && <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{licenseNote}</p>}
                       {licenseError && <p className="text-xs font-semibold text-red-400">{licenseError}</p>}
-                      <button type="button" data-testid="world-beats-license-buy" onClick={() => void reserveLicense()} disabled={licensing || beat.exclusiveSold}
+                      <button type="button" data-testid="world-beats-license-buy" onClick={() => void reserveLicense()} disabled={licensing || beatSelectedOfferUnavailable(beat, offerKey)}
                         className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                         {licensing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeDollarSign className="h-3.5 w-3.5" />}
                         {licensing ? "Reserving…" : beat.exclusiveSold ? "Sold — off the market" : "License this beat"}
