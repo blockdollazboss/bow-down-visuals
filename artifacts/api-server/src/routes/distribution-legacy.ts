@@ -315,7 +315,7 @@ router.get("/distribution/toolost/status", requireAuth, async (req, res) => {
    proactively when expired and once more on a mid-pipeline 401 —
    never used dead and called fine.
 
-   State lives in distribution_toolost_submissions (migration 0320),
+   State lives in distribution_toolost_submissions (migration 0321),
    one row per release: draft → submitting → in_review, or → failed
    with OUR sanitized reason. The provider draft id is stored the
    moment it exists, so a retry after a mid-pipeline failure REUSES
