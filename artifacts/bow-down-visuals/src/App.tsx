@@ -702,11 +702,6 @@ function AppShell() {
           <Route path="/unlock/:slug"><UnlockGate /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
-          <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
-          <Route path="/trending"><Trending /></Route>
-          <Route path="/remix"><Remix /></Route>
-          <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
-          <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
           {/* Bare /shop front door (stack700): storefronts live at
               /shop/:slug, are displayed as "/shop/{handle}", and are
@@ -739,12 +734,6 @@ function AppShell() {
           <Route path="/review/:token"><ReviewPage /></Route>
           {/* Public sync one-sheet (tokenized, no login) — shareable supervisor link with ?ref=CODE */}
           <Route path="/sync-one-sheet/:token"><SyncOneSheetPublic /></Route>
-          {/* Worker 9: community — groups / events / explore are public (viral surfaces); DMs need auth */}
-          <Route path="/groups"><Groups /></Route>
-          <Route path="/groups/:slug"><GroupDetail /></Route>
-          <Route path="/events"><Events /></Route>
-          <Route path="/events/:id"><EventDetailPage /></Route>
-          <Route path="/explore"><Explore /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
@@ -837,6 +826,30 @@ function AppShell() {
                 <Route path="/beat-maker"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
+                {/* One-website shell, social ring (stack1400 org wave,
+                    audit §1a): the signed-in social surfaces — the Feed
+                    home (a sidebar door), Saved, Post, Trending, Remix,
+                    and the Worker 9 community trio Explore / Groups /
+                    Events with their detail pages — rendered OUTSIDE
+                    the sidebar layout. All are locked for guests in
+                    the public-routes matrix (GuestGate bounces guests
+                    to /login before either Switch renders), so the
+                    wrap changes nothing signed-out; signed-in, the
+                    sidebar now survives the whole Social section.
+                    Same pages, same ProtectedRoute guards — placement
+                    only. (The old outer comment called groups/events/
+                    explore "public": the gate has locked them since
+                    the access lockdown; DMs were already inside.) */}
+                <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
+                <Route path="/trending"><Trending /></Route>
+                <Route path="/remix"><Remix /></Route>
+                <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
+                <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
+                <Route path="/explore"><Explore /></Route>
+                <Route path="/groups"><Groups /></Route>
+                <Route path="/groups/:slug"><GroupDetail /></Route>
+                <Route path="/events"><Events /></Route>
+                <Route path="/events/:id"><EventDetailPage /></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 {/* One-website shell (findability fix, 2026-10-18): the
                     money-ops doors and the feature registry used to render
