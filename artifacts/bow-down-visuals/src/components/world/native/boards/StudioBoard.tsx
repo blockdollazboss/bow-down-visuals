@@ -44,6 +44,7 @@ import { normalizeContests } from "@/lib/world/contests";
 import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-quests";
 import { CreatorProfileCreateCard } from "@/components/world/native/CreatorProfileCreate";
 import { AlbumsDesk } from "@/components/world/native/AlbumsDesk";
+import { BooksDesk } from "@/components/world/native/BooksDesk";
 
 /* ─── StudioBoard — My Studio as a palace board (NATIVE-PLAN §3.1) ───
    The Create Wing's studio door, rebuilt in-world: your projects
@@ -534,6 +535,13 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
             room with the rest of your work. */}
         <AlbumsDesk isLight={isLight} />
       </div>
+
+      {/* Thy Books (stack1400 parity wave 2): the whole books line —
+          write (books + chapters), design (AI cover), the ghostwriter,
+          export + print-on-demand — on the /api/books rails, in the
+          room with the rest of your work. Full-width under the widget
+          grid: a chapter editor needs the room. */}
+      <BooksDesk isLight={isLight} />
 
       {/* The projects board, with its deeper tabs */}
       <div
