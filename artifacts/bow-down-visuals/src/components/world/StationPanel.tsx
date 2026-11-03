@@ -221,6 +221,7 @@ const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks")
 const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDesk").then((m) => ({ default: m.LabelPitchDesk })));
 const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk").then((m) => ({ default: m.EmailListDesk })));
 const InterviewDesk = lazy(() => import("@/components/world/native/InterviewDesk").then((m) => ({ default: m.InterviewDesk })));
+const TrendsDesk = lazy(() => import("@/components/world/native/TrendsDesk").then((m) => ({ default: m.TrendsDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1317,6 +1318,14 @@ export default function StationPanel(props: StationPanelProps) {
                     like the desks above it. */}
                 <DeskDoor isLight={isLight}>
                   <InterviewDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Trend Predictor (stack1500 parity wave #3):
+                    the forecast + content ideas on the
+                    /api/trend-predictor rails (200 / 100 via
+                    the registry), stacked in the Promote Room;
+                    the watchlist is the page's own local list. */}
+                <DeskDoor isLight={isLight}>
+                  <TrendsDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : (
