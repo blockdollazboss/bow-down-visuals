@@ -26,6 +26,13 @@
  * that is an owner ruling and a different change, never a quiet edit
  * to this file.
  *
+ * Pacing (stack1400 ruling #42): free means the house pays the
+ * provider on every call, so the route is paced per member —
+ * chatVoiceTranscribeLimiter allows 60 transcriptions per hour per
+ * authenticated member (admins skip, per the house limiter pattern).
+ * The 30/min-per-IP publicApiLimiter stays in the chain as backstop.
+ * Pace it, don't price it: the cap changes no charge (still 0).
+ *
  * Caps: chat utterances are SHORT. The client stops recording at
  * CHAT_VOICE_MAX_UTTERANCE_SEC (30s — mirrored in the client's
  * lib/chat-voice.ts), and this route refuses audio over
@@ -38,7 +45,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
-import { publicApiLimiter } from "../lib/rate-limit";
+import { publicApiLimiter, chatVoiceTranscribeLimiter } from "../lib/rate-limit";
 import { transcribeAudioTimed } from "../lib/transcription";
 import { logger } from "../lib/logger";
 
@@ -89,6 +96,7 @@ router.post(
   "/chat/voice/transcribe",
   requireAuth,
   publicApiLimiter,
+  chatVoiceTranscribeLimiter,
   upload.single("audio"),
   async (req, res) => {
     if (!req.file) {
