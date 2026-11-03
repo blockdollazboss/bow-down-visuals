@@ -37,7 +37,6 @@ import { z } from "zod";
 
 export const CREATOR_TIERS = ["free", "pro", "elite"] as const;
 export type CreatorTier = (typeof CREATOR_TIERS)[number];
-export const creatorTierSchema = z.enum(CREATOR_TIERS);
 
 const TIER_RANK: Record<CreatorTier, number> = { free: 0, pro: 1, elite: 2 };
 
