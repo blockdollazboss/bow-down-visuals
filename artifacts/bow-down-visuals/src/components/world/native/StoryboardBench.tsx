@@ -18,7 +18,7 @@ import {
   DEFAULT_CLIP_SETTINGS,
   interpretTaskPoll,
   storyboardStepOf,
-  transcribeCost,
+  transcribeCostLabel,
   videoPlanCost,
   withSceneApproval,
   withSceneClip,
@@ -386,7 +386,7 @@ export function StoryboardBench(props: {
         </div>
       ) : null}
       <QuestProgressChip isLight={isLight} lines={quest.lines} />
-      <p className={`text-[11px] ${muted}`}>Transcription for uploaded songs rides the Song + Video wizard ({transcribeCost().toLocaleString("en-US")} Visual Bucs) — paste or transcribe lyrics, then build scenes here.</p>
+      <p className={`text-[11px] ${muted}`}>Transcription for uploaded songs rides the Song + Video wizard ({transcribeCostLabel()}) — paste or transcribe lyrics, then build scenes here.</p>
     </div>
   );
 }

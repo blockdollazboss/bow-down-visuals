@@ -663,7 +663,11 @@ describe("the heavy routers charge their displayed prices (source-shape)", () =>
     expect(plan).toContain("const AI_EDIT_PLAN_CREDIT_COST = 100;");
     expect(plan).toContain("buildChargeIdempotencyKey(");
     const transcribe = readFileSync(path.join(srcRoot, "routes/transcribe.ts"), "utf8");
-    expect(transcribe).toContain("const TRANSCRIBE_CREDIT_COST = 100;");
+    // Length pricing (owner ruling 2026-11-02, by delegation) replaced
+    // the flat "const TRANSCRIBE_CREDIT_COST = 100;": the price is
+    // computed from the server-probed duration via the pricing lib.
+    expect(transcribe).toContain("transcribeCreditCost(");
+    expect(transcribe).toContain("probeAudioDurationSeconds(");
     expect(transcribe).toContain("buildChargeIdempotencyKey(");
   });
 });

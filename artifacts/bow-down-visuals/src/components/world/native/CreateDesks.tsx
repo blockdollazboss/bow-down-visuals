@@ -85,7 +85,7 @@ import {
   resultExcerpt,
   schedulePrefillForMedia,
   showcaseSlugOfResponse,
-  transcribeCost,
+  transcribeCostLabel,
   transcriptOfResponse,
   vaultsOfResponse,
   withArtistVault,
@@ -511,7 +511,7 @@ export function SongDesk(props: CreateDeskProps) {
           />
         ) : null}
         <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
-          {intakeBusy ? "Transcribing…" : `Upload a song + transcribe · ${transcribeCost().toLocaleString("en-US")} Visual Bucs`}
+          {intakeBusy ? "Transcribing…" : `Upload a song + transcribe · ${transcribeCostLabel()}`}
           <input type="file" accept="audio/*" className="hidden" data-testid="world-song-intake-upload" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intakeFile(f); }} />
         </label>
         {intakeNote ? <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{intakeNote}</span> : null}
@@ -1102,7 +1102,7 @@ function SongVideoWizard(props: {
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <label className={chipCls}>
-          {audioFile ? `Song file: ${audioFile.name}` : `Upload the song — auto-transcribes · ${transcribeCost().toLocaleString("en-US")} Visual Bucs`}
+          {audioFile ? `Song file: ${audioFile.name}` : `Upload the song — auto-transcribes · ${transcribeCostLabel()}`}
           <input type="file" accept="audio/*" className="hidden" data-testid="world-song-video-intake" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intake(f); }} />
         </label>
         {transcribing ? <span className={`text-xs font-semibold ${muted}`}>Transcribing…</span> : null}

@@ -30,6 +30,7 @@ import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { probeMediaDurationSec, transcribeCostForDurationSec } from "@/lib/credit-costs";
 import { vaultToPayload } from "@/lib/prompt-improve";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import { turboSongVideoInputData, withProjectAudio } from "@/lib/project-handoff";
@@ -387,10 +388,15 @@ function SimpleModeIntake({ onSwitchGuided }: { onSwitchGuided: () => void }) {
       const token = await getAccessToken();
       const fd = new FormData();
       fd.append("audio", file);
+      /* Length-priced transcription: quote the tier for this file's
+         real duration (probed from the bytes), matching the server. */
+      const durationSec = await probeMediaDurationSec(file);
       const res = await confirmedFetch("/api/transcribe", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
+        overrideCost: transcribeCostForDurationSec(durationSec),
+        overrideFeature: "Transcribe Audio",
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (!res.ok) throw new Error("Transcription failed");

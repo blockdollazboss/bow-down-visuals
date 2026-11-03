@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Mic, Upload, X, FileAudio } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { probeMediaDurationSec, transcribeCostForDurationSec } from "@/lib/credit-costs";
 
 interface Props {
   onTranscript: (text: string) => void;
@@ -69,12 +70,19 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
       const token = await getAccessToken();
       const fd = new FormData();
       fd.append("audio", file);
+      /* Transcription is length-priced (100 VB ≤ 5 min, +20 VB per
+         extra minute): quote the tier for THIS file's real duration —
+         probed from the actual bytes, the same duration the server
+         measures before charging — never the flat registry base. */
+      const durationSec = await probeMediaDurationSec(file);
       setPhase("transcribing");
       const res = await confirmedFetch("/api/transcribe", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
         signal: controller.signal,
+        overrideCost: transcribeCostForDurationSec(durationSec),
+        overrideFeature: "Transcribe Audio",
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => null)) as {

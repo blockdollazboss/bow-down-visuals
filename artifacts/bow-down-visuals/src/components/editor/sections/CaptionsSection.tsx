@@ -1,6 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { probeMediaDurationSec, transcribeCostForDurationSec } from "@/lib/credit-costs";
 import {
   Captions, Plus, Trash2, Wand2, RotateCcw, Eye, EyeOff,
   CheckCircle2, AlertCircle, Info, Pencil,
@@ -799,6 +800,10 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
     try {
       const token = await getAccessToken?.().catch(() => undefined);
+      /* Length-priced transcription: quote the tier for the song's
+         real duration (probe the URL if the section's duration state
+         hasn't landed yet) — never the flat base for a long song. */
+      const durationSec = songDuration ?? (audioUrl ? await probeMediaDurationSec(audioUrl) : null);
       const res = await confirmedFetch("/api/transcribe-url", {
         method: "POST",
         headers: {
@@ -806,6 +811,8 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ audioUrl }),
+        overrideCost: transcribeCostForDurationSec(durationSec),
+        overrideFeature: "Transcribe",
       });
 
       if (!res) return; // user cancelled the credit confirmation
@@ -1058,6 +1065,10 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
     try {
       const token = await getAccessToken?.().catch(() => undefined);
+      /* Length-priced transcription: quote the tier for the song's
+         real duration (probe the URL if the section's duration state
+         hasn't landed yet) — never the flat base for a long song. */
+      const durationSec = songDuration ?? (audioUrl ? await probeMediaDurationSec(audioUrl) : null);
       const res = await confirmedFetch("/api/transcribe-url", {
         method: "POST",
         headers: {
@@ -1065,6 +1076,8 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ audioUrl }),
+        overrideCost: transcribeCostForDurationSec(durationSec),
+        overrideFeature: "Transcribe",
       });
 
       if (!res) return; // user cancelled the credit confirmation
