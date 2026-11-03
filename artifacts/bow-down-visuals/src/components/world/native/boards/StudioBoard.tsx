@@ -45,6 +45,7 @@ import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-que
 import { CreatorProfileCreateCard } from "@/components/world/native/CreatorProfileCreate";
 import { AlbumsDesk } from "@/components/world/native/AlbumsDesk";
 import { SponsorDepthDesk } from "@/components/world/native/SponsorDepthDesk";
+import { BooksDesk } from "@/components/world/native/BooksDesk";
 
 /* ─── StudioBoard — My Studio as a palace board (NATIVE-PLAN §3.1) ───
    The Create Wing's studio door, rebuilt in-world: your projects
@@ -542,6 +543,13 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
           dashboard, and a deal's full detail + escrow actions, all
           on the /api/sponsors rails, all inside the World. */}
       <SponsorDepthDesk isLight={isLight} />
+
+      {/* Thy Books (stack1400 parity wave 2): the whole books line —
+          write (books + chapters), design (AI cover), the ghostwriter,
+          export + print-on-demand — on the /api/books rails, in the
+          room with the rest of your work. Full-width under the widget
+          grid: a chapter editor needs the room. */}
+      <BooksDesk isLight={isLight} />
 
       {/* The projects board, with its deeper tabs */}
       <div
