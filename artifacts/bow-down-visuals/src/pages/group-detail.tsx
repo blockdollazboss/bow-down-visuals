@@ -239,6 +239,7 @@ export default function GroupDetail() {
     if (!window.confirm("Unban this person? They'll be able to join the group again.")) return;
     try { await api.del(`/api/groups/${slug}/bans/${userId}`); setNotice("Unbanned — they can join again."); await loadBans(); }
     catch (e) { setNotice(plainErrorText(e, "Couldn't unban them.")); }
+  }
   /* ── Group settings + ownership (stack1400 ruling #10) ─────────────── */
   function openSettings() {
     if (!group) return;

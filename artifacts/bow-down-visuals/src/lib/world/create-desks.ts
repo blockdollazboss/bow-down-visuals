@@ -29,7 +29,6 @@ import {
   TRANSCRIBE_INCLUDED_MINUTES,
   transcribeCostForDurationSec,
 } from "../credit-costs";
-import { getCreditCost } from "../credit-costs";
 import { makeSongPackageCostForLength } from "../make-song-prices";
 import { getCoverArtTier } from "../cover-art";
 import { buildPublishUrl } from "../publish-protocol";
