@@ -44,6 +44,7 @@ import { normalizeContests } from "@/lib/world/contests";
 import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-quests";
 import { CreatorProfileCreateCard } from "@/components/world/native/CreatorProfileCreate";
 import { AlbumsDesk } from "@/components/world/native/AlbumsDesk";
+import { SponsorDepthDesk } from "@/components/world/native/SponsorDepthDesk";
 
 /* ─── StudioBoard — My Studio as a palace board (NATIVE-PLAN §3.1) ───
    The Create Wing's studio door, rebuilt in-world: your projects
@@ -534,6 +535,13 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
             room with the rest of your work. */}
         <AlbumsDesk isLight={isLight} />
       </div>
+
+      {/* Sponsor completion depth (stack1400 parity wave 1): the
+          pipeline card above is the summary; this desk is the
+          working depth — post a deal as a brand, the full sponsor
+          dashboard, and a deal's full detail + escrow actions, all
+          on the /api/sponsors rails, all inside the World. */}
+      <SponsorDepthDesk isLight={isLight} />
 
       {/* The projects board, with its deeper tabs */}
       <div
