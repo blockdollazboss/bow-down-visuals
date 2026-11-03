@@ -195,6 +195,7 @@ const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProof
 const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
 const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
+const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1211,6 +1212,14 @@ export default function StationPanel(props: StationPanelProps) {
                     Studio board beside DJ Set Prep. */}
                 <DeskDoor isLight={isLight}>
                   <SetlistDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Catalog Import (stack1500 parity wave #3):
+                    bring your catalog home — scan, fetch,
+                    rebuild, approve — on the free
+                    /api/catalog-import rails, stacked at the My
+                    Studio board. */}
+                <DeskDoor isLight={isLight}>
+                  <CatalogImportDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
