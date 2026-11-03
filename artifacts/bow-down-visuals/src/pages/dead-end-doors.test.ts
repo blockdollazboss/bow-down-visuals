@@ -68,7 +68,11 @@ describe("Earnings — every failure surface has a working retry", () => {
   });
 
   it("the tips card error carries its own retry button", () => {
-    const block = blockAfter(earnings, 'sources.tips.status === "error"', 900);
+    /* Joined stack1400: the stage-tips work added earlier-page uses of
+       the same status expression (the header totals), so anchor on
+       the Tips card's own error branch — the '? (' form is unique to
+       it (the card and its retry are unchanged). */
+    const block = blockAfter(earnings, 'sources.tips.status === "error" ? (', 900);
     expect(block).toContain('data-testid="earnings-tips-retry"');
     expect(block).toContain("onClick={reload}");
   });

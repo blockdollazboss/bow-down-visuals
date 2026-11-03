@@ -31,8 +31,11 @@ describe("lipSyncProviderLabel — no raw id can pass through", () => {
   });
   it("the known ids still map to their friendly names", () => {
     expect(lipSyncProviderLabel("latentsync")).toBe("Lip Sync");
-    expect(lipSyncProviderLabel("sync")).toBe("Sync");
-    expect(lipSyncProviderLabel("wavespeed")).toBe("WaveSpeed");
+    /* Joined stack1400 (sync3-strip): the removed route's spellings and
+       the internal route name are no longer display names — every
+       lip-sync provider id renders as the feature name. */
+    expect(lipSyncProviderLabel("sync")).toBe("Lip Sync");
+    expect(lipSyncProviderLabel("wavespeed")).toBe("Lip Sync");
     expect(lipSyncProviderLabel("hedra")).toBe("Hedra");
     expect(lipSyncProviderLabel("heygen")).toBe("HeyGen");
   });

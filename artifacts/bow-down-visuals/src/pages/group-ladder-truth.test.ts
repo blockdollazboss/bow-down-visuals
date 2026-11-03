@@ -26,8 +26,25 @@ describe("group-detail — member removal rides the server cap", () => {
     expect(detail).toContain("onClick={() => removeMember(m.user_id)}");
   });
 
-  it("the old owner-only button condition is gone", () => {
-    expect(detail).not.toContain('isOwner && m.role !== "owner"');
+  it("the moderation buttons ride the server caps, not an owner check", () => {
+    /* Joined stack1400: this pin used to forbid the string
+       'isOwner && m.role !== "owner"' outright — it was the old
+       owner-only REMOVE condition. Ruling #10's ownership-transfer
+       button legitimately carries that condition now (only the owner
+       can hand over ownership; the server enforces it too). The
+       invariant that matters: Remove and Ban open under their
+       server-computed caps, and the row's only owner-gated button is
+       the transfer. */
+    const row = detail.slice(detail.indexOf("flex shrink-0 items-center gap-3"));
+    const removeAt = row.indexOf("removeMember(m.user_id)");
+    const banAt = row.indexOf("banMember(m.user_id)");
+    const transferAt = row.indexOf("transferOwnership(m)");
+    expect(removeAt).toBeGreaterThan(0);
+    expect(banAt).toBeGreaterThan(0);
+    expect(transferAt).toBeGreaterThan(0);
+    expect(row.slice(Math.max(0, removeAt - 260), removeAt)).toContain("m.can_remove");
+    expect(row.slice(Math.max(0, banAt - 260), banAt)).toContain("m.can_ban");
+    expect(row.slice(Math.max(0, transferAt - 260), transferAt)).toContain("isOwner");
   });
 
   it("the Member contract carries the server-computed caps", () => {
