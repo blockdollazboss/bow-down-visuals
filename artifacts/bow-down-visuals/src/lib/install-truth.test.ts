@@ -111,4 +111,26 @@ describe("floating install card — one shared install state", () => {
   it("keeps its standing dismissal memory", () => {
     expect(cardSource).toContain("bdv-pwa-dismissed");
   });
+
+  it("remembers a dismissal for 30 days, then may ask again (stack1400 #16)", () => {
+    // Timestamped dismissal through the shared helper — never the old
+    // permanent bare "1" written straight to localStorage.
+    expect(cardSource).toContain("isPromptDismissed");
+    expect(cardSource).toContain("recordPromptDismissal");
+    expect(cardSource).not.toContain('setItem("bdv-pwa-dismissed", "1")');
+  });
+});
+
+describe("push opt-in prompt — dismissal memory (stack1400 #16)", () => {
+  const pushSource = readFileSync(new URL("../components/PushOptInPrompt.tsx", import.meta.url), "utf8");
+
+  it("keeps its per-context dismissal keys", () => {
+    expect(pushSource).toContain("bdv_push_prompt_dismissed:");
+  });
+
+  it("remembers a dismissal for 30 days, then may ask again", () => {
+    expect(pushSource).toContain("isPromptDismissed");
+    expect(pushSource).toContain("recordPromptDismissal");
+    expect(pushSource).not.toContain('"1")');
+  });
 });
