@@ -33,10 +33,11 @@
 
    CHARGE / CONFIRMATION LAW: the newsletter draft is the family's
    only paid rail. The desk rides it through useConfirmedApi with the
-   cost below as an explicit override — /api/email-list/newsletter has
-   NO row in lib/credit-costs.ts (a registry gap on the 2D side, named
-   in the lane report), so a plain confirmedFetch would find no
-   registered cost and skip the confirmation entirely. Everything else
+   cost below as an explicit override — and that cost now READS the
+   lib/credit-costs.ts registry row for /api/email-list/newsletter
+   (the row landed with the stack1400 registry lane, closing the gap
+   this desk's first version named), so the override carries the
+   registry's own value and can never drift from it. Everything else
    is free on the server and free here.
 
    HONESTY: stats render only from the rails' fields. A list with no
@@ -46,9 +47,19 @@
    broken answer. The fan graph is read-only here exactly as its 2D
    tab is read-only. */
 
+import { getCreditCost } from "../credit-costs";
+
+/** Registry cost for an endpoint; throws if unregistered so a desk
+ *  can never silently show (or charge against) an invented price. */
+function registryCost(endpoint: string): number {
+  const entry = getCreditCost(endpoint);
+  if (!entry) throw new Error(`No registered credit cost for ${endpoint}`);
+  return entry.cost;
+}
+
 export const EMAIL_LISTS_PATH = "/api/email-list/lists";
 export const EMAIL_NEWSLETTER_PATH = "/api/email-list/newsletter";
-export const EMAIL_NEWSLETTER_COST_VISUAL_BUCS = 100;
+export const EMAIL_NEWSLETTER_COST_VISUAL_BUCS = registryCost(EMAIL_NEWSLETTER_PATH);
 export const FAN_GRAPH_PATH = "/api/email-list/fan-graph";
 export const FAN_GRAPH_PAGE_SIZE = 25;
 

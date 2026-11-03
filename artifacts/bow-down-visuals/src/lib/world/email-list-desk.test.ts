@@ -51,9 +51,11 @@ describe("rails + prices", () => {
     const helpers = read("../../../../api-server/src/routes/generate/email-list-helpers.ts");
     expect(helpers).toContain('Number(process.env["EMAIL_NEWSLETTER_CREDIT_COST"]) || 100');
     expect(EMAIL_NEWSLETTER_COST_VISUAL_BUCS).toBe(100);
-    /* Registry gap honesty: the newsletter path has NO credit-costs
-       row, which is exactly why the desk passes an explicit override. */
-    expect(read("../credit-costs.ts")).not.toContain('"/api/email-list/newsletter"');
+    /* Registry (stack1400 join #2 flip): the newsletter path HAS a
+       credit-costs row now — the registry lane added it at the same
+       100 — and the desk's constant reads that row, so the explicit
+       override it passes carries the registry's own value. */
+    expect(read("../credit-costs.ts")).toContain('"/api/email-list/newsletter": { cost: 100');
   });
 
   it("the vocabularies are the server schemas' own enums", () => {

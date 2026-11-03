@@ -72,11 +72,12 @@ describe("prices — the page's and the route's constants, pinned", () => {
     }
   });
 
-  it("the registry gap is real — the override is what carries the confirmation", () => {
-    /* If a registry row appears later, this pin is the reminder to
-       re-check the desk's override against it. */
-    expect(getCreditCost("/api/movies/concept")).toBeNull();
-    expect(getCreditCost("/api/movies/clip-detect")).toBeNull();
+  it("the registry rows landed (stack1400 join #2 flip) — the desk's costs read them, the override carries the registry's own values", () => {
+    /* The registry lane added both rows at the page/route prices;
+       the seam constants derive from them, so the confirmation the
+       override shows IS the registered price. */
+    expect(getCreditCost("/api/movies/concept")?.cost).toBe(400);
+    expect(getCreditCost("/api/movies/clip-detect")?.cost).toBe(300);
   });
 
   it("the 2D page's own constants still say 400 / 300 (source pin)", () => {

@@ -16,10 +16,11 @@ import type { AcademyCourse, AcademyLevel } from "../academy-courses";
      ACADEMY_CREDIT_COST (routes/generate/academy.ts:
      `Number(process.env["ACADEMY_CREDIT_COST"]) || 100`). The desk
      passes that 100 as an explicit overrideCost to the confirmed
-     rail, because — NAMED GAP — lib/credit-costs.ts carries NO
-     rows for /api/academy/*, so without the override the
-     confirmation law would have no price to show. Adding the
-     three registry rows is a separate one-line 2D fix.
+     rail — and the constant now READS the lib/credit-costs.ts
+     registry (all three /api/academy/* rows landed with the
+     stack1400 registry lane, closing the gap this desk's first
+     version named), so the override carries the registry's own
+     value and can never drift from it.
    - Progress + generated-lesson cache: the page's OWN localStorage
      keys (academy-progress-v1 / academy-lessons-v1), so a lesson
      marked done or generated on the website is done / re-readable
@@ -44,14 +45,26 @@ import type { AcademyCourse, AcademyLevel } from "../academy-courses";
    answer reads as a failed read (null), never painted-over content.
    ────────────────────────────────────────────────────────────────── */
 
+import { getCreditCost } from "../credit-costs";
+
+/** Registry cost for an endpoint; throws if unregistered so a desk
+ *  can never silently show (or charge against) an invented price. */
+function registryCost(endpoint: string): number {
+  const entry = getCreditCost(endpoint);
+  if (!entry) throw new Error(`No registered credit cost for ${endpoint}`);
+  return entry.cost;
+}
+
 export const ACADEMY_LEARNING_PATH_PATH = "/api/academy/learning-path";
 export const ACADEMY_LESSON_PATH = "/api/academy/lesson";
 export const ACADEMY_ASK_PATH = "/api/academy/ask";
 
-/** The server constant's own default (routes/generate/academy.ts)
- *  and the 2D page's CREDIT_COST — one number, two source pins in
- *  the tests. Env-overridable server-side without a deploy. */
-export const ACADEMY_CREDIT_COST_VISUAL_BUCS = 100;
+/** The registry row's cost — the registry lane verified it against
+ *  the server constant's own default (routes/generate/academy.ts)
+ *  and the 2D page's CREDIT_COST: one number, source pins in the
+ *  tests. (All three academy rows carry the same 100; the desk's
+ *  single constant reads the learning-path row.) */
+export const ACADEMY_CREDIT_COST_VISUAL_BUCS = registryCost(ACADEMY_LEARNING_PATH_PATH);
 
 export const ACADEMY_PROGRESS_KEY = "academy-progress-v1";
 export const ACADEMY_LESSON_CACHE_KEY = "academy-lessons-v1";

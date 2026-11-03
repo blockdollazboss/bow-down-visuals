@@ -19,14 +19,16 @@
        300 Visual Bucs — CLIP_DETECT_CREDITS in the route AND the
        page's CLIP_DETECT_CREDITS badge agree (pinned at 300).
 
-   REGISTRY GAP (named, not papered over): neither movies endpoint
-   has a row in lib/credit-costs.ts, so a plain confirmedFetch would
-   find no registered cost and skip the spend confirmation entirely.
-   The desk therefore passes the costs below as explicit
-   overrideCost/overrideFeature — the same confirmation the website
-   shows (the 2D page itself rides overrideCost for exactly this
-   reason) — and the constants are pinned by test to BOTH the page
-   constant and the server constant's documented value.
+   REGISTRY (gap closed at the stack1400 join): neither movies
+   endpoint originally had a row in lib/credit-costs.ts, so a plain
+   confirmedFetch would have found no registered cost and skipped
+   the spend confirmation entirely. The registry lane added both
+   rows (verified against the page + route constants), and the
+   constants below now READ those rows. The desk still passes them
+   as explicit overrideCost/overrideFeature — the same confirmation
+   the website shows (the 2D page itself rides overrideCost) — but
+   the values are the registry's own, pinned by test to the page
+   constant, the server constant's documented value, AND the row.
 
    PAYLOAD SHAPE: the page posts { idea, format, genre } for a
    concept and { streamUrl, description } for a detection, leaving
@@ -57,17 +59,28 @@ export const MOVIES_DESK_STATION_ID = "movies-desk";
 export const MOVIES_CONCEPT_PATH = "/api/movies/concept";
 export const MOVIES_CLIP_DETECT_PATH = "/api/movies/clip-detect";
 
-/* ─── Prices — the page's + the route's constants, never invented ── */
+/* ─── Prices — the registry rows, verified against the page's +
+ *  the route's constants; never invented ── */
+
+import { getCreditCost } from "../credit-costs";
+
+/** Registry cost for an endpoint; throws if unregistered so a desk
+ *  can never silently show (or charge against) an invented price. */
+function registryCost(endpoint: string): number {
+  const entry = getCreditCost(endpoint);
+  if (!entry) throw new Error(`No registered credit cost for ${endpoint}`);
+  return entry.cost;
+}
 
 /** POST /api/movies/concept — 400 VB (page CONCEPT_CREDITS and the
  *  route's CONCEPT_CREDITS default agree; env-overridable
  *  server-side as MOVIE_CONCEPT_CREDIT_COST). */
-export const MOVIES_CONCEPT_COST_VISUAL_BUCS = 400;
+export const MOVIES_CONCEPT_COST_VISUAL_BUCS = registryCost(MOVIES_CONCEPT_PATH);
 
 /** POST /api/movies/clip-detect — 300 VB (page CLIP_DETECT_CREDITS
  *  and the route's CLIP_DETECT_CREDITS default agree;
  *  env-overridable server-side as CLIP_DETECT_CREDIT_COST). */
-export const MOVIES_CLIP_DETECT_COST_VISUAL_BUCS = 300;
+export const MOVIES_CLIP_DETECT_COST_VISUAL_BUCS = registryCost(MOVIES_CLIP_DETECT_PATH);
 
 export type MoviesDeskMode = "concept" | "clips";
 export const MOVIES_DESK_MODES: readonly MoviesDeskMode[] = ["concept", "clips"];

@@ -35,12 +35,13 @@
    CHARGE / CONFIRMATION LAW: the kits are the family's only paid
    rails. The desk rides them through useConfirmedApi with the costs
    below passed as explicit overrides — the same confirmation the
-   website shows. The override matters for the label kit in
-   particular: /api/label-pitch/kit has NO row in lib/credit-costs.ts
-   (a registry gap on the 2D side, named in the lane report), so a
-   plain confirmedFetch would find no registered cost and skip the
-   confirmation entirely. Directory, trackers, packet, releases and
-   deadlines are free on the server and free here.
+   website shows. The costs READ the lib/credit-costs.ts registry
+   (the label kit's row landed with the stack1400 registry lane,
+   closing the gap this desk's first version named; the playlist
+   kit's row predates it). The override now carries the registry's
+   own value into the confirmation, so the desk can never drift
+   from the registered price. Directory, trackers, packet,
+   releases and deadlines are free on the server and free here.
 
    HONESTY: numbers and text render only from the rails' fields. A
    kit payload missing its email/one-sheet (label) or email/DM
@@ -48,15 +49,25 @@
    answer; a packet's `missing` list is spoken verbatim (in the 2D
    page's own words), never filled in. */
 
+import { getCreditCost } from "../credit-costs";
+
+/** Registry cost for an endpoint; throws if unregistered so a desk
+ *  can never silently show (or charge against) an invented price. */
+function registryCost(endpoint: string): number {
+  const entry = getCreditCost(endpoint);
+  if (!entry) throw new Error(`No registered credit cost for ${endpoint}`);
+  return entry.cost;
+}
+
 export const SONGS_PATH = "/api/songs";
 
 export const LABEL_PITCH_KIT_PATH = "/api/label-pitch/kit";
-export const LABEL_PITCH_KIT_COST_VISUAL_BUCS = 300;
+export const LABEL_PITCH_KIT_COST_VISUAL_BUCS = registryCost(LABEL_PITCH_KIT_PATH);
 export const LABEL_PITCH_LABELS_PATH = "/api/label-pitch/labels";
 export const LABEL_PITCH_TRACKER_PATH = "/api/label-pitch/tracker";
 
 export const PLAYLIST_PITCH_KIT_PATH = "/api/playlist-pitch/kit";
-export const PLAYLIST_PITCH_KIT_COST_VISUAL_BUCS = 200;
+export const PLAYLIST_PITCH_KIT_COST_VISUAL_BUCS = registryCost(PLAYLIST_PITCH_KIT_PATH);
 export const PLAYLIST_PITCH_CURATORS_PATH = "/api/playlist-pitch/curators";
 export const PLAYLIST_PITCH_TRACKER_PATH = "/api/playlist-pitch/tracker";
 export const PLAYLIST_PITCH_RELEASES_PATH = "/api/playlist-pitch/releases";

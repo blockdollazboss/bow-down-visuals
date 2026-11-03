@@ -61,11 +61,11 @@ describe("rails + prices", () => {
     expect(page).toContain("const CREDIT_COST = 100");
   });
 
-  it("NAMED GAP pinned: lib/credit-costs.ts carries NO /api/academy/* rows, so the desk must override", () => {
+  it("registry rows landed (stack1400 join #2 flip): lib/credit-costs.ts carries all three /api/academy/* rows at 100, and the desk's constant reads them", () => {
     const registry = read("../credit-costs.ts");
-    expect(registry).not.toContain("/api/academy/learning-path");
-    expect(registry).not.toContain("/api/academy/lesson");
-    expect(registry).not.toContain("/api/academy/ask");
+    expect(registry).toContain('"/api/academy/learning-path": { cost: 100');
+    expect(registry).toContain('"/api/academy/lesson": { cost: 100');
+    expect(registry).toContain('"/api/academy/ask": { cost: 100');
   });
 
   it("the level + platform vocabularies are the server schemas' own enums", () => {
