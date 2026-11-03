@@ -180,6 +180,7 @@ const GroupsDesk = lazy(() => import("@/components/world/native/GroupsDesk").the
 const EventsDesk = lazy(() => import("@/components/world/native/EventsDesk").then((m) => ({ default: m.EventsDesk })));
 const CollabsDesk = lazy(() => import("@/components/world/native/CollabsDesk").then((m) => ({ default: m.CollabsDesk })));
 const ScenesDesk = lazy(() => import("@/components/world/native/ScenesDesk").then((m) => ({ default: m.ScenesDesk })));
+const LlcDesk = lazy(() => import("@/components/world/native/LlcDesk").then((m) => ({ default: m.LlcDesk })));
 const GamesPanel = lazy(() => import("@/components/world/native/GamesPanels").then((m) => ({ default: m.GamesPanel })));
 const CreatorRoomsDirectory = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomsDirectory })));
 const CreatorRoomStation = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomStation })));
@@ -1152,9 +1153,18 @@ export default function StationPanel(props: StationPanelProps) {
                 />
               </DeskDoor>
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
-              <DeskDoor isLight={isLight}>
-                <EarningsBoard isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              <div className="flex flex-col gap-6">
+                <DeskDoor isLight={isLight}>
+                  <EarningsBoard isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* LLC Guide (stack1500 parity wave #3): ask +
+                    filing plan on the /api/llc-guide rails at
+                    the registry's 100 Bucs each, stacked at the
+                    Get Paid board under Earnings. */}
+                <DeskDoor isLight={isLight}>
+                  <LlcDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+              </div>
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <div className="flex flex-col gap-6">
                 <DeskDoor isLight={isLight}>
