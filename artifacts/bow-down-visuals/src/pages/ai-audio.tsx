@@ -13,22 +13,28 @@ import {
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat,
+  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
 import {
+  BEAT_PATTERN_BARS_OPTIONS,
+  BEAT_STEPS,
   addArrangementEntry,
   arrangementDurationSec,
   arrangementTotalBars,
   arrangementTotalSteps,
+  bassStepGain,
   cloneBeatPattern,
   clonePatternVariation,
+  drumStepGain,
+  emptyBeatPattern,
   fetchServerBeatProject,
   isSongModeActive,
   loadLocalBeatProject,
   moveArrangementEntry,
+  patternStepCount,
   removeArrangementEntry,
   renderPatternSequence,
   resolveArrangementStep,
@@ -36,8 +42,15 @@ import {
   saveServerBeatProject,
   setArrangementEntryPattern,
   setArrangementEntryRepeats,
+  setBassStepVelocity,
+  setPatternBars,
+  setStepVelocity,
+  stepVelocity,
+  stepsResolverForPatterns,
+  bassStepVelocity,
   isEmptyBeatPattern,
   type BeatArrangementEntry,
+  type BeatPatternBars,
   type BeatPatternData,
   type BeatPatternId,
   type BeatProject,
@@ -352,10 +365,11 @@ const TRACKS = [
 ] as const;
 
 type TrackId = typeof TRACKS[number]["id"];
-const STEPS = 16;
+/* Steps per bar live in lib/beat-project (BEAT_STEPS); pattern length
+   varies per pattern (1/2/4 bars) since W2-L1. */
 
 /* Synthesize one drum hit at time t. All sounds are oscillator/noise based —
-   no samples, no network. vel: 1 = normal, >1 = accent. */
+   no samples, no network. vel: the step's gain (velocity × accent boost). */
 function synthHit(ctx: BaseAudioContext, id: TrackId, t: number, dest: AudioNode, vel = 1) {
   const g = ctx.createGain();
   g.gain.value = vel;
@@ -537,9 +551,6 @@ const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; 
   },
 };
 
-const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(0));
-const emptyBass = (): (number | null)[] => Array(STEPS).fill(null);
-
 /* 808 bass range: C1 (24) .. B2 (47) */
 const BASS_LO = 24;
 const BASS_HI = 47;
@@ -564,10 +575,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           PATTERN_IDS.map((id) => [id, cloneBeatPattern(restored.patterns[id])]),
         ) as Record<PatternId, PatternData>)
       : {
-          A: { grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass] },
-          B: { grid: emptyGrid(), bass: emptyBass() },
-          C: { grid: emptyGrid(), bass: emptyBass() },
-          D: { grid: emptyGrid(), bass: emptyBass() },
+          A: { ...emptyBeatPattern(), grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass] },
+          B: emptyBeatPattern(),
+          C: emptyBeatPattern(),
+          D: emptyBeatPattern(),
         },
   );
   const [activePat, setActivePat] = useState<PatternId>(() => restored?.activePattern ?? "A");
@@ -579,6 +590,18 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [sending, setSending] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
   const [showBass, setShowBass] = useState(false);
+  const [showVelocity, setShowVelocity] = useState(false);
+  /* Which drum track the velocity lane edits (click a track name). */
+  const [velTrack, setVelTrack] = useState(0);
+  /* Bar paging for long patterns: the grid shows ONE bar at a time
+   * (16 steps), so 2/4-bar patterns stay big and touch-friendly
+   * instead of squeezing 32/64 columns into the card. */
+  const [gridPage, setGridPage] = useState(0);
+  /* Velocity lane drag state: pointer position → step + value. */
+  const velDragRef = useRef(false);
+  const bassVelDragRef = useRef(false);
+  const velLaneRef = useRef<HTMLDivElement | null>(null);
+  const bassVelLaneRef = useRef<HTMLDivElement | null>(null);
   const [vol, setVol] = useState<number[]>(() =>
     restored ? [...restored.mixer.vol] : TRACKS.map(() => 1),
   );
@@ -607,11 +630,22 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const timerRef = useRef<number | null>(null);
   const nextTimeRef = useRef(0);
   const tapsRef = useRef<number[]>([]);
-  const clipRef = useRef<{ grid: number[][]; bass: (number | null)[] } | null>(null);
+  const clipRef = useRef<PatternData | null>(null);
   const gainCache = useRef(new WeakMap<BaseAudioContext, { drums: GainNode[]; bass: GainNode }>());
 
   const grid = patterns[activePat]!.grid;
   const bass = patterns[activePat]!.bass;
+  /* W2-L1 pattern depth: the active pattern's own length drives the
+   * grid, the bass roll and pattern-mode looping. The visible page is
+   * one bar (16 steps) of it. */
+  const activePattern = patterns[activePat]!;
+  const activeSteps = patternStepCount(activePattern);
+  const pageCount = activePattern.bars;
+  const safePage = Math.min(gridPage, pageCount - 1);
+  const pageStart = safePage * BEAT_STEPS;
+  const pageSteps = Array.from({ length: BEAT_STEPS }, (_, i) => pageStart + i);
+  /* Per-pattern step counts for song-mode resolution/totals. */
+  const stepResolver = stepsResolverForPatterns(patterns);
   const bpmRef = useRef(bpm);
   const swingRef = useRef(swing);
   bpmRef.current = bpm;
@@ -632,7 +666,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
   /* ── beat-project persistence (localStorage + server draft) ── */
   const buildProject = useCallback((): BeatProject => ({
-    version: 1,
+    version: 2,
     patterns: patternsRef.current,
     activePattern: activePatRef.current,
     bpm: bpmRef.current,
@@ -770,26 +804,32 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const sw = swingRef.current;
     const chain = arrangementRef.current;
     const song = isSongModeActive({ mode: modeRef.current, arrangement: chain });
-    const total = song ? arrangementTotalSteps(chain) : 0;
+    /* Patterns differ in length now: song mode resolves through each
+     * pattern's own step count; pattern mode loops the active pattern
+     * at ITS length. Velocity (lib/beat-project drumStepGain /
+     * bassStepGain) is applied here and in the offline render —
+     * identically, from the same pure functions. */
+    const resolver = stepsResolverForPatterns(patternsRef.current);
+    const total = song ? arrangementTotalSteps(chain, resolver) : 0;
     const wrapped = song && total > 0 ? globalStep % total : globalStep;
-    const resolved = song ? resolveArrangementStep(wrapped, chain) : null;
+    const resolved = song ? resolveArrangementStep(wrapped, chain, resolver) : null;
     const patId: PatternId = resolved ? resolved.patternId : activePatRef.current;
-    const s = resolved ? resolved.stepInPattern : globalStep % STEPS;
     const pat = patternsRef.current[patId] ?? patternsRef.current.A!;
+    const s = resolved ? resolved.stepInPattern : globalStep % patternStepCount(pat);
     // Swing delays off-beat 16ths (odd steps), 0–100%
     const when = s % 2 === 1 ? time + (60 / bpmRef.current / 4) * sw : time;
     TRACKS.forEach((tr, ti) => {
-      const v = pat.grid[ti]?.[s] ?? 0;
-      if (v > 0) synthHit(ctx, tr.id, when, drums[ti]!, v === 2 ? 1.4 : 1);
+      const gain = drumStepGain(pat, ti, s);
+      if (gain > 0) synthHit(ctx, tr.id, when, drums[ti]!, gain);
     });
     const bn = pat.bass[s];
     if (bn != null) {
       const prev = s > 0 ? pat.bass[s - 1] : null;
-      synthBass(ctx, bn, when, bassG, 1, prev);
+      synthBass(ctx, bn, when, bassG, bassStepGain(pat, s), prev);
     }
     // UI highlight slightly ahead-safe: update on the audio clock via timeout
     const ms = Math.max(0, (when - ctx.currentTime) * 1000);
-    const bar = Math.floor(wrapped / STEPS);
+    const bar = Math.floor(wrapped / BEAT_STEPS);
     const entryIndex = resolved ? resolved.entryIndex : -1;
     window.setTimeout(() => {
       setStep(s);
@@ -830,9 +870,31 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     void ctxRef.current?.close().catch(() => {});
   }, []);
 
+  /* Bar paging follows the playhead while the playing pattern is the
+   * one on screen, so a 2/4-bar pattern's later bars light up too. */
+  useEffect(() => {
+    if (playing && playPat === activePat && step >= 0) {
+      setGridPage(Math.floor(step / BEAT_STEPS));
+    }
+  }, [step, playing, playPat, activePat]);
+
   /* ── grid editing: click toggles, right-click toggles accent ── */
   const patchActive = (fn: (p: PatternData) => PatternData) => {
-    setPatterns((prev) => ({ ...prev, [activePat]: fn({ grid: prev[activePat]!.grid.map((r) => [...r]), bass: [...prev[activePat]!.bass] }) }));
+    setPatterns((prev) => ({ ...prev, [activePat]: fn(cloneBeatPattern(prev[activePat]!)) }));
+  };
+
+  /* ── pattern length: resize the active pattern to 1/2/4 bars ── */
+  const changePatternBars = (bars: BeatPatternBars) => {
+    setPatterns((prev) => ({ ...prev, [activePat]: setPatternBars(prev[activePat]!, bars) }));
+    setGridPage(0);
+  };
+
+  /* ── velocity editing (drum lane + 808 steps) ── */
+  const editStepVelocity = (ti: number, s: number, v: number) => {
+    setPatterns((prev) => ({ ...prev, [activePat]: setStepVelocity(prev[activePat]!, ti, s, v) }));
+  };
+  const editBassVelocity = (s: number, v: number) => {
+    setPatterns((prev) => ({ ...prev, [activePat]: setBassStepVelocity(prev[activePat]!, s, v) }));
   };
   const toggle = (ti: number, s: number) => {
     patchActive((p) => {
@@ -858,22 +920,28 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const p = PRESETS[key];
     if (!p) return;
     stop();
-    patchActive(() => ({ grid: p.grid.map((r) => [...r]), bass: [...p.bass] }));
+    /* Presets are 1-bar patterns; loading one resets the slot to
+     * 1 bar with default velocities. */
+    patchActive(() => ({ ...emptyBeatPattern(), grid: p.grid.map((r) => [...r]), bass: [...p.bass] }));
+    setGridPage(0);
     setBpm(p.bpm);
   };
 
   const randomize = () => {
     stop();
-    patchActive(() => ({
+    patchActive((p) => ({
+      ...p,
+      velocity: {},
+      bassVelocity: {},
       grid: TRACKS.map((_, ti) =>
-        Array.from({ length: STEPS }, (_, s) => {
+        Array.from({ length: activeSteps }, (_, s) => {
           const density = [0.35, 0.14, 0.1, 0.75, 0.08, 0.3, 0.22, 0.4, 0.05][ti] ?? 0.2;
           if (ti === 1 && s % 4 !== 0 && Math.random() < 0.85) return 0;
           const r = Math.random();
           return r < density * 0.25 ? 2 : r < density ? 1 : 0;
         })
       ),
-      bass: Array.from({ length: STEPS }, (_, s) =>
+      bass: Array.from({ length: activeSteps }, (_, s) =>
         s % 4 === 0 && Math.random() < 0.7 ? [36, 36, 34, 32][Math.floor(Math.random() * 4)]! : null
       ),
     }));
@@ -881,18 +949,20 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
   /* ── patterns A/B/C/D ── */
   const copyPatternData = (pid: PatternId) => {
-    const p = patterns[pid]!;
-    clipRef.current = { grid: p.grid.map((r) => [...r]), bass: [...p.bass] };
+    clipRef.current = cloneBeatPattern(patterns[pid]!);
   };
   const copyPattern = () => copyPatternData(activePat);
   const pastePattern = () => {
     if (!clipRef.current) return;
     const c = clipRef.current;
-    patchActive(() => ({ grid: c.grid.map((r) => [...r]), bass: [...c.bass] }));
+    patchActive(() => cloneBeatPattern(c));
+    setGridPage(0);
   };
   const clearPattern = () => {
     stop();
-    patchActive(() => ({ grid: emptyGrid(), bass: emptyBass() }));
+    /* Clear keeps the pattern's length; hits + velocities reset. */
+    patchActive((p) => emptyBeatPattern(p.bars));
+    setGridPage(0);
   };
 
   /* Variation: clone an arrangement entry's pattern into the first
@@ -938,7 +1008,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       arrangement: arrangementRef.current,
     });
     const plays: PatternId[] = sequence ?? Array<PatternId>(4).fill(activePatRef.current);
-    const totalSteps = STEPS * plays.length;
+    /* Each play lasts its own pattern's length (1/2/4 bars), in song
+     * mode and in the classic ×4 pattern render alike. Gains come from
+     * the same drumStepGain/bassStepGain the live transport uses, so
+     * the bounce sounds exactly like playback. */
+    const totalSteps = plays.reduce(
+      (sum, pid) => sum + patternStepCount(patternsRef.current[pid] ?? patternsRef.current.A!),
+      0,
+    );
     const stepDur = 60 / bpmRef.current / 4;
     const totalDur = totalSteps * stepDur + 1.2;
     const sampleRate = 44100;
@@ -946,16 +1023,19 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     applyMixer(off, vol, mute, solo, bassVol, bassMute);
     const { drums, bass: bassG } = getGains(off);
     const sw = swingRef.current;
-    for (let s = 0; s < totalSteps; s++) {
-      const pat = patternsRef.current[plays[Math.floor(s / STEPS)]!]!;
-      const si = s % STEPS;
-      const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
-      TRACKS.forEach((tr, ti) => {
-        const v = pat.grid[ti]?.[si] ?? 0;
-        if (v > 0) synthHit(off, tr.id, tt, drums[ti]!, v === 2 ? 1.4 : 1);
-      });
-      const note = pat.bass[si];
-      if (note != null) synthBass(off, note, tt, bassG, 1, si > 0 ? pat.bass[si - 1] : null);
+    let s = 0;
+    for (const pid of plays) {
+      const pat = patternsRef.current[pid] ?? patternsRef.current.A!;
+      const n = patternStepCount(pat);
+      for (let si = 0; si < n; si++, s++) {
+        const tt = s * stepDur + (si % 2 === 1 ? stepDur * sw : 0);
+        TRACKS.forEach((tr, ti) => {
+          const gain = drumStepGain(pat, ti, si);
+          if (gain > 0) synthHit(off, tr.id, tt, drums[ti]!, gain);
+        });
+        const note = pat.bass[si];
+        if (note != null) synthBass(off, note, tt, bassG, bassStepGain(pat, si), si > 0 ? pat.bass[si - 1] : null);
+      }
     }
     const rendered = await off.startRendering();
     const blob = audioBufferToWav(rendered);
@@ -1010,8 +1090,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
   /* Song-mode facts for the transport + chain editor. */
   const songActive = isSongModeActive({ mode: transportMode, arrangement });
-  const chainBars = arrangementTotalBars(arrangement);
-  const chainSecs = arrangementDurationSec(arrangement, bpm);
+  const chainBars = arrangementTotalBars(arrangement, stepResolver);
+  const chainSecs = arrangementDurationSec(arrangement, bpm, stepResolver);
   const chainLengthLabel = `${Math.floor(chainSecs / 60)}:${String(Math.round(chainSecs % 60)).padStart(2, "0")}`;
 
   return (
@@ -1097,12 +1177,27 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         {PATTERN_IDS.map((pid) => (
           <button
             key={pid} type="button"
-            onClick={() => setActivePat(pid)}
+            onClick={() => { setActivePat(pid); setGridPage(0); }}
             className={`w-9 h-9 rounded-lg border text-sm transition-colors ${activePat === pid ? T.patActive : T.pill}`}
           >
             {pid}
           </button>
         ))}
+        {/* Pattern length — each pattern holds 1, 2 or 4 bars */}
+        <span className={`mx-1 h-6 w-px ${isLight ? "bg-[#8a6d2f]/20" : "bg-white/10"}`} />
+        <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>{t("beatMaker.patternLength", { defaultValue: "Length" })}</span>
+        <span className="flex items-center gap-1" data-testid="beat-pattern-length">
+          {BEAT_PATTERN_BARS_OPTIONS.map((b) => (
+            <button
+              key={b} type="button" data-testid={`beat-length-${b}`}
+              aria-pressed={activePattern.bars === b}
+              onClick={() => changePatternBars(b)}
+              className={`px-2.5 h-9 rounded-lg border text-xs font-bold transition-colors ${activePattern.bars === b ? T.patActive : T.pill}`}
+            >
+              {t("beatMaker.barCount", { defaultValue: b === 1 ? "1 bar" : "{{n}} bars", n: b })}
+            </button>
+          ))}
+        </span>
         <span className={`mx-1 h-6 w-px ${isLight ? "bg-[#8a6d2f]/20" : "bg-white/10"}`} />
         <button type="button" onClick={copyPattern} className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill}`}>
           <Copy className="w-3.5 h-3.5" /> {t("beatMaker.copy", { defaultValue: "Copy" })}
@@ -1145,7 +1240,34 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Piano className="w-3.5 h-3.5" /> {t("beatMaker.bassline", { defaultValue: "808 Bass" })}
         </button>
+        <button aria-expanded={showVelocity}
+          type="button" data-testid="beat-velocity-toggle"
+          onClick={() => setShowVelocity((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showVelocity ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
+        >
+          <Gauge className="w-3.5 h-3.5" /> {t("beatMaker.velocity", { defaultValue: "Velocity" })}
+        </button>
       </div>
+
+      {/* Bar pager — long patterns show one bar at a time */}
+      {pageCount > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5" data-testid="beat-bar-pager">
+          <span className={`text-xs font-bold uppercase tracking-wider ${T.label}`}>{t("beatMaker.bar", { defaultValue: "Bar" })}</span>
+          {Array.from({ length: pageCount }, (_, i) => (
+            <button
+              key={i} type="button" data-testid={`beat-bar-page-${i + 1}`}
+              aria-pressed={safePage === i}
+              onClick={() => setGridPage(i)}
+              className={`w-8 h-8 rounded-lg border text-xs font-bold transition-colors ${safePage === i ? T.patActive : T.pill}`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <span className={`text-xs ${T.dim}`}>
+            {t("beatMaker.barSteps", { defaultValue: "Steps {{from}}–{{to}} of {{total}}", from: pageStart + 1, to: pageStart + BEAT_STEPS, total: activeSteps })}
+          </span>
+        </div>
+      )}
 
       {/* Drum grid — click toggles, right-click toggles accent */}
       <div className="overflow-x-auto -mx-1 px-1">
@@ -1163,10 +1285,15 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                   className={`w-5 h-5 rounded text-[9px] font-black border transition-colors ${solo[ti] ? "bg-[#C9A84C] border-[#C9A84C] text-black" : T.pill}`}
                   title={t("beatMaker.solo", { defaultValue: "Solo" })}
                 >S</button>
-                <span className={`text-xs font-medium truncate ${T.label}`}>{t(tr.labelKey, { defaultValue: tr.id })}</span>
+                <button
+                  type="button"
+                  onClick={() => { setVelTrack(ti); setShowVelocity(true); }}
+                  title={t("beatMaker.velocityTrackHint", { defaultValue: "Show this track in the Velocity lane" })}
+                  className={`text-xs font-medium truncate text-left ${showVelocity && velTrack === ti ? "text-[#C9A84C]" : T.label}`}
+                >{t(tr.labelKey, { defaultValue: tr.id })}</button>
               </div>
-              <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
-                {Array.from({ length: STEPS }, (_, s) => {
+              <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${BEAT_STEPS}, minmax(0,1fr))` }}>
+                {pageSteps.map((s) => {
                   const v = grid[ti]?.[s] ?? 0;
                   const isBeat = s % 4 === 0;
                   return (
@@ -1192,6 +1319,111 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       <p className={`text-xs ${T.dim}`}>
         {t("beatMaker.accentHint", { defaultValue: "Click a step to toggle · right-click for accent · gold ring = accent hit" })}
       </p>
+
+      {/* Velocity lane — per-step loudness for the selected track.
+          Drag (or sweep) across the bars; the value multiplies the
+          hit, and an accent's gold cap still boosts on top. The 808
+          strip below it edits bass-step velocity the same way. */}
+      {showVelocity && (
+        <div
+          className={`rounded-xl border p-4 space-y-3 ${isLight ? "border-[#c9a84c]/25 bg-[#8a6d2f]/[0.04]" : "border-white/10 bg-black/30"}`}
+          data-testid="beat-velocity-lane"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className={`text-xs font-black uppercase tracking-wider ${T.label}`}>
+              {t("beatMaker.velocityTitle", { defaultValue: "Velocity" })}
+              <span className={`ml-2 font-medium normal-case ${T.dim}`}>
+                {t("beatMaker.velocityFor", { defaultValue: "for {{track}} — drag a bar up or down; click a track name to switch", track: t(TRACKS[velTrack]!.labelKey, { defaultValue: TRACKS[velTrack]!.id }) })}
+              </span>
+            </p>
+            <span className={`ml-auto text-xs ${T.dim}`}>
+              {t("beatMaker.velocityHint", { defaultValue: "Gold cap = accent boost on top · faded bars are steps that are off" })}
+            </span>
+          </div>
+          <div
+            ref={velLaneRef}
+            className="flex h-24 touch-none select-none"
+            onPointerDown={(e) => {
+              velDragRef.current = true;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              const r = e.currentTarget.getBoundingClientRect();
+              const idx = Math.max(0, Math.min(BEAT_STEPS - 1, Math.floor(((e.clientX - r.left) / r.width) * BEAT_STEPS)));
+              editStepVelocity(velTrack, pageStart + idx, 1 - (e.clientY - r.top) / r.height);
+            }}
+            onPointerMove={(e) => {
+              if (!velDragRef.current) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              const idx = Math.max(0, Math.min(BEAT_STEPS - 1, Math.floor(((e.clientX - r.left) / r.width) * BEAT_STEPS)));
+              editStepVelocity(velTrack, pageStart + idx, 1 - (e.clientY - r.top) / r.height);
+            }}
+            onPointerUp={() => { velDragRef.current = false; }}
+            onPointerCancel={() => { velDragRef.current = false; }}
+          >
+            {pageSteps.map((s) => {
+              const cell = grid[velTrack]?.[s] ?? 0;
+              const v = stepVelocity(activePattern, velTrack, s);
+              return (
+                <div key={s} className="flex-1 px-[2px] h-full flex items-end" aria-hidden="true">
+                  <div
+                    className={`w-full rounded-t-md ${TRACKS[velTrack]!.color} ${cell === 0 ? "opacity-25" : "opacity-90"} ${cell === 2 ? "border-t-4 border-[#C9A84C]" : ""} ${step === s && playing && playPat === activePat ? "ring-1 ring-white/70" : ""}`}
+                    style={{ height: `${Math.max(6, Math.round(v * 100))}%` }}
+                    title={`${Math.round(v * 100)}%`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-1">
+            {pageSteps.map((s) => (
+              <span key={s} className={`flex-1 text-center text-[9px] tabular-nums ${s % 4 === 0 ? T.label : T.dim}`}>
+                {Math.round(stepVelocity(activePattern, velTrack, s) * 100)}
+              </span>
+            ))}
+          </div>
+          {/* 808 velocity strip — same drag, for bass steps */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <p className={`text-xs font-black uppercase tracking-wider ${T.label}`}>
+              {t("beatMaker.velocityBass", { defaultValue: "808 Velocity" })}
+              <span className={`ml-2 font-medium normal-case ${T.dim}`}>
+                {t("beatMaker.velocityBassHint", { defaultValue: "Applies to steps holding an 808 note" })}
+              </span>
+            </p>
+          </div>
+          <div
+            ref={bassVelLaneRef}
+            className="flex h-12 touch-none select-none"
+            onPointerDown={(e) => {
+              bassVelDragRef.current = true;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              const r = e.currentTarget.getBoundingClientRect();
+              const idx = Math.max(0, Math.min(BEAT_STEPS - 1, Math.floor(((e.clientX - r.left) / r.width) * BEAT_STEPS)));
+              editBassVelocity(pageStart + idx, 1 - (e.clientY - r.top) / r.height);
+            }}
+            onPointerMove={(e) => {
+              if (!bassVelDragRef.current) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              const idx = Math.max(0, Math.min(BEAT_STEPS - 1, Math.floor(((e.clientX - r.left) / r.width) * BEAT_STEPS)));
+              editBassVelocity(pageStart + idx, 1 - (e.clientY - r.top) / r.height);
+            }}
+            onPointerUp={() => { bassVelDragRef.current = false; }}
+            onPointerCancel={() => { bassVelDragRef.current = false; }}
+          >
+            {pageSteps.map((s) => {
+              const hasNote = bass[s] != null;
+              const v = bassStepVelocity(activePattern, s);
+              return (
+                <div key={s} className="flex-1 px-[2px] h-full flex items-end" aria-hidden="true">
+                  <div
+                    className={`w-full rounded-t-md bg-violet-400 ${hasNote ? "opacity-90" : "opacity-20"}`}
+                    style={{ height: `${Math.max(8, Math.round(v * 100))}%` }}
+                    title={`${Math.round(v * 100)}%`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Mixer */}
       {showMixer && (
@@ -1247,8 +1479,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
             <div className="min-w-[640px]">
               <div className="flex items-center gap-1 mb-1">
                 <div className="w-10 shrink-0" />
-                <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
-                  {Array.from({ length: STEPS }, (_, s) => (
+                <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${BEAT_STEPS}, minmax(0,1fr))` }}>
+                  {pageSteps.map((s) => (
                     <div key={s} className={`text-center text-[9px] tabular-nums ${s % 4 === 0 ? T.label : T.dim}`}>{s + 1}</div>
                   ))}
                 </div>
@@ -1261,8 +1493,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                   return (
                     <div key={m} className="flex items-center gap-1">
                       <div className={`w-10 shrink-0 text-[10px] tabular-nums text-right pr-1 ${isC ? "font-black text-[#C9A84C]" : T.dim}`}>{name}</div>
-                      <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${STEPS}, minmax(0,1fr))` }}>
-                        {Array.from({ length: STEPS }, (_, s) => {
+                      <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${BEAT_STEPS}, minmax(0,1fr))` }}>
+                        {pageSteps.map((s) => {
                           const on = bass[s] === m;
                           return (
                             <button
