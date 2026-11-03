@@ -244,3 +244,252 @@ export async function fetchToolostProfile(
     return { providerUserId: null, displayName: null };
   }
 }
+
+/* ── Release submission API (scope write:releases) ──────────────────────
+   The delivery pipeline (Front 14), step by step against their docs
+   (developer.toolost.com/docs §10 "Uploading tracks and artwork" +
+   the releases endpoints):
+     1. POST  /v1/releases                            → draft id
+     2. POST  /v1/releases/{id}/tracks/upload-url     → pre-signed ticket
+        PUT   <uploadUrl> raw bytes (ticket headers)  → fileKey
+        POST  /v1/releases/{id}/artwork/upload-url + PUT → coverFileKey
+     3. PUT   /v1/releases/{id}/tracks                → attach fileKeys
+     4. PATCH /v1/releases/{id}/metadata              → metadata, incl.
+        the AI declaration: isAiGenerated + aiDocumentation
+     5. POST  /v1/releases/{id}/submit                → into review
+   Every function takes the user's access token + a fetchImpl (the house
+   seam — routes pass the stored-token caller's token; tests mock the
+   whole provider at this seam). Every failure is a TooLostApiError
+   whose userMessage is OUR plain sentence for that step: a raw provider
+   body is never read into a message (status + path are logged only).
+   The AI guard is enforced here too, not just at the route: this
+   module will not send an AI declaration without its documentation. */
+
+export interface ToolostAiDocumentation {
+  fileName: string;
+  fileUrl: string;
+}
+
+export interface ToolostReleaseMetadata {
+  title: string;
+  artistName?: string;
+  releaseDate?: string;
+  genre?: string;
+  explicit?: boolean;
+  label?: string;
+  copyright?: string;
+  upc?: string;
+  isrc?: string;
+  coverFileKey?: string;
+  coverUrl?: string;
+  isAiGenerated: boolean;
+  aiDocumentation?: ToolostAiDocumentation;
+}
+
+export interface ToolostUploadTicket {
+  uploadUrl: string;
+  fileKey: string;
+  headers: Record<string, string>;
+}
+
+export interface ToolostTrackAttach {
+  title: string;
+  isrc?: string;
+  audioFileKey: string;
+}
+
+/** One authenticated API call. Tolerates the { data: … } envelope their
+    publishing examples use; throws a sanitized TooLostApiError on !ok. */
+async function toolostApiCall(
+  accessToken: string,
+  path: string,
+  init: { method: string; body?: unknown },
+  userMessage: string,
+  fetchImpl: FetchImpl,
+): Promise<Record<string, unknown>> {
+  const res = await fetchImpl(`${TOOLOST_API}${path}`, {
+    method: init.method,
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+  const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    logger.warn({ toolostStatus: res.status, path }, "[toolost] API call failed");
+    throw new TooLostApiError(userMessage, res.status, path);
+  }
+  const data = raw["data"];
+  return data && typeof data === "object" ? (data as Record<string, unknown>) : raw;
+}
+
+/** Step 1 — open the provider draft. Returns the provider release id
+    (their ids can be numeric — always stringified here). */
+export async function createToolostRelease(
+  accessToken: string,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<string> {
+  const body = await toolostApiCall(
+    accessToken, "/releases", { method: "POST", body: {} },
+    "The distributor couldn't open a draft for this release — nothing was sent. Try again.",
+    fetchImpl,
+  );
+  const nested = body["release"] as Record<string, unknown> | undefined;
+  const id = body["id"] ?? body["release_id"] ?? body["releaseId"] ?? nested?.["id"];
+  if (id === undefined || id === null || String(id) === "") {
+    throw new TooLostApiError(
+      "The distributor didn't confirm the draft — nothing was sent. Try again.",
+      undefined, "create response missing id",
+    );
+  }
+  return String(id);
+}
+
+function parseUploadTicket(body: Record<string, unknown>, userMessage: string): ToolostUploadTicket {
+  const uploadUrl = body["uploadUrl"] ?? body["upload_url"] ?? body["url"];
+  const fileKey = body["fileKey"] ?? body["file_key"] ?? body["key"];
+  if (typeof uploadUrl !== "string" || !uploadUrl || typeof fileKey !== "string" || !fileKey) {
+    throw new TooLostApiError(userMessage, undefined, "upload-url response missing fields");
+  }
+  const headers = body["headers"];
+  return {
+    uploadUrl,
+    fileKey,
+    headers: headers && typeof headers === "object" ? (headers as Record<string, string>) : {},
+  };
+}
+
+/** Step 2a — pre-signed ticket for one track's audio (kind: audio). */
+export async function requestToolostTrackUploadUrl(
+  accessToken: string,
+  releaseId: string,
+  file: { fileName: string; contentType: string },
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<ToolostUploadTicket> {
+  const body = await toolostApiCall(
+    accessToken, `/releases/${encodeURIComponent(releaseId)}/tracks/upload-url`,
+    { method: "POST", body: { kind: "audio", fileName: file.fileName, contentType: file.contentType } },
+    "The distributor couldn't make room for the audio file — nothing was sent. Try again.",
+    fetchImpl,
+  );
+  return parseUploadTicket(body, "The distributor couldn't make room for the audio file — nothing was sent. Try again.");
+}
+
+/** Step 2b — pre-signed ticket for the cover artwork. */
+export async function requestToolostArtworkUploadUrl(
+  accessToken: string,
+  releaseId: string,
+  file: { fileName: string; contentType: string },
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<ToolostUploadTicket> {
+  const body = await toolostApiCall(
+    accessToken, `/releases/${encodeURIComponent(releaseId)}/artwork/upload-url`,
+    { method: "POST", body: { fileName: file.fileName, contentType: file.contentType } },
+    "The distributor couldn't make room for the cover artwork — nothing was sent. Try again.",
+    fetchImpl,
+  );
+  return parseUploadTicket(body, "The distributor couldn't make room for the cover artwork — nothing was sent. Try again.");
+}
+
+/** Step 2c — PUT raw bytes to the pre-signed URL. This is S3, not the
+    API: no Authorization header, just the ticket's own headers. */
+export async function uploadToolostBytes(
+  ticket: ToolostUploadTicket,
+  bytes: Uint8Array,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<void> {
+  const res = await fetchImpl(ticket.uploadUrl, { method: "PUT", headers: ticket.headers, body: bytes });
+  if (!res.ok) {
+    logger.warn({ toolostStatus: res.status }, "[toolost] pre-signed upload failed");
+    throw new TooLostApiError(
+      "The file upload didn't go through — nothing was submitted. Try again.",
+      res.status, "pre-signed put",
+    );
+  }
+}
+
+/** Downloads one of OUR stored files (release audio / artwork) so its
+    bytes can ride the pre-signed PUT. Not a provider call. */
+export async function fetchToolostSourceFile(
+  url: string,
+  userMessage: string,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<{ bytes: Uint8Array; contentType: string | null }> {
+  const res = await fetchImpl(url, { method: "GET" });
+  if (!res.ok) {
+    throw new TooLostApiError(userMessage, res.status, "source file fetch");
+  }
+  const buf = await res.arrayBuffer();
+  return { bytes: new Uint8Array(buf), contentType: res.headers?.get?.("content-type") ?? null };
+}
+
+/** Step 3 — attach the uploaded audio keys to the release's tracks. */
+export async function attachToolostTracks(
+  accessToken: string,
+  releaseId: string,
+  tracks: ToolostTrackAttach[],
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<void> {
+  await toolostApiCall(
+    accessToken, `/releases/${encodeURIComponent(releaseId)}/tracks`,
+    {
+      method: "PUT",
+      body: {
+        tracks: tracks.map((t) => ({
+          title: t.title,
+          ...(t.isrc ? { isrc: t.isrc } : {}),
+          audioFileKey: t.audioFileKey,
+        })),
+      },
+    },
+    "The distributor couldn't attach the audio to this release — nothing was submitted. Try again.",
+    fetchImpl,
+  );
+}
+
+/** Step 4 — release metadata, ALWAYS carrying the AI declaration. An
+    AI-generated release without its rights documentation is refused
+    HERE, in the client, so no caller can ship the declaration bare. */
+export async function patchToolostReleaseMetadata(
+  accessToken: string,
+  releaseId: string,
+  metadata: ToolostReleaseMetadata,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<void> {
+  if (metadata.isAiGenerated && !metadata.aiDocumentation) {
+    throw new TooLostApiError(
+      "An AI-generated release needs its rights documentation attached before it can ship.",
+      undefined, "ai documentation missing",
+    );
+  }
+  const body: Record<string, unknown> = { title: metadata.title, isAiGenerated: metadata.isAiGenerated };
+  if (metadata.artistName) body["artistName"] = metadata.artistName;
+  if (metadata.releaseDate) body["releaseDate"] = metadata.releaseDate;
+  if (metadata.genre) body["genre"] = metadata.genre;
+  if (metadata.explicit !== undefined) body["explicit"] = metadata.explicit;
+  if (metadata.label) body["label"] = metadata.label;
+  if (metadata.copyright) body["copyright"] = metadata.copyright;
+  if (metadata.upc) body["upc"] = metadata.upc;
+  if (metadata.isrc) body["isrc"] = metadata.isrc;
+  if (metadata.coverFileKey) body["coverFileKey"] = metadata.coverFileKey;
+  else if (metadata.coverUrl) body["coverUrl"] = metadata.coverUrl;
+  if (metadata.isAiGenerated && metadata.aiDocumentation) body["aiDocumentation"] = metadata.aiDocumentation;
+  await toolostApiCall(
+    accessToken, `/releases/${encodeURIComponent(releaseId)}/metadata`,
+    { method: "PATCH", body },
+    "The distributor couldn't take this release's details — nothing was submitted. Try again.",
+    fetchImpl,
+  );
+}
+
+/** Step 5 — hand the finished package to the distributor for review. */
+export async function submitToolostRelease(
+  accessToken: string,
+  releaseId: string,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<void> {
+  await toolostApiCall(
+    accessToken, `/releases/${encodeURIComponent(releaseId)}/submit`,
+    { method: "POST", body: {} },
+    "The distributor couldn't accept this release for review — it hasn't gone out. Try again.",
+    fetchImpl,
+  );
+}
