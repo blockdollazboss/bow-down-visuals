@@ -26,7 +26,7 @@
  */
 process.env["STORE_DOWNLOAD_SECRET"] = "test-download-secret-for-product-offers";
 
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import { randomUUID } from "crypto";
 import express from "express";
 import type { AddressInfo } from "node:net";
@@ -128,6 +128,13 @@ import offersRouter from "../product-offers";
 import storefrontRouter from "../storefront";
 import shopsRouter from "../generate/shops";
 import { createTestDb } from "../../lib/__tests__/test-db";
+import { __setProductOfferNotifier } from "../../lib/product-offers";
+import {
+  notifyUserEvent,
+  type NotifyDeps,
+  type PushPreferenceMap,
+  type UserEventInput,
+} from "../../lib/push-events";
 import { sql } from "drizzle-orm";
 
 const DDL = `
@@ -221,6 +228,15 @@ CREATE TABLE notifications (
   body text NOT NULL DEFAULT '', link text NOT NULL DEFAULT '',
   is_read boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE push_notification_prefs (
+  user_id uuid PRIMARY KEY,
+  money_enabled boolean NOT NULL DEFAULT true,
+  messages_enabled boolean NOT NULL DEFAULT true,
+  live_enabled boolean NOT NULL DEFAULT true,
+  mentions_enabled boolean NOT NULL DEFAULT true,
+  social_enabled boolean NOT NULL DEFAULT false,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE product_offers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -609,5 +625,119 @@ describe("shops checkout — the accepted offer is the price", () => {
     });
     expect(res.status).toBe(409);
     expect((await h.db.execute(sql`SELECT * FROM shop_events`)).rows).toHaveLength(0);
+  });
+});
+
+/* ── Money push category (stack1400 ruling #14) ────────────────────────
+   The four offer tells ride notifyUserEvent under category "money":
+   bell always, device ping only when the recipient's money category
+   is on. Proven here by composing the REAL notifyUserEvent with fake
+   legs behind the lib's notifier seam (house wiring pattern), so the
+   bell/push split and the category are observed end-to-end from the
+   HTTP action that caused the tell. */
+const PUSH_ON: PushPreferenceMap = { money: true, messages: true, live: true, mentions: true, social: false };
+const PUSH_MONEY_OFF: PushPreferenceMap = { ...PUSH_ON, money: false };
+
+function wirePushLegs(prefs: PushPreferenceMap) {
+  const bells: UserEventInput[] = [];
+  const pushes: Array<{ userId: string; payload: any }> = [];
+  const deps: NotifyDeps = {
+    getPrefs: async () => prefs,
+    insertBell: async (input) => { bells.push(input); },
+    sendPush: async (userId, payload) => {
+      pushes.push({ userId, payload });
+      return { sent: 1, pruned: 0, failed: 0, skippedReason: null };
+    },
+  };
+  __setProductOfferNotifier(async (input) => notifyUserEvent(input, deps));
+  return { bells, pushes };
+}
+
+describe("money push category — the four tells (ruling #14)", () => {
+  afterEach(() => { __setProductOfferNotifier(null); });
+
+  it("offer received: bell + push to the seller under money, copy unchanged", async () => {
+    const { bells, pushes } = wirePushLegs(PUSH_ON);
+    const res = await makeOffer(3000);
+    expect(res.status).toBe(201);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]).toMatchObject({
+      userId: SELLER, category: "money", kind: "product_offer_received",
+      title: "New offer on your product", link: "/music-sales",
+    });
+    expect(bells[0]!.body).toContain('A buyer offered $30.00 for "Beat Pack Deluxe" (listed at $50.00)');
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]!.userId).toBe(SELLER);
+    expect(pushes[0]!.payload).toMatchObject({ kind: "product_offer_received", title: "New offer on your product" });
+  });
+
+  it("offer accepted: bell + push to the buyer under money, copy unchanged", async () => {
+    const { bells, pushes } = wirePushLegs(PUSH_ON);
+    const created = await makeOffer(3000);
+    bells.length = 0; pushes.length = 0;
+    as(SELLER);
+    const accepted = await req("POST", `/product-offers/${created.json.offer.id}/act`, { action: "accept" });
+    expect(accepted.status).toBe(200);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]).toMatchObject({
+      userId: BUYER, category: "money", kind: "product_offer_accepted",
+      title: "Offer accepted", link: `/storefront/product/${STORE_PRODUCT}`,
+    });
+    expect(bells[0]!.body).toContain('Your $30.00 offer for "Beat Pack Deluxe" was accepted');
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]!.userId).toBe(BUYER);
+  });
+
+  it("offer countered: bell + push to the buyer under money, copy unchanged", async () => {
+    const { bells, pushes } = wirePushLegs(PUSH_ON);
+    const created = await makeOffer(3000);
+    bells.length = 0; pushes.length = 0;
+    as(SELLER);
+    const countered = await req("POST", `/product-offers/${created.json.offer.id}/act`, { action: "counter", amountCents: 4000 });
+    expect(countered.status).toBe(200);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]).toMatchObject({
+      userId: BUYER, category: "money", kind: "product_offer_countered", title: "Counter-offer",
+    });
+    expect(bells[0]!.body).toContain('"Beat Pack Deluxe" was countered at $40.00 (listed at $50.00)');
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]!.userId).toBe(BUYER);
+  });
+
+  it("offer declined: bell + push to the buyer under money, copy unchanged", async () => {
+    const { bells, pushes } = wirePushLegs(PUSH_ON);
+    const created = await makeOffer(3000);
+    bells.length = 0; pushes.length = 0;
+    as(SELLER);
+    const declined = await req("POST", `/product-offers/${created.json.offer.id}/act`, { action: "decline" });
+    expect(declined.status).toBe(200);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]).toMatchObject({
+      userId: BUYER, category: "money", kind: "product_offer_declined", title: "Offer declined",
+    });
+    expect(bells[0]!.body).toBe('The offer on "Beat Pack Deluxe" was declined.');
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]!.userId).toBe(BUYER);
+  });
+
+  it("money push off: the bell still lands and no push is dispatched", async () => {
+    const { bells, pushes } = wirePushLegs(PUSH_MONEY_OFF);
+    const res = await makeOffer(3000);
+    expect(res.status).toBe(201);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]).toMatchObject({ userId: SELLER, category: "money", kind: "product_offer_received" });
+    expect(pushes).toHaveLength(0);
+  });
+
+  it("a failing notifier never fails the offer action", async () => {
+    __setProductOfferNotifier(async () => { throw new Error("push service down"); });
+    const res = await makeOffer(3000);
+    expect(res.status).toBe(201);
+    expect(res.json.offer.status).toBe("pending");
+    const id = res.json.offer.id as string;
+    as(SELLER);
+    const accepted = await req("POST", `/product-offers/${id}/act`, { action: "accept" });
+    expect(accepted.status).toBe(200);
+    expect(accepted.json.offer.status).toBe("accepted");
   });
 });

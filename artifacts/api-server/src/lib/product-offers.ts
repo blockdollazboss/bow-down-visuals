@@ -4,6 +4,8 @@ import { db as defaultDb } from "@workspace/db";
 import { formatUsd } from "./platform-fees";
 import { logger } from "./logger";
 import { isMissingSchemaError } from "./pg-errors";
+import { notifyUserEvent, getPushPreferences, type UserEventInput } from "./push-events";
+import { sendPushToUser } from "./push";
 
 /* ── Make-an-offer (Wave 4 #43, migration 0257_wave4346) ────
    The negotiation rail behind schema/product-offers.ts. This lib owns
@@ -34,8 +36,10 @@ import { isMissingSchemaError } from "./pg-errors";
    checkout's claim goes stale and can be taken over; the sale's paid
    flip consumes the offer exactly once (status-guarded UPDATE).
 
-   FAILURE ISOLATION: notifications ride the existing notifications
-   table and NEVER throw into a negotiation or a sale. Pre-migration
+   FAILURE ISOLATION: notifications ride the one event door
+   (notifyUserEvent, "money" push category — bell always, device ping
+   when the recipient's money category is on) and NEVER throw into a
+   negotiation or a sale. Pre-migration
    reads treat the feature as not deployed (the routes answer
    503-honest on writes, empty on reads). */
 
@@ -235,15 +239,48 @@ async function resolveOfferItem(
   };
 }
 
+/* ── Tells (stack1400 ruling #14) ──────────────────────────────────────
+   Every offer tell rides the one event door under the "money" push
+   category: the bell always lands, and the device ping fires only
+   when the recipient's money category is on (notifyUserEvent /
+   push-events.ts). Recipient + title/body/link copy are exactly what
+   the old bell-only raw insert carried — only the delivery rail
+   changed. Exactly-once by construction: each tell fires once, at
+   the single exit of the action that caused it. */
+type ProductOfferNotifier = (input: UserEventInput) => Promise<unknown>;
+let _productOfferNotifier: ProductOfferNotifier | null = null;
+/** Test seam — never used outside tests. Null = the real event door. */
+export function __setProductOfferNotifier(fn: ProductOfferNotifier | null): void {
+  _productOfferNotifier = fn;
+}
+
 async function notifySafely(
   db: OfferDb,
   input: { userId: string; kind: string; title: string; body: string; link: string },
 ): Promise<void> {
   try {
-    await db.execute(sql`
-      INSERT INTO notifications (id, user_id, kind, title, body, link)
-      VALUES (${randomUUID()}::uuid, ${input.userId}::uuid, ${input.kind}, ${input.title}, ${input.body}, ${input.link})
-    `);
+    const eventInput: UserEventInput = { ...input, category: "money" };
+    if (_productOfferNotifier) {
+      await _productOfferNotifier(eventInput);
+      return;
+    }
+    /* The real door (notifyUserEvent) with the bell leg bound to THIS
+       lib's db handle: every product-offers function takes its db from
+       the caller, and the bell must land on that same connection —
+       the old raw insert's contract. The insert keeps its explicit
+       randomUUID id (the pre-ruling shape); prefs + push ride the
+       shared push-events deps, so the "money" category gates the
+       device ping exactly like every other money event. */
+    await notifyUserEvent(eventInput, {
+      getPrefs: getPushPreferences,
+      sendPush: sendPushToUser,
+      insertBell: async (bell) => {
+        await db.execute(sql`
+          INSERT INTO notifications (id, user_id, kind, title, body, link)
+          VALUES (${randomUUID()}::uuid, ${bell.userId}::uuid, ${bell.kind}, ${bell.title}, ${bell.body}, ${bell.link})
+        `);
+      },
+    });
   } catch (err) {
     logger.warn({ err, userId: input.userId, kind: input.kind }, "[product-offers] notification failed (negotiation stands)");
   }
