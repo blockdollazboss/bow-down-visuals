@@ -99,7 +99,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Clean up, split stems, master & polish any track",
     route: "/audio-studio",
     category: "create",
-    creditCost: "From 100 Visual Bucs",
+    creditCost: "From 75 Visual Bucs",
     icon: SlidersHorizontal,
     badge: "POPULAR",
   },
