@@ -728,7 +728,7 @@ router.use(discordRouter);
 router.use(discordBotRouter);
 router.use(jobNotificationsRouter);
 router.use(distributionRouter);
-router.use(distributionLegacyRouter);        // Stack 11: /api/distribution/{landing-content, spotify, splits/statements, lyrics-package, change-requests, permanence, roster} + /api/promote/unlock-gates
+router.use(distributionLegacyRouter);        // Stack 11: /api/distribution/{landing-content, spotify, toolost, splits/statements, lyrics-package, change-requests, permanence, roster} + /api/promote/unlock-gates
 router.use(schedulerRouter);
 router.use(evergreenRouter); // /api/evergreen/* (Wave-4 #48: evergreen recycling proposals in the Scheduler — never auto-posts)
 router.use(merchRouter);

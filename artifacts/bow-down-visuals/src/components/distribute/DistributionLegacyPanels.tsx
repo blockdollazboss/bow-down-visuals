@@ -375,3 +375,65 @@ export function RosterPanel() {
     </section>
   );
 }
+
+/* ── Delivery connection (Too Lost pipe's front door) ──────────────────
+   Lives on the distribution surface beside split statements + roster —
+   the release workflow's own dock, never a standalone page. Three
+   honest states only: not switched on yet, not connected, connected.
+   Connecting links the account; it submits nothing and charges
+   nothing. */
+export function DistributionConnectionPanel() {
+  const { getAccessToken } = useAuth();
+  const [status, setStatus] = useState<{ configured: boolean; connected: boolean; username: string | null; tokenExpiresAt: string | null } | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "GET", "/api/distribution/toolost/status");
+      setStatus(d);
+    } catch { setErr("Couldn't check the delivery connection."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("toolost") === "connected") setMsg("Delivery account connected and linked to your releases.");
+    else if (q.get("toolost") === "error") setErr("That connection didn't finish — nothing was connected. You can try again.");
+  }, []);
+
+  async function connect() {
+    setErr(null); setMsg(null); setBusy(true);
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "GET", "/api/distribution/toolost/auth-url");
+      window.location.href = d.authUrl;
+    } catch (e) { setErr(plainErrorText(e, "Couldn't start the connection.")); setBusy(false); }
+  }
+
+  return (
+    <section className={card}>
+      <h3 className="text-lg font-black">Delivery connection</h3>
+      <p className="mt-1 text-sm text-white/55">
+        This is where your delivery account links to your releases. Connect once, here where your music
+        lives — when release delivery opens, your catalog is already tied to your account, with no
+        separate dashboard to sign into.
+      </p>
+      {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
+      {msg && <p className="mt-2 text-sm text-emerald-300">{msg}</p>}
+      <div className="mt-4">
+        {status === null ? (
+          <p className="text-sm text-white/45">Checking…</p>
+        ) : !status.configured ? (
+          <p className="text-sm text-white/60">Delivery connection isn&apos;t switched on yet — your releases and drafts are unaffected, and this panel lights up when it is.</p>
+        ) : status.connected ? (
+          <p className="text-sm text-emerald-300">Connected{status.username ? ` as ${status.username}` : ""}. Your delivery account is linked — release delivery builds on this connection.</p>
+        ) : (
+          <button type="button" className={btn} onClick={connect} disabled={busy}>{busy ? "Opening…" : "Connect delivery account · free"}</button>
+        )}
+      </div>
+    </section>
+  );
+}
