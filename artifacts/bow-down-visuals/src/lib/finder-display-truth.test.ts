@@ -17,8 +17,10 @@
  * The sweep that followed the named cases covered every *_COST-style
  * display constant in the client. Cases proven display==rail are not
  * pinned here; cases where the price itself is an unapproved
- * placeholder on BOTH sides (podcast dialogue, LUFS, vocal tune, …)
- * are owner price questions, not display lies, and stay unpinned.
+ * placeholder on BOTH sides (LUFS, vocal tune, …) are owner price
+ * questions, not display lies, and stay unpinned. Podcast dialogue
+ * left that list on 2026-11-02: ruling #32 approved 300 VB per
+ * 10 minutes, so it is pinned below like every other ruled price.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -90,6 +92,7 @@ const CASES: Case[] = [
   { label: "lyric stories (per card)", feFile: "components/hooks/LyricStoriesSection.tsx", feConstant: "COST_PER_CARD", apiFile: "routes/generate/lyric-stories.ts", apiConstant: "CREDITS_PER_CARD", endpoint: "/api/lyric-stories/generate", expected: 200 },
   { label: "trend jacker draft", feFile: "components/scheduler/TrendJackerSection.tsx", feConstant: "DRAFT_CREDITS", apiFile: "routes/generate/trend-jacker.ts", apiConstant: "DRAFT_CREDITS", endpoint: "/api/trend-jacker/draft", expected: 200 },
   { label: "podcast (per 10 min)", feFile: "lib/podcast.ts", feConstant: "PODCAST_CREDITS_PER_10MIN", apiFile: "routes/generate/podcast.ts", apiConstant: "PODCAST_CREDITS_PER_10MIN", endpoint: "/api/podcast/generate", expected: 300 },
+  { label: "podcast dialogue (per 10 min)", feFile: "lib/podcast.ts", feConstant: "DIALOGUE_CREDITS_PER_10MIN", apiFile: "routes/generate/podcast-dialogue.ts", apiConstant: "DIALOGUE_CREDITS_PER_10MIN", endpoint: "/api/podcast/dialogue", expected: 300 },
   { label: "analytics hub growth plan", feFile: "pages/analytics-hub.tsx", feConstant: "INSIGHT_COST", apiFile: "routes/generate/analytics-hub.ts", apiConstant: "ANALYTICS_HUB_CREDITS", endpoint: "/api/analytics-hub/insights", expected: 200 },
   { label: "artist vault loop video", feFile: "pages/artist-vault.tsx", feConstant: "LOOP_VIDEO_CREDITS", apiFile: "routes/artist-vaults.ts", apiConstant: "LOOP_VIDEO_CREDITS", expected: 200 },
   { label: "contract analyzer", feFile: "pages/contracts.tsx", feConstant: "CREDIT_COST", apiFile: "routes/generate/contract-analyzer.ts", apiConstant: "CONTRACT_ANALYSIS_CREDITS", expected: 300 },
