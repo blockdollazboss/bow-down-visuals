@@ -31,8 +31,16 @@ function readApi(rel: string): string {
   return readFileSync(new URL(`../../../api-server/src/${rel}`, import.meta.url), "utf8");
 }
 
+const localeCache = new Map<string, Record<string, any>>();
 function readLocale(code: string): Record<string, any> {
-  return JSON.parse(readFileSync(new URL(`../locales/${code}.json`, import.meta.url), "utf8"));
+  // Parsed once per file — the catalogs are ~16k lines each and
+  // re-parsing per test times out under full-suite parallel load.
+  let parsed = localeCache.get(code);
+  if (!parsed) {
+    parsed = JSON.parse(readFileSync(new URL(`../locales/${code}.json`, import.meta.url), "utf8"));
+    localeCache.set(code, parsed!);
+  }
+  return parsed!;
 }
 
 /** Re-derive a server cost constant from source (env-default and
