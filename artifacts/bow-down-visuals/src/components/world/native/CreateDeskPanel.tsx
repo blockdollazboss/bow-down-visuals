@@ -2,6 +2,8 @@ import type { PalaceStation } from "@/lib/world/stations";
 import { NativePlaceholder } from "./NativePlaceholder";
 import { AudioDesk } from "./AudioDesk";
 import { CarouselDesk } from "./CarouselDesk";
+import { DetectorDesk } from "./DetectorDesk";
+import { WallpapersDesk } from "./WallpapersDesk";
 import { HookDesk } from "./HookDesk";
 import { MoviesDesk } from "./MoviesDesk";
 import {
@@ -15,8 +17,8 @@ import {
 
 /* ─── CreateDeskPanel — the "create" pattern's dispatch (§3.6) ──────
    The panel host renders this for every native station whose
-   pattern is "create"; the station id picks the bench. All eight
-   Create Wing desks are real instruments now — the placeholder
+   pattern is "create"; the station id picks the bench. Every
+   Create Wing desk is a real instrument now — the placeholder
    remains only as the honest fallback for an id this dispatch
    doesn't know (registry drift), never as a shipped desk. */
 
@@ -44,6 +46,10 @@ export function CreateDeskPanel({ station, ...props }: CreateDeskPanelProps) {
       return <MoviesDesk {...props} />;
     case "carousel-desk":
       return <CarouselDesk {...props} />;
+    case "detector-desk":
+      return <DetectorDesk {...props} />;
+    case "wallpapers-desk":
+      return <WallpapersDesk {...props} />;
     default:
       return <NativePlaceholder station={station} isLight={props.isLight} />;
   }

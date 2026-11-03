@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f47076b73ce1818875ee7d31d9ab4fc0c7d451b4",
+  "baseCommit": "2eb3bc54beb1d6435f570c9d6eb83a7e571c595f",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -14,7 +14,7 @@
     "features": 251,
     "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 226,
+    "pricedActions": 235,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
@@ -4230,7 +4230,14 @@
         "/api/dev/add-credits",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Brand Deal Calculator",
+          "vb": 200,
+          "endpoint": "/api/brand-calculator/calculate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Stop guessing what to charge. Get a fair rate range, per-post pricing, package deals, and negotiation tips — built from industry benchmarks for your exact audience.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandCalculator.subtitle\" (page's own string)",
       "nextSteps": []
@@ -6209,7 +6216,20 @@
         "/api/dmca/report",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Copyright Answer",
+          "vb": 100,
+          "endpoint": "/api/copyright/ask",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Copyright Filing Draft",
+          "vb": 100,
+          "endpoint": "/api/copyright/draft",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Protect your music — guided copyright registration help for creators.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"copyright.metaDescription\""
@@ -7608,7 +7628,14 @@
         "/api/dev/add-credits",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "AI Media Detection",
+          "vb": 200,
+          "endpoint": "/api/detect/media",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Upload an image, video, or audio file — or paste a link — and get a forensic AI assessment: verdict, confidence score, and the exact tells it found.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"mediaDetector.subtitle\" (page's own string)",
       "nextSteps": []
@@ -9431,7 +9458,20 @@
         "/api/interview-prep/session",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Interview Practice Feedback",
+          "vb": 100,
+          "endpoint": "/api/interview-prep/feedback",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Interview Prep Session",
+          "vb": 200,
+          "endpoint": "/api/interview-prep/session",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Prep for interviews and press with AI-coached answers.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/interview-prep.tsx usePageTitle meta description"
@@ -9782,7 +9822,20 @@
         "/api/llc-guide/plan",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "LLC Guide Answer",
+          "vb": 100,
+          "endpoint": "/api/llc-guide/ask",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "LLC Guide Plan",
+          "vb": 100,
+          "endpoint": "/api/llc-guide/plan",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Start your music business right — step-by-step LLC formation guide for creators.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"llcGuide.pageDescription\" (page's own string)",
       "nextSteps": []
@@ -11607,7 +11660,14 @@
         "/api/setlist/flow",
         "/api/songs"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Setlist Flow Suggestion",
+          "vb": 100,
+          "endpoint": "/api/setlist/flow",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Build your live show like a director — order the arc, time the runtime, and let AI place your opener, peaks, and closer.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"setlist.pageDescription\" (page's own string)",
       "nextSteps": []

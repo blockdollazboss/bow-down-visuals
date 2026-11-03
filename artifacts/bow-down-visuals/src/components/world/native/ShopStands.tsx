@@ -11,6 +11,7 @@ import { NativeCard } from "./NativeCard";
 import { DomainsDesk } from "./DomainsDesk";
 import { GiftCardsDesk } from "./GiftCardsDesk";
 import { StoreGrowthDesk } from "./StoreGrowthDesk";
+import { DiscountCodesDesk } from "./DiscountCodesDesk";
 import { PaidSeriesDropsDesk } from "./PaidSeriesDropsDesk";
 import { paidWithGiftCard } from "@/lib/world/gift-cards";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
@@ -673,6 +674,12 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           (StoreGrowthDesk), self-gating (members only; a
           no-profile account gets its honest setup state). */}
       {!isGuest && <StoreGrowthDesk isLight={isLight} isGuest={isGuest} />}
+      {/* Discount codes (stack1500 parity wave #3 item 45):
+          the seller's profile-wide codes — create, switch,
+          delete — on the free /api/storefront/discounts rails,
+          its own desk component (DiscountCodesDesk),
+          self-gating the same way. */}
+      {!isGuest && <DiscountCodesDesk isLight={isLight} isGuest={isGuest} />}
     </div>
   );
 }

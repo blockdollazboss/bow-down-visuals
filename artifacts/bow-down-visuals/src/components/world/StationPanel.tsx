@@ -179,6 +179,12 @@ const MyProfileDesk = lazy(() => import("@/components/world/native/SocialWave2")
 const GroupsDesk = lazy(() => import("@/components/world/native/GroupsDesk").then((m) => ({ default: m.GroupsDesk })));
 const EventsDesk = lazy(() => import("@/components/world/native/EventsDesk").then((m) => ({ default: m.EventsDesk })));
 const CollabsDesk = lazy(() => import("@/components/world/native/CollabsDesk").then((m) => ({ default: m.CollabsDesk })));
+const ScenesDesk = lazy(() => import("@/components/world/native/ScenesDesk").then((m) => ({ default: m.ScenesDesk })));
+const GrantsDesk = lazy(() => import("@/components/world/native/GrantsDesk").then((m) => ({ default: m.GrantsDesk })));
+const TakeoversDesk = lazy(() => import("@/components/world/native/TakeoversDesk").then((m) => ({ default: m.TakeoversDesk })));
+const LlcDesk = lazy(() => import("@/components/world/native/LlcDesk").then((m) => ({ default: m.LlcDesk })));
+const CopyrightDesk = lazy(() => import("@/components/world/native/CopyrightDesk").then((m) => ({ default: m.CopyrightDesk })));
+const BrandCalculatorDesk = lazy(() => import("@/components/world/native/BrandCalculatorDesk").then((m) => ({ default: m.BrandCalculatorDesk })));
 const GamesPanel = lazy(() => import("@/components/world/native/GamesPanels").then((m) => ({ default: m.GamesPanel })));
 const CreatorRoomsDirectory = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomsDirectory })));
 const CreatorRoomStation = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomStation })));
@@ -190,6 +196,12 @@ const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsS
 const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
+const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then((m) => ({ default: m.BriefDesk })));
+const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
+const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
+const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
+const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
+const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -209,6 +221,8 @@ const PressKitDesk = lazy(() => import("@/components/world/native/BusinessDesks"
 const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PromoteDesk })));
 const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDesk").then((m) => ({ default: m.LabelPitchDesk })));
 const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk").then((m) => ({ default: m.EmailListDesk })));
+const InterviewDesk = lazy(() => import("@/components/world/native/InterviewDesk").then((m) => ({ default: m.InterviewDesk })));
+const TrendsDesk = lazy(() => import("@/components/world/native/TrendsDesk").then((m) => ({ default: m.TrendsDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1092,6 +1106,21 @@ export default function StationPanel(props: StationPanelProps) {
                   <DeskDoor isLight={isLight}>
                     <CollabsDesk isLight={isLight} isGuest={isGuest} />
                   </DeskDoor>
+                  {/* Local Scenes (stack1500 parity wave #3): the
+                      declared-city directory + each city's page —
+                      creators, shows, scene chart — on the public
+                      /api/discovery/scenes rails, in the room for
+                      members and guests alike. */}
+                  <DeskDoor isLight={isLight}>
+                    <ScenesDesk isLight={isLight} />
+                  </DeskDoor>
+                  {/* Community Grants (stack1500 parity wave #3):
+                      the monthly VB pool — read rounds, submit,
+                      vote, report back — on the
+                      /api/community-grants rails, in the room. */}
+                  <DeskDoor isLight={isLight}>
+                    <GrantsDesk isLight={isLight} isGuest={isGuest} />
+                  </DeskDoor>
                 </div>
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
@@ -1126,23 +1155,64 @@ export default function StationPanel(props: StationPanelProps) {
                 <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
               </DeskDoor>
             ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
-              <DeskDoor isLight={isLight}>
-                <ChartsBoard
-                  isLight={isLight}
-                  isGuest={isGuest}
-                  jukeboxDenied={props.jukeboxDenied}
-                  onPlayTrack={props.onJukeboxAdd}
-                  shelfPlayer={shelfPlayer}
-                />
-              </DeskDoor>
+              <div className="flex flex-col gap-6">
+                <DeskDoor isLight={isLight}>
+                  <ChartsBoard
+                    isLight={isLight}
+                    isGuest={isGuest}
+                    jukeboxDenied={props.jukeboxDenied}
+                    onPlayTrack={props.onJukeboxAdd}
+                    shelfPlayer={shelfPlayer}
+                  />
+                </DeskDoor>
+                {/* Takeovers (stack1500 parity wave #3): the
+                    Spotlight + Loading Screen offers with their
+                    inquiry forms on the public offer/inquire
+                    rails — inquiries, never purchases — stacked
+                    at the Charts board. */}
+                <DeskDoor isLight={isLight}>
+                  <TakeoversDesk isLight={isLight} />
+                </DeskDoor>
+              </div>
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
-              <DeskDoor isLight={isLight}>
-                <EarningsBoard isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              <div className="flex flex-col gap-6">
+                <DeskDoor isLight={isLight}>
+                  <EarningsBoard isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* LLC Guide (stack1500 parity wave #3): ask +
+                    filing plan on the /api/llc-guide rails at
+                    the registry's 100 Bucs each, stacked at the
+                    Get Paid board under Earnings. */}
+                <DeskDoor isLight={isLight}>
+                  <LlcDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Copyright Assistant (stack1500 parity wave
+                    #3): registration draft + Q&A on the
+                    /api/copyright rails at the registry's 100
+                    Bucs each, stacked at the Get Paid board. */}
+                <DeskDoor isLight={isLight}>
+                  <CopyrightDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Brand Deal Calculator (stack1500 parity wave
+                    #3): the rate card on the
+                    /api/brand-calculator rail at the registry's
+                    200 Bucs, stacked at the Get Paid board. */}
+                <DeskDoor isLight={isLight}>
+                  <BrandCalculatorDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+              </div>
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <div className="flex flex-col gap-6">
                 <DeskDoor isLight={isLight}>
                   <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
+                </DeskDoor>
+                {/* Morning Brief (stack1500 parity wave #3): the
+                    Command Center's written brief — summary + the
+                    one drafted next move — on the free
+                    /api/command/brief rail, stacked at the My
+                    Studio board under the digest's raw halves. */}
+                <DeskDoor isLight={isLight}>
+                  <BriefDesk isLight={isLight} />
                 </DeskDoor>
                 {/* My public page (stack-100 #83/#84): view as a
                     visitor + the profile editor, on the creator-
@@ -1158,6 +1228,13 @@ export default function StationPanel(props: StationPanelProps) {
                 <DeskDoor isLight={isLight}>
                   <AccountDesk isLight={isLight} />
                 </DeskDoor>
+                {/* Social Proof (stack1500 parity wave #3): the
+                    verified audience figures + their off switches
+                    on the free /api/social-proof rails, stacked
+                    at the My Studio board beside the account desk. */}
+                <DeskDoor isLight={isLight}>
+                  <SocialProofDesk isLight={isLight} />
+                </DeskDoor>
                 {/* Creator Academy (stack1400 parity wave #2): the
                     Academy family — the course catalog + AI learning
                     path / lessons / coach on the /api/academy rails,
@@ -1169,6 +1246,35 @@ export default function StationPanel(props: StationPanelProps) {
                     like the locked /academy route on the website. */}
                 <DeskDoor isLight={isLight}>
                   <AcademyDesk isLight={isLight} />
+                </DeskDoor>
+                {/* DJ Set Prep (stack1500 parity wave #3): tempo +
+                    key analysis, crates, the harmonic order
+                    proposal and Rekordbox/M3U export on the free
+                    /api/dj rails, stacked at the My Studio board. */}
+                <DeskDoor isLight={isLight}>
+                  <DjDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Saved (stack1500 parity wave #3): the bookmark
+                    shelf — posts, tracks, videos, profiles — on
+                    the /api/saves rails, stacked at the My Studio
+                    board. */}
+                <DeskDoor isLight={isLight}>
+                  <SavedDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Setlist Builder (stack1500 parity wave #3):
+                    the free hand builder + the 100-Buc AI flow on
+                    the /api/setlist/flow rail, stacked at the My
+                    Studio board beside DJ Set Prep. */}
+                <DeskDoor isLight={isLight}>
+                  <SetlistDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Catalog Import (stack1500 parity wave #3):
+                    bring your catalog home — scan, fetch,
+                    rebuild, approve — on the free
+                    /api/catalog-import rails, stacked at the My
+                    Studio board. */}
+                <DeskDoor isLight={isLight}>
+                  <CatalogImportDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
@@ -1215,6 +1321,22 @@ export default function StationPanel(props: StationPanelProps) {
                     stacked desks. */}
                 <DeskDoor isLight={isLight}>
                   <EmailListDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Interview Prep (stack1500 parity wave #3): the
+                    media coach — practice sessions on the
+                    /api/interview-prep rails (200 the session, 100
+                    a scored answer), stacked in the Promote Room
+                    like the desks above it. */}
+                <DeskDoor isLight={isLight}>
+                  <InterviewDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Trend Predictor (stack1500 parity wave #3):
+                    the forecast + content ideas on the
+                    /api/trend-predictor rails (200 / 100 via
+                    the registry), stacked in the Promote Room;
+                    the watchlist is the page's own local list. */}
+                <DeskDoor isLight={isLight}>
+                  <TrendsDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : (
