@@ -65,7 +65,7 @@ const pendingLogoTasks = attachJobMapTtl(new Map<string, { userId: string; credi
 /** The reserve resolution for a sync (in-request) logo charge whose
  *  task id was minted locally: the durable row when its record
  *  landed, otherwise the in-memory reserve itself. */
-function syncReserveResolution(taskId: string, userId: string, credits: number, action: string, chargeKey: string, rowFound: boolean): ResolvedPendingCharge {
+function syncReserveResolution(userId: string, credits: number, action: string, chargeKey: string, rowFound: boolean): ResolvedPendingCharge {
   return {
     userId,
     credits,
@@ -156,7 +156,7 @@ router.post("/generate-logo", requireAuth, generationLimiter, async (req, res) =
       chargeKey,
     });
     const premiumResolved = syncReserveResolution(
-      premiumTaskId, req.userId!, creditCost, "Logo (Premium)", chargeKey,
+      req.userId!, creditCost, "Logo (Premium)", chargeKey,
       (await generationChargeIntentStore.getIntent(premiumTaskId).catch(() => null)) !== null,
     );
     const refundPremiumReserve = async (reason: string) => {

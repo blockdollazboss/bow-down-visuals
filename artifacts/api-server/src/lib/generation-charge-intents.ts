@@ -81,8 +81,9 @@ import { logger } from "./logger";
        to 'reserved' so a later poll/sweep retries it.
      · provider submission failure AFTER the reserve (the provider
        call throws) — the submit refunds its own reserve immediately
-       under a submit-minted intent row (task id = the job id), so no
-       orphan reserve waits for a poll that will never come.
+       in-request, so no orphan reserve waits for a poll that will
+       never come; a failed refund logs CRITICAL under the job/task
+       id, with the charge's ledger row as the reconciliation trail.
      · sweeper — reserve reconciliation, never late-charging a
        reserve: delivered reserves are confirmed, abandoned reserves
        (never delivered past the stale window) are claim-refunded.

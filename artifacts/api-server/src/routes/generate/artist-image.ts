@@ -26,7 +26,6 @@ import {
   type ReserveOutcome,
 } from "../../lib/generation-charge-intents";
 import { saveGeneration, asVaultId } from "../../lib/save-generation";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { r2Upload } from "../../lib/r2-client";
 import {
   GEN4_IMAGE_CREDIT_COST,
