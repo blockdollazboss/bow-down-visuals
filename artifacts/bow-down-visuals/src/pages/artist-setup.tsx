@@ -26,6 +26,7 @@ import ProfileTemplateStudio from "@/components/artist/ProfileTemplateStudio";
 import FanArtReviewDesk from "@/components/artist/FanArtReviewDesk";
 import { GetPaidChecklist } from "@/components/artist/get-paid-checklist";
 import { HeroSection, ProfileSections } from "@/components/artist/profile-sections";
+import { prefillWithSuggestion, suggestedBioForProfile } from "@/lib/suggest";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuth } from "@/contexts/AuthContext";
@@ -234,6 +235,7 @@ export default function ArtistSetup() {
           const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
           let preName = authProfile?.display_name || meta.full_name || meta.name || "";
           let preAvatar: string | null = meta.avatar_url || meta.picture || null;
+          let preBio = "";
           try {
             const res = await fetch("/api/artist-vaults");
             const data = await res.json();
@@ -242,9 +244,24 @@ export default function ArtistSetup() {
             if (v) {
               if (!preName && v.artist_name) preName = v.artist_name;
               if (!preAvatar && v.reference_image_url) preAvatar = v.reference_image_url;
+              /* One suggestion brain (lib/suggest): the new profile's
+                 bio arrives pre-filled from the brain, derived from
+                 the Vault's own genre/personality/style words — the
+                 raw vault description is the fallback when the brain
+                 has nothing, and an empty bio stays empty. */
+              preBio =
+                suggestedBioForProfile({
+                  displayName: preName,
+                  genre: v.genre ?? null,
+                  personality: v.personality ?? null,
+                  visualStyle: v.visual_style ?? null,
+                  voiceStyle: v.voice_style ?? null,
+                }) ??
+                v.description ??
+                "";
             }
           } catch { /* prefill is best-effort */ }
-          if (!cancelled) setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar }));
+          if (!cancelled) setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar, bio: preBio }));
         }
       } catch {
         if (!cancelled) setLoadError(true);
@@ -305,6 +322,19 @@ export default function ArtistSetup() {
       patch({
         display_name: profile?.display_name || v.artist_name || "",
         avatar_url: profile?.avatar_url || v.reference_image_url || null,
+        /* Same brain, same rule: fill the bio only while it's empty —
+           the brain's starter (from the Vault's own words) first, the
+           raw vault description as its fallback. */
+        bio: prefillWithSuggestion(
+          profile?.bio ?? "",
+          suggestedBioForProfile({
+            displayName: profile?.display_name || v.artist_name || "",
+            genre: v.genre ?? null,
+            personality: v.personality ?? null,
+            visualStyle: v.visual_style ?? null,
+            voiceStyle: v.voice_style ?? null,
+          }) ?? v.description ?? null,
+        ),
       });
       toast({ title: "Imported from your vault", description: "Name and photo dropped in. The rest is yours." });
     } catch {

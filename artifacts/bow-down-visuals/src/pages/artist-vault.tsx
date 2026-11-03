@@ -38,6 +38,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { CHARACTER_THEMES, getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { downloadImage } from "@/lib/download-image";
 import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
+import { suggestedBioForProfile } from "@/lib/suggest";
 import CartoonStudio from "@/pages/cartoon-studio";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
@@ -2642,6 +2643,30 @@ export default function ArtistVault() {
                 className={textareaClass}
                 style={{ minHeight: "90px" }}
               />
+              {/* One suggestion brain (lib/suggest): while the description
+                  is empty, offer the brain's starter — derived from the
+                  name, genre, personality and style fields already on
+                  this form. Offered, never forced; when the brain has
+                  nothing the field keeps its existing empty state. */}
+              {!watched.artistDescription?.trim() ? (() => {
+                const suggested = suggestedBioForProfile({
+                  displayName: watched.artistName,
+                  genre: watched.genre,
+                  personality: watched.personality,
+                  visualStyle: watched.visualStyle,
+                  voiceStyle: watched.voiceStyle,
+                });
+                return suggested ? (
+                  <button
+                    type="button"
+                    data-testid="vault-suggested-description"
+                    onClick={() => setValue("artistDescription", suggested)}
+                    className={`mt-2 text-left text-xs font-semibold underline decoration-dotted underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-primary"}`}
+                  >
+                    Use the suggested description — written from this artist's genre, personality and style
+                  </button>
+                ) : null;
+              })() : null}
             </FieldWrapper>
 
             {/* Row 2: Genre + Visual Style */}

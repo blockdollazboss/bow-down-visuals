@@ -17,6 +17,8 @@ import {
   normalizeCreatorSlug,
   parseMyCreatorProfile,
   parseSlugCheck,
+  profileCreateBioPrefill,
+  profileCreateSuggestedBio,
   slugCheckLine,
   slugifyCreatorSlug,
   type SlugCheckState,
@@ -121,6 +123,33 @@ describe("already-has-a-profile path", () => {
     expect(parseMyCreatorProfile({ error: "No profile yet" })).toBeNull();
     expect(parseMyCreatorProfile(null)).toBeNull();
     expect(parseMyCreatorProfile({})).toBeNull();
+  });
+});
+
+describe("suggested bio — the ONE suggestion brain (lib/suggest)", () => {
+  it("derives the starter bio from the form's name + vertical", () => {
+    const bio = profileCreateSuggestedBio({ displayName: "King Shark", vertical: "music" });
+    expect(bio).toContain("King Shark makes music.");
+  });
+
+  it("has nothing when the brain has nothing — no name, unknown vertical", () => {
+    expect(profileCreateSuggestedBio({ displayName: "", vertical: "nope" })).toBeNull();
+    expect(profileCreateSuggestedBio({ displayName: "  ", vertical: "" })).toBeNull();
+  });
+
+  it("prefill lands only in an empty bio, never over the member's own words", () => {
+    expect(profileCreateBioPrefill("", { displayName: "Nova", vertical: "podcast" })).toContain("Nova makes podcast episodes.");
+    expect(profileCreateBioPrefill("My own bio", { displayName: "Nova", vertical: "podcast" })).toBe("My own bio");
+    expect(profileCreateBioPrefill("", { displayName: "", vertical: "nope" })).toBe("");
+  });
+
+  it("the card offers the brain's bio under the bio field (source pin)", () => {
+    const card = readFileSync(
+      new URL("../../components/world/native/CreatorProfileCreate.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(card).toContain("profileCreateSuggestedBio");
+    expect(card).toContain('data-testid="world-profile-create-suggested-bio"');
   });
 });
 

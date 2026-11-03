@@ -12,6 +12,7 @@ import {
   normalizeCreatorSlug,
   parseMyCreatorProfile,
   parseSlugCheck,
+  profileCreateSuggestedBio,
   slugCheckLine,
   slugifyCreatorSlug,
   type MyCreatorProfile,
@@ -275,6 +276,23 @@ export function CreatorProfileCreateCard({
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />
+            {/* One suggestion brain (lib/suggest): a starter bio derived
+                from the name + vertical already on this form. Offered,
+                never forced — it only appears while the bio is empty
+                and the member has given the form a name to work from. */}
+            {!bio.trim() && displayName.trim() ? (() => {
+              const suggested = profileCreateSuggestedBio({ displayName, vertical });
+              return suggested ? (
+                <button
+                  type="button"
+                  data-testid="world-profile-create-suggested-bio"
+                  onClick={() => setBio(suggested)}
+                  className={`text-left text-xs font-semibold underline decoration-dotted underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}
+                >
+                  Use the suggested bio — written from your name and what you make
+                </button>
+              ) : null;
+            })() : null}
             <select
               aria-label="What you make"
               data-testid="world-profile-create-vertical"
