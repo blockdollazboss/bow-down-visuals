@@ -181,6 +181,38 @@ export function normalizeKingDuetCandidates(payload: unknown): KingDuetCandidate
     .filter((x): x is KingDuetCandidate => x !== null);
 }
 
+/** Read the public rail once and normalize it — the one fetch seam
+ *  every display surface (the /shorts panel, the King's profile
+ *  section) reads the pick through. Throws on a non-OK response so a
+ *  failed load stays a failure, never a fake-empty rail. */
+export async function fetchKingDuetRail(): Promise<KingDuetRail> {
+  const res = await fetch("/api/shorts/king-duet");
+  if (!res.ok) throw new Error(`GET /api/shorts/king-duet → ${res.status}`);
+  return normalizeKingDuetRail(await res.json());
+}
+
+export type KingDuetProfileLoadStatus = "loading" | "ready" | "error";
+export type KingDuetProfileView = "loading" | "hidden" | "error" | "picks";
+
+/** The King's-profile section's render decision (ruling #38,
+ *  stack1400): the featured pick ALSO lives on the King's own
+ *  profile — but ONLY there. A non-official profile never shows the
+ *  section (and never even consults the rail for it); an official
+ *  profile with no pick shows nothing — no hollow shell; a failed
+ *  load is its own honest error state, never dressed up as "no
+ *  pick yet." The section shows exactly when the profile is the
+ *  King's AND at least one featured pick exists. */
+export function kingDuetProfileViewState(args: {
+  isOfficial: boolean;
+  status: KingDuetProfileLoadStatus;
+  featuredCount: number;
+}): KingDuetProfileView {
+  if (!args.isOfficial) return "hidden";
+  if (args.status === "loading") return "loading";
+  if (args.status === "error") return "error";
+  return args.featuredCount > 0 ? "picks" : "hidden";
+}
+
 /** The pick stamp is the whole truth: a row IS a King's pick iff the
  *  server stamped it. No client-side pick state exists anywhere else. */
 export function isKingFeatured(row: { king_featured_at: string | null }): boolean {

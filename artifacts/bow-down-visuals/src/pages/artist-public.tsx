@@ -15,6 +15,7 @@ import PartyTableSection from "@/components/artist/PartyTableSection";
 import RoyalCourtSection from "@/components/artist/RoyalCourtSection";
 import SpotlightPinSection from "@/components/artist/SpotlightPinSection";
 import ProfileStoreSection from "@/components/artist/ProfileStoreSection";
+import KingDuetPickSection from "@/components/artist/KingDuetPickSection";
 import FanArtWallSection from "@/components/artist/FanArtWallSection";
 import ProfileMembershipsSection from "@/components/artist/ProfileMembershipsSection";
 import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection";
@@ -504,6 +505,13 @@ export default function ArtistPublic() {
             )}
           </div>
         ))}
+        {/* The King's featured duet pick (ruling #38, stack1400): the
+            pick ALSO lives on the King's own profile, not only on
+            /shorts. It is a fan's duet — never part of the King's own
+            video list — so it gets its own section, fed by the same
+            king-duet rail. The section self-hides unless this is the
+            official profile AND a pick exists. */}
+        <KingDuetPickSection isOfficial={profile.is_official === true} />
         {/* Top Supporters (Wave-4 #49 + N6): the recognition board
             docks on every public profile under the creator's layout —
             hidden only when the creator turned it off. */}
