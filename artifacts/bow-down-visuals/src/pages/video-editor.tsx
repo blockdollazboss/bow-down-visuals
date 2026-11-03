@@ -150,6 +150,7 @@ import {
   getVideoTemplate, setLastTemplate, getLastTemplate,
   type VideoTemplateId,
 } from "@/lib/video-templates";
+import { executeVideoTemplate } from "@/lib/template-execution";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import {
   AUDIO_EXPORT_BUTTONS,
@@ -543,18 +544,40 @@ export default function VideoEditor() {
   const template = getVideoTemplate(templateId);
 
   function applyTemplate(id: VideoTemplateId) {
-    const t = getVideoTemplate(id);
+    const tpl = getVideoTemplate(id);
     setTemplateId(id);
     setLastTemplate(id);
     setShowTemplatePicker(false);
-    // Template defaults: aspect format + caption style. Everything else
-    // stays exactly as the user had it (customizable, not a reset).
-    setSettingsState((prev) => ({
-      ...prev,
-      export: { ...prev.export, format: t.defaultFormat },
-      captions: { ...prev.captions, stylePreset: t.defaultCaptionPreset },
-    }));
-    if (t.priorityTabs.length > 0) setTab(t.priorityTabs[0] as EditorTab);
+    // Turbo EXECUTES the template (stack1400, org-turbo-executes): the
+    // executor runs the template's whole spec onto the timeline — clips
+    // sequenced in scene order with its transitions, its effects, its
+    // caption style + animation, and its title/hook overlay steps —
+    // handing back a finished timeline to review. Every field it writes
+    // stays editable afterwards (Advanced/manual is untouched). Before
+    // this, picking a template set only the format + caption preset.
+    let report: ReturnType<typeof executeVideoTemplate>["report"] | null = null;
+    setSettingsState((prev) => {
+      const executed = executeVideoTemplate(prev, tpl, scenes, { title: songTitle });
+      report = executed.report;
+      return executed.settings;
+    });
+    if (tpl.priorityTabs.length > 0) setTab(tpl.priorityTabs[0] as EditorTab);
+    if (report) {
+      const r: ReturnType<typeof executeVideoTemplate>["report"] = report;
+      const parts: string[] = [];
+      if (r.clipsSequenced > 0) parts.push(`${r.clipsSequenced} clips sequenced`);
+      if (r.transitionsApplied > 0) parts.push(`${r.transitionsApplied} transitions`);
+      if (r.effectsApplied > 0) parts.push(`${r.effectsApplied} effects`);
+      if (r.overlaysPlaced > 0) parts.push("title placed");
+      if (r.hookApplied) parts.push("hook caption set");
+      if (r.overlaysSkipped > 0) parts.push(`${r.overlaysSkipped} step${r.overlaysSkipped > 1 ? "s" : ""} skipped — no title/hook text in the project yet`);
+      toast({
+        title: t("videoEditor.templateExecutedTitle", { defaultValue: `${tpl.name} — timeline built`, name: tpl.name }),
+        description: parts.length > 0
+          ? `${parts.join(" · ")}. Review it on the timeline — everything stays editable.`
+          : "Format and caption style set. Everything stays editable.",
+      });
+    }
   }
 
   interface RailTabItem { id: string; label: string; icon: React.ReactNode; testId: string }
