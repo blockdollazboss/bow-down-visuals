@@ -229,6 +229,7 @@ function buildSource(spec: ScenePresetSource): SceneSource {
     fill: patch.fill ? { ...patch.fill } : base.fill,
     widget: patch.widget ? { ...patch.widget } : base.widget,
     avatar: patch.avatar ? { ...patch.avatar } : base.avatar,
+    guest: patch.guest ? { ...patch.guest } : base.guest,
   };
 }
 

@@ -75,6 +75,7 @@ import {
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
 import { lastStreamSetup, type MineStreamRow } from "@/lib/stream-kit/studio-setup";
 import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
+import { scenePresetHasSourceType } from "@/lib/stream-kit/scene-presets";
 import { refreshStageVaultAvatars } from "@/lib/stream-kit/avatar-vault";
 import { fetchVaultCharacters } from "@/lib/world/characters";
 import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
@@ -1829,7 +1830,19 @@ export default function BroadcastStudio() {
         <h3 className="text-sm font-black uppercase tracking-widest text-[#fbbf24]">Scenes &amp; sources</h3>
         {stage ? (
           <div className="mt-4 grid gap-6 md:grid-cols-2">
-            <ScenesPanel stage={stage} isLight={isLight} onTake={(id) => stage.cutTo(id)} />
+            <ScenesPanel
+              stage={stage}
+              isLight={isLight}
+              onTake={(id) => stage.cutTo(id)}
+              onPresetApplied={(scene, preset) => {
+                setSelectedSourceId(null);
+                setStatusMsg(
+                  scenePresetHasSourceType(preset, "screen") && !screenSharing
+                    ? `“${preset.name}” is framed in Preview — start the share from its Screen source, then take it to Program.`
+                    : `“${preset.name}” is framed in Preview — take it to Program when you're ready.`,
+                );
+              }}
+            />
             <SourcesPanel
               stage={stage}
               isLight={isLight}

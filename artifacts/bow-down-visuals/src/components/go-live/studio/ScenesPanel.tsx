@@ -3,10 +3,21 @@
  * (inline), duplicate, delete; each scene previews on click and can be
  * Taken straight to Program. The Program scene carries a LIVE badge,
  * the framed one a PVW badge (OBS studio-mode language).
+ *
+ * Below the list, the scene preset list (lib/stream-kit/scene-presets):
+ * one tap builds a ready-made scene from a preset through the stage's
+ * own add/update path and frames it in Preview — free, and never
+ * straight to Program.
  */
 import { useState } from "react";
-import { Copy, MonitorPlay, Plus, Trash2 } from "lucide-react";
+import { Copy, LayoutTemplate, MonitorPlay, Plus, Trash2 } from "lucide-react";
 import type { Stage } from "@/lib/stream-kit/stage";
+import type { Scene } from "@/lib/stream-kit/scenes";
+import {
+  SCENE_PRESETS,
+  applyScenePreset,
+  type ScenePreset,
+} from "@/lib/stream-kit/scene-presets";
 import { ClipContextMenu } from "@/components/editor/ClipContextMenu";
 import { buildSceneContextItems } from "@/lib/studio-context-menu";
 
@@ -14,10 +25,12 @@ export default function ScenesPanel({
   stage,
   isLight,
   onTake,
+  onPresetApplied,
 }: {
   stage: Stage;
   isLight: boolean;
   onTake: (sceneId: string) => void;
+  onPresetApplied?: (scene: Scene, preset: ScenePreset) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -123,6 +136,36 @@ export default function ScenesPanel({
       <p className={`mt-2 text-[11px] leading-snug ${label}`}>
         Click a scene to frame it in Preview. Number keys 1–9 take a scene straight to Program.
       </p>
+      <div className="mt-4" data-testid="scene-presets">
+        <p className={`mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${label}`}>
+          <LayoutTemplate className="h-3.5 w-3.5" /> Scene presets
+        </p>
+        <div className="space-y-1.5">
+          {SCENE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              data-testid={`scene-preset-${preset.id}`}
+              onClick={() => {
+                const applied = applyScenePreset(stage, preset.id);
+                if (applied) onPresetApplied?.(applied, preset);
+              }}
+              className={`block w-full rounded-lg border px-2.5 py-2 text-left transition hover:border-[#C9A84C]/70 hover:bg-[#C9A84C]/10 ${
+                isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-white/[0.03]"
+              }`}
+            >
+              <span className={`block text-sm font-medium ${isLight ? "text-[#2A1E07]" : "text-zinc-100"}`}>
+                {preset.name}
+              </span>
+              <span className={`mt-0.5 block text-[11px] leading-snug ${label}`}>{preset.blurb}</span>
+            </button>
+          ))}
+        </div>
+        <p className={`mt-2 text-[11px] leading-snug ${label}`}>
+          A preset adds a new scene and frames it in Preview — take it to Program when you&rsquo;re ready.
+          Screen scenes still need you to start the share from the Screen source.
+        </p>
+      </div>
       {menu && (() => {
         const scene = stage.scenes.find((s) => s.id === menu.sceneId);
         if (!scene) return null;
