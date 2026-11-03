@@ -24,6 +24,19 @@ export const shopsTable = pgTable("shops", {
   /** Hex colors for the storefront theme; gold/black luxury is the default. */
   banner_color: text("banner_color").notNull().default("#0a0a0a"),
   accent_color: text("accent_color").notNull().default("#d4af37"),
+  /** Storefront layout + font settings (migration 0320, store-starters
+      lane): the two design settings the color starters never had a
+      column for. layout_style is 'showcase' (the storefront as it has
+      always rendered — banner band, cards three across) | 'gallery' |
+      'list'; font_style is 'house' (today's inherited Manrope look) |
+      'royal' | 'classic'. The defaults ARE today's rendering, so an
+      untouched shop's storefront does not change by one pixel. The
+      vocabulary is validated on the PATCH rail (zod enum in
+      routes/generate/shops.ts) and sanitized on read
+      (lib/shop-design) — the FE registry is lib/shop-design.ts +
+      lib/shop-starters.ts (SHOP_LOOK_STARTERS). */
+  layout_style: text("layout_style").notNull().default("showcase"),
+  font_style: text("font_style").notNull().default("house"),
   /** Optional banner image URL (uploaded by owner). */
   banner_image_url: text("banner_image_url"),
   /** Custom domain (e.g. shop.artist.com). Null = platform subdomain only. */
