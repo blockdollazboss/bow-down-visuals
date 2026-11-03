@@ -191,6 +191,7 @@ const MerchBench = lazy(() => import("@/components/world/native/MerchBench").the
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
 const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then((m) => ({ default: m.BriefDesk })));
+const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1167,6 +1168,13 @@ export default function StationPanel(props: StationPanelProps) {
                     settings confirmations by design. */}
                 <DeskDoor isLight={isLight}>
                   <AccountDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Social Proof (stack1500 parity wave #3): the
+                    verified audience figures + their off switches
+                    on the free /api/social-proof rails, stacked
+                    at the My Studio board beside the account desk. */}
+                <DeskDoor isLight={isLight}>
+                  <SocialProofDesk isLight={isLight} />
                 </DeskDoor>
                 {/* Creator Academy (stack1400 parity wave #2): the
                     Academy family — the course catalog + AI learning
