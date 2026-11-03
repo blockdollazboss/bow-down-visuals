@@ -45,7 +45,7 @@ import { createTestDb } from "../../lib/__tests__/test-db";
 
 const DDL = `
 CREATE TABLE social_accounts (id uuid PRIMARY KEY, user_id uuid NOT NULL, platform text NOT NULL DEFAULT 'instagram', ig_user_id text, provider_user_id text, username text, page_id text, page_name text, access_token_encrypted text, refresh_token_encrypted text, token_expires_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE distribution_toolost_submissions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), release_id uuid NOT NULL UNIQUE, user_id uuid NOT NULL, provider_release_id text, state text NOT NULL DEFAULT 'draft', failure_reason text, ai_declaration jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE distribution_toolost_submissions (id uuid PRIMARY KEY, release_id uuid NOT NULL UNIQUE, user_id uuid NOT NULL, provider_release_id text, state text NOT NULL DEFAULT 'draft', failure_reason text, ai_declaration jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
 `;
 
 const realFetch = globalThis.fetch;

@@ -61,7 +61,7 @@ const DDL = `
 CREATE TABLE social_accounts (id uuid PRIMARY KEY, user_id uuid NOT NULL, platform text NOT NULL DEFAULT 'instagram', ig_user_id text, provider_user_id text, username text, page_id text, page_name text, access_token_encrypted text, refresh_token_encrypted text, token_expires_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE songs (id uuid PRIMARY KEY, user_id uuid NOT NULL, source text NOT NULL DEFAULT 'upload');
 CREATE TABLE distribution_releases (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text, artist_name text, audio_url text, artwork_url text, release_type text, tracks jsonb, genre text, explicit boolean, label_imprint text, copyright_c_line text, copyright_p_line text, upc text, isrc text, release_date date, song_id uuid);
-CREATE TABLE distribution_toolost_submissions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), release_id uuid NOT NULL UNIQUE, user_id uuid NOT NULL, provider_release_id text, state text NOT NULL DEFAULT 'draft', failure_reason text, ai_declaration jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE distribution_toolost_submissions (id uuid PRIMARY KEY, release_id uuid NOT NULL UNIQUE, user_id uuid NOT NULL, provider_release_id text, state text NOT NULL DEFAULT 'draft', failure_reason text, ai_declaration jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
 `;
 
 const realFetch = globalThis.fetch;
@@ -124,7 +124,9 @@ function installProvider(behavior: ProviderBehavior = {}) {
   const stub = vi.fn(async (url: any, init: any) => {
     const u = String(url);
     const method = init?.method ?? "GET";
-    const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
+    /* The OAuth token call sends a form-encoded body — only JSON bodies parse. */
+    let body = init?.body;
+    if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = undefined; } }
     calls.push({ url: u, method, auth: init?.headers?.Authorization ?? null, body });
     const json = (status: number, payload: unknown) => ({ ok: status < 400, status, json: async () => payload, arrayBuffer: async () => new Uint8Array([9, 9, 9]).buffer, headers: { get: () => "audio/wav" } });
     if (u.includes("files.example.com")) return json(200, {});

@@ -110,7 +110,7 @@ describe("fetchToolostSourceFile", () => {
     const { impl } = recordingFetch(() => ({ status: 404, body: {} }));
     const err = await fetchToolostSourceFile("https://files.example.com/gone.wav", "We couldn't read this release's audio file.", impl).catch((e) => e);
     expect(err).toBeInstanceOf(TooLostApiError);
-    expect((err as Error).message).toBe("We couldn't read this release's audio file.");
+    expect((err as TooLostApiError).userMessage).toBe("We couldn't read this release's audio file.");
   });
 });
 
