@@ -10,6 +10,7 @@ import type { PalaceStation } from "@/lib/world/stations";
 import { NativeCard } from "./NativeCard";
 import { DomainsDesk } from "./DomainsDesk";
 import { GiftCardsDesk } from "./GiftCardsDesk";
+import { PaidSeriesDropsDesk } from "./PaidSeriesDropsDesk";
 import { paidWithGiftCard } from "@/lib/world/gift-cards";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay, cartKey } from "@/lib/shops";
@@ -646,6 +647,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           guests included — and, for members, the cards in their
           name, all from the rails' own answers. */}
       <GiftCardsDesk isLight={isLight} isGuest={isGuest} />
+      {/* Paid series + product drops (parity wave 1) — series
+          unlocks and timed product drops, on their own rails,
+          in the PaidSeriesDropsDesk below the square. */}
+      <PaidSeriesDropsDesk isLight={isLight} isGuest={isGuest} />
       {/* Opening a shop (Stack-4 wave-2 #6) — the website's own
           create rail, offered only once the caller's mine read has
           landed (a signed-in member surface; guests and an unlanded
