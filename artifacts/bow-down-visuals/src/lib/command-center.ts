@@ -68,6 +68,10 @@ export interface RevenuePayload {
     brandDeals: RevenueRail;
     beats: RevenueRail;
     tipsVb: number | null;
+    /* World stage tips (ruling #28 / H-6): own line beside stream
+       tips. Absent on older payloads → 0; null only on an errored
+       tips source. */
+    stageTipsVb: number | null;
     tipJarPendingCents: number | null;
   };
   partial: boolean;
@@ -158,6 +162,7 @@ export function shapeRevenue(raw: unknown): RevenuePayload {
       brandDeals: rail(railsIn.brandDeals),
       beats: rail(railsIn.beats),
       tipsVb: tipsIn.status === "error" ? null : num(tipsIn.streamTipsVb),
+      stageTipsVb: tipsIn.status === "error" ? null : (num(tipsIn.stageTipsVb) ?? 0),
       tipJarPendingCents: tipsIn.status === "error" ? null : num(tipsIn.tipJarPendingCents),
     },
     partial: o.partial === true,

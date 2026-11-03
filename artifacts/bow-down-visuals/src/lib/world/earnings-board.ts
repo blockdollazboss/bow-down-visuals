@@ -99,14 +99,22 @@ export function earningsSourceRows(e: EarningsResponse): EarningsSourceRow[] {
   money("Brand deals (escrow released)", e.sources.brandDeals);
   const tips = e.sources.tips;
   if (tips.status === "error") {
-    rows.push({ title: "Tips", meta: "Couldn't load", detail: "This source didn't answer — the total covers the ones that did." });
+    rows.push({ title: "Stream tips", meta: "Couldn't load", detail: "This source didn't answer — the total covers the ones that did." });
+    rows.push({ title: "Stage tips", meta: "Couldn't load", detail: "This source didn't answer — the total covers the ones that did." });
   } else {
     rows.push({
-      title: "Tips",
+      title: "Stream tips",
       meta: `${(tips.streamTipsVb ?? 0).toLocaleString("en-US")} VB`,
       detail:
         `${tips.streamTipCount ?? 0} stream tips credited · tip jar ${usd(tips.tipJarPendingCents ?? 0)} ` +
         `pending payment (${tips.tipJarPendingCount ?? 0} fans) — not yet earnings`,
+    });
+    /* Ruling #28 (H-6): World stage tips read on their OWN line —
+       per-line totals stay true instead of folding into stream. */
+    rows.push({
+      title: "Stage tips",
+      meta: `${(tips.stageTipsVb ?? 0).toLocaleString("en-US")} VB`,
+      detail: `${tips.stageTipCount ?? 0} stage tips credited`,
     });
   }
   return rows;

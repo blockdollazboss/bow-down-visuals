@@ -25,6 +25,11 @@ interface EarningsTips {
   status: "ok" | "error";
   streamTipsVb: number | null;
   streamTipCount: number | null;
+  /* World stage tips (ruling #28 / H-6): own line beside stream tips.
+     Absent on older payloads → 0 in the ok branch; null only when the
+     whole tips source errored. */
+  stageTipsVb: number | null;
+  stageTipCount: number | null;
   tipJarPendingCents: number | null;
   tipJarPendingCount: number | null;
   tipJarStatus: string;
@@ -233,6 +238,8 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
       status: "ok",
       streamTipsVb: finite(rawTips.streamTipsVb),
       streamTipCount: finite(rawTips.streamTipCount),
+      stageTipsVb: finite(rawTips.stageTipsVb) ?? 0,
+      stageTipCount: finite(rawTips.stageTipCount) ?? 0,
       tipJarPendingCents: finite(rawTips.tipJarPendingCents),
       tipJarPendingCount: finite(rawTips.tipJarPendingCount),
       tipJarStatus: typeof rawTips.tipJarStatus === "string" ? rawTips.tipJarStatus : "",
@@ -242,6 +249,8 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
       status: "error",
       streamTipsVb: null,
       streamTipCount: null,
+      stageTipsVb: null,
+      stageTipCount: null,
       tipJarPendingCents: null,
       tipJarPendingCount: null,
       tipJarStatus: "",
