@@ -911,35 +911,52 @@ describe("the seller's whole picture — GET /api/earnings at the stand (Parity 
     userId: "u1",
     currency: "USD",
     totalCents: 123456,
-    totalTipsVb: 700,
+    totalTipsVb: 900,
     partial: false,
     sources: {
       storeSales: { status: "ok", totalCents: 100000, count: 42, breakdown: { profileStoreCents: 60000 } },
       memberships: { status: "ok", totalCents: 20000, count: 9 },
       brandDeals: { status: "ok", totalCents: 3456, count: 2 },
-      tips: { status: "ok", streamTipsVb: 700, streamTipCount: 5, tipJarPendingCents: 1500, tipJarPendingCount: 3, tipJarStatus: "pending_payment" },
+      tips: { status: "ok", streamTipsVb: 700, streamTipCount: 5, stageTipsVb: 200, stageTipCount: 2, tipJarPendingCents: 1500, tipJarPendingCount: 3, tipJarStatus: "pending_payment" },
     },
   };
 
   it("parses the rail's payload whole — headline, sources, tips apart", () => {
     expect(parseSellerEarnings(PICTURE)).toEqual({
       totalCents: 123456,
-      totalTipsVb: 700,
+      totalTipsVb: 900,
       partial: false,
       storeSales: { status: "ok", totalCents: 100000, count: 42 },
       memberships: { status: "ok", totalCents: 20000, count: 9 },
       brandDeals: { status: "ok", totalCents: 3456, count: 2 },
       streamTipsVb: 700,
       streamTipCount: 5,
+      stageTipsVb: 200,
+      stageTipCount: 2,
       tipJarPendingCents: 1500,
       tipJarPendingCount: 3,
     });
   });
 
+  it("stage tips default to 0 on a legacy payload without them — and the stand renders the Stage tips line (ruling #28)", () => {
+    const legacy = {
+      ...PICTURE,
+      sources: {
+        ...PICTURE.sources,
+        tips: { status: "ok", streamTipsVb: 700, streamTipCount: 5, tipJarPendingCents: 1500, tipJarPendingCount: 3, tipJarStatus: "pending_payment" },
+      },
+    };
+    const parsed = parseSellerEarnings(legacy);
+    expect(parsed?.stageTipsVb).toBe(0);
+    expect(parsed?.stageTipCount).toBe(0);
+    expect(standsSrc).toContain("Stage tips:");
+    expect(standsSrc).toContain("earnings.stageTipsVb");
+  });
+
   it("the USD headline is the endpoint's own — VB is never folded into it", () => {
     const parsed = parseSellerEarnings(PICTURE);
     expect(parsed?.totalCents).toBe(123456);
-    expect(parsed?.totalTipsVb).toBe(700);
+    expect(parsed?.totalTipsVb).toBe(900);
   });
 
   it("a real zero is a picture, not a failure — an empty seller reads 0s honestly", () => {
@@ -986,6 +1003,8 @@ describe("the seller's whole picture — GET /api/earnings at the stand (Parity 
     };
     const parsed = parseSellerEarnings(broken);
     expect(parsed?.streamTipsVb).toBeNull();
+    expect(parsed?.stageTipsVb).toBeNull();
+    expect(parsed?.stageTipCount).toBeNull();
     expect(parsed?.tipJarPendingCount).toBeNull();
     expect(parsed?.partial).toBe(true);
   });

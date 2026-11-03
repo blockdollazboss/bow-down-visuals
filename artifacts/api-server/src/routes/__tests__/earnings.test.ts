@@ -45,6 +45,11 @@ CREATE TABLE live_stream_tips (
   id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, amount_vb integer NOT NULL DEFAULT 0,
   creator_credited_at timestamptz
 );
+CREATE TABLE world_stage_tips (
+  id uuid PRIMARY KEY, from_user_id text NOT NULL, to_user_id text NOT NULL,
+  amount_vb integer NOT NULL DEFAULT 0, room_id text NOT NULL DEFAULT 'room',
+  idempotency_key text, creator_credited_at timestamptz, created_at timestamptz
+);
 CREATE TABLE digital_sales (
   id uuid PRIMARY KEY, profile_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
   platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0,
@@ -103,7 +108,7 @@ describe("GET /earnings", () => {
     expect(json.sources.beats).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.memberships).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.brandDeals).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
-    expect(json.sources.tips).toMatchObject({ status: "ok", streamTipsVb: 0, tipJarPendingCents: 0 });
+    expect(json.sources.tips).toMatchObject({ status: "ok", streamTipsVb: 0, stageTipsVb: 0, stageTipCount: 0, tipJarPendingCents: 0 });
   });
 
   it("aggregates every source for the owner only, units kept separate", async () => {
@@ -118,6 +123,10 @@ describe("GET /earnings", () => {
     await db.execute(sql`INSERT INTO fan_members (id, user_id, price_cents, stripe_session_id) VALUES (${randomUUID()}, ${OTHER}, 9900, 'cs_2')`);
     await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${USER}, 500, now())`);
     await db.execute(sql`INSERT INTO live_stream_tips (id, creator_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${USER}, 300, NULL)`);
+    // stage tips: credited to THIS performer counts; uncredited and other performers' do not
+    await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${OTHER}, ${USER}, 250, now())`);
+    await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${OTHER}, ${USER}, 999, NULL)`);
+    await db.execute(sql`INSERT INTO world_stage_tips (id, from_user_id, to_user_id, amount_vb, creator_credited_at) VALUES (${randomUUID()}, ${USER}, ${OTHER}, 777, now())`);
     await db.execute(sql`INSERT INTO beat_licenses (id, producer_id, price_cents, commission_cents, status) VALUES (${randomUUID()}, ${USER}, 2999, 450, 'completed')`);
     await db.execute(sql`INSERT INTO beat_licenses (id, producer_id, price_cents, commission_cents, status) VALUES (${randomUUID()}, ${OTHER}, 9999, 1500, 'completed')`);
     await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status) VALUES (${randomUUID()}, ${USER}, 8500, 'released')`);
@@ -137,9 +146,25 @@ describe("GET /earnings", () => {
     // total USD = 10800 + 2549 (beats) + 1500 + 8500; VB tips NOT folded in
     expect(json.totalCents).toBe(23349);
     // stream tips: only the credited tip counts
-    expect(json.totalTipsVb).toBe(500);
+    expect(json.sources.tips.streamTipsVb).toBe(500);
     expect(json.sources.tips.streamTipCount).toBe(1);
+    // stage tips (ruling #28): their OWN line — only the credited tip to this performer
+    expect(json.sources.tips.stageTipsVb).toBe(250);
+    expect(json.sources.tips.stageTipCount).toBe(1);
+    // totalTipsVb is pinned as stream + stage
+    expect(json.totalTipsVb).toBe(750);
     expect(json.partial).toBe(false);
+  });
+
+  it("a missing stage-tips ledger fails the tips source honestly — stage fields null, never a fake 0", async () => {
+    freshDb(DDL.replace(/CREATE TABLE world_stage_tips[\s\S]*?\);/, ""));
+    const { status, json } = await get();
+    expect(status).toBe(200);
+    expect(json.sources.tips.status).toBe("error");
+    expect(json.sources.tips.stageTipsVb).toBeNull();
+    expect(json.sources.tips.stageTipCount).toBeNull();
+    expect(json.totalTipsVb).toBeNull();
+    expect(json.partial).toBe(true);
   });
 
   it("a failing source reads as an error state with null totals — never a fake 0", async () => {

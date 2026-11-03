@@ -21,7 +21,7 @@ const good = {
     beats: { status: "ok", totalCents: 2549, count: 1, grossCents: 2999, commissionCents: 450 },
     memberships: { status: "ok", totalCents: 1200, count: 2 },
     brandDeals: { status: "ok", totalCents: 1000, count: 1 },
-    tips: { status: "ok", streamTipsVb: 300, streamTipCount: 3, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "open" },
+    tips: { status: "ok", streamTipsVb: 300, streamTipCount: 3, stageTipsVb: 120, stageTipCount: 2, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "open" },
   },
 };
 
@@ -34,6 +34,22 @@ describe("normalizeEarningsResponse", () => {
     if (d?.sources.storeSales.status === "ok") {
       expect(d.sources.storeSales.breakdown?.profileStoreCents).toBe(1500);
     }
+  });
+  it("stage tips ride their own fields; a legacy payload without them defaults to 0 (ruling #28)", () => {
+    const d = normalizeEarningsResponse(good);
+    expect(d?.sources.tips.stageTipsVb).toBe(120);
+    expect(d?.sources.tips.stageTipCount).toBe(2);
+    const legacyTips = { ...good.sources.tips } as Record<string, unknown>;
+    delete legacyTips.stageTipsVb;
+    delete legacyTips.stageTipCount;
+    const legacy = normalizeEarningsResponse({ ...good, sources: { ...good.sources, tips: legacyTips } });
+    expect(legacy?.sources.tips.status).toBe("ok");
+    expect(legacy?.sources.tips.stageTipsVb).toBe(0);
+    expect(legacy?.sources.tips.stageTipCount).toBe(0);
+    /* An errored tips source keeps stage fields null — never a fake 0. */
+    const broken = normalizeEarningsResponse({ ...good, sources: { ...good.sources, tips: { status: "error" } } });
+    expect(broken?.sources.tips.stageTipsVb).toBeNull();
+    expect(broken?.sources.tips.stageTipCount).toBeNull();
   });
   it("returns null when the headline total is not a real number", () => {
     expect(normalizeEarningsResponse({ ...good, totalCents: "lots" })).toBeNull();

@@ -84,7 +84,7 @@ describe("command-center shaping", () => {
         memberships: { status: "error", totalCents: null, count: null },
         brandDeals: { status: "ok", totalCents: 3000, count: 1 },
         beats: null,
-        tips: { status: "ok", streamTipsVb: 500, tipJarPendingCents: 0 },
+        tips: { status: "ok", streamTipsVb: 500, stageTipsVb: 125, tipJarPendingCents: 0 },
       },
       partial: true,
     });
@@ -92,6 +92,24 @@ describe("command-center shaping", () => {
     expect(shaped.rails.memberships).toEqual({ totalCents: null, count: null });
     expect(shaped.rails.beats).toEqual({ totalCents: null, count: null });
     expect(shaped.rails.tipsVb).toBe(500);
+    /* Ruling #28: stage tips ride their own rail beside stream tips. */
+    expect(shaped.rails.stageTipsVb).toBe(125);
+    /* A legacy payload without stage fields defaults the stage rail to 0… */
+    const legacy = shapeRevenue({
+      totalCents: 0,
+      totalTipsVb: 500,
+      rails: { tips: { status: "ok", streamTipsVb: 500, tipJarPendingCents: 0 } },
+      partial: false,
+    });
+    expect(legacy.rails.stageTipsVb).toBe(0);
+    /* …and an errored tips source keeps it null, never a fake 0. */
+    const broken = shapeRevenue({
+      totalCents: 0,
+      totalTipsVb: null,
+      rails: { tips: { status: "error", streamTipsVb: null, stageTipsVb: null, tipJarPendingCents: null } },
+      partial: true,
+    });
+    expect(broken.rails.stageTipsVb).toBeNull();
     expect(shaped.totalCents).toBe(34500);
     expect(shaped.partial).toBe(true);
   });
