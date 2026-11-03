@@ -630,7 +630,14 @@ router.get("/tips/settings", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
   const intents = [...tipIntents.values()].filter((t) => t.pageUserId === req.userId);
-  res.json({ settings, paymentsLive: false, ...sumTipIntents(intents) });
+  /* paymentsLive is the SAME derivation the public page reports
+     (paymentsConfigured(), stack1400): live when the Stripe rail is
+     configured, false when it is not. It was hardcoded false here, on
+     the settings POST and on the dashboard — so the creator's own
+     Tip Jar page and the World desk showed the "payments are coming
+     soon / intent only" banner forever, even with real tips settling
+     (Gate #5 Leg 3 proved a paid tip with the tab closed). */
+  res.json({ settings, paymentsLive: paymentsConfigured(), ...sumTipIntents(intents) });
 });
 
 /* POST /api/tips/settings → create/update my tip page. Auth. Free. */
@@ -687,7 +694,7 @@ router.post("/tips/settings", requireAuth, publicApiLimiter, async (req, res) =>
     return;
   }
   logger.info({ userId: req.userId, handle }, "[tip-jar] tip page saved");
-  res.json({ settings, paymentsLive: false });
+  res.json({ settings, paymentsLive: paymentsConfigured() });
 });
 
 /* POST /api/tips/goal { targetAmount, label } → set or edit MY active
@@ -1376,7 +1383,11 @@ router.get("/tips/dashboard", requireAuth, publicApiLimiter, async (req, res) =>
     goal,
     goalHistory: settings?.goalHistory ?? [],
     feed,
-    paymentsLive: false,
+    /* Same truth as the public page (see GET /tips/settings): the
+       dashboard's flag drives the creator page's and the World
+       desk's intent-only banner — hardcoded false kept it showing
+       after payments went live. */
+    paymentsLive: paymentsConfigured(),
   });
 });
 

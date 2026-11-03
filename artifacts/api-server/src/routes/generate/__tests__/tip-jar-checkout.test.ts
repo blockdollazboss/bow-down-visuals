@@ -224,3 +224,61 @@ describe("tip jar checkout (0142, DE-14)", () => {
     expect(json.notice).toContain("charged securely");
   });
 });
+
+/* stack1400 — paymentsLive truth on the CREATOR surfaces. The public
+   page and the jar view always derived the flag from the configured
+   rail (paymentsConfigured()); the creator's own surfaces — GET/POST
+   /tips/settings and GET /tips/dashboard — hardcoded false, so the
+   Tip Jar page's and the World desk's "payments are coming soon /
+   intent only" banner rendered forever, even with paid tips settling
+   (Gate #5 Leg 3). These pins hold both directions: live when the
+   rail is configured, NOT live — with checkout still honestly 503 —
+   when it is not. The intent POST keeps paymentsLive:false by
+   design: it is only reachable as the fallback after checkout 503s,
+   and it never charges. */
+describe("paymentsLive truth on the creator surfaces (stack1400)", () => {
+  it("settings GET + POST and the dashboard report live when configured", async () => {
+    const got = await call("GET", "/tips/settings");
+    expect(got.status).toBe(200);
+    expect(got.json.paymentsLive).toBe(true);
+
+    const saved = await call("POST", "/tips/settings", {
+      handle: "royal-voice",
+      displayName: "Royal Voice",
+      message: "Thanks for the love!",
+      suggestedAmounts: [5, 10, 25],
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.json.paymentsLive).toBe(true);
+
+    const dash = await call("GET", "/tips/dashboard");
+    expect(dash.status).toBe(200);
+    expect(dash.json.paymentsLive).toBe(true);
+  });
+
+  it("the same surfaces report NOT live — and checkout 503s — when not configured", async () => {
+    const savedKey = process.env["STRIPE_SECRET_KEY"];
+    delete process.env["STRIPE_SECRET_KEY"];
+    try {
+      const got = await call("GET", "/tips/settings");
+      expect(got.status).toBe(200);
+      expect(got.json.paymentsLive).toBe(false);
+
+      const dash = await call("GET", "/tips/dashboard");
+      expect(dash.status).toBe(200);
+      expect(dash.json.paymentsLive).toBe(false);
+
+      /* The unconfigured rail keeps failing honestly — the flag fix
+         must never dress a dead rail up as live. */
+      const co = await call("POST", "/tips/royal-voice/checkout", {
+        amount: 5,
+        fanName: "Fan",
+        message: "",
+      });
+      expect(co.status).toBe(503);
+      expect(h.tips).toHaveLength(0);
+    } finally {
+      process.env["STRIPE_SECRET_KEY"] = savedKey;
+    }
+  });
+});
