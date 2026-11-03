@@ -182,6 +182,7 @@ const CollabsDesk = lazy(() => import("@/components/world/native/CollabsDesk").t
 const ScenesDesk = lazy(() => import("@/components/world/native/ScenesDesk").then((m) => ({ default: m.ScenesDesk })));
 const LlcDesk = lazy(() => import("@/components/world/native/LlcDesk").then((m) => ({ default: m.LlcDesk })));
 const CopyrightDesk = lazy(() => import("@/components/world/native/CopyrightDesk").then((m) => ({ default: m.CopyrightDesk })));
+const BrandCalculatorDesk = lazy(() => import("@/components/world/native/BrandCalculatorDesk").then((m) => ({ default: m.BrandCalculatorDesk })));
 const GamesPanel = lazy(() => import("@/components/world/native/GamesPanels").then((m) => ({ default: m.GamesPanel })));
 const CreatorRoomsDirectory = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomsDirectory })));
 const CreatorRoomStation = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomStation })));
@@ -1171,6 +1172,13 @@ export default function StationPanel(props: StationPanelProps) {
                     Bucs each, stacked at the Get Paid board. */}
                 <DeskDoor isLight={isLight}>
                   <CopyrightDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Brand Deal Calculator (stack1500 parity wave
+                    #3): the rate card on the
+                    /api/brand-calculator rail at the registry's
+                    200 Bucs, stacked at the Get Paid board. */}
+                <DeskDoor isLight={isLight}>
+                  <BrandCalculatorDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
