@@ -175,7 +175,14 @@ describe("#65 beats station logic", () => {
 
     expect(beatSelectedOfferUnavailable(noStems, "basic")).toBe(false);
     expect(beatSelectedOfferUnavailable(noStems, "exclusive")).toBe(true);
-    expect(beatSelectedOfferUnavailable(noStems, `tpl:${stemsTpl.id}`)).toBe(true);
+    /* The selected-offer lookup reads the beat's OWN templates, so
+       the tpl: case needs a beat whose template is the stems one. */
+    const stemsBeat = parseBeat({
+      ...beatWire,
+      license_templates: [{ ...beatWire.license_templates[0]!, format: "wav_mp3_stems" }],
+    })!;
+    expect(beatSelectedOfferUnavailable(stemsBeat, `tpl:${stemsTpl.id}`)).toBe(true);
+    expect(beatSelectedOfferUnavailable(noStems, `tpl:${stemsTpl.id}`)).toBe(false);
 
     const withStems = parseBeat({ ...beatWire, has_stems: true })!;
     expect(withStems.hasStems).toBe(true);

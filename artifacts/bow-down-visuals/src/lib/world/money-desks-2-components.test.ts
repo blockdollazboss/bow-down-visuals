@@ -105,7 +105,13 @@ describe("#65 beats station contracts", () => {
   });
 
   it("an exclusive-sold beat closes the license box and the library delivers (X4 C1/C5)", () => {
-    expect(beats).toContain("disabled={licensing || beat.exclusiveSold}");
+    /* Stack1400 ruling #2 widened the buy button's disable: it now
+       goes through beatSelectedOfferUnavailable, whose soldOut is
+       exclusiveSold OR stems-blocked — an exclusive-sold beat still
+       always disables it (the helper's tiers/templates all read
+       soldOut on a sold beat), and a stems offer with no stems on
+       file disables it too. */
+    expect(beats).toContain("disabled={licensing || beatSelectedOfferUnavailable(beat, offerKey)}");
     expect(beats).toContain("beat.exclusiveSold &&");
     expect(beats).toContain("lic.beatTitle ?? lic.terms?.name");
     expect(beats).toContain('data-testid="world-beats-license-download"');
