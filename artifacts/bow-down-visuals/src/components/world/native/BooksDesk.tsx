@@ -84,8 +84,8 @@ import {
    NAMED GAP (verbatim from the census/scope check): the books rails
    carry no publish/list state — a book has no status field and there
    is no POST publish endpoint for books; the 2D page's "Publish &
-   Sell" button is a link out to /storefronts?title=…, not a books
-   rail. World law forbids the exit, so the desk does NOT fake a
+   Sell" button is a link out to the storefronts page (?title=…),
+   not a books rail. World law forbids the exit, so the desk does NOT fake a
    publish button: export + print are the publish outputs the rails
    support, and selling a finished book stays on the shop stands'
    own product rails, not a books-desk charge.

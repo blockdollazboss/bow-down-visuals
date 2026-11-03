@@ -504,6 +504,15 @@ export interface BookPrintQuote {
 export function normalizePrintQuote(payload: unknown): BookPrintQuote | null {
   const root = asRecord(payload);
   if (!root) return null;
+  /* A quote without the server's own numbers is not a quote — the
+     desk never fills a price in from defaults. */
+  if (
+    typeof root["pageCount"] !== "number" ||
+    typeof root["printCostUsd"] !== "number" ||
+    typeof root["priceVb"] !== "number"
+  ) {
+    return null;
+  }
   const options: BookPrintShippingOption[] = [];
   if (Array.isArray(root["shippingOptions"])) {
     for (const raw of root["shippingOptions"]) {
