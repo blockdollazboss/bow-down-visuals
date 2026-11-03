@@ -180,6 +180,7 @@ const GroupsDesk = lazy(() => import("@/components/world/native/GroupsDesk").the
 const EventsDesk = lazy(() => import("@/components/world/native/EventsDesk").then((m) => ({ default: m.EventsDesk })));
 const CollabsDesk = lazy(() => import("@/components/world/native/CollabsDesk").then((m) => ({ default: m.CollabsDesk })));
 const ScenesDesk = lazy(() => import("@/components/world/native/ScenesDesk").then((m) => ({ default: m.ScenesDesk })));
+const GrantsDesk = lazy(() => import("@/components/world/native/GrantsDesk").then((m) => ({ default: m.GrantsDesk })));
 const LlcDesk = lazy(() => import("@/components/world/native/LlcDesk").then((m) => ({ default: m.LlcDesk })));
 const CopyrightDesk = lazy(() => import("@/components/world/native/CopyrightDesk").then((m) => ({ default: m.CopyrightDesk })));
 const BrandCalculatorDesk = lazy(() => import("@/components/world/native/BrandCalculatorDesk").then((m) => ({ default: m.BrandCalculatorDesk })));
@@ -1110,6 +1111,13 @@ export default function StationPanel(props: StationPanelProps) {
                       members and guests alike. */}
                   <DeskDoor isLight={isLight}>
                     <ScenesDesk isLight={isLight} />
+                  </DeskDoor>
+                  {/* Community Grants (stack1500 parity wave #3):
+                      the monthly VB pool — read rounds, submit,
+                      vote, report back — on the
+                      /api/community-grants rails, in the room. */}
+                  <DeskDoor isLight={isLight}>
+                    <GrantsDesk isLight={isLight} isGuest={isGuest} />
                   </DeskDoor>
                 </div>
               ) : (
