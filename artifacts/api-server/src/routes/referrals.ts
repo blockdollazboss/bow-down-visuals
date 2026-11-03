@@ -54,7 +54,7 @@ const REFEREE_WELCOME_CREDITS = 1000;
 const REVENUE_SHARE_PCT = 25;
 const SHARE_WINDOW_DAYS = 90;
 
-/* ── Promoter Program — 6-star Kingpin ranks ───────────────────────────────
+/* ── Promoter Program — 6-star Promoter ranks ──────────────────────────────
    The referral program is a job: promoters climb stars, unlock higher
    commission rates and one-time milestone bonuses. Rates apply at the
    promoter's CURRENT tier (rank-ups boost every active referral).
@@ -68,12 +68,18 @@ interface PromoterTier {
   ratePct: number;
   milestoneBonus: number;
 }
-const PROMOTER_TIERS: PromoterTier[] = [
+/* Promoter titles are their OWN ladder — they must never reuse a
+   Creator Rank title (STAR_TITLES in lib/creator-rank): a promoter
+   badge and an earned creator rank are different things, and sharing
+   names ("Hustler" / "Shot Caller" / "Kingpin") made them read as one.
+   Pinned by routes/__tests__/promoter-titles.test.ts. Exported for
+   that test; the ladder itself is served to clients via tierLadder. */
+export const PROMOTER_TIERS: PromoterTier[] = [
   { stars: 1, title: "Street Soldier", minReferrals: 1,  ratePct: 25, milestoneBonus: 0 },
-  { stars: 2, title: "Hustler",        minReferrals: 3,  ratePct: 28, milestoneBonus: 1500 },
-  { stars: 3, title: "Shot Caller",    minReferrals: 6,  ratePct: 30, milestoneBonus: 4000 },
+  { stars: 2, title: "Connector",      minReferrals: 3,  ratePct: 28, milestoneBonus: 1500 },
+  { stars: 3, title: "Rainmaker",      minReferrals: 6,  ratePct: 30, milestoneBonus: 4000 },
   { stars: 4, title: "Big Boss",       minReferrals: 12, ratePct: 33, milestoneBonus: 10000 },
-  { stars: 5, title: "Kingpin",        minReferrals: 25, ratePct: 35, milestoneBonus: 25000 },
+  { stars: 5, title: "Mogul",          minReferrals: 25, ratePct: 35, milestoneBonus: 25000 },
   { stars: 6, title: "The Don",        minReferrals: 50, ratePct: 40, milestoneBonus: 60000 },
 ];
 function getPromoterTier(referralCount: number): { tier: PromoterTier | null; next: PromoterTier | null } {

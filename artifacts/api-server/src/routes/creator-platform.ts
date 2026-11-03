@@ -1478,7 +1478,7 @@ router.get("/creator-profiles/:slug", optionalAuth, async (req, res) => {
       ].filter(Boolean).length,
       money_moves_total: 5,
     });
-    /* Virality wave: recruiter badge (Kingpin tier) for the profile header. */
+    /* Virality wave: recruiter badge (Promoter tier) for the profile header. */
     const recruiterBadge = await getRecruiterBadgeForUser(profile.userId).catch(() => null);
     /* Stack 3, item 7: the free-tier branding rule — the public page
        carries the "Powered by Bow Down Visuals" mark unless the owner
