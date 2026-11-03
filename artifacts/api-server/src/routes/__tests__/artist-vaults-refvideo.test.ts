@@ -45,6 +45,7 @@ const state = vi.hoisted(() => ({
   events: [] as string[],
   createImpl: null as null | (() => Promise<any>),
   retrieveImpl: null as null | (() => Promise<any>),
+  loopImpl: null as null | (() => Promise<any>),
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -162,6 +163,7 @@ vi.mock("../../lib/video-loop", () => ({
   // Produce a REAL temp file per job: the route reads it back and
   // cleans the work dir up itself, exactly like production.
   loopVideoFromUrl: vi.fn(async () => {
+    if (state.loopImpl) return state.loopImpl();
     const workDir = await mkdtemp(join(tmpdir(), "refvideo-loop-"));
     const outPath = join(workDir, "loop.mp4");
     await writeFile(outPath, "fake-looped-mp4-bytes");
@@ -290,6 +292,7 @@ beforeEach(() => {
   state.events = [];
   state.createImpl = null;
   state.retrieveImpl = null;
+  state.loopImpl = null;
 });
 
 const post = (p: string, body: any, headers: any = AUTH) =>
@@ -515,6 +518,19 @@ describe("POST /artist-vaults/:id/reference-video/loop — loop submit", () => {
     expect(res.status).toBe(402);
     expect(state.chargeCalls).toEqual([]);
   });
+
+  it("owner submit RESERVES 200 at submit, keyed on the task id, before the job runs", async () => {
+    const res = await post("/artist-vaults/vault-own/reference-video/loop", {});
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.creditCost).toBe(200);
+    expect(state.chargeCalls).toHaveLength(1);
+    expect(state.chargeCalls[0].userId).toBe("user-1");
+    expect(state.chargeCalls[0].amount).toBe(200);
+    expect(state.chargeCalls[0].meta).toEqual({ action: "Artist Vault Video Loop", projectId: null });
+    expect(state.chargeCalls[0].opts?.idempotencyKey).toBe(`artist-vault-ref-video-loop:${body.taskId}`);
+    expect(state.refundCalls).toEqual([]);
+  });
 });
 
 describe("GET /artist-vaults/:id/reference-video/loop/:taskId — loop poll", () => {
@@ -537,14 +553,14 @@ describe("GET /artist-vaults/:id/reference-video/loop/:taskId — loop poll", ()
     throw new Error("loop job never reached a terminal state");
   }
 
-  it("owner poll on done: charges exactly once (200) and the looped video is saved", async () => {
+  it("owner poll on done: the submit charge is the ONLY charge (200, kept) and the looped video is saved", async () => {
     const taskId = await submitLoopAsOwner();
+    expect(state.chargeCalls).toHaveLength(1); // reserved at submit
     const body = await pollUntilTerminal(taskId);
     expect(body.status).toBe("succeeded");
-    expect(body.newBalance).toBe(4242);
-    expect(state.chargeCalls).toEqual([
-      { userId: "user-1", amount: 200, meta: { action: "Artist Vault Video Loop", projectId: null } },
-    ]);
+    expect(body.newBalance).toBe(4242); // the submit charge's returned balance
+    expect(state.chargeCalls).toHaveLength(1); // poll charges nothing more
+    expect(state.refundCalls).toEqual([]);
     const row = vaultRow("vault-own");
     expect(row.reference_video_url).toMatch(/^https:\/\/r2\.example\/user-1\/reference-videos\/.+-loop\.mp4$/);
     expect(row.reference_video_path).toMatch(/^user-1\/reference-videos\/.+-loop\.mp4$/);
@@ -554,16 +570,43 @@ describe("GET /artist-vaults/:id/reference-video/loop/:taskId — loop poll", ()
     expect(state.chargeCalls).toHaveLength(1);
   });
 
-  it("if the vault stops being the caller's before the poll, the final save takes no charge", async () => {
+  it("processing failure refunds the reserve exactly once", async () => {
+    state.loopImpl = async () => { throw new Error("ffmpeg died"); };
+    const taskId = await submitLoopAsOwner();
+    const body = await pollUntilTerminal(taskId);
+    expect(body.status).toBe("failed");
+    expect(body.error).toMatch(/ffmpeg died/);
+    expect(state.chargeCalls).toHaveLength(1);
+    expect(state.refundCalls).toEqual([
+      {
+        userId: "user-1",
+        amount: 200,
+        meta: { action: "Artist Vault Video Loop — Refund (processing failed)", projectId: null },
+      },
+    ]);
+    const again = await get(`/artist-vaults/vault-own/reference-video/loop/${taskId}`);
+    expect(again.status).toBe(404);
+    expect(state.refundCalls).toHaveLength(1); // no double refund
+  });
+
+  it("if the vault stops being the caller's before the poll, the reserve is refunded and nothing is saved", async () => {
     const taskId = await submitLoopAsOwner();
     vaultRow("vault-own").user_id = "user-9"; // ownership moved mid-flight
     const body = await pollUntilTerminal(taskId);
     expect(body.status).toBe("failed");
-    expect(state.chargeCalls).toEqual([]);
+    expect(body.error).toMatch(/refunded/);
+    expect(state.chargeCalls).toHaveLength(1); // the submit reserve…
+    expect(state.refundCalls).toEqual([
+      {
+        userId: "user-1",
+        amount: 200,
+        meta: { action: "Artist Vault Video Loop — Refund (character no longer yours)", projectId: null },
+      },
+    ]); // …refunded in full
     expect(vaultRow("vault-own").reference_video_url).toBe("https://cdn.example/own.mp4");
   });
 
-  it("G4: if the save throws AFTER the charge, the 200 VB is refunded exactly once", async () => {
+  it("G4: if the save throws, the 200 VB reserve is refunded exactly once", async () => {
     const taskId = await submitLoopAsOwner();
     state.failVaultUpdates = true;
     const body = await pollUntilTerminal(taskId);

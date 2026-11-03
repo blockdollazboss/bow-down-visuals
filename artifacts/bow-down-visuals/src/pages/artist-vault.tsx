@@ -833,7 +833,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
       });
       const data = await res.json().catch(() => ({} as { taskId?: string; error?: string }));
       if (!res.ok) throw new Error(apiErrorMessage(data, t("artistVault.loopStartFailed")));
-      // Poll — FFmpeg takes ~30s; charged only on success.
+      // Poll — FFmpeg takes ~30s; charged at submit, refunded on failure.
       for (let i = 0; i < 100; i++) {
         await new Promise((r) => setTimeout(r, 3000));
         const pres = await fetch(`/api/artist-vaults/${vault.id}/reference-video/loop/${data.taskId}`, {
