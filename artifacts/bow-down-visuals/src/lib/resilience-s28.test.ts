@@ -119,7 +119,7 @@ describe("#27 artist-setup: failed load ≠ brand-new creator (A3-F5)", () => {
     expect(page).not.toContain("setProfile(emptyProfile())");
   });
   it("the genuine no-profile branch still builds the prefilled new-creator profile", () => {
-    expect(page).toContain("setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar }))");
+    expect(page).toContain("setProfile(emptyProfile({ display_name: preName, avatar_url: preAvatar, bio: preBio }))");
   });
   it("the error state renders before the editor/lightning branches, with a retry that reloads", () => {
     const errAt = page.indexOf('data-testid="artist-setup-load-error"');
