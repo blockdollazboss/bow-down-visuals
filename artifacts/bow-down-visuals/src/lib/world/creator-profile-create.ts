@@ -24,6 +24,8 @@
    3–40 chars, lowercase letters/numbers/hyphens, no leading or
    trailing hyphen. */
 
+import { prefillWithSuggestion, suggestedBioForProfile } from "../suggest";
+
 export const CREATOR_PROFILE_VERTICALS: ReadonlyArray<{ key: string; label: string }> = [
   { key: "music", label: "Music" },
   { key: "video", label: "Video" },
@@ -178,6 +180,29 @@ export function buildCreatorProfilePayload(input: {
     vertical,
     is_public: true,
   };
+}
+
+/* ─── Suggested bio — the ONE suggestion brain (lib/suggest) ───────
+   The in-World bio field used to start blank, always, even though
+   the form already knows the member's name and what they make.
+   The brain derives a starter bio from exactly those two fields;
+   null when it has nothing (no name and no known vertical) — the
+   card then keeps its existing blank field, never an invented bio. */
+export function profileCreateSuggestedBio(input: {
+  displayName: string;
+  vertical: string;
+}): string | null {
+  return suggestedBioForProfile({ displayName: input.displayName, vertical: input.vertical });
+}
+
+/** The card's bio prefill: the brain's suggestion lands only in a
+ *  bio the member hasn't written themselves (the brain's shared
+ *  never-overwrite rule). */
+export function profileCreateBioPrefill(
+  currentBio: string,
+  input: { displayName: string; vertical: string },
+): string {
+  return prefillWithSuggestion(currentBio, profileCreateSuggestedBio(input));
 }
 
 /** The server error's own words from a failed create, when it sent
