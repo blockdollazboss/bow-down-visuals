@@ -41,6 +41,42 @@ describe("#61 packs desk contracts", () => {
     expect(panel).toContain('case "treasury-packs"');
     expect(panel).toContain("<PacksDesk");
   });
+
+  /* Ruling #18 (stack1400), mirroring the PlansDesk doctrine pins
+     in plans-desk-honesty.test.ts: with a publishable key present,
+     an embedded intent failure STOPS in the desk — it never falls
+     through to the hosted rail. The hosted rail survives ONLY as
+     the no-publishable-key configuration path. */
+  it("an embedded intent failure stops honest — never falls through to the hosted rail", () => {
+    expect(packs).toContain("ANY intent failure STOPS here");
+    expect(packs).toContain("NEVER falls through to the hosted rail");
+    expect(packs).toContain("serves ONLY the no-publishable-key configuration");
+    /* The old silent fall-through is gone. */
+    expect(packs).not.toContain("Any intent failure falls through");
+    expect(packs).not.toContain("/* fall through to the hosted rail */");
+    /* Every failure shape names itself in the desk's failed state:
+       the transport failure via the shared checkout failure copy,
+       and an OK answer with no usable secret as a failed start. */
+    expect(packs).toContain("checkoutFailureCopy(err)");
+    expect(packs).toContain("Checkout didn't start — nothing was charged. Try again in a minute.");
+    expect(packs).toContain("nothing was charged. Give it a moment and try again.");
+  });
+
+  it("every intent outcome returns inside the key-present branch, before the hosted call", () => {
+    const intentIdx = packs.indexOf('fetch("/api/embedded-checkout/credit-pack/intent"');
+    const hostedIdx = packs.indexOf('fetch("/api/create-checkout-session"');
+    expect(intentIdx).toBeGreaterThan(-1);
+    expect(hostedIdx).toBeGreaterThan(intentIdx);
+    const branch = packs.slice(packs.indexOf("if (hasStripePublishableKey())"), hostedIdx);
+    expect(branch).toContain("setEmbedded(");
+    expect(branch).toContain("setFailed(");
+    /* Embedded success, OK-but-no-secret, non-OK, and the transport
+       catch each end in a return before the hosted rail — a
+       fall-through regression drops this count and fails here. */
+    expect(branch.match(/return;/g)?.length).toBeGreaterThanOrEqual(4);
+    /* The hosted rail is still there for the no-key configuration. */
+    expect(packs.slice(hostedIdx)).toContain('window.open(url, "_blank", "noopener,noreferrer")');
+  });
 });
 
 describe("#62 payout desk contracts", () => {

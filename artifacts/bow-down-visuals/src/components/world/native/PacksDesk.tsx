@@ -108,9 +108,9 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
          its HTTP status with the nothing-charged line when it sent
          none; an OK answer with no usable secret is a failed start,
          named as such; and a transport failure is named by
-         checkoutFailureCopy. The desk NEVER falls through to the
-         hosted rail on a failed intent: leaving for a hosted page
-         on an error breaks never-leave-the-site. The hosted rail
+         checkoutFailureCopy. The desk NEVER falls through to the hosted rail
+         on a failed intent: leaving for a hosted page on an error breaks
+         never-leave-the-site. The hosted rail
          below serves ONLY the no-publishable-key configuration,
          where embedded checkout cannot run at all. */
       if (hasStripePublishableKey()) {

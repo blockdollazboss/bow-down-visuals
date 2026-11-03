@@ -124,6 +124,22 @@ describe("EmbeddedPaymentForm — World PacksDesk (station-sheet scroll)", () =>
     expect(packsDeskSrc).not.toContain("max-h");
   });
 
+  it("the intent-failure doctrine keeps the buyer in-desk (ruling #18: stop honest, no hosted fall-through)", () => {
+    /* Mirrors the PlansDesk doctrine: a failed embedded intent
+       stops in this desk with the failure shown — the form mount
+       above is the only checkout the key-present path can reach. */
+    expect(packsDeskSrc).toContain("ANY intent failure STOPS here");
+    expect(packsDeskSrc).toContain("NEVER falls through to the hosted rail");
+    expect(packsDeskSrc).not.toContain("Any intent failure falls through");
+    expect(packsDeskSrc).not.toContain("/* fall through to the hosted rail */");
+    const branch = packsDeskSrc.slice(
+      packsDeskSrc.indexOf("if (hasStripePublishableKey())"),
+      packsDeskSrc.indexOf('fetch("/api/create-checkout-session"'),
+    );
+    expect(branch).toContain("setFailed(");
+    expect(branch.match(/return;/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("StationPanel dispatches the desk inside the one-scroll-region sheet", () => {
     /* World-perf round 4: the desk rides a DeskDoor lazy door at
        the same dispatch — same sheet, same scroll region. */
