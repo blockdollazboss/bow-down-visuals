@@ -286,12 +286,12 @@ const SECTIONS: NavSection[] = [
       { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart, searchTerms: "live shopping shop live sell stream" },
       /* Publish — the PROMOTE hand-off step itself — gets its door
          (org wave, stack1400): the route lived inside AuthedLayout but
-         was reachable only from a CTA in the player finale. Label-key
-         gap: no nav.publish exists in any locale yet (a sibling lane
-         owns labels) — nav.releaseChecklist is the closest existing
-         key until nav.publish lands; the alias terms below keep the
-         door findable by its real name ("publish") in sidebar search. */
-      { href: "/publish", labelKey: "nav.releaseChecklist", icon: Send, searchTerms: "publish release post share upload platforms" },
+         was reachable only from a CTA in the player finale. Label is
+         nav.publish (en.json; non-EN locales resolve through the en
+         fallback until the locale wave translates it); the alias
+         terms below keep the door findable by its real name
+         ("publish") in sidebar search. */
+      { href: "/publish", labelKey: "nav.publish", icon: Send, searchTerms: "publish release post share upload platforms" },
       { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper, searchTerms: "press kit media kit epk bio" },
       { href: "/email-list", labelKey: "nav.emailList", icon: Mail, searchTerms: "email list subscribers newsletter audience" },
     ],
