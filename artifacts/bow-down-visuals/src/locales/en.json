@@ -9658,7 +9658,7 @@
     "titlePrefix": "Promoter",
     "titleSuffix": "HQ",
     "hero": {
-      "p1": "This is your job now. Climb the Kingpin ranks — more stars, bigger cut. New creators get",
+      "p1": "This is your job now. Climb the Promoter ranks — more stars, bigger cut. New creators get",
       "reward": "{{num}} free Visual Bucs",
       "p2": ", and you earn up to",
       "cut": "40% of everything they buy",
@@ -9706,7 +9706,7 @@
       "ended": "Window ended"
     },
     "ladder": {
-      "title": "Kingpin ranks",
+      "title": "Promoter ranks",
       "you": "YOU",
       "requirement": "{{min}}+ creators · {{pct}}% cut",
       "bonus": "+{{bonus}} VB bonus",
