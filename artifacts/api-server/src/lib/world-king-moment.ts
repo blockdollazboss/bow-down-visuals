@@ -90,9 +90,11 @@ export function kingMomentDate(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
-/** Monday (UTC) of the week containing `now`, YYYY-MM-DD — the
- *  quest week's key. The math lives in lib/quest-pool (the pool
- *  envelope's home); this alias keeps the moment's callers put. */
+/** Monday of the week containing `now`, YYYY-MM-DD, on the New
+ *  York calendar — the quest week's key. The math lives in
+ *  lib/quest-pool (the pool envelope's home), which reads the ONE
+ *  period anchor in lib/period-anchors; this alias keeps the
+ *  moment's callers put. */
 export function kingWeekStart(now: Date): string {
   return questPoolWeekStart(now);
 }

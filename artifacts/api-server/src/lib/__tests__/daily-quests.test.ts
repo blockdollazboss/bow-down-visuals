@@ -198,8 +198,13 @@ describe("the trio rotation (pure, date-dealt)", () => {
 
   it("does not reset at the week boundary — the day is the scope", () => {
     // Sunday → Monday is a new quest WEEK; the trio just turns.
+    // The week anchor is New York midnight (lib/period-anchors,
+    // stack1400 ruling #8): Monday 00:00 UTC is still Sunday 20:00
+    // in New York, so it belongs to the OLD week — the new week
+    // opens at 04:00 UTC (00:00 EDT).
     expect(questPoolWeekStart(SUN)).toBe("2026-10-12");
-    expect(questPoolWeekStart(new Date("2026-10-19T00:00:00.000Z"))).toBe(MON_KEY);
+    expect(questPoolWeekStart(new Date("2026-10-19T00:00:00.000Z"))).toBe("2026-10-12");
+    expect(questPoolWeekStart(new Date("2026-10-19T04:00:00.000Z"))).toBe(MON_KEY);
     expect(dailyQuestDayIndex(MON_KEY) - dailyQuestDayIndex(SUN_KEY)).toBe(1);
     const sun = new Set(dailyTrioForDay(SUN_KEY).map((d) => d.key));
     for (const def of dailyTrioForDay(MON_KEY)) expect(sun.has(def.key)).toBe(false);

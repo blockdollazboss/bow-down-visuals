@@ -12,7 +12,8 @@
  *   and duplicate-key replays never move money twice.
  * - FAILURE: a grant/ledger failure claws back and RELEASES the
  *   claim to queued — the next run pays it. Never lost.
- * - POOL: one shared 1,000 VB/week envelope (Monday-UTC anchor),
+ * - POOL: one shared 1,000 VB/week envelope (Monday anchor at New
+ *   York midnight — lib/period-anchors, stack1400 ruling #8),
  *   strict FIFO; the item that doesn't fit — and everything behind
  *   it — stays queued and pays when the next week opens.
  * - DUPLICATES: same-title resubmissions are auto-marked ineligible
@@ -44,8 +45,8 @@ const USER_A = "11111111-1111-4111-8111-111111111111";
 const USER_B = "22222222-2222-4222-8222-222222222222";
 const ADMIN = "99999999-9999-4999-8999-999999999999";
 
-/* Sun Oct 25 2026, 12:00 UTC — week anchor Mon Oct 19; next week
-   opens Mon Oct 26. */
+/* Sun Oct 25 2026, 12:00 UTC (= 08:00 EDT) — NY week anchor Mon
+   Oct 19; next week opens Mon Oct 26 at NY midnight (04:00 UTC). */
 const T_SHIP = new Date("2026-10-25T12:00:00Z");
 const T_NEXT_WEEK = new Date("2026-10-26T09:00:00Z");
 

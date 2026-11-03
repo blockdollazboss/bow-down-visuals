@@ -229,10 +229,14 @@ describe("the completion reward", () => {
 });
 
 describe("the shared pool (lib/quest-pool)", () => {
-  it("the week starts Monday (UTC): Wednesday and Sunday share a week, Monday starts its own", () => {
+  it("the week starts Monday at New York midnight: Wednesday and Sunday share a week, Monday starts its own", () => {
     expect(questPoolWeekStart(new Date("2026-10-14T09:00:00.000Z"))).toBe("2026-10-12"); // Wed
-    expect(questPoolWeekStart(new Date("2026-10-18T23:00:00.000Z"))).toBe("2026-10-12"); // Sun
-    expect(questPoolWeekStart(new Date("2026-10-19T00:00:00.000Z"))).toBe("2026-10-19"); // Mon
+    expect(questPoolWeekStart(new Date("2026-10-18T23:00:00.000Z"))).toBe("2026-10-12"); // Sun 19:00 EDT
+    // Monday 00:00 UTC is Sunday 20:00 in New York — still the OLD
+    // week under the NY anchor (lib/period-anchors, stack1400 #8);
+    // the new week opens at 04:00 UTC, Monday 00:00 EDT.
+    expect(questPoolWeekStart(new Date("2026-10-19T00:00:00.000Z"))).toBe("2026-10-12"); // Sun 20:00 EDT
+    expect(questPoolWeekStart(new Date("2026-10-19T04:00:00.000Z"))).toBe("2026-10-19"); // Mon 00:00 EDT
     expect(questPoolWeekStart(new Date("2026-10-17T12:00:00.000Z"))).toBe("2026-10-12"); // Sat
   });
 
