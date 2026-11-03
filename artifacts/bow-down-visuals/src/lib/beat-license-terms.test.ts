@@ -33,7 +33,7 @@ describe("beat license terms display", () => {
       termsNote: "One verse swap allowed.",
       isExclusive: false,
     });
-    expect(lines[0]).toBe("WAV + MP3");
+    expect(lines[0]).toBe("Producer's uploaded file");
     expect(lines).toContain("250,000 streams");
     expect(lines).toContain("5,000 copies sold");
     expect(lines).toContain("3 music videos");
@@ -79,7 +79,7 @@ describe("beat license terms display", () => {
     expect(terms.salesCap).toBe(100);
     expect(terms.termYears).toBe(5);
     expect(terms.territory).toBe("US");
-    expect(formatLabel("wav_mp3_stems")).toBe("WAV + MP3 + stems");
+    expect(formatLabel("wav_mp3_stems")).toBe("Producer's uploaded file + stems");
   });
 });
 
