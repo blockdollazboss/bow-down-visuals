@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "e33e31d5dcfcbe7aee4378b5a1e9739df4934f57",
+  "baseCommit": "456fbfcc2c9a10ed16ca7b592288ea31900aa4b4",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-02",
+  "generatedAt": "2026-11-03",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
     "features": 251,
     "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 217,
+    "pricedActions": 224,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
@@ -209,7 +209,26 @@
         "/api/dev/add-credits",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Academy Ask the Coach",
+          "vb": 100,
+          "endpoint": "/api/academy/ask",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Academy Learning Path",
+          "vb": 100,
+          "endpoint": "/api/academy/learning-path",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Academy Lesson",
+          "vb": 100,
+          "endpoint": "/api/academy/lesson",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"academy.pageDescription\" (page's own string)",
       "nextSteps": []
@@ -233,7 +252,26 @@
         "/api/dev/add-credits",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Academy Ask the Coach",
+          "vb": 100,
+          "endpoint": "/api/academy/ask",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Academy Learning Path",
+          "vb": 100,
+          "endpoint": "/api/academy/learning-path",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Academy Lesson",
+          "vb": 100,
+          "endpoint": "/api/academy/lesson",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [],
       "description": "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"academy.pageDescription\""
@@ -7512,7 +7550,14 @@
         "/api/keyword-automations/rules/:param",
         "/api/referrals/apply"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "AI Newsletter Draft",
+          "vb": 100,
+          "endpoint": "/api/email-list/newsletter",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "nextSteps": [
         {
           "label": "Monetization Coach",
@@ -9165,6 +9210,12 @@
       ],
       "prices": [
         {
+          "feature": "Label Pitch Demo Kit",
+          "vb": 300,
+          "endpoint": "/api/label-pitch/kit",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Playlist Pitch Kit",
           "vb": 200,
           "endpoint": "/api/playlist-pitch/kit",
@@ -9563,7 +9614,20 @@
         "/api/referrals/apply",
         "/api/referrals/me"
       ],
-      "prices": [],
+      "prices": [
+        {
+          "feature": "Stream Clip Detection",
+          "vb": 300,
+          "endpoint": "/api/movies/clip-detect",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Movie/Series Concept",
+          "vb": 400,
+          "endpoint": "/api/movies/concept",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
       "description": "Develop a movie or series concept with AI — or turn your streams into viral clips. Fully automated: describe it, AI does the rest.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"movies.subtitle\" (page's own string)",
       "nextSteps": []
