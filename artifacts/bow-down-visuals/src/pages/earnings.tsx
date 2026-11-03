@@ -382,6 +382,55 @@ export default function Earnings() {
           its own failure state, never a standalone page. */}
       <AffiliateDeskSection />
       <div className="mt-4"><EarningsDocuments /></div>
+
+      {/* Dead-end fix (org wave, audit §1d): the zero state above hands
+          back only when nothing has been earned yet — a creator WITH
+          earnings landed here and had no door onward to the managers
+          behind each number on this page. This always-on section docks
+          the real workflow neighbors (MONEY step of
+          CREATE → BRAND → PROMOTE → MONEY): the tips manager behind
+          the Tips card, the memberships manager behind the Memberships
+          card, and the two selling surfaces behind Store sales. The
+          payout door itself already docks above (ConnectPayoutCard,
+          directly under the pending balance it acts on). Every target
+          is a real route in App.tsx, pinned by
+          pages/dead-end-handoffs.test.ts. */}
+      <div className="mt-4 rounded-xl border border-border bg-card p-5" data-testid="earnings-next-steps">
+        <div className="text-lg font-bold">Where your money goes next</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Each number above has a desk that grows it. Pick up right where the money is made.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/tips"
+            data-testid="earnings-handoff-tips"
+            className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-bold text-black transition hover:scale-105"
+          >
+            Manage tips
+          </Link>
+          <Link
+            href="/memberships"
+            data-testid="earnings-handoff-memberships"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-bold hover:bg-white/5"
+          >
+            Manage memberships
+          </Link>
+          <Link
+            href="/my-shop"
+            data-testid="earnings-handoff-my-shop"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-bold hover:bg-white/5"
+          >
+            Open My Shop
+          </Link>
+          <Link
+            href="/store/dashboard"
+            data-testid="earnings-handoff-store-dashboard"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-5 py-2.5 text-sm font-bold hover:bg-white/5"
+          >
+            Store Dashboard
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
