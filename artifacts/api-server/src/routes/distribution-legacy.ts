@@ -16,7 +16,12 @@ import {
 import {
   toolostConfigured, toolostOAuthConfig, buildToolostAuthUrl, exchangeCodeForToolostTokens,
   fetchToolostProfile, generateCodeVerifier, codeChallengeS256, TooLostApiError,
+  refreshToolostTokens, createToolostRelease, requestToolostTrackUploadUrl,
+  requestToolostArtworkUploadUrl, uploadToolostBytes, fetchToolostSourceFile,
+  attachToolostTracks, patchToolostReleaseMetadata, submitToolostRelease,
+  type ToolostTokens, type ToolostAiDocumentation,
 } from "../lib/distribution-toolost";
+import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 
 /* Stack 11 (in-house half) — Distribution & Legacy.
    Docking law: everything here serves the standalone release flow
@@ -298,6 +303,330 @@ router.get("/distribution/toolost/status", requireAuth, async (req, res) => {
     const row = r.rows[0] as { username: string | null; token_expires_at: string | Date | null } | undefined;
     res.json({ configured: toolostConfigured(), connected: Boolean(row), username: row?.username ?? null, tokenExpiresAt: row?.token_expires_at ?? null });
   } catch (err) { logger.error({ err }, "[stack11] toolost status failed"); res.status(500).json({ error: "Couldn't check the delivery connection." }); }
+});
+
+/* ═══ #2c Too Lost release submission (Front 14) ════════════════════════
+   The write half of the #2 connection: a creator sends one of THEIR
+   releases out for real delivery through the account they connected.
+   Pipeline (their docs, §10 + releases endpoints): provider draft →
+   audio + artwork uploads over pre-signed URLs → track attach →
+   metadata PATCH (ALWAYS carrying the AI declaration) → submit into
+   review. The token comes from the stored encrypted row, refreshed
+   proactively when expired and once more on a mid-pipeline 401 —
+   never used dead and called fine.
+
+   State lives in distribution_toolost_submissions (migration 0320),
+   one row per release: draft → submitting → in_review, or → failed
+   with OUR sanitized reason. The provider draft id is stored the
+   moment it exists, so a retry after a mid-pipeline failure REUSES
+   the same provider draft instead of duplicating the release.
+   distribution_releases.status belongs to the sandbox packaging door
+   and is deliberately NOT touched here.
+
+   NO CHARGE in this lane: the distribution tier price is owned by the
+   packaging door (POST /distribution/releases/:id/submit in
+   routes/generate/distribution.ts — RELEASE_TIER_CREDITS). Charging
+   here too would double-charge the same act, so this action ships
+   unpriced and the panel says "free".
+
+   AI DECLARATION — HARD GATE, never a suggestion (owner's Nov 3
+   research rule: the integration carries AI declaration + rights
+   proof at upload):
+   • every submission must declare isAiGenerated — no declaration, no
+     pipeline, no provider call;
+   • our own records win over the declaration: when the release's song
+     was made by the site's pipeline (songs.source ≠ 'upload'),
+     declaring "not AI" is refused outright;
+   • an AI release either way cannot ship without the rights
+     documentation (aiDocumentation: fileName + http(s) fileUrl) —
+     the metadata call always carries both fields. */
+
+const TOOLOST_RECONNECT_MESSAGE = "Your delivery connection needs a refresh — reconnect your delivery account, then send again.";
+const TOOLOST_REFRESH_FAILED = "toolost_refresh_failed";
+
+interface ToolostStoredTokens {
+  accessToken: string;
+  refreshToken: string | null;
+  expiresAt: Date | null;
+  providerUserId: string | null;
+  username: string | null;
+}
+
+async function loadToolostStoredTokens(userId: string): Promise<ToolostStoredTokens | null> {
+  const r = await db.execute(sql`SELECT provider_user_id, username, access_token_encrypted, refresh_token_encrypted, token_expires_at FROM social_accounts WHERE user_id = ${userId} AND platform = 'toolost' LIMIT 1`);
+  const row = r.rows[0] as {
+    provider_user_id: string | null; username: string | null;
+    access_token_encrypted: string | null; refresh_token_encrypted: string | null;
+    token_expires_at: string | Date | null;
+  } | undefined;
+  if (!row?.access_token_encrypted) return null;
+  return {
+    accessToken: decryptToken(row.access_token_encrypted),
+    refreshToken: row.refresh_token_encrypted ? decryptToken(row.refresh_token_encrypted) : null,
+    expiresAt: row.token_expires_at ? new Date(row.token_expires_at) : null,
+    providerUserId: row.provider_user_id ?? null,
+    username: row.username ?? null,
+  };
+}
+
+/** Refresh + persist in the callback's shape (DELETE + INSERT, identity
+    fields preserved). Any refresh failure becomes ONE sanitized
+    reconnect error — the caller never proceeds on a dead token. */
+async function refreshToolostStoredTokens(
+  userId: string,
+  cfg: NonNullable<ReturnType<typeof toolostOAuthConfig>>,
+  current: ToolostStoredTokens,
+): Promise<ToolostStoredTokens> {
+  if (!current.refreshToken) {
+    throw new TooLostApiError(TOOLOST_RECONNECT_MESSAGE, undefined, TOOLOST_REFRESH_FAILED);
+  }
+  let tokens: ToolostTokens;
+  try {
+    tokens = await refreshToolostTokens(cfg, current.refreshToken);
+  } catch {
+    throw new TooLostApiError(TOOLOST_RECONNECT_MESSAGE, undefined, TOOLOST_REFRESH_FAILED);
+  }
+  const expiresAt = tokens.expiresAt ? tokens.expiresAt.toISOString() : null;
+  await db.execute(sql`DELETE FROM social_accounts WHERE user_id = ${userId} AND platform = 'toolost'`);
+  await db.execute(sql`INSERT INTO social_accounts (id, user_id, platform, provider_user_id, username, access_token_encrypted, refresh_token_encrypted, token_expires_at)
+    VALUES (${randomUUID()}, ${userId}, 'toolost', ${current.providerUserId}, ${current.username}, ${encryptToken(tokens.accessToken)}, ${tokens.refreshToken ? encryptToken(tokens.refreshToken) : null}, ${expiresAt})`);
+  return {
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    expiresAt: tokens.expiresAt,
+    providerUserId: current.providerUserId,
+    username: current.username,
+  };
+}
+
+async function markToolostSubmission(releaseId: string, state: string, failureReason: string | null): Promise<void> {
+  await db.execute(sql`UPDATE distribution_toolost_submissions SET state = ${state}, failure_reason = ${failureReason}, updated_at = now() WHERE release_id = ${releaseId}`);
+}
+
+function toolostSubmissionDto(row: Record<string, unknown>) {
+  return {
+    id: row["id"],
+    releaseId: row["release_id"],
+    providerReleaseId: row["provider_release_id"] ?? null,
+    state: row["state"],
+    failureReason: row["failure_reason"] ?? null,
+    aiDeclaration: row["ai_declaration"] ?? null,
+    updatedAt: row["updated_at"] ?? null,
+  };
+}
+
+/** File name + content type for an upload, from OUR stored file's URL —
+    the distributor accepts FLAC/WAV/MP3 audio and JPG/PNG artwork. */
+function toolostUploadFile(url: string, kind: "audio" | "artwork"): { fileName: string; contentType: string } {
+  const path = url.split(/[?#]/)[0] ?? "";
+  const ext = (path.split(".").pop() ?? "").toLowerCase();
+  if (kind === "artwork") {
+    if (ext === "png") return { fileName: "cover.png", contentType: "image/png" };
+    if (ext === "webp") return { fileName: "cover.webp", contentType: "image/webp" };
+    return { fileName: "cover.jpg", contentType: "image/jpeg" };
+  }
+  if (ext === "flac") return { fileName: "track-audio.flac", contentType: "audio/flac" };
+  if (ext === "mp3") return { fileName: "track-audio.mp3", contentType: "audio/mpeg" };
+  if (ext === "m4a") return { fileName: "track-audio.m4a", contentType: "audio/mp4" };
+  if (ext === "wav") return { fileName: "track-audio.wav", contentType: "audio/wav" };
+  return { fileName: "track-audio.wav", contentType: "audio/wav" };
+}
+
+router.get("/distribution/toolost/submissions", requireAuth, async (req, res) => {
+  try {
+    const tokens = toolostConfigured() ? await loadToolostStoredTokens(req.userId!).catch(() => null) : null;
+    const r = await db.execute(sql`SELECT * FROM distribution_toolost_submissions WHERE user_id = ${req.userId!} ORDER BY updated_at DESC`);
+    res.json({
+      configured: toolostConfigured(),
+      connected: Boolean(tokens),
+      submissions: (r.rows as Array<Record<string, unknown>>).map(toolostSubmissionDto),
+    });
+  } catch (err) { logger.error({ err }, "[stack11] toolost submissions list failed"); res.status(500).json({ error: "Couldn't load your delivery submissions." }); }
+});
+
+router.post("/distribution/toolost/releases/:id/submit", requireAuth, async (req, res) => {
+  const releaseId = param(req, "id");
+  const userId = req.userId!;
+  const cfg = toolostOAuthConfig();
+  if (!cfg || !isSocialTokenKeyConfigured()) {
+    res.status(503).json({ error: "not_configured", message: "Release delivery isn't switched on yet — this release stays a draft here, and nothing was sent." });
+    return;
+  }
+  let submissionOpen = false;
+  try {
+    /* The release — owned by the caller, with everything the package
+       needs. A missing/foreign release is a plain 404. */
+    const rr = await db.execute(sql`SELECT id, title, artist_name, audio_url, artwork_url, release_type, tracks, genre, explicit, label_imprint, copyright_c_line, copyright_p_line, upc, isrc, release_date, song_id FROM distribution_releases WHERE id = ${releaseId} AND user_id = ${userId} LIMIT 1`);
+    const release = rr.rows[0] as Record<string, any> | undefined;
+    if (!release) { res.status(404).json({ error: "Release not found." }); return; }
+
+    /* One live attempt per release; a finished one isn't resent. */
+    const existing = await db.execute(sql`SELECT * FROM distribution_toolost_submissions WHERE release_id = ${releaseId} LIMIT 1`);
+    const prior = existing.rows[0] as Record<string, any> | undefined;
+    if (prior?.state === "submitting") {
+      res.status(409).json({ error: "submission_in_flight", message: "This release is already being sent — give it a moment, then check its delivery state here." });
+      return;
+    }
+    if (prior?.state === "in_review") {
+      res.status(409).json({ error: "already_in_review", message: "This release is already with the distributor for review — it isn't sent twice." });
+      return;
+    }
+
+    /* ── AI declaration — validated BEFORE anything else moves ── */
+    const decl = (req.body as Record<string, unknown> | undefined)?.["aiDeclaration"] as Record<string, unknown> | undefined;
+    if (!decl || typeof decl !== "object" || typeof decl["isAiGenerated"] !== "boolean") {
+      res.status(400).json({ error: "ai_declaration_required", message: "Say whether this release is AI-generated before it ships — the declaration travels with the release to the distributor." });
+      return;
+    }
+    const declaredAi = decl["isAiGenerated"] as boolean;
+    let documentation: ToolostAiDocumentation | null = null;
+    if (declaredAi) {
+      const rawDoc = decl["aiDocumentation"] as Record<string, unknown> | undefined;
+      const fileName = typeof rawDoc?.["fileName"] === "string" ? (rawDoc["fileName"] as string).trim() : "";
+      const fileUrl = typeof rawDoc?.["fileUrl"] === "string" ? (rawDoc["fileUrl"] as string).trim() : "";
+      if (!fileName || fileName.length > 255 || !/^https?:\/\//i.test(fileUrl)) {
+        res.status(400).json({ error: "ai_documentation_required", message: "AI-generated releases ship with their rights documentation — add the document's name and a link to it, then send again." });
+        return;
+      }
+      documentation = { fileName, fileUrl };
+    }
+    /* Our records win: a song made by the site's pipeline IS AI,
+       whatever the declaration says (songs.source — schema comment:
+       anything but 'upload' came out of the site's AI pipeline). */
+    let recordsAi = false;
+    if (release.song_id) {
+      const sr = await db.execute(sql`SELECT source FROM songs WHERE id = ${release.song_id} AND user_id = ${userId} LIMIT 1`);
+      const source = (sr.rows[0] as { source?: string } | undefined)?.source;
+      recordsAi = typeof source === "string" && source !== "upload";
+    }
+    if (recordsAi && !declaredAi) {
+      res.status(400).json({ error: "ai_declaration_conflict", message: "Our records show this release was made with AI here, so it can't be declared non-AI — set the AI declaration and attach the rights documentation to send it." });
+      return;
+    }
+    const effectiveAi = declaredAi || recordsAi;
+    if (effectiveAi && !documentation) {
+      res.status(400).json({ error: "ai_documentation_required", message: "AI-generated releases ship with their rights documentation — add the document's name and a link to it, then send again." });
+      return;
+    }
+
+    if (!release.audio_url) {
+      res.status(400).json({ error: "no_audio", message: "This release has no audio file yet — add the track audio before sending it out." });
+      return;
+    }
+
+    /* The connection — tokens from the stored encrypted row only. */
+    let tokens = await loadToolostStoredTokens(userId);
+    if (!tokens) {
+      res.status(409).json({ error: "connect_required", message: "Connect your delivery account first — sending a release out needs the connection.", connectRequired: true });
+      return;
+    }
+
+    /* Open (or reopen) the submission record in 'submitting'. The
+       provider id from a prior attempt survives the upsert, so the
+       pipeline below reuses that draft. */
+    const aiDeclaration = { isAiGenerated: effectiveAi, aiDocumentation: documentation };
+    await db.execute(sql`INSERT INTO distribution_toolost_submissions (id, release_id, user_id, state, failure_reason, ai_declaration)
+      VALUES (${randomUUID()}, ${releaseId}, ${userId}, 'submitting', NULL, ${JSON.stringify(aiDeclaration)}::jsonb)
+      ON CONFLICT (release_id) DO UPDATE SET state = 'submitting', failure_reason = NULL, ai_declaration = ${JSON.stringify(aiDeclaration)}::jsonb, updated_at = now()`);
+    submissionOpen = true;
+
+    /* Expired (or about to be): refresh FIRST, never submit dead. */
+    if (tokens.expiresAt && tokens.expiresAt.getTime() <= Date.now() + 60_000) {
+      tokens = await refreshToolostStoredTokens(userId, cfg, tokens);
+    }
+
+    /* One forced refresh + retry if the provider still says 401. */
+    let retried401 = false;
+    const callApi = async <T,>(fn: (accessToken: string) => Promise<T>): Promise<T> => {
+      try {
+        return await fn(tokens!.accessToken);
+      } catch (err) {
+        if (err instanceof TooLostApiError && err.toolostStatus === 401 && !retried401) {
+          retried401 = true;
+          tokens = await refreshToolostStoredTokens(userId, cfg, tokens!);
+          return fn(tokens.accessToken);
+        }
+        throw err;
+      }
+    };
+
+    /* 1 — provider draft (reused on retry via the stored id). */
+    let providerReleaseId = typeof prior?.provider_release_id === "string" ? prior.provider_release_id : null;
+    if (!providerReleaseId) {
+      providerReleaseId = await callApi((t) => createToolostRelease(t));
+      await db.execute(sql`UPDATE distribution_toolost_submissions SET provider_release_id = ${providerReleaseId}, updated_at = now() WHERE release_id = ${releaseId}`);
+    }
+
+    /* 2 — audio: our stored file's bytes ride the pre-signed PUT. The
+       release carries ONE audio file (the packaging door maps it onto
+       every track the same way), so it uploads once and its key is
+       attached to each track. */
+    const audioFile = toolostUploadFile(String(release.audio_url), "audio");
+    const audioSigned = await refreshSupabaseStorageUrl(String(release.audio_url));
+    const audioSource = await fetchToolostSourceFile(audioSigned, "We couldn't read this release's audio file — check the file and try again.");
+    const audioTicket = await callApi((t) => requestToolostTrackUploadUrl(t, providerReleaseId!, audioFile));
+    await uploadToolostBytes(audioTicket, audioSource.bytes);
+
+    /* Artwork, same flow — never coverUrl alongside a coverFileKey
+       (their docs forbid the pair; the uploaded key wins). */
+    let coverFileKey: string | undefined;
+    if (release.artwork_url) {
+      const artFile = toolostUploadFile(String(release.artwork_url), "artwork");
+      const artSigned = await refreshSupabaseStorageUrl(String(release.artwork_url));
+      const artSource = await fetchToolostSourceFile(artSigned, "We couldn't read this release's cover artwork — check the file and try again.");
+      const artTicket = await callApi((t) => requestToolostArtworkUploadUrl(t, providerReleaseId!, artFile));
+      await uploadToolostBytes(artTicket, artSource.bytes);
+      coverFileKey = artTicket.fileKey;
+    }
+
+    /* 3 — attach the audio key to every track on the release. */
+    const rawTracks = Array.isArray(release.tracks) ? (release.tracks as Array<Record<string, unknown>>) : [];
+    const trackAttach = (rawTracks.length > 0 ? rawTracks : [{ title: release.title, isrc: release.isrc }]).map((t) => ({
+      title: typeof t["title"] === "string" && t["title"] ? (t["title"] as string) : String(release.title),
+      ...(typeof t["isrc"] === "string" && t["isrc"] ? { isrc: t["isrc"] as string } : {}),
+      audioFileKey: audioTicket.fileKey,
+    }));
+    await callApi((t) => attachToolostTracks(t, providerReleaseId!, trackAttach));
+
+    /* 4 — metadata, ALWAYS with the AI declaration. */
+    await callApi((t) => patchToolostReleaseMetadata(t, providerReleaseId!, {
+      title: String(release.title),
+      ...(release.artist_name ? { artistName: String(release.artist_name) } : {}),
+      ...(release.release_date ? { releaseDate: String(release.release_date).slice(0, 10) } : {}),
+      ...(release.genre ? { genre: String(release.genre) } : {}),
+      explicit: Boolean(release.explicit),
+      ...(release.label_imprint ? { label: String(release.label_imprint) } : {}),
+      ...((release.copyright_c_line ?? release.copyright_p_line) ? { copyright: String(release.copyright_c_line ?? release.copyright_p_line) } : {}),
+      ...(release.upc ? { upc: String(release.upc) } : {}),
+      ...(release.isrc ? { isrc: String(release.isrc) } : {}),
+      ...(coverFileKey ? { coverFileKey } : {}),
+      isAiGenerated: effectiveAi,
+      ...(effectiveAi && documentation ? { aiDocumentation: documentation } : {}),
+    }));
+
+    /* 5 — into review. */
+    await callApi((t) => submitToolostRelease(t, providerReleaseId!));
+
+    await markToolostSubmission(releaseId, "in_review", null);
+    const done = await db.execute(sql`SELECT * FROM distribution_toolost_submissions WHERE release_id = ${releaseId} LIMIT 1`);
+    res.json({
+      submission: toolostSubmissionDto(done.rows[0] as Record<string, unknown>),
+      notice: "Sent — your release is with the distributor for review. Its delivery state lives here; nothing about it is live until the distributor says so.",
+    });
+  } catch (err) {
+    if (err instanceof TooLostApiError) {
+      if (submissionOpen) await markToolostSubmission(releaseId, "failed", err.userMessage).catch(() => {});
+      if (err.toolostReason === TOOLOST_REFRESH_FAILED) {
+        res.status(409).json({ error: "toolost_reconnect", message: err.userMessage, connectRequired: true });
+        return;
+      }
+      res.status(502).json({ error: "delivery_failed", message: err.userMessage });
+      return;
+    }
+    logger.error({ err }, "[stack11] toolost release submit failed");
+    if (submissionOpen) await markToolostSubmission(releaseId, "failed", "Something went wrong on our side while sending this release — try again.").catch(() => {});
+    res.status(500).json({ error: "Couldn't submit the release — try again." });
+  }
 });
 
 /* ═══ #3 Splits accounting depth: per-payee statements ══════════════════ */
