@@ -17,8 +17,8 @@
  *     totalEstimate, notes (≤5) }.
  *
  * PRICE: both rails are 100 Visual Bucs, pinned from the
- * registry rows ("/api/llc-guide/ask" = "LLC Guide Q&A",
- * "/api/llc-guide/plan" = "LLC Guide Filing Plan") — matching
+ * registry rows ("/api/llc-guide/ask" = "LLC Guide Answer",
+ * "/api/llc-guide/plan" = "LLC Guide Plan") — matching
  * the route's LLC_GUIDE_CREDIT_COST and the page's badges. The
  * desk runs both through the World's confirmed-spend seam
  * (the page's unconfirmed post is NOT copied): a decline runs
@@ -34,8 +34,8 @@ import { getCreditCost } from "../credit-costs";
 
 export const LLC_ASK_PATH = "/api/llc-guide/ask";
 export const LLC_PLAN_PATH = "/api/llc-guide/plan";
-export const LLC_FEATURE_ASK = "LLC Guide Q&A";
-export const LLC_FEATURE_PLAN = "LLC Guide Filing Plan";
+export const LLC_FEATURE_ASK = "LLC Guide Answer";
+export const LLC_FEATURE_PLAN = "LLC Guide Plan";
 
 function registryCost(path: string): number {
   const row = getCreditCost(path);

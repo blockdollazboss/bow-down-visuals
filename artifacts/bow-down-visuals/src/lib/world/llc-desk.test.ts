@@ -34,8 +34,8 @@ const apiSrc = (rel: string) =>
 
 describe("prices — registry-pinned, route-matched", () => {
   it("ask and plan are both 100 from the registry", () => {
-    expect(getCreditCost(LLC_ASK_PATH)).toMatchObject({ feature: "LLC Guide Q&A", cost: 100 });
-    expect(getCreditCost(LLC_PLAN_PATH)).toMatchObject({ feature: "LLC Guide Filing Plan", cost: 100 });
+    expect(getCreditCost(LLC_ASK_PATH)).toMatchObject({ feature: "LLC Guide Answer", cost: 100 });
+    expect(getCreditCost(LLC_PLAN_PATH)).toMatchObject({ feature: "LLC Guide Plan", cost: 100 });
     expect(LLC_ASK_COST).toBe(100);
     expect(LLC_PLAN_COST).toBe(100);
     const route = apiSrc("routes/generate/llc-guide.ts");
