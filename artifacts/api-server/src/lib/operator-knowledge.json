@@ -1,20 +1,20 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "1e7d03acd30ec7e99a531ba7dc77bfd1c84f6f15",
+  "baseCommit": "08913dd4b92e8c0f6e783c97f85fa99ad52a1ee1",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-02",
+  "generatedAt": "2026-11-03",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
     "features": 251,
     "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 217,
+    "pricedActions": 219,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
@@ -22,8 +22,8 @@
     "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 430,
-    "serverEndpoints": 1728,
-    "serverEndpointsVisible": 1066,
+    "serverEndpoints": 1732,
+    "serverEndpointsVisible": 1070,
     "serverFilesClassified": 100
   },
   "packs": [
@@ -1174,6 +1174,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -1410,6 +1416,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -1639,6 +1651,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -1859,6 +1877,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2085,6 +2109,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -2305,6 +2335,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2535,6 +2571,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -2759,6 +2801,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -2992,6 +3040,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -3215,6 +3269,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -3421,6 +3481,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -3654,6 +3720,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Generate Podcast",
           "vb": 300,
           "endpoint": "/api/podcast/generate",
@@ -3883,6 +3955,12 @@
           "feature": "Mix — Stems (Mix & Master)",
           "vb": 1500,
           "endpoint": "/api/mix-master/mix",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Podcast Dialogue",
+          "vb": 300,
+          "endpoint": "/api/podcast/dialogue",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4419,6 +4497,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4487,6 +4566,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4550,6 +4635,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4618,6 +4704,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4681,6 +4773,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4749,6 +4842,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4812,6 +4911,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -4880,6 +4980,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -4944,6 +5050,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render",
         "/api/wave8/merch-drop/plan"
@@ -5022,6 +5129,12 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
           "feature": "Wallpaper Render (branded — free)",
           "vb": 0,
           "endpoint": "/api/wallpapers/render",
@@ -5088,6 +5201,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -5156,6 +5270,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -5219,6 +5339,7 @@
         "/api/stream-pack/catalog",
         "/api/stream-pack/generate",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -5287,6 +5408,12 @@
           "feature": "Stream Pack Generator",
           "vb": 100,
           "endpoint": "/api/stream-pack/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6080,6 +6207,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6112,7 +6240,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6136,6 +6283,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6192,6 +6345,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6224,7 +6378,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6248,6 +6421,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6323,6 +6502,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6355,7 +6535,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6379,6 +6578,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6453,6 +6658,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6485,7 +6691,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6509,6 +6734,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6571,6 +6802,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6634,7 +6866,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6688,6 +6939,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6768,6 +7025,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -6800,7 +7058,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6824,6 +7101,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -6900,6 +7183,7 @@
         "/api/transcribe",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render",
         "/api/wave9d/camera/prompt",
@@ -6940,7 +7224,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6964,6 +7267,12 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7037,6 +7346,7 @@
       "endpoints": [
         "/api/generate-artist-image",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -7045,6 +7355,12 @@
           "feature": "Generate Artist Image (Pro)",
           "vb": 200,
           "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -8448,6 +8764,8 @@
         "/api/admin/status",
         "/api/credits/claim-trial",
         "/api/groups/:param",
+        "/api/groups/:param/bans",
+        "/api/groups/:param/bans/:param",
         "/api/groups/:param/broadcast",
         "/api/groups/:param/feed",
         "/api/groups/:param/forum/channels",
@@ -8466,6 +8784,7 @@
         "/api/groups/:param/my-role",
         "/api/groups/:param/posts",
         "/api/groups/:param/posts/:param",
+        "/api/groups/:param/transfer",
         "/api/referrals/apply",
         "/api/referrals/me"
       ],
@@ -17341,8 +17660,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/community.ts",
-        "endpoints": 31,
-        "visible": 29,
+        "endpoints": 34,
+        "visible": 32,
         "unseen": [
           "/api/dm/:id/draft",
           "/api/profiles/resolve"
@@ -20710,8 +21029,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/wallpapers.ts",
-        "endpoints": 4,
-        "visible": 3,
+        "endpoints": 5,
+        "visible": 4,
         "unseen": [
           "/api/wallpapers/presets"
         ]
