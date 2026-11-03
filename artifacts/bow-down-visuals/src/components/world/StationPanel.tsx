@@ -179,6 +179,7 @@ const MyProfileDesk = lazy(() => import("@/components/world/native/SocialWave2")
 const GroupsDesk = lazy(() => import("@/components/world/native/GroupsDesk").then((m) => ({ default: m.GroupsDesk })));
 const EventsDesk = lazy(() => import("@/components/world/native/EventsDesk").then((m) => ({ default: m.EventsDesk })));
 const CollabsDesk = lazy(() => import("@/components/world/native/CollabsDesk").then((m) => ({ default: m.CollabsDesk })));
+const ScenesDesk = lazy(() => import("@/components/world/native/ScenesDesk").then((m) => ({ default: m.ScenesDesk })));
 const GamesPanel = lazy(() => import("@/components/world/native/GamesPanels").then((m) => ({ default: m.GamesPanel })));
 const CreatorRoomsDirectory = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomsDirectory })));
 const CreatorRoomStation = lazy(() => import("@/components/world/native/CreatorRooms").then((m) => ({ default: m.CreatorRoomStation })));
@@ -1098,6 +1099,14 @@ export default function StationPanel(props: StationPanelProps) {
                       /api/collabs rails, in the room. */}
                   <DeskDoor isLight={isLight}>
                     <CollabsDesk isLight={isLight} isGuest={isGuest} />
+                  </DeskDoor>
+                  {/* Local Scenes (stack1500 parity wave #3): the
+                      declared-city directory + each city's page —
+                      creators, shows, scene chart — on the public
+                      /api/discovery/scenes rails, in the room for
+                      members and guests alike. */}
+                  <DeskDoor isLight={isLight}>
+                    <ScenesDesk isLight={isLight} />
                   </DeskDoor>
                 </div>
               ) : (
