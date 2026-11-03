@@ -101,6 +101,12 @@ import {
   NO_PIXELS,
   type CommercePixels,
 } from "../../lib/commerce-pixels";
+import {
+  SHOP_LAYOUT_STYLES,
+  SHOP_FONT_STYLES,
+  sanitizeShopDesign,
+  type ShopDesign,
+} from "../../lib/shop-design";
 
 /* Commerce tracking pixels (wave-4 #41, migration 0240): the shop
    owner's own Meta/TikTok/Google IDs on the shops row — same probe
@@ -123,6 +129,35 @@ async function shopsHavePixels(): Promise<boolean> {
     shopPixelColsKnown = false;
   }
   return shopPixelColsKnown;
+}
+
+/* Shop layout + font settings (migration 0320, store-starters lane):
+   the same probe discipline as the pixel columns above. Reads present
+   the sanitized design pair (defaults = today's exact storefront
+   look) whether or not the columns have landed; a design WRITE
+   before the migration answers 503 instead of silently dropping a
+   layout/font setting. */
+let shopDesignColsKnown: boolean | null = null;
+async function shopsHaveDesign(): Promise<boolean> {
+  if (shopDesignColsKnown !== null) return shopDesignColsKnown;
+  try {
+    const r = await db.execute(sql`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'shops' AND column_name = 'layout_style'
+      LIMIT 1
+    `);
+    shopDesignColsKnown = r.rows.length > 0;
+  } catch {
+    shopDesignColsKnown = false;
+  }
+  return shopDesignColsKnown;
+}
+
+/** A shop row with its presented design pair: the raw layout_style /
+ *  font_style keys replaced by the sanitized values (defaults when
+ *  the columns are absent or a stored value is bent). */
+function withShopDesign<T extends { layout_style?: unknown; font_style?: unknown }>(row: T): T & ShopDesign {
+  return { ...row, ...sanitizeShopDesign(row) };
 }
 
 /** The shop's pixels for a public/checkout surface: sanitized (bent
@@ -373,6 +408,11 @@ const updateShopSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   banner_color: z.string().regex(HEX_COLOR, "Must be a hex color like #0a0a0a.").optional(),
   accent_color: z.string().regex(HEX_COLOR, "Must be a hex color like #d4af37.").optional(),
+  /* Layout + font settings (migration 0320): closed vocabularies
+     (lib/shop-design) — anything outside them is refused here, before
+     any mutation, so a bent layout/font can never be stored. */
+  layout_style: z.enum(SHOP_LAYOUT_STYLES).optional(),
+  font_style: z.enum(SHOP_FONT_STYLES).optional(),
   /* The one field on this rail with explicit-clear semantics: a present
      key sets the banner (null or "" removes it); an absent key keeps it.
      Every other field stays COALESCE-keep, as partial saves rely on it. */
@@ -472,6 +512,11 @@ interface ShopRow {
   description: string | null;
   banner_color: string;
   accent_color: string;
+  /* Layout + font settings (migration 0320) — optional: selects
+     include the columns only once the migration lands; every payload
+     presents the sanitized pair via withShopDesign/sanitizeShopDesign. */
+  layout_style?: string | null;
+  font_style?: string | null;
   banner_image_url: string | null;
   custom_domain: string | null;
   domain_verified: boolean;
@@ -533,7 +578,7 @@ interface ProductRow {
 async function getOwnedShop(shopId: string, userId: string): Promise<ShopRow | null> {
   const result = await db.execute(sql`
     SELECT id, user_id, name, handle, tagline, description,
-           banner_color, accent_color, banner_image_url,
+           banner_color, accent_color${await shopsHaveDesign() ? sql`, layout_style, font_style` : sql``}, banner_image_url,
            custom_domain, domain_verified, domain_verification_token${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``},
            created_at, updated_at
     FROM shops
@@ -541,7 +586,7 @@ async function getOwnedShop(shopId: string, userId: string): Promise<ShopRow | n
     LIMIT 1
   `);
   const rows = result.rows as unknown as ShopRow[];
-  return rows[0] ? await presentShopRow(rows[0]) : null;
+  return rows[0] ? await presentShopRow(withShopDesign(rows[0])) : null;
 }
 
 async function productCount(shopId: string): Promise<number> {
@@ -784,7 +829,7 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
   const userId = req.userId!;
   const result = await db.execute(sql`
     SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
-           s.banner_color, s.accent_color, s.banner_image_url,
+           s.banner_color, s.accent_color${await shopsHaveDesign() ? sql`, s.layout_style, s.font_style` : sql``}, s.banner_image_url,
            s.custom_domain, s.domain_verified${await shopsHavePixels() ? sql`, s.meta_pixel_id, s.tiktok_pixel_id, s.google_tag_id` : sql``},
            s.created_at, s.updated_at
     FROM shops s
@@ -807,6 +852,7 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
     shops: await Promise.all(
       (result.rows as unknown as Array<{ id: string; banner_image_url: string | null }>).map(async (s) => ({
         ...(await presentShopRow(s)),
+        ...sanitizeShopDesign(s as Parameters<typeof sanitizeShopDesign>[0]),
         pixels: sanitizeCommercePixels(s as Parameters<typeof sanitizeCommercePixels>[0]),
         product_count: byShop.get(s.id) ?? 0,
       })),
@@ -953,6 +999,27 @@ router.patch("/shops/:id", requireAuth, publicApiLimiter, async (req, res) => {
     }
     nextPixels = cleaned.value;
   }
+  /* Layout + font settings (migration 0320): resolved BEFORE any
+     mutation, like the pixels — a design write on a pre-migration
+     install answers an honest 503 and saves nothing at all. A partial
+     design save (only one axis sent) resolves against the shop's
+     CURRENT sanitized design, so the unsent axis never moves. */
+  const designTouched = d.layout_style !== undefined || d.font_style !== undefined;
+  let nextDesign: ShopDesign | null = null;
+  if (designTouched) {
+    if (!(await shopsHaveDesign())) {
+      res.status(503).json({
+        error: "shop_design_not_ready",
+        message: "Shop layout and font settings aren't switched on for this install yet — nothing was saved.",
+      });
+      return;
+    }
+    const current = sanitizeShopDesign(shop);
+    nextDesign = {
+      layout_style: d.layout_style ?? current.layout_style,
+      font_style: d.font_style ?? current.font_style,
+    };
+  }
   /* Banner: key absent → keep the stored image; key present → the new
      value wins, mirrored on save like every other external media URL;
      null/"" clears it (the storefront falls back to the banner color). */
@@ -970,7 +1037,9 @@ router.patch("/shops/:id", requireAuth, publicApiLimiter, async (req, res) => {
       banner_image_url = ${bannerTouched ? sql`${bannerImageUrl}` : sql`banner_image_url`}${nextPixels ? sql`,
       meta_pixel_id = ${nextPixels.metaPixelId},
       tiktok_pixel_id = ${nextPixels.tiktokPixelId},
-      google_tag_id = ${nextPixels.googleTagId}` : sql``},
+      google_tag_id = ${nextPixels.googleTagId}` : sql``}${nextDesign ? sql`,
+      layout_style = ${nextDesign.layout_style},
+      font_style = ${nextDesign.font_style}` : sql``},
       updated_at = NOW()
     WHERE id = ${shop.id}
   `);
@@ -996,7 +1065,7 @@ router.get("/shops/handle/:handle", async (req, res) => {
   const handle = normalizeHandle(req.params.handle);
   const shopResult = await db.execute(sql`
     SELECT id, name, handle, tagline, description,
-           banner_color, accent_color, banner_image_url, created_at${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``}
+           banner_color, accent_color${await shopsHaveDesign() ? sql`, layout_style, font_style` : sql``}, banner_image_url, created_at${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``}
     FROM shops
     WHERE handle = ${handle}
     LIMIT 1
@@ -1045,7 +1114,9 @@ router.get("/shops/handle/:handle", async (req, res) => {
     meta_pixel_id?: string | null; tiktok_pixel_id?: string | null; google_tag_id?: string | null;
   };
   res.json({
-    shop: await presentShopRow(publicShopRow as typeof shop),
+    /* The presented design pair rides the shop payload (sanitized —
+       defaults pre-migration or on a bent stored value). */
+    shop: await presentShopRow({ ...(publicShopRow as typeof shop), ...sanitizeShopDesign(shop) }),
     pixels: sanitizeCommercePixels(shop as Parameters<typeof sanitizeCommercePixels>[0]),
     products: await Promise.all(
       productRows.map(async (p) => {
@@ -2114,7 +2185,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
   const slug = (Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug ?? "").toLowerCase();
   const shopResult = await db.execute(sql`
     SELECT id, user_id, name, handle, tagline, description,
-           banner_color, accent_color, banner_image_url,
+           banner_color, accent_color${await shopsHaveDesign() ? sql`, layout_style, font_style` : sql``}, banner_image_url,
            custom_domain, domain_verified, created_at${await shopsHavePixels() ? sql`, meta_pixel_id, tiktok_pixel_id, google_tag_id` : sql``}
     FROM shops
     WHERE handle = ${slug}
@@ -2124,7 +2195,7 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
   if (shops.length === 0) {
     const byProfileResult = await db.execute(sql`
       SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
-             s.banner_color, s.accent_color, s.banner_image_url,
+             s.banner_color, s.accent_color${await shopsHaveDesign() ? sql`, s.layout_style, s.font_style` : sql``}, s.banner_image_url,
              s.custom_domain, s.domain_verified, s.created_at${await shopsHavePixels() ? sql`, s.meta_pixel_id, s.tiktok_pixel_id, s.google_tag_id` : sql``}
       FROM shops s
       JOIN creator_profiles cp ON cp.user_id = s.user_id
@@ -2188,7 +2259,9 @@ router.get("/storefronts/slug/:slug", async (req, res) => {
     };
   });
   res.json(await refreshSupabaseStorageUrlsDeep({
-    shop: publicShop,
+    /* The presented design pair rides the shop payload (sanitized —
+       defaults pre-migration or on a bent stored value). */
+    shop: { ...publicShop, ...sanitizeShopDesign(shop as Parameters<typeof sanitizeShopDesign>[0]) },
     /* Commerce pixels (wave-4 #41): sanitized object only — raw
        columns were stripped above. All null = the page fires nothing. */
     pixels: sanitizeCommercePixels(shop as Parameters<typeof sanitizeCommercePixels>[0]),
