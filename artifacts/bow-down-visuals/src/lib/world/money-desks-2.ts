@@ -136,8 +136,18 @@ export interface BeatDto {
   premiumPriceCents: number;
   exclusivePriceCents: number;
   exclusiveSold: boolean;
+  /** Boolean only (stack1400 ruling #2): whether stems are on file.
+      The stems URL never rides a public read; this flag is what lets
+      the desk mark stems-format offers unavailable, mirroring the
+      server's offers shelf. */
+  hasStems: boolean;
   plays: number;
   licenseTemplates: BeatLicenseTemplate[];
+}
+
+/** A license format that promises the buyer the separate track stems. */
+export function isStemsLicenseFormat(format: string): boolean {
+  return format === "wav_mp3_stems" || format === "ownership_stems";
 }
 
 function parseTemplate(raw: unknown): BeatLicenseTemplate | null {
@@ -202,6 +212,13 @@ export function parseBeat(raw: unknown): BeatDto | null {
     premiumPriceCents: num(raw["premium_price_cents"]) ?? 0,
     exclusivePriceCents: num(raw["exclusive_price_cents"]) ?? 0,
     exclusiveSold: raw["exclusive_sold"] === true,
+    /* The server's has_stems boolean is the source; an unmasked
+       stems_url/stems_path (the producer's own dashboard rows) also
+       proves stems are on file. */
+    hasStems:
+      raw["has_stems"] === true ||
+      (typeof raw["stems_url"] === "string" && raw["stems_url"].length > 0) ||
+      (typeof raw["stems_path"] === "string" && raw["stems_path"].length > 0),
     plays: num(raw["plays"]) ?? 0,
     licenseTemplates: templates,
   };
@@ -232,6 +249,11 @@ interface BeatTierOffer {
   termsLine: string;
   priceCents: number;
   soldOut: boolean;
+  /** True when this offer is unavailable specifically because its
+      format includes stems and the beat has none on file (ruling
+      #2) — distinct from soldOut-by-exclusive-sale so the desk can
+      say "No stems on file" instead of "Sold out". */
+  stemsBlocked: boolean;
 }
 
 export function beatTierOffers(beat: BeatDto): BeatTierOffer[] {
@@ -240,11 +262,18 @@ export function beatTierOffers(beat: BeatDto): BeatTierOffer[] {
     { key: "premium", label: "Premium", blurb: "2 music videos · 500k streams", priceCents: beat.premiumPriceCents },
     { key: "exclusive", label: "Exclusive", blurb: "Full ownership · stems · unlimited", priceCents: beat.exclusivePriceCents },
   ];
-  return tiers.map((t) => ({
-    ...t,
-    termsLine: describeTermsInline(defaultTermsForTier(t.key)),
-    soldOut: beat.exclusiveSold,
-  }));
+  return tiers.map((t) => {
+    /* Mirror of the server's available flag (ruling #2): a
+       stems-format tier (Exclusive = ownership_stems) is unavailable
+       when the beat has no stems on file; other tiers stay buyable. */
+    const stemsBlocked = isStemsLicenseFormat(defaultTermsForTier(t.key).format) && !beat.hasStems;
+    return {
+      ...t,
+      termsLine: describeTermsInline(defaultTermsForTier(t.key)),
+      soldOut: beat.exclusiveSold || stemsBlocked,
+      stemsBlocked,
+    };
+  });
 }
 
 /** A custom template as a license offer — under the same whole-market
@@ -253,15 +282,32 @@ export function beatTierOffers(beat: BeatDto): BeatTierOffer[] {
  *  modal disables every template on a sold beat and the server 409s
  *  the POST. */
 export function beatTemplateOffer(beat: BeatDto, tpl: BeatLicenseTemplate): {
-  id: string; name: string; priceCents: number; termsLine: string; soldOut: boolean;
+  id: string; name: string; priceCents: number; termsLine: string; soldOut: boolean; stemsBlocked: boolean;
 } {
+  /* Same mirror as the tiers: a stems-format template is unavailable
+     when the beat has no stems on file (ruling #2). */
+  const stemsBlocked = isStemsLicenseFormat(tpl.format) && !beat.hasStems;
   return {
     id: tpl.id,
     name: tpl.name,
     priceCents: tpl.priceCents,
     termsLine: describeTermsInline(templateTerms(tpl)),
-    soldOut: beat.exclusiveSold,
+    soldOut: beat.exclusiveSold || stemsBlocked,
+    stemsBlocked,
   };
+}
+
+/** Is the desk's currently selected offer (a tier key, or
+ *  "tpl:<id>" for a template) unavailable on this beat — by the
+ *  exclusive sale OR by the stems guard (ruling #2)? The desk's buy
+ *  button disables on this, mirroring the server's available flag. */
+export function beatSelectedOfferUnavailable(beat: BeatDto, offerKey: string): boolean {
+  if (offerKey.startsWith("tpl:")) {
+    const tpl = beat.licenseTemplates.find((t) => t.id === offerKey.slice(4));
+    return tpl ? beatTemplateOffer(beat, tpl).soldOut : beat.exclusiveSold;
+  }
+  const tier = beatTierOffers(beat).find((o) => o.key === offerKey);
+  return tier ? tier.soldOut : beat.exclusiveSold;
 }
 
 /** POST /api/beats/:id/license — exactly ONE offer, the page's body:

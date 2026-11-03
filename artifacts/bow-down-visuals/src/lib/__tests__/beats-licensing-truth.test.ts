@@ -30,15 +30,40 @@ const page = read("../../pages/beats.tsx");
 const LOCALES = ["en", "ar", "de", "es", "fr", "hi", "it", "ja", "ko", "pt"];
 
 describe("C1 — the modal closes the whole shelf on a sold beat", () => {
-  it("both the tier rows and the template rows key sold-out off the beat's exclusive_sold alone", () => {
-    const occurrences = page.split("const soldOut = licenseBeat.exclusive_sold;").length - 1;
+  it("both the tier rows and the template rows key sold-out off exclusive_sold (widened by ruling #2's stems block)", () => {
+    /* Stack1400 ruling #2: soldOut is now exclusive_sold OR
+       stemsBlocked — on a sold beat both rows still always disable
+       (the first disjunct), and a stems offer on a no-stems beat
+       disables too. The old "exclusive_sold alone" pin is replaced,
+       not relaxed: the exclusive-sale closure is unchanged. */
+    const occurrences = page.split("const soldOut = licenseBeat.exclusive_sold || stemsBlocked;").length - 1;
     expect(occurrences).toBe(2);
     expect(page).not.toContain("tier.key === \"exclusive\" && licenseBeat.exclusive_sold");
     expect(page).not.toContain("tpl.isExclusive && licenseBeat.exclusive_sold");
   });
 
   it("the pay button itself is disabled on a sold beat", () => {
-    expect(page).toContain("disabled={licensing || licenseBeat.exclusive_sold}");
+    expect(page).toContain("disabled={licensing || licenseBeat.exclusive_sold || selectedStemsBlocked}");
+  });
+});
+
+describe("stack1400 rulings #2 + #3-residual — stems guard and the sold card", () => {
+  it("the modal's stems block keys off the server's has_stems boolean and the offer's format", () => {
+    expect(page).toContain("has_stems?: boolean;");
+    expect(page).toContain("function stemsOfferBlocked(beat: Beat, format: string): boolean");
+    expect(page).toContain('format === "wav_mp3_stems" || format === "ownership_stems"');
+    expect(page).toContain("const selectedStemsBlocked = licenseBeat");
+  });
+
+  it("the browse card replaces the License button with a non-button 'Sold exclusively' label on a sold beat", () => {
+    expect(page).toContain('{t("beats.soldExclusively", { defaultValue: "Sold exclusively" })}');
+    /* The label branch is a span, gated on exclusive_sold; the buy
+       button survives only in the else branch. */
+    const labelAt = page.indexOf('t("beats.soldExclusively"');
+    const buttonAt = page.indexOf('t("beats.licenseButton")', labelAt);
+    expect(labelAt).toBeGreaterThan(-1);
+    expect(buttonAt).toBeGreaterThan(labelAt);
+    expect(page).toContain("beat.exclusive_sold ? (");
   });
 });
 

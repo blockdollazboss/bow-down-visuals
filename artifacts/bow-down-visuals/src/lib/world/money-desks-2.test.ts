@@ -21,6 +21,7 @@ import {
   beatListingProblem,
   beatPatchPath,
   beatSaleStatusLabel,
+  beatSelectedOfferUnavailable,
   beatTemplateFormFromDto,
   beatTemplateProblem,
   beatTierOffers,
@@ -122,7 +123,13 @@ describe("#65 beats station logic", () => {
       ["basic", 2999], ["premium", 9999], ["exclusive", 49999],
     ]);
     expect(offers[0]!.blurb).toContain("50k streams");
-    expect(offers.every((o) => !o.soldOut)).toBe(true);
+    /* beatWire has no stems on file, so under ruling #2 the stems
+       Exclusive tier is unavailable while Basic/Premium stay open —
+       the all-open case is pinned with has_stems in the ruling-#2
+       test below. */
+    expect(offers[0]!.soldOut).toBe(false);
+    expect(offers[1]!.soldOut).toBe(false);
+    expect(offers[2]!.soldOut).toBe(true);
     const sold = parseBeat({ ...beatWire, exclusive_sold: true })!;
     expect(beatTierOffers(sold)[2]!.soldOut).toBe(true);
     const exclTpl = { ...sold.licenseTemplates[0]!, isExclusive: true };
@@ -142,6 +149,48 @@ describe("#65 beats station logic", () => {
     expect(beatTemplateOffer(sold, sold.licenseTemplates[0]!).soldOut).toBe(true);
     const open = parseBeat(beatWire)!;
     expect(beatTemplateOffer(open, open.licenseTemplates[0]!).soldOut).toBe(false);
+  });
+
+  /* Stack1400 ruling #2 (Beats OD2): the desk mirrors the server's
+     available flag — a stems-format offer (the Exclusive tier is
+     ownership_stems; a wav_mp3_stems template likewise) is
+     unavailable when the beat has no stems on file, while non-stems
+     offers stay buyable. beatWire carries no has_stems, so its beat
+     has none on file. */
+  it("stems guard: stems offers unavailable with no stems on file, non-stems unaffected (ruling #2)", () => {
+    const noStems = parseBeat(beatWire)!;
+    expect(noStems.hasStems).toBe(false);
+    const offers = beatTierOffers(noStems);
+    expect(offers.find((o) => o.key === "basic")!.soldOut).toBe(false);
+    expect(offers.find((o) => o.key === "premium")!.soldOut).toBe(false);
+    const exclusive = offers.find((o) => o.key === "exclusive")!;
+    expect(exclusive.soldOut).toBe(true);
+    expect(exclusive.stemsBlocked).toBe(true);
+
+    const stemsTpl = { ...noStems.licenseTemplates[0]!, format: "wav_mp3_stems" as const };
+    expect(beatTemplateOffer(noStems, stemsTpl).soldOut).toBe(true);
+    expect(beatTemplateOffer(noStems, stemsTpl).stemsBlocked).toBe(true);
+    /* The wire's own template is wav_mp3 — not a stems offer. */
+    expect(beatTemplateOffer(noStems, noStems.licenseTemplates[0]!).soldOut).toBe(false);
+
+    expect(beatSelectedOfferUnavailable(noStems, "basic")).toBe(false);
+    expect(beatSelectedOfferUnavailable(noStems, "exclusive")).toBe(true);
+    /* The selected-offer lookup reads the beat's OWN templates, so
+       the tpl: case needs a beat whose template is the stems one. */
+    const stemsBeat = parseBeat({
+      ...beatWire,
+      license_templates: [{ ...beatWire.license_templates[0]!, format: "wav_mp3_stems" }],
+    })!;
+    expect(beatSelectedOfferUnavailable(stemsBeat, `tpl:${stemsTpl.id}`)).toBe(true);
+    expect(beatSelectedOfferUnavailable(noStems, `tpl:${stemsTpl.id}`)).toBe(false);
+
+    const withStems = parseBeat({ ...beatWire, has_stems: true })!;
+    expect(withStems.hasStems).toBe(true);
+    expect(beatTierOffers(withStems).every((o) => !o.soldOut)).toBe(true);
+    expect(beatTemplateOffer(withStems, stemsTpl).soldOut).toBe(false);
+    expect(beatSelectedOfferUnavailable(withStems, "exclusive")).toBe(false);
+    /* An unmasked stems_url (producer dashboard rows) also proves it. */
+    expect(parseBeat({ ...beatWire, stems_url: "https://cdn.example/stems.zip" })!.hasStems).toBe(true);
   });
 
   it("license payload names exactly one offer — the page's body", () => {

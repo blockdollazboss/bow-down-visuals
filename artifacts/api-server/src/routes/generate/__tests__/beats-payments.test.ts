@@ -296,7 +296,9 @@ describe("beat license purchase flow", () => {
   });
 
   it("exclusive purchase flips exclusive_sold and blocks a second exclusive sale", async () => {
-    const beat = seedBeat();
+    /* Stems on file — the exclusive tier is a stems offer, and the
+       stems guard (ruling #2) refuses it on a beat with none. */
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip", stems_path: null });
     const start = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
     expect(start.status).toBe(201);
     h.session = {
@@ -314,7 +316,7 @@ describe("beat license purchase flow", () => {
   });
 
   it("F5: two concurrent exclusive verifies — exactly one completes, the loser gets 409", async () => {
-    const beat = seedBeat();
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems.zip", stems_path: null });
     const BUYER2 = randomUUID();
     // Both buyers open exclusive checkouts before either pays (the
     // creation-side guard cannot see this race; verify must not).

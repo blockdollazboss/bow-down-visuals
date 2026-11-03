@@ -66,6 +66,13 @@ interface Beat {
   premium_price_cents: number;
   exclusive_price_cents: number;
   exclusive_sold: boolean;
+  /** Boolean only, from the server (stack1400 ruling #2): the stems
+      URL itself is never on a public read, but buyer surfaces need to
+      know whether stems exist so a stems-format offer can be marked
+      unavailable when there is nothing to deliver. Absent = unknown
+      (older payloads) — treated as no stems on file for stems offers,
+      matching the server rail, which refuses those sales. */
+  has_stems?: boolean;
   plays: number;
   created_at: string;
   /** The producer's custom license templates (0188), offered next to
@@ -134,6 +141,21 @@ function priceFor(beat: Beat, tier: string): number {
     : beat.exclusive_price_cents;
 }
 
+/* Stems-sale guard (stack1400 ruling #2) — the FE mirror of the
+   server's available flag: a stems-format offer (wav_mp3_stems /
+   ownership_stems — the fixed Exclusive tier is the latter) cannot
+   sell when the beat has no stems on file. The server is the guard
+   (its offers shelf marks the offer unavailable and its purchase
+   rail 409s); this mirror keeps the modal from presenting the offer
+   as buyable in the first place. Non-stems offers are unaffected. */
+function isStemsFormat(format: string): boolean {
+  return format === "wav_mp3_stems" || format === "ownership_stems";
+}
+
+function stemsOfferBlocked(beat: Beat, format: string): boolean {
+  return isStemsFormat(format) && !beat.has_stems;
+}
+
 export default function Beats() {
   usePageTitle("Beat Marketplace", "Buy and sell beats: producers list instrumentals, and artists preview and license them by tier.");
   const isLight = useIsLightTheme();
@@ -171,6 +193,20 @@ export default function Beats() {
   const [licenseTemplateId, setLicenseTemplateId] = useState<string | null>(null);
   const [licensing, setLicensing] = useState(false);
   const [licenseMsg, setLicenseMsg] = useState<string | null>(null);
+  /* The currently chosen offer's stems block (ruling #2): the Agree &
+     pay button must not fire for a stems offer with no stems on file,
+     exactly as the modal rows below disable it. */
+  const selectedLicenseTemplate = licenseBeat && licenseTemplateId
+    ? (licenseBeat.license_templates ?? []).find((x) => x.id === licenseTemplateId) ?? null
+    : null;
+  const selectedStemsBlocked = licenseBeat
+    ? stemsOfferBlocked(
+        licenseBeat,
+        selectedLicenseTemplate
+          ? templateTerms(selectedLicenseTemplate).format
+          : defaultTermsForTier(licenseTier).format,
+      )
+    : false;
 
   /* Sell form */
   const [title, setTitle] = useState("");
@@ -599,12 +635,23 @@ export default function Beats() {
                       )}
                       <div className="flex items-center justify-between mt-4">
                         <span className="text-sm text-[#E3C566] font-semibold">{t("beats.fromPrice", { price: centsToDollars(beat.basic_price_cents) })}</span>
-                        <button
-                          onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseTemplateId(null); setLicenseMsg(null); }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]"
-                        >
-                          <BadgeDollarSign className="w-4 h-4" /> {t("beats.licenseButton")}
-                        </button>
+                        {/* Exclusive-sold beats stay browsable and
+                            listenable, but the card must not offer a
+                            buy affordance for a beat that is off the
+                            market (stack1400 ruling #3-residual): a
+                            plain label replaces the License button. */}
+                        {beat.exclusive_sold ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 text-white/50 text-sm font-semibold">
+                            {t("beats.soldExclusively", { defaultValue: "Sold exclusively" })}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseTemplateId(null); setLicenseMsg(null); }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]"
+                          >
+                            <BadgeDollarSign className="w-4 h-4" /> {t("beats.licenseButton")}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -864,7 +911,12 @@ export default function Beats() {
                    and the server now 409s every offer on a sold beat —
                    the modal says so up front instead of at the pay
                    button. */
-                const soldOut = licenseBeat.exclusive_sold;
+                /* A stems-format tier (Exclusive) is ALSO unavailable
+                   when the beat has no stems on file (ruling #2) —
+                   the server's offers shelf marks it unavailable and
+                   its rail refuses the sale; the row says why. */
+                const stemsBlocked = stemsOfferBlocked(licenseBeat, defaultTermsForTier(tier.key).format);
+                const soldOut = licenseBeat.exclusive_sold || stemsBlocked;
                 const selected = licenseTemplateId === null && licenseTier === tier.key;
                 return (
                   <button
@@ -877,7 +929,7 @@ export default function Beats() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold">{t(tier.labelKey)}</span>
-                      <span className="text-yellow-200 font-semibold">{soldOut ? t("beats.soldOut") : centsToDollars(priceFor(licenseBeat, tier.key))}</span>
+                      <span className="text-yellow-200 font-semibold">{licenseBeat.exclusive_sold ? t("beats.soldOut") : stemsBlocked ? t("beats.noStemsOnFile", { defaultValue: "No stems on file" }) : centsToDollars(priceFor(licenseBeat, tier.key))}</span>
                     </div>
                     <p className="text-xs text-white/40 mt-1">{t(tier.blurbKey)}</p>
                     <p className="text-xs text-white/50 mt-1">{describeTermsInline(defaultTermsForTier(tier.key))}</p>
@@ -890,7 +942,11 @@ export default function Beats() {
                 </p>
               )}
               {(licenseBeat.license_templates ?? []).map((tpl) => {
-                const soldOut = licenseBeat.exclusive_sold;
+                /* Same two closures as the tiers: exclusive-sold, and
+                   a stems-format template with no stems on file
+                   (ruling #2). */
+                const stemsBlocked = stemsOfferBlocked(licenseBeat, templateTerms(tpl).format);
+                const soldOut = licenseBeat.exclusive_sold || stemsBlocked;
                 const selected = licenseTemplateId === tpl.id;
                 return (
                   <button
@@ -903,7 +959,7 @@ export default function Beats() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold">{tpl.name}</span>
-                      <span className="text-yellow-200 font-semibold">{soldOut ? t("beats.soldOut") : centsToDollars(tpl.priceCents)}</span>
+                      <span className="text-yellow-200 font-semibold">{licenseBeat.exclusive_sold ? t("beats.soldOut") : stemsBlocked ? t("beats.noStemsOnFile", { defaultValue: "No stems on file" }) : centsToDollars(tpl.priceCents)}</span>
                     </div>
                     <p className="text-xs text-white/50 mt-1">{describeTermsInline(templateTerms(tpl))}</p>
                   </button>
@@ -978,7 +1034,7 @@ export default function Beats() {
                 </Link>
               </>
             ) : (
-            <button onClick={reserveLicense} disabled={licensing || licenseBeat.exclusive_sold}
+            <button onClick={reserveLicense} disabled={licensing || licenseBeat.exclusive_sold || selectedStemsBlocked}
               className="w-full py-2.5 rounded-xl bg-[#C9A84C] text-black font-bold hover:bg-[#DDBB62] disabled:opacity-50 inline-flex items-center justify-center gap-2">
               {licensing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
               {t("beats.agreeAndPayButton", {

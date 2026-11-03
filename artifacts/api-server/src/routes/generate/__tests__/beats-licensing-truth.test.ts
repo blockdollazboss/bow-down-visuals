@@ -359,7 +359,10 @@ describe("C1 — an exclusive sale closes the whole market", () => {
   });
 
   it("control: an unsold beat sells and lists normally", async () => {
-    const beat = seedBeat();
+    /* Stems on file, so the stems guard (ruling #2) leaves every
+       offer available — this control pins the unsold shelf, not the
+       guard (the guard's own cases live in beats-plain-offers). */
+    const beat = seedBeat({ stems_url: STEMS });
     seedTemplate();
     const offers = await call("GET", `/beats/${beat.id}/offers`);
     for (const o of offers.data.offers) expect(o.available, o.name).toBe(true);
@@ -470,11 +473,17 @@ describe("C4 — stems: on file, masked in public, delivered by the sold terms",
     expect(v.data.stemsUrl).toBeNull();
   });
 
-  it("exclusive on a beat with NO stems on file delivers null, honestly", async () => {
+  it("exclusive on a beat with NO stems on file is refused at creation (ruling #2 supersedes the old delivers-null sale)", async () => {
+    /* Stack1400 ruling #2: a stems-format sale with nothing to
+       deliver must not happen at all — the rail 409s up front
+       instead of completing a sale whose stemsUrl comes back null.
+       No license row, no checkout. */
     const beat = seedBeat();
-    const v = await buyAndVerify(beat.id, { tier: "exclusive" }, 49999);
-    expect(v.status).toBe(200);
-    expect(v.data.stemsUrl).toBeNull();
+    const start = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
+    expect(start.status).toBe(409);
+    expect(start.data.error).toContain("no stems on file");
+    expect(h.stores.get("beat_licenses")).toHaveLength(0);
+    expect(h.checkoutCalls).toHaveLength(0);
   });
 
   it("a wav_mp3_stems template license delivers the stems", async () => {
@@ -485,11 +494,28 @@ describe("C4 — stems: on file, masked in public, delivered by the sold terms",
     expect(v.data.stemsUrl).toBe(STEMS);
   });
 
-  it("the snapshot decides: a stems license bought BEFORE the stems were added still gets them once on file — and a pending one gets nothing", async () => {
+  it("the snapshot decides: a completed stems license sold BEFORE the stems were added (a pre-guard sale) gets them once on file", async () => {
+    /* Since ruling #2 the purchase rail refuses a new stems sale on
+       a no-stems beat, so this row is seeded directly — it stands
+       for sales completed before the guard existed. Delivery still
+       reads the sold snapshot + the beat's CURRENT stems file: null
+       while nothing is on file, the stems once the producer adds
+       them (PATCH remediation). */
     const beat = seedBeat();
-    const v = await buyAndVerify(beat.id, { tier: "exclusive" }, 49999);
-    expect(v.data.stemsUrl).toBeNull();
-    /* Producer adds the stems after the sale (PATCH remediation). */
+    seedLicense({
+      beat_id: beat.id,
+      tier: "exclusive",
+      status: "completed",
+      price_cents: 49999,
+      terms_snapshot: {
+        name: "Exclusive", format: "ownership_stems", streamsCap: null, salesCap: null,
+        musicVideosCap: null, radioTvAllowed: true, livePerformancesCap: null,
+        termYears: null, territory: "Worldwide", creditLine: null, termsNote: null,
+        isExclusive: true,
+      },
+    });
+    const before = await call("GET", "/beats/licenses/mine");
+    expect(before.data.licenses[0].stemsUrl).toBeNull();
     const patched = await call("PATCH", `/beats/${beat.id}`, { stemsUrl: STEMS }, { "x-test-user": PRODUCER });
     expect(patched.status).toBe(200);
     const mine = await call("GET", "/beats/licenses/mine");

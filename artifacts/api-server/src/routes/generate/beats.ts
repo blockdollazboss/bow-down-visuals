@@ -43,6 +43,37 @@ import { logger } from "../../lib/logger";
    signed URLs minted from the stored ref (audio_path when present).
    Stems (migration 0304) ride the same pattern: stems_path when
    present is the stored ref, stems_url the served URL. */
+/* ── Stems-sale guard (stack1400 ruling #2, Beats OD2) ──────────────
+   A license whose terms carry a stems format PROMISES the buyer the
+   separate track stems. When the beat has no stems file on record
+   there is nothing to deliver, so that offer must not sell: the
+   offers shelf marks it unavailable and the purchase rail refuses it
+   up front (409) instead of completing a sale whose stemsUrl would
+   come back null at settle. Non-stems formats are unaffected. The
+   public presentation carries only the BOOLEAN has_stems — the stems
+   URL itself stays masked (presentBeatPublic) and is delivered only
+   through a completed stems license. */
+export const STEMS_LICENSE_FORMATS: readonly BeatLicenseFormat[] = ["wav_mp3_stems", "ownership_stems"];
+
+export function isStemsFormat(format: BeatLicenseFormat | string | null | undefined): boolean {
+  return format === "wav_mp3_stems" || format === "ownership_stems";
+}
+
+export function beatHasStems(beat: { stems_url?: string | null; stems_path?: string | null }): boolean {
+  return Boolean(beat.stems_url || beat.stems_path);
+}
+
+/** An offer is available only when the beat is not exclusive-sold AND,
+    for a stems-format offer, stems are actually on file to deliver. */
+export function beatOfferAvailable(
+  beat: { exclusive_sold: boolean; stems_url?: string | null; stems_path?: string | null },
+  terms: { format: BeatLicenseFormat | string },
+): boolean {
+  if (beat.exclusive_sold) return false;
+  if (isStemsFormat(terms.format) && !beatHasStems(beat)) return false;
+  return true;
+}
+
 async function presentBeat<T extends { audio_url: string; audio_path: string | null; preview_url: string | null; stems_url?: string | null; stems_path?: string | null }>(row: T): Promise<T> {
   const audioSource = row.audio_path ?? row.audio_url;
   const stemsSource = row.stems_path ?? row.stems_url ?? null;
@@ -52,7 +83,11 @@ async function presentBeat<T extends { audio_url: string; audio_path: string | n
     preview_url: row.preview_url ? await refreshSupabaseStorageUrl(row.preview_url) : row.preview_url,
     stems_url: stemsSource ? await refreshSupabaseStorageUrl(stemsSource) : null,
     stems_path: row.stems_path ?? null,
-  };
+    /* Boolean only — never the URL (see the stems-sale guard above):
+       buyer surfaces use it to mark stems offers unavailable when
+       there are no stems on file, without leaking the file. */
+    has_stems: Boolean(stemsSource),
+  } as T;
 }
 
 /**
@@ -325,8 +360,11 @@ router.get("/beats/:id/offers", async (req, res) => {
         priceCents: price,
         /* An exclusive sale closes the WHOLE shelf, not just the
            exclusive offer (stack1100 X4): the exclusive buyer's plain
-           words promise the producer stops selling this beat. */
-        available: !beat.exclusive_sold,
+           words promise the producer stops selling this beat. A
+           stems-format offer (the fixed Exclusive tier is one) is
+           also unavailable when the beat has no stems on file —
+           there would be nothing to deliver (ruling #2). */
+        available: beatOfferAvailable(beat, terms),
         terms,
         plainWords: plainWordsForTerms(terms),
         plainText: renderPlainTermsText(terms),
@@ -345,7 +383,10 @@ router.get("/beats/:id/offers", async (req, res) => {
         templateId: t.id,
         name: terms.name,
         priceCents: t.price_cents,
-        available: !beat.exclusive_sold,
+        /* Same shelf rule as the tiers: exclusive-sold closes all,
+           and a stems-format template is unavailable with no stems
+           on file (ruling #2). */
+        available: beatOfferAvailable(beat, terms),
         terms,
         plainWords: plainWordsForTerms(terms),
         plainText: renderPlainTermsText(terms),
@@ -1208,6 +1249,20 @@ router.post("/beats/:id/license", requireAuth, async (req, res) => {
       : tier === "premium" ? beat.premium_price_cents
       : beat.exclusive_price_cents;
     termsSnapshot = defaultTermsForTier(tier);
+  }
+
+  /* Stems-sale guard (stack1400 ruling #2): a stems-format license
+     promises the buyer the separate track stems, but this beat has
+     no stems file on record — there is nothing to deliver, so the
+     sale is refused up front, before any license row or checkout
+     exists. (Until this guard, settle completed such a sale with a
+     null stemsUrl.) Non-stems offers on the same beat sell normally;
+     the producer's fix is to add the stems file to the beat. */
+  if (isStemsFormat(termsSnapshot.format) && !beatHasStems(beat)) {
+    res.status(409).json({
+      error: "This beat has no stems on file, so a license that includes stems can't be sold yet. The producer needs to add the stems first.",
+    });
+    return;
   }
 
   try {
