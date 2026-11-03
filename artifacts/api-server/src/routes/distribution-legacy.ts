@@ -589,10 +589,13 @@ router.post("/distribution/toolost/releases/:id/submit", requireAuth, async (req
     await callApi((t) => attachToolostTracks(t, providerReleaseId!, trackAttach));
 
     /* 4 — metadata, ALWAYS with the AI declaration. */
+    const releaseDateIso = !release.release_date ? null
+      : release.release_date instanceof Date ? release.release_date.toISOString().slice(0, 10)
+      : String(release.release_date).slice(0, 10);
     await callApi((t) => patchToolostReleaseMetadata(t, providerReleaseId!, {
       title: String(release.title),
       ...(release.artist_name ? { artistName: String(release.artist_name) } : {}),
-      ...(release.release_date ? { releaseDate: String(release.release_date).slice(0, 10) } : {}),
+      ...(releaseDateIso ? { releaseDate: releaseDateIso } : {}),
       ...(release.genre ? { genre: String(release.genre) } : {}),
       explicit: Boolean(release.explicit),
       ...(release.label_imprint ? { label: String(release.label_imprint) } : {}),
