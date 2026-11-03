@@ -67,7 +67,6 @@ export const LIBRARY_FONTS: LibraryFont[] = [
   { family: "Creepster", apiName: "Creepster", category: "Street & Urban", blurb: "Horror dripping display.", weights: "400" },
 ];
 
-export const LIBRARY_FONT_COUNT = LIBRARY_FONTS.length;
 
 /** Build the Google Fonts CSS API URL for the full catalog. */
 

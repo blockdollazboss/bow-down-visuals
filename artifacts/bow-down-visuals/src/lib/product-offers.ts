@@ -167,10 +167,6 @@ export async function fetchOfferForItem(
   return data.offer;
 }
 
-export async function fetchMyOffers(getAccessToken: GetAccessToken): Promise<ProductOffer[]> {
-  const data = await offerFetch<{ offers: ProductOffer[] }>(getAccessToken, "/api/product-offers/mine");
-  return data.offers ?? [];
-}
 
 export async function fetchReceivedOffers(getAccessToken: GetAccessToken): Promise<ProductOffer[]> {
   const data = await offerFetch<{ offers: ProductOffer[] }>(getAccessToken, "/api/product-offers/received");
