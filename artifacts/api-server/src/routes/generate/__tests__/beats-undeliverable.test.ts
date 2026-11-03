@@ -377,8 +377,19 @@ describe("ruling #23 — undeliverable beat files: redelivery first, auto-refund
   });
 
   it("3. stems-null follows the same path: awaiting, then the existing stems PATCH heals it", async () => {
-    const beat = seedBeat({ stems_url: null, stems_path: null });
-    const { v } = await buyAndVerify(beat, "exclusive", 49999);
+    /* JOIN RECONCILIATION (stack1400): ruling #2's stems guard now
+       refuses a stems-tier sale when the beat has no stems file at
+       purchase time (409), so the pre-join setup (buy stems on a
+       stems-less beat) is unreachable by design. #23's case is the
+       stems vanishing AFTER a legitimate sale: seed with stems, buy,
+       then the file disappears before settlement. */
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems-pack.zip", stems_path: "stems-pack.zip" });
+    const start = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
+    expect(start.status).toBe(201);
+    h.session = paidSession(start, beat.id, "exclusive", 49999);
+    beat.stems_url = null;
+    beat.stems_path = null;
+    const v = await call("POST", "/beats/licenses/verify", { sessionId: start.data.sessionId });
     expect(v.status).toBe(200);
     /* The master IS deliverable and is handed over; the stems are
        what's owed, and the state says so. */
@@ -423,8 +434,15 @@ describe("ruling #23 — undeliverable beat files: redelivery first, auto-refund
   });
 
   it("5. window expiry auto-refunds missing stems exactly once, and releases the exclusive beat", async () => {
-    const beat = seedBeat({ stems_url: null, stems_path: null });
-    const { start, v } = await buyAndVerify(beat, "exclusive", 49999);
+    /* Same join reconciliation as test 3: stems present at purchase
+       (the #2 guard passes), gone before settlement (#23's case). */
+    const beat = seedBeat({ stems_url: "https://cdn.example.com/stems-pack.zip", stems_path: "stems-pack.zip" });
+    const start = await call("POST", `/beats/${beat.id}/license`, { tier: "exclusive" });
+    expect(start.status).toBe(201);
+    h.session = paidSession(start, beat.id, "exclusive", 49999);
+    beat.stems_url = null;
+    beat.stems_path = null;
+    const v = await call("POST", "/beats/licenses/verify", { sessionId: start.data.sessionId });
     expect(v.data.deliveryState).toBe("awaiting_delivery");
     expect(h.stores.get("beats")![0]!.exclusive_sold).toBe(true);
     ageLicense(start.data.license.id, 8);

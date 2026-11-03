@@ -83,6 +83,14 @@ vi.mock("stripe", () => ({
             url: "https://checkout.stripe.test/pay/cs_test_row13",
           };
         },
+        /* The stack1400 re-fund reconciliation retrieves the stored
+           session before refusing — model it as still open/payable. */
+        retrieve: async (id: string) => ({
+          id,
+          status: "open",
+          payment_status: "unpaid",
+          url: "https://checkout.stripe.test/pay/cs_test_row13",
+        }),
       },
     };
     paymentIntents = { create: vi.fn(), retrieve: vi.fn() };
@@ -291,15 +299,21 @@ describe("row 13 — Stripe-configured escrow funding (item 10)", () => {
 });
 
 describe("row 13 — re-fund refusal (item 11)", () => {
-  it("refuses a second fund while 'funding' and after 'funded' — one session ever", async () => {
+  it("refuses a second fund SESSION while 'funding' and after 'funded' — one session ever", async () => {
     const { dealId } = await seedAcceptedDeal(100000);
 
     const first = await req("POST", `/sponsors/deals/${dealId}/fund`, { amountCents: 100000 });
     expect(first.status).toBe(200);
 
+    /* JOIN RECONCILIATION (stack1400): the re-fund fix superseded the
+       old blanket 409 for a still-'funding' deal — the stored session
+       is reconciled first, and a still-payable session is RESUMED
+       (handed back), never duplicated. Item 11's invariant — one
+       session ever, no second charge — is what this test pins now. */
     const second = await req("POST", `/sponsors/deals/${dealId}/fund`, { amountCents: 100000 });
-    expect(second.status).toBe(409);
-    expect(second.json.error).toMatch(/already funding/i);
+    expect(second.status).toBe(200);
+    expect(second.json.resumed).toBe(true);
+    expect(second.json.sessionId).toBe(first.json.sessionId);
     expect(testState.createCalls).toHaveLength(1);
 
     /* Settle it, then try again — still refused, still one session. */

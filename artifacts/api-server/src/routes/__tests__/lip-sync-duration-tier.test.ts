@@ -180,8 +180,12 @@ describe("poller — a failed 600 VB job refunds 600, and says so", () => {
   it("every failure tell names the job's own amount", () => {
     const tells =
       pollerSrc.match(/lipSyncFailureNotice\([^;]*?lipSyncChargeForJob\(job\)\)/gs) ?? [];
-    // Five live failure paths + the boot-recovery pass.
-    expect(tells.length).toBe(6);
+    // Joined-tree count (stack1400 join): three live failure paths
+    // (submit-worker fail, WaveSpeed deferred-past-limit, poll fail)
+    // + the boot-recovery pass. The tier branch's six included two
+    // tells on the removed sync.so submit path, which the sync3-strip
+    // deleted in the same join — those paths no longer exist.
+    expect(tells.length).toBe(4);
   });
 
   it("the run-all scene tell names the sub-job's own amount", () => {

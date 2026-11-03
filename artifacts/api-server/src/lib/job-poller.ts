@@ -637,7 +637,7 @@ async function pollOneJob(
   const fail = async (message: string, code: string) => {
     await failLipSyncJob(job.id, { message, code });
     const refunded = await refundFailedLipSyncCharge(job);
-    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded));
+    await recordLipSyncOutcome(job, "failed", "Lip sync failed", lipSyncFailureNotice(truncate(message, 500), refunded, lipSyncChargeForJob(job)));
   };
 
   /* A polling job stamped with the removed route carries a provider

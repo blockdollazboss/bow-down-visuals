@@ -95,7 +95,12 @@ describe("POST /api/chat — operator grounding", () => {
     expect(prompt).toContain("FEATURE INDEX");
     expect(prompt).toContain("VERIFIED FACTS");
     expect(prompt).toContain("/create?panel=song");
-    expect(prompt).toContain("Generate Song — 400 Visual Bucs");
+    /* Joined stack1400: the legacy song rail now charges the duration
+       tiers, so the operator grounds Generate Song in the tiered form
+       (the flat "400" line under-quoted every longer song). */
+    expect(prompt).toContain("Generate Song — priced by length");
+    expect(prompt).toContain("up to 1 minute — 400 Visual Bucs");
+    expect(prompt).toContain("up to 10 minutes — 2,400 Visual Bucs");
     // Guide handoff (deliverable 3): the Make a Song guide rides along.
     expect(prompt).toContain("Walk me through it");
     // Journey handoff: CREATE hands off to BRAND.

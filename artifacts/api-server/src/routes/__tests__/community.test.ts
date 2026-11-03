@@ -39,6 +39,11 @@ const EXPECTED: Array<{ method: string; path: string }> = [
   { method: "POST", path: "/groups/:slug/bans" },
   { method: "GET", path: "/groups/:slug/bans" },
   { method: "DELETE", path: "/groups/:slug/bans/:userId" },
+  // Group settings + ownership (stack1400 #10 — added at the join; the
+  // transfer lane's own suites pin behavior, this contract list was
+  // only updated by the bans lane)
+  { method: "PATCH", path: "/groups/:slug" },
+  { method: "POST", path: "/groups/:slug/transfer" },
   { method: "POST", path: "/groups/:slug/broadcast" },
   // Group forums (0185, Wave 3 #13)
   { method: "GET", path: "/groups/:slug/forum/channels" },

@@ -130,7 +130,10 @@ describe("POST /api/free-chat — operator grounding (provider path)", () => {
     expect(prompt).toContain("FEATURE INDEX");
     expect(prompt).toContain("VERIFIED FACTS");
     expect(prompt).toContain("/create?panel=song");
-    expect(prompt).toContain("Generate Song — 400 Visual Bucs");
+    /* Joined stack1400: tiered song pricing — see chat-operator.test. */
+    expect(prompt).toContain("Generate Song — priced by length");
+    expect(prompt).toContain("up to 1 minute — 400 Visual Bucs");
+    expect(prompt).toContain("up to 10 minutes — 2,400 Visual Bucs");
     expect(prompt).toContain("Walk me through it");
     for (const dead of DEAD_FRAGMENTS) expect(prompt).not.toContain(dead);
     expect(prompt).not.toContain("Groq");
