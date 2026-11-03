@@ -219,6 +219,31 @@ export async function canUseCredits(userId: string): Promise<boolean> {
 }
 
 /**
+ * The user-facing refusal for a credit-pack purchase blocked by the
+ * lockdown buy gate below. Honest copy only — never name the internal
+ * flag in anything a member can see.
+ */
+export const CREDIT_PACK_SALES_PAUSED_MESSAGE = "Credit pack sales are paused right now.";
+
+/**
+ * Buy gate for credit packs (ruling H-4): while the admin-only lockdown
+ * is on, anyone who could not SPEND must not BUY a pack either — buying
+ * into a balance you cannot use is a trap, and a pack purchase would
+ * otherwise be the one money door the lockdown left open. The predicate
+ * mirrors the spend gate exactly (canUseCredits: lockdown off → everyone;
+ * lockdown on → admins and admin-grant holders only), so the two gates
+ * can never disagree about who passes.
+ *
+ * Enforced at purchase CREATION on both rails (embedded credit-pack
+ * intent, hosted checkout session). Verify/webhook crediting of
+ * already-created sessions is deliberately NOT gated: a purchase made
+ * before the lockdown flipped must still deliver what was paid for.
+ */
+export async function canBuyCreditPack(userId: string): Promise<boolean> {
+  return canUseCredits(userId);
+}
+
+/**
  * Thrown by chargeCredits() when the ledger insert fails after the balance
  * was already deducted. The deduction is rolled back first; this error
  * signals the route to fail loudly (500) instead of silently swallowing

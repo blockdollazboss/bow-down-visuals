@@ -90,7 +90,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 import { adminEmails, isAdminEmail, isAdminRequest, isAdminUserId, skipIfAdmin } from "../admin";
 import { requireTier } from "../../middlewares/require-tier";
 import { requireProTier } from "../../routes/generate/shops";
-import { canUseCredits } from "../credits";
+import { canUseCredits, canBuyCreditPack, CREDIT_PACK_SALES_PAUSED_MESSAGE } from "../credits";
 import { resolvePaidPlan, resolveHostingEntitlement } from "../profile-website";
 import { createAdminAwareUpload, ADMIN_UPLOAD_MAX_BYTES } from "../upload-storage";
 import multer from "multer";
@@ -299,6 +299,43 @@ describe("canUseCredits — the lockdown exemption is real and total", () => {
     expect(await canUseCredits(MEMBER_ID)).toBe(true);
     h.grantRows = [];
     expect(await canUseCredits(ADMIN_ID)).toBe(false);
+  });
+});
+
+describe("canBuyCreditPack — the lockdown buy gate mirrors the spend gate (ruling H-4)", () => {
+  it("lockdown OFF: everyone can buy a pack", async () => {
+    expect(await canBuyCreditPack(MEMBER_ID)).toBe(true);
+    expect(await canBuyCreditPack(ADMIN_ID)).toBe(true);
+  });
+
+  it("lockdown ON: regular member cannot buy; admin (no grant) and grant holder can", async () => {
+    process.env["CREDITS_ADMIN_ONLY"] = "true";
+    process.env["ADMIN_EMAILS"] = ADMIN;
+    h.grantRows = [];
+    expect(await canBuyCreditPack(MEMBER_ID)).toBe(false);
+    expect(await canBuyCreditPack(ADMIN_ID)).toBe(true);
+    h.grantRows = [{ id: "grant-1" }];
+    expect(await canBuyCreditPack(MEMBER_ID)).toBe(true);
+  });
+
+  it("never disagrees with canUseCredits across the whole matrix", async () => {
+    for (const flag of [undefined, "true"] as const) {
+      for (const grants of [[], [{ id: "grant-1" }]] as const) {
+        if (flag === undefined) delete process.env["CREDITS_ADMIN_ONLY"];
+        else process.env["CREDITS_ADMIN_ONLY"] = flag;
+        process.env["ADMIN_EMAILS"] = ADMIN;
+        h.grantRows = [...grants];
+        for (const id of [MEMBER_ID, ADMIN_ID]) {
+          expect(await canBuyCreditPack(id)).toBe(await canUseCredits(id));
+        }
+      }
+    }
+  });
+
+  it("the paused copy is honest and names no internal flag", () => {
+    expect(CREDIT_PACK_SALES_PAUSED_MESSAGE).toBe("Credit pack sales are paused right now.");
+    expect(CREDIT_PACK_SALES_PAUSED_MESSAGE).not.toContain("CREDITS_ADMIN_ONLY");
+    expect(CREDIT_PACK_SALES_PAUSED_MESSAGE).not.toContain("admin");
   });
 });
 

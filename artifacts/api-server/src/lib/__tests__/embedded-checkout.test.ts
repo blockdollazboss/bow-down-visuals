@@ -122,6 +122,51 @@ describe("webhook embedded fulfillment (source contract)", () => {
   });
 });
 
+describe("credit-pack lockdown buy gate (source contract, ruling H-4)", () => {
+  const credits = read("../credits.ts");
+  const hosted = read("../../routes/stripe-payments.ts");
+  const src = read("../../routes/embedded-checkout.ts");
+
+  it("the buy-gate helper lives in lib/credits and mirrors the spend gate", () => {
+    expect(credits).toContain("export async function canBuyCreditPack");
+    expect(credits).toContain("return canUseCredits(userId)");
+    expect(credits).toContain(
+      'export const CREDIT_PACK_SALES_PAUSED_MESSAGE = "Credit pack sales are paused right now."',
+    );
+  });
+
+  it("both purchase-creation rails enforce the gate with the paused copy, before creating anything on Stripe", () => {
+    for (const routeSrc of [src, hosted]) {
+      expect(routeSrc).toContain("canBuyCreditPack(req.userId!)");
+      expect(routeSrc).toContain("CREDIT_PACK_SALES_PAUSED_MESSAGE");
+      expect(routeSrc).toContain("res.status(403)");
+      /* The member-facing refusal never names the internal flag. */
+      const gateAt = routeSrc.indexOf("canBuyCreditPack(req.userId!)");
+      expect(routeSrc.slice(gateAt, gateAt + 200)).not.toContain("CREDITS_ADMIN_ONLY");
+    }
+    /* Gate precedes creation on each rail. */
+    expect(src.indexOf("canBuyCreditPack(req.userId!)")).toBeLessThan(
+      src.indexOf("stripe.paymentIntents.create"),
+    );
+    expect(hosted.indexOf("canBuyCreditPack(req.userId!)")).toBeLessThan(
+      hosted.indexOf("stripe.checkout.sessions.create"),
+    );
+  });
+
+  it("the hosted gate sits inside the credit-pack branch only — verify and history carry no gate", () => {
+    const createHandler = hosted.slice(
+      hosted.indexOf('router.post("/create-checkout-session"'),
+      hosted.indexOf('router.post("/checkout/verify"'),
+    );
+    expect(createHandler).toContain("canBuyCreditPack(req.userId!)");
+    const afterCreate = hosted.slice(hosted.indexOf('router.post("/checkout/verify"'));
+    expect(afterCreate).not.toContain("canBuyCreditPack");
+    /* Same discipline on the embedded rail: verify is not gated. */
+    const verifyHandler = src.slice(src.indexOf('router.post("/embedded-checkout/credit-pack/verify"'));
+    expect(verifyHandler).not.toContain("canBuyCreditPack");
+  });
+});
+
 describe("store embedded session (source contract)", () => {
   const src = read("../../routes/store.ts");
   it("uiMode=embedded creates the same session in embedded_page mode", () => {

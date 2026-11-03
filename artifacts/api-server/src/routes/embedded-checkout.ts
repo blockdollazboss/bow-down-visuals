@@ -17,6 +17,7 @@ import {
   fulfillCreditPurchase,
   getStripePaymentStatus,
 } from "../lib/payment-record";
+import { canBuyCreditPack, CREDIT_PACK_SALES_PAUSED_MESSAGE } from "../lib/credits";
 import { TIER_PLANS } from "../lib/platform-fees";
 import { previewCreatorTierChange } from "../lib/creator-tier-upgrade";
 import { buildTierChangePreviewView, isChangeableRow } from "../lib/tier-change";
@@ -107,6 +108,16 @@ router.post("/embedded-checkout/credit-pack/intent", requireAuth, publicApiLimit
   const packInfo = PACK_MAP[parsed.data.pack];
   if (!packInfo) {
     res.status(400).json({ error: "Invalid pack size. Must be 10, 50, 150, or 500." });
+    return;
+  }
+
+  /* Lockdown buy gate (ruling H-4): while the credit lockdown is on,
+     a member who could not spend must not buy a pack either. Checked
+     at creation only — before any Stripe object exists — so a refused
+     click mints nothing; the verify rail below stays ungated so an
+     already-created purchase still delivers. */
+  if (!(await canBuyCreditPack(req.userId!))) {
+    res.status(403).json({ error: CREDIT_PACK_SALES_PAUSED_MESSAGE });
     return;
   }
 
