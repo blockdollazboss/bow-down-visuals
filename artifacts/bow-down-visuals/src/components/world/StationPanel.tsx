@@ -194,6 +194,7 @@ const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then(
 const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
 const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
 const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
+const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1203,6 +1204,13 @@ export default function StationPanel(props: StationPanelProps) {
                     board. */}
                 <DeskDoor isLight={isLight}>
                   <SavedDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Setlist Builder (stack1500 parity wave #3):
+                    the free hand builder + the 100-Buc AI flow on
+                    the /api/setlist/flow rail, stacked at the My
+                    Studio board beside DJ Set Prep. */}
+                <DeskDoor isLight={isLight}>
+                  <SetlistDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
