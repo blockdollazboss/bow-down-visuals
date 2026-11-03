@@ -28,8 +28,12 @@ import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, rea
                   (stripe_session_id present — Stack 1's paid marker),
                   refunded memberships excluded
      tips         live_stream_tips.amount_vb actually credited to the
-                  creator (creator_credited_at set) — Visual Bucs, kept
-                  in its own unit, NEVER folded into the USD total;
+                  creator (creator_credited_at set) PLUS world_stage_tips
+                  .amount_vb credited to the performer (to_user_id =
+                  caller, creator_credited_at set) — each on its OWN
+                  line (streamTipsVb / stageTipsVb), Visual Bucs, kept
+                  in its own unit, NEVER folded into the USD total.
+                  totalTipsVb is their sum (stream + stage);
                   plus tip-jar intents, which are pending_payment by
                   design (no real charge exists yet) and are reported
                   as pending, never as earnings
@@ -114,12 +118,26 @@ export async function tips(userId: string) {
     WHERE creator_user_id = ${userId} AND creator_credited_at IS NOT NULL
   `);
   const row = (r.rows as any[])[0] ?? { vb: 0, n: 0 };
+  /* World stage tips (ruling #28 / H-6): world_stage_tips rows whose
+     credit actually landed for THIS performer — recipient column is
+     to_user_id, credited marker creator_credited_at (verified against
+     lib/db/src/schema/world-stage-tips.ts). Own line, never merged
+     into the stream figure; balances were already correct — this is
+     the missing aggregation. */
+  const sr = await db.execute(sql`
+    SELECT COALESCE(SUM(amount_vb), 0)::int AS vb, COUNT(*)::int AS n
+    FROM world_stage_tips
+    WHERE to_user_id = ${userId} AND creator_credited_at IS NOT NULL
+  `);
+  const srow = (sr.rows as any[])[0] ?? { vb: 0, n: 0 };
   const pending = tipJarPendingForUser(userId);
   return {
     status: "ok" as const,
     /* Visual Bucs — a different unit from cents; never added to totalCents. */
     streamTipsVb: Number(row.vb),
     streamTipCount: Number(row.n),
+    stageTipsVb: Number(srow.vb),
+    stageTipCount: Number(srow.n),
     /* Tip-jar intents are pending_payment (no charge exists yet). */
     tipJarPendingCents: pending.totalCents,
     tipJarPendingCount: pending.count,
@@ -151,6 +169,7 @@ router.get("/earnings", requireAuth, async (req, res) => {
     brandDeals: deals ?? errSource(),
     tips: tip ?? {
       status: "error" as const, streamTipsVb: null, streamTipCount: null,
+      stageTipsVb: null, stageTipCount: null,
       tipJarPendingCents: null, tipJarPendingCount: null, tipJarStatus: "pending_payment" as const,
     },
   };
@@ -162,7 +181,9 @@ router.get("/earnings", requireAuth, async (req, res) => {
     userId,
     currency: "USD",
     totalCents,
-    totalTipsVb: tip?.streamTipsVb ?? null,
+    /* The tips headline is stream + stage — pinned by tests so a
+       per-line fix can never silently drop one side again. */
+    totalTipsVb: tip ? tip.streamTipsVb + tip.stageTipsVb : null,
     partial,
     sources,
   });
