@@ -21,14 +21,43 @@
  * Editing a beat project is a manual studio tool = pure UI = FREE.
  * No charges, no provider calls, no sound generation live here — this
  * module is data + pure functions only.
+ *
+ * W2-L1 (pattern depth) — project version 2:
+ *   • Per-pattern length: each pattern is 1, 2 or 4 bars (16/32/64
+ *     steps); grid/bass arrays are sized by the pattern's own step
+ *     count. Version-1 projects (fixed 16 steps, no length field)
+ *     migrate by padding with silence — hits are never lost and
+ *     normalize never throws.
+ *   • Continuous per-step velocity: a SPARSE map per pattern
+ *     (drums: "track:step" → 0.1–1.0; 808 bass: "step" → 0.1–1.0),
+ *     default 1.0, stored only where it differs from the default.
+ *     Composition with the existing 0/1/2 cells: the cell stays the
+ *     hit state (0 off / 1 hit / 2 accent) and velocity MULTIPLIES it —
+ *     gain = velocity × (accent ? 1.4 : 1.0). A project with no
+ *     velocity entries (every v1 project) therefore renders with
+ *     EXACTLY the v1 gains (1.0 / 1.4) — legacy-identical by
+ *     construction, and proven by test. The 808 bass line has no
+ *     accent state, so its gain is the velocity itself (v1: 1.0).
  */
 
 export type BeatPatternId = "A" | "B" | "C" | "D";
 export const BEAT_PATTERN_IDS: BeatPatternId[] = ["A", "B", "C", "D"];
 
+/** Steps in ONE bar. Patterns are 1, 2 or 4 bars long (see below). */
 export const BEAT_STEPS = 16;
+/** Allowed per-pattern lengths, in bars. */
+export const BEAT_PATTERN_BARS_OPTIONS = [1, 2, 4] as const;
+export type BeatPatternBars = (typeof BEAT_PATTERN_BARS_OPTIONS)[number];
 /** Drum tracks per pattern — matches TRACKS in pages/ai-audio.tsx. */
 export const BEAT_TRACK_COUNT = 9;
+
+/** Per-step velocity: a multiplier on the hit's gain. */
+export const BEAT_VELOCITY_MIN = 0.1;
+export const BEAT_VELOCITY_MAX = 1.0;
+export const BEAT_VELOCITY_DEFAULT = 1.0;
+/** Accent cells (grid value 2) boost the gain by this factor — the
+ *  same 1.4 the sequencer has always used. */
+export const BEAT_ACCENT_GAIN = 1.4;
 /** 808 bass range: C1 (24) .. B2 (47) — same range as the piano roll. */
 export const BEAT_BASS_LO = 24;
 export const BEAT_BASS_HI = 47;
@@ -40,10 +69,26 @@ export const BEAT_ENTRY_REPEATS_MAX = 32;
 export const BEAT_ARRANGEMENT_MAX_ENTRIES = 64;
 
 export interface BeatPatternData {
+  /** Pattern length in bars (1, 2 or 4). Grid/bass arrays hold
+   *  bars × BEAT_STEPS steps. */
+  bars: BeatPatternBars;
   /** [track][step] — 0 = off, 1 = hit, 2 = accent. */
   grid: number[][];
   /** MIDI note per step, null = rest. */
   bass: (number | null)[];
+  /** Sparse drum velocity: "track:step" → 0.1–1.0. Missing = 1.0. */
+  velocity: Record<string, number>;
+  /** Sparse 808 velocity: "step" → 0.1–1.0. Missing = 1.0. */
+  bassVelocity: Record<string, number>;
+}
+
+/** Steps in a pattern of the given length. */
+export function patternStepCount(p: Pick<BeatPatternData, "bars">): number {
+  return p.bars * BEAT_STEPS;
+}
+
+export function isBeatPatternBars(v: unknown): v is BeatPatternBars {
+  return v === 1 || v === 2 || v === 4;
 }
 
 export interface BeatMixerState {
@@ -64,7 +109,9 @@ export interface BeatArrangementEntry {
 export type BeatTransportMode = "pattern" | "song";
 
 export interface BeatProject {
-  version: 1;
+  /** v1 = fixed 16-step patterns; v2 = per-pattern length + velocity.
+   *  normalizeBeatProject accepts both and always returns v2. */
+  version: 2;
   patterns: Record<BeatPatternId, BeatPatternData>;
   activePattern: BeatPatternId;
   bpm: number;
@@ -77,20 +124,138 @@ export interface BeatProject {
 
 /* ─── Factories ────────────────────────────────────────────────────────── */
 
-export function emptyBeatGrid(): number[][] {
-  return Array.from({ length: BEAT_TRACK_COUNT }, () => Array(BEAT_STEPS).fill(0));
+export function emptyBeatGrid(steps: number = BEAT_STEPS): number[][] {
+  return Array.from({ length: BEAT_TRACK_COUNT }, () => Array(steps).fill(0));
 }
 
-export function emptyBeatBass(): (number | null)[] {
-  return Array(BEAT_STEPS).fill(null);
+export function emptyBeatBass(steps: number = BEAT_STEPS): (number | null)[] {
+  return Array(steps).fill(null);
 }
 
-export function emptyBeatPattern(): BeatPatternData {
-  return { grid: emptyBeatGrid(), bass: emptyBeatBass() };
+export function emptyBeatPattern(bars: BeatPatternBars = 1): BeatPatternData {
+  const steps = bars * BEAT_STEPS;
+  return {
+    bars,
+    grid: emptyBeatGrid(steps),
+    bass: emptyBeatBass(steps),
+    velocity: {},
+    bassVelocity: {},
+  };
 }
 
 export function cloneBeatPattern(p: BeatPatternData): BeatPatternData {
-  return { grid: p.grid.map((r) => [...r]), bass: [...p.bass] };
+  return {
+    bars: p.bars,
+    grid: p.grid.map((r) => [...r]),
+    bass: [...p.bass],
+    velocity: { ...p.velocity },
+    bassVelocity: { ...p.bassVelocity },
+  };
+}
+
+/** Resize a pattern to a new bar length (pure — returns a new pattern).
+ *  Growing pads grid/bass with silence; shrinking truncates the tail
+ *  (hits inside the kept bars are untouched, velocity entries past the
+ *  new end are dropped). */
+export function setPatternBars(p: BeatPatternData, bars: BeatPatternBars): BeatPatternData {
+  const steps = bars * BEAT_STEPS;
+  const fitRow = (row: number[]): number[] =>
+    Array.from({ length: steps }, (_, s) => row[s] ?? 0);
+  const velocity: Record<string, number> = {};
+  for (const [k, v] of Object.entries(p.velocity)) {
+    const step = Number(k.split(":")[1]);
+    if (Number.isFinite(step) && step < steps) velocity[k] = v;
+  }
+  const bassVelocity: Record<string, number> = {};
+  for (const [k, v] of Object.entries(p.bassVelocity)) {
+    const step = Number(k);
+    if (Number.isFinite(step) && step < steps) bassVelocity[k] = v;
+  }
+  return {
+    bars,
+    grid: p.grid.map(fitRow),
+    bass: Array.from({ length: steps }, (_, s) => p.bass[s] ?? null),
+    velocity,
+    bassVelocity,
+  };
+}
+
+/* ─── Per-step velocity ──────────────────────────────────────────────────
+ * Composition (see the header): the grid cell is the hit state and the
+ * velocity multiplies it. gain(cell, vel) = 0 when the cell is off,
+ * vel for a plain hit, vel × 1.4 for an accent. With no velocity entry
+ * (vel = 1.0) the gains are exactly the v1 constants 1.0 / 1.4. */
+
+const velocityKey = (track: number, step: number): string => `${track}:${step}`;
+
+const clampVelocity = (v: number): number =>
+  Math.min(BEAT_VELOCITY_MAX, Math.max(BEAT_VELOCITY_MIN, v));
+
+/** The stored velocity for a drum step (1.0 when unset/invalid). */
+export function stepVelocity(p: BeatPatternData, track: number, step: number): number {
+  const v = p.velocity[velocityKey(track, step)];
+  return typeof v === "number" && Number.isFinite(v) ? clampVelocity(v) : BEAT_VELOCITY_DEFAULT;
+}
+
+/** Pure gain math for one cell + velocity — the single formula the
+ *  live transport and the offline render both use. */
+export function stepGain(cell: number, velocity: number): number {
+  if (cell <= 0) return 0;
+  const vel =
+    typeof velocity === "number" && Number.isFinite(velocity)
+      ? clampVelocity(velocity)
+      : BEAT_VELOCITY_DEFAULT;
+  return cell === 2 ? vel * BEAT_ACCENT_GAIN : vel;
+}
+
+/** The gain a drum step plays at (0 = silent/off). */
+export function drumStepGain(p: BeatPatternData, track: number, step: number): number {
+  return stepGain(p.grid[track]?.[step] ?? 0, stepVelocity(p, track, step));
+}
+
+/** Set a drum step's velocity (pure — returns a new pattern). Setting
+ *  the default (1.0) removes the sparse entry. Out-of-range steps and
+ *  tracks are ignored. */
+export function setStepVelocity(
+  p: BeatPatternData,
+  track: number,
+  step: number,
+  velocity: number,
+): BeatPatternData {
+  if (track < 0 || track >= BEAT_TRACK_COUNT || step < 0 || step >= patternStepCount(p)) {
+    return p;
+  }
+  const next = cloneBeatPattern(p);
+  const v = typeof velocity === "number" && Number.isFinite(velocity) ? clampVelocity(velocity) : BEAT_VELOCITY_DEFAULT;
+  if (v >= BEAT_VELOCITY_MAX) delete next.velocity[velocityKey(track, step)];
+  else next.velocity[velocityKey(track, step)] = v;
+  return next;
+}
+
+/** The stored velocity for an 808 bass step (1.0 when unset/invalid). */
+export function bassStepVelocity(p: BeatPatternData, step: number): number {
+  const v = p.bassVelocity[String(step)];
+  return typeof v === "number" && Number.isFinite(v) ? clampVelocity(v) : BEAT_VELOCITY_DEFAULT;
+}
+
+/** The gain an 808 step plays at — velocity alone (no accent state;
+ *  v1 projects: exactly 1.0, as before). */
+export function bassStepGain(p: BeatPatternData, step: number): number {
+  return p.bass[step] == null ? 0 : bassStepVelocity(p, step);
+}
+
+/** Set an 808 step's velocity (pure — returns a new pattern). */
+export function setBassStepVelocity(
+  p: BeatPatternData,
+  step: number,
+  velocity: number,
+): BeatPatternData {
+  if (step < 0 || step >= patternStepCount(p)) return p;
+  const next = cloneBeatPattern(p);
+  const v = typeof velocity === "number" && Number.isFinite(velocity) ? clampVelocity(velocity) : BEAT_VELOCITY_DEFAULT;
+  if (v >= BEAT_VELOCITY_MAX) delete next.bassVelocity[String(step)];
+  else next.bassVelocity[String(step)] = v;
+  return next;
 }
 
 /** True when a pattern holds no hits and no bass notes (a free slot). */
@@ -115,7 +280,7 @@ export function defaultBeatMixer(): BeatMixerState {
  *  `seed` optionally supplies pattern A (the page seeds its preset). */
 export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
   return {
-    version: 1,
+    version: 2,
     patterns: {
       A: seed ? cloneBeatPattern(seed) : emptyBeatPattern(),
       B: emptyBeatPattern(),
@@ -136,20 +301,20 @@ export function defaultBeatProject(seed?: BeatPatternData): BeatProject {
 const clampN = (v: unknown, lo: number, hi: number, fallback: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
 
-function normalizeGrid(raw: unknown): number[][] {
+function normalizeGrid(raw: unknown, steps: number): number[][] {
   const rows = Array.isArray(raw) ? raw : [];
   return Array.from({ length: BEAT_TRACK_COUNT }, (_, ti) => {
     const row = Array.isArray(rows[ti]) ? (rows[ti] as unknown[]) : [];
-    return Array.from({ length: BEAT_STEPS }, (_, s) => {
+    return Array.from({ length: steps }, (_, s) => {
       const v = row[s];
       return v === 2 ? 2 : v === 1 ? 1 : 0;
     });
   });
 }
 
-function normalizeBass(raw: unknown): (number | null)[] {
+function normalizeBass(raw: unknown, steps: number): (number | null)[] {
   const notes = Array.isArray(raw) ? raw : [];
-  return Array.from({ length: BEAT_STEPS }, (_, s) => {
+  return Array.from({ length: steps }, (_, s) => {
     const v = notes[s];
     return typeof v === "number" && Number.isFinite(v)
       ? Math.min(BEAT_BASS_HI, Math.max(BEAT_BASS_LO, Math.round(v)))
@@ -157,10 +322,53 @@ function normalizeBass(raw: unknown): (number | null)[] {
   });
 }
 
+/** Sparse velocity maps: keep only well-formed, in-range entries whose
+ *  value differs from the default (a stored 1.0 is the default, so it
+ *  is dropped — the canonical form stays small and round-trips equal). */
+function normalizeVelocityMap(raw: unknown, steps: number): Record<string, number> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const m = /^(\d+):(\d+)$/.exec(k);
+    if (!m) continue;
+    const track = Number(m[1]);
+    const step = Number(m[2]);
+    if (track >= BEAT_TRACK_COUNT || step >= steps) continue;
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    const clamped = clampVelocity(v);
+    if (clamped < BEAT_VELOCITY_MAX) out[`${track}:${step}`] = clamped;
+  }
+  return out;
+}
+
+function normalizeBassVelocityMap(raw: unknown, steps: number): Record<string, number> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d+$/.test(k)) continue;
+    const step = Number(k);
+    if (step >= steps) continue;
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    const clamped = clampVelocity(v);
+    if (clamped < BEAT_VELOCITY_MAX) out[String(step)] = clamped;
+  }
+  return out;
+}
+
 function normalizePattern(raw: unknown): BeatPatternData {
   if (!raw || typeof raw !== "object") return emptyBeatPattern();
   const r = raw as Partial<BeatPatternData>;
-  return { grid: normalizeGrid(r.grid), bass: normalizeBass(r.bass) };
+  /* v1 patterns carry no `bars` — they are 1 bar by definition, and
+   * their 16 steps land verbatim at the head of the migrated arrays. */
+  const bars: BeatPatternBars = isBeatPatternBars(r.bars) ? r.bars : 1;
+  const steps = bars * BEAT_STEPS;
+  return {
+    bars,
+    grid: normalizeGrid(r.grid, steps),
+    bass: normalizeBass(r.bass, steps),
+    velocity: normalizeVelocityMap(r.velocity, steps),
+    bassVelocity: normalizeBassVelocityMap(r.bassVelocity, steps),
+  };
 }
 
 function normalizeMixer(raw: unknown): BeatMixerState {
@@ -211,7 +419,7 @@ export function normalizeBeatProject(raw: unknown): BeatProject | null {
     patterns[id] = normalizePattern(r.patterns?.[id]);
   }
   return {
-    version: 1,
+    version: 2,
     patterns,
     activePattern: BEAT_PATTERN_IDS.includes(r.activePattern as BeatPatternId)
       ? (r.activePattern as BeatPatternId)
@@ -242,30 +450,58 @@ export function deserializeBeatProject(raw: unknown): BeatProject {
   return normalizeBeatProject(value) ?? defaultBeatProject();
 }
 
-/* ─── Arrangement math (pure) ──────────────────────────────────────────── */
+/* ─── Arrangement math (pure) ────────────────────────────────────────────
+ * Patterns can differ in length, so totals/resolution take a step
+ * resolver: either a uniform step count (the v1 behavior — every
+ * pattern the same length) or a function giving each pattern's own
+ * step count. `stepsResolverForPatterns` builds the function form
+ * from a project's patterns. */
 
-/** Total 16th-note steps in one full pass of the arrangement. */
+/** Uniform step count, or per-pattern step counts. */
+export type BeatStepsResolver = number | ((patternId: BeatPatternId) => number);
+
+/** Build the per-pattern resolver for a project's patterns. */
+export function stepsResolverForPatterns(
+  patterns: Record<BeatPatternId, BeatPatternData>,
+): (patternId: BeatPatternId) => number {
+  return (id) => patternStepCount(patterns[id] ?? emptyBeatPattern());
+}
+
+function stepsFor(resolver: BeatStepsResolver, patternId: BeatPatternId): number {
+  const n = typeof resolver === "number" ? resolver : resolver(patternId);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : BEAT_STEPS;
+}
+
+/** Total 16th-note steps in one full pass of the arrangement. With a
+ *  per-pattern resolver, each entry contributes repeats × its own
+ *  pattern's step count. */
 export function arrangementTotalSteps(
   arrangement: BeatArrangementEntry[],
-  stepsPerPattern: number = BEAT_STEPS,
+  stepsPerPattern: BeatStepsResolver = BEAT_STEPS,
 ): number {
-  return (
-    arrangement.reduce((sum, e) => sum + Math.max(0, e.repeats), 0) * stepsPerPattern
+  return arrangement.reduce(
+    (sum, e) => sum + Math.max(0, e.repeats) * stepsFor(stepsPerPattern, e.patternId),
+    0,
   );
 }
 
-/** Total bars (one pattern = one bar of 16 steps) in one full pass. */
-export function arrangementTotalBars(arrangement: BeatArrangementEntry[]): number {
-  return arrangementTotalSteps(arrangement) / BEAT_STEPS;
+/** Total bars in one full pass (a bar is always 16 steps, whatever a
+ *  pattern's length). */
+export function arrangementTotalBars(
+  arrangement: BeatArrangementEntry[],
+  stepsPerPattern: BeatStepsResolver = BEAT_STEPS,
+): number {
+  return arrangementTotalSteps(arrangement, stepsPerPattern) / BEAT_STEPS;
 }
 
 /** Seconds for one full pass at a tempo (swing does not change length). */
 export function arrangementDurationSec(
   arrangement: BeatArrangementEntry[],
   bpm: number,
+  stepsPerPattern: BeatStepsResolver = BEAT_STEPS,
 ): number {
   const stepDur = 60 / Math.max(1, bpm) / 4;
-  return arrangementTotalSteps(arrangement) * stepDur;
+  return arrangementTotalSteps(arrangement, stepsPerPattern) * stepDur;
 }
 
 export interface ArrangementPlay {
@@ -290,7 +526,7 @@ export interface ResolvedArrangementStep {
   entryIndex: number;
   patternId: BeatPatternId;
   repeatIndex: number;
-  /** Step inside the pattern (0 … stepsPerPattern-1). */
+  /** Step inside the pattern (0 … that pattern's step count − 1). */
   stepInPattern: number;
   /** Step inside the entry across its repeats. */
   stepInEntry: number;
@@ -298,11 +534,13 @@ export interface ResolvedArrangementStep {
 
 /** Resolve a global step (counted from the start of the arrangement)
  *  to the entry / pattern / step that plays there. Null when the step
- *  is outside the arrangement (or the arrangement is empty). */
+ *  is outside the arrangement (or the arrangement is empty). With a
+ *  per-pattern resolver, entry boundaries land on each pattern's own
+ *  length, so repeats of differing lengths chain correctly. */
 export function resolveArrangementStep(
   globalStep: number,
   arrangement: BeatArrangementEntry[],
-  stepsPerPattern: number = BEAT_STEPS,
+  stepsPerPattern: BeatStepsResolver = BEAT_STEPS,
 ): ResolvedArrangementStep | null {
   if (!Number.isFinite(globalStep) || globalStep < 0) return null;
   const total = arrangementTotalSteps(arrangement, stepsPerPattern);
@@ -310,13 +548,14 @@ export function resolveArrangementStep(
   let remaining = Math.floor(globalStep);
   for (let entryIndex = 0; entryIndex < arrangement.length; entryIndex++) {
     const entry = arrangement[entryIndex]!;
-    const entrySteps = Math.max(0, entry.repeats) * stepsPerPattern;
+    const spp = stepsFor(stepsPerPattern, entry.patternId);
+    const entrySteps = Math.max(0, entry.repeats) * spp;
     if (remaining < entrySteps) {
       return {
         entryIndex,
         patternId: entry.patternId,
-        repeatIndex: Math.floor(remaining / stepsPerPattern),
-        stepInPattern: remaining % stepsPerPattern,
+        repeatIndex: Math.floor(remaining / spp),
+        stepInPattern: remaining % spp,
         stepInEntry: remaining,
       };
     }
