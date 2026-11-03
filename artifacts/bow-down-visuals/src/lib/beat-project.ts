@@ -49,6 +49,13 @@
  */
 
 import { defaultSoundIdForTrack, normalizeTrackSoundId } from "@/lib/beat-sounds";
+import {
+  beatMelodyNoteCount,
+  cloneBeatMelody,
+  emptyBeatMelody,
+  normalizeBeatMelody,
+  type BeatMelodyLanes,
+} from "@/lib/beat-melody";
 
 export type BeatPatternId = "A" | "B" | "C" | "D";
 export const BEAT_PATTERN_IDS: BeatPatternId[] = ["A", "B", "C", "D"];
@@ -90,6 +97,11 @@ export interface BeatPatternData {
   velocity: Record<string, number>;
   /** Sparse 808 velocity: "step" → 0.1–1.0. Missing = 1.0. */
   bassVelocity: Record<string, number>;
+  /* Melodic lanes (W1-L2, composed at the beat join): Keys / Pluck / Pad
+   * notes for this pattern. The lanes are one bar (16 steps) and loop per
+   * bar inside longer patterns — for 1-bar patterns (all legacy projects)
+   * playback and render are exactly the pre-join behavior. */
+  melody: BeatMelodyLanes;
 }
 
 /** Steps in a pattern of the given length. */
@@ -159,6 +171,7 @@ export function emptyBeatPattern(bars: BeatPatternBars = 1): BeatPatternData {
     bass: emptyBeatBass(steps),
     velocity: {},
     bassVelocity: {},
+    melody: emptyBeatMelody(),
   };
 }
 
@@ -169,6 +182,7 @@ export function cloneBeatPattern(p: BeatPatternData): BeatPatternData {
     bass: [...p.bass],
     velocity: { ...p.velocity },
     bassVelocity: { ...p.bassVelocity },
+    melody: cloneBeatMelody(p.melody),
   };
 }
 
@@ -196,6 +210,9 @@ export function setPatternBars(p: BeatPatternData, bars: BeatPatternBars): BeatP
     bass: Array.from({ length: steps }, (_, s) => p.bass[s] ?? null),
     velocity,
     bassVelocity,
+    /* Melody lanes are one bar and loop per bar, so a bars change keeps
+     * them whole (no truncation, no padding). */
+    melody: cloneBeatMelody(p.melody),
   };
 }
 
@@ -281,7 +298,8 @@ export function setBassStepVelocity(
 export function isEmptyBeatPattern(p: BeatPatternData): boolean {
   return (
     p.grid.every((row) => row.every((v) => v === 0)) &&
-    p.bass.every((n) => n == null)
+    p.bass.every((n) => n == null) &&
+    beatMelodyNoteCount(p.melody) === 0
   );
 }
 
@@ -398,6 +416,7 @@ function normalizePattern(raw: unknown): BeatPatternData {
     bass: normalizeBass(r.bass, steps),
     velocity: normalizeVelocityMap(r.velocity, steps),
     bassVelocity: normalizeBassVelocityMap(r.bassVelocity, steps),
+    melody: normalizeBeatMelody(r.melody),
   };
 }
 

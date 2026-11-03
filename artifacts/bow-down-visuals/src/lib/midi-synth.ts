@@ -79,8 +79,11 @@ export function voiceSpec(instrument: MidiInstrumentId): VoiceSpec {
   return VOICES[instrument];
 }
 
-/** Schedule one note on any BaseAudioContext (live or offline). */
-function scheduleSynthNote(
+/** Schedule one note on any BaseAudioContext (live or offline).
+ *  Exported as `scheduleMidiVoice` so other surfaces that ride these same
+ *  voice definitions (the beat sequencer's melodic lanes) schedule through
+ *  the identical recipes instead of duplicating them. */
+export function scheduleMidiVoice(
   ctx: BaseAudioContext,
   dest: AudioNode,
   instrument: MidiInstrumentId,
@@ -138,7 +141,7 @@ export function auditionNote(instrument: MidiInstrumentId, pitch: number, veloci
       auditionCtx = new Ctor();
     }
     if (auditionCtx.state === "suspended") void auditionCtx.resume();
-    scheduleSynthNote(
+    scheduleMidiVoice(
       auditionCtx,
       auditionCtx.destination,
       instrument,
@@ -164,7 +167,7 @@ export async function bounceMidiNotesToWav(
   const master = ctx.createGain();
   master.gain.value = 0.9;
   master.connect(ctx.destination);
-  for (const note of notes) scheduleSynthNote(ctx, master, instrument, note, note.start);
+  for (const note of notes) scheduleMidiVoice(ctx, master, instrument, note, note.start);
   const buffer = await ctx.startRendering();
   return audioBufferToWavBlob(buffer);
 }
