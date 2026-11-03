@@ -239,7 +239,16 @@ beforeEach(() => {
     { id: "pay-b", referral_id: `ref-${B}-0`, referrer_credits_awarded: 500, created_at: inWindow },
     { id: "pay-c", referral_id: `ref-${C}-0`, referrer_credits_awarded: 100, created_at: inWindow },
   ];
-  h.state.profiles = [];
+  /* Every seeded referee has a creator profile, so in these legacy
+     scenarios qualifiedSignups == raw signups and the prize race runs
+     exactly as before (Charts OD3 qualification is exercised in the
+     dedicated describe below, which reseeds profiles selectively). */
+  h.state.profiles = h.state.referrals.map((r) => ({
+    user_id: r.referee_user_id,
+    display_name: null,
+    slug: null,
+    is_public: false,
+  }));
   h.state.payCalls = [];
   h.state.payFailures = new Set();
   h.state.prizeDeletes = [];
@@ -292,5 +301,93 @@ describe("settleReferralContests — prize claim release + retry", () => {
     h.state.payCalls = [];
     await settleReferralContests();
     expect(h.state.payCalls).toHaveLength(0); // settled contests are skipped
+  });
+});
+
+/* ── Charts OD3: the contest counts only QUALIFIED referees ─────────────
+   A referee qualifies only by creating a creator profile (the welcome
+   gate in lib/referral-welcome). Raw signups alone — e.g. 5 throwaway
+   accounts — must no longer qualify a referrer for the prize race. */
+const D = "dddddddd-4444-4444-8444-444444444444";
+const E = "eeeeeeee-5555-4555-8555-555555555555";
+const F = "ffffffff-6666-4666-8666-666666666666";
+
+function seedContestScenario(
+  specs: Array<{ referrer: string; raw: number; withProfiles: number }>,
+) {
+  const now = new Date();
+  const inWindow = new Date(now.getTime() - 20 * 86400000).toISOString();
+  const referrals: Array<Record<string, any>> = [];
+  const profiles: Array<Record<string, any>> = [];
+  for (const spec of specs) {
+    const refs = Array.from({ length: spec.raw }, (_, i) => ({
+      id: `ref-${spec.referrer}-${i}`,
+      referrer_user_id: spec.referrer,
+      referee_user_id: `referee-${spec.referrer}-${i}`,
+      created_at: inWindow,
+    }));
+    referrals.push(...refs);
+    profiles.push(
+      ...refs.slice(0, spec.withProfiles).map((r) => ({
+        user_id: r.referee_user_id,
+        display_name: null,
+        slug: null,
+        is_public: false,
+      })),
+    );
+  }
+  h.state.referrals = referrals;
+  h.state.profiles = profiles;
+  h.state.payouts = [];
+}
+
+describe("settleReferralContests — contest counts qualified referees only (Charts OD3)", () => {
+  it("5 raw signups without creator profiles do NOT qualify — no prize is paid", async () => {
+    seedContestScenario([{ referrer: D, raw: 5, withProfiles: 0 }]);
+    await settleReferralContests();
+
+    expect(h.state.payCalls).toEqual([]);
+    expect(h.state.prizes).toEqual([]);
+    // Nothing failed — the contest still settles, it just pays nobody.
+    expect(h.state.contests.find((c) => c.id === ENDED_ID)!.status).toBe("settled");
+  });
+
+  it("5 signups with creator profiles DO qualify, win rank 1, and settle exactly once", async () => {
+    seedContestScenario([{ referrer: D, raw: 5, withProfiles: 5 }]);
+    await settleReferralContests();
+
+    expect(h.state.payCalls).toEqual([{ userId: D, amount: 25000 }]);
+    expect(h.state.prizes).toHaveLength(1);
+    expect(h.state.prizes[0]!.referrer_user_id).toBe(D);
+    // The prize row records the qualified count that won the prize.
+    expect(h.state.prizes[0]!.signups).toBe(5);
+    expect(h.state.contests.find((c) => c.id === ENDED_ID)!.status).toBe("settled");
+
+    h.state.payCalls = [];
+    await settleReferralContests();
+    expect(h.state.payCalls).toHaveLength(0); // exactly-once preserved
+  });
+
+  it("mixed counts qualify and rank on the qualified count only", async () => {
+    seedContestScenario([
+      // 8 raw but only 4 qualified — raw alone must not qualify.
+      { referrer: D, raw: 8, withProfiles: 4 },
+      // 6 raw, all 6 qualified — rank 1.
+      { referrer: E, raw: 6, withProfiles: 6 },
+      // 9 raw (the most) but only 5 qualified — rank 2, behind E:
+      // raw signups must not inflate the contest rank either.
+      { referrer: F, raw: 9, withProfiles: 5 },
+    ]);
+    await settleReferralContests();
+
+    expect(h.state.payCalls).toEqual([
+      { userId: E, amount: 25000 },
+      { userId: F, amount: 10000 },
+    ]);
+    expect(h.state.prizes.map((p) => [p.referrer_user_id, p.signups]).sort()).toEqual([
+      [E, 6],
+      [F, 5],
+    ]);
+    expect(h.state.contests.find((c) => c.id === ENDED_ID)!.status).toBe("settled");
   });
 });
