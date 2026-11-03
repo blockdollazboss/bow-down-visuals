@@ -1120,6 +1120,20 @@ const TIERED_PRICE_LINKS = [
     routeFile: "routes/generate/music-audio.ts",
     attachToFeatureIds: ["desk-song"],
   },
+  /* Audit #5 (stack1400): the legacy song-package rail
+     (POST /api/generate-song) charges through the SAME tier
+     function — it imports SONG_PRICE_TIERS / creditCostForLength
+     from music-audio.ts instead of keeping a flat cost — so its
+     knowledge entries carry the same tiers, extracted from the
+     same table file (tableFile), while the serving check runs
+     against its own route file. One song price story. */
+  {
+    endpoint: "/api/generate-song",
+    tableConstant: "SONG_PRICE_TIERS",
+    routeFile: "routes/generate/song.ts",
+    tableFile: "routes/generate/music-audio.ts",
+    attachToFeatureIds: [],
+  },
 ];
 
 /** Registry-priced rails whose charging endpoint no page source names
@@ -2235,15 +2249,26 @@ function main() {
     if (!src.includes(`"${link.endpoint.replace("/api", "")}"`)) {
       throw new Error(`tiered prices: ${fileLabel} no longer serves ${link.endpoint}`);
     }
-    const tiers = extractPriceTiers(src, link.tableConstant, fileLabel);
+    /* A rail that imports its tier table from another rail's file
+       (tableFile) is verified to still import the charging function
+       from that file — the shared-table claim is checked, not
+       trusted — and the tiers are extracted from the table's home. */
+    const tableFileLabel = `artifacts/api-server/src/${link.tableFile ?? link.routeFile}`;
+    if (link.tableFile) {
+      if (!src.includes(link.tableConstant) || !src.includes("creditCostForLength")) {
+        throw new Error(`tiered prices: ${fileLabel} no longer imports ${link.tableConstant} / creditCostForLength from its shared table file (${tableFileLabel})`);
+      }
+    }
+    const tableSrc = link.tableFile ? read(path.join(API_SRC, link.tableFile)) : src;
+    const tiers = extractPriceTiers(tableSrc, link.tableConstant, tableFileLabel);
     const registry = creditCosts.get(link.endpoint);
     if (!registry) throw new Error(`tiered prices: CREDIT_COSTS has no entry for ${link.endpoint} to attach tiers to`);
     if (registry.cost !== tiers[0].vb) {
-      throw new Error(`tiered prices: CREDIT_COSTS ${link.endpoint}=${registry.cost} disagrees with ${link.tableConstant} first tier=${tiers[0].vb} (${fileLabel})`);
+      throw new Error(`tiered prices: CREDIT_COSTS ${link.endpoint}=${registry.cost} disagrees with ${link.tableConstant} first tier=${tiers[0].vb} (${tableFileLabel})`);
     }
     tieredPrices.set(link.endpoint, {
       tiers,
-      tiersSource: `${fileLabel} ${link.tableConstant} — the table the charging function derives from`,
+      tiersSource: `${tableFileLabel} ${link.tableConstant} — the table the charging function derives from`,
     });
   }
 

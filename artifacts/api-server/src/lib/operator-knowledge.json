@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "e33e31d5dcfcbe7aee4378b5a1e9739df4934f57",
+  "baseCommit": "9cc40410faa9038383537d1fdda9ca93a9613130",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-02",
+  "generatedAt": "2026-11-03",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
@@ -6112,7 +6112,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6224,7 +6243,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6355,7 +6393,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6485,7 +6542,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6634,7 +6710,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6800,7 +6895,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",
@@ -6940,7 +7054,26 @@
           "feature": "Generate Song",
           "vb": 400,
           "endpoint": "/api/generate-song",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 60,
+              "vb": 400
+            },
+            {
+              "upToSeconds": 180,
+              "vb": 800
+            },
+            {
+              "upToSeconds": 300,
+              "vb": 1200
+            },
+            {
+              "upToSeconds": 600,
+              "vb": 2400
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/routes/generate/music-audio.ts SONG_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Generate Song + Video",

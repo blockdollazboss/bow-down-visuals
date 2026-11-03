@@ -559,6 +559,27 @@ describe("operator knowledge — song duration tiers (live defect, Oct 20)", () 
     expect(carriers).toBeGreaterThan(10);
   });
 
+  it("every knowledge entry for the legacy song rail carries the SAME tier table (audit #5 — one song price story)", () => {
+    /* The legacy rail (POST /api/generate-song) used to sit in the
+       knowledge base as a flat "Generate Song — 400" beside the
+       tiered music-audio entry. It now charges through the same
+       creditCostForLength, and its entries carry the same tiers,
+       extracted from the same SONG_PRICE_TIERS table. */
+    const derived = deriveSongTiers();
+    let carriers = 0;
+    for (const f of OPERATOR_FEATURES) {
+      for (const p of f.prices) {
+        if (p.endpoint !== "/api/generate-song") continue;
+        carriers++;
+        expect(p.tiers, `${f.id} generate-song tiers`).toEqual(derived);
+        expect(p.tiersSource).toContain("music-audio.ts");
+        expect(p.tiersSource).toContain("SONG_PRICE_TIERS");
+        expect(p.vb).toBe(derived[0]!.vb);
+      }
+    }
+    expect(carriers).toBeGreaterThan(0);
+  });
+
   it("the Make a Song entry itself carries the tiered song price", () => {
     const song = OPERATOR_FEATURES.find((f) => f.path === "/create?panel=song")!;
     const p = song.prices.find((x) => x.endpoint === "/api/generate-music-audio");
