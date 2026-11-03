@@ -27,6 +27,12 @@ interface ApiKeyPublic {
   revokedAt: string | null;
 }
 
+/* Active-key cap (owner ruling, stack1400 #9): 10 active keys per
+   account; revoked keys don't count. The GET /api-keys response carries
+   the server's own count + limit — this constant is only the fallback
+   if an older server answers without them. */
+const API_KEY_ACTIVE_LIMIT_FALLBACK = 10;
+
 const SCOPE_LABELS: Record<string, string> = {
   "profile:read": "Read my profile",
   "content:read": "Read my content list",
@@ -39,6 +45,8 @@ export function DeveloperApiSettings() {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [keys, setKeys] = useState<ApiKeyPublic[] | null>(null);
+  const [serverActiveCount, setServerActiveCount] = useState<number | null>(null);
+  const [serverActiveLimit, setServerActiveLimit] = useState<number | null>(null);
   const [availableScopes, setAvailableScopes] = useState<string[]>([]);
   const [loadError, setLoadError] = useState(false);
   /* 503 api_keys_not_ready (the api_keys table isn't on this database
@@ -68,8 +76,15 @@ export function DeveloperApiSettings() {
         return;
       }
       if (!res.ok) throw new Error("load failed");
-      const data = (await res.json()) as { keys: ApiKeyPublic[]; availableScopes: string[] };
+      const data = (await res.json()) as {
+        keys: ApiKeyPublic[];
+        availableScopes: string[];
+        activeKeyCount?: number;
+        activeKeyLimit?: number;
+      };
       setKeys(data.keys);
+      setServerActiveCount(typeof data.activeKeyCount === "number" ? data.activeKeyCount : null);
+      setServerActiveLimit(typeof data.activeKeyLimit === "number" ? data.activeKeyLimit : null);
       setAvailableScopes(data.availableScopes);
       loadedRef.current = true;
       setLoadError(false);
@@ -90,14 +105,16 @@ export function DeveloperApiSettings() {
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ name: name.trim(), scopes: picked }),
       });
-      if (!res.ok) throw new Error("create failed");
-      const data = (await res.json()) as { plaintext: string };
-      setFreshKey(data.plaintext);
+      const data = (await res.json().catch(() => ({}))) as { plaintext?: string; message?: string };
+      /* The cap refusal (409 api_key_limit_reached) carries the server's
+         own plain words — surface THOSE, never a generic failure. */
+      if (!res.ok) throw new Error(apiErrorMessage(data, "create failed"));
+      setFreshKey(data.plaintext ?? null);
       setCopied(false);
       setName("");
       await load();
-    } catch {
-      toast({ title: "Couldn't create the key", description: "Please try again.", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Couldn't create the key", description: plainErrorText(err, "Please try again."), variant: "destructive" });
     } finally {
       setCreating(false);
     }
@@ -116,6 +133,10 @@ export function DeveloperApiSettings() {
       setRevoking(null);
     }
   }
+
+  const activeKeyCount = serverActiveCount ?? (keys ? keys.filter((k) => !k.revokedAt).length : 0);
+  const activeKeyLimit = serverActiveLimit ?? API_KEY_ACTIVE_LIMIT_FALLBACK;
+  const atKeyCap = keys !== null && activeKeyCount >= activeKeyLimit;
 
   const sub = isLight ? "text-[#6B5B36]" : "text-white/50";
   const card = isLight
@@ -172,6 +193,10 @@ export function DeveloperApiSettings() {
 
           <div>
             <p className="text-sm font-bold">Create a key</p>
+            <p className={`mt-1 text-xs ${sub}`}>
+              {activeKeyCount} of {activeKeyLimit} active keys
+              {atKeyCap ? " — you've reached the limit. Revoke one to create another." : " · revoked keys don't count toward the limit."}
+            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               <input aria-label="Key name — e.g. My agent"
                 value={name}
