@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   estimatePodcastCost,
   estimateTopicModeCost,
+  estimateDialogueCost,
   formatDuration,
   WORDS_PER_MINUTE,
   SECONDS_PER_BLOCK,
   PODCAST_CREDITS_PER_10MIN,
+  DIALOGUE_CREDITS_PER_10MIN,
+  DIALOGUE_SECONDS_PER_BLOCK,
 } from "./podcast";
 
 describe("estimatePodcastCost", () => {
@@ -35,6 +38,33 @@ describe("estimatePodcastCost", () => {
     expect(WORDS_PER_MINUTE).toBe(150);
     expect(SECONDS_PER_BLOCK).toBe(600);
     expect(PODCAST_CREDITS_PER_10MIN).toBe(300);
+  });
+});
+
+describe("estimateDialogueCost — ruling #32 (300 VB per 10 min, approved 2026-11-02)", () => {
+  /** A two-speaker tagged script of exactly `words` spoken words. */
+  function taggedScript(words: number): string {
+    const half = Math.floor(words / 2);
+    return `ALEX: ${new Array(half).fill("word").join(" ")}\nJORDAN: ${new Array(words - half).fill("word").join(" ")}`;
+  }
+
+  it("keeps the dialogue rate in sync with the backend at the ruled 300", () => {
+    expect(DIALOGUE_CREDITS_PER_10MIN).toBe(300);
+    expect(DIALOGUE_SECONDS_PER_BLOCK).toBe(600);
+  });
+
+  it("1500 words = 10 minutes = 1 block = 300 VB", () => {
+    const est = estimateDialogueCost(taggedScript(1500));
+    expect(est.billableBlocks).toBe(1);
+    expect(est.credits).toBe(300);
+    expect(est.speakerCount).toBe(2);
+    expect(est.turnCount).toBe(2);
+  });
+
+  it("rounds partial blocks up (1501 words = 2 blocks = 600 VB)", () => {
+    const est = estimateDialogueCost(taggedScript(1501));
+    expect(est.billableBlocks).toBe(2);
+    expect(est.credits).toBe(600);
   });
 });
 

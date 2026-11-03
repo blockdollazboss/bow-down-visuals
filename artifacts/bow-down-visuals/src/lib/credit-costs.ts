@@ -38,6 +38,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/artist-vaults/:id/voice/clone": { cost: 200, feature: "Voice Clone (from recording)" },
   "/api/album-publish": { cost: 300, feature: "Publish Album" },
   "/api/podcast/generate": { cost: 300, feature: "Generate Podcast" },
+  "/api/podcast/dialogue": { cost: 300, feature: "Podcast Dialogue" },
   "/api/guest-questions": { cost: 75, feature: "Podcast Guest Questions" },
   "/api/mastering": { cost: 400, feature: "Mastering" },
   "/api/mix-master/master": { cost: 800, feature: "Master (Mix & Master)" },

@@ -437,7 +437,11 @@ export default function PodcastStudio() {
   const creditsLabel =
     mode === "video"
       ? t("podcast.generate.billedOnLength")
-      : t("podcast.generate.creditsEstimate", { credits: estimate.credits * 100 });
+      : t("podcast.generate.creditsEstimate", {
+          // Dialogue estimates are already in Visual Bucs at the ruled
+          // 300-per-10-min rate (ruling 2026-11-02) — no ×100 re-base.
+          credits: mode === "dialogue" ? estimate.credits : estimate.credits * 100,
+        });
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -621,7 +625,7 @@ export default function PodcastStudio() {
                       </span>
                       <span className="flex items-center gap-1 text-primary">
                         <VisualBucsIcon className="h-3.5 w-3.5" />
-                        {t("podcast.script.creditsCost", { credits: dialogueEstimate.credits * 100 })}
+                        {t("podcast.script.creditsCost", { credits: dialogueEstimate.credits })}
                       </span>
                     </div>
                     <textarea aria-label={t("podcast.dialogue.scriptPlaceholder")}
@@ -904,7 +908,7 @@ export default function PodcastStudio() {
                   )}
 
                   <p className="text-xs text-white/35">
-                    {t("podcast.result.creditsNote", { used: (result.creditsUsed ?? 0) * 100, remaining: result.creditsRemaining ?? 0 })}
+                    {t("podcast.result.creditsNote", { used: result.mode === "dialogue" ? (result.creditsUsed ?? 0) : (result.creditsUsed ?? 0) * 100, remaining: result.creditsRemaining ?? 0 })}
                   </p>
                 </div>
               )}

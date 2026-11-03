@@ -54,10 +54,10 @@ export interface PodcastChapter {
    DIALOGUE_CREDITS_PER_10MIN and the tag format in sync with the server. */
 
 /**
- * PLACEHOLDER — NOT USER-APPROVED. Proposed dialogue price; the final price
- * needs the user's explicit approval (server gate: DIALOGUE_PRICING_APPROVED).
+ * APPROVED — owner ruling 2026-11-02: 300 Visual Bucs per 10 minutes of
+ * finished dialogue audio (server gate: DIALOGUE_PRICING_APPROVED = true).
  */
-export const DIALOGUE_CREDITS_PER_10MIN = 3;
+export const DIALOGUE_CREDITS_PER_10MIN = 300;
 export const DIALOGUE_SECONDS_PER_BLOCK = 600;
 export const MAX_DIALOGUE_SPEAKERS = 8;
 
