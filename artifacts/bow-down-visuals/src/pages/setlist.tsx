@@ -580,6 +580,56 @@ export default function SetlistBuilder() {
             </div>
           </div>
         </div>
+
+        {/* Dead-end fix (org wave, audit §1d): a finished setlist went
+            nowhere — the page's only doors were "back to dashboard"
+            and a songs link inside the library modal. The show's real
+            next steps dock below, always on: put these songs on tour
+            dates, see the show on your stage, perform it live, and
+            promote it. Every target is a real route in App.tsx
+            (/shows redirects to the Go Live shows tab), pinned by
+            pages/dead-end-handoffs.test.ts. The container reuses this
+            page's own themed card classes, so both themes get the
+            same doors; no-print keeps it off the printed setlist. */}
+        <div
+          data-testid="setlist-next-steps"
+          className={`no-print mt-8 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+        >
+          <h2 className="text-sm font-bold uppercase tracking-widest text-white/70">Take this setlist on stage</h2>
+          <p className="mt-2 text-sm text-white/50">
+            The songs are in order — now give the show dates, a stage, and an audience.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/tour"
+              data-testid="setlist-handoff-tour"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-black hover:brightness-110 transition"
+            >
+              Plan the tour
+            </Link>
+            <Link
+              href="/shows"
+              data-testid="setlist-handoff-shows"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+            >
+              Your shows
+            </Link>
+            <Link
+              href="/go-live"
+              data-testid="setlist-handoff-go-live"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+            >
+              Go Live
+            </Link>
+            <Link
+              href="/promote"
+              data-testid="setlist-handoff-promote"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+            >
+              Promote the show
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* ── library picker modal ── */}
