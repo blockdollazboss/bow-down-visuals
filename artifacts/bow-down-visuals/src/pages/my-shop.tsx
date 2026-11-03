@@ -16,6 +16,10 @@ import CommercePixelsSettings, {
   type CommercePixelsFormValue,
 } from "@/components/CommercePixelsSettings";
 import { centsToDisplay, dollarsToCents, shopHandleError } from "@/lib/shops";
+import {
+  SHOP_DESIGN_STARTERS, shopStarterPatch, isStarterApplied,
+  type ShopDesignStarter,
+} from "@/lib/shop-starters";
 import SellerReviewsPanel from "@/components/product-reviews/SellerReviewsPanel";
 import SellerOffersInbox from "@/components/offers/SellerOffersInbox";
 import { useTranslation } from "react-i18next";
@@ -135,6 +139,8 @@ export default function MyShop() {
   const [editAccentColor, setEditAccentColor] = useState("#d4af37");
   const [saving, setSaving] = useState(false);
   const [savedTick, setSavedTick] = useState(false);
+  /* Design starters (lib/shop-starters): which starter is mid-apply. */
+  const [applyingStarterId, setApplyingStarterId] = useState<string | null>(null);
   const [aiShopDescLoading, setAiShopDescLoading] = useState(false);
   const [niche, setNiche] = useState("");
 
@@ -297,6 +303,45 @@ export default function MyShop() {
       setError(plainErrorText(err, t("myShop.saveShopFailed")));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /* Design starters: applying one writes ONLY its two persisted design
+     fields (banner_color + accent_color) through the same PATCH rail
+     saveShop uses — the rail COALESCE-keeps name/tagline/description,
+     so a starter can never clobber the shop's copy. The editor colors
+     flip first so the preview below re-skins instantly; a failed PATCH
+     reverts them to the shop's stored colors and surfaces the error —
+     a starter never reads as applied when it didn't save. Free: shop
+     setup carries no charge and starters add none. */
+  async function applyStarter(starter: ShopDesignStarter) {
+    if (!activeShop || applyingStarterId) return;
+    if (isStarterApplied(activeShop, starter)) return;
+    const prevBanner = editBannerColor;
+    const prevAccent = editAccentColor;
+    setApplyingStarterId(starter.id);
+    setError(null);
+    setEditBannerColor(starter.settings.banner_color);
+    setEditAccentColor(starter.settings.accent_color);
+    try {
+      const res = await authed(`/api/shops/${activeShop.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(shopStarterPatch(starter)),
+      });
+      const data = (await res.json().catch(() => ({}))) as { shop?: Shop; error?: string };
+      if (!res.ok || !data.shop) throw new Error(apiErrorMessage(data, t("myShop.saveShopFailed")));
+      setActiveShop(data.shop);
+      setShops((s) => s.map((x) => (x.id === data.shop!.id ? data.shop! : x)));
+      setEditBannerColor(data.shop.banner_color);
+      setEditAccentColor(data.shop.accent_color);
+      setSavedTick(true);
+      setTimeout(() => setSavedTick(false), 2000);
+    } catch (err) {
+      setEditBannerColor(prevBanner);
+      setEditAccentColor(prevAccent);
+      setError(plainErrorText(err, t("myShop.saveShopFailed")));
+    } finally {
+      setApplyingStarterId(null);
     }
   }
 
@@ -803,6 +848,68 @@ export default function MyShop() {
                         <span className="font-mono text-xs text-white/50">{editAccentColor}</span>
                         <button className="text-xs text-white/40 underline" onClick={() => setEditAccentColor("#d4af37")}>{t("myShop.resetGold")}</button>
                       </div>
+                    </div>
+                  </div>
+                  {/* Live banner preview — mirrors the live storefront's
+                      own banner math (shop.tsx: gradient from the banner
+                      color to black, accent on the eyebrow + prices), so
+                      what the seller sees here is what buyers get. */}
+                  <div className="mt-5 overflow-hidden rounded-xl border border-white/10" data-testid="myshop-banner-preview">
+                    <div data-dark-lock className="relative px-5 py-6" style={{ background: `linear-gradient(135deg, ${editBannerColor}, #000)` }}>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: editAccentColor }}>Bow Down Visuals Shop</p>
+                      <p className="mt-1 text-2xl font-black text-white">{editName || activeShop.name}</p>
+                      {editTagline && <p className="mt-1 text-sm text-white/70">{editTagline}</p>}
+                      <p className="mt-3 text-sm font-black" style={{ color: editAccentColor }}>{centsToDisplay(2999)}</p>
+                    </div>
+                  </div>
+
+                  {/* Design starters — one tap re-skins the shop through
+                      the real banner/accent settings (free). Cards are
+                      data from lib/shop-starters, never JSX literals. */}
+                  <div className="mt-6" data-testid="myshop-design-starters">
+                    <h3 className="text-sm font-bold flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-amber-300" /> Design starters
+                      <span className="text-[11px] font-semibold text-white/40">free — applies instantly</span>
+                    </h3>
+                    <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
+                      A starter sets your banner and accent colors — the two design settings your storefront renders. Your name, tagline, and about blurb stay exactly as they are.
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {SHOP_DESIGN_STARTERS.map((starter) => {
+                        const applied = isStarterApplied(
+                          { banner_color: editBannerColor, accent_color: editAccentColor },
+                          starter,
+                        );
+                        const applying = applyingStarterId === starter.id;
+                        return (
+                          <div
+                            key={starter.id}
+                            data-testid={`shop-starter-${starter.id}`}
+                            className={`overflow-hidden rounded-xl border ${applied ? "border-amber-400 ring-1 ring-amber-400/50" : isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}
+                          >
+                            <div data-dark-lock className="flex h-16 items-end p-3" style={{ background: `linear-gradient(135deg, ${starter.settings.banner_color}, #000)` }}>
+                              <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black" style={{ background: starter.settings.accent_color }}>
+                                {editName || activeShop.name}
+                              </span>
+                            </div>
+                            <div className={`p-3 ${isLight ? "bg-[#F7ECD2]/80" : "bg-black/40"}`}>
+                              <div className={`text-sm font-bold ${isLight ? "text-[#2A1E07]" : "text-white"}`}>{starter.name}</div>
+                              <p className={`mt-1 text-xs leading-relaxed ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{starter.blurb}</p>
+                              <p className={`mt-1 text-[11px] ${isLight ? "text-[#6B5B36]/80" : "text-white/35"}`}>{starter.bestFor}</p>
+                              <button
+                                type="button"
+                                className={applied ? ghostBtn : goldBtn}
+                                disabled={applied || applyingStarterId !== null}
+                                onClick={() => applyStarter(starter)}
+                                aria-label={applied ? `${starter.name} applied` : `Apply the ${starter.name} design starter`}
+                              >
+                                {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : applied ? <Check className="w-4 h-4" /> : null}
+                                {applied ? "Applied" : applying ? "Applying…" : "Apply"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="mt-5 flex items-center gap-3">

@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
+import { SHOP_DESIGN_STARTERS } from "@/lib/shop-starters";
 import { useTranslation } from "react-i18next";
 
 /* ─── Storefront Builder — AI-assisted shop setup wizard ───────────────────
@@ -26,14 +27,26 @@ const STEPS = [
   { key: "domainLaunch", labelKey: "stepDomainLaunch" },
 ] as const;
 
-const COLOR_PRESETS = [
-  { key: "gold-noir", labelKey: "colorGoldNoir", banner: "#0a0a0a", accent: "#d4af37" },
-  { key: "royal-purple", labelKey: "colorRoyalPurple", banner: "#150a24", accent: "#a855f7" },
-  { key: "crimson", labelKey: "colorCrimson", banner: "#1c0a0a", accent: "#ef4444" },
-  { key: "ocean", labelKey: "colorOcean", banner: "#08131c", accent: "#38bdf8" },
-  { key: "emerald", labelKey: "colorEmerald", banner: "#071410", accent: "#34d399" },
-  { key: "rose", labelKey: "colorRose", banner: "#190b12", accent: "#fb7185" },
-];
+/* The wizard's color presets ARE the shop design starters (the one
+   registry in lib/shop-starters, shared with My Shop's starter shelf) —
+   this step keeps its translated labels and shows the six it has
+   always shown; the colors themselves live only in the registry. */
+const BUILDER_STARTER_LABEL_KEYS: Record<string, string> = {
+  "gold-noir": "colorGoldNoir",
+  "royal-purple": "colorRoyalPurple",
+  crimson: "colorCrimson",
+  ocean: "colorOcean",
+  emerald: "colorEmerald",
+  rose: "colorRose",
+};
+const COLOR_PRESETS = SHOP_DESIGN_STARTERS
+  .filter((s) => s.id in BUILDER_STARTER_LABEL_KEYS)
+  .map((s) => ({
+    key: s.id,
+    labelKey: BUILDER_STARTER_LABEL_KEYS[s.id]!,
+    banner: s.settings.banner_color,
+    accent: s.settings.accent_color,
+  }));
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/50 outline-none transition focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/40 focus-visible:ring-2 focus-visible:ring-amber-400/60";
