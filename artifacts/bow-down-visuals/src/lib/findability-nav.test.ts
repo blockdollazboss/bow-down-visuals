@@ -35,12 +35,10 @@ const WIRED_KEYS = [
   "contracts", "llcGuide", "copyright",
   /* stack1400 org wave: nav.releaseChecklist stays pinned as a catalog
      key present in all ten locales. It is no longer the Publish door's
-     label — the door now uses nav.publish, which exists in en ONLY at
-     this step (non-EN locales resolve it through the en fallback), so
-     nav.publish is asserted in the en-only tests below, NOT here: this
-     list is asserted for every locale. The locale wave translates
-     nav.publish and then moves it into this list. */
-  "releaseChecklist",
+     label — the door uses nav.publish. The stack1400 reviewed locale
+     pass translated nav.publish into all nine non-en catalogs, so it
+     moves into this every-locale list alongside releaseChecklist. */
+  "publish", "releaseChecklist",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
 
