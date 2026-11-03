@@ -209,6 +209,7 @@ const PressKitDesk = lazy(() => import("@/components/world/native/BusinessDesks"
 const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PromoteDesk })));
 const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDesk").then((m) => ({ default: m.LabelPitchDesk })));
 const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk").then((m) => ({ default: m.EmailListDesk })));
+const InterviewDesk = lazy(() => import("@/components/world/native/InterviewDesk").then((m) => ({ default: m.InterviewDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1215,6 +1216,14 @@ export default function StationPanel(props: StationPanelProps) {
                     stacked desks. */}
                 <DeskDoor isLight={isLight}>
                   <EmailListDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Interview Prep (stack1500 parity wave #3): the
+                    media coach — practice sessions on the
+                    /api/interview-prep rails (200 the session, 100
+                    a scored answer), stacked in the Promote Room
+                    like the desks above it. */}
+                <DeskDoor isLight={isLight}>
+                  <InterviewDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : (
