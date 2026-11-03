@@ -19,15 +19,32 @@ vi.mock("../supabase-admin", () => ({
   }),
 }));
 
+/* Hoisted fake @workspace/db (pg-mem) for the cap tests below — the
+   same pattern as affiliates.test.ts: the real schema, a swapped db. */
+const h = vi.hoisted(() => ({ db: null as any }));
+
+vi.mock("@workspace/db", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return { ...actual, get db() { return h.db; } };
+});
+
 import {
+  API_KEY_ACTIVE_LIMIT,
+  API_KEY_LIMIT_MESSAGE,
   API_KEY_SCOPES,
+  ApiKeyLimitError,
+  countActiveApiKeys,
+  createApiKey,
   generateApiKey,
   hashApiKey,
   hashesEqual,
   isApiKeyFormat,
   normalizeScopes,
   parseScopes,
+  revokeApiKey,
 } from "../api-keys";
+import { createTestDb } from "./test-db";
+import { randomUUID } from "crypto";
 import { createRequireApiKey } from "../../middlewares/require-api-key";
 import type { ResolvedApiKey } from "../api-keys";
 
@@ -151,5 +168,85 @@ describe("requireApiKey middleware (fail closed)", () => {
     expect(req.userId).toBe("user-1");
     expect(req.apiKeyId).toBe("key-1");
     expect(req.userCredits).toBe(700);
+  });
+});
+
+/* ─── the 10-active-key cap (owner ruling, stack1400 #9 / X6) ───
+   Driven against pg-mem with the Drizzle-shaped api_keys table
+   (post-0241 shape: scopes TEXT, revocation = revoked_at). */
+
+const API_KEYS_DDL = `
+CREATE TABLE api_keys (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  key_prefix text NOT NULL,
+  key_hash text NOT NULL UNIQUE,
+  scopes text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz,
+  revoked_at timestamptz
+);`;
+
+describe("createApiKey — active-key cap", () => {
+  const USER = randomUUID();
+  const OTHER = randomUUID();
+
+  beforeEach(async () => {
+    const { db, mem } = createTestDb();
+    mem.public.registerFunction({
+      name: "gen_random_uuid",
+      args: [],
+      returns: "uuid" as never,
+      impure: true,
+      implementation: () => randomUUID(),
+    });
+    mem.public.none(API_KEYS_DDL);
+    h.db = db;
+  });
+
+  async function fillToCap(userId: string) {
+    const ids: string[] = [];
+    for (let i = 0; i < API_KEY_ACTIVE_LIMIT; i++) {
+      const { key } = await createApiKey(userId, `key-${i}`, ["profile:read"]);
+      ids.push(key.id);
+    }
+    return ids;
+  }
+
+  it("exposes the cap as 10 with the ruled refusal wording", () => {
+    expect(API_KEY_ACTIVE_LIMIT).toBe(10);
+    expect(API_KEY_LIMIT_MESSAGE).toBe(
+      "You've reached the limit of 10 active API keys. Revoke one to create another.",
+    );
+  });
+
+  it("the 10th active key succeeds and the 11th is refused at the cap", async () => {
+    await fillToCap(USER);
+    expect(await countActiveApiKeys(USER)).toBe(10);
+    const err = await createApiKey(USER, "one-too-many", ["profile:read"]).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiKeyLimitError);
+    expect(err).toMatchObject({ code: "api_key_limit_reached", limit: 10, activeCount: 10 });
+    expect((err as Error).message).toBe(API_KEY_LIMIT_MESSAGE);
+    /* The refused creation inserted nothing. */
+    expect(await countActiveApiKeys(USER)).toBe(10);
+  });
+
+  it("revoking a key frees a slot — revoked keys don't count", async () => {
+    const ids = await fillToCap(USER);
+    await expect(createApiKey(USER, "blocked", ["profile:read"])).rejects.toBeInstanceOf(ApiKeyLimitError);
+    expect(await revokeApiKey(USER, ids[0]!)).toBe(true);
+    expect(await countActiveApiKeys(USER)).toBe(9);
+    const { key } = await createApiKey(USER, "backfill", ["profile:read"]);
+    expect(key.name).toBe("backfill");
+    expect(await countActiveApiKeys(USER)).toBe(10);
+  });
+
+  it("the cap is per-account — a capped user does not block anyone else", async () => {
+    await fillToCap(USER);
+    const { key } = await createApiKey(OTHER, "other-account-key", ["profile:read"]);
+    expect(key.name).toBe("other-account-key");
+    expect(await countActiveApiKeys(OTHER)).toBe(1);
+    expect(await countActiveApiKeys(USER)).toBe(10);
   });
 });

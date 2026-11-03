@@ -4,7 +4,9 @@ import { requireAuth } from "../middlewares/require-auth";
 import { requireApiKey } from "../middlewares/require-api-key";
 import { apiKeyLimiter, apiKeyGenerationLimiter } from "../lib/rate-limit";
 import {
+  API_KEY_ACTIVE_LIMIT,
   API_KEY_SCOPES,
+  ApiKeyLimitError,
   createApiKey,
   listApiKeys,
   normalizeScopes,
@@ -60,7 +62,12 @@ const createKeySchema = z.object({
 router.get("/api-keys", requireAuth, async (req, res) => {
   try {
     const keys = await listApiKeys(req.userId!);
-    res.json({ keys, availableScopes: API_KEY_SCOPES });
+    res.json({
+      keys,
+      availableScopes: API_KEY_SCOPES,
+      activeKeyCount: keys.filter((k) => !k.revokedAt).length,
+      activeKeyLimit: API_KEY_ACTIVE_LIMIT,
+    });
   } catch (err) {
     /* Migration 0216 created api_keys in a shape the Drizzle schema
        never reads (jsonb scopes + status, no revoked_at), so this list
@@ -99,6 +106,17 @@ router.post("/api-keys", requireAuth, async (req, res) => {
     // returned again — the Developer door shows it once, with that warning.
     res.status(201).json({ key, plaintext });
   } catch (err) {
+    /* At the 10-active-key cap (ruling stack1400 #9): a distinct 409
+       with the honest words — never folded into the generic 500. */
+    if (err instanceof ApiKeyLimitError) {
+      res.status(409).json({
+        error: err.code,
+        message: err.message,
+        limit: err.limit,
+        activeCount: err.activeCount,
+      });
+      return;
+    }
     req.log.error({ err }, "[api-keys] create failed");
     res.status(500).json({ error: "Failed to create API key." });
   }
