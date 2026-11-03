@@ -6,7 +6,7 @@ import {
   legacyDesignationsTable, legacyContactsTable, catalogExportJobsTable, chatAutomodRulesTable,
   chatModActionsTable, stageRoomsTable, groupJoinQuestionsTable,
   groupJoinRequestsTable, videoRetentionEventsTable, groupsTable,
-  groupMembersTable, groupPostsTable, creatorProfilesTable, followsTable,
+  groupMembersTable, groupBansTable, groupPostsTable, creatorProfilesTable, followsTable,
   liveChannelModeratorsTable, type ContentIdMatch,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
@@ -739,10 +739,22 @@ async function groupAndRole(slug: string, userId: string) {
   return { group: g, role: normalizeGroupRole(m?.role) };
 }
 
+/* Group bans (stack1400 #11): the ban row lives in group_bans
+   (routes/community.ts owns the ban/unban doors). A banned user is
+   refused at BOTH join-request doors here — they cannot create a
+   request, and a request already waiting cannot be approved into
+   membership while the ban stands. */
+async function groupBanRow(groupId: string, userId: string) {
+  const b = (await db.select().from(groupBansTable).where(and(eq(groupBansTable.groupId, groupId), eq(groupBansTable.userId, userId))).limit(1))[0];
+  return b ?? null;
+}
+
+const GROUP_BANNED_ERROR = "You're banned from this group — the crew's admins have closed the door, and it stays closed until they reopen it.";
+
 router.get("/groups/:slug/my-role", requireAuth, async (req, res) => {
   const { group, role } = await groupAndRole(param(req, "slug"), req.userId!);
   if (!group) { res.status(404).json({ error: "Group not found." }); return; }
-  res.json({ role, can: role ? { post: canGroupAction(role, "post"), deletePost: canGroupAction(role, "deletePost"), reviewJoinRequests: canGroupAction(role, "reviewJoinRequests"), setJoinQuestions: canGroupAction(role, "setJoinQuestions"), removeMember: canGroupAction(role, "removeMember"), setMemberRole: canGroupAction(role, "setMemberRole") } : null });
+  res.json({ role, can: role ? { post: canGroupAction(role, "post"), deletePost: canGroupAction(role, "deletePost"), reviewJoinRequests: canGroupAction(role, "reviewJoinRequests"), setJoinQuestions: canGroupAction(role, "setJoinQuestions"), removeMember: canGroupAction(role, "removeMember"), banMember: canGroupAction(role, "banMember"), unbanMember: canGroupAction(role, "unbanMember"), setMemberRole: canGroupAction(role, "setMemberRole") } : null });
 });
 
 router.patch("/groups/:slug/members/:userId/role", requireAuth, async (req, res) => {
@@ -784,6 +796,9 @@ router.post("/groups/:slug/join-requests", requireAuth, async (req, res) => {
   if (!g) { res.status(404).json({ error: "Group not found." }); return; }
   const { role } = await groupAndRole(param(req, "slug"), req.userId!);
   if (role) { res.status(409).json({ error: "You're already in this group." }); return; }
+  /* Ban gate (stack1400 #11): a banned user cannot even open a join
+     request — the request door is an entry door. */
+  if (await groupBanRow(g.id, req.userId!)) { res.status(403).json({ error: GROUP_BANNED_ERROR }); return; }
   const qs = await db.select().from(groupJoinQuestionsTable).where(eq(groupJoinQuestionsTable.group_id, g.id)).orderBy(asc(groupJoinQuestionsTable.position));
   if (qs.length === 0) { res.status(409).json({ error: "This group takes direct joins — use the join button; no questions are set." }); return; }
   const given = new Map((parsed.data.answers ?? []).map((a) => [a.questionId, a.answer]));
@@ -813,6 +828,16 @@ router.post("/groups/:slug/join-requests/:requestId/review", requireAuth, async 
   if (!canGroupAction(role, "reviewJoinRequests")) { res.status(403).json({ error: "Only moderators and up can review join requests." }); return; }
   const jr = (await db.select().from(groupJoinRequestsTable).where(and(eq(groupJoinRequestsTable.id, param(req, "requestId")), eq(groupJoinRequestsTable.group_id, group.id))).limit(1))[0];
   if (!jr || jr.status !== "pending") { res.status(404).json({ error: "That request isn't waiting anymore." }); return; }
+  /* Ban gate (stack1400 #11): an approval must never admit a banned
+     user — e.g. a request filed before the ban landed, or one filed
+     through any door that missed the check. The refusal leaves the
+     request pending and untouched: it is not a decision on the
+     request, and once an admin lifts the ban the same request can
+     be reviewed again. Denying stays available (it admits nobody). */
+  if (parsed.data.decision === "approve" && (await groupBanRow(group.id, jr.user_id))) {
+    res.status(403).json({ error: "That person is banned from this group — unban them first if you want to let them in." });
+    return;
+  }
   const status = parsed.data.decision === "approve" ? "approved" : "denied";
   await db.update(groupJoinRequestsTable).set({ status, reviewed_by: req.userId!, updated_at: new Date() }).where(eq(groupJoinRequestsTable.id, jr.id));
   if (status === "approved") {
