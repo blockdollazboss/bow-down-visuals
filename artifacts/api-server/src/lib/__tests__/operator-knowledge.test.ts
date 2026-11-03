@@ -370,15 +370,15 @@ describe("operator knowledge — price carriage (no invisible registry prices)",
   }
 
   /* The one registry price the KB deliberately does NOT carry.
-     /api/chat: the owner ruled (Oct 27) that chat carries NO
-     separate charge — charged tools carry their own prices — while
-     the rail still records a 1 VB default (Lane J1 log, item D-5,
-     OWNER-DECISION). Publishing the 1 VB figure would put a charge
-     the owner says does not exist into the operator's mouth, so the
-     key stays uncarried until the rail and the ruling are
-     reconciled. Any OTHER uncarried key fails this test. */
+     /api/chat: DECIDED — the owner ruled (Oct 27) that chat carries
+     NO separate charge, and the rail now matches the ruling:
+     getChatCreditCost() defaults CHAT_CREDIT_COST to 0 and the
+     registry records 0. The key stays uncarried because chat is the
+     operator conversation itself (its route is excluded in the
+     generator), not a priced feature — there is no charge for the
+     operator to quote. Any OTHER uncarried key fails this test. */
   const UNCARRIED_ALLOWLIST = new Map([
-    ["/api/chat", "owner ruled chat carries no separate charge (Oct 27); the rail's recorded 1 VB default is an open owner-decision (Lane J1 D-5)"],
+    ["/api/chat", "DECIDED (Oct 27): chat carries no separate charge; rail default and registry both 0 — uncarried because chat is the operator conversation itself, not a priced feature"],
   ]);
 
   it("every registry price is carried by at least one feature, except the reviewed allowlist", () => {

@@ -62,13 +62,15 @@ export const CHAT_SYSTEM_PROMPT = buildChatSystemPrompt("");
 /* ─── Cost model ──────────────────────────────────────────────────────────
    The operator knowledge block is larger than the old hand-typed prompt
    (full feature index + verified facts). Per-message token cost stays a
-   fraction of a cent at current text-model rates, far below the
-   1-credit default below. Re-check margins if the index grows sharply. */
+   fraction of a cent at current text-model rates. Re-check margins if
+   the index grows sharply. */
 export const CHAT_MAX_OUTPUT_TOKENS = 500;
 
-/** Credit cost per chat message. Env-overridable; default 1 (paid per the
-    "everything costs a fee" rule). Set CHAT_CREDIT_COST=0 for free mode. */
+/** Credit cost per chat message. Env-overridable; default 0 — the owner
+    ruled (Oct 27) that /api/chat carries NO separate charge (charged
+    tools carry their own prices). An explicit CHAT_CREDIT_COST > 0
+    still wins, preserving the owner's override. */
 export function getChatCreditCost(): number {
-  const raw = Number(process.env["CHAT_CREDIT_COST"] ?? "1");
+  const raw = Number(process.env["CHAT_CREDIT_COST"] ?? "0");
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
 }
