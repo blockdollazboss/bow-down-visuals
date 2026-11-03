@@ -843,7 +843,20 @@ async function settleOneContest(contestId: string, startsAt: Date, endsAt: Date)
      drizzle/DATABASE_URL read; settling from a store the award path
      never writes could crown the wrong winners or none at all.) */
   const standings = await computeStandings(startsAt, endsAt);
-  const qualifiers = standings.filter((s) => s.signups >= CONTEST_MIN_SIGNUPS);
+  /* Contest qualification (Charts OD3) counts QUALIFIED signups only —
+     referees who created a creator profile. Raw signups still order
+     the public leaderboard, but the prize race re-ranks qualifiers by
+     qualified signups (tiebreak = revenue, then first signup), so
+     throwaway signups can neither qualify a referrer nor inflate
+     their rank. */
+  const qualifiers = standings
+    .filter((s) => s.qualifiedSignups >= CONTEST_MIN_SIGNUPS)
+    .sort(
+      (a, b) =>
+        b.qualifiedSignups - a.qualifiedSignups ||
+        b.revenue - a.revenue ||
+        a.firstSignup.localeCompare(b.firstSignup),
+    );
 
   let payoutFailures = 0;
   for (const prize of CONTEST_PRIZES) {
@@ -861,7 +874,9 @@ async function settleOneContest(contestId: string, startsAt: Date, endsAt: Date)
       contest_id: contestId,
       rank: prize.rank,
       referrer_user_id: winner.referrerUserId,
-      signups: winner.signups,
+      // The prize row records the CONTEST count that won the prize —
+      // qualified signups, not the raw signup count.
+      signups: winner.qualifiedSignups,
       revenue_earned: winner.revenue,
       prize_credits: prize.prizeCredits,
     });
@@ -1023,6 +1038,9 @@ router.get("/referrals/contest", async (req, res) => {
         name: r.displayName ?? "Anonymous Recruiter",
         slug: r.slug,
         signups: r.signups,
+        // Contest count carried alongside the raw count: qualification
+        // (and settlement) run on qualifiedSignups (Charts OD3).
+        qualifiedSignups: r.qualifiedSignups,
         revenue: r.revenue,
         badge: badgeForSignups(r.signups),
       })),
