@@ -714,7 +714,6 @@ function AppShell() {
           <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
           <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected" /></Route>
-          <Route path="/import"><ProtectedRoute><MediaImport /></ProtectedRoute></Route>
           <Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>
           <Route path="/virality-check"><Redirect to="/analytics-hub?tab=virality" /></Route>
           <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
@@ -725,7 +724,6 @@ function AppShell() {
           <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
           <Route path="/clip-maker"><Redirect to="/video-editor?tab=repurpose" /></Route>
           <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
-          <Route path="/jewelry-shop"><JewelryShop /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
           <Route path="/c/:slug"><NfcCardProfile /></Route>
           {/* Public link-in-bio page (no login) — viral fan surface */}
@@ -875,6 +873,12 @@ function AppShell() {
                 <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
                 <Route path="/move-home"><ProtectedRoute><MoveHome /></ProtectedRoute></Route>
                 <Route path="/catalog-import"><ProtectedRoute><CatalogImport /></ProtectedRoute></Route>
+                {/* One-website shell, studio ring (stack1400 org wave,
+                    audit §1a): Media Import — a My Studio door the
+                    audit listed as an orphan — rendered OUTSIDE the
+                    sidebar layout beside its Catalog Import sibling.
+                    Same page, same ProtectedRoute — placement only. */}
+                <Route path="/import"><ProtectedRoute><MediaImport /></ProtectedRoute></Route>
                 <Route path="/analytics-hub"><AnalyticsHub /></Route>
                 <Route path="/referrals"><Referrals /></Route>
                 <Route path="/press-kit"><PressKit /></Route>
@@ -919,6 +923,12 @@ function AppShell() {
                 <Route path="/tour"><TourPlanner /></Route>
                 <Route path="/interview-prep"><InterviewPrep /></Route>
                 <Route path="/setlist"><SetlistBuilder /></Route>
+                {/* Jewelry Shop (stack1400 org wave, audit §1a/§1b):
+                    the Branding Kit shop surface, guest-locked in the
+                    matrix, rendered OUTSIDE the shell while every
+                    sibling shop surface sits inside. Same page — the
+                    public creator shop stays outside at /shop/:slug. */}
+                <Route path="/jewelry-shop"><JewelryShop /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
