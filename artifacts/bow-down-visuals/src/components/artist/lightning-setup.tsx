@@ -15,6 +15,7 @@ import {
 } from "@/lib/artist-profiles";
 import ConfettiBurst from "./confetti-burst";
 import { GetPaidChecklist } from "./get-paid-checklist";
+import { suggestedBioForProfile } from "@/lib/suggest";
 
 /* ─── LightningSetup — signup-to-live-profile in 60 seconds ────────────────
    First-run express path inside /artist-setup. Rendered instead of the full
@@ -79,6 +80,14 @@ export default function LightningSetup({
   const [generating, setGenerating] = useState(false);
   const [live, setLive] = useState<CreatorProfile | null>(null);
   const [copied, setCopied] = useState<"link" | "embed" | null>(null);
+  /* The Vault's own words about this creator, kept for the ONE
+     suggestion brain (lib/suggest) — the prefill below used to read
+     the raw vault columns for name/photo/lane only and send the new
+     profile live with no bio at all. */
+  const [vaultSignal, setVaultSignal] = useState<{
+    genre?: string | null; personality?: string | null;
+    visualStyle?: string | null; voiceStyle?: string | null;
+  }>({});
   const debounceRef = useRef<number>(0);
 
   /* ── Ruthless prefill: auth → vault → nothing. Runs once on mount. ── */
@@ -102,6 +111,12 @@ export default function LightningSetup({
         if (v.reference_image_url) setAvatarUrl((a) => a || v.reference_image_url);
         const vaultLane = laneFromVault(v.artist_type, v.genre);
         if (vaultLane) setLane(vaultLane);
+        setVaultSignal({
+          genre: v.genre ?? null,
+          personality: v.personality ?? null,
+          visualStyle: v.visual_style ?? null,
+          voiceStyle: v.voice_style ?? null,
+        });
       } catch { /* vault is best-effort prefill */ }
     })();
     return () => { cancelled = true; };
@@ -145,11 +160,26 @@ export default function LightningSetup({
 
   const canContinueStep0 = name.trim().length >= 2 && slugState === "ok";
 
+  /* The plan arrives pre-filled from the ONE suggestion brain
+     (lib/suggest): the bio is the brain's starter, derived from the
+     name + lane on this form and the Vault's genre/personality/style
+     words. When the brain has nothing (no name, no lane signal) the
+     bio stays empty — exactly the old behavior, never an invented
+     one. The creator edits it in the full editor anytime. */
   const createPayload = (overrides: Partial<CreatorProfile>): Partial<CreatorProfile> => ({
     display_name: name.trim(),
     slug,
     vertical: lane,
     avatar_url: avatarUrl,
+    bio:
+      suggestedBioForProfile({
+        displayName: name.trim(),
+        genre: vaultSignal.genre,
+        vertical: lane,
+        personality: vaultSignal.personality,
+        visualStyle: vaultSignal.visualStyle,
+        voiceStyle: vaultSignal.voiceStyle,
+      }) ?? "",
     tip_jar_enabled: true,
     is_public: true,
     ...overrides,
