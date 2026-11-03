@@ -189,6 +189,7 @@ const JewelryBench = lazy(() => import("@/components/world/native/JewelryBench")
 const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsStand").then((m) => ({ default: m.SmartCardsStand })));
 const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
+const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1156,6 +1157,18 @@ export default function StationPanel(props: StationPanelProps) {
                     settings confirmations by design. */}
                 <DeskDoor isLight={isLight}>
                   <AccountDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Creator Academy (stack1400 parity wave #2): the
+                    Academy family — the course catalog + AI learning
+                    path / lessons / coach on the /api/academy rails,
+                    the How-To Videos on the /api/tutorials rails, the
+                    guides index read in-desk, and My Courses on the
+                    /api/courses rails — stacked at the My Studio
+                    board like the Hall's and Promote Room's stacked
+                    desks. Members only, like the board itself and
+                    like the locked /academy route on the website. */}
+                <DeskDoor isLight={isLight}>
+                  <AcademyDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
