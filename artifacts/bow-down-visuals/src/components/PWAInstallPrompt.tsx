@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Download, X } from "lucide-react";
 import { usePwaInstall } from "@/lib/extension-promo";
+import { isPromptDismissed, recordPromptDismissal } from "@/lib/prompt-dismissal";
 
 /* PWA install prompt — rides the ONE shared install state
    (lib/extension-promo's usePwaInstall). The module-level capture owns
@@ -11,18 +12,16 @@ import { usePwaInstall } from "@/lib/extension-promo";
    unhandled rejection and stayed on screen with a dead Install
    button. Now any prompt attempt resolves through the shared hook,
    the shared state clears, and the card goes with it.
-   Dismissal keeps its standing behaviour (remembered in
-   localStorage); how long any promo dismissal should be remembered
-   is the owner's open call, not this card's to change. */
+   Dismissal is remembered in localStorage for 30 days, then the
+   card may ask again (owner ruling, stack1400 #16 — the shared
+   timestamped memory in lib/prompt-dismissal, under this card's
+   standing key). A legacy bare "1" from the permanent-dismissal
+   era migrates to a fresh 30 days at first read. */
 export function PWAInstallPrompt() {
   const { canInstall, promptInstall } = usePwaInstall();
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    try {
-      return !!localStorage.getItem("bdv-pwa-dismissed");
-    } catch {
-      return false;
-    }
-  });
+  const [dismissed, setDismissed] = useState<boolean>(() =>
+    isPromptDismissed("bdv-pwa-dismissed"),
+  );
 
   if (!canInstall || dismissed) return null;
 
@@ -32,11 +31,7 @@ export function PWAInstallPrompt() {
 
   const dismiss = () => {
     setDismissed(true);
-    try {
-      localStorage.setItem("bdv-pwa-dismissed", "1");
-    } catch {
-      /* private mode — hiding for this view is enough */
-    }
+    recordPromptDismissal("bdv-pwa-dismissed");
   };
 
   return (

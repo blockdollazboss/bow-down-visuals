@@ -9,6 +9,7 @@ import {
   subscribeToPush,
   type PushDeps,
 } from "@/lib/push-client";
+import { isPromptDismissed, recordPromptDismissal } from "@/lib/prompt-dismissal";
 
 /* ── In-context push opt-in (EVERYTHING SMART law) ─────────────────────
    The ask arrives in a moment that proves its value — never a cold
@@ -16,7 +17,10 @@ import {
    `when` (first surface: the store dashboard once a seller has a
    sale — "want the next one to ping your phone?"). The prompt stays
    silent when push is unsupported, unconfigured server-side, already
-   subscribed on this device, or previously dismissed here. */
+   subscribed on this device, or dismissed here within the last
+   30 days (owner ruling, stack1400 #16 — the shared timestamped
+   memory in lib/prompt-dismissal, still one key per context; a
+   legacy bare "1" migrates to a fresh 30 days at first read). */
 
 const DISMISS_PREFIX = "bdv_push_prompt_dismissed:";
 
@@ -48,11 +52,7 @@ export default function PushOptInPrompt({
     if (!when || !user) return;
     let cancelled = false;
     (async () => {
-      try {
-        if (localStorage.getItem(`${DISMISS_PREFIX}${context}`)) return;
-      } catch {
-        /* storage unavailable — the prompt may show; harmless */
-      }
+      if (isPromptDismissed(`${DISMISS_PREFIX}${context}`)) return;
       if (pushSupport() !== "ready") return;
       const config = await fetchPushConfig(deps).catch(() => ({ configured: false, publicKey: null }));
       if (cancelled || !config.configured) return;
@@ -66,11 +66,7 @@ export default function PushOptInPrompt({
   }, [when, user, context]);
 
   function dismiss() {
-    try {
-      localStorage.setItem(`${DISMISS_PREFIX}${context}`, "1");
-    } catch {
-      /* ignore — hiding for this view is enough */
-    }
+    recordPromptDismissal(`${DISMISS_PREFIX}${context}`);
     setState("hidden");
   }
 
