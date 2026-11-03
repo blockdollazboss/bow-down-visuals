@@ -12,7 +12,7 @@ import {
   SlidersHorizontal, Lock, Tag, AudioWaveform, ArrowLeft, AlertTriangle,
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
-  Volume2, VolumeX, Clapperboard, Piano,
+  Volume2, VolumeX, Clapperboard, Piano, Metronome,
   Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -44,6 +44,14 @@ import {
   type BeatTransportMode,
 } from "@/lib/beat-project";
 import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
+import {
+  beatsSellRoute,
+  countInBeatNumber,
+  initialGlobalStep,
+  makeSongRouteForBeat,
+  resolveMetronomeTick,
+  uploadRenderedBeat,
+} from "@/lib/beat-doors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
@@ -299,7 +307,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
                 <Scissors className="w-4 h-4" /> {t("beatMaker.splitStems")}
               </Link>
               <Link
-                href="/beats"
+                href={beatsSellRoute({ wantsSell: true, audioUrl: beat.url, title: beat.title, bpm, genre, musicalKey })}
                 className="flex items-center justify-center gap-2 h-10 rounded-xl border border-white/15 text-white/80 text-sm hover:border-white/30 hover:text-white transition-colors"
               >
                 <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace")}
@@ -431,6 +439,21 @@ function synthBass(ctx: BaseAudioContext, midi: number, t: number, dest: AudioNo
   o.connect(g); o2.connect(g2); g2.connect(g); g.connect(dest);
   o.start(t); o.stop(t + dur + 0.05);
   o2.start(t); o2.stop(t + dur + 0.05);
+}
+
+/* Metronome click — a short synthesized tick in the same oscillator
+   style as the drum voices (no audio files). Accent = higher + louder.
+   Live transport only: this is called from the lookahead scheduler,
+   never from the offline render, so a click can never land in a WAV. */
+function synthClick(ctx: BaseAudioContext, t: number, dest: AudioNode, accent: boolean) {
+  const o = ctx.createOscillator();
+  o.type = "square";
+  o.frequency.setValueAtTime(accent ? 1760 : 1175, t);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(accent ? 0.4 : 0.24, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + (accent ? 0.055 : 0.04));
+  o.connect(g); g.connect(dest);
+  o.start(t); o.stop(t + 0.07);
 }
 
 const midiToNoteName = (midi: number): string => {
@@ -577,6 +600,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [step, setStep] = useState(-1);
   const [exporting, setExporting] = useState(false);
   const [sending, setSending] = useState(false);
+  /* Metronome + count-in: TRANSPORT preferences only — component state,
+   * never written into the beat project / patterns (buildProject below
+   * does not carry them), and the offline render never schedules them. */
+  const [metroOn, setMetroOn] = useState(false);
+  const [metroCountIn, setMetroCountIn] = useState(false);
+  const [countInBeat, setCountInBeat] = useState(0);
+  /* Small doors (song / sell): both render + upload the current scope
+   * first, so they share one busy flag and one honest error line. */
+  const [doorBusy, setDoorBusy] = useState<"song" | "sell" | null>(null);
+  const [doorError, setDoorError] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(false);
   const [showBass, setShowBass] = useState(false);
   const [vol, setVol] = useState<number[]>(() =>
@@ -626,6 +659,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   activePatRef.current = activePat;
   arrangementRef.current = arrangement;
   modeRef.current = transportMode;
+  const metroOnRef = useRef(metroOn);
+  const metroCountInRef = useRef(metroCountIn);
+  metroOnRef.current = metroOn;
+  metroCountInRef.current = metroCountIn;
   const globalStepRef = useRef(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverReadyRef = useRef(false);
@@ -766,6 +803,19 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const scheduleStep = useCallback((globalStep: number, time: number) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
+    /* Count-in bar (negative global steps, only when the metronome's
+     * count-in is on): clicks only — no drums, no bass, no pattern —
+     * scheduled through this same lookahead loop, no second timer. */
+    if (globalStep < 0) {
+      if (metroOnRef.current) {
+        const tick = resolveMetronomeTick(globalStep, 0, STEPS);
+        if (tick.tick) synthClick(ctx, time, ctx.destination, tick.accent);
+        const ms = Math.max(0, (time - ctx.currentTime) * 1000);
+        const beatNo = countInBeatNumber(globalStep, STEPS);
+        window.setTimeout(() => setCountInBeat(beatNo), ms);
+      }
+      return;
+    }
     const { drums, bass: bassG } = getGains(ctx);
     const sw = swingRef.current;
     const chain = arrangementRef.current;
@@ -787,6 +837,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       const prev = s > 0 ? pat.bass[s - 1] : null;
       synthBass(ctx, bn, when, bassG, 1, prev);
     }
+    /* Metronome: tick on the beats of the pattern being played, accent
+     * on its step 0 — straight to the destination, so track mutes/solos
+     * never silence the click. Beats are even steps, so the swing
+     * offset in `when` is zero on every tick step. */
+    if (metroOnRef.current) {
+      const tick = resolveMetronomeTick(globalStep, s, STEPS);
+      if (tick.tick) synthClick(ctx, when, ctx.destination, tick.accent);
+    }
     // UI highlight slightly ahead-safe: update on the audio clock via timeout
     const ms = Math.max(0, (when - ctx.currentTime) * 1000);
     const bar = Math.floor(wrapped / STEPS);
@@ -796,6 +854,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       setPlayPat(patId);
       setPlayEntry(entryIndex);
       setPlayBar(bar);
+      setCountInBeat(0);
     }, ms);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -803,7 +862,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const start = useCallback(() => {
     const ctx = getCtx();
     setPlaying(true);
-    globalStepRef.current = 0;
+    /* Count-in (metronome on + count-in on): start one bar early — the
+     * negative steps schedule clicks only, then step 0 lands the beat. */
+    globalStepRef.current = initialGlobalStep(metroOnRef.current && metroCountInRef.current, STEPS);
+    setCountInBeat(0);
     nextTimeRef.current = ctx.currentTime + 0.06;
     timerRef.current = window.setInterval(() => {
       const ahead = 0.12;
@@ -823,6 +885,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     setStep(-1);
     setPlayEntry(-1);
     setPlayBar(0);
+    setCountInBeat(0);
   }, []);
 
   useEffect(() => () => {
@@ -1006,6 +1069,54 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }
   };
 
+  /* ── Small doors: make a song / sell this beat ──
+   * Both doors need a HOSTED url for the rendered beat (make-song's
+   * audioUrl param and the marketplace's audio field are URL-shaped;
+   * the render's blob: URL dies on navigation). One shared path:
+   * render the current scope (same offline render as the WAV export)
+   * → uploadRenderedBeat → route. An upload failure shows its message
+   * right here and the door stays shut — no fake link. Free: the
+   * render and upload charge nothing, listing stays free. */
+  const renderAndUploadBeat = async (): Promise<string> => {
+    const { blob } = await renderBeat();
+    return uploadRenderedBeat(blob, bpm, getAccessToken);
+  };
+
+  const makeSongWithBeat = async () => {
+    if (doorBusy) return;
+    setDoorBusy("song");
+    setDoorError(null);
+    try {
+      const url = await renderAndUploadBeat();
+      stop();
+      navigate(makeSongRouteForBeat(url));
+    } catch (e) {
+      setDoorError(plainErrorText(e, t("beatMaker.doorUploadFailed", { defaultValue: "Couldn't upload your beat — check your connection and try again." })));
+    } finally {
+      setDoorBusy(null);
+    }
+  };
+
+  const sellThisBeat = async () => {
+    if (doorBusy) return;
+    setDoorBusy("sell");
+    setDoorError(null);
+    try {
+      const url = await renderAndUploadBeat();
+      stop();
+      navigate(beatsSellRoute({
+        wantsSell: true,
+        audioUrl: url,
+        title: t("beatMaker.sequencerBeatTitle", { bpm, defaultValue: `Sequencer beat · ${bpm} BPM` }),
+        bpm,
+      }));
+    } catch (e) {
+      setDoorError(plainErrorText(e, t("beatMaker.doorUploadFailed", { defaultValue: "Couldn't upload your beat — check your connection and try again." })));
+    } finally {
+      setDoorBusy(null);
+    }
+  };
+
   const bassRows = Array.from({ length: BASS_HI - BASS_LO + 1 }, (_, i) => BASS_HI - i);
 
   /* Song-mode facts for the transport + chain editor. */
@@ -1054,6 +1165,25 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           />
           <span className={`text-xs tabular-nums w-10 ${T.dim}`}>{Math.round(swing * 100)}%</span>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button" aria-pressed={metroOn} data-testid="beat-metronome-toggle"
+            onClick={() => setMetroOn((v) => !v)}
+            className={`h-11 px-4 rounded-xl text-sm font-bold border transition-colors ${metroOn ? T.patActive : T.pill}`}
+            title={t("beatMaker.metronomeHint", { defaultValue: "Click on every beat, louder on the first beat of each bar — playing only, never in the export" })}
+          >
+            <Metronome className="w-4 h-4 mr-1.5 inline -mt-0.5" />{t("beatMaker.metronome", { defaultValue: "Metronome" })}
+          </button>
+          <button
+            type="button" aria-pressed={metroCountIn} data-testid="beat-countin-toggle"
+            onClick={() => setMetroCountIn((v) => !v)}
+            disabled={!metroOn}
+            className={`h-11 px-4 rounded-xl text-sm font-bold border transition-colors disabled:opacity-40 ${metroCountIn && metroOn ? T.patActive : T.pill}`}
+            title={t("beatMaker.countInHint", { defaultValue: "One bar of clicks before the beat starts" })}
+          >
+            {t("beatMaker.countIn", { defaultValue: "Count-in" })}
+          </button>
+        </div>
       </div>
 
       {/* Transport mode — Pattern loops one pattern; Song plays the chain */}
@@ -1073,7 +1203,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <ListMusic className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />{t("beatMaker.modeSong", { defaultValue: "Song" })}
         </button>
-        {playing && songActive && playEntry >= 0 ? (
+        {playing && countInBeat > 0 ? (
+          <span className={`text-xs font-bold ${T.heading}`} data-testid="beat-countin-progress" aria-live="polite">
+            {t("beatMaker.countInProgress", {
+              defaultValue: "Count-in · {{beat}} of 4",
+              beat: countInBeat,
+            })}
+          </span>
+        ) : playing && songActive && playEntry >= 0 ? (
           <span className={`text-xs font-bold ${T.heading}`} data-testid="beat-song-progress" aria-live="polite">
             {t("beatMaker.songProgress", {
               defaultValue: "Playing entry {{entry}} of {{entries}} · Pattern {{pattern}} · Bar {{bar}} of {{bars}}",
@@ -1473,13 +1610,30 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Scissors className="w-4 h-4" /> {t("beatMaker.splitExportedStems", { defaultValue: "Split exported stems" })}
         </Link>
-        <Link
-          href="/beats"
-          className={`flex items-center gap-2 h-11 px-5 rounded-xl border text-sm transition-colors ${T.pill}`}
+        <Button
+          onClick={makeSongWithBeat}
+          disabled={doorBusy !== null}
+          data-testid="beat-song-door"
+          className={`h-11 px-5 rounded-xl font-bold border transition-colors ${isLight ? "border-[#c9a84c]/50 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"} disabled:opacity-50`}
+          variant="outline"
         >
-          <Store className="w-4 h-4" /> {t("beatMaker.sellMarketplace", { defaultValue: "Sell on the marketplace" })}
-        </Link>
+          {doorBusy === "song" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Disc3 className="w-4 h-4 mr-2" />}
+          {t("beatMaker.makeSongWithBeat", { defaultValue: "Make a song with this beat" })}
+        </Button>
+        <Button
+          onClick={sellThisBeat}
+          disabled={doorBusy !== null}
+          data-testid="beat-sell-door"
+          className={`h-11 px-5 rounded-xl font-bold border transition-colors ${isLight ? "border-[#c9a84c]/50 text-[#8a6d2f] hover:bg-[#c9a84c]/10" : "border-primary/40 text-primary hover:bg-primary/10"} disabled:opacity-50`}
+          variant="outline"
+        >
+          {doorBusy === "sell" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Store className="w-4 h-4 mr-2" />}
+          {t("beatMaker.sellThisBeat", { defaultValue: "Sell this beat" })}
+        </Button>
       </div>
+      {doorError && (
+        <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3" role="alert" data-testid="beat-door-error">{doorError}</p>
+      )}
       <p className={`text-xs ${T.dim}`}>
         {t("beatMaker.sequencerNote", { defaultValue: "100% client-side Web Audio synthesis — playing and exporting costs nothing." })}
       </p>
