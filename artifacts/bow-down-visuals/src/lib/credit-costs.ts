@@ -349,6 +349,25 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/website-builder/edit": { cost: 200, feature: "Website Edit" },
   "/api/website-builder/projects": { cost: 0, feature: "Save Website Project (free)" },
   "/api/playlist-pitch/kit": { cost: 200, feature: "Playlist Pitch Kit" },
+  // Stack1400 parity-wave registry completion: the in-World desks for
+  // these four families charged through explicit per-desk overrides
+  // because the registry had no rows for their rails. Every figure is
+  // the server constant's own default (env-overridable on the rail,
+  // default rules — same convention as the rows above), pinned by
+  // credit-costs-rail-truth.test.ts:
+  // LABEL_PITCH_CREDIT_COST (routes/generate/label-pitch.ts).
+  "/api/label-pitch/kit": { cost: 300, feature: "Label Pitch Demo Kit" },
+  // EMAIL_NEWSLETTER_CREDIT_COST (routes/generate/email-list-helpers.ts).
+  "/api/email-list/newsletter": { cost: 100, feature: "AI Newsletter Draft" },
+  // ACADEMY_CREDIT_COST (routes/generate/academy.ts) — one constant
+  // charges all three academy actions.
+  "/api/academy/learning-path": { cost: 100, feature: "Academy Learning Path" },
+  "/api/academy/lesson": { cost: 100, feature: "Academy Lesson" },
+  "/api/academy/ask": { cost: 100, feature: "Academy Ask the Coach" },
+  // CONCEPT_CREDITS / CLIP_DETECT_CREDITS (routes/generate/movies.ts,
+  // env MOVIE_CONCEPT_CREDIT_COST / CLIP_DETECT_CREDIT_COST).
+  "/api/movies/concept": { cost: 400, feature: "Movie/Series Concept" },
+  "/api/movies/clip-detect": { cost: 300, feature: "Stream Clip Detection" },
   // Free actions (cost 0, same pattern as Inspo Vibe Analysis and
   // Stock Media Search above): the surface's route handlers charge
   // nothing, and the registry records that so the operator can say
