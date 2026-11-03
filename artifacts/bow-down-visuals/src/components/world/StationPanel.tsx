@@ -207,6 +207,7 @@ const BrandingKitDesk = lazy(() => import("@/components/world/native/BusinessDes
 const PressKitDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PressKitDesk })));
 const PromoteDesk = lazy(() => import("@/components/world/native/BusinessDesks").then((m) => ({ default: m.PromoteDesk })));
 const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDesk").then((m) => ({ default: m.LabelPitchDesk })));
+const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk").then((m) => ({ default: m.EmailListDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1191,6 +1192,16 @@ export default function StationPanel(props: StationPanelProps) {
                     Studio's stacked desks. */}
                 <DeskDoor isLight={isLight}>
                   <LabelPitchDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Email List (stack1400 parity wave #2): the
+                    email-list family — subscriber lists + stats,
+                    segments, campaigns, the newsletter writer, the
+                    four automations, and the read-only Fan Graph —
+                    on the /api/email-list rails, stacked in the
+                    Promote Room like the Hall's and Studio's
+                    stacked desks. */}
+                <DeskDoor isLight={isLight}>
+                  <EmailListDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : (
