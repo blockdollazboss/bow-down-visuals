@@ -21,7 +21,6 @@ import { BeatMelodyRoll } from "@/components/beat-studio/BeatMelodyRoll";
 import {
   BEAT_MELODIC_VOICES,
   beatLaneToMidi,
-  beatMelodyNoteCount,
   cloneBeatMelody,
   emptyBeatMelody,
   notesStartingAtStep,
