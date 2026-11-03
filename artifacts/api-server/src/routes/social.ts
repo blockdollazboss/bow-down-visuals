@@ -3529,35 +3529,50 @@ router.get("/saves/mine", requireAuth, async (req: Request, res: Response) => {
 
 /* ════════════════ DISCOVERY ════════════════ */
 
-/* Hashtag velocity over the last 24h: post bodies + video tags. */
+/* Hashtag velocity over the last 24h: post bodies + video tags.
+   Charts OD4 (stack1400 ruling #7): velocity counts DISTINCT AUTHORS
+   per tag per source — the same author posting 5 times with a tag
+   counts ONCE for that tag in that source. Both tables key authors by
+   profileId in the shared creator-profiles namespace (a post and a
+   video by the same profile are the same author), so each source keeps
+   its own Set of profileIds per tag and the counts are the set sizes.
+   Velocity keeps the 2:1 weighting, applied to the distinct counts:
+   velocity = distinctPostAuthors * 2 + distinctVideoAuthors.
+   Response shape is unchanged: { topics: [{ tag, posts, videos, velocity }] }
+   where posts/videos are now the distinct-author counts per source. */
 router.get("/trending/topics", async (_req: Request, res: Response) => {
   try {
     const since = new Date(Date.now() - 24 * 3600_000);
     const [posts, videos] = await Promise.all([
-      db.select({ body: postsTable.body }).from(postsTable)
+      db.select({ body: postsTable.body, profileId: postsTable.profileId }).from(postsTable)
         .where(and(gt(postsTable.createdAt, since), publishedOnly(), eq(postsTable.audience, "public"))).limit(2000),
-      db.select({ tags: profileVideosTable.tags }).from(profileVideosTable)
+      db.select({ tags: profileVideosTable.tags, profileId: profileVideosTable.profileId }).from(profileVideosTable)
         .where(gt(profileVideosTable.createdAt, since)).limit(2000),
     ]);
-    const counts = new Map<string, { posts: number; videos: number }>();
-    for (const p of posts) {
+    const counts = new Map<string, { postAuthors: Set<string>; videoAuthors: Set<string> }>();
+    posts.forEach((p, i) => {
+      // Rows without an author id (should not happen — profile_id is
+      // NOT NULL) fall back to a per-row key so they are not collapsed
+      // into a single phantom author.
+      const author = p.profileId ? String(p.profileId) : `__row:post:${i}`;
       for (const t of extractHashtags(p.body)) {
-        const c = counts.get(t) ?? { posts: 0, videos: 0 };
-        c.posts += 1;
+        const c = counts.get(t) ?? { postAuthors: new Set<string>(), videoAuthors: new Set<string>() };
+        c.postAuthors.add(author);
         counts.set(t, c);
       }
-    }
-    for (const v of videos) {
+    });
+    videos.forEach((v, i) => {
+      const author = v.profileId ? String(v.profileId) : `__row:video:${i}`;
       for (const raw of v.tags ?? []) {
         const t = raw.replace(/^#/, "").toLowerCase();
         if (!t) continue;
-        const c = counts.get(t) ?? { posts: 0, videos: 0 };
-        c.videos += 1;
+        const c = counts.get(t) ?? { postAuthors: new Set<string>(), videoAuthors: new Set<string>() };
+        c.videoAuthors.add(author);
         counts.set(t, c);
       }
-    }
+    });
     const topics = [...counts.entries()]
-      .map(([tag, c]) => ({ tag, posts: c.posts, videos: c.videos, velocity: c.posts * 2 + c.videos }))
+      .map(([tag, c]) => ({ tag, posts: c.postAuthors.size, videos: c.videoAuthors.size, velocity: c.postAuthors.size * 2 + c.videoAuthors.size }))
       .sort((a, b) => b.velocity - a.velocity)
       .slice(0, 20);
     return res.json({ topics });
