@@ -172,7 +172,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
       "sponsorDealDetail.winsPlaceholder",
     ]],
     [T_KARAT, ["contests.e_g_24k_gold_chain_shoutout"]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   de: grouped(
     ["LEGIT: 'first-year' numeralized as 'Jahr 1'", ["llcGuide.estimatedTotal"]],
@@ -182,7 +182,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
   ),
   es: grouped(
     [T_SPLIT, ["llcGuide.checklistTitleEnd", "llcGuide.checklistTitleStart"]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   fr: grouped(
     ["LEGIT: en's '1M' abbreviated as '1 M' — verified value-equal", ["outreach.winsPlaceholder"]],
@@ -191,23 +191,23 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     [T_PCT, ["beatMaker.sequencerNote", "brandingShop.fulfillmentText"]],
     [T_KARAT, ["contests.e_g_24k_gold_chain_shoutout"]],
     [T_AMBIG_GATE, ["beatMaker.gateTitle"]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   hi: grouped(
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   it: grouped(
     ["LEGIT: en's '7pm' rendered on the 24-hour clock ('19:00') — verified value-equal", ["press-kit.pressRelease.placeholders.topic"]],
     [T_SPLIT, ["llcGuide.checklistTitleEnd", "llcGuide.checklistTitleStart"]],
     [T_PCT, ["websiteBuilder.feeNote", "websiteBuilder.ownershipStrong"]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   pt: grouped(
     ["LEGIT: en's '7pm' rendered on the 24-hour clock ('19h') — verified value-equal", ["press-kit.pressRelease.placeholders.topic"]],
     [T_SPELL, ["collabs.matchDescription"]],
     [T_SPLIT, ["llcGuide.checklistTitleEnd", "llcGuide.checklistTitleStart"]],
     [T_PCT, ["brandingShop.fulfillmentText"]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   ja: grouped(
     [T_NUM, [
@@ -275,7 +275,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     ["LEGIT: 'quarter-second' numeralized as 0.25", ["videoExport.rangeTooShort"]],
     ["LEGIT: 'a couple' rendered as 2、3", ["collabs.templateCasualDmBody"]],
     ["LEGIT: prices corrected to 200/200 by the drift lane; the residual is per-unit counters (1回)", ["thumbnailTest.costNote"]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
   ko: grouped(
     [T_NUM, [
@@ -301,7 +301,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
     ["LEGIT: 'three-quarter' numeralized as the fraction 3/4", [
       "artistVault.identityAngleThreeQuarterLeft", "artistVault.identityAngleThreeQuarterRight",
     ]],
-    [T_AMBIG_DRIFT, ["home.studio.1.tools.1.cost", "home.studio.2.tools.2.cost"]],
+    [T_AMBIG_DRIFT, []],
   ),
 };
 
