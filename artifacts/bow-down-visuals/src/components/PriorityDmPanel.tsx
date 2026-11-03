@@ -11,10 +11,9 @@ import {
 /* ─── Priority DMs (Wave-4 #44) — docked INSIDE Messages ─────────────
    Three pieces, all in the existing Messages surface (no new page):
      1. PriorityDmSettingsCard — the creator's own controls in the
-        sidebar: opt in/out and MY stated reply window. 100 VB is the
-        platform default price (owner ruling 2026-10-27); a creator
-        may set their own price, and the fan always sees the true
-        price before paying.
+        sidebar: opt in/out and MY stated reply window. The price is
+        the platform's ruled 100 VB (owner ruling 2026-10-27, final-
+        ruled 2026-11-02), shown read-only — creators don't set it.
      2. PriorityDmLane — the creator's priority inbox lane: held /
         replied / refunded rows, labelled honestly.
      3. PriorityDmComposer — the fan's buy action in the thread: the
@@ -32,9 +31,7 @@ interface MySettings {
   platform_enabled: boolean;
   opted_in: boolean;
   min_price_vb: number | null;
-  /* The per-message price fans see for this creator: the platform
-     default of 100 VB (owner ruling 2026-10-27) unless the creator
-     set their own price. */
+  /* The platform's ruled per-message price (owner ruling 2026-10-27). */
   price_vb?: number;
   reply_window_hours: number;
   not_ready?: boolean;
@@ -65,7 +62,7 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
       })) as MySettings;
       setSettings(d);
       onNotice(optedIn
-        ? "Priority DMs on — fans see your price and your reply window before they pay."
+        ? "Priority DMs on — fans see the 100 VB price and your reply window before they pay."
         : "Priority DMs off — your normal inbox is untouched.");
     } catch (e) {
       onNotice(plainErrorText(e, "Couldn't save your priority DM settings."));
@@ -86,13 +83,13 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
         </p>
       ) : (
         <p className="mt-2 text-xs leading-relaxed text-white/50">
-          Fans pay your price to land in your priority lane. Reply inside your window and it is yours — no reply = they are refunded in full, automatically.
+          Fans pay the platform price to land in your priority lane. Reply inside your window and it is yours — no reply = they are refunded in full, automatically.
         </p>
       )}
       <div className="mt-3 text-[11px] font-semibold text-white/60">
-        Price
+        Platform price
         <p className="mt-1 text-sm font-normal text-white/80" data-testid="priority-dm-price">
-          {priceVb} Visual Bucs per priority message — 100 Visual Bucs is the platform default, and a creator may set their own price. Fans always see the true price before they pay.
+          {priceVb} Visual Bucs per priority message — set by the platform, the same for every creator.
         </p>
       </div>
       <label className="mt-2 block text-[11px] font-semibold text-white/60">
