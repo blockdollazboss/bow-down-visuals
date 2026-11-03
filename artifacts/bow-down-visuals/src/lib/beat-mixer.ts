@@ -84,6 +84,43 @@ export interface BeatReverbConfig {
   decay: number;
 }
 
+/** Mixer sends (W3a): how much of this channel feeds each SHARED bus,
+ *  in % (0…100, the house FxStep mix scale). 0 = no send — and when
+ *  every channel's send to a bus is 0, the graph builds no bus at all,
+ *  so an untouched project keeps exactly the pre-sends graph. The tap
+ *  is post-fader (it hangs off the chain's track-gain output), so
+ *  mute/solo/fader moves take the send with them, like a real desk. */
+export interface BeatSendsConfig {
+  /** Send amount to the shared echo (delay) bus, % 0…100. */
+  delay: number;
+  /** Send amount to the shared space (reverb) bus, % 0…100. */
+  reverb: number;
+}
+
+/** The shared FX buses (W3a): ONE echo and ONE space for the whole
+ *  mixer. Every channel with a send amount feeds the bus input; the
+ *  bus returns wet-only into the master input. Bus settings are
+ *  project-wide (they are the room, not a channel), with the same
+ *  defaults as the per-track effects they mirror. */
+export interface BeatDelayBusConfig {
+  /** Delay time, ms (10…2000). */
+  timeMs: number;
+  /** Feedback, % 0…80. */
+  feedback: number;
+}
+
+export interface BeatReverbBusConfig {
+  /** Generated impulse length, seconds (0.1…5). */
+  durationSec: number;
+  /** Generated impulse decay exponent (0.5…8). */
+  decay: number;
+}
+
+export interface BeatBusesConfig {
+  delay: BeatDelayBusConfig;
+  reverb: BeatReverbBusConfig;
+}
+
 export interface BeatTrackFxConfig {
   /** Stereo pan −1 (full left)…+1 (full right). */
   pan: number;
@@ -92,6 +129,8 @@ export interface BeatTrackFxConfig {
   compressor: BeatCompressorConfig;
   delay: BeatDelayConfig;
   reverb: BeatReverbConfig;
+  /** W3a: amounts feeding the shared buses (see BeatSendsConfig). */
+  sends: BeatSendsConfig;
 }
 
 export interface BeatLimiterConfig {
@@ -109,9 +148,12 @@ export interface BeatMasterConfig {
 }
 
 /** The persistable mixer-FX state: one FX config per channel id
- *  (the 9 drum tracks plus the "bass" 808 bassline channel) + master. */
+ *  (the 9 drum tracks plus the "bass" 808 bassline channel), the
+ *  shared-bus settings (W3a), and the master section. */
 export interface BeatMixerFxState {
   tracks: Record<string, BeatTrackFxConfig>;
+  /** W3a: shared echo/space bus settings (see BeatBusesConfig). */
+  buses: BeatBusesConfig;
   master: BeatMasterConfig;
 }
 
@@ -137,6 +179,15 @@ export function defaultTrackFx(): BeatTrackFxConfig {
     compressor: { enabled: false, thresholdDb: -18, ratio: 3, attackMs: 10, releaseMs: 150, kneeDb: 3 },
     delay: { enabled: false, timeMs: 250, feedback: 30, mix: 20 },
     reverb: { enabled: false, mix: 25, durationSec: 1.8, decay: 2.5 },
+    /* Sends start at 0: no bus is built and nothing extra sounds. */
+    sends: { delay: 0, reverb: 0 },
+  };
+}
+
+export function defaultBusesConfig(): BeatBusesConfig {
+  return {
+    delay: { timeMs: 250, feedback: 30 },
+    reverb: { durationSec: 1.8, decay: 2.5 },
   };
 }
 
@@ -153,7 +204,7 @@ export function defaultMasterConfig(): BeatMasterConfig {
 export function defaultBeatMixerFxState(ids: readonly string[] = BEAT_MIXER_CHANNEL_IDS): BeatMixerFxState {
   const tracks: Record<string, BeatTrackFxConfig> = {};
   for (const id of ids) tracks[id] = defaultTrackFx();
-  return { tracks, master: defaultMasterConfig() };
+  return { tracks, buses: defaultBusesConfig(), master: defaultMasterConfig() };
 }
 
 /* ─── Normalization (defensive load + clamping) ────────────────────────── */
@@ -207,6 +258,26 @@ export function normalizeTrackFx(raw: unknown): BeatTrackFxConfig {
       durationSec: num(r.reverb?.durationSec, d.reverb.durationSec, 0.1, 5),
       decay: num(r.reverb?.decay, d.reverb.decay, 0.5, 8),
     },
+    sends: {
+      delay: num(r.sends?.delay, d.sends.delay, 0, 100),
+      reverb: num(r.sends?.reverb, d.sends.reverb, 0, 100),
+    },
+  };
+}
+
+export function normalizeBusesConfig(raw: unknown): BeatBusesConfig {
+  const d = defaultBusesConfig();
+  if (!raw || typeof raw !== "object") return d;
+  const r = raw as Partial<BeatBusesConfig>;
+  return {
+    delay: {
+      timeMs: num(r.delay?.timeMs, d.delay.timeMs, 10, 2000),
+      feedback: num(r.delay?.feedback, d.delay.feedback, 0, 80),
+    },
+    reverb: {
+      durationSec: num(r.reverb?.durationSec, d.reverb.durationSec, 0.1, 5),
+      decay: num(r.reverb?.decay, d.reverb.decay, 0.5, 8),
+    },
   };
 }
 
@@ -238,6 +309,7 @@ export function normalizeBeatMixerFxState(
       out.tracks[id] = normalizeTrackFx(cfg);
     }
   }
+  out.buses = normalizeBusesConfig(r.buses);
   out.master = normalizeMasterConfig(r.master);
   return out;
 }
@@ -335,6 +407,19 @@ export interface BeatTrackChain {
   nodes: AudioNode[];
   /** Ordered stage names, e.g. ["input","eq-lowshelf",…,"pan","track-gain"]. */
   kinds: string[];
+  /**
+   * W3a automation targets: the AudioParams pattern automation lanes
+   * write onto (lib/beat-automation event lists). `pan` is the
+   * StereoPanner's param; `delayMix` / `reverbMix` are the wet gains
+   * of the chain's own delay / reverb — NULL when that effect is
+   * bypassed (no node = nothing to automate; the static path behaves
+   * the same way, its mix only applies to a built effect).
+   */
+  automationTargets: {
+    pan: AudioParam | null;
+    delayMix: AudioParam | null;
+    reverbMix: AudioParam | null;
+  };
   /** Live-update parameters on the existing nodes (no rebuild). Only
    *  valid while the enabled-flag signature is unchanged — see
    *  beatMixerGraphSignature. */
@@ -353,15 +438,46 @@ export interface BeatMasterChain {
   disconnect: () => void;
 }
 
-export interface BeatMixerGraph {
-  tracks: Record<string, BeatTrackChain>;
-  master: BeatMasterChain;
+/** One shared FX bus (W3a): created only while some channel sends to
+ *  it (see beatBusActive). Channel outputs tap in post-fader through
+ *  per-channel send gains; the bus output (wet only) returns into the
+ *  master input. */
+export interface BeatBusChain {
+  /** Bus name: "delay" | "reverb". */
+  id: "delay" | "reverb";
+  /** Where the per-channel send gains connect. */
+  input: GainNode;
+  /** The bus return gain — connect this to the master input. */
+  output: GainNode;
+  /** Per-channel send gains, keyed by channel id. */
+  sends: Record<string, GainNode>;
+  /** Every node the bus owns, for disconnect on teardown. */
+  nodes: AudioNode[];
+  /** Node kinds in signal order (test/debug surface). */
+  kinds: string[];
+  /** Apply bus + send values in place (no rebuild). */
   update: (state: BeatMixerFxState) => void;
   disconnect: () => void;
 }
 
-/** Topology signature: only enable/bypass flags change the node graph;
- *  every other parameter is applied live via update(). */
+export interface BeatMixerGraph {
+  tracks: Record<string, BeatTrackChain>;
+  master: BeatMasterChain;
+  /** W3a shared buses — null while no channel sends to that bus. */
+  buses: { delay: BeatBusChain | null; reverb: BeatBusChain | null };
+  update: (state: BeatMixerFxState) => void;
+  disconnect: () => void;
+}
+
+/** True when at least one channel sends to the given shared bus —
+ *  the condition under which the graph builds that bus at all. */
+export function beatBusActive(state: BeatMixerFxState, bus: "delay" | "reverb"): boolean {
+  return Object.values(state.tracks).some((c) => (c.sends?.[bus] ?? 0) > 0);
+}
+
+/** Topology signature: only enable/bypass flags (and bus on/off, W3a)
+ *  change the node graph; every other parameter — send amounts
+ *  included — is applied live via update(). */
 export function beatMixerGraphSignature(state: BeatMixerFxState): string {
   const norm = normalizeBeatMixerFxState(state, Object.keys(state.tracks));
   const perTrack = Object.keys(norm.tracks)
@@ -371,7 +487,7 @@ export function beatMixerGraphSignature(state: BeatMixerFxState): string {
       return `${id}:${f.eq.enabled ? 1 : 0}${f.filter.enabled ? 1 : 0}${f.compressor.enabled ? 1 : 0}${f.delay.enabled ? 1 : 0}${f.reverb.enabled ? 1 : 0}`;
     })
     .join("|");
-  return `${perTrack}#limiter:${norm.master.limiter.enabled ? 1 : 0}`;
+  return `${perTrack}#limiter:${norm.master.limiter.enabled ? 1 : 0}#busD:${beatBusActive(norm, "delay") ? 1 : 0}#busR:${beatBusActive(norm, "reverb") ? 1 : 0}`;
 }
 
 export function buildTrackChain(ctx: BaseAudioContext, rawConfig: unknown): BeatTrackChain {
@@ -503,8 +619,18 @@ export function buildTrackChain(ctx: BaseAudioContext, rawConfig: unknown): Beat
   trackGain.gain.value = 1;
   append(trackGain, "track-gain");
 
+  /* Change guard (W3a): update() runs on every scheduler step via the
+   * page's ensureMixerGraph, and a .value write on an AudioParam
+   * inserts a static automation event at the current time — which
+   * would bend any automation glide (lib/beat-automation) running on
+   * pan / delay mix / reverb mix. Unchanged configs therefore write
+   * NOTHING; a real change still lands the moment it happens. */
+  let lastAppliedKey = JSON.stringify(config);
   const update = (raw: unknown) => {
     const c = normalizeTrackFx(raw);
+    const key = JSON.stringify(c);
+    if (key === lastAppliedKey) return;
+    lastAppliedKey = key;
     if (panner) panner.pan.value = c.pan;
     eqNodes.forEach((n, i) => {
       const band = c.eq.bands[i]!;
@@ -543,6 +669,11 @@ export function buildTrackChain(ctx: BaseAudioContext, rawConfig: unknown): Beat
     panNode: panNodeRef,
     nodes,
     kinds,
+    automationTargets: {
+      pan: panner ? panner.pan : null,
+      delayMix: delayWet ? delayWet.gain : null,
+      reverbMix: reverbWet ? reverbWet.gain : null,
+    },
     update,
     disconnect: () => {
       for (const n of nodes) {
@@ -581,8 +712,14 @@ export function buildMasterChain(ctx: BaseAudioContext, rawConfig: unknown): Bea
     kinds.push("master-limiter");
   }
 
+  /* Change guard (W3a, same rule as the track chains): an unchanged
+   * master config writes nothing. */
+  let masterLastKey = JSON.stringify(config);
   const update = (raw: unknown) => {
     const c = normalizeMasterConfig(raw);
+    const key = JSON.stringify(c);
+    if (key === masterLastKey) return;
+    masterLastKey = key;
     gain.gain.value = c.volume;
     if (limiter) {
       limiter.threshold.value = c.limiter.thresholdDb;
@@ -597,6 +734,120 @@ export function buildMasterChain(ctx: BaseAudioContext, rawConfig: unknown): Bea
     gain,
     output: current,
     limiter,
+    nodes,
+    kinds,
+    update,
+    disconnect: () => {
+      for (const n of nodes) {
+        try {
+          n.disconnect();
+        } catch {
+          /* already torn down */
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Build one shared bus (W3a). Every channel output taps post-fader
+ * through a send gain into the bus input; the processed (wet-only)
+ * signal returns via the bus output gain. Delay: input → echo →
+ * return, with a feedback loop on the echo. Reverb: input →
+ * convolver → return, impulse regenerated only when the room
+ * parameters change (same discipline as the per-track reverb).
+ */
+export function buildBeatBus(
+  ctx: BaseAudioContext,
+  id: "delay" | "reverb",
+  rawState: unknown,
+  tracks: Record<string, BeatTrackChain>,
+): BeatBusChain {
+  const state = normalizeBeatMixerFxState(rawState, Object.keys(tracks));
+  const nodes: AudioNode[] = [];
+  const kinds: string[] = [];
+
+  const input = ctx.createGain();
+  input.gain.value = 1;
+  nodes.push(input);
+  kinds.push("bus-input");
+
+  const output = ctx.createGain();
+  output.gain.value = 1;
+  nodes.push(output);
+  kinds.push("bus-return");
+
+  let delayNode: DelayNode | null = null;
+  let delayFeedback: GainNode | null = null;
+  let reverbNode: ConvolverNode | null = null;
+  let irKey = "";
+  if (id === "delay") {
+    delayNode = ctx.createDelay(2);
+    delayNode.delayTime.value = state.buses.delay.timeMs / 1000;
+    delayFeedback = ctx.createGain();
+    delayFeedback.gain.value = state.buses.delay.feedback / 100;
+    input.connect(delayNode);
+    delayNode.connect(delayFeedback);
+    delayFeedback.connect(delayNode);
+    delayNode.connect(output);
+    nodes.push(delayNode, delayFeedback);
+    kinds.push("bus-delay", "bus-delay-feedback");
+  } else {
+    reverbNode = ctx.createConvolver();
+    irKey = `${state.buses.reverb.durationSec}/${state.buses.reverb.decay}`;
+    reverbNode.buffer = generateImpulseResponse(ctx, state.buses.reverb.durationSec, state.buses.reverb.decay);
+    input.connect(reverbNode);
+    reverbNode.connect(output);
+    nodes.push(reverbNode);
+    kinds.push("bus-reverb");
+  }
+
+  /* Per-channel post-fader sends into the bus input. */
+  const sends: Record<string, GainNode> = {};
+  for (const [channelId, chain] of Object.entries(tracks)) {
+    const sendGain = ctx.createGain();
+    sendGain.gain.value = (state.tracks[channelId]?.sends[id] ?? 0) / 100;
+    chain.output.connect(sendGain);
+    sendGain.connect(input);
+    sends[channelId] = sendGain;
+    nodes.push(sendGain);
+  }
+
+  /* Change guard (W3a, same rule as the chains): the key covers this
+   * bus's settings plus every channel's send INTO this bus, so an
+   * unrelated edit elsewhere writes nothing here. */
+  const busKey = (s: BeatMixerFxState) =>
+    JSON.stringify({
+      bus: s.buses[id],
+      sends: Object.keys(sends)
+        .sort()
+        .map((cid) => s.tracks[cid]?.sends[id] ?? 0),
+    });
+  let busLastKey = busKey(state);
+  const update = (next: BeatMixerFxState) => {
+    const norm = normalizeBeatMixerFxState(next, Object.keys(next.tracks));
+    const key = busKey(norm);
+    if (key === busLastKey) return;
+    busLastKey = key;
+    for (const [channelId, sendGain] of Object.entries(sends)) {
+      sendGain.gain.value = (norm.tracks[channelId]?.sends[id] ?? 0) / 100;
+    }
+    if (delayNode) delayNode.delayTime.value = norm.buses.delay.timeMs / 1000;
+    if (delayFeedback) delayFeedback.gain.value = norm.buses.delay.feedback / 100;
+    if (reverbNode) {
+      const key = `${norm.buses.reverb.durationSec}/${norm.buses.reverb.decay}`;
+      if (key !== irKey) {
+        irKey = key;
+        reverbNode.buffer = generateImpulseResponse(ctx, norm.buses.reverb.durationSec, norm.buses.reverb.decay);
+      }
+    }
+  };
+
+  return {
+    id,
+    input,
+    output,
+    sends,
     nodes,
     kinds,
     update,
@@ -628,33 +879,69 @@ export function buildBeatMixerGraph(ctx: BaseAudioContext, rawState: unknown): B
     chain.output.connect(master.input);
     tracks[id] = chain;
   }
+  /* Shared buses (W3a) — built ONLY while some channel sends to them,
+   * so a project with no sends keeps the exact pre-sends graph. Bus
+   * returns land on the master input, alongside the dry chains. */
+  const buses: BeatMixerGraph["buses"] = { delay: null, reverb: null };
+  if (beatBusActive(state, "delay")) {
+    buses.delay = buildBeatBus(ctx, "delay", state, tracks);
+    buses.delay.output.connect(master.input);
+  }
+  if (beatBusActive(state, "reverb")) {
+    buses.reverb = buildBeatBus(ctx, "reverb", state, tracks);
+    buses.reverb.output.connect(master.input);
+  }
   master.output.connect(ctx.destination);
 
   return {
     tracks,
     master,
+    buses,
     update: (next: BeatMixerFxState) => {
       const norm = normalizeBeatMixerFxState(next, Object.keys(next.tracks));
       for (const [id, chain] of Object.entries(tracks)) {
         const cfg = norm.tracks[id];
         if (cfg) chain.update(cfg);
       }
+      buses.delay?.update(norm);
+      buses.reverb?.update(norm);
       master.update(norm.master);
     },
     disconnect: () => {
       for (const chain of Object.values(tracks)) chain.disconnect();
+      buses.delay?.disconnect();
+      buses.reverb?.disconnect();
       master.disconnect();
     },
   };
 }
 
 /** Serializable topology description — the render-parity proof surface:
- *  two graphs built from the same state must describe identically. */
+ *  two graphs built from the same state must describe identically.
+ *  W3a adds the buses: kinds plus each channel's send gain, so a send
+ *  mismatch between two graphs is visible here too. */
 export function describeBeatMixerGraph(graph: BeatMixerGraph): {
   master: string[];
   tracks: Record<string, string[]>;
+  buses: {
+    delay: { kinds: string[]; sends: Record<string, number> } | null;
+    reverb: { kinds: string[]; sends: Record<string, number> } | null;
+  };
 } {
   const tracks: Record<string, string[]> = {};
   for (const [id, chain] of Object.entries(graph.tracks)) tracks[id] = [...chain.kinds];
-  return { master: [...graph.master.kinds], tracks };
+  const describeBus = (bus: BeatBusChain | null) =>
+    bus
+      ? {
+          kinds: [...bus.kinds],
+          sends: Object.fromEntries(
+            Object.entries(bus.sends).map(([id, g]) => [id, g.gain.value] as const),
+          ),
+        }
+      : null;
+  return {
+    master: [...graph.master.kinds],
+    tracks,
+    buses: { delay: describeBus(graph.buses.delay), reverb: describeBus(graph.buses.reverb) },
+  };
 }

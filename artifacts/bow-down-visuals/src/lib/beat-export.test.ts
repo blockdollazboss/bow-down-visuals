@@ -329,3 +329,24 @@ describe("ZIP assembly", () => {
     expect(zip.length).toBe(22);
   });
 });
+
+describe("FX isolation — W3a sends + buses (isolateStemMixerFx)", () => {
+  it("a stem keeps its own channel's sends and the shared bus settings verbatim", () => {
+    const fx = defaultBeatMixerFxState([...DRUM_IDS, "bass"]);
+    fx.tracks["kick"]!.sends = { delay: 40, reverb: 10 };
+    fx.tracks["snare"]!.sends = { delay: 25, reverb: 70 };
+    fx.buses.delay.timeMs = 480;
+    fx.buses.reverb.durationSec = 3.2;
+    const stems = enumerateBeatStems(DRUM_IDS);
+    const kickFx = isolateStemMixerFx(fx, stems[0]!, DRUM_IDS);
+    /* Own sends survive; every other channel's sends are zeroed with
+     * the rest of its (defaulted) config… */
+    expect(kickFx.tracks["kick"]!.sends).toEqual({ delay: 40, reverb: 10 });
+    expect(kickFx.tracks["snare"]!.sends).toEqual({ delay: 0, reverb: 0 });
+    /* …and the bus itself is the mix's bus, not the default room. */
+    expect(kickFx.buses).toEqual(fx.buses);
+    const snareFx = isolateStemMixerFx(fx, stems[1]!, DRUM_IDS);
+    expect(snareFx.tracks["snare"]!.sends).toEqual({ delay: 25, reverb: 70 });
+    expect(snareFx.buses).toEqual(fx.buses);
+  });
+});

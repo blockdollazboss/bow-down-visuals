@@ -14,10 +14,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   BEAT_MIXER_CHANNEL_IDS,
+  beatBusActive,
+  beatMixerGraphSignature,
   buildBeatMixerGraph,
   buildMasterChain,
   buildTrackChain,
   defaultBeatMixerFxState,
+  defaultBusesConfig,
   defaultMasterConfig,
   defaultTrackFx,
   describeBeatMixerGraph,
@@ -25,6 +28,7 @@ import {
   generateImpulseResponse,
   isDefaultBeatMixerFxState,
   isDefaultTrackFx,
+  normalizeBeatMixerFxState,
   normalizeTrackFx,
   parseBeatMixerFxState,
   serializeBeatMixerFxState,
@@ -387,5 +391,160 @@ describe("live vs offline render parity", () => {
     // The legacy straight-to-destination wiring is gone from the sequencer.
     expect(seq).not.toContain("gn.connect(ctx.destination)");
     expect(seq).not.toContain(".connect(ctx.destination)");
+  });
+});
+
+/* ─── W3a: mixer sends, shared buses, automation targets ───────────────── */
+
+describe("mixer sends + shared buses (W3a)", () => {
+  it("defaults are neutral, and a pre-W3a state (no sends, no buses) normalizes to them", () => {
+    expect(defaultTrackFx().sends).toEqual({ delay: 0, reverb: 0 });
+    expect(defaultBeatMixerFxState().buses).toEqual(defaultBusesConfig());
+    /* Strip the W3a fields like an old save would lack them. */
+    const legacy = JSON.parse(serializeBeatMixerFxState(defaultBeatMixerFxState())) as {
+      tracks: Record<string, Record<string, unknown>>;
+    } & Record<string, unknown>;
+    for (const tr of Object.values(legacy.tracks)) delete tr.sends;
+    delete legacy.buses;
+    const loaded = parseBeatMixerFxState(JSON.stringify(legacy));
+    for (const tr of Object.values(loaded.tracks)) expect(tr.sends).toEqual({ delay: 0, reverb: 0 });
+    expect(loaded.buses).toEqual(defaultBusesConfig());
+    expect(isDefaultBeatMixerFxState(loaded)).toBe(true);
+    expect(beatBusActive(loaded, "delay")).toBe(false);
+    expect(beatBusActive(loaded, "reverb")).toBe(false);
+  });
+
+  it("sends and bus settings round-trip through serialize/parse, clamped", () => {
+    const state = defaultBeatMixerFxState();
+    state.tracks["kick"]!.sends.delay = 45;
+    state.buses.delay.timeMs = 480;
+    state.buses.reverb.decay = 3.5;
+    const back = parseBeatMixerFxState(serializeBeatMixerFxState(state));
+    expect(back.tracks["kick"]!.sends.delay).toBe(45);
+    expect(back.buses).toEqual({ delay: { timeMs: 480, feedback: 30 }, reverb: { durationSec: 1.8, decay: 3.5 } });
+    expect(isDefaultBeatMixerFxState(back)).toBe(false);
+    const wild = normalizeBeatMixerFxState({
+      tracks: { kick: { sends: { delay: 900, reverb: -4 } } },
+      buses: { delay: { timeMs: 1, feedback: 100 }, reverb: { durationSec: 99, decay: 0 } },
+    });
+    expect(wild.tracks["kick"]!.sends).toEqual({ delay: 100, reverb: 0 });
+    expect(wild.buses.delay).toEqual({ timeMs: 10, feedback: 80 });
+    expect(wild.buses.reverb).toEqual({ durationSec: 5, decay: 0.5 });
+  });
+
+  it("a default graph builds NO bus — the pre-sends topology, untouched", () => {
+    const ctx = new FakeCtx();
+    const graph = buildBeatMixerGraph(asCtx(ctx), defaultBeatMixerFxState());
+    expect(graph.buses.delay).toBeNull();
+    expect(graph.buses.reverb).toBeNull();
+    const desc = describeBeatMixerGraph(graph);
+    expect(desc.buses).toEqual({ delay: null, reverb: null });
+    expect(desc.tracks["kick"]).toEqual(["input", "pan", "track-gain"]);
+    expect(ctx.created.filter((n) => n.kind === "delay" || n.kind === "convolver")).toEqual([]);
+  });
+
+  it("a send builds its bus: post-fader taps per channel, wet return on the master input", () => {
+    const state = defaultBeatMixerFxState();
+    state.tracks["kick"]!.sends.delay = 40;
+    state.tracks["snare"]!.sends.delay = 25;
+    state.tracks["bass"]!.sends.reverb = 60;
+    const ctx = new FakeCtx();
+    const graph = buildBeatMixerGraph(asCtx(ctx), state);
+    const delayBus = graph.buses.delay!;
+    const reverbBus = graph.buses.reverb!;
+    expect(delayBus).not.toBeNull();
+    expect(reverbBus).not.toBeNull();
+    expect(delayBus.kinds).toContain("bus-delay");
+    expect(reverbBus.kinds).toContain("bus-reverb");
+    /* Send amounts land as gains (percent → 0–1), every channel gets a tap. */
+    expect(delayBus.sends["kick"]!.gain.value).toBeCloseTo(0.4, 10);
+    expect(delayBus.sends["snare"]!.gain.value).toBeCloseTo(0.25, 10);
+    expect(delayBus.sends["clap"]!.gain.value).toBe(0);
+    expect(reverbBus.sends["bass"]!.gain.value).toBeCloseTo(0.6, 10);
+    /* The tap hangs off the channel's track-gain output (post-fader)… */
+    const kickOut = graph.tracks["kick"]!.output as unknown as FakeNode;
+    expect(kickOut.connections).toContain(delayBus.sends["kick"] as unknown as FakeNode);
+    expect(kickOut.connections).toContain(graph.master.input as unknown as FakeNode);
+    /* …the send feeds the bus input, and the bus returns to the master. */
+    expect((delayBus.sends["kick"] as unknown as FakeNode).connections).toContain(delayBus.input as unknown as FakeNode);
+    expect((delayBus.output as unknown as FakeNode).connections).toContain(graph.master.input as unknown as FakeNode);
+    /* The parity surface sees the sends too. */
+    expect(describeBeatMixerGraph(graph).buses.delay!.sends["kick"]).toBeCloseTo(0.4, 10);
+  });
+
+  it("graph update moves sends + bus params live; the signature flips only on bus on/off", () => {
+    const base = defaultBeatMixerFxState();
+    base.tracks["kick"]!.sends.delay = 40;
+    const graph = buildBeatMixerGraph(asCtx(new FakeCtx()), base);
+    const next = defaultBeatMixerFxState();
+    next.tracks["kick"]!.sends.delay = 85;
+    next.buses.delay.timeMs = 500;
+    next.buses.delay.feedback = 55;
+    graph.update(next);
+    expect(graph.buses.delay!.sends["kick"]!.gain.value).toBeCloseTo(0.85, 10);
+    const delayNode = graph.buses.delay!.nodes.find((n) => (n as unknown as FakeNode).kind === "delay") as unknown as FakeDelay;
+    expect(delayNode.delayTime.value).toBeCloseTo(0.5, 10);
+    /* Topology signature: amount/params are NOT topology; on/off is. */
+    const sigOff = beatMixerGraphSignature(defaultBeatMixerFxState());
+    expect(sigOff).toContain("busD:0");
+    expect(sigOff).toContain("busR:0");
+    const sig40 = beatMixerGraphSignature(base);
+    expect(sig40).toContain("busD:1");
+    expect(beatMixerGraphSignature(next)).toBe(sig40);
+  });
+
+  it("live vs offline parity holds with sends up (identical describe on two contexts)", () => {
+    const state = defaultBeatMixerFxState();
+    state.tracks["kick"]!.sends.delay = 40;
+    state.tracks["ohat"]!.sends.reverb = 30;
+    state.tracks["bass"]!.sends = { delay: 15, reverb: 55 };
+    state.buses.delay.timeMs = 375;
+    const a = buildBeatMixerGraph(asCtx(new FakeCtx()), state);
+    const b = buildBeatMixerGraph(asCtx(new FakeCtx()), state);
+    expect(describeBeatMixerGraph(a)).toEqual(describeBeatMixerGraph(b));
+  });
+});
+
+describe("automation targets + the update change guard (W3a)", () => {
+  it("targets are null for bypassed FX and live for enabled ones; pan is always present", () => {
+    const plain = buildTrackChain(asCtx(new FakeCtx()), defaultTrackFx());
+    expect(plain.automationTargets.pan).not.toBeNull();
+    expect(plain.automationTargets.delayMix).toBeNull();
+    expect(plain.automationTargets.reverbMix).toBeNull();
+    const wet = buildTrackChain(asCtx(new FakeCtx()), fullFx());
+    expect((wet.automationTargets.delayMix as unknown as FakeParam).value).toBeCloseTo(0.3, 10);
+    expect((wet.automationTargets.reverbMix as unknown as FakeParam).value).toBeCloseTo(0.4, 10);
+  });
+
+  it("update() with an unchanged config writes NOTHING — a changed value writes", () => {
+    const chain = buildTrackChain(asCtx(new FakeCtx()), fullFx());
+    /* Count writes through the pan param (the scheduler calls update
+     * every step; a .value write would insert a static event and bend
+     * any automation glide — the guard is what keeps glides pure). */
+    const panner = chain.panNode as unknown as { pan: unknown };
+    let sets = 0;
+    let stored = -0.4;
+    Object.defineProperty(panner, "pan", {
+      configurable: true,
+      get: () => ({
+        get value() {
+          return stored;
+        },
+        set value(v: number) {
+          sets++;
+          stored = v;
+        },
+      }),
+    });
+    chain.update(fullFx());
+    chain.update(fullFx());
+    expect(sets).toBe(0);
+    const moved = fullFx();
+    moved.pan = 0.25;
+    chain.update(moved);
+    expect(sets).toBe(1);
+    expect(stored).toBe(0.25);
+    chain.update(moved);
+    expect(sets).toBe(1);
   });
 });

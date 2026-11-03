@@ -46,6 +46,14 @@
  * honestly after a reload, when playback falls back to the synth voice).
  * Older projects without these fields normalize to the built-in synth
  * voices — exactly the sounds they always played.
+ *
+ * W3a (additive): each pattern carries automation lanes
+ * (`automation`, lib/beat-automation.ts) — breakpoints for channel
+ * volume/pan/delay/reverb — and each mixer channel carries sends to
+ * the shared buses (inside `mixerFx`, lib/beat-mixer.ts). Older
+ * projects without them normalize to no lanes and zero sends, which
+ * schedules no automation events and builds no bus — the pre-W3a
+ * sound, exactly.
  */
 
 import { defaultSoundIdForTrack, normalizeTrackSoundId } from "@/lib/beat-sounds";
@@ -57,10 +65,18 @@ import {
   type BeatMelodyLanes,
 } from "@/lib/beat-melody";
 import {
+  BEAT_MIXER_CHANNEL_IDS,
   defaultBeatMixerFxState,
   normalizeBeatMixerFxState,
   type BeatMixerFxState,
 } from "@/lib/beat-mixer";
+import {
+  cloneBeatAutomation,
+  emptyBeatAutomation,
+  normalizeBeatAutomation,
+  resizeBeatAutomation,
+  type BeatAutomationLane,
+} from "@/lib/beat-automation";
 
 export type BeatPatternId = "A" | "B" | "C" | "D";
 export const BEAT_PATTERN_IDS: BeatPatternId[] = ["A", "B", "C", "D"];
@@ -107,6 +123,13 @@ export interface BeatPatternData {
    * bar inside longer patterns — for 1-bar patterns (all legacy projects)
    * playback and render are exactly the pre-join behavior. */
   melody: BeatMelodyLanes;
+  /* Automation lanes (W3a, lib/beat-automation): per-pattern breakpoints
+   * for channel volume / pan / delay mix / reverb mix, drawn in the
+   * Automation section and applied identically by live playback and the
+   * offline export render. Additive like melody: projects saved before
+   * W3a have no field, normalize to no lanes, and therefore schedule no
+   * automation events — they sound exactly as before. */
+  automation: BeatAutomationLane[];
 }
 
 /** Steps in a pattern of the given length. */
@@ -184,6 +207,7 @@ export function emptyBeatPattern(bars: BeatPatternBars = 1): BeatPatternData {
     velocity: {},
     bassVelocity: {},
     melody: emptyBeatMelody(),
+    automation: emptyBeatAutomation(),
   };
 }
 
@@ -195,6 +219,7 @@ export function cloneBeatPattern(p: BeatPatternData): BeatPatternData {
     velocity: { ...p.velocity },
     bassVelocity: { ...p.bassVelocity },
     melody: cloneBeatMelody(p.melody),
+    automation: cloneBeatAutomation(p.automation),
   };
 }
 
@@ -225,6 +250,10 @@ export function setPatternBars(p: BeatPatternData, bars: BeatPatternBars): BeatP
     /* Melody lanes are one bar and loop per bar, so a bars change keeps
      * them whole (no truncation, no padding). */
     melody: cloneBeatMelody(p.melody),
+    /* Automation breakpoints live on the pattern's own step grid, so a
+     * bars change keeps the points inside the new length and drops the
+     * tail's — the same rule as the velocity maps above. */
+    automation: resizeBeatAutomation(p.automation, steps),
   };
 }
 
@@ -306,12 +335,14 @@ export function setBassStepVelocity(
   return next;
 }
 
-/** True when a pattern holds no hits and no bass notes (a free slot). */
+/** True when a pattern holds no hits, no bass notes, no melody and no
+ *  automation (a free slot). */
 export function isEmptyBeatPattern(p: BeatPatternData): boolean {
   return (
     p.grid.every((row) => row.every((v) => v === 0)) &&
     p.bass.every((n) => n == null) &&
-    beatMelodyNoteCount(p.melody) === 0
+    beatMelodyNoteCount(p.melody) === 0 &&
+    p.automation.length === 0
   );
 }
 
@@ -430,6 +461,9 @@ function normalizePattern(raw: unknown): BeatPatternData {
     velocity: normalizeVelocityMap(r.velocity, steps),
     bassVelocity: normalizeBassVelocityMap(r.bassVelocity, steps),
     melody: normalizeBeatMelody(r.melody),
+    /* W3a: lanes clamp to this pattern's steps and to the mixer's
+     * channel ids; absent (pre-W3a saves) → no lanes → no events. */
+    automation: normalizeBeatAutomation(r.automation, steps, BEAT_MIXER_CHANNEL_IDS),
   };
 }
 
