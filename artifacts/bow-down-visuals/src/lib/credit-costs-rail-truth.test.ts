@@ -182,3 +182,28 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     });
   }
 });
+
+describe("CREDIT_COSTS parity-wave rows equal the rails' charges (Stack1400)", () => {
+  // The World parity waves built in-World desks for these four families
+  // before the registry had rows for their rails, so the desks charged
+  // through explicit per-desk overrides. The rows now exist; these pins
+  // re-derive every figure from the server source so registry, desks,
+  // and rails cannot drift apart silently.
+  const PARITY_ROWS = [
+    { endpoint: "/api/label-pitch/kit", file: "routes/generate/label-pitch.ts", constant: "LABEL_PITCH_CREDIT_COST", cost: 300 },
+    { endpoint: "/api/email-list/newsletter", file: "routes/generate/email-list-helpers.ts", constant: "EMAIL_NEWSLETTER_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/academy/learning-path", file: "routes/generate/academy.ts", constant: "ACADEMY_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/academy/lesson", file: "routes/generate/academy.ts", constant: "ACADEMY_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/academy/ask", file: "routes/generate/academy.ts", constant: "ACADEMY_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/movies/concept", file: "routes/generate/movies.ts", constant: "CONCEPT_CREDITS", cost: 400 },
+    { endpoint: "/api/movies/clip-detect", file: "routes/generate/movies.ts", constant: "CLIP_DETECT_CREDITS", cost: 300 },
+  ] as const;
+
+  for (const spec of PARITY_ROWS) {
+    it(`${spec.endpoint}: registry == ${spec.constant} (${spec.cost})`, () => {
+      const rail = deriveServerConstant(spec.file, spec.constant);
+      expect(rail).toBe(spec.cost);
+      expect(CREDIT_COSTS[spec.endpoint]?.cost).toBe(rail);
+    });
+  }
+});
