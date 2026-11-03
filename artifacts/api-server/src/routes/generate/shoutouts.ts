@@ -16,6 +16,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 import { normalizeToStorageRef, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
+import { refundCheckoutSessionPayment, retrieveCheckoutSession } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
 import { sendEmail, emailShell, emailButton, escapeHtml } from "../../lib/email";
@@ -27,10 +28,14 @@ import { sendEmail, emailShell, emailButton, escapeHtml } from "../../lib/email"
    delivered or declined. Creator tells ride the one event door
    (money category); fan tells are email, the only channel a guest
    has. Both fire on the landed transition only.
-   TRUTH RULE for the decline email: a creator can decline a PAID
-   request and this rail fires no refund (the 'refunded' status is
-   system-only via the clawback engine), so the decline copy must
-   never promise money back — flagged in the lane report. */
+   DECLINE REFUND (owner ruling, stack1400 #15): declining a PAID
+   request refunds the fan in full, automatically, as part of the
+   decline — the request lands in 'refunded' and only then does the
+   decline email go out, its copy stating the full refund. An UNPAID
+   request declines exactly as before and its copy promises nothing
+   about money. If the refund fails, the decline does not land: the
+   request keeps its pre-decline state so the creator can retry,
+   and no email claims a refund that didn't happen. */
 type ShoutoutEventNotifier = (input: UserEventInput) => Promise<unknown>;
 let _shoutoutEventNotifier: ShoutoutEventNotifier = notifyUserEvent;
 /** Test seam — never used outside tests. */
@@ -99,11 +104,20 @@ export function buildShoutoutDeclinedEmail(input: {
   fanEmail: string;
   creatorName: string;
   occasion: string;
+  /* Set ONLY when a full refund actually landed as part of this
+     decline (paid decline, stack1400 #15) — the copy then states the
+     refund plainly. Absent = the request was never paid, and the
+     copy says nothing about money. */
+  refundCents?: number;
 }): ShoutoutFanEmail {
+  const refundLine =
+    input.refundCents != null && input.refundCents > 0
+      ? `<p style="margin:0 0 12px;">Since you'd already paid, we've refunded your payment in full — <strong>${usd(input.refundCents)}</strong> is on its way back to your original payment method.</p>\n`
+      : "";
   const html = emailShell(
     "About your shoutout request",
     `<p style="margin:0 0 12px;">Hi ${escapeHtml(input.fanName)} — ${escapeHtml(input.creatorName)} couldn't take your shoutout request (${escapeHtml(input.occasion)}) this time, so it was declined.</p>
-<p style="margin:0 0 16px;font-size:14px;">Thanks for thinking of them. Plenty of other creators on Bow Down Visuals would love to record one for you.</p>`,
+${refundLine}<p style="margin:0 0 16px;font-size:14px;">Thanks for thinking of them. Plenty of other creators on Bow Down Visuals would love to record one for you.</p>`,
   );
   return { to: input.fanEmail, subject: "About your shoutout request", html };
 }
@@ -143,9 +157,10 @@ export const REQUEST_STATUSES = [
 ] as const;
 
 /* Allowed status transitions. Terminal states (delivered/declined) can't move.
-   'refunded' is terminal and system-only: the clawback engine (0183, D1)
-   writes it directly when the paying charge is reversed — no user
-   transition ever targets it, so it appears in no target list. */
+   'refunded' is terminal and never a user target: the clawback engine
+   (0183, D1) writes it when the paying charge is reversed, and the
+   decline rail lands a PAID request there after its automatic full
+   refund (stack1400 #15) — it appears in no target list either way. */
 const TRANSITIONS: Record<ShoutoutRequestStatus, ShoutoutRequestStatus[]> = {
   pending_payment: ["accepted", "declined"],
   accepted: ["in_progress", "declined"],
@@ -636,6 +651,36 @@ router.get("/shoutouts/requests", requireAuth, publicApiLimiter, async (req, res
   res.json({ requests: await Promise.all(rows.map(toRequestJson)) });
 });
 
+/* ─── Decline refund (owner ruling, stack1400 #15) ───────────────────
+   A request is PAID when the settle flip recorded the payment:
+   paid_at set by markShoutoutPaid, on the checkout session stored at
+   checkout time. A positive price alone is NOT paid — a priced
+   request the fan never paid for sits in pending_payment with a
+   session id and paid_at null, and declines with no refund attempt,
+   exactly like a free request. */
+function isPaidShoutoutRequest(r: ShoutoutRequestRow): boolean {
+  return r.paid_at != null && r.stripe_session_id != null && r.price_cents > 0;
+}
+
+/** Refund a paid shoutout's checkout session in full, via the house
+    session-refund rail (the same one beats use). Exactly-once falls
+    out of two locks: the claim UPDATE in the decline handler admits
+    one caller, and the rail's refund idempotency key
+    (`refund:<session id>` — one session pays one request, UNIQUE)
+    makes Stripe dedupe any replay of that session's refund. Returns
+    whether the refund landed; callers phrase everything from this,
+    never claim a refund that didn't happen. */
+async function refundPaidShoutout(request: ShoutoutRequestRow): Promise<boolean> {
+  if (!request.stripe_session_id) return false;
+  try {
+    const session = await retrieveCheckoutSession(request.stripe_session_id);
+    return await refundCheckoutSessionPayment(session);
+  } catch (err) {
+    logger.warn({ err, requestId: request.id }, "[shoutouts] decline refund could not start");
+    return false;
+  }
+}
+
 /* PATCH /api/shoutouts/requests/:id — update status / delivery URL (free, owner only).
    Enforces the transition map; terminal states can't be reopened. */
 router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (req, res) => {
@@ -666,6 +711,77 @@ router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (re
     res.status(409).json({
       error: `Can't move a request from "${current}" to "${status}".`,
     });
+    return;
+  }
+  /* Declining a PAID request (owner ruling, stack1400 #15): the fan
+     is refunded in full, automatically, as part of the decline. The
+     refund runs under a claim — a guarded UPDATE into the terminal
+     'refunded' state admits exactly one caller, so a double-decline
+     or racing replay can neither refund twice nor email twice. A
+     failed refund rolls the claim back, leaving the request in its
+     pre-decline state (recoverable — the creator can retry), and no
+     email goes out claiming money that never moved. */
+  if (status === "declined" && current !== "declined" && isPaidShoutoutRequest(rows[0]!)) {
+    const [claimed] = await db
+      .update(shoutoutRequestsTable)
+      .set({ status: "refunded", updated_at: new Date() })
+      .where(
+        and(
+          eq(shoutoutRequestsTable.id, rows[0]!.id),
+          eq(shoutoutRequestsTable.status, current),
+        ),
+      )
+      .returning();
+    if (!claimed) {
+      /* Another decline landed the claim first — it owns the refund
+         and the fan email. Answer with the request as it now stands. */
+      const [fresh] = await db
+        .select()
+        .from(shoutoutRequestsTable)
+        .where(eq(shoutoutRequestsTable.id, rows[0]!.id));
+      res.json({ request: await toRequestJson(fresh ?? rows[0]!) });
+      return;
+    }
+    const refunded = await refundPaidShoutout(claimed);
+    if (!refunded) {
+      /* Roll the claim back — the decline never happened, and the
+         fan is told nothing. The Stripe refund idempotency key makes
+         the creator's retry safe even if this attempt secretly
+         landed on Stripe's side. */
+      await db
+        .update(shoutoutRequestsTable)
+        .set({ status: current, updated_at: new Date() })
+        .where(
+          and(
+            eq(shoutoutRequestsTable.id, rows[0]!.id),
+            eq(shoutoutRequestsTable.status, "refunded"),
+          ),
+        );
+      logger.error({ requestId: rows[0]!.id }, "[shoutouts] decline refund failed — decline rolled back");
+      res.status(502).json({
+        error:
+          "We couldn't refund the fan's payment, so this request wasn't declined. Try again in a moment — if it keeps failing, contact support.",
+      });
+      return;
+    }
+    /* The refund landed and this caller holds the claim — the fan's
+       decline email goes out now, stating the full refund. */
+    if (claimed.fan_email) {
+      const [settings] = await db
+        .select()
+        .from(shoutoutSettingsTable)
+        .where(eq(shoutoutSettingsTable.user_id, claimed.creator_user_id));
+      await mailShoutoutFan(
+        buildShoutoutDeclinedEmail({
+          fanName: claimed.fan_name,
+          fanEmail: claimed.fan_email,
+          creatorName: settings?.display_name ?? "Your creator",
+          occasion: claimed.occasion,
+          refundCents: claimed.price_cents,
+        }),
+      );
+    }
+    res.json({ request: await toRequestJson(claimed) });
     return;
   }
   const [updated] = await db

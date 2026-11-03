@@ -3,8 +3,9 @@
  * fan tells are email (a guest's only channel). Pins: free request →
  * creator told at create; priced request → creator told at the paid
  * flip, exactly once; delivered → fan emailed with the watch link,
- * once; declined → fan emailed with NO refund promise (this rail
- * fires no refund on a creator decline — see the lane report flag).
+ * once; declined (paid) → fan refunded in full automatically and
+ * the email says so (stack1400 ruling #15; the full decline-refund
+ * matrix lives in shoutouts-decline-refund.test.ts).
  * Fake-db idiom mirrors shoutouts-checkout.test.ts.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
@@ -20,6 +21,7 @@ const h = vi.hoisted(() => ({
   requests: [] as Array<Record<string, any>>,
   stripePaid: true,
   sessionSeq: 0,
+  refundCalls: 0,
 }));
 
 function render(cond: unknown): { sql: string; params: unknown[] } {
@@ -50,7 +52,11 @@ vi.mock("@workspace/db", async (importOriginal) => {
     const id = String(params[0] ?? "");
     const row = h.requests.find((r) => r.id === id);
     if (!row) return [];
-    const statusGuard = params.find((p) => typeof p === "string" && p === "pending_payment");
+    const statusGuard = params.find(
+      (p) =>
+        typeof p === "string" &&
+        ["pending_payment", "accepted", "in_progress", "delivered", "declined", "refunded"].includes(p),
+    );
     if (statusGuard && row.status !== statusGuard) return [];
     Object.assign(row, patch);
     return [row];
@@ -113,8 +119,15 @@ vi.mock("stripe", () => ({
         retrieve: async (id: string) => ({
           id,
           payment_status: h.stripePaid ? "paid" : "unpaid",
+          payment_intent: "pi_test_fanout",
           metadata: { type: "shoutout_request" },
         }),
+      },
+    };
+    refunds = {
+      create: async () => {
+        h.refundCalls += 1;
+        return { id: "re_test_fanout", status: "succeeded" };
       },
     };
   },
@@ -201,6 +214,7 @@ beforeEach(() => {
   h.requests = [];
   h.stripePaid = true;
   h.sessionSeq = 0;
+  h.refundCalls = 0;
   events = [];
   mails = [];
   __setShoutoutEventNotifier(async (input) => {
@@ -292,16 +306,19 @@ describe("fan emails", () => {
     expect(mails).toHaveLength(1);
   });
 
-  it("declined → the fan is emailed, and the copy never promises a refund", async () => {
+  it("declined (paid) → the fan is refunded in full and the email says so (ruling #15)", async () => {
     const id = await paidRequest();
     const p = await call("PATCH", `/shoutouts/requests/${id}`, { status: "declined" });
     expect(p.status).toBe(200);
+    expect(p.json.request.status).toBe("refunded");
+    expect(h.refundCalls).toBe(1);
     expect(mails).toHaveLength(1);
     expect(mails[0]!.to).toBe("jamie@example.com");
-    expect(mails[0]!.html.toLowerCase()).not.toContain("refund");
+    expect(mails[0]!.html).toContain("refunded your payment in full");
+    expect(mails[0]!.html).toContain("$25.00");
   });
 
-  it("the declined-email builder itself carries no refund language", () => {
+  it("the declined-email builder without a landed refund carries no refund language", () => {
     const mail = buildShoutoutDeclinedEmail({
       fanName: "Jamie Fan",
       fanEmail: "jamie@example.com",
