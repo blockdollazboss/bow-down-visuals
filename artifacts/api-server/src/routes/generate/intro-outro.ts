@@ -8,14 +8,19 @@ import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
-import { refundCredits, getCreditBalance } from "../../lib/credits";
+import { getCreditBalance } from "../../lib/credits";
 import {
   generationChargeIntentStore,
-  recordGenerationChargeIntent,
   resolvePendingCharge,
   settleGenerationCharge,
   markGenerationIntentDelivered,
   markGenerationIntentFailed,
+  chargeGenerationReserve,
+  recordGenerationReserve,
+  confirmGenerationReserve,
+  refundGenerationReserve,
+  refundOrFailGenerationIntent,
+  generationChargeKey,
 } from "../../lib/generation-charge-intents";
 import { uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import { z } from "zod";
@@ -39,12 +44,15 @@ const CREDIT_COST = resolveIntroOutroCost(CREDITS_PER_SEC);
 const INTRO_OUTRO_BUCKET = "generated-clips";
 
 /**
- * Tracks submitted Seedance intro/outro tasks — credits charged on SUCCEEDED only.
- * Key: Runway taskId  Value: { userId, credits }
+ * Tracks submitted Seedance intro/outro tasks. Reserve-at-submit
+ * (stack1400 ruling #43): credits are CHARGED at submit, before the
+ * provider call; the success poll confirms the reserve, a failure
+ * poll refunds it in full.
+ * Key: Runway taskId  Value: { userId, credits, chargeKey }
  */
 /* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
  * by the house job-map TTL (2h), like the other pending-task maps. */
-const pendingIntroTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number }>());
+const pendingIntroTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number; chargeKey: string }>());
 /** Test hook — clears the in-memory task map. */
 /** Test hook — read the pending map size. */
 
@@ -69,7 +77,8 @@ function cleanup(f: string) {
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /generate-intro-outro
    1. Validate channelName + type. 2. Credit pre-check (402 when broke).
-   3. Submit 5s Seedance 2.5 job to Runway. 4. Track task — charge on SUCCEEDED.
+   3. RESERVE the charge (ruling #43). 4. Submit 5s Seedance 2.5 job to
+   Runway. 5. Track task — the success poll confirms, failure refunds.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-intro-outro", requireAuth, generationLimiter, async (req, res) => {
   const parsed = introOutroSchema.safeParse(req.body ?? {});
@@ -106,6 +115,37 @@ router.post("/generate-intro-outro", requireAuth, generationLimiter, async (req,
   const prompt = buildIntroOutroPrompt(resolved.channelName, resolved.type, resolved.tagline);
   const client = new RunwayML({ apiKey });
 
+  /* ── RESERVE at submit (ruling #43): charge BEFORE the provider
+     call, through chargeCredits (fresh balance read). The Runway task
+     id doesn't exist yet, so the charge keys to a submit-minted job
+     id; the intent row (recorded once the task id lands) carries the
+     key in extra.chargeKey. A refused charge refuses the submit —
+     the provider is never called. ── */
+  const jobId = `job-${randomUUID()}`;
+  const chargeKey = generationChargeKey(jobId);
+  const reserve = await chargeGenerationReserve({
+    userId: req.userId!,
+    credits: CREDIT_COST,
+    action: "Intro/Outro Video",
+    chargeKey,
+  });
+  if (!reserve.ok) {
+    if (reserve.reason === "insufficient") {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+      });
+      return;
+    }
+    if (reserve.reason === "disabled") {
+      res.status(403).json({ error: "credits_disabled", message: "Credit spending is not enabled for this account." });
+      return;
+    }
+    req.log.error({ err: reserve.err }, "[intro-outro] reserve charge failed at submit — submission refused");
+    res.status(500).json({ error: "Could not reserve your Visual Bucs. Please try again." });
+    return;
+  }
+
   req.log.info(
     { userId: req.userId, type: resolved.type, durationSec: INTRO_OUTRO_DURATION_SEC },
     "[intro-outro] Runway Seedance generation started",
@@ -129,22 +169,42 @@ router.post("/generate-intro-outro", requireAuth, generationLimiter, async (req,
           audio: false,
         });
 
-    pendingIntroTasks.set(task.id, { userId: req.userId!, credits: CREDIT_COST });
-    /* Durable charge intent (Lane 4): survives the restarts the
-       in-memory map cannot — the success poll settles from this row
-       when the map entry is gone. */
-    await recordGenerationChargeIntent(generationChargeIntentStore, {
+    pendingIntroTasks.set(task.id, { userId: req.userId!, credits: CREDIT_COST, chargeKey });
+    /* Durable reserve record (0317): survives the restarts the
+       in-memory map cannot — the success poll confirms from this row
+       when the map entry is gone, a failure poll refunds from it. */
+    await recordGenerationReserve(generationChargeIntentStore, {
       taskId: task.id,
       rail: "intro-outro",
       userId: req.userId!,
       credits: CREDIT_COST,
       action: "Intro/Outro Video",
+      chargeKey,
     });
-    req.log.info({ taskId: task.id, userId: req.userId }, "[intro-outro] task submitted — credits pending on SUCCEEDED");
+    req.log.info({ taskId: task.id, userId: req.userId }, "[intro-outro] task submitted — credits reserved at submit");
     res.json({ taskId: task.id, creditCost: CREDIT_COST, type: resolved.type, durationSec: INTRO_OUTRO_DURATION_SEC, status: "processing" });
   } catch (err: unknown) {
+    /* Provider submission failed AFTER the reserve landed — refund
+       the reserve in full in-request (no task id exists, so no poll
+       will ever come for it). A failed refund is logged CRITICAL
+       with the job id; the charge's ledger row under the charge key
+       is the reconciliation trail. */
+    const refundOutcome = await refundOrFailGenerationIntent(generationChargeIntentStore, jobId, {
+      userId: req.userId!,
+      credits: CREDIT_COST,
+      projectId: null,
+      action: "Intro/Outro Video",
+      extra: null,
+      intentStatus: null,
+      source: "memory",
+      reserved: true,
+      chargeKey,
+    }, "submission failed");
+    if (refundOutcome === "refund_failed") {
+      req.log.error({ taskId: jobId, userId: req.userId }, "[intro-outro] CRITICAL: submission-failure refund failed — reserve stands under the job id for manual reconciliation");
+    }
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
-    req.log.error({ err: msg }, "[intro-outro] submission failed — no credits charged");
+    req.log.error({ err: msg }, "[intro-outro] submission failed — reserve refunded");
     res.status(500).json({ error: msg });
   }
 });
@@ -152,8 +212,8 @@ router.post("/generate-intro-outro", requireAuth, generationLimiter, async (req,
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /generate-intro-outro/:taskId
    Poll Runway task status.
-   - SUCCEEDED → deduct credits → upload to generated-clips → return URL
-   - FAILED/CANCELLED → no charge → return error
+   - SUCCEEDED → confirm reserve → upload to generated-clips → return URL
+   - FAILED/CANCELLED → refund the reserve in full → return error
    - Still running → return { status: "processing" }
 ───────────────────────────────────────────────────────────────────────────── */
 router.get("/generate-intro-outro/:taskId", requireAuth, async (req, res) => {
@@ -171,41 +231,59 @@ router.get("/generate-intro-outro/:taskId", requireAuth, async (req, res) => {
     const task = await client.tasks.retrieve(taskId);
 
     if (task.status === "SUCCEEDED") {
-      const runwayUrl = (task.output as string[] | undefined)?.[0] ?? null;
-      if (!runwayUrl) {
+      const pending0 = pendingIntroTasks.get(taskId);
+      const resolved0 = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pending0
+          ? { userId: pending0.userId, credits: pending0.credits, action: "Intro/Outro Video", reserved: true, chargeKey: pending0.chargeKey }
+          : null,
+      );
+      if (!((task.output as string[] | undefined)?.[0])) {
+        /* SUCCEEDED but no output — a no-output failure: the reserve
+           is refunded in full, exactly once. */
         pendingIntroTasks.delete(taskId);
-        req.log.warn({ taskId }, "[intro-outro] SUCCEEDED but no output URL — no credits charged");
+        if (resolved0) {
+          await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolved0, "no output");
+        } else {
+          await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+        }
+        req.log.warn({ taskId }, "[intro-outro] SUCCEEDED but no output URL — reserve refunded");
         res.json({ status: "succeeded", url: null });
         return;
       }
+      const runwayUrl = (task.output as string[])[0]!;
 
       const pending = pendingIntroTasks.get(taskId);
       let creditsRemaining: number | undefined;
 
-      /* ── Charge credits (only once) — resolved from the in-memory map
-         OR the durable submit-time intent (Lane 4). A missing map entry
-         used to mean a silent free delivery; now the intent row settles
-         the charge, and when NEITHER exists the delivery is logged as
+      /* ── Confirm the reserve (only once) — resolved from the
+         in-memory map OR the durable reserve row (0317). Confirming
+         moves NO money: the charge landed at submit. Legacy
+         pre-0317 rows still settle here via settleGenerationCharge.
+         When NEITHER record exists the delivery is logged as
          unchargeable at error level. ── */
-      const resolved = await resolvePendingCharge(
-        generationChargeIntentStore,
-        taskId,
-        pending
-          ? { userId: pending.userId, credits: pending.credits, action: "Intro/Outro Video" }
-          : null,
-      );
-      let chargeOutcome: "charged" | "charged_unledgered" | "already" | "charge_failed" | "skipped" = "skipped";
+      const resolved = resolved0;
+      let chargeOutcome: "confirmed" | "charged" | "charged_unledgered" | "already" | "charge_failed" | "refunded" | "skipped" = "skipped";
       if (resolved && resolved.userId === req.userId) {
-        chargeOutcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
-        if (chargeOutcome !== "charge_failed") {
-          creditsRemaining = await getCreditBalance(req.userId!).catch(() => undefined);
-          req.log.info({ taskId, userId: req.userId, creditsAfter: creditsRemaining, deducted: resolved.credits, source: resolved.source }, "[intro-outro] credits deducted");
+        if (resolved.reserved) {
+          const c = await confirmGenerationReserve(generationChargeIntentStore, taskId, resolved);
+          chargeOutcome = c === "not_reserved" ? "skipped" : c;
+          if (c === "refunded") {
+            req.log.error({ taskId }, "[intro-outro] SUCCEEDED poll found the reserve already refunded — delivering; the member was not charged");
+          }
+        } else {
+          chargeOutcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
         }
-        /* charge_failed: settle logged CRITICAL, intent stays awaiting;
-           delivery is stamped below and the sweeper retries. */
+        if (chargeOutcome !== "charge_failed" && chargeOutcome !== "skipped") {
+          creditsRemaining = await getCreditBalance(req.userId!).catch(() => undefined);
+          req.log.info({ taskId, userId: req.userId, creditsAfter: creditsRemaining, deducted: resolved.credits, source: resolved.source }, "[intro-outro] credits confirmed (reserved at submit)");
+        }
+        /* legacy charge_failed: settle logged CRITICAL, intent stays
+           awaiting; delivery is stamped below and the sweeper retries. */
         pendingIntroTasks.delete(taskId);
       } else if (resolved && resolved.userId !== req.userId) {
-        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[intro-outro] userId mismatch on poll — skipping charge");
+        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[intro-outro] userId mismatch on poll — skipping confirm");
       } else if (!resolved) {
         req.log.error({ taskId }, "[intro-outro] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0298 or a failed intent record (logged CRITICAL at submit)");
       }
@@ -220,32 +298,40 @@ router.get("/generate-intro-outro/:taskId", requireAuth, async (req, res) => {
         await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         res.json({ status: "succeeded", url: publicUrl, path: objectName, creditsRemaining });
       } catch (uploadErr: unknown) {
-        /* Upload failed after a successful charge — refund so the user
-           never pays for a video they can't access. Lane 4: the refund
-           is gated on the charge actually having landed (the pre-fix
-           code refunded even when the charge itself had failed — a
-           refund with no charge). When the charge failed too, nothing
-           is owed either way: the intent is left undelivered so the
-           sweeper never charges for this response. */
+        /* Upload failed after a confirmed reserve — the member still
+           gets the raw provider URL as fallback (the pre-existing
+           delivery contract), so NO refund is owed here; the earlier
+           design refunded only because its charge had just landed.
+           'refunded' in the response now reports the reserve state:
+           true only when the reserve was already refunded (the
+           no-charge case above), never a new refund on this path. */
         if (resolved && resolved.userId === req.userId && chargeOutcome !== "charge_failed" && chargeOutcome !== "skipped") {
-          try {
-            await refundCredits(req.userId!, resolved.credits, { action: "Intro/Outro — Refund (upload failed)" });
-            req.log.info({ taskId, userId: req.userId, refunded: resolved.credits }, "[intro-outro] refunded after upload failure");
-          } catch (refundErr) {
-            req.log.error({ err: refundErr, taskId }, "[intro-outro] CRITICAL: refund failed after upload failure");
-          }
           await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
         }
         req.log.error({ err: uploadErr }, "[intro-outro] bucket upload failed — returning raw Runway URL as fallback");
-        res.json({ status: "succeeded", url: runwayUrl, path: null, creditsRemaining, refunded: chargeOutcome === "charged" || chargeOutcome === "charged_unledgered" || chargeOutcome === "already" });
+        res.json({ status: "succeeded", url: runwayUrl, path: null, creditsRemaining, refunded: chargeOutcome === "refunded" });
       } finally {
         cleanup(tmpFile);
       }
 
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
+      /* Provider failure — refund the reserve in full, exactly once
+         (legacy rows: no money was ever held, bookkeeping only). */
+      const pendingF = pendingIntroTasks.get(taskId);
+      const resolvedF = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pendingF
+          ? { userId: pendingF.userId, credits: pendingF.credits, action: "Intro/Outro Video", reserved: true, chargeKey: pendingF.chargeKey }
+          : null,
+      );
       pendingIntroTasks.delete(taskId);
-      await markGenerationIntentFailed(generationChargeIntentStore, taskId);
-      req.log.info({ taskId, status: task.status }, "[intro-outro] task failed — no credits charged");
+      if (resolvedF) {
+        await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolvedF, task.status === "CANCELLED" ? "provider cancelled" : "provider failed");
+      } else {
+        await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+      }
+      req.log.info({ taskId, status: task.status }, "[intro-outro] task failed — reserve refunded");
       res.json({
         status: task.status === "CANCELLED" ? "cancelled" : "failed",
         error: (task as { failure?: string }).failure ?? "Intro/outro generation failed.",
