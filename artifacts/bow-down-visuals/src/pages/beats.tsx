@@ -15,6 +15,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
 import LoopExchangePanel from "@/components/loop-exchange/LoopExchangePanel";
 import { useHubProject } from "@/lib/hub-project";
+import { BEAT_SELL_PREFILL_PARAMS, parseBeatSellPrefill } from "@/lib/beat-doors";
 import {
   initialSectionStates, markSectionLoading, settleSection,
   type SectionStates,
@@ -222,6 +223,10 @@ export default function Beats() {
   const [premiumPrice, setPremiumPrice] = useState("99.99");
   const [exclusivePrice, setExclusivePrice] = useState("499.99");
   const [listing, setListing] = useState(false);
+  /* True when the sell form was prefilled by a Beat Maker door
+     (sequencer / AI beat tab) — shows the "your beat came with you"
+     note in the form. Manual visits never set it. */
+  const [sellPrefilled, setSellPrefilled] = useState(false);
   const [listMsg, setListMsg] = useState<string | null>(null);
   const [listOk, setListOk] = useState(false);
   const [aiTagging, setAiTagging] = useState(false);
@@ -286,6 +291,31 @@ export default function Beats() {
   };
 
   useEffect(() => { fetchBeats(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Sell-door prefill intake (W2-L4): the Beat Maker's "Sell this beat"
+     door lands here with the listing form prefilled (lib/beat-doors —
+     ?sell=1&audioUrl=…&title=…&bpm=…&genre=…&key=…). Applies once on
+     mount, opens the Sell tab, then strips the one-time params (the
+     make-song deep-link discipline) so a refresh or share of the URL
+     doesn't re-apply a stale draft. Manual URL entry is untouched and
+     remains the fallback when no params arrive. */
+  useEffect(() => {
+    const prefill = parseBeatSellPrefill(window.location.search);
+    if (!prefill) return;
+    if (prefill.wantsSell) setTab("sell");
+    if (prefill.audioUrl) setAudioUrl(prefill.audioUrl);
+    if (prefill.title) setTitle(prefill.title);
+    if (prefill.bpm != null) setBpm(String(prefill.bpm));
+    if (prefill.genre && (GENRES as readonly string[]).includes(prefill.genre)) setSellGenre(prefill.genre);
+    if (prefill.musicalKey) setMusicalKey(prefill.musicalKey);
+    if (prefill.audioUrl || prefill.title) setSellPrefilled(true);
+    try {
+      const url = new URL(window.location.href);
+      BEAT_SELL_PREFILL_PARAMS.forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    } catch { /* non-browser — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Returning from checkout: verify the payment server-side — the
      license is only real once this confirms it. */
@@ -401,6 +431,7 @@ export default function Beats() {
       } else {
         setListMsg(t("beats.listingLive", { title: data.beat?.title ?? "" }));
         setListOk(true);
+        setSellPrefilled(false);
         setTitle(""); setAudioUrl(""); setPreviewUrl(""); setStemsUrl(""); setBpm(""); setMusicalKey("");
         setMoodTags(""); setDescription("");
         fetchBeats();
@@ -665,6 +696,12 @@ export default function Beats() {
           <div className={`max-w-2xl mx-auto rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h2 className="text-xl font-bold mb-1 flex items-center gap-2"><Store className="w-5 h-5 text-[#C9A84C]" /> {t("beats.sellTitle")}</h2>
             <p className="text-white/40 text-sm mb-6">{t("beats.sellSubtitle")}</p>
+
+            {sellPrefilled && (
+              <p data-testid="beats-sell-prefilled-note" className={`text-sm rounded-xl px-4 py-3 mb-6 border ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#6B5518]" : "border-primary/30 bg-primary/10 text-primary"}`}>
+                {t("beats.sellPrefilledNote", { defaultValue: "Your beat came with you — its audio, title and tempo are filled in below. Check the details, set your prices, and list it." })}
+              </p>
+            )}
 
             <label className="block text-sm text-white/60 mb-1">{t("beats.titleLabel")}</label>
             <input aria-label={t("beats.titleLabel")} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("beats.titlePlaceholder")}
