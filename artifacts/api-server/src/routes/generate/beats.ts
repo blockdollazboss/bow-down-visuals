@@ -803,6 +803,144 @@ function licenseStemsUrl(
   return presented.stems_url ?? null;
 }
 
+/* ── Undeliverable files (stack1400 ruling #23, H-1) ─────────────────
+   A buyer must never be left paid-for-nothing on a file that cannot
+   be delivered. Remedy order: (1) REDELIVERY — the producer gets a
+   window to supply the missing file (stems via the PATCH path that
+   already existed; the master via the same PATCH, extended below);
+   (2) AUTO-REFUND — past the window, the purchase refunds in full
+   through the ONE existing refund helper.
+
+   UNDELIVERABLE is judged from STORED STATE only (no live probing
+   of external hosts): the master is missing when the beat row has
+   neither an audio_url nor an audio_path; the stems are missing
+   when a license whose sold terms carry a stems format has a beat
+   with neither a stems_url nor a stems_path.
+
+   WINDOW: 7 days from the license's creation. No source report
+   named a window; 7 days is the codebase's existing comparable
+   fan-facing grace window (DUNNING_GRACE_DAYS in lib/dunning.ts —
+   the payment-failure grace — itself mirroring the 7-day trial).
+
+   No new cron: the check is evaluated where the code already flows
+   — the settle and GET /beats/licenses/mine (plus the producer
+   dashboard's sales list, read-only) — so the refund is reachable
+   on the buyer's next library read the moment the window lapses. */
+export const BEAT_DELIVERY_WINDOW_DAYS = 7;
+const BEAT_DELIVERY_WINDOW_MS = BEAT_DELIVERY_WINDOW_DAYS * 24 * 3600 * 1000;
+
+type BeatRowForDelivery = {
+  audio_url: string | null;
+  audio_path: string | null;
+  stems_url?: string | null;
+  stems_path?: string | null;
+};
+
+interface BeatDeliveryAssessment {
+  masterMissing: boolean;
+  stemsMissing: boolean;
+  undeliverable: boolean;
+  missingDelivery: Array<"master" | "stems">;
+  /** created_at + window — the moment redelivery stops being enough. */
+  deadline: Date;
+  expired: boolean;
+}
+
+function assessBeatDelivery(
+  license: { terms_snapshot: BeatLicenseTerms | null; created_at: Date | string },
+  beat: BeatRowForDelivery,
+  now: Date = new Date(),
+): BeatDeliveryAssessment {
+  const masterMissing = !(beat.audio_url ?? "").trim() && !(beat.audio_path ?? "").trim();
+  const terms = license.terms_snapshot;
+  const stemsOwed =
+    !!terms && (terms.format === "wav_mp3_stems" || terms.format === "ownership_stems");
+  const stemsMissing =
+    stemsOwed && !(beat.stems_url ?? "").trim() && !(beat.stems_path ?? "").trim();
+  const missingDelivery: Array<"master" | "stems"> = [];
+  if (masterMissing) missingDelivery.push("master");
+  if (stemsMissing) missingDelivery.push("stems");
+  const deadline = new Date(new Date(license.created_at).getTime() + BEAT_DELIVERY_WINDOW_MS);
+  return {
+    masterMissing,
+    stemsMissing,
+    undeliverable: missingDelivery.length > 0,
+    missingDelivery,
+    deadline,
+    expired: now.getTime() > deadline.getTime(),
+  };
+}
+
+/** The delivery fields a completed license's surfaces carry. A
+    missing file is NEVER handed back as a download: the URL is null
+    and the state names what is owed and by when. */
+function deliveryFieldsFor(
+  license: BeatLicenseRow,
+  beat: BeatRowForDelivery,
+  presented: { audio_url: string; stems_url?: string | null },
+  assessment: BeatDeliveryAssessment,
+) {
+  return {
+    downloadUrl: assessment.masterMissing ? null : presented.audio_url,
+    stemsUrl: assessment.stemsMissing ? null : licenseStemsUrl(license.terms_snapshot, presented),
+    deliveryState: assessment.undeliverable ? "awaiting_delivery" : "delivered",
+    deliveryDeadline: assessment.undeliverable ? assessment.deadline.toISOString() : null,
+    missingDelivery: assessment.missingDelivery,
+    deliveryMessage: assessment.undeliverable
+      ? "Waiting on the producer to deliver the file for this license. If it's still missing after the delivery window, you'll be refunded in full automatically."
+      : null,
+  };
+}
+
+const UNDELIVERABLE_REFUNDED_MESSAGE =
+  "The file for this license was never delivered, so your payment has been refunded in full.";
+const UNDELIVERABLE_REFUND_FAILED_MESSAGE =
+  "The file for this license was never delivered. Your payment couldn't be refunded automatically — contact support and we'll make it right.";
+
+/** Auto-refund ONE undeliverable license whose window has lapsed,
+    through the existing refund helper ONLY. Exactly-once: the
+    helper keys its Stripe refund `refund:<session id>`, and on
+    success the license flips to 'refunded' behind a guard on the
+    status it was read with — every later evaluation sees the
+    terminal status and never calls the helper again. The flip (and
+    the claim of a refund) happens ONLY when the helper says the
+    refund landed. An auto-refunded exclusive releases the beat,
+    mirroring the payment-reversals beat_license case. */
+async function autoRefundUndeliverableLicense(
+  license: BeatLicenseRow,
+  session?: Awaited<ReturnType<typeof retrieveCheckoutSession>>,
+): Promise<boolean> {
+  let paidSession = session;
+  if (!paidSession) {
+    if (!license.stripe_session_id) return false;
+    try {
+      paidSession = await retrieveCheckoutSession(license.stripe_session_id);
+    } catch {
+      return false;
+    }
+  }
+  const refunded = await refundCheckoutSessionPayment(paidSession);
+  if (!refunded) return false;
+  const flipped = await db
+    .update(beatLicensesTable)
+    .set({ status: "refunded" })
+    .where(
+      and(
+        eq(beatLicensesTable.id, license.id),
+        eq(beatLicensesTable.status, license.status),
+      ),
+    )
+    .returning();
+  if (flipped.length > 0 && license.tier === "exclusive") {
+    await db
+      .update(beatsTable)
+      .set({ exclusive_sold: false, updated_at: new Date() })
+      .where(and(eq(beatsTable.id, license.beat_id), eq(beatsTable.exclusive_sold, true)))
+      .catch(() => {});
+  }
+  return flipped.length > 0;
+}
+
 const licenseVerifySchema = z.object({
   sessionId: z.string().min(1).max(200),
 });
@@ -884,15 +1022,81 @@ export async function settleBeatLicenseSession(
       };
     }
     const presented = await presentBeat(beat);
+    /* Undeliverable-file discipline (ruling #23): judged from the
+       stored row, never by probing the file's host. */
+    const delivery = assessBeatDelivery(license, beat);
+    if (license.status === "refunded") {
+      /* Already refunded (auto-refund at the delivery window, or a
+         reversal): a replayed verify must never re-complete it or
+         refund it a second time. */
+      return {
+        httpStatus: 200,
+        body: {
+          success: true,
+          duplicate: true,
+          refunded: true,
+          license: toLicenseJson(license),
+          downloadUrl: null,
+          stemsUrl: null,
+          deliveryState: "refunded",
+          deliveryMessage: UNDELIVERABLE_REFUNDED_MESSAGE,
+        },
+      };
+    }
     if (license.status === "completed") {
+      if (delivery.undeliverable && delivery.expired) {
+        const refunded = await autoRefundUndeliverableLicense(license, session);
+        if (refunded) {
+          return {
+            httpStatus: 200,
+            body: {
+              success: true,
+              duplicate: true,
+              refunded: true,
+              license: toLicenseJson({ ...license, status: "refunded" }),
+              downloadUrl: null,
+              stemsUrl: null,
+              deliveryState: "refunded",
+              deliveryMessage: UNDELIVERABLE_REFUNDED_MESSAGE,
+            },
+          };
+        }
+        return {
+          httpStatus: 200,
+          body: {
+            success: true,
+            duplicate: true,
+            refunded: false,
+            license: toLicenseJson(license),
+            ...deliveryFieldsFor(license, beat, presented, delivery),
+            deliveryMessage: UNDELIVERABLE_REFUND_FAILED_MESSAGE,
+          },
+        };
+      }
       return {
         httpStatus: 200,
         body: {
           success: true,
           duplicate: true,
           license: toLicenseJson(license),
-          downloadUrl: presented.audio_url,
-          stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
+          ...deliveryFieldsFor(license, beat, presented, delivery),
+        },
+      };
+    }
+    if (delivery.undeliverable && delivery.expired) {
+      /* The redelivery window already lapsed before this paid
+         session settled (a very late return/webhook): there is
+         nothing left to wait for — refund now, exactly once, and
+         mark the license refunded. A failed refund is reported
+         honestly and the row stays pending for the next attempt. */
+      const refunded = await autoRefundUndeliverableLicense(license, session);
+      return {
+        httpStatus: 409,
+        body: {
+          error: refunded
+            ? "The file for this license was never delivered. Your payment has been refunded in full."
+            : UNDELIVERABLE_REFUND_FAILED_MESSAGE,
+          refunded,
         },
       };
     }
@@ -1030,8 +1234,7 @@ export async function settleBeatLicenseSession(
           success: true,
           duplicate: true,
           license: toLicenseJson({ ...license, status: "completed" }),
-          downloadUrl: presented.audio_url,
-          stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
+          ...deliveryFieldsFor({ ...license, status: "completed" }, beat, presented, delivery),
         },
       };
     }
@@ -1047,8 +1250,12 @@ export async function settleBeatLicenseSession(
         success: true,
         duplicate: false,
         license: toLicenseJson(updated),
-        downloadUrl: presented.audio_url,
-        stemsUrl: licenseStemsUrl(license.terms_snapshot, presented),
+        /* A sale whose file is missing completes as AWAITING
+           delivery — never as delivered with a dead download. The
+           producer's window runs from the license's creation; the
+           buyer's library heals the moment the file lands, and the
+           window's lapse auto-refunds (licenses/mine evaluation). */
+        ...deliveryFieldsFor(updated, beat, presented, delivery),
       },
     };
   } catch (err: unknown) {
