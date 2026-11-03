@@ -2151,7 +2151,12 @@ const DOCKED_FEATURES = [
        as a cross-check against the 0-cost branded entry. Generating
        art on the desk rides /api/generate-artist-image, whose
        registry price attaches through the endpoint list like any
-       other entry's. */
+       other entry's. Stack1400 (price-accuracy audit #6): the pack
+       of 10 clean wallpapers (/api/wallpapers/pack-of-10, one flat
+       500 charge for exactly ten renders) is a desk rail too, so it
+       rides endpoints + pricedEndpoints here — without this the
+       regen carried the 500 only on the aggregate Create/Branding
+       entries that scan the desk as a panel, never on this entry. */
     id: "wallpapers-desk",
     name: { ns: "wallpapers", field: "title" },
     path: "/create?panel=wallpapers",
@@ -2159,8 +2164,8 @@ const DOCKED_FEATURES = [
     description: {
       text: "Wallpapers, lock screens, screensavers and matched theme packs for phones, tablets and computers — pick or generate art, render it at exact device pixels, and build a profile theme from its colors. Branded renders are free, and the King's Set starter pack is waiting on the desk.",
     },
-    endpoints: ["/api/wallpapers/render", "/api/wallpapers/screensaver-render", "/api/wallpapers/pack-download", "/api/generate-artist-image"],
-    pricedEndpoints: ["/api/wallpapers/render", "/api/wallpapers/screensaver-render"],
+    endpoints: ["/api/wallpapers/render", "/api/wallpapers/screensaver-render", "/api/wallpapers/pack-download", "/api/wallpapers/pack-of-10", "/api/generate-artist-image"],
+    pricedEndpoints: ["/api/wallpapers/render", "/api/wallpapers/screensaver-render", "/api/wallpapers/pack-of-10"],
     priceVariants: [
       { endpoint: "/api/wallpapers/render", feature: "Wallpaper Render (clean — unbranded)", constant: "CLEAN_RENDER_COST" },
     ],

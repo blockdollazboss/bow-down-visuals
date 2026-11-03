@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "ce0462b9c930736baf23aef7f51ca57d1e3f030b",
+  "baseCommit": "6b20e55bf6d8f3e9c1b7966203e9cbae764afbb3",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -7135,6 +7135,7 @@
       "endpoints": [
         "/api/generate-artist-image",
         "/api/wallpapers/pack-download",
+        "/api/wallpapers/pack-of-10",
         "/api/wallpapers/render",
         "/api/wallpapers/screensaver-render"
       ],
@@ -7143,6 +7144,12 @@
           "feature": "Generate Artist Image (Pro)",
           "vb": 200,
           "endpoint": "/api/generate-artist-image",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Wallpaper Pack of 10 (clean)",
+          "vb": 500,
+          "endpoint": "/api/wallpapers/pack-of-10",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
