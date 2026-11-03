@@ -47,12 +47,15 @@ type CreateDeskId =
   | "audio-desk"
   | "hook-desk"
   | "movies-desk"
-  | "carousel-desk";
+  | "carousel-desk"
+  | "detector-desk"
+  | "wallpapers-desk";
 
-/** The nine Create Wing stations whose panel pattern is "create"
+/** The eleven Create Wing stations whose panel pattern is "create"
  *  (the Hook Desk joined with Stack-100 item 97's closing part;
  *  the Movies Desk with stack1400 world parity wave #2 item 4;
- *  the Carousel Desk with stack1400 parity wave #2 item 5). */
+ *  the Carousel Desk with stack1400 parity wave #2 item 5; the
+ *  Detector + Wallpapers desks with stack1500 parity wave #3). */
 export const CREATE_DESK_IDS: readonly CreateDeskId[] = [
   "song-desk",
   "video-desk",
