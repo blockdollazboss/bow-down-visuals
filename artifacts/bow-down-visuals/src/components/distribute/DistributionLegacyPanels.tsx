@@ -437,3 +437,134 @@ export function DistributionConnectionPanel() {
     </section>
   );
 }
+
+/* ── Release delivery (the connection's write half, Front 14) ─────────
+   Docked directly under the delivery connection on the same surface:
+   pick one of your releases, make the AI declaration (rights
+   documentation attached when it's AI — the send refuses without it),
+   and send it out for real delivery. Sending charges nothing here —
+   the packaging step owns the release price. Every row shows the
+   recorded delivery state; a failed send says why in plain words. */
+export function DeliverySubmissionsPanel() {
+  const { getAccessToken } = useAuth();
+  const [data, setData] = useState<{ configured: boolean; connected: boolean; submissions: any[] } | null>(null);
+  const [releases, setReleases] = useState<any[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [aiByRelease, setAiByRelease] = useState<Record<string, boolean>>({});
+  const [docName, setDocName] = useState<Record<string, string>>({});
+  const [docUrl, setDocUrl] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowMsg, setRowMsg] = useState<Record<string, string>>({});
+  const [rowErr, setRowErr] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    try {
+      const t = await getAccessToken();
+      const d = await api(t, "GET", "/api/distribution/toolost/submissions");
+      setData(d);
+      if (d.configured && d.connected) {
+        const rel = await api(t, "GET", "/api/distribution/releases");
+        setReleases(Array.isArray(rel?.releases) ? rel.releases : []);
+      }
+    } catch { setLoadErr("Couldn't load release delivery."); }
+  }, [getAccessToken]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function send(releaseId: string) {
+    setRowErr((m) => ({ ...m, [releaseId]: "" }));
+    setRowMsg((m) => ({ ...m, [releaseId]: "" }));
+    setBusyId(releaseId);
+    try {
+      const t = await getAccessToken();
+      const isAi = Boolean(aiByRelease[releaseId]);
+      const d = await api(t, "POST", `/api/distribution/toolost/releases/${releaseId}/submit`, {
+        aiDeclaration: isAi
+          ? { isAiGenerated: true, aiDocumentation: { fileName: docName[releaseId] ?? "", fileUrl: docUrl[releaseId] ?? "" } }
+          : { isAiGenerated: false },
+      });
+      setRowMsg((m) => ({ ...m, [releaseId]: d.notice ?? "Sent — your release is with the distributor for review." }));
+      await load();
+    } catch (e) { setRowErr((m) => ({ ...m, [releaseId]: plainErrorText(e, "Couldn't send this release.") })); }
+    finally { setBusyId(null); }
+  }
+
+  const subByRelease = new Map((data?.submissions ?? []).map((s: any) => [s.releaseId, s]));
+  const rows = (releases ?? []).filter((r: any) => subByRelease.has(r.id) || r.status === "draft");
+
+  return (
+    <section className={card}>
+      <h3 className="text-lg font-black">Release delivery</h3>
+      <p className="mt-1 text-sm text-white/55">
+        Send a finished release out to the stores through your delivery connection. Every release carries
+        its AI declaration with it: if the music was made with AI, say so and attach the rights
+        documentation — the send won&apos;t go out without it.
+      </p>
+      {loadErr && <p className="mt-2 text-sm text-red-300">{loadErr}</p>}
+      <div className="mt-4">
+        {data === null ? (
+          <p className="text-sm text-white/45">Checking…</p>
+        ) : !data.configured ? (
+          <p className="text-sm text-white/60">Release delivery isn&apos;t switched on yet — your releases and drafts are unaffected, and sending opens here when it is.</p>
+        ) : !data.connected ? (
+          <p className="text-sm text-white/60">Connect your delivery account above first — sending a release out rides on that connection.</p>
+        ) : releases === null ? (
+          <p className="text-sm text-white/45">Loading your releases…</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-white/60">No releases waiting to go out — a release you build above shows up here, ready to send.</p>
+        ) : (
+          <div className="grid gap-4">
+            {rows.map((r: any) => {
+              const sub = subByRelease.get(r.id);
+              const isAi = Boolean(aiByRelease[r.id]);
+              const canSend = !sub || sub.state === "failed" || sub.state === "draft";
+              return (
+                <div key={r.id} className="rounded-2xl border border-white/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-black">{r.title}{r.artistName ? <span className="font-bold text-white/45"> · {r.artistName}</span> : null}</p>
+                    {sub?.state === "in_review" && <span className="text-xs font-bold text-emerald-300">In review with the distributor</span>}
+                    {sub?.state === "submitting" && <span className="text-xs font-bold text-white/60">Sending…</span>}
+                    {sub?.state === "failed" && <span className="text-xs font-bold text-red-300">Didn&apos;t go through</span>}
+                    {!sub && <span className="text-xs font-bold text-white/45">Not sent yet</span>}
+                  </div>
+                  {sub?.state === "failed" && sub.failureReason && <p className="mt-1 text-sm text-red-300">{sub.failureReason}</p>}
+                  {rowErr[r.id] && <p className="mt-1 text-sm text-red-300">{rowErr[r.id]}</p>}
+                  {rowMsg[r.id] && <p className="mt-1 text-sm text-emerald-300">{rowMsg[r.id]}</p>}
+                  {canSend && (
+                    <div className="mt-3 grid gap-3">
+                      <label className="flex items-center gap-2 text-sm text-white/75">
+                        <input
+                          type="checkbox"
+                          aria-label={`This release is AI-generated — ${r.title}`}
+                          checked={isAi}
+                          onChange={(e) => setAiByRelease((m) => ({ ...m, [r.id]: e.target.checked }))}
+                        />
+                        This release is AI-generated
+                      </label>
+                      {isAi && (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div>
+                            <p className={label}>Rights document name</p>
+                            <input aria-label="Rights document name" className={input + " mt-1"} value={docName[r.id] ?? ""} onChange={(e) => setDocName((m) => ({ ...m, [r.id]: e.target.value }))} placeholder="rights-and-licenses.pdf" />
+                          </div>
+                          <div>
+                            <p className={label}>Rights document link</p>
+                            <input aria-label="Rights document link" className={input + " mt-1"} value={docUrl[r.id] ?? ""} onChange={(e) => setDocUrl((m) => ({ ...m, [r.id]: e.target.value }))} placeholder="https://…" />
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <button type="button" className={btn} onClick={() => void send(r.id)} disabled={busyId === r.id}>
+                          {busyId === r.id ? "Sending…" : sub?.state === "failed" ? "Send again · free" : "Send for delivery · free"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

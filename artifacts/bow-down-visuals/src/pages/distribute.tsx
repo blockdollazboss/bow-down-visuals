@@ -22,7 +22,7 @@ import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { CatalogVaultPanel } from "@/components/distribute/CatalogVaultPanel";
 import { DropDayKitPanel } from "@/components/distribute/DropDayKitPanel";
 import { GlobalDropPanel } from "@/components/distribute/GlobalDropPanel";
-import { LandingContentPanel, LyricsPackagePanel, ChangeRequestsPanel, ReleasePermanencePanel, SplitStatementsPanel, RosterPanel, DistributionConnectionPanel } from "@/components/distribute/DistributionLegacyPanels";
+import { LandingContentPanel, LyricsPackagePanel, ChangeRequestsPanel, ReleasePermanencePanel, SplitStatementsPanel, RosterPanel, DistributionConnectionPanel, DeliverySubmissionsPanel } from "@/components/distribute/DistributionLegacyPanels";
 import { useHubProject } from "@/lib/hub-project";
 import { buildSchedulerHref, releaseAnnounceCaption } from "@/lib/scheduler-handoff";
 import { isValidPixelId, type SmartlinkPixels } from "@/lib/smartlink-pixels";
@@ -3638,6 +3638,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
         {user && tab !== "plan" && (
           <div className="mt-6 grid gap-6">
             <DistributionConnectionPanel />
+            <DeliverySubmissionsPanel />
             <SplitStatementsPanel />
             <RosterPanel />
           </div>
