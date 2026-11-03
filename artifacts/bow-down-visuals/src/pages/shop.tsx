@@ -12,6 +12,12 @@ import {
   type CartLine,
 } from "@/lib/shops";
 import { usePageTitle } from "@/hooks/use-page-title";
+import {
+  normalizeShopFontId,
+  normalizeShopLayoutId,
+  shopFontSpec,
+  shopLayoutSpec,
+} from "@/lib/shop-design";
 import ProductReviews from "@/components/product-reviews/ProductReviews";
 import WishlistButton from "@/components/wishlist/WishlistButton";
 import ProductOfferPanel from "@/components/offers/ProductOfferPanel";
@@ -46,6 +52,11 @@ interface PublicShop {
   description: string | null;
   banner_color: string;
   accent_color: string;
+  /* Layout + font settings (migration 0320): the rail presents the
+     sanitized pair on every payload; optional because older cached
+     payloads predate them — absence renders the defaults. */
+  layout_style?: string | null;
+  font_style?: string | null;
   banner_image_url: string | null;
   custom_domain: string | null;
   domain_verified: boolean;
@@ -433,9 +444,18 @@ export default function ShopStorefront() {
   }
 
   const accent = shop?.accent_color ?? "#d4af37";
+  /* Layout + font (migration 0320): the shop's persisted design,
+     normalized — the defaults reproduce today's storefront exactly
+     (the Showcase spec carries this page's original class strings;
+     the House font applies no overrides at all). */
+  const layoutSpec = shopLayoutSpec(normalizeShopLayoutId(shop?.layout_style));
+  const fontSpec = shopFontSpec(normalizeShopFontId(shop?.font_style));
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className="min-h-screen bg-black text-white"
+      style={fontSpec.bodyFontFamily ? { fontFamily: fontSpec.bodyFontFamily } : undefined}
+    >
 
       {loading ? (
         <div className="py-32 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>
@@ -489,7 +509,7 @@ export default function ShopStorefront() {
                       </span>
                     )}
                   </div>
-                  <h1 className="mt-2 text-4xl md:text-6xl font-black tracking-tight">{shop.name}</h1>
+                  <h1 className={`mt-2 text-4xl md:text-6xl font-black tracking-tight ${fontSpec.displayClass}`}>{shop.name}</h1>
                   {shop.tagline && <p className="mt-2 text-lg text-white/70">{shop.tagline}</p>}
                   {shop.description && <p className="mt-4 max-w-2xl text-sm text-white/55 whitespace-pre-line">{shop.description}</p>}
                 </div>
@@ -514,14 +534,14 @@ export default function ShopStorefront() {
           </div>
 
           {/* product grid */}
-          <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
+          <div className={layoutSpec.contentClass}>
             {products.length === 0 ? (
               <div className={`rounded-2xl border p-12 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
                 <p className="mt-4 text-white/50 text-sm">{t("shop.noProducts")}</p>
               </div>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className={layoutSpec.gridClass}>
                 {products.map((p) => (
                   <button
                     key={p.id}
@@ -534,9 +554,9 @@ export default function ShopStorefront() {
                       </span>
                     )}
                     {p.image_url ? (
-                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className="h-56 w-full shrink-0 object-cover group-hover:scale-[1.02] transition" />
+                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className={layoutSpec.imageClass} />
                     ) : (
-                      <div className="h-56 w-full shrink-0 bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
+                      <div className={layoutSpec.placeholderClass}>
                         <ShoppingBag className="w-10 h-10 text-white/20" />
                       </div>
                     )}
@@ -545,7 +565,14 @@ export default function ShopStorefront() {
                           "TEST Digital Download — delete pre-la…" on one cut-off line).
                           Names run to 120 chars, so no line clamp either; the price is
                           pinned to the body bottom so rows keep equal heights + aligned prices. */}
-                      <div className="font-bold break-words">{p.name}</div>
+                      <div className={`font-bold break-words ${fontSpec.displayClass}${layoutSpec.id === "list" ? " text-lg" : ""}`}>{p.name}</div>
+                      {/* List layout only: the product's story rides
+                          the card — the Editorial look sells on it.
+                          Other layouts keep the story in the detail
+                          view, exactly as before. */}
+                      {layoutSpec.id === "list" && p.description && (
+                        <p className="mt-1 text-sm text-white/55 whitespace-pre-line">{p.description}</p>
+                      )}
                       <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
                     </div>
                   </button>
@@ -594,7 +621,7 @@ export default function ShopStorefront() {
             )}
             <div className="p-6">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-xl font-black">{selected.name}</h2>
+                <h2 className={`text-xl font-black ${fontSpec.displayClass}`}>{selected.name}</h2>
                 <button className="text-white/40 hover:text-white" onClick={() => setSelected(null)} aria-label={t("shop.closeLabel")}>
                   <X className="w-5 h-5" />
                 </button>
