@@ -761,6 +761,57 @@ export default function Tour() {
             </div>
           </div>
         )}
+
+        {/* Dead-end fix (org wave, audit §1d): the tour ended here —
+            the only doors out were the hero's setlist link and the
+            promo checklist's scheduler links (visible only with dates
+            added, inside an expanded city). A planned tour's real next
+            steps dock below, always on: build the setlist for these
+            dates, see the shows on your stage, take a date live, and
+            promote the run. Every target is a real route in App.tsx
+            (/shows redirects to the Go Live shows tab), pinned by
+            pages/dead-end-handoffs.test.ts. The container reuses this
+            page's own themed section classes, so both themes get the
+            same doors. */}
+        <div
+          data-testid="tour-next-steps"
+          className={`relative mt-8 overflow-hidden rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+        >
+          <h2 className="text-lg font-bold">Take the tour on stage</h2>
+          <p className="mt-1 text-sm text-white/45">
+            Dates are planned — now build the show, put it in front of fans, and fill the rooms.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href="/setlist"
+              data-testid="tour-handoff-setlist"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
+            >
+              Build your setlist
+            </Link>
+            <Link
+              href="/shows"
+              data-testid="tour-handoff-shows"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-white/80 transition hover:border-white/30 hover:text-white"
+            >
+              Your shows
+            </Link>
+            <Link
+              href="/go-live"
+              data-testid="tour-handoff-go-live"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-white/80 transition hover:border-white/30 hover:text-white"
+            >
+              Go Live
+            </Link>
+            <Link
+              href="/promote"
+              data-testid="tour-handoff-promote"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-2.5 text-sm font-bold text-white/80 transition hover:border-white/30 hover:text-white"
+            >
+              Promote the tour
+            </Link>
+          </div>
+        </div>
       </main>
 
 
