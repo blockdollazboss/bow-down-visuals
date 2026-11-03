@@ -13,6 +13,10 @@ import {
   PERMANENCE_COVERS, PERMANENCE_EXCLUDES, rosterCanViewReleases, gateUnlocked,
   type TimedLyricLine,
 } from "../lib/distribution-legacy";
+import {
+  toolostConfigured, toolostOAuthConfig, buildToolostAuthUrl, exchangeCodeForToolostTokens,
+  fetchToolostProfile, generateCodeVerifier, codeChallengeS256, TooLostApiError,
+} from "../lib/distribution-toolost";
 
 /* Stack 11 (in-house half) — Distribution & Legacy.
    Docking law: everything here serves the standalone release flow
@@ -217,6 +221,84 @@ router.post("/distribution/presave/:slug/account-presave", requireAuth, async (r
 });
 
 /* Descriptor the public landing uses to decide its headline action. */
+
+/* ═══ #2b Too Lost distribution connection ═════════════════════════════
+   The delivery-partner pipe's front door. OAuth rides the same house
+   plumbing as the Spotify connect above: tokens land in social_accounts
+   (platform 'toolost'), AES-256-GCM encrypted via social-crypto, and the
+   state map follows the in-memory pattern — extended with the PKCE
+   verifier, which stays server-side bound to the state (the X flow's
+   shape in social.ts); only its S256 challenge rides the authorize URL.
+   Ships dark and honest: with no TOOLOST_CLIENT_ID/SECRET set, auth-url
+   answers 503 not_configured and status reports configured:false —
+   there is no fake connect flow. No money moves and no release is
+   submitted here; release submission is a later lane. */
+interface PendingToolost { userId: string; expiresAt: number; codeVerifier: string }
+const pendingToolost = new Map<string, PendingToolost>();
+function mintToolostState(userId: string, codeVerifier: string): string {
+  /* Same Flag S-4 discipline as mintState above: sweep expired entries
+     on each mint so abandoned flows don't accumulate. */
+  const now = Date.now();
+  for (const [k, e] of pendingToolost) {
+    if (e.expiresAt < now) pendingToolost.delete(k);
+  }
+  const state = randomBytes(24).toString("hex");
+  pendingToolost.set(state, { userId, expiresAt: now + 10 * 60 * 1000, codeVerifier });
+  return state;
+}
+function consumeToolostState(state: string): PendingToolost | null {
+  const e = pendingToolost.get(state);
+  pendingToolost.delete(state);
+  if (!e || e.expiresAt < Date.now()) return null;
+  return e;
+}
+
+router.get("/distribution/toolost/auth-url", requireAuth, (req, res) => {
+  const cfg = toolostOAuthConfig();
+  if (!cfg || !isSocialTokenKeyConfigured()) {
+    res.status(503).json({ error: "not_configured", message: "Delivery connection isn't configured yet — your releases and drafts are unaffected." });
+    return;
+  }
+  const codeVerifier = generateCodeVerifier();
+  const state = mintToolostState(req.userId!, codeVerifier);
+  res.json({ authUrl: buildToolostAuthUrl(cfg, state, codeChallengeS256(codeVerifier)) });
+});
+
+router.get("/distribution/toolost/callback", async (req, res) => {
+  const fail = (reason: string) => res.redirect(`${APP_PUBLIC_URL}/distribute?toolost=error&reason=${encodeURIComponent(reason)}`);
+  const { code, state, error } = req.query as { code?: string; state?: string; error?: string };
+  if (typeof error === "string" && error) { fail("denied"); return; }
+  if (typeof code !== "string" || typeof state !== "string") { fail("missing_params"); return; }
+  const pending = consumeToolostState(state);
+  if (!pending) { fail("bad_state"); return; }
+  const cfg = toolostOAuthConfig();
+  if (!cfg) { fail("not_configured"); return; }
+  const userId = pending.userId;
+  try {
+    const tokens = await exchangeCodeForToolostTokens(cfg, code, pending.codeVerifier);
+    const profile = await fetchToolostProfile(tokens.accessToken);
+    const encrypted = encryptToken(tokens.accessToken);
+    const refreshEncrypted = encryptToken(tokens.refreshToken);
+    const expiresAt = new Date(Date.now() + tokens.expiresInSec * 1000);
+    await db.execute(sql`DELETE FROM social_accounts WHERE user_id = ${userId} AND platform = 'toolost'`);
+    await db.execute(sql`
+      INSERT INTO social_accounts (id, user_id, platform, provider_user_id, username, access_token_encrypted, refresh_token_encrypted, token_expires_at)
+      VALUES (${randomUUID()}, ${userId}, 'toolost', ${profile.providerUserId}, ${profile.displayName}, ${encrypted}, ${refreshEncrypted}, ${expiresAt})
+    `);
+    res.redirect(`${APP_PUBLIC_URL}/distribute?toolost=connected`);
+  } catch (err) {
+    logger.warn({ err }, "[stack11] toolost callback failed");
+    fail(err instanceof TooLostApiError ? "token_exchange_failed" : "oauth_failed");
+  }
+});
+
+router.get("/distribution/toolost/status", requireAuth, async (req, res) => {
+  try {
+    const r = await db.execute(sql`SELECT username, token_expires_at FROM social_accounts WHERE user_id = ${req.userId!} AND platform = 'toolost' LIMIT 1`);
+    const row = r.rows[0] as { username: string | null; token_expires_at: string | Date | null } | undefined;
+    res.json({ configured: toolostConfigured(), connected: Boolean(row), username: row?.username ?? null, tokenExpiresAt: row?.token_expires_at ?? null });
+  } catch (err) { logger.error({ err }, "[stack11] toolost status failed"); res.status(500).json({ error: "Couldn't check the delivery connection." }); }
+});
 
 /* ═══ #3 Splits accounting depth: per-payee statements ══════════════════ */
 router.get("/distribution/splits/statements", requireAuth, async (req, res) => {
