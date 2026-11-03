@@ -10,6 +10,11 @@ export interface WebMidiNoteEvent {
   /** performance.now() timestamp of the event. */
   timeMs: number;
   kind: "on" | "off";
+  /** 0-based MIDI channel the event arrived on (9 = the GM drum
+   *  channel). Optional: older callers and tests construct events
+   *  without it; the live session always sets it. Added for the Beat
+   *  Studio recorder (lib/beat-midi.ts), which routes by channel. */
+  channel?: number;
 }
 
 export interface WebMidiSession {
@@ -34,12 +39,13 @@ export async function openWebMidi(
       const data = e.data;
       if (!data || data.length < 3) return;
       const status = data[0]! & 0xf0;
+      const channel = data[0]! & 0x0f;
       const pitch = data[1]!;
       const velocity = data[2]!;
       if (status === 0x90 && velocity > 0) {
-        onEvent({ pitch, velocity, timeMs: performance.now(), kind: "on" });
+        onEvent({ pitch, velocity, timeMs: performance.now(), kind: "on", channel });
       } else if (status === 0x80 || (status === 0x90 && velocity === 0)) {
-        onEvent({ pitch, velocity: 0, timeMs: performance.now(), kind: "off" });
+        onEvent({ pitch, velocity: 0, timeMs: performance.now(), kind: "off", channel });
       }
     };
     access.inputs.forEach((input) => {

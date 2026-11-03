@@ -18,12 +18,29 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BeatMelodyRoll } from "@/components/beat-studio/BeatMelodyRoll";
+import { BeatMidiPanel, type BeatMidiPanelStatus } from "@/components/beat-studio/BeatMidiPanel";
+import {
+  BeatMidiRecorder,
+  applyRecordedMelodyNote,
+  beatMidiPositionAt,
+  midiVelocityToStepGain,
+  transportStepFloat,
+  type BeatMidiPosition,
+  type BeatMidiTarget,
+} from "@/lib/beat-midi";
+import {
+  openWebMidi,
+  webMidiSupported,
+  type WebMidiNoteEvent,
+  type WebMidiSession,
+} from "@/lib/web-midi";
 import {
   BEAT_MELODIC_VOICES,
   beatLaneToMidi,
   cloneBeatMelody,
   emptyBeatMelody,
   notesStartingAtStep,
+  type BeatMelodicVoiceId,
   type BeatMelodyLanes,
 } from "@/lib/beat-melody";
 import { scheduleMidiVoice } from "@/lib/midi-synth";
@@ -841,6 +858,21 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [showMixer, setShowMixer] = useState(false);
   const [showBass, setShowBass] = useState(false);
   const [showMelody, setShowMelody] = useState(false);
+  const [showMidi, setShowMidi] = useState(false);
+  /* ── WebMIDI record (W3c): session + record-arm state. Like the
+   * metronome, this is TRANSPORT state only — recorded notes land in
+   * the patterns themselves as ordinary pattern data (lib/beat-midi),
+   * and nothing here is written into the beat project object. ── */
+  const [midiStatus, setMidiStatus] = useState<BeatMidiPanelStatus>("idle");
+  const [midiInputs, setMidiInputs] = useState<string[]>([]);
+  const [midiArmed, setMidiArmed] = useState(false);
+  const [midiVoice, setMidiVoice] = useState<BeatMelodicVoiceId>("keys");
+  const [midiLast, setMidiLast] = useState<string | null>(null);
+  const midiSessionRef = useRef<WebMidiSession | null>(null);
+  const midiRecorderRef = useRef<BeatMidiRecorder | null>(null);
+  const midiArmedRef = useRef(midiArmed);
+  const midiVoiceRef = useRef(midiVoice);
+  const playingRef = useRef(false);
   const [showVelocity, setShowVelocity] = useState(false);
   /* Which drum track the velocity lane edits (click a track name). */
   const [velTrack, setVelTrack] = useState(0);
@@ -943,6 +975,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const metroCountInRef = useRef(metroCountIn);
   metroOnRef.current = metroOn;
   metroCountInRef.current = metroCountIn;
+  midiArmedRef.current = midiArmed;
+  midiVoiceRef.current = midiVoice;
+  playingRef.current = playing;
   const globalStepRef = useRef(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverReadyRef = useRef(false);
@@ -1190,6 +1225,188 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── WebMIDI record (W3c) ─────────────────────────────────────────────
+   * Incoming notes always MONITOR live through the same seams the
+   * transport schedules with (playTrackHit into the track's mixer
+   * chain, synthBass into the bass chain, scheduleMidiVoice into the
+   * melody gains), so a controller feels like playing the studio
+   * itself. With Record armed AND the transport playing, notes also
+   * land in the pattern being played — as ordinary pattern data via
+   * lib/beat-midi's pure ops, applied inside the setPatterns updater
+   * so fast playing can never clobber itself through a stale snapshot.
+   * Everything here reads refs only: the session handler registered
+   * at Connect time stays correct for the component's whole life. */
+  const midiPositionNow = (atCtxTime: number): BeatMidiPosition | null => {
+    const g = transportStepFloat({
+      nextStep: globalStepRef.current,
+      nextStepTime: nextTimeRef.current,
+      atTime: atCtxTime,
+      stepDurSec: 60 / bpmRef.current / 4,
+    });
+    return beatMidiPositionAt({
+      globalStepFloat: g,
+      mode: modeRef.current,
+      activePattern: activePatRef.current,
+      patterns: patternsRef.current,
+      arrangement: arrangementRef.current,
+    });
+  };
+
+  /* A MIDI event is stamped in performance.now() time; the transport
+   * runs on the audio clock. getOutputTimestamp pairs the two clocks
+   * (with output latency accounted); without it, fall back to the
+   * event's age against the context's current time. */
+  const midiEventPosition = (e: WebMidiNoteEvent): BeatMidiPosition | null => {
+    const ctx = ctxRef.current;
+    if (!ctx || !playingRef.current) return null;
+    let atTime = ctx.currentTime + (e.timeMs - performance.now()) / 1000;
+    const ots = typeof ctx.getOutputTimestamp === "function" ? ctx.getOutputTimestamp() : null;
+    /* AudioTimestamp pairs the audio clock with a performance.now()-
+     * domain timestamp (named performanceTime in the current DOM lib,
+     * outputTimestamp in newer drafts — read both defensively). */
+    const otsPerf = ots
+      ? ((ots as { performanceTime?: number }).performanceTime ??
+        (ots as { outputTimestamp?: number }).outputTimestamp)
+      : undefined;
+    if (ots && ots.contextTime != null && otsPerf != null && otsPerf > 0) {
+      atTime = ots.contextTime + (e.timeMs - otsPerf) / 1000;
+    }
+    return midiPositionNow(atTime);
+  };
+
+  const monitorMidiTarget = (target: BeatMidiTarget, velocity127: number) => {
+    const ctx = getCtx();
+    const graph = ensureMixerGraph(ctx);
+    const now = ctx.currentTime;
+    const gain = midiVelocityToStepGain(velocity127);
+    if (target.kind === "drum") {
+      const tr = TRACKS[target.track];
+      const chain = tr ? graph.tracks[tr.id] : undefined;
+      if (tr && chain) {
+        playTrackHit(ctx, tr.id, target.track, trackSoundsRef.current[target.track], now, chain.input, gain);
+      }
+      return;
+    }
+    if (target.kind === "bass") {
+      const chain = graph.tracks["bass"];
+      if (chain) synthBass(ctx, target.pitch, now, chain.input, gain, null);
+      return;
+    }
+    const dest = getMelodyGains(ctx)[target.voice];
+    if (dest) {
+      scheduleMidiVoice(ctx, dest, target.voice, {
+        id: "midi-monitor",
+        pitch: target.pitch,
+        start: 0,
+        duration: (60 / bpmRef.current / 4) * 2,
+        velocity: Math.min(127, Math.max(1, Math.round(velocity127) || 100)),
+      }, now);
+    }
+  };
+
+  const midiTargetLabel = (target: BeatMidiTarget, step?: number): string => {
+    if (target.kind === "drum") {
+      const tr = TRACKS[target.track];
+      const name = tr ? t(tr.labelKey) : "Drum";
+      return step != null ? `${name} · ${step + 1}` : name;
+    }
+    if (target.kind === "bass") return `808 · ${target.pitch}`;
+    const voiceLabel = BEAT_MELODIC_VOICES.find((v) => v.id === target.voice)?.label ?? target.voice;
+    return `${voiceLabel} · ${target.pitch}`;
+  };
+
+  /* Close any melody notes still held when the take ends (transport
+   * stop, disarm, disconnect) so a held note is never silently lost. */
+  const flushMidiTake = () => {
+    const rec = midiRecorderRef.current;
+    if (!rec || rec.openCount === 0) return;
+    const ctx = ctxRef.current;
+    const pos = ctx ? midiPositionNow(ctx.currentTime) : null;
+    if (!pos) {
+      rec.reset();
+      return;
+    }
+    const done = rec.flush(pos);
+    if (done.length === 0) return;
+    setPatterns((prev) => {
+      let next = prev;
+      for (const d of done) {
+        next = {
+          ...next,
+          [d.patternId]: applyRecordedMelodyNote(next[d.patternId]!, d.voice, d.note),
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleMidiEvent = (e: WebMidiNoteEvent) => {
+    const rec = (midiRecorderRef.current ??= new BeatMidiRecorder());
+    if (e.kind === "off") {
+      const done = rec.noteOff({
+        pitch: e.pitch,
+        channel: e.channel,
+        voice: midiVoiceRef.current,
+        position: midiEventPosition(e),
+      });
+      if (done) {
+        setPatterns((prev) => ({
+          ...prev,
+          [done.patternId]: applyRecordedMelodyNote(prev[done.patternId]!, done.voice, done.note),
+        }));
+      }
+      return;
+    }
+    const { target, recorded } = rec.noteOn({
+      pitch: e.pitch,
+      velocity: e.velocity,
+      channel: e.channel,
+      voice: midiVoiceRef.current,
+      position: midiArmedRef.current ? midiEventPosition(e) : null,
+    });
+    if (!target) return;
+    monitorMidiTarget(target, e.velocity);
+    if (recorded) {
+      setPatterns((prev) => ({
+        ...prev,
+        [recorded.patternId]: recorded.apply(prev[recorded.patternId]!),
+      }));
+    }
+    setMidiLast(midiTargetLabel(target, recorded?.step));
+  };
+
+  const connectMidi = async () => {
+    setMidiStatus("connecting");
+    const session = await openWebMidi(handleMidiEvent);
+    if (!session) {
+      setMidiStatus("blocked");
+      return;
+    }
+    midiSessionRef.current = session;
+    setMidiInputs(session.inputs);
+    setMidiStatus("connected");
+  };
+
+  const disconnectMidi = () => {
+    flushMidiTake();
+    midiSessionRef.current?.close();
+    midiSessionRef.current = null;
+    setMidiStatus("idle");
+    setMidiInputs([]);
+    setMidiArmed(false);
+  };
+
+  const toggleMidiArm = () => {
+    if (midiArmedRef.current) flushMidiTake();
+    setMidiArmed((v) => !v);
+  };
+
+  /* Release the MIDI session with the component. */
+  useEffect(() => () => {
+    midiSessionRef.current?.close();
+    midiSessionRef.current = null;
+  }, []);
+
   const start = useCallback(() => {
     const ctx = getCtx();
     setPlaying(true);
@@ -1210,6 +1427,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   }, [scheduleStep]);
 
   const stop = useCallback(() => {
+    /* Held MIDI melody notes land in the pattern before the clock
+     * stops (W3c) — the take is never silently dropped. */
+    flushMidiTake();
     if (timerRef.current) window.clearInterval(timerRef.current);
     timerRef.current = null;
     setPlaying(false);
@@ -1869,6 +2089,13 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Piano className="w-3.5 h-3.5" /> {t("beatMaker.melody", { defaultValue: "Melody" })}
         </button>
+        <button aria-expanded={showMidi}
+          type="button" data-testid="beat-midi-toggle"
+          onClick={() => setShowMidi((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showMidi ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
+        >
+          <Piano className="w-3.5 h-3.5" /> {t("beatMaker.midi", { defaultValue: "MIDI" })}
+        </button>
       </div>
 
       {/* Bar pager — long patterns show one bar at a time */}
@@ -2313,6 +2540,22 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           onChange={(next) => patchActive((p) => ({ ...p, melody: next }))}
           currentStep={step}
           playing={playing}
+        />
+      )}
+
+      {/* MIDI controller — play live, record into the pattern (W3c) */}
+      {showMidi && (
+        <BeatMidiPanel
+          supported={webMidiSupported()}
+          status={midiStatus}
+          inputs={midiInputs}
+          armed={midiArmed}
+          voice={midiVoice}
+          lastLabel={midiLast}
+          onConnect={connectMidi}
+          onDisconnect={disconnectMidi}
+          onToggleArm={toggleMidiArm}
+          onVoiceChange={setMidiVoice}
         />
       )}
 
