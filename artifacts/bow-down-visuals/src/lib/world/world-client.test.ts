@@ -700,12 +700,16 @@ describe("avatar actions", () => {
     ]);
   });
 
-  it("a guest can perform — actions are presence, and the client sends them", async () => {
+  it("a guest cannot perform — guests are out of emotes entirely, and the client sends nothing (ruling #40)", async () => {
     const guestSelf = { ...SELF, guest: true };
     const { client, socket } = await inside({ t: 0 }, guestSelf, []);
     socket.sent = [];
     client.performAction("wave");
-    expect(socket.sent).toEqual([{ type: "action", action: "wave" }]);
+    expect(socket.sent).toEqual([]);
+    expect(client.self?.action).toBeNull();
+    client.performAction(null);
+    expect(socket.sent).toEqual([]);
+    expect(client.self?.action).toBeNull();
   });
 });
 
