@@ -24,11 +24,11 @@
  *     repo's existing store-only ZIP writer (lib/sfx createZip); no new
  *     dependency.
  *
- * MP3: NAMED GAP — the repo bundles no client-side MP3 encoder
- * (no lamejs-style dependency anywhere in the workspace; the AI tab's
- * MP3s are provider-delivered files, not local encodes). Per the lane
- * brief, no dependency is added silently: the export pack ships
- * WAV mix + WAV stems, and MP3 waits on a coordinator-ruled encoder add.
+ * MP3: the coordinator-ruled encoder add has landed (lib/beat-mp3:
+ * LAME via @breezystack/lamejs, dynamically imported at encode time
+ * only). The export pack ships WAV (default) or MP3 mix + stems; the
+ * format threads through the file naming here and the encode branch
+ * in the page's renderBeat — one render path either way.
  *
  * Exporting is pure UI = FREE. No charges, no provider calls.
  */
@@ -327,8 +327,23 @@ export function stemMixersSumToMix(
 
 /* ─── File naming + ZIP assembly ───────────────────────────────────────── */
 
-export function stemFileName(title: string, bpm: number, stem: BeatStemDescriptor): string {
-  return `${sanitizeFilePart(title)}-${Math.round(bpm)}bpm-${stem.fileSlug}.wav`;
+/** The two export formats. WAV is the default everywhere; MP3 is the
+ *  share-friendly alternative the user picks on the export surface. */
+export type BeatExportFormat = "wav" | "mp3";
+
+/** Download name for the full-mix bounce. The WAV name is the exact
+ *  pre-MP3 name (the page used to inline it); MP3 swaps the extension. */
+export function mixFileName(bpm: number, format: BeatExportFormat = "wav"): string {
+  return `beat-${bpm}bpm.${format}`;
+}
+
+export function stemFileName(
+  title: string,
+  bpm: number,
+  stem: BeatStemDescriptor,
+  format: BeatExportFormat = "wav",
+): string {
+  return `${sanitizeFilePart(title)}-${Math.round(bpm)}bpm-${stem.fileSlug}.${format}`;
 }
 
 export function stemsZipFileName(title: string, bpm: number): string {
