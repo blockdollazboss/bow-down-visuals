@@ -1383,7 +1383,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
       <div>
         <SubHead isLight={isLight}><TrendingUp className="mr-1 inline h-3.5 w-3.5" />Royalties</SubHead>
         <p className={`mt-1.5 text-sm leading-relaxed ${muted}`}>
-          Import the reports from your distributor (DistroKid, TuneCore, CD Baby…) and see every dollar,
+          Import the reports from your distributor and see every dollar,
           platform and payout in one place.
         </p>
       </div>
@@ -1414,7 +1414,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
             <NativeEmptyState
               isLight={isLight}
               message="No royalty data yet"
-              detail="Drop in a royalty report below — download the statements from your distributor (DistroKid, Spotify for Artists, TuneCore…) and import the CSV. Your royalties will show up here automatically."
+              detail="Drop in a royalty report below — download the statements from your distributor and import the CSV. Your royalties will show up here automatically."
             />
           ) : (
             <>
@@ -1648,7 +1648,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
               className={inputCls(isLight)}
               value={payoutDraft.distributor}
               onChange={(e) => setPayoutDraft({ ...payoutDraft, distributor: e.target.value })}
-              placeholder="DistroKid"
+              placeholder="Your distributor"
             />
           </label>
           <label className="block">

@@ -8798,7 +8798,7 @@
     "streams": "{{num}} streams",
     "empty": {
       "title": "अभी कोई royalty डेटा नहीं",
-      "desc": "अपने distributor (DistroKid, TuneCore, CD Baby — सभी export करते हैं) से एक CSV export करें और नीचे पेस्ट करें। बाकी हम करेंगे।"
+      "desc": "अपने distributor से एक CSV export करें और नीचे पेस्ट करें। बाकी हम करेंगे।"
     },
     "import": {
       "title": "Distributor CSV इम्पोर्ट करें",

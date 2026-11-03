@@ -9162,7 +9162,7 @@
     "streams": "{{num}} streams",
     "empty": {
       "title": "Aucune donnée de redevances pour l'instant",
-      "desc": "Exportez un CSV depuis votre distributeur (DistroKid, TuneCore, CD Baby — ils les exportent tous) et collez-le ci-dessous. On s'occupe du reste."
+      "desc": "Exportez un CSV depuis votre distributeur et collez-le ci-dessous. On s'occupe du reste."
     },
     "import": {
       "title": "Importer un CSV de distributeur",
