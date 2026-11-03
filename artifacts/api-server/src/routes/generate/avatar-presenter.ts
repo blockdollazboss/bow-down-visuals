@@ -3,7 +3,13 @@ import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
-import { chargeCredits } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+  LedgerWriteError,
+} from "../../lib/credits";
 import {
   avatarProviderConfigured,
   avatarProviderName,
@@ -21,7 +27,8 @@ const router = Router();
 /**
  * Avatar presenter price — Visual Bucs per generation.
  * RULED by the owner (Oct 24 2026): 1,200 VB, Hedra Character-3 engine.
- * Charged on SUCCESS only (see the charge rail below).
+ * RESERVE-AT-SUBMIT (stack1400 ruling #43 Part B): charged in full at
+ * submit; refunded in full on any failure (see the charge rail below).
  */
 export const AVATAR_PRESENTER_CREDIT_COST = 1200;
 
@@ -53,6 +60,11 @@ export interface AvatarJob {
   creditsCharged: number;
   providerJobId: string | null;
   createdAt: number;
+  /** Reserve-at-submit bookkeeping: the charge's idempotency key and
+   *  the exactly-once refund claim. Optional so test-constructed jobs
+   *  (which were never charged at submit) stay valid. */
+  chargeKey?: string;
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, AvatarJob>();
@@ -67,16 +79,44 @@ export function __putAvatarJob(job: AvatarJob): void {
 }
 
 /* ── Charge rail ──────────────────────────────────────────────────────
-   Charge on SUCCESS, exactly once:
-   - POST checks the balance up front (402) so an under-funded request
-     never reaches the provider.
-   - Nothing is charged while the provider works.
-   - When the provider completes AND the video is stored on our rails,
-     chargeCredits runs once with the per-job idempotency key
-     `avatar-presenter:<jobId>` — a replayed completion can never
-     double-charge.
-   - Provider failure, storage failure, or timeout → the job fails and
-     the user is NEVER charged (no upfront charge exists to refund). */
+   RESERVE-AT-SUBMIT, exactly once (stack1400 ruling #43 Part B):
+   - POST reserves the full 1,200 VB via chargeCredits (which re-reads
+     the balance fresh) BEFORE any provider call, under the per-job
+     idempotency key `avatar-presenter:<jobId>` — an under-funded
+     request is refused 402 and never reaches the provider, and a
+     replayed submit charge can never double-charge.
+   - The 503 provider-unconfigured gate stays BEFORE the charge: an
+     unconfigured feature never charges, ever.
+   - Success (provider done AND the video stored on our rails) keeps
+     the reserve — no second charge ever lands.
+   - Provider failure, no-output, storage/save failure, or timeout →
+     refundAvatarJobCharge returns the exact reserved amount exactly
+     once (the job's creditsRefunded flag is claimed synchronously
+     before the refund awaits, so a replayed completion cannot
+     double-refund) and voids the charge's idempotency key.
+   - NOTE (pre-existing exposure): jobs live in an in-memory Map, so a
+     server restart between submit and completion loses the refund
+     path for in-flight jobs — the ledger charge stands with no job
+     record to refund from. Durable job storage is out of this lane. */
+
+/** Refund a job's reserve exactly once. No-op for never-charged jobs. */
+async function refundAvatarJobCharge(job: AvatarJob): Promise<void> {
+  const amount = job.creditsCharged ?? 0;
+  if (amount <= 0 || job.creditsRefunded) return;
+  job.creditsRefunded = true; // claim synchronously — exactly once
+  const key = job.chargeKey ?? `avatar-presenter:${job.id}`;
+  try {
+    await refundCredits(job.userId, amount, {
+      action: "AI Avatar Presenter — Refund",
+    });
+    await voidChargeIdempotencyKey(key);
+  } catch (refundErr) {
+    logger.error(
+      { jobId: job.id, userId: job.userId, err: refundErr },
+      "[avatar-presenter] CRITICAL: refund failed after job failure — manual reconciliation required",
+    );
+  }
+}
 
 /** Balance gate for POST: returns the 402 payload, or null when funded. */
 function avatarBalanceGate(balance: number): {
@@ -127,8 +167,10 @@ async function storeFinishedVideo(job: AvatarJob, providerVideoUrl: string): Pro
 }
 
 /**
- * Background worker for one job: submit → poll → store → charge once.
- * Exported for tests; the route fires it without awaiting.
+ * Background worker for one job: submit → poll → store. The charge was
+ * already reserved at submit (POST); this worker never charges — it
+ * keeps the reserve on success and refunds it exactly once on any
+ * failure. Exported for tests; the route fires it without awaiting.
  */
 export async function processAvatarJob(
   job: AvatarJob,
@@ -161,37 +203,36 @@ export async function processAvatarJob(
       if (result.status === "failed") {
         job.status = "failed";
         job.error = result.error || "Avatar generation failed at the provider.";
-        return; // never charged
+        await refundAvatarJobCharge(job);
+        return;
       }
       if (result.status === "done" && result.videoUrl) {
+        // Success = provider done AND stored on our rails: keep the
+        // reserve reserved at submit. A store failure throws into the
+        // catch below, which refunds.
         job.outputUrl = await storeFinishedVideo(job, result.videoUrl);
-        // The one and only charge on this rail — success only, exactly once.
-        await chargeCredits(job.userId, AVATAR_PRESENTER_CREDIT_COST, {
-          action: "AI Avatar Presenter",
-        }, { idempotencyKey: `avatar-presenter:${job.id}` });
-        job.creditsCharged = AVATAR_PRESENTER_CREDIT_COST;
         job.status = "done";
+        return;
+      }
+      if (result.status === "done") {
+        // Provider claims done but delivered no video — no-output.
+        job.status = "failed";
+        job.error = "Avatar generation finished without a video — your Visual Bucs were refunded.";
+        await refundAvatarJobCharge(job);
         return;
       }
       if (Date.now() > deadline) {
         job.status = "failed";
-        job.error = "Avatar generation timed out at the provider — you were not charged.";
-        return; // never charged
+        job.error = "Avatar generation timed out at the provider — your Visual Bucs were refunded.";
+        await refundAvatarJobCharge(job);
+        return;
       }
       await sleep(pollIntervalMs());
     }
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Avatar generation failed";
-    if (job.creditsCharged > 0) {
-      // Defensive: the charge is the last step before "done", so reaching
-      // the catch with a charge recorded means the ledger write itself is
-      // in an unknown state — log loudly for reconciliation.
-      logger.error(
-        { jobId: job.id, userId: job.userId, err },
-        "[avatar-presenter] job failed AFTER charge — needs ledger reconciliation",
-      );
-    }
+    await refundAvatarJobCharge(job);
   }
 }
 
@@ -217,7 +258,8 @@ router.get("/avatar-presenter/status", requireAuth, async (_req: Request, res: R
  * Talking-head presenter generation (Hedra Character-3). GATED: returns
  * 503 AVATAR_PROVIDER_NOT_CONFIGURED when no provider key exists — the UI
  * shows a clear disabled message instead of charging or failing silently.
- * The 1,200 VB charge lands only when the video is finished and stored.
+ * The 1,200 VB is RESERVED at submit (before any provider call) and
+ * refunded in full if the job fails for any reason.
  */
 router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Request, res: Response) => {
   if (!avatarProviderConfigured()) {
@@ -239,24 +281,51 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
     return;
   }
 
-  // Balance gate BEFORE any provider call (charge itself lands on success).
-  const gate = avatarBalanceGate(req.userCredits ?? 0);
-  if (gate) {
-    res.status(402).json(gate);
-    return;
+  /* RESERVE-AT-SUBMIT: charge the full price BEFORE any provider call.
+     chargeCredits re-reads the balance fresh — the snapshot gate below
+     only shapes the 402 payload; the charge itself is authoritative.
+     An insufficient balance refuses here and the provider is never
+     called. The charge is keyed on the job id, exactly as the old
+     success-charge was. */
+  const jobId = randomUUID();
+  const chargeKey = `avatar-presenter:${jobId}`;
+  try {
+    await chargeCredits(req.userId!, AVATAR_PRESENTER_CREDIT_COST, {
+      action: "AI Avatar Presenter",
+    }, { idempotencyKey: chargeKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      const gate = avatarBalanceGate(req.userCredits ?? 0) ?? {
+        error: "OUT_OF_CREDITS",
+        message: `You need ${AVATAR_PRESENTER_CREDIT_COST} Visual Bucs for an AI avatar presenter.`,
+        creditsNeeded: AVATAR_PRESENTER_CREDIT_COST,
+        creditsRemaining: req.userCredits ?? 0,
+      };
+      res.status(402).json(gate);
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      // chargeCredits rolled the deduction itself back — no standing
+      // charge, no provider call.
+      res.status(500).json({ error: "CHARGE_FAILED", message: "Charging failed — no Visual Bucs were taken and nothing was generated." });
+      return;
+    }
+    throw err;
   }
 
   const job: AvatarJob = {
-    id: randomUUID(),
+    id: jobId,
     userId: req.userId!,
     status: "queued",
     avatarId: parsed.data.avatarId,
     script: parsed.data.script,
     outputUrl: null,
     error: null,
-    creditsCharged: 0,
+    creditsCharged: AVATAR_PRESENTER_CREDIT_COST,
     providerJobId: null,
     createdAt: Date.now(),
+    chargeKey,
+    creditsRefunded: false,
   };
   jobs.set(job.id, job);
 
@@ -268,7 +337,7 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
     prompt: parsed.data.prompt,
   });
 
-  res.status(202).json({ jobId: job.id, status: job.status, creditsCharged: 0 });
+  res.status(202).json({ jobId: job.id, status: job.status, creditsCharged: job.creditsCharged });
 });
 
 /**

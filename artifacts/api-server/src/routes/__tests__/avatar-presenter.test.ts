@@ -1,16 +1,20 @@
 /**
  * Avatar presenter — Hedra wiring, money-path pins.
  *
- * The 1,200 VB price is owner-ruled (Oct 24 2026), charged on SUCCESS
- * only, exactly once. Provider + credits + storage are faked at their
- * module seams; the router runs over real HTTP.
+ * The 1,200 VB price is owner-ruled (Oct 24 2026). RESERVE-AT-SUBMIT
+ * (stack1400 ruling #43 Part B): charged in full at submit, before any
+ * provider call, exactly once; refunded in full exactly once on any
+ * failure. Provider + credits + storage are faked at their module
+ * seams; the router runs over real HTTP.
  *
  *  - status reports the real 1,200 price, pricePlaceholder: false
  *  - no provider key → 503 AVATAR_PROVIDER_NOT_CONFIGURED, no charge
- *  - balance < 1,200 → 402 and the provider is NEVER called
- *  - success → exactly one 1,200 charge under `avatar-presenter:<jobId>`
- *  - a replayed completion cannot double-charge (idempotency key)
- *  - provider failure → job failed, zero charges, balance untouched
+ *  - balance < 1,200 → 402 and the provider is NEVER called, no charge
+ *  - charge precedes the provider call (event order)
+ *  - success → exactly one 1,200 charge under `avatar-presenter:<jobId>`,
+ *    no refund
+ *  - a replayed completion cannot double-charge or double-refund
+ *  - provider failure → job failed, one charge + one full refund, net 0
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
@@ -19,6 +23,8 @@ import type { AddressInfo } from "node:net";
 const state = vi.hoisted(() => ({
   balance: 5000,
   charges: [] as { amount: number; key: string }[],
+  refunds: [] as { amount: number; action: string }[],
+  events: [] as string[],
   chargedKeys: new Set<string>(),
   configured: true,
   submitCalls: 0,
@@ -38,8 +44,10 @@ vi.mock("../../lib/credits", () => {
   class OutOfCreditsError extends Error {
     readonly code = "OUT_OF_CREDITS";
   }
+  class LedgerWriteError extends Error {}
   return {
     OutOfCreditsError,
+    LedgerWriteError,
     chargeCredits: async (
       _userId: string,
       cost: number,
@@ -52,7 +60,17 @@ vi.mock("../../lib/credits", () => {
       state.balance -= cost;
       if (key) state.chargedKeys.add(key);
       state.charges.push({ amount: cost, key });
+      state.events.push("charge");
       return state.balance;
+    },
+    refundCredits: async (_userId: string, amount: number, rec: { action: string }) => {
+      state.balance += amount;
+      state.refunds.push({ amount, action: rec.action });
+      state.events.push("refund");
+    },
+    voidChargeIdempotencyKey: async (key: string) => {
+      state.chargedKeys.delete(key);
+      return true;
     },
   };
 });
@@ -74,6 +92,7 @@ vi.mock("../../lib/avatar-client", () => {
     ],
     submitAvatarVideo: async () => {
       state.submitCalls += 1;
+      state.events.push("provider-submit");
       if (state.submitImpl) return state.submitImpl();
       return { providerJobId: "hedra-job-1", status: "processing" };
     },
@@ -131,6 +150,8 @@ afterAll(async () => {
 beforeEach(() => {
   state.balance = 5000;
   state.charges = [];
+  state.refunds = [];
+  state.events = [];
   state.chargedKeys = new Set();
   state.configured = true;
   state.submitCalls = 0;
@@ -206,9 +227,12 @@ describe("POST /avatar-presenter — gates", () => {
     state.statusImpl = async () => ({ providerJobId: "hedra-job-1", status: "failed", error: "provider said no" });
     const r = await post("/avatar-presenter", validBody);
     expect(r.status).toBe(202);
+    expect(r.json?.["creditsCharged"]).toBe(1200); // reserved at submit
     const job = await waitForTerminal(String(r.json?.["jobId"]));
     expect(job["status"]).toBe("failed");
-    expect(state.charges).toEqual([]); // failed job: never charged
+    // Reserved at submit, then refunded in full on failure — net zero.
+    expect(state.charges).toHaveLength(1);
+    expect(state.refunds).toEqual([{ amount: 1200, action: "AI Avatar Presenter — Refund" }]);
     expect(state.balance).toBe(1200);
   });
 });
@@ -229,7 +253,11 @@ describe("POST /avatar-presenter — money path", () => {
     expect(job["creditsCharged"]).toBe(1200);
     expect(String(job["outputUrl"])).toContain("cdn.example/play");
     expect(state.charges).toEqual([{ amount: 1200, key: `avatar-presenter:${jobId}` }]);
+    expect(state.refunds).toEqual([]); // success keeps the reserve
     expect(state.balance).toBe(3800);
+    // The charge landed BEFORE the provider was ever called.
+    expect(state.events.indexOf("charge")).toBeGreaterThanOrEqual(0);
+    expect(state.events.indexOf("charge")).toBeLessThan(state.events.indexOf("provider-submit"));
   });
 
   it("a replayed completion cannot double-charge (same idempotency key)", async () => {
@@ -263,7 +291,7 @@ describe("POST /avatar-presenter — money path", () => {
     expect(state.balance).toBe(3800);
   });
 
-  it("provider failure → job failed with the provider's message, zero charges", async () => {
+  it("provider failure → job failed with the provider's message, reserve refunded exactly once", async () => {
     state.statusImpl = async () => ({
       providerJobId: "hedra-job-1",
       status: "failed",
@@ -273,12 +301,12 @@ describe("POST /avatar-presenter — money path", () => {
     const job = await waitForTerminal(String(r.json?.["jobId"]));
     expect(job["status"]).toBe("failed");
     expect(String(job["error"])).toContain("bad audio");
-    expect(job["creditsCharged"]).toBe(0);
-    expect(state.charges).toEqual([]);
-    expect(state.balance).toBe(5000);
+    expect(state.charges).toHaveLength(1);
+    expect(state.refunds).toEqual([{ amount: 1200, action: "AI Avatar Presenter — Refund" }]);
+    expect(state.balance).toBe(5000); // net zero
   });
 
-  it("submit throwing (e.g. missing character image) → job failed, zero charges", async () => {
+  it("submit throwing (e.g. missing character image) → job failed, reserve refunded exactly once", async () => {
     state.submitImpl = async () => {
       const err = new Error("Hedra Character-3 animates a character image — supply one to generate.");
       err.name = "AvatarInputError";
@@ -289,7 +317,52 @@ describe("POST /avatar-presenter — money path", () => {
     const job = await waitForTerminal(String(r.json?.["jobId"]));
     expect(job["status"]).toBe("failed");
     expect(String(job["error"])).toContain("character image");
-    expect(state.charges).toEqual([]);
+    expect(state.charges).toHaveLength(1);
+    expect(state.refunds).toHaveLength(1);
+    expect(state.balance).toBe(5000);
+  });
+
+  it("a replayed failure cannot double-refund", async () => {
+    state.statusImpl = async () => ({
+      providerJobId: "hedra-job-1",
+      status: "failed",
+      error: "provider said no",
+    });
+    const r = await post("/avatar-presenter", validBody);
+    const jobId = String(r.json?.["jobId"]);
+    await waitForTerminal(jobId);
+    expect(state.refunds).toHaveLength(1);
+
+    // Drive the worker a second time for the same (already-refunded) job.
+    const replay: AvatarJob = {
+      id: jobId,
+      userId: "user-1",
+      status: "processing",
+      avatarId: "avatar-host-male",
+      script: "Welcome back.",
+      outputUrl: null,
+      error: null,
+      creditsCharged: 1200,
+      providerJobId: null,
+      createdAt: Date.now(),
+      chargeKey: `avatar-presenter:${jobId}`,
+      creditsRefunded: true,
+    };
+    __putAvatarJob(replay);
+    await processAvatarJob(replay, { imageUrl: validBody.imageUrl, audioUrl: validBody.audioUrl });
+    expect(replay.status).toBe("failed");
+    expect(state.refunds).toHaveLength(1); // still exactly one refund
+    expect(state.balance).toBe(5000);
+  });
+
+  it("provider done with NO video (no-output) → job failed, reserve refunded", async () => {
+    state.statusImpl = async () => ({ providerJobId: "hedra-job-1", status: "done" });
+    const r = await post("/avatar-presenter", validBody);
+    const job = await waitForTerminal(String(r.json?.["jobId"]));
+    expect(job["status"]).toBe("failed");
+    expect(String(job["error"])).toMatch(/refunded/);
+    expect(state.charges).toHaveLength(1);
+    expect(state.refunds).toHaveLength(1);
     expect(state.balance).toBe(5000);
   });
 });
