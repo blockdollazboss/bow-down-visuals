@@ -12,11 +12,18 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import {
   generationChargeIntentStore,
-  recordGenerationChargeIntent,
   resolvePendingCharge,
   settleGenerationCharge,
   markGenerationIntentDelivered,
   markGenerationIntentFailed,
+  chargeGenerationReserve,
+  recordGenerationReserve,
+  confirmGenerationReserve,
+  refundGenerationReserve,
+  refundOrFailGenerationIntent,
+  generationChargeKey,
+  type ResolvedPendingCharge,
+  type ReserveOutcome,
 } from "../../lib/generation-charge-intents";
 import { saveGeneration, asVaultId } from "../../lib/save-generation";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
@@ -71,12 +78,14 @@ const IDEOGRAM_ASPECT: Record<string, "9x16" | "1x1" | "16x9"> = {
 const ARTIST_BUCKET = "artist-references";
 
 /**
- * Tracks submitted image tasks so credits are only charged on SUCCEEDED.
+ * Tracks submitted image tasks. Reserve-at-submit (stack1400 ruling
+ * #43): credits are CHARGED at submit, before the provider call; the
+ * success poll confirms the reserve, a failure poll refunds it.
  * Key: Runway taskId  Value: { userId, credits }
  */
 /* OOM fix (2026-10-25): abandoned tasks were never deleted — bounded
  * by the house job-map TTL (2h), like the other pending-task maps. */
-const pendingImageTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number; prompt: string; artistVaultId?: string | null }>());
+const pendingImageTasks = attachJobMapTtl(new Map<string, { userId: string; credits: number; prompt: string; artistVaultId?: string | null; chargeKey: string }>());
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -90,40 +99,104 @@ function cleanup(f: string) {
 }
 
 /**
- * Deducts site credits after a successful synchronous generation.
- * Lane 4: the charge settles through a durable generation-charge intent
- * (a minted sync-<uuid> task id), so a charge that fails in this request
- * is no longer a silent free image — the intent is stamped delivered and
- * the retry sweeper settles it, exactly once, via the
- * 'gen-charge:<taskId>' idempotency key.
+ * RESERVE-AT-SUBMIT for the synchronous image variants (stack1400
+ * ruling #43): the charge lands BEFORE the provider call, keyed to a
+ * minted sync-<uuid> task id, and the intent row records the reserve.
+ * Provider failure / no-output / save failure refunds the reserve in
+ * full (refundSyncImageReserve); success confirms it
+ * (confirmSyncImageReserve) — no second charge ever.
  */
-async function chargeForImage(req: {
+interface SyncImageReserve {
+  taskId: string;
+  chargeKey: string;
+  balance: number;
+  resolved: ResolvedPendingCharge;
+}
+
+type ReqLike = {
   userId?: string;
-  userSupabase?: ReturnType<typeof getSupabaseAdmin>;
   log: { info: (...a: unknown[]) => void; error: (...a: unknown[]) => void; warn: (...a: unknown[]) => void };
-}, credits: number, action = "Artist Image"): Promise<void> {
+};
+
+async function reserveForImage(
+  req: ReqLike,
+  credits: number,
+  action = "Artist Image",
+): Promise<{ ok: true; reserve: SyncImageReserve } | { ok: false; outcome: ReserveOutcome }> {
   const taskId = `sync-${randomUUID()}`;
-  await recordGenerationChargeIntent(generationChargeIntentStore, {
+  const chargeKey = generationChargeKey(taskId);
+  const outcome = await chargeGenerationReserve({
+    userId: req.userId!,
+    credits,
+    action,
+    chargeKey,
+  });
+  if (!outcome.ok) return { ok: false, outcome };
+  await recordGenerationReserve(generationChargeIntentStore, {
     taskId,
     rail: "artist-image",
     userId: req.userId!,
     credits,
     action,
+    chargeKey,
   });
-  const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, {
-    userId: req.userId!,
-    credits,
-    projectId: null,
-    action,
-    extra: null,
-    intentStatus: "awaiting",
-    source: "intent",
-  });
-  if (outcome !== "charge_failed") {
-    req.log.info({ userId: req.userId, deducted: credits }, `[artist-image] credits deducted (${action})`);
-  } else {
-    await markGenerationIntentDelivered(generationChargeIntentStore, taskId);
+  const rowFound = (await generationChargeIntentStore.getIntent(taskId).catch(() => null)) !== null;
+  req.log.info({ userId: req.userId, deducted: credits, taskId }, `[artist-image] credits reserved at submit (${action})`);
+  return {
+    ok: true,
+    reserve: {
+      taskId,
+      chargeKey,
+      balance: outcome.balance,
+      resolved: {
+        userId: req.userId!,
+        credits,
+        projectId: null,
+        action,
+        extra: null,
+        intentStatus: rowFound ? "reserved" : null,
+        source: rowFound ? "intent" : "memory",
+        reserved: true,
+        chargeKey,
+      },
+    },
+  };
+}
+
+async function refundSyncImageReserve(req: ReqLike, reserve: SyncImageReserve, reason: string): Promise<void> {
+  const out = await refundGenerationReserve(generationChargeIntentStore, reserve.taskId, reserve.resolved, reason);
+  if (out === "refund_failed") {
+    req.log.error({ taskId: reserve.taskId }, "[artist-image] CRITICAL: sync reserve refund failed — reserve stays reserved for the sweeper");
   }
+}
+
+async function confirmSyncImageReserve(reserve: SyncImageReserve): Promise<void> {
+  await confirmGenerationReserve(generationChargeIntentStore, reserve.taskId, reserve.resolved);
+  await markGenerationIntentDelivered(generationChargeIntentStore, reserve.taskId);
+}
+
+/** Map a refused reserve onto the rail's existing response shapes.
+ *  Returns true when the reserve was refused (response sent). */
+function respondReserveRefused(
+  req: ReqLike,
+  res: { status: (n: number) => { json: (b: unknown) => void } },
+  outcome: ReserveOutcome,
+): boolean {
+  if (outcome.ok) return false;
+  if (outcome.reason === "insufficient") {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+    });
+    return true;
+  }
+  if (outcome.reason === "disabled") {
+    res.status(403).json({ error: "credits_disabled", message: "Credit spending is not enabled for this account." });
+    return true;
+  }
+  req.log.error({ err: outcome.err }, "[artist-image] reserve charge failed at submit — request refused");
+  res.status(500).json({ error: "Could not reserve your Visual Bucs. Please try again." });
+  return true;
 }
 
 /** Uploads a buffer to the artist-references bucket; returns public URL + path. */
@@ -137,7 +210,7 @@ async function uploadGeneratedImage(userId: string, buffer: Buffer): Promise<{ u
    POST /generate-artist-image
    1. Credit pre-check — always enforced (no dev bypass).
    2. Submit text-to-image job to Runway.
-   3. Track task — credits NOT yet charged.
+   3. Track task — credits RESERVED at step 2.5 (charged up front).
    4. Return { taskId, creditCost, model }.
 ───────────────────────────────────────────────────────────────────────────── */
 /** Fetches a reference image URL and returns it as base64 + mime type.
@@ -295,36 +368,55 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
 
   /* ── GPT Image 2.5 Sunburst path: synchronous, best quality ── */
   if (plan.model === "gpt-image-2.5-sunburst") {
+    const held = await reserveForImage(req, creditCost, "Artist Image (GPT Image 2.5)");
+    if (!held.ok) {
+      respondReserveRefused(req, res as never, held.outcome);
+      return;
+    }
+    const reserve = held.reserve;
     try {
       req.log.info(
         { userId: req.userId, ratio: plan.ratio, vaultId: vaultId ?? null },
         "[artist-image] GPT Image 2.5 generation started",
       );
-      const imageResp = await getOpenAI().images.generate({
-        model: SUNBURST_MODEL,
-        prompt: promptText.trim().slice(0, 4000),
-        size: SUNBURST_SIZES[plan.ratio] ?? "1024x1536",
-        quality: "high",
-        n: 1,
-      });
-      const b64 = imageResp.data?.[0]?.b64_json;
+      let b64: string | undefined;
+      try {
+        const imageResp = await getOpenAI().images.generate({
+          model: SUNBURST_MODEL,
+          prompt: promptText.trim().slice(0, 4000),
+          size: SUNBURST_SIZES[plan.ratio] ?? "1024x1536",
+          quality: "high",
+          n: 1,
+        });
+        b64 = imageResp.data?.[0]?.b64_json;
+      } catch (genErr: unknown) {
+        await refundSyncImageReserve(req, reserve, "provider failed");
+        throw genErr;
+      }
       if (!b64) {
+        await refundSyncImageReserve(req, reserve, "no output");
         res.status(500).json({ error: "Image generation returned no image data." });
         return;
       }
-      await chargeForImage(req, creditCost, "Artist Image (GPT Image 2.5)");
-      const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, Buffer.from(b64, "base64"));
+      let uploaded: { url: string; path: string | null };
+      try {
+        uploaded = await uploadGeneratedImage(req.userId!, Buffer.from(b64, "base64"));
+      } catch (saveErr: unknown) {
+        await refundSyncImageReserve(req, reserve, "save failed");
+        throw saveErr;
+      }
+      await confirmSyncImageReserve(reserve);
       res.json({
         taskId: `oai-${randomUUID()}`,
         status: "succeeded",
-        url,
-        path: storagePath,
+        url: uploaded.url,
+        path: uploaded.path,
         creditCost,
         model: plan.model,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "OpenAI image generation failed";
-      req.log.error({ err: msg }, "[artist-image] GPT Image 2.5 generation failed — no credits charged");
+      req.log.error({ err: msg }, "[artist-image] GPT Image 2.5 generation failed — reserve refunded");
       res.status(500).json({ error: msg });
     }
     return;
@@ -332,25 +424,43 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
 
   /* ── Ideogram 4.0 path: synchronous, best text rendering (thumbnails/posters) ── */
   if (plan.model === "ideogram-4.0") {
+    const held = await reserveForImage(req, creditCost, "Artist Image (Ideogram 4.0)");
+    if (!held.ok) {
+      respondReserveRefused(req, res as never, held.outcome);
+      return;
+    }
+    const reserve = held.reserve;
     try {
       req.log.info(
         { userId: req.userId, ratio: plan.ratio, vaultId: vaultId ?? null },
         "[artist-image] Ideogram 4.0 generation started",
       );
-      const buffer = await generateWithIdeogram(promptText.trim(), plan.ratio);
-      await chargeForImage(req, creditCost, "Artist Image (Ideogram 4.0)");
-      const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, buffer);
+      let buffer: Buffer;
+      try {
+        buffer = await generateWithIdeogram(promptText.trim(), plan.ratio);
+      } catch (genErr: unknown) {
+        await refundSyncImageReserve(req, reserve, "provider failed");
+        throw genErr;
+      }
+      let uploaded: { url: string; path: string | null };
+      try {
+        uploaded = await uploadGeneratedImage(req.userId!, buffer);
+      } catch (saveErr: unknown) {
+        await refundSyncImageReserve(req, reserve, "save failed");
+        throw saveErr;
+      }
+      await confirmSyncImageReserve(reserve);
       res.json({
         taskId: `ideogram-${randomUUID()}`,
         status: "succeeded",
-        url,
-        path: storagePath,
+        url: uploaded.url,
+        path: uploaded.path,
         creditCost,
         model: plan.model,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Ideogram image generation failed";
-      req.log.error({ err: msg }, "[artist-image] Ideogram 4.0 generation failed — no credits charged");
+      req.log.error({ err: msg }, "[artist-image] Ideogram 4.0 generation failed — reserve refunded");
       res.status(500).json({ error: msg });
     }
     return;
@@ -358,6 +468,12 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
 
   /* ── Nano Banana 2.1 path: synchronous, fast, character-locked ── */
   if (plan.model === "nano-banana-2.1") {
+    const held = await reserveForImage(req, creditCost, "Artist Image (Nano Banana 2.1)");
+    if (!held.ok) {
+      respondReserveRefused(req, res as never, held.outcome);
+      return;
+    }
+    const reserve = held.reserve;
     try {
       const refUrl = referenceImageUrl?.trim();
       const useRefImage = !!refUrl && /^https:\/\//i.test(refUrl);
@@ -368,25 +484,37 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
         { userId: req.userId, ratio: plan.ratio, identityRef: useRefImage, vaultId: vaultId ?? null },
         "[artist-image] Nano Banana 2.1 generation started",
       );
-      const buffer = await generateWithNanoBanana({
-        prompt,
-        aspectRatio: NANO_ASPECT[plan.ratio] ?? "9:16",
-        referenceImageUrl: useRefImage ? refUrl : null,
-        log: req.log,
-      });
-      await chargeForImage(req, creditCost, "Artist Image (Nano Banana 2.1)");
-      const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, buffer);
+      let buffer: Buffer;
+      try {
+        buffer = await generateWithNanoBanana({
+          prompt,
+          aspectRatio: NANO_ASPECT[plan.ratio] ?? "9:16",
+          referenceImageUrl: useRefImage ? refUrl : null,
+          log: req.log,
+        });
+      } catch (genErr: unknown) {
+        await refundSyncImageReserve(req, reserve, "provider failed");
+        throw genErr;
+      }
+      let uploaded: { url: string; path: string | null };
+      try {
+        uploaded = await uploadGeneratedImage(req.userId!, buffer);
+      } catch (saveErr: unknown) {
+        await refundSyncImageReserve(req, reserve, "save failed");
+        throw saveErr;
+      }
+      await confirmSyncImageReserve(reserve);
       res.json({
         taskId: `nano-${randomUUID()}`,
         status: "succeeded",
-        url,
-        path: storagePath,
+        url: uploaded.url,
+        path: uploaded.path,
         creditCost,
         model: plan.model,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Nano Banana image generation failed";
-      req.log.error({ err: msg }, "[artist-image] Nano Banana 2.1 generation failed — no credits charged");
+      req.log.error({ err: msg }, "[artist-image] Nano Banana 2.1 generation failed — reserve refunded");
       res.status(500).json({ error: msg });
     }
     return;
@@ -432,6 +560,23 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
     return;
   }
 
+  /* RESERVE at submit (ruling #43): charge BEFORE the provider call
+     under a submit-minted job id (the Runway task id doesn't exist
+     yet); the intent row recorded below carries the key. A refused
+     charge refuses the submit — the provider is never called. */
+  const jobId = `job-${randomUUID()}`;
+  const chargeKey = generationChargeKey(jobId);
+  const reserve = await chargeGenerationReserve({
+    userId: req.userId!,
+    credits: creditCost,
+    action: "Artist Image",
+    chargeKey,
+  });
+  if (!reserve.ok) {
+    respondReserveRefused(req, res as never, reserve);
+    return;
+  }
+
   try {
     const referenceImages = useRefImage ? [{ uri: refUrl!, tag: "artistface" }] : undefined;
     /* Note: Gen4ImageTurbo declares referenceImages as required, so it is
@@ -457,11 +602,12 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
       credits: creditCost,
       prompt: finalPrompt,
       artistVaultId: asVaultId((req.body as { artistVaultId?: unknown } | undefined)?.artistVaultId),
+      chargeKey,
     });
-    /* Durable charge intent (Lane 4): survives the restarts the
+    /* Durable reserve record (0317): survives the restarts the
        in-memory map cannot; prompt + vault ride along for the
        post-restart history save. */
-    await recordGenerationChargeIntent(generationChargeIntentStore, {
+    await recordGenerationReserve(generationChargeIntentStore, {
       taskId: task.id,
       rail: "artist-image",
       userId: req.userId!,
@@ -471,13 +617,30 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
         prompt: finalPrompt,
         artistVaultId: asVaultId((req.body as { artistVaultId?: unknown } | undefined)?.artistVaultId) ?? null,
       },
+      chargeKey,
     });
-    req.log.info({ taskId: task.id, userId: req.userId }, "[artist-image] task submitted — credits pending on SUCCEEDED");
+    req.log.info({ taskId: task.id, userId: req.userId }, "[artist-image] task submitted — credits reserved at submit");
 
     res.json({ taskId: task.id, creditCost, model: plan.model, ratio: plan.ratio });
   } catch (err: unknown) {
+    /* Provider submission failed AFTER the reserve — refund in full
+       in-request; no poll will ever come for a task that never was. */
+    const refundOutcome = await refundOrFailGenerationIntent(generationChargeIntentStore, jobId, {
+      userId: req.userId!,
+      credits: creditCost,
+      projectId: null,
+      action: "Artist Image",
+      extra: null,
+      intentStatus: null,
+      source: "memory",
+      reserved: true,
+      chargeKey,
+    }, "submission failed");
+    if (refundOutcome === "refund_failed") {
+      req.log.error({ taskId: jobId, userId: req.userId }, "[artist-image] CRITICAL: submission-failure refund failed — reserve stands under the job id for manual reconciliation");
+    }
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
-    req.log.error({ err: msg }, "[artist-image] submission failed — no credits charged");
+    req.log.error({ err: msg }, "[artist-image] submission failed — reserve refunded");
     res.status(500).json({ error: msg });
   }
 });
@@ -485,7 +648,7 @@ router.post("/generate-artist-image", requireAuth, generationLimiter, async (req
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /generate-artist-image/:taskId
    Poll Runway task status.
-   - SUCCEEDED → deduct credits → upload to artist-references bucket → return
+   - SUCCEEDED → confirm reserve → upload to artist-references bucket → return
      public URL + storage path (the Artist Profiles page persists both on Save)
    - FAILED/CANCELLED → no charge → return error
    - Still running → return { status: "processing", progress }
@@ -505,44 +668,59 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
     const task = await client.tasks.retrieve(taskId);
 
     if (task.status === "SUCCEEDED") {
+      const pending0 = pendingImageTasks.get(taskId);
+      const resolved0 = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pending0
+          ? {
+              userId: pending0.userId,
+              credits: pending0.credits,
+              action: "Artist Image",
+              extra: { prompt: pending0.prompt, artistVaultId: pending0.artistVaultId ?? null },
+              reserved: true,
+              chargeKey: pending0.chargeKey,
+            }
+          : null,
+      );
       const runwayUrl = (task.output as string[] | undefined)?.[0] ?? null;
       if (!runwayUrl) {
+        /* SUCCEEDED but no output — refund the reserve in full. */
         pendingImageTasks.delete(taskId);
+        if (resolved0) {
+          await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolved0, "no output");
+        } else {
+          await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+        }
         res.json({ status: "succeeded", url: null });
         return;
       }
 
-      const pending = pendingImageTasks.get(taskId);
-
-      /* ── Charge credits (only once) — resolved from the in-memory map
-         OR the durable submit-time intent (Lane 4). The pre-fix code
-         treated a missing map entry as "charge already processed" and
-         delivered free; a missing entry now settles from the intent
-         row, and when NEITHER exists the delivery is logged as
-         unchargeable at error level, never silently assumed paid. ── */
-      const resolved = await resolvePendingCharge(
-        generationChargeIntentStore,
-        taskId,
-        pending
-          ? {
-              userId: pending.userId,
-              credits: pending.credits,
-              action: "Artist Image",
-              extra: { prompt: pending.prompt, artistVaultId: pending.artistVaultId ?? null },
-            }
-          : null,
-      );
+      /* ── Confirm the reserve (only once) — resolved from the
+         in-memory map OR the durable reserve row (0317). Confirming
+         moves NO money: the charge landed at submit. Legacy
+         pre-0317 rows still settle here via settleGenerationCharge. ── */
+      const resolved = resolved0;
       if (resolved && resolved.userId === req.userId) {
         const cost = resolved.credits ?? GEN4_IMAGE_CREDIT_COST;
-        const outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
-        if (outcome !== "charge_failed") {
-          req.log.info({ taskId, userId: req.userId, deducted: cost, source: resolved.source }, "[artist-image] credits deducted");
+        let outcome: string;
+        if (resolved.reserved) {
+          const c = await confirmGenerationReserve(generationChargeIntentStore, taskId, resolved);
+          outcome = c === "not_reserved" ? "skipped" : c;
+          if (c === "refunded") {
+            req.log.error({ taskId }, "[artist-image] SUCCEEDED poll found the reserve already refunded — delivering; the member was not charged");
+          }
+        } else {
+          outcome = await settleGenerationCharge(generationChargeIntentStore, taskId, resolved);
         }
-        /* charge_failed: settle logged CRITICAL, intent stays awaiting;
-           delivery is stamped below and the sweeper retries. */
+        if (outcome !== "charge_failed" && outcome !== "skipped") {
+          req.log.info({ taskId, userId: req.userId, deducted: cost, source: resolved.source }, "[artist-image] credits confirmed (reserved at submit)");
+        }
+        /* legacy charge_failed: settle logged CRITICAL, intent stays
+           awaiting; delivery is stamped below and the sweeper retries. */
         pendingImageTasks.delete(taskId);
       } else if (resolved && resolved.userId !== req.userId) {
-        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[artist-image] userId mismatch on poll — skipping charge");
+        req.log.warn({ taskId, submitter: resolved.userId, poller: req.userId }, "[artist-image] userId mismatch on poll — skipping confirm");
       } else if (!resolved) {
         req.log.error({ taskId }, "[artist-image] SUCCEEDED with NO charge record (no memory entry, no intent row) — delivering uncharged; only possible for tasks submitted before migration 0298 or a failed intent record (logged CRITICAL at submit)");
       }
@@ -584,9 +762,30 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
       const errMsg = code.includes("MODERATION") || code.includes("SAFETY") || code.includes("CONTENT")
         ? "Runway rejected this image (content moderation). Try a different description."
         : rawFailure ?? "Runway image generation failed with no further details.";
-      req.log.info({ taskId, status: task.status, failureCode }, "[artist-image] task failed — no credits charged");
+      req.log.info({ taskId, status: task.status, failureCode }, "[artist-image] task failed — reserve refunded");
+      /* Provider failure — refund the reserve in full, exactly once
+         (legacy rows: no money was ever held, bookkeeping only). */
+      const pendingF = pendingImageTasks.get(taskId);
+      const resolvedF = await resolvePendingCharge(
+        generationChargeIntentStore,
+        taskId,
+        pendingF
+          ? {
+              userId: pendingF.userId,
+              credits: pendingF.credits,
+              action: "Artist Image",
+              extra: { prompt: pendingF.prompt, artistVaultId: pendingF.artistVaultId ?? null },
+              reserved: true,
+              chargeKey: pendingF.chargeKey,
+            }
+          : null,
+      );
       pendingImageTasks.delete(taskId);
-      await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+      if (resolvedF) {
+        await refundOrFailGenerationIntent(generationChargeIntentStore, taskId, resolvedF, task.status === "CANCELLED" ? "provider cancelled" : "provider failed");
+      } else {
+        await markGenerationIntentFailed(generationChargeIntentStore, taskId);
+      }
       res.json({ status: task.status === "CANCELLED" ? "cancelled" : "failed", error: errMsg });
 
     } else {
