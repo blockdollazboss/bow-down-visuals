@@ -305,6 +305,23 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "create" },
     websitePath: "/hooks",
   },
+  {
+    /* Stack1400 world parity wave #2, item 4: the Movies Desk —
+       Movies & Web Series' native desk (concept generator +
+       stream clip detector on the /api/movies rails). It stands
+       on the Create Wing's north wall east of the Visual Vibes
+       door, clear of the editor door's prompt (2.97m) and the
+       Cover Art Desk's (3.8m). */
+    id: "movies-desk",
+    roomId: CREATE_WING_ID,
+    name: "Movies Desk",
+    tagline: "Movies and series, developed right here — concepts, episodes and the character bible.",
+    x: 23.5,
+    z: -6,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/movies",
+  },
 
   /* ── Treasury ────────────────────────────────────────────────── */
   {
