@@ -12,10 +12,8 @@ import {
   SlidersHorizontal, Lock, Tag, AudioWaveform, ArrowLeft, AlertTriangle,
   CheckCircle2, FileArchive, Zap, Bomb, Wind, TrendingUp, MousePointerClick,
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
-  Volume2, VolumeX, Clapperboard, Piano,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers,
   Volume2, VolumeX, Clapperboard, Piano, Metronome,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat,
+  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -1518,9 +1516,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const voicesWithNotes = BEAT_MELODIC_VOICES.filter((v) =>
       scope.plays.some(
         (pid) =>
-          beatMelodyNoteCount(
-            (patternsRef.current[pid] ?? patternsRef.current.A!).melody[v.id],
-          ) > 0,
+          (patternsRef.current[pid] ?? patternsRef.current.A!).melody[v.id].length > 0,
       ),
     );
     const out: { stem: BeatStemDescriptor; blob: Blob; name: string }[] = [];
@@ -1625,6 +1621,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       navigate(`/video-editor?beathandoff=${id}&tab=music`);
     } finally {
       setSendingStems(false);
+    }
+  };
+
   /* ── Small doors: make a song / sell this beat ──
    * Both doors need a HOSTED url for the rendered beat (make-song's
    * audioUrl param and the marketplace's audio field are URL-shaped;
@@ -1863,6 +1862,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showVelocity ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
         >
           <Gauge className="w-3.5 h-3.5" /> {t("beatMaker.velocity", { defaultValue: "Velocity" })}
+        </button>
         <button aria-expanded={showMelody}
           type="button"
           onClick={() => setShowMelody((v) => !v)}
@@ -2521,9 +2521,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           {sendingStems ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Layers className="w-4 h-4 mr-2" />}
           {t("beatMaker.sendStemsToVisualVibes", { defaultValue: "Send mix + stems to Visual Vibes" })}
         </Button>
-        <Link
-          href="/beats"
-          className={`flex items-center gap-2 h-11 px-5 rounded-xl border text-sm transition-colors ${T.pill}`}
+        <Button
           onClick={makeSongWithBeat}
           disabled={doorBusy !== null}
           data-testid="beat-song-door"
