@@ -16,10 +16,25 @@ interface BeatHandoff {
   bpm: number;
   durationSec: number;
   createdAt: number;
+  /** Optional per-track stems (W2-L3 export pack). Additive: consumers
+   *  that only know the mix ignore this; the editor adds each stem as
+   *  its own timeline audio stem when present. */
+  stems?: BeatStemHandoff[];
 }
 
+export interface BeatStemHandoff {
+  blob: Blob;
+  url: string;
+  title: string;
+}
+
+/* The generalized handoff cache carries ONE blob per entry, so the
+ * stems ride in a side cache keyed by the handoff id — same one-shot,
+ * same-session lifecycle as the mix entry it belongs to. */
+const stemCache = new Map<string, BeatStemHandoff[]>();
+
 export function stashBeatHandoff(entry: Omit<BeatHandoff, "id" | "createdAt">): string {
-  return stashAssetHandoff({
+  const id = stashAssetHandoff({
     intentId: "beat-to-video",
     asset: {
       kind: "beat",
@@ -29,12 +44,19 @@ export function stashBeatHandoff(entry: Omit<BeatHandoff, "id" | "createdAt">): 
     },
     blob: entry.blob,
   });
+  if (entry.stems && entry.stems.length > 0) stemCache.set(id, entry.stems);
+  return id;
 }
 
 /** One-shot pickup — removes the entry from the cache. */
 export function takeBeatHandoff(id: string): BeatHandoff | null {
   const entry = takeAssetHandoff(id);
-  if (!entry || entry.intentId !== "beat-to-video" || !entry.blob) return null;
+  if (!entry || entry.intentId !== "beat-to-video" || !entry.blob) {
+    stemCache.delete(id);
+    return null;
+  }
+  const stems = stemCache.get(id);
+  stemCache.delete(id);
   return {
     id: entry.id,
     blob: entry.blob,
@@ -43,5 +65,6 @@ export function takeBeatHandoff(id: string): BeatHandoff | null {
     bpm: Number(entry.asset.meta?.bpm ?? 0),
     durationSec: Number(entry.asset.meta?.durationSec ?? 0),
     createdAt: entry.createdAt,
+    ...(stems && stems.length > 0 ? { stems } : {}),
   };
 }

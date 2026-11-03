@@ -33,7 +33,7 @@ describe("beat melodic roll wiring (W1-L2)", () => {
     expect(aiAudio.match(/scheduleMidiVoice\(/g)?.length).toBeGreaterThanOrEqual(2);
     expect(midiSynth).toContain("export function scheduleMidiVoice(");
     // melody gains route into the mixer graph's master input
-    expect(aiAudio).toContain("ensureMixerGraph(ctx).master.input");
+    expect(aiAudio).toContain("gn.connect(graph.master.input)");
     // no duplicated synth recipes on the beat side
     expect(aiAudio).not.toContain("voiceSpec");
     expect(aiAudio).not.toContain("VoiceSpec");
