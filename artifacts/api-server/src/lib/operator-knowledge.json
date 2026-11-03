@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "e33e31d5dcfcbe7aee4378b5a1e9739df4934f57",
+  "baseCommit": "1e7d03acd30ec7e99a531ba7dc77bfd1c84f6f15",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -13391,13 +13391,35 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "Lip Sync — Run All (per scene)",
           "vb": 300,
           "endpoint": "/api/lip-sync/run-all",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",
@@ -13929,7 +13951,18 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",
@@ -14336,7 +14369,18 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",
@@ -14747,7 +14791,18 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",
@@ -15164,7 +15219,18 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",
@@ -15580,7 +15646,18 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",
@@ -15991,7 +16068,18 @@
           "feature": "Lip Sync",
           "vb": 300,
           "endpoint": "/api/lip-sync",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "tiers": [
+            {
+              "upToSeconds": 50,
+              "vb": 300
+            },
+            {
+              "upToSeconds": 60,
+              "vb": 600
+            }
+          ],
+          "tiersSource": "artifacts/api-server/src/lib/lip-sync-jobs.ts LIP_SYNC_PRICE_TIERS — the table the charging function derives from"
         },
         {
           "feature": "AI Lyric Alignment (synced lyrics)",

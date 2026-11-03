@@ -30,7 +30,7 @@ import {
   waveSpeedStatus,
 } from "../lib/wavespeed";
 import type { UrlType } from "../lib/lip-sync-core";
-import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, LIP_SYNC_JOB_CHARGE_CREDITS, type LipSyncJob } from "../lib/lip-sync-jobs";
+import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, lipSyncChargeForDurationSec, lipSyncChargeForJob, type LipSyncJob } from "../lib/lip-sync-jobs";
 import {
   chargeCredits,
   refundCredits,
@@ -103,7 +103,7 @@ function toClientLipSyncJob(job: LipSyncJob) {
        refund rail restores), rides along only then, so a failure
        that got no refund never wears one in the client. */
     chargeRefunded: job.chargeRefunded,
-    ...(job.chargeRefunded ? { refundedCredits: LIP_SYNC_JOB_CHARGE_CREDITS } : {}),
+    ...(job.chargeRefunded ? { refundedCredits: lipSyncChargeForJob(job) } : {}),
     durationSec: Number.isFinite(durationSec) ? durationSec : undefined,
     providerJobId: job.providerJobId ?? undefined,
     createdAt: new Date(job.createdAt).toISOString(),
@@ -362,14 +362,21 @@ function invalidBody(res: import("express").Response, issues: { field: string; m
   res.status(400).json({ error: "Invalid request body.", details: issues });
 }
 
-/* Charged server-side at the price the UI has always displayed for lip
-   sync (frontend registry: "/api/lip-sync" → 300 Visual Bucs, which the
-   confirm dialog resolves for /lip-sync/preview by prefix match). Until
-   the owner's 2026-10-14 ruling this route enqueued paid lip-sync jobs
-   for free. The charge lands after every free pre-flight check and
-   immediately before the durable job is enqueued; if the enqueue
-   itself fails, the charge is refunded with a ledger trace. */
+/* Charged server-side, duration-tiered (owner ruled 2026-11-02,
+   stack1400): the REAL clip window (sceneEndSec − sceneStartSec)
+   decides the price up front — ≤50s costs the base 300 Visual Bucs,
+   a 50–60s clip costs 600, and clips over 60s keep the pre-tier
+   behaviour (base charge; the poller fails them over the provider
+   limit and refunds it). lipSyncChargeForDurationSec in
+   lib/lip-sync-jobs.ts is the single source for the tier; the amount
+   charged is recorded on the job (params.creditsCharged) so the
+   failure refund restores exactly that amount. Until the owner's
+   2026-10-14 ruling this route enqueued paid Sync.so jobs for free.
+   The charge lands after every free pre-flight check and immediately
+   before the durable job is enqueued; if the enqueue itself fails,
+   the charge is refunded with a ledger trace. */
 const LIP_SYNC_PREVIEW_CREDIT_COST = 300;
+const LIP_SYNC_LONG_CLIP_CREDIT_COST = 600;
 
 router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req, res) => {
   /* Validate inputs synchronously, then fire-and-forget background processing.
@@ -492,7 +499,11 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       return;
     }
 
-    /* ── Charge the displayed price BEFORE enqueueing ──────────────────
+    /* ── Charge the tiered price BEFORE enqueueing ─────────────────────
+       The price comes from the clip's REAL duration — the exact
+       window validated above (sceneEndSec − sceneStartSec): ≤50s →
+       300 VB, 50–60s → 600 VB, over 60s → 300 VB (existing behaviour;
+       the poller fails those over the provider limit and refunds).
        Balance fast-fail mirrors POST /lip-sync/run-all in this file
        (skipped in dev); chargeCredits re-reads fresh and is
        authoritative. The idempotency key is stable per (user, endpoint,
@@ -500,12 +511,14 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
        preview can't double-charge — a suppressed replay still enqueues
        below, so a client that lost the first response is never left
        charged with no job to poll. */
+    const clipDurationSec = sceneEndSec - sceneStartSec;
+    const previewChargeCredits = lipSyncChargeForDurationSec(clipDurationSec);
     const isDev = process.env["NODE_ENV"] === "development";
-    if (!isDev && (req.userCredits ?? 0) < LIP_SYNC_PREVIEW_CREDIT_COST) {
+    if (!isDev && (req.userCredits ?? 0) < previewChargeCredits) {
       res.status(402).json({
         error: "out_of_credits",
         message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
-        required: LIP_SYNC_PREVIEW_CREDIT_COST,
+        required: previewChargeCredits,
       });
       return;
     }
@@ -517,7 +530,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
     );
     let creditsAfter: number;
     try {
-      creditsAfter = await chargeCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+      creditsAfter = await chargeCredits(userId, previewChargeCredits, {
         action: "Lip Sync",
       }, { idempotencyKey });
     } catch (err) {
@@ -525,7 +538,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
         res.status(402).json({
           error: "out_of_credits",
           message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
-          required: LIP_SYNC_PREVIEW_CREDIT_COST,
+          required: previewChargeCredits,
         });
         return;
       }
@@ -558,12 +571,13 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
           strength: strength ?? null,
           preserveFaceIdentity: preserveFaceIdentity ?? null,
           preserveArtistLook: preserveArtistLook ?? null,
+          creditsCharged: previewChargeCredits,
         },
       });
     } catch (enqueueErr) {
       /* The job never entered the queue — refund the charge with a
          ledger trace, then let the outer catch produce its usual 502. */
-      await refundCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+      await refundCredits(userId, previewChargeCredits, {
         action: "Lip Sync — Refund (enqueue failed)",
       }).catch(() => {});
       throw enqueueErr;
@@ -584,7 +598,7 @@ router.post("/lip-sync/preview", requireAuth, freeExpensiveAiLimiter, async (req
       "[lip-sync] job queued — returning immediately",
     );
 
-    res.json({ jobId, status: "queued", creditsRemaining: creditsAfter });
+    res.json({ jobId, status: "queued", creditsRemaining: creditsAfter, creditsCharged: previewChargeCredits });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lip sync failed";
     req.log.error({ err }, "[lip-sync] preview route error");
@@ -1375,7 +1389,7 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
       throw new Error(
         (verdict.error?.message ?? "Lip-sync provider failed.") +
           (verdict.chargeRefunded
-            ? ` Your ${LIP_SYNC_JOB_CHARGE_CREDITS} Visual Bucs were refunded.`
+            ? ` Your ${lipSyncChargeForJob(verdict)} Visual Bucs were refunded.`
             : ""),
       );
     }
@@ -1554,15 +1568,19 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
 
       /* ── A-06 (Stack-100 #3): charge the single-clip price for this
          scene BEFORE enqueueing. Run-all used to enqueue paid provider
-         jobs at 0 VB per scene — a leak next to the 300 VB preview rail.
-         Same rail, same rules as POST /lip-sync/preview: 300 VB per clip
-         via chargeCredits, idempotent per (user, run, scene), refunded
-         when the enqueue itself fails — and a later terminal provider
-         failure refunds too, through the poller's charge_refunded gate
-         (stack1200), exactly like the single-clip rail: these scenes ARE
-         durable lip_sync_jobs, so the poller's failure paths own their
-         refunds. Scenes skipped above for the provider length limit
-         never reach here and are never charged. */
+         jobs at 0 VB per scene — a leak next to the preview rail.
+         Same rail, same rules as POST /lip-sync/preview — now with the
+         stack1400 duration tier applied per scene from its REAL window
+         (t.dur): ≤50s → 300 VB, 50–60s → 600 VB — via chargeCredits,
+         idempotent per (user, run, scene), refunded when the enqueue
+         itself fails — and a later terminal provider failure refunds
+         too, through the poller's charge_refunded gate (stack1200),
+         exactly like the single-clip rail: these scenes ARE durable
+         lip_sync_jobs, so the poller's failure paths own their refunds
+         (of the amount recorded on the job). Scenes skipped above for
+         the provider length limit never reach here and are never
+         charged. */
+      const sceneChargeCredits = lipSyncChargeForDurationSec(t.dur);
       const sceneChargeKey = buildChargeIdempotencyKey(
         "lip-sync-run-all",
         ctx.userId,
@@ -1578,7 +1596,7 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
         },
       );
       try {
-        await chargeCredits(ctx.userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+        await chargeCredits(ctx.userId, sceneChargeCredits, {
           action: "Lip Sync — Run All",
         }, { idempotencyKey: sceneChargeKey });
       } catch (chargeErr) {
@@ -1586,7 +1604,7 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
           state: "failed",
           error:
             chargeErr instanceof OutOfCreditsError
-              ? "Not enough Visual Bucs for this scene's lip sync (300 Visual Bucs per scene). Original clip kept."
+              ? `Not enough Visual Bucs for this scene's lip sync (${sceneChargeCredits} Visual Bucs per scene). Original clip kept.`
               : "Lip-sync charge failed for this scene. Original clip kept.",
         });
         ctx.log.warn(
@@ -1612,12 +1630,13 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
             sceneStartSec: t.start,
             sceneEndSec: t.end,
             provider: getLipSyncProviderName(),
+            creditsCharged: sceneChargeCredits,
           },
         });
       } catch (enqueueErr) {
         /* The job never entered the queue — refund this scene's charge
            with a ledger trace, mirroring the preview rail. */
-        await refundCredits(ctx.userId, LIP_SYNC_PREVIEW_CREDIT_COST, {
+        await refundCredits(ctx.userId, sceneChargeCredits, {
           action: "Lip Sync — Refund (enqueue failed)",
         }).catch(() => {});
         patchScene(i, {
@@ -1935,8 +1954,10 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
     }
 
     /* ── Credit gate (A-06) ──
-       Total the run will actually charge: LIP_SYNC_PREVIEW_CREDIT_COST
-       (300 VB) per scene that will be submitted (windows over the
+       Total the run will actually charge: the duration-tiered price
+       (stack1400: ≤50s → 300 VB, 50–60s → 600 VB, via
+       lipSyncChargeForDurationSec on each scene's real window) summed
+       over the scenes that will be submitted (windows over the
        provider limit are skipped and never charged) + the final export
        at its real price — free when the export will be branded (A-01),
        EXPORT_CREDIT_COST when clean (reserved at export-job start,
@@ -1944,6 +1965,9 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
        project's current settings. */
     const isDev = process.env["NODE_ENV"] === "development";
     const submittableScenes = timings.filter((t) => t.dur <= PROVIDER_LIMIT_SEC).length;
+    const lipSyncCreditsTotal = timings
+      .filter((t) => t.dur <= PROVIDER_LIMIT_SEC)
+      .reduce((sum, t) => sum + lipSyncChargeForDurationSec(t.dur), 0);
     const exportBranded = predictExportWatermarked(
       {
         addWatermark:
@@ -1954,7 +1978,7 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
       req.userPlan,
     );
     const requiredCredits =
-      submittableScenes * LIP_SYNC_PREVIEW_CREDIT_COST +
+      lipSyncCreditsTotal +
       (exportBranded ? 0 : EXPORT_CREDIT_COST);
     if (!isDev && (req.userCredits ?? 0) < requiredCredits) {
       res.status(402).json({

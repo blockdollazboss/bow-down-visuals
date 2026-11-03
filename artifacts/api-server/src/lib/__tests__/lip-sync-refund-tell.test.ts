@@ -404,14 +404,17 @@ describe("client job shape + wiring pins", () => {
 
   it("the client job shape carries the gate, and the amount only when the refund fired", () => {
     expect(routeSrc).toContain("chargeRefunded: job.chargeRefunded");
+    // stack1400: the amount is the job's OWN recorded charge
+    // (lipSyncChargeForJob — 300, or 600 for a 50–60s clip), not the
+    // flat base constant, so a tiered job's tell matches its refund.
     expect(routeSrc).toContain(
-      "...(job.chargeRefunded ? { refundedCredits: LIP_SYNC_JOB_CHARGE_CREDITS } : {})",
+      "...(job.chargeRefunded ? { refundedCredits: lipSyncChargeForJob(job) } : {})",
     );
   });
 
   it("the run-all scene tell names the same verdict off the sub-job's gate", () => {
     expect(routeSrc).toContain("verdict.chargeRefunded");
-    expect(routeSrc).toContain("Your ${LIP_SYNC_JOB_CHARGE_CREDITS} Visual Bucs were refunded.");
+    expect(routeSrc).toContain("Your ${lipSyncChargeForJob(verdict)} Visual Bucs were refunded.");
   });
 
   it("every failure tell the poller records is composed through lipSyncFailureNotice", () => {

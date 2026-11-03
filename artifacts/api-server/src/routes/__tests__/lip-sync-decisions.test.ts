@@ -1,12 +1,15 @@
 /**
  * A-06 + A-09 (Stack-100 #3) — lip-sync money + control wiring pins.
  *
- * A-06: run-all used to enqueue paid lip-sync jobs at 0 VB per scene.
- * processRunAll now charges LIP_SYNC_PREVIEW_CREDIT_COST per submitted
- * scene BEFORE the enqueue (same chargeCredits rail + idempotency as
- * the single-clip preview), refunds only when the enqueue itself fails,
- * and the route gate totals scenes × 300 + the export's real price
- * (branded free / clean 400).
+ * A-06: run-all used to enqueue paid Sync.so jobs at 0 VB per scene.
+ * processRunAll now charges the per-scene price BEFORE the enqueue
+ * (same chargeCredits rail + idempotency as the single-clip preview),
+ * refunds only when the enqueue itself fails, and the route gate
+ * totals the per-scene prices + the export's real price (branded
+ * free / clean 400). Since stack1400 the per-scene price is the
+ * duration tier (lipSyncChargeForDurationSec on the scene's real
+ * window: ≤50s → 300 VB, 50–60s → 600 VB) — see
+ * lip-sync-duration-tier.test.ts for the tier pins themselves.
  *
  * A-09: the preview route no longer voids the four editor controls —
  * they are persisted into the durable job params. (Stack1400: strength
@@ -35,10 +38,11 @@ describe("A-06 — run-all charges like the preview", () => {
   const runAll = lipSyncSrc.slice(runAllStart, runAllEnd);
 
   it("charges the preview price per scene BEFORE enqueueing the sub-job", () => {
-    const chargeIdx = runAll.indexOf("chargeCredits(ctx.userId, LIP_SYNC_PREVIEW_CREDIT_COST");
+    const chargeIdx = runAll.indexOf("chargeCredits(ctx.userId, sceneChargeCredits");
     const enqueueIdx = runAll.indexOf("createLipSyncJob({");
     expect(chargeIdx).toBeGreaterThan(-1);
     expect(enqueueIdx).toBeGreaterThan(chargeIdx);
+    expect(runAll).toContain("const sceneChargeCredits = lipSyncChargeForDurationSec(t.dur);");
   });
 
   it("the scene charge is idempotent per (user, run, scene)", () => {
@@ -47,7 +51,7 @@ describe("A-06 — run-all charges like the preview", () => {
   });
 
   it("an enqueue failure refunds the scene charge (and only that path refunds)", () => {
-    expect(runAll).toMatch(/refundCredits\(ctx\.userId, LIP_SYNC_PREVIEW_CREDIT_COST/);
+    expect(runAll).toMatch(/refundCredits\(ctx\.userId, sceneChargeCredits/);
     expect(runAll).toMatch(/Lip Sync — Refund \(enqueue failed\)/);
     // Exactly one refund site in the orchestrator: the enqueue-failure leg.
     expect(runAll.match(/refundCredits\(/g)?.length).toBe(1);
@@ -55,14 +59,15 @@ describe("A-06 — run-all charges like the preview", () => {
 
   it("over-limit scenes are skipped before any charge is attempted", () => {
     const skipIdx = runAll.indexOf("t.dur > PROVIDER_LIMIT_SEC");
-    const chargeIdx = runAll.indexOf("chargeCredits(ctx.userId, LIP_SYNC_PREVIEW_CREDIT_COST");
+    const chargeIdx = runAll.indexOf("chargeCredits(ctx.userId, sceneChargeCredits");
     expect(skipIdx).toBeGreaterThan(-1);
     expect(chargeIdx).toBeGreaterThan(skipIdx);
   });
 
-  it("the route gate totals submittable scenes x 300 + the export's real price", () => {
+  it("the route gate totals the tiered per-scene prices + the export's real price", () => {
     const gate = lipSyncSrc.slice(runAllEnd);
-    expect(gate).toMatch(/submittableScenes \* LIP_SYNC_PREVIEW_CREDIT_COST/);
+    expect(gate).toMatch(/lipSyncChargeForDurationSec\(t\.dur\)/);
+    expect(gate).toMatch(/lipSyncCreditsTotal \+/);
     expect(gate).toMatch(/exportBranded \? 0 : EXPORT_CREDIT_COST/);
     expect(gate).toMatch(/predictExportWatermarked\(/);
   });

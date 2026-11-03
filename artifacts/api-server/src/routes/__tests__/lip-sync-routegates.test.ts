@@ -22,7 +22,7 @@ describe("LatentSync switch — gates fail closed before charging", () => {
     const start = lipSyncSrc.indexOf('router.post("/lip-sync/preview"');
     const slice = lipSyncSrc.slice(start, lipSyncSrc.indexOf("createLipSyncJob({", start));
     const gateIdx = slice.indexOf("isLipSyncProviderConfigured(provider)");
-    const chargeIdx = slice.indexOf("chargeCredits(userId, LIP_SYNC_PREVIEW_CREDIT_COST");
+    const chargeIdx = slice.indexOf("chargeCredits(userId, previewChargeCredits");
     expect(gateIdx).toBeGreaterThan(-1);
     expect(chargeIdx).toBeGreaterThan(gateIdx);
   });
