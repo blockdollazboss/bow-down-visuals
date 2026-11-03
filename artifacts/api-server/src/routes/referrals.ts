@@ -540,11 +540,14 @@ export async function awardReferralPayout(
    everyone else shows as "Anonymous Recruiter".
 
    Contest: one contest per calendar month. Winners are the top 3 by
-   in-month signups (tiebreak = revenue). Prizes are site credits —
-   marginal cost to the house is tiny (redeemed at 2.5–8x margins), so a
-   40,000 Buc pool is safe. Minimum 5 signups to qualify, so a dead month
-   pays nothing. Settlement is idempotent: UNIQUE(contest_id,
-   referrer_user_id) + a settle-once promise guard. */
+   in-month QUALIFIED signups — referees who created a creator profile,
+   the same gate that releases the welcome grant (tiebreak = revenue).
+   Prizes are site credits — marginal cost to the house is tiny
+   (redeemed at 2.5–8x margins), so a 40,000 Buc pool is safe. Minimum
+   5 qualified signups to qualify, so a dead month pays nothing and
+   throwaway signups can never buy a place in the race. Settlement is
+   idempotent: UNIQUE(contest_id, referrer_user_id) + a settle-once
+   promise guard. */
 
 const CONTEST_PRIZES = [
   { rank: 1, prizeCredits: 25000 },
@@ -554,9 +557,9 @@ const CONTEST_PRIZES = [
 const CONTEST_MIN_SIGNUPS = 5;
 
 const CONTEST_RULES = [
-  "Every creator who joins with your link during the month = 1 entry.",
-  "Top 3 by monthly signups win — ties broken by revenue your referrals generated.",
-  `At least ${CONTEST_MIN_SIGNUPS} signups to qualify for a prize.`,
+  "Every referee who joins with your link and creates a creator profile during the month = 1 contest entry.",
+  "Top 3 by monthly qualified referrals win — ties broken by revenue your referrals generated.",
+  `At least ${CONTEST_MIN_SIGNUPS} referees who create a creator profile to qualify for a prize.`,
   "Prizes are paid automatically in Visual Bucs within 24 hours of month-end.",
   "Only real creators count — fake signups void your winnings.",
 ];
@@ -579,7 +582,14 @@ function windowBounds(window: LeaderboardWindow): { start: Date | null; end: Dat
 
 interface StandingRow {
   referrerUserId: string;
+  /** Raw in-window signups — the public leaderboard / informational
+   *  count. NOT the contest count. */
   signups: number;
+  /** Contest count (Charts OD3): in-window referees who have a
+   *  creator_profiles row — the same gate as the referral welcome
+   *  grant (lib/referral-welcome). Contest qualification and ranking
+   *  use ONLY this number. */
+  qualifiedSignups: number;
   revenue: number;
   firstSignup: string;
   displayName: string | null;
@@ -633,7 +643,7 @@ async function computeStandings(
   end: Date | null,
 ): Promise<StandingRow[]> {
   const [referralRows, payoutRows] = await Promise.all([
-    selectAllReferralRows("referrals", "id, referrer_user_id, created_at", start, end),
+    selectAllReferralRows("referrals", "id, referrer_user_id, referee_user_id, created_at", start, end),
     selectAllReferralRows(
       "referral_payouts",
       "referral_id, referrer_credits_awarded, created_at",
@@ -653,6 +663,7 @@ async function computeStandings(
 
   interface Agg extends StandingRow {
     referralIds: Set<string>;
+    refereeIds: Set<string>;
   }
   const byReferrer = new Map<string, Agg>();
   for (const r of referralRows) {
@@ -663,15 +674,19 @@ async function computeStandings(
       agg = {
         referrerUserId,
         signups: 0,
+        qualifiedSignups: 0,
         revenue: 0,
         firstSignup: createdAt,
         displayName: null,
         slug: null,
         referralIds: new Set(),
+        refereeIds: new Set(),
       };
       byReferrer.set(referrerUserId, agg);
     }
     agg.signups += 1;
+    const refereeUserId = r["referee_user_id"] ? String(r["referee_user_id"]) : null;
+    if (refereeUserId) agg.refereeIds.add(refereeUserId);
     if (createdAt && (!agg.firstSignup || createdAt < agg.firstSignup)) {
       agg.firstSignup = createdAt;
     }
@@ -683,9 +698,19 @@ async function computeStandings(
     }
   }
 
-  /* Public names come from the same Supabase creator_profiles the
-     contest-winners read uses — public profiles only, as before. */
-  const ids = [...byReferrer.keys()];
+  /* Qualified signups (Charts OD3): a referral counts toward the
+     contest only when its referee has a creator_profiles row — the
+     same gate that releases the 1,000 VB welcome (lib/referral-welcome
+     hasCreatorProfile: ANY profile row counts, public or not). The
+     profile read below therefore covers referee ids as well as
+     referrer ids: existence in the returned set is the qualified test,
+     while public names still come only from PUBLIC referrer profiles,
+     as before. */
+  const refereeIdSet = new Set<string>();
+  for (const agg of byReferrer.values()) {
+    for (const id of agg.refereeIds) refereeIdSet.add(id);
+  }
+  const ids = [...new Set([...byReferrer.keys(), ...refereeIdSet])];
   if (ids.length > 0) {
     const supabase = getSupabaseAdmin();
     const { data: profiles, error } = await supabase
@@ -693,13 +718,18 @@ async function computeStandings(
       .select("user_id, display_name, slug, is_public")
       .in("user_id", ids);
     if (error) throw new Error(`standings read failed (creator_profiles): ${error.message}`);
+    const profileUserIds = new Set<string>();
     for (const p of (profiles ?? []) as Array<Record<string, unknown>>) {
+      profileUserIds.add(String(p["user_id"]));
       if (p["is_public"] !== true) continue;
       const agg = byReferrer.get(String(p["user_id"]));
       if (agg) {
         agg.displayName = (p["display_name"] as string | null) ?? null;
         agg.slug = (p["slug"] as string | null) ?? null;
       }
+    }
+    for (const agg of byReferrer.values()) {
+      agg.qualifiedSignups = [...agg.refereeIds].filter((id) => profileUserIds.has(id)).length;
     }
   }
 
@@ -710,7 +740,7 @@ async function computeStandings(
         b.revenue - a.revenue ||
         a.firstSignup.localeCompare(b.firstSignup),
     )
-    .map(({ referralIds: _ids, ...row }) => row);
+    .map(({ referralIds: _ids, refereeIds: _refIds, ...row }) => row);
 }
 
 async function getStandings(window: LeaderboardWindow): Promise<StandingRow[]> {
