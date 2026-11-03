@@ -531,7 +531,7 @@ function AppShell() {
   const hideFooter = location.startsWith("/video-editor") || location.startsWith("/review");
   /* Marketing pages (outside the sidebar layout) where Thy Cheat Code coaches
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
-  const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals"]
+  const marketingCoachRoute = ["/pricing", "/shows"]
     .includes(location.split("?")[0].split("#")[0]);
   /* Stream overlays (stack900 C2 + D3): /overlay/* pages are browser
    * sources for OBS / Streamlabs — the program output itself. They
@@ -688,13 +688,6 @@ function AppShell() {
           <Route path="/comment-replies"><QueryPreservingRedirect to="/community?tab=replies" /></Route>
           {/* Cursor Settings — permanent page (linked from Settings; no sidebar link) */}
           <Route path="/cursor-lab"><CursorLab /></Route>
-          <Route path="/tour"><TourPlanner /></Route>
-          {/* Phase 2: de-hosted money-hub pages — real routes, no
-              ProtectedRoute (parity with their Coach-tab rendering;
-              the pages own their signed-out states). */}
-          <Route path="/brand-deals"><BrandDealsRoute /></Route>
-          <Route path="/distribute"><DistributeRoute /></Route>
-          <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/content-calendar"><QueryPreservingRedirect to="/scheduler?tab=calendar" /></Route>
           <Route path="/sponsors"><Redirect to="/brand-deals?tab=marketplace" /></Route>
           <Route path="/shows"><Redirect to="/go-live?tab=shows" /></Route>
@@ -709,11 +702,6 @@ function AppShell() {
           <Route path="/unlock/:slug"><UnlockGate /></Route>
           <Route path="/splits/:slug"><SplitsAgreement /></Route>
           <Route path="/upscale"><Redirect to="/video-editor?tab=upscale" /></Route>
-          <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
-          <Route path="/trending"><Trending /></Route>
-          <Route path="/remix"><Remix /></Route>
-          <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
-          <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
           {/* Bare /shop front door (stack700): storefronts live at
               /shop/:slug, are displayed as "/shop/{handle}", and are
@@ -723,12 +711,9 @@ function AppShell() {
           <Route path="/shop"><Redirect to="/storefronts" /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>
           <Route path="/storefront/product/:id"><StorefrontProduct /></Route>
-          <Route path="/interview-prep"><InterviewPrep /></Route>
           <Route path="/watermark-removal"><Redirect to="/video-editor?tab=upscale" /></Route>
           <Route path="/audio-cleanup"><Redirect to="/audio-studio?tab=cleanup" /></Route>
-          <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/analytics"><Redirect to="/analytics-hub?tab=connected" /></Route>
-          <Route path="/import"><ProtectedRoute><MediaImport /></ProtectedRoute></Route>
           <Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>
           <Route path="/virality-check"><Redirect to="/analytics-hub?tab=virality" /></Route>
           <Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>
@@ -739,7 +724,6 @@ function AppShell() {
           <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
           <Route path="/clip-maker"><Redirect to="/video-editor?tab=repurpose" /></Route>
           <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
-          <Route path="/jewelry-shop"><JewelryShop /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
           <Route path="/c/:slug"><NfcCardProfile /></Route>
           {/* Public link-in-bio page (no login) — viral fan surface */}
@@ -748,12 +732,6 @@ function AppShell() {
           <Route path="/review/:token"><ReviewPage /></Route>
           {/* Public sync one-sheet (tokenized, no login) — shareable supervisor link with ?ref=CODE */}
           <Route path="/sync-one-sheet/:token"><SyncOneSheetPublic /></Route>
-          {/* Worker 9: community — groups / events / explore are public (viral surfaces); DMs need auth */}
-          <Route path="/groups"><Groups /></Route>
-          <Route path="/groups/:slug"><GroupDetail /></Route>
-          <Route path="/events"><Events /></Route>
-          <Route path="/events/:id"><EventDetailPage /></Route>
-          <Route path="/explore"><Explore /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
@@ -846,6 +824,30 @@ function AppShell() {
                 <Route path="/beat-maker"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio&sub=beats" /></Route>
                 <Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>
                 <Route path="/messages"><ProtectedRoute><Messages /></ProtectedRoute></Route>
+                {/* One-website shell, social ring (stack1400 org wave,
+                    audit §1a): the signed-in social surfaces — the Feed
+                    home (a sidebar door), Saved, Post, Trending, Remix,
+                    and the Worker 9 community trio Explore / Groups /
+                    Events with their detail pages — rendered OUTSIDE
+                    the sidebar layout. All are locked for guests in
+                    the public-routes matrix (GuestGate bounces guests
+                    to /login before either Switch renders), so the
+                    wrap changes nothing signed-out; signed-in, the
+                    sidebar now survives the whole Social section.
+                    Same pages, same ProtectedRoute guards — placement
+                    only. (The old outer comment called groups/events/
+                    explore "public": the gate has locked them since
+                    the access lockdown; DMs were already inside.) */}
+                <Route path="/home"><ProtectedRoute><SocialHome /></ProtectedRoute></Route>
+                <Route path="/trending"><Trending /></Route>
+                <Route path="/remix"><Remix /></Route>
+                <Route path="/saved"><ProtectedRoute><Saved /></ProtectedRoute></Route>
+                <Route path="/post/:id"><ProtectedRoute><PostPage /></ProtectedRoute></Route>
+                <Route path="/explore"><Explore /></Route>
+                <Route path="/groups"><Groups /></Route>
+                <Route path="/groups/:slug"><GroupDetail /></Route>
+                <Route path="/events"><Events /></Route>
+                <Route path="/events/:id"><EventDetailPage /></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 {/* One-website shell (findability fix, 2026-10-18): the
                     money-ops doors and the feature registry used to render
@@ -871,6 +873,12 @@ function AppShell() {
                 <Route path="/scheduler"><ProtectedRoute><Scheduler /></ProtectedRoute></Route>
                 <Route path="/move-home"><ProtectedRoute><MoveHome /></ProtectedRoute></Route>
                 <Route path="/catalog-import"><ProtectedRoute><CatalogImport /></ProtectedRoute></Route>
+                {/* One-website shell, studio ring (stack1400 org wave,
+                    audit §1a): Media Import — a My Studio door the
+                    audit listed as an orphan — rendered OUTSIDE the
+                    sidebar layout beside its Catalog Import sibling.
+                    Same page, same ProtectedRoute — placement only. */}
+                <Route path="/import"><ProtectedRoute><MediaImport /></ProtectedRoute></Route>
                 <Route path="/analytics-hub"><AnalyticsHub /></Route>
                 <Route path="/referrals"><Referrals /></Route>
                 <Route path="/press-kit"><PressKit /></Route>
@@ -895,6 +903,32 @@ function AppShell() {
                 <Route path="/coach"><MonetizationCoach /></Route>
                 <Route path="/academy"><CreatorAcademy /></Route>
                 <Route path="/branding-kit"><BrandingKit /></Route>
+                {/* One-website shell, money-flow ring (stack1400 org wave,
+                    audit §1a): the Phase 2 de-hosted money-hub pages —
+                    /brand-deals and /distribute — plus the Brand Deals
+                    calculator and the Promote orphans (Tour, Interview
+                    Prep, Setlist) rendered OUTSIDE the sidebar layout,
+                    so following the nav dropped the menu mid-flow. Same
+                    pages, same elements, same wrappers and signed-out
+                    states (no ProtectedRoute — parity with their
+                    Coach-tab rendering; GuestGate still judges by path
+                    above both Switches) — now inside AuthedLayout.
+                    /brand-deals leaves marketingCoachRoute above for the
+                    same reason /coach and /academy did: AuthedLayout
+                    already renders ThyCheatCodeHost in <main>, and the
+                    shell-level marketing host would double-render him. */}
+                <Route path="/brand-deals"><BrandDealsRoute /></Route>
+                <Route path="/distribute"><DistributeRoute /></Route>
+                <Route path="/brand-calculator"><BrandDealCalculator /></Route>
+                <Route path="/tour"><TourPlanner /></Route>
+                <Route path="/interview-prep"><InterviewPrep /></Route>
+                <Route path="/setlist"><SetlistBuilder /></Route>
+                {/* Jewelry Shop (stack1400 org wave, audit §1a/§1b):
+                    the Branding Kit shop surface, guest-locked in the
+                    matrix, rendered OUTSIDE the shell while every
+                    sibling shop surface sits inside. Same page — the
+                    public creator shop stays outside at /shop/:slug. */}
+                <Route path="/jewelry-shop"><JewelryShop /></Route>
                 <Route path="/royalties"><Redirect to="/coach?tab=money&view=royalties" /></Route>
                 <Route path="/store/buy/:kind/:id"><ProtectedRoute><StoreBuy /></ProtectedRoute></Route>
                 <Route path="/store/success"><StoreSuccess /></Route>
