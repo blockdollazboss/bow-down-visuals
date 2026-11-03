@@ -28,10 +28,11 @@ import {
 } from "@/lib/beat-melody";
 import { scheduleMidiVoice } from "@/lib/midi-synth";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
+import { audioBufferToMp3 } from "@/lib/beat-mp3";
 import {
   assembleStemsZip, beatRenderScope, enumerateBeatStems, isolateStemMixer, isolateStemMixerFx,
-  stemFileName, stemsZipFileName,
-  type BeatStemDescriptor, type BeatStemMixer,
+  mixFileName, stemFileName, stemsZipFileName,
+  type BeatExportFormat, type BeatStemDescriptor, type BeatStemMixer,
 } from "@/lib/beat-export";
 import {
   BEAT_PATTERN_BARS_OPTIONS,
@@ -828,6 +829,12 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [exportingStems, setExportingStems] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingStems, setSendingStems] = useState(false);
+  /* Export format for the download + editor-handoff bounces (mix,
+   * stems ZIP, mix+stems): WAV is the default; MP3 is the
+   * share-friendly alternative (lib/beat-mp3 — the encoder loads on
+   * first MP3 use). A bounce preference only — never written into the
+   * beat project. The upload doors below keep the WAV master. */
+  const [exportFormat, setExportFormat] = useState<BeatExportFormat>("wav");
   /* Metronome + count-in: TRANSPORT preferences only — component state,
    * never written into the beat project / patterns (buildProject below
    * does not carry them), and the offline render never schedules them. */
@@ -1416,7 +1423,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         patternStepCount(patternsRef.current[pid] ?? patternsRef.current.A!),
     });
 
-  const renderBeat = async (stemMixer?: BeatStemMixer, stemFx?: BeatMixerFxState) => {
+  const renderBeat = async (stemMixer?: BeatStemMixer, stemFx?: BeatMixerFxState, format: BeatExportFormat = "wav") => {
     const scope = currentRenderScope();
     const plays: PatternId[] = scope.plays;
     /* Each play lasts its own pattern's length (1/2/4 bars) — the scope
@@ -1498,7 +1505,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       }
     }
     const rendered = await off.startRendering();
-    const blob = audioBufferToWav(rendered);
+    /* One encode branch for every surface: WAV (the original path) or
+     * MP3 (lib/beat-mp3 — the LAME encoder chunk loads on first use). */
+    const blob = format === "mp3" ? await audioBufferToMp3(rendered) : audioBufferToWav(rendered);
     return { blob, url: URL.createObjectURL(blob), durationSec: totalDur, song: scope.song };
   };
 
@@ -1507,7 +1516,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
    * stem list comes from the render's own track enumeration (TRACKS)
    * + the 808 bass line. Every stem is the same renderBeat path with
    * an isolated mixer, so scope/steps/duration match the mix exactly. */
-  const renderStems = async (): Promise<{ stem: BeatStemDescriptor; blob: Blob; name: string }[]> => {
+  const renderStems = async (format: BeatExportFormat): Promise<{ stem: BeatStemDescriptor; blob: Blob; name: string }[]> => {
     const mixer: BeatMixerState = { vol, mute, solo, bassVol, bassMute };
     /* Melodic voices join the stem list only when a pattern in scope
      * actually has notes for them — no silent stems in the pack. */
@@ -1525,8 +1534,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       /* The FX pickup: the stem renders through its isolated FX state
        * (own channel's effects kept, every other channel defaulted). */
       const stemFx = isolateStemMixerFx(mixerFxRef.current, stem, TRACKS.map((tr) => tr.id));
-      const { blob } = await renderBeat(isolated, stemFx);
-      out.push({ stem, blob, name: stemFileName("beat", bpm, stem) });
+      const { blob } = await renderBeat(isolated, stemFx, format);
+      out.push({ stem, blob, name: stemFileName("beat", bpm, stem, format) });
     }
     return out;
   };
@@ -1536,7 +1545,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const exportStems = async () => {
     setExportingStems(true);
     try {
-      const files = await renderStems();
+      const files = await renderStems(exportFormat);
       const entries = await Promise.all(
         files.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) })),
       );
@@ -1551,14 +1560,15 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     }
   };
 
-  /* Render offline → WAV → download. Pure client-side. */
-  const exportWav = async () => {
+  /* Render offline → WAV or MP3 (the picked format) → download.
+   * Pure client-side. */
+  const exportBeat = async () => {
     setExporting(true);
     try {
-      const { blob, url, durationSec, song } = await renderBeat();
+      const { blob, url, durationSec, song } = await renderBeat(undefined, undefined, exportFormat);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `beat-${bpm}bpm.wav`;
+      a.download = mixFileName(bpm, exportFormat);
       a.click();
       // Keep the blob URL alive for this session so the hub project can use it.
       onGenerated?.({
@@ -1580,7 +1590,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const sendToVisualVibes = async () => {
     setSending(true);
     try {
-      const { blob, url, durationSec } = await renderBeat();
+      const { blob, url, durationSec } = await renderBeat(undefined, undefined, exportFormat);
       const id = stashBeatHandoff({
         blob,
         url,
@@ -1601,8 +1611,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const sendStemsToVisualVibes = async () => {
     setSendingStems(true);
     try {
-      const mix = await renderBeat();
-      const files = await renderStems();
+      const mix = await renderBeat(undefined, undefined, exportFormat);
+      const files = await renderStems(exportFormat);
       const title = t("beatMaker.sequencerBeatTitle", { bpm, defaultValue: `Sequencer beat · ${bpm} BPM` });
       const id = stashBeatHandoff({
         blob: mix.blob,
@@ -1630,7 +1640,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
    * render the current scope (same offline render as the WAV export)
    * → uploadRenderedBeat → route. An upload failure shows its message
    * right here and the door stays shut — no fake link. Free: the
-   * render and upload charge nothing, listing stays free. */
+   * render and upload charge nothing, listing stays free. The doors
+   * always upload the WAV master (renderBeat's default) — the MP3
+   * choice is for downloads + editor handoffs, never the listing. */
   const renderAndUploadBeat = async (): Promise<string> => {
     const { blob } = await renderBeat();
     return uploadRenderedBeat(blob, bpm, getAccessToken);
@@ -2472,13 +2484,33 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
       {/* Export + handoffs */}
       <div className="flex flex-wrap gap-2 pt-1">
+        <div
+          className="flex items-center gap-1 self-center"
+          role="group"
+          aria-label={t("beatMaker.exportFormat", { defaultValue: "Export format" })}
+        >
+          {(["wav", "mp3"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              data-testid={`beat-format-${f}`}
+              aria-pressed={exportFormat === f}
+              onClick={() => setExportFormat(f)}
+              className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${exportFormat === f ? "bg-primary text-black font-bold border-primary" : T.pill}`}
+            >
+              {f.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <Button
-          onClick={exportWav}
+          onClick={exportBeat}
           disabled={exporting}
           className="h-11 px-5 rounded-xl bg-primary text-black font-bold hover:bg-primary/90 disabled:opacity-50"
         >
           {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-          {t("beatMaker.exportWavFree", { defaultValue: "Export WAV (free)" })}
+          {exportFormat === "mp3"
+            ? t("beatMaker.exportMp3Free", { defaultValue: "Export MP3 (free)" })
+            : t("beatMaker.exportWavFree", { defaultValue: "Export WAV (free)" })}
         </Button>
         {songActive && (
           <span className={`text-xs self-center ${T.dim}`} data-testid="beat-export-song-note">
@@ -2542,13 +2574,26 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         </Button>
       </div>
       <p className={`text-xs ${T.dim}`} data-testid="beat-stems-note">
-        {t("beatMaker.stemsNote", { defaultValue: "Stems ZIP: one WAV per track — every drum plus the 808 bass line — each the full length of the mix, ready to sell as trackouts or drop into the editor as separate stems." })}
+        {exportFormat === "mp3"
+          ? t("beatMaker.stemsNoteMp3", { defaultValue: "Stems ZIP: one MP3 per track — every drum plus the 808 bass line — each the full length of the mix, ready to sell as trackouts or drop into the editor as separate stems." })
+          : t("beatMaker.stemsNote", { defaultValue: "Stems ZIP: one WAV per track — every drum plus the 808 bass line — each the full length of the mix, ready to sell as trackouts or drop into the editor as separate stems." })}
       </p>
       {doorError && (
         <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3" role="alert" data-testid="beat-door-error">{doorError}</p>
       )}
       <p className={`text-xs ${T.dim}`}>
         {t("beatMaker.sequencerNoteSounds", { defaultValue: "100% client-side — built-in sounds are synthesized in your browser and your own loaded files never leave it, so playing and exporting cost nothing." })}
+      </p>
+      <p className={`text-xs ${T.dim}`} data-testid="beat-mp3-attribution">
+        {t("beatMaker.mp3Attribution", { defaultValue: "Uses the LAME MP3 encoder (LGPL) for MP3 exports — it loads only when you export an MP3." })}{" "}
+        <a
+          href="/third-party-licenses/lamejs-LICENSE.txt"
+          target="_blank"
+          rel="noreferrer"
+          className="underline hover:text-primary"
+        >
+          {t("beatMaker.mp3AttributionLicense", { defaultValue: "Encoder license" })}
+        </a>
       </p>
     </div>
   );

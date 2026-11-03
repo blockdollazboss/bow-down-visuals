@@ -108,10 +108,13 @@ describe("lazy-encoder source pins", () => {
     "utf8",
   );
 
-  it("the page goes through lib/beat-mp3 and never names the encoder package", () => {
+  it("the page goes through lib/beat-mp3 and never imports the encoder package", () => {
     expect(page).toContain('from "@/lib/beat-mp3"');
+    // The package specifier must not appear in the page at all — the
+    // only "lamejs" string allowed there is the license-file URL in
+    // the attribution link, which imports nothing.
     expect(page).not.toContain("@breezystack/lamejs");
-    expect(page).not.toContain("lamejs");
+    expect(page).not.toMatch(/import\s*[({][^)]*lamejs/);
   });
 
   it("the encoder package is pulled in by dynamic import() only — no static import anywhere in the lib", () => {

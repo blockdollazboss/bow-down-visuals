@@ -1,7 +1,8 @@
 /* ─── Beat → Visual Vibes handoff ──────────────────────────────────────────
    The original desk-to-desk handoff, now a typed intent ("beat-to-video")
    on the generalized mechanism in lib/asset-handoff.ts. The beat maker
-   renders a WAV blob and stashes it here (module-level, so it survives SPA
+   renders an audio blob (WAV by default, MP3 when picked) and stashes
+   it here (module-level, so it survives SPA
    navigation), then routes to /video-editor?beathandoff=<id>. The editor
    picks it up one-shot and adds it as a timeline audio stem. This module
    keeps the original API so existing callers don't change. */
