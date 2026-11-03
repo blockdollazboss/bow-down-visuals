@@ -18,7 +18,7 @@ import { z } from "zod/v4";
  *               flight (or its poll was lost); the success poll settles
  *               the charge from this row when the in-memory entry is
  *               gone.
- *   reserved  → RESERVE-AT-SUBMIT (0317, stack1400 ruling #43): the
+ *   reserved  → RESERVE-AT-SUBMIT (0319, stack1400 ruling #43): the
  *               charge already landed at submit (the credit_usage row
  *               carries the reserve's idempotency key, recorded in
  *               extra.chargeKey); the provider work is in flight. A

@@ -144,7 +144,7 @@ export const retentionClaimRecordsTable = pgTable("retention_claim_records", {
 ]);
 
 /** Temporary Bucs expiry warnings (stack1400 ruling #12 / Y6,
- *  migration 0317). The delivery ledger for the ONE warning email a
+ *  migration 0318). The delivery ledger for the ONE warning email a
  *  member gets before their Temporary Visual Bucs (the profiles
  *  bonus pool) expire. One row per (user_id, pool_expires_at): the
  *  pool's expiry instant is the warning's identity — a new grant

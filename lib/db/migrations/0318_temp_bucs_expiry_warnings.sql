@@ -1,11 +1,9 @@
--- 0317: Temporary Bucs expiry warning — delivery ledger
+-- 0318: Temporary Bucs expiry warning — delivery ledger
 -- (stack1400 ruling #12 / Y6, 2026-11-02).
 --
--- ⚠ JOIN RENUMBERING FLAG: this lane numbered its migration 0317 as
--- "staging tail (0316) + 1" per its brief. If another stack1400 lane
--- also lands a 0317, the JOIN must renumber one of them (and its
--- schema/header references) before the push — migrations apply in
--- filename order and a duplicate number is a collision.
+-- RENUMBERED AT THE STACK1400 JOIN: this lane numbered its migration
+-- 0317, but three lanes claimed 0317; in join order group-bans kept
+-- 0317, this file became 0318, and the reserve-statuses file 0319.
 --
 -- WHY THIS FILE EXISTS: Temporary Visual Bucs (the profiles bonus
 -- pool: bonus_credits + bonus_credits_expires_at on the Supabase
@@ -38,7 +36,7 @@
 --
 -- Fresh CREATE (no legacy table to reconcile): every statement is
 -- IF NOT EXISTS, safe to re-run as a no-op. No BEGIN/COMMIT, no
--- CONCURRENTLY. 0317 > BASELINE (55), so the boot runner applies it
+-- CONCURRENTLY. 0318 > BASELINE (55), so the boot runner applies it
 -- on fresh and existing databases alike.
 
 CREATE TABLE IF NOT EXISTS temp_bucs_expiry_warnings (
