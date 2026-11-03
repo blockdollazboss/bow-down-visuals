@@ -691,7 +691,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                     {dashboard.applications.filter((a) => a.applicationStatus === "accepted").length} accepted
                   </span>
                 </div>
-                <button type="button" data-testid="world-sponsor-post-toggle" onClick={() => setShowPost((v) => !v)} disabled={spendingPaused} className={goldBtn}>
+                <button type="button" data-testid="world-sponsor-post-toggle" aria-expanded={showPost} onClick={() => setShowPost((v) => !v)} disabled={spendingPaused} className={goldBtn}>
                   <Megaphone className="h-3.5 w-3.5" /> Post a deal — {SPONSOR_POST_COST_VB} Visual Bucs
                 </button>
                 {spendingPaused && (

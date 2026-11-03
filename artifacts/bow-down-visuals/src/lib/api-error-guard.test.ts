@@ -57,6 +57,11 @@ const BARE_ALLOWLIST: Array<[string, string]> = [
      locally composed value from buildListeningPartyBody). */
   ["JukeboxPanel.tsx", "setError(built.error)"],
   ["CreatorRooms.tsx", "setFormError(built.error)"],
+  /* stack1400 mini-pass: the sponsor review builder's error is
+     locally composed validation copy (buildSponsorReviewPayload in
+     lib/world/sponsor-depth.ts — payout/budget sentences), never a
+     server body; the allowlist entry follows the code. */
+  ["SponsorDepthDesk.tsx", "setDetailError(built.error)"],
   ["LiveCaptionsStudioPanel.tsx", "setNote(r.error)"],
   ["copyright.tsx", "setError(result.error)"],
   ["ThemeKitPanel.tsx", "throw new Error(clean.error)"],

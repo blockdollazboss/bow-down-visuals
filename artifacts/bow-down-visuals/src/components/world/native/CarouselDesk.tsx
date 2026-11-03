@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -207,7 +207,7 @@ export function CarouselDesk(props: CreateDeskProps) {
       await refreshProfile().catch(() => undefined);
       setDoneLine(t("carouselMaker.exportDone", { count: slides.length }));
     } catch (err) {
-      setNote(err instanceof Error ? err.message : t("carouselMaker.exportFailed"));
+      setNote(plainErrorText(err, t("carouselMaker.exportFailed")));
     } finally {
       setExporting(false);
     }
@@ -370,7 +370,7 @@ export function CarouselDesk(props: CreateDeskProps) {
             {t("carouselMaker.slideBgLabel")}
           </p>
           <div className="flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => setSlides((prev) => updateCarouselSlide(prev, activeIdx, { bg: null }))} className={chipCls(!activeSlide?.bg)}>
+            <button type="button" aria-pressed={!activeSlide?.bg} onClick={() => setSlides((prev) => updateCarouselSlide(prev, activeIdx, { bg: null }))} className={chipCls(!activeSlide?.bg)}>
               {t("carouselMaker.bgTemplate")}
             </button>
             {CAROUSEL_BG_CHOICES.map((bg) => (
