@@ -9458,7 +9458,7 @@
     "titlePrefix": "Promoteur",
     "titleSuffix": "QG",
     "hero": {
-      "p1": "C'est votre travail maintenant. Grimpez les rangs Kingpin — plus d'étoiles, une plus grosse part. Les nouveaux créateurs reçoivent",
+      "p1": "C'est votre travail maintenant. Grimpez les rangs Promoter — plus d'étoiles, une plus grosse part. Les nouveaux créateurs reçoivent",
       "reward": "{{num}} Visual Bucs gratuits",
       "p2": ", et vous gagnez jusqu'à",
       "cut": "25 % de tout ce qu'ils achètent",
@@ -9506,7 +9506,7 @@
       "ended": "Fenêtre terminée"
     },
     "ladder": {
-      "title": "Rangs Kingpin",
+      "title": "Rangs Promoter",
       "you": "VOUS",
       "requirement": "{{min}}+ créateurs · {{pct}} % de part",
       "bonus": "+{{bonus}} VB de bonus",

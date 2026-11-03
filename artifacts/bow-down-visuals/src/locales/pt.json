@@ -9073,7 +9073,7 @@
     "titlePrefix": "Promotor",
     "titleSuffix": "QG",
     "hero": {
-      "p1": "Este é o seu trabalho agora. Suba nos níveis de Rei do Crime — mais estrelas, fatia maior. Criadores novos ganham",
+      "p1": "Este é o seu trabalho agora. Suba nos níveis de Promoter — mais estrelas, fatia maior. Criadores novos ganham",
       "reward": "{{num}} Visual Bucs grátis",
       "p2": ", e você ganha até",
       "cut": "25% de tudo que eles comprarem",
@@ -9121,7 +9121,7 @@
       "ended": "Janela encerrada"
     },
     "ladder": {
-      "title": "Níveis de Rei do Crime",
+      "title": "Níveis de Promoter",
       "you": "VOCÊ",
       "requirement": "{{min}}+ criadores · fatia de {{pct}}%",
       "bonus": "bônus de +{{bonus}} VB",

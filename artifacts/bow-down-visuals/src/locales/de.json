@@ -9152,7 +9152,7 @@
     "titlePrefix": "Promoter",
     "titleSuffix": "HQ",
     "hero": {
-      "p1": "Das ist jetzt dein Job. Steige in den Kingpin-Rängen auf — mehr Sterne, größerer Anteil. Neue Creator erhalten",
+      "p1": "Das ist jetzt dein Job. Steige in den Promoter-Rängen auf — mehr Sterne, größerer Anteil. Neue Creator erhalten",
       "reward": "{{num}} kostenlose Visual Bucs",
       "p2": ", und du verdienst bis zu",
       "cut": "25% von allem, was sie kaufen",
@@ -9200,7 +9200,7 @@
       "ended": "Zeitfenster beendet"
     },
     "ladder": {
-      "title": "Kingpin-Ränge",
+      "title": "Promoter-Ränge",
       "you": "YOU",
       "requirement": "{{min}}+ Creator · {{pct}}% Anteil",
       "bonus": "+{{bonus}} VB bonus",

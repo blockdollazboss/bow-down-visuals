@@ -9073,7 +9073,7 @@
     "titlePrefix": "Quartier generale del",
     "titleSuffix": "Promotore",
     "hero": {
-      "p1": "Ora è il tuo lavoro. Scala le classifiche Kingpin — più stelle, quota più alta. I nuovi creator ricevono",
+      "p1": "Ora è il tuo lavoro. Scala le classifiche Promoter — più stelle, quota più alta. I nuovi creator ricevono",
       "reward": "{{num}} Visual Bucs gratuiti",
       "p2": ", e tu guadagni fino al",
       "cut": "25% di tutto ciò che comprano",
@@ -9121,7 +9121,7 @@
       "ended": "Finestra terminata"
     },
     "ladder": {
-      "title": "Gradi Kingpin",
+      "title": "Gradi Promoter",
       "you": "TU",
       "requirement": "{{min}}+ creator · quota {{pct}}%",
       "bonus": "+{{bonus}} VB di bonus",

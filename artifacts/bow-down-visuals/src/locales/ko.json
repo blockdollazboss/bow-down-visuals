@@ -9060,7 +9060,7 @@
     "titlePrefix": "프로모터",
     "titleSuffix": "본부",
     "hero": {
-      "p1": "이제 당신의 일입니다. Kingpin 등급을 올라가세요 — 별이 많을수록 몫도 커집니다. 신규 크리에이터는",
+      "p1": "이제 당신의 일입니다. Promoter 등급을 올라가세요 — 별이 많을수록 몫도 커집니다. 신규 크리에이터는",
       "reward": "{{num}} 무료 Visual Bucs",
       "p2": "를 받고, 당신은 최대",
       "cut": "그들이 구매하는 모든 것의 25%",
@@ -9108,7 +9108,7 @@
       "ended": "기간 종료"
     },
     "ladder": {
-      "title": "Kingpin 등급",
+      "title": "Promoter 등급",
       "you": "나",
       "requirement": "크리에이터 {{min}}명+ · {{pct}}% 몫",
       "bonus": "+{{bonus}} VB 보너스",

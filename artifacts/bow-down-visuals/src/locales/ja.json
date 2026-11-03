@@ -9059,7 +9059,7 @@
     "titlePrefix": "プロモーター",
     "titleSuffix": "本部",
     "hero": {
-      "p1": "これがあなたの仕事です。Kingpinランクを登ろう — 星が増えるほど取り分も大きくなります。新規クリエイターには",
+      "p1": "これがあなたの仕事です。Promoterランクを登ろう — 星が増えるほど取り分も大きくなります。新規クリエイターには",
       "reward": "{{num}} Visual Bucsが無料",
       "p2": "、そしてあなたは最大で",
       "cut": "彼らの購入すべてから25%",
@@ -9107,7 +9107,7 @@
       "ended": "期間終了"
     },
     "ladder": {
-      "title": "Kingpinランク",
+      "title": "Promoterランク",
       "you": "あなた",
       "requirement": "クリエイター{{min}}人以上 · 取り分{{pct}}%",
       "bonus": "+{{bonus}} VBボーナス",

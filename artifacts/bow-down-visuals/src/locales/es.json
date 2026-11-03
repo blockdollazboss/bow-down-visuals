@@ -9166,7 +9166,7 @@
     "titlePrefix": "Promotor",
     "titleSuffix": "HQ",
     "hero": {
-      "p1": "Este es tu trabajo ahora. Sube en los rangos Kingpin: más estrellas, mayor parte. Los creadores nuevos reciben",
+      "p1": "Este es tu trabajo ahora. Sube en los rangos Promoter: más estrellas, mayor parte. Los creadores nuevos reciben",
       "reward": "{{num}} Visual Bucs gratis",
       "p2": ", y tú ganas hasta",
       "cut": "25% de todo lo que compren",
@@ -9214,7 +9214,7 @@
       "ended": "Ventana terminada"
     },
     "ladder": {
-      "title": "Rangos Kingpin",
+      "title": "Rangos Promoter",
       "you": "TÚ",
       "requirement": "{{min}}+ creadores · {{pct}}% de parte",
       "bonus": "+{{bonus}} VB de bono",
