@@ -4,6 +4,7 @@ import { db as defaultDb } from "@workspace/db";
 import { formatUsd } from "./platform-fees";
 import { logger } from "./logger";
 import { isMissingSchemaError } from "./pg-errors";
+import { notifyUserEvent, type UserEventInput } from "./push-events";
 
 /* ── Make-an-offer (Wave 4 #43, migration 0257_wave4346) ────
    The negotiation rail behind schema/product-offers.ts. This lib owns
@@ -34,8 +35,10 @@ import { isMissingSchemaError } from "./pg-errors";
    checkout's claim goes stale and can be taken over; the sale's paid
    flip consumes the offer exactly once (status-guarded UPDATE).
 
-   FAILURE ISOLATION: notifications ride the existing notifications
-   table and NEVER throw into a negotiation or a sale. Pre-migration
+   FAILURE ISOLATION: notifications ride the one event door
+   (notifyUserEvent, "money" push category — bell always, device ping
+   when the recipient's money category is on) and NEVER throw into a
+   negotiation or a sale. Pre-migration
    reads treat the feature as not deployed (the routes answer
    503-honest on writes, empty on reads). */
 
@@ -235,15 +238,26 @@ async function resolveOfferItem(
   };
 }
 
+/* ── Tells (stack1400 ruling #14) ──────────────────────────────────────
+   Every offer tell rides the one event door under the "money" push
+   category: the bell always lands, and the device ping fires only
+   when the recipient's money category is on (notifyUserEvent /
+   push-events.ts). Recipient + title/body/link copy are exactly what
+   the old bell-only raw insert carried — only the delivery rail
+   changed. Exactly-once by construction: each tell fires once, at
+   the single exit of the action that caused it. */
+type ProductOfferNotifier = (input: UserEventInput) => Promise<unknown>;
+let _productOfferNotifier: ProductOfferNotifier = notifyUserEvent;
+/** Test seam — never used outside tests. */
+export function __setProductOfferNotifier(fn: ProductOfferNotifier | null): void {
+  _productOfferNotifier = fn ?? notifyUserEvent;
+}
+
 async function notifySafely(
-  db: OfferDb,
   input: { userId: string; kind: string; title: string; body: string; link: string },
 ): Promise<void> {
   try {
-    await db.execute(sql`
-      INSERT INTO notifications (id, user_id, kind, title, body, link)
-      VALUES (${randomUUID()}::uuid, ${input.userId}::uuid, ${input.kind}, ${input.title}, ${input.body}, ${input.link})
-    `);
+    await _productOfferNotifier({ ...input, category: "money" });
   } catch (err) {
     logger.warn({ err, userId: input.userId, kind: input.kind }, "[product-offers] notification failed (negotiation stands)");
   }
@@ -315,7 +329,7 @@ export async function createOffer(
     RETURNING ${OFFER_COLUMNS}
   `);
   const offer = rowToOffer(inserted.rows[0] as Record<string, unknown>);
-  await notifySafely(db, {
+  await notifySafely({
     userId: item.sellerUserId, kind: "product_offer_received",
     title: "New offer on your product",
     body: `A buyer offered ${formatUsd(valid.amountCents)} for "${item.title}" (listed at ${formatUsd(item.priceCents)}). Accept, decline, or counter from your store dashboard.`,
@@ -420,7 +434,7 @@ export async function actOnOffer(
   const link = item?.link ?? "";
   if (input.action === "accept") {
     const other = actor === "seller" ? row.buyer_user_id : row.seller_user_id;
-    await notifySafely(db, {
+    await notifySafely({
       userId: other, kind: "product_offer_accepted",
       title: "Offer accepted",
       body: actor === "seller"
@@ -430,7 +444,7 @@ export async function actOnOffer(
     });
   } else if (input.action === "counter") {
     const other = actor === "seller" ? row.buyer_user_id : row.seller_user_id;
-    await notifySafely(db, {
+    await notifySafely({
       userId: other, kind: "product_offer_countered",
       title: "Counter-offer",
       body: `"${title}" was countered at ${formatUsd(currentOfferPriceCents(updated))} (listed at ${formatUsd(row.list_price_cents)}).`,
@@ -439,7 +453,7 @@ export async function actOnOffer(
   } else {
     const other = actor === "buyer" && input.action === "withdraw" ? row.seller_user_id : row.buyer_user_id;
     if (input.action === "decline") {
-      await notifySafely(db, {
+      await notifySafely({
         userId: other, kind: "product_offer_declined",
         title: "Offer declined",
         body: `The offer on "${title}" was declined.`,
