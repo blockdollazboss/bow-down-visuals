@@ -53,16 +53,23 @@ describe("estimateDialogueCost — ruling #32 (300 VB per 10 min, approved 2026-
     expect(DIALOGUE_SECONDS_PER_BLOCK).toBe(600);
   });
 
-  it("1500 words = 10 minutes = 1 block = 300 VB", () => {
-    const est = estimateDialogueCost(taggedScript(1500));
+  // The FE estimator counts the raw script's words — the two speaker
+  // tags included (the base estimatePodcastCost word count) — so the
+  // scripts below carry 1,498 / 1,499 spoken words + 2 tags = exactly
+  // 1,500 / 1,501 counted words. (The server strips tags before
+  // counting; the rate and block formula are identical on both sides.)
+  it("1500 counted words = 10 minutes = 1 block = 300 VB", () => {
+    const est = estimateDialogueCost(taggedScript(1498));
+    expect(est.wordCount).toBe(1500);
     expect(est.billableBlocks).toBe(1);
     expect(est.credits).toBe(300);
     expect(est.speakerCount).toBe(2);
     expect(est.turnCount).toBe(2);
   });
 
-  it("rounds partial blocks up (1501 words = 2 blocks = 600 VB)", () => {
-    const est = estimateDialogueCost(taggedScript(1501));
+  it("rounds partial blocks up (1501 counted words = 2 blocks = 600 VB)", () => {
+    const est = estimateDialogueCost(taggedScript(1499));
+    expect(est.wordCount).toBe(1501);
     expect(est.billableBlocks).toBe(2);
     expect(est.credits).toBe(600);
   });
