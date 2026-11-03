@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clipDuetsPath,
+  fetchKingDuetRail,
   isKingFeatured,
+  kingDuetProfileViewState,
   kingFeaturePath,
   kingFeatureRequest,
   normalizeKingDuetCandidates,
@@ -13,6 +15,8 @@ import {
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const shortsSource = read("../pages/shorts.tsx");
 const kingDuetLib = read("./king-duet.ts");
+const artistPublicSource = read("../pages/artist-public.tsx");
+const kingDuetPickSectionSource = read("../components/artist/KingDuetPickSection.tsx");
 
 /* The rail payloads below mirror routes/shorts.ts exactly (verified
    against GET /shorts/king-duet and GET /videos/:id/duets at
@@ -150,6 +154,97 @@ describe("withKingFeaturedAt — a confirmed write folds the server's stamp in",
   it("a lift folds null back in", () => {
     const picked = withKingFeaturedAt(rows, "duet-9", "2026-11-02T10:00:00.000Z");
     expect(withKingFeaturedAt(picked, "duet-9", null)[0]!.king_featured_at).toBeNull();
+  });
+});
+
+describe("fetchKingDuetRail — the one read seam for display surfaces", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reads the public rail path and returns the normalized rail", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => railPayload }));
+    vi.stubGlobal("fetch", fetchMock);
+    const rail = await fetchKingDuetRail();
+    expect(fetchMock).toHaveBeenCalledWith("/api/shorts/king-duet");
+    expect(rail.featured).toHaveLength(1);
+    expect(rail.featured[0]!.creator?.display_name).toBe("Fan One");
+  });
+
+  it("a non-OK response throws — a failed load stays a failure, never a fake-empty rail", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
+    await expect(fetchKingDuetRail()).rejects.toThrow("500");
+  });
+});
+
+describe("kingDuetProfileViewState — the pick on the King's profile (ruling #38)", () => {
+  it("official profile + a pick exists → the section shows", () => {
+    expect(kingDuetProfileViewState({ isOfficial: true, status: "ready", featuredCount: 1 })).toBe("picks");
+    expect(kingDuetProfileViewState({ isOfficial: true, status: "ready", featuredCount: 3 })).toBe("picks");
+  });
+
+  it("non-official profile → no section, whatever the rail holds", () => {
+    expect(kingDuetProfileViewState({ isOfficial: false, status: "ready", featuredCount: 1 })).toBe("hidden");
+    expect(kingDuetProfileViewState({ isOfficial: false, status: "ready", featuredCount: 0 })).toBe("hidden");
+    expect(kingDuetProfileViewState({ isOfficial: false, status: "loading", featuredCount: 0 })).toBe("hidden");
+    /* not even an error shell leaks onto someone else's profile */
+    expect(kingDuetProfileViewState({ isOfficial: false, status: "error", featuredCount: 0 })).toBe("hidden");
+  });
+
+  it("official profile with no pick → hidden, no hollow shell", () => {
+    expect(kingDuetProfileViewState({ isOfficial: true, status: "ready", featuredCount: 0 })).toBe("hidden");
+  });
+
+  it("official profile still loading → loading (renders nothing yet)", () => {
+    expect(kingDuetProfileViewState({ isOfficial: true, status: "loading", featuredCount: 0 })).toBe("loading");
+  });
+
+  it("a failed load on the official profile is its own error state — never a fake 'no pick'", () => {
+    expect(kingDuetProfileViewState({ isOfficial: true, status: "error", featuredCount: 0 })).toBe("error");
+  });
+});
+
+describe("artist-public.tsx — the King's profile carries the featured pick (ruling #38)", () => {
+  it("the section is docked on the profile, gated on the official flag", () => {
+    expect(artistPublicSource).toContain('import KingDuetPickSection from "@/components/artist/KingDuetPickSection"');
+    expect(artistPublicSource).toContain("<KingDuetPickSection isOfficial={profile.is_official === true} />");
+  });
+
+  it("the section reads the same rail through the same normalizer seam as /shorts", () => {
+    expect(kingDuetPickSectionSource).toContain("fetchKingDuetRail()");
+    expect(kingDuetLib).toContain('fetch("/api/shorts/king-duet")');
+    expect(kingDuetLib).toContain("normalizeKingDuetRail(await res.json())");
+    expect(kingDuetPickSectionSource).toContain("kingDuetProfileViewState({");
+  });
+
+  it("a non-official profile never even fetches the rail", () => {
+    expect(kingDuetPickSectionSource).toContain("if (!isOfficial) return;");
+  });
+
+  it("renders the /shorts featured-pick idiom: fan credited + linked, parent clip named, HOUSE PICK stamp", () => {
+    expect(kingDuetPickSectionSource).toContain('data-testid="king-duet-profile-pick"');
+    expect(kingDuetPickSectionSource).toContain("The King&apos;s featured pick");
+    expect(kingDuetPickSectionSource).toContain("HOUSE PICK");
+    expect(kingDuetPickSectionSource).toContain("href={`/shorts?start=${f.id}`}");
+    expect(kingDuetPickSectionSource).toContain("href={`/artist/${f.creator?.slug ?? \"\"}`}");
+    expect(kingDuetPickSectionSource).toContain("f.duet_parent");
+  });
+
+  it("failure is honest: a quiet error + retry state, and no fake-empty copy anywhere", () => {
+    expect(kingDuetPickSectionSource).toContain('data-testid="king-duet-profile-error"');
+    expect(kingDuetPickSectionSource).toContain("setRetryNonce((n) => n + 1)");
+    expect(kingDuetPickSectionSource).not.toContain("No pick yet");
+  });
+
+  it("display only — setting/lifting the pick stays the /shorts house control", () => {
+    expect(kingDuetPickSectionSource).not.toContain("kingFeatureRequest");
+    expect(kingDuetPickSectionSource).not.toContain("king-feature");
+  });
+
+  it("themed in the profile's own tokens — no single-theme styling", () => {
+    expect(kingDuetPickSectionSource).toContain("var(--ap-text)");
+    expect(kingDuetPickSectionSource).toContain("var(--ap-card)");
+    expect(kingDuetPickSectionSource).toContain("var(--ap-border)");
+    expect(kingDuetPickSectionSource).not.toContain("bg-zinc-950");
+    expect(kingDuetPickSectionSource).not.toContain("text-white");
   });
 });
 
