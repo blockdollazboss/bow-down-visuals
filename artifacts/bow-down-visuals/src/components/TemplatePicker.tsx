@@ -1,7 +1,10 @@
 /* ── TemplatePicker ───────────────────────────────────────────────────
    "What are you making?" — shown when the video editor opens. Cards are
-   draggable to reorder (custom order persists); clicking one applies the
-   template's defaults (format, caption style, tool order).
+   draggable to reorder (custom order persists); clicking one EXECUTES
+   the template (lib/template-execution.ts): Turbo builds the timeline
+   from the template's spec — clips sequenced with its transitions, its
+   effects, caption style + animation, title/hook placed — on top of the
+   format/tool-order defaults.
 ------------------------------------------------------------------------ */
 
 import { useState } from "react";
@@ -69,8 +72,9 @@ export default function TemplatePicker({ activeId, onSelect, onClose }: Template
           <div>
             <h2 className="text-xl font-black text-white">What are you making?</h2>
             <p className="text-xs text-white/40 mt-1">
-              Pick a template — it sets your format, surfaces the right tools, and curates the presets.
-              Everything stays customizable. Drag cards to reorder.
+              Pick a template — Turbo builds the timeline for you: clips sequenced with its transitions,
+              caption style and animation set, title and hook placed. Everything stays customizable after.
+              Drag cards to reorder.
             </p>
           </div>
           <button
@@ -124,7 +128,7 @@ export default function TemplatePicker({ activeId, onSelect, onClose }: Template
         </div>
 
         <p className="text-[10px] text-white/25 mt-4 text-center">
-          Templates are starting points — every format, tool, and preset stays adjustable after you pick.
+          Turbo builds it, you refine it — every clip, transition, caption, and overlay stays adjustable after you pick.
         </p>
       </div>
     </div>

@@ -12,6 +12,7 @@
  * content (and honestly skipped — never invented — when the project
  * carries none).
  */
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   CAPTION_ANIMATIONS,
@@ -241,6 +242,17 @@ describe("executeVideoTemplate — purity + spec census", () => {
     const snapshot = JSON.stringify(base);
     executeVideoTemplate(base, getVideoTemplate("music-video"), scenes(3), { title: "T" });
     expect(JSON.stringify(base)).toBe(snapshot);
+  });
+
+  it("the editor's template pick runs the executor (wiring pin)", () => {
+    const page = readFileSync(new URL("../pages/video-editor.tsx", import.meta.url), "utf8");
+    const start = page.indexOf("function applyTemplate(");
+    const body = page.slice(start, page.indexOf("\n  }", start));
+    expect(body).toContain("executeVideoTemplate(prev, tpl, scenes");
+    // The old insert-only behavior (format + caption preset, then stop) is gone.
+    expect(body).not.toContain("captions: { ...prev.captions, stylePreset: tpl.defaultCaptionPreset }");
+    const picker = readFileSync(new URL("../components/TemplatePicker.tsx", import.meta.url), "utf8");
+    expect(picker).toContain("Turbo builds the timeline for you");
   });
 
   it("every template carries a well-formed execution spec", () => {
