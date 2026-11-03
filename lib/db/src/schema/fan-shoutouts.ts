@@ -46,8 +46,10 @@ export type ShoutoutRequestStatus =
   | "delivered"
   | "declined"
   /* The paying charge was refunded / lost to a chargeback — set by
-     the clawback engine (migration 0183, defect D1); the request is
-     no longer owed. */
+     the clawback engine (migration 0183, defect D1), or by the
+     decline rail when a creator declines a paid request and the fan
+     is refunded in full automatically (stack1400 #15); the request
+     is no longer owed. */
   | "refunded";
 
 export const shoutoutRequestsTable = pgTable(
