@@ -1049,6 +1049,9 @@ router.delete("/groups/:slug/bans/:userId", requireAuth, async (req, res) => {
     if (err instanceof z.ZodError) { res.status(400).json({ error: "Invalid user id." }); return; }
     console.error("[community] DELETE /groups/:slug/bans failed", err);
     res.status(500).json({ error: "Couldn't unban them — try again." });
+  }
+});
+
 /* ── GROUPS: settings + ownership (stack1400 ruling #10) ─────────────────
    Group deletion stays admin-assisted by ruling — there is deliberately
    NO delete door here. What the owner/admin crew can do themselves:
