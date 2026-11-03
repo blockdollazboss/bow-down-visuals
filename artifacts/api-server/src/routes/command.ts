@@ -214,7 +214,8 @@ async function commandRevenue(userId: string) {
     (beats.value?.totalCents ?? 0);
   return {
     totalCents,
-    totalTipsVb: tip.value?.streamTipsVb ?? null,
+    /* Stream + stage, matching /api/earnings' pinned totalTipsVb. */
+    totalTipsVb: tip.value ? tip.value.streamTipsVb + tip.value.stageTipsVb : null,
     rails,
     sources,
     partial: Object.values(sources).some((s) => s === "error"),

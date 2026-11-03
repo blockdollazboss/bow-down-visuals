@@ -48,13 +48,13 @@ const boardLibSrc = read("./earnings-board.ts");
 const EARNINGS_PAYLOAD = {
   currency: "USD",
   totalCents: 12345,
-  totalTipsVb: 700,
+  totalTipsVb: 900,
   partial: false,
   sources: {
     storeSales: { status: "ok", totalCents: 10000, count: 3, breakdown: { profileStoreCents: 6000, shopSalesCents: 4000 } },
     memberships: { status: "ok", totalCents: 2345, count: 2 },
     brandDeals: { status: "error", totalCents: null, count: null },
-    tips: { status: "ok", streamTipsVb: 700, streamTipCount: 5, tipJarPendingCents: 250, tipJarPendingCount: 1, tipJarStatus: "pending" },
+    tips: { status: "ok", streamTipsVb: 700, streamTipCount: 5, stageTipsVb: 200, stageTipCount: 2, tipJarPendingCents: 250, tipJarPendingCount: 1, tipJarStatus: "pending" },
   },
 };
 
@@ -79,12 +79,16 @@ describe("the earnings headline + source rows", () => {
 
   it("source rows carry totals; an errored source says so instead of showing $0.00", () => {
     const rows = earningsSourceRows(normalizeEarningsResponse(EARNINGS_PAYLOAD)!);
-    expect(rows.map((r) => r.title)).toEqual(["Store sales", "Memberships", "Brand deals (escrow released)", "Tips"]);
+    expect(rows.map((r) => r.title)).toEqual(["Store sales", "Memberships", "Brand deals (escrow released)", "Stream tips", "Stage tips"]);
     expect(rows[0]!.meta).toBe("$100.00");
     expect(rows[0]!.detail).toContain("profile store $60.00");
     expect(rows[2]!.meta).toBe("Couldn't load");
     expect(rows[2]!.meta).not.toBe("$0.00");
     expect(rows[3]!.meta).toBe("700 VB");
+    /* Ruling #28: stage tips are their own row with their own total —
+       never folded into the stream line. */
+    expect(rows[4]!.meta).toBe("200 VB");
+    expect(rows[4]!.detail).toContain("2 stage tips credited");
   });
 });
 

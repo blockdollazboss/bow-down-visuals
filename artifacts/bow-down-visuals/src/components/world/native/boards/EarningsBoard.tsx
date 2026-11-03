@@ -353,9 +353,15 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     </span>
                     <span className={`text-xs font-semibold ${muted}`}>
                       Stream tips:{" "}
-                      {earnings.totalTipsVb === null
+                      {earnings.sources.tips.status === "error"
                         ? "couldn't load"
-                        : `${earnings.totalTipsVb.toLocaleString("en-US")} Visual Bucs`}
+                        : `${(earnings.sources.tips.streamTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
+                    </span>
+                    <span className={`text-xs font-semibold ${muted}`}>
+                      Stage tips:{" "}
+                      {earnings.sources.tips.status === "error"
+                        ? "couldn't load"
+                        : `${(earnings.sources.tips.stageTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
                     </span>
                     {earnings.partial && (
                       <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>

@@ -1159,6 +1159,11 @@ export interface SellerEarnings {
   brandDeals: SellerEarningsSource;
   streamTipsVb: number | null;
   streamTipCount: number | null;
+  /* World stage tips (ruling #28 / H-6): own line beside stream tips.
+     Absent on older payloads → 0; null only when the tips source
+     errored (never a fake line over a dead source). */
+  stageTipsVb: number | null;
+  stageTipCount: number | null;
   /** Tip-jar intents: pending_payment by design — awaiting payment, NOT earnings. */
   tipJarPendingCents: number | null;
   tipJarPendingCount: number | null;
@@ -1211,6 +1216,8 @@ export function parseSellerEarnings(payload: unknown): SellerEarnings | null {
     brandDeals,
     streamTipsVb: numOrNull(t["streamTipsVb"]),
     streamTipCount: numOrNull(t["streamTipCount"]),
+    stageTipsVb: tipsErrored ? null : (numOrNull(t["stageTipsVb"]) ?? 0),
+    stageTipCount: tipsErrored ? null : (numOrNull(t["stageTipCount"]) ?? 0),
     tipJarPendingCents: numOrNull(t["tipJarPendingCents"]),
     tipJarPendingCount: numOrNull(t["tipJarPendingCount"]),
   };
