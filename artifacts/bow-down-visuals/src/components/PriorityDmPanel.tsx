@@ -12,8 +12,8 @@ import {
    Three pieces, all in the existing Messages surface (no new page):
      1. PriorityDmSettingsCard — the creator's own controls in the
         sidebar: opt in/out and MY stated reply window. The price is
-        the platform's ruled 100 VB (owner ruling 2026-10-27), shown
-        read-only — creators don't set it.
+        the platform's ruled 100 VB (owner ruling 2026-10-27, final-
+        ruled 2026-11-02), shown read-only — creators don't set it.
      2. PriorityDmLane — the creator's priority inbox lane: held /
         replied / refunded rows, labelled honestly.
      3. PriorityDmComposer — the fan's buy action in the thread: the
