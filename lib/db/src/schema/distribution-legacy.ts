@@ -134,3 +134,31 @@ export const socialUnlockGatesTable = pgTable("social_unlock_gates", {
 /** A share action WE recorded for a signed-in fan on a specific gate.
  *  Anonymous or unrecorded shares never unlock anything. */
 
+
+const TOOLOST_SUBMISSION_STATES = ["draft", "submitting", "in_review", "failed"] as const;
+export type ToolostSubmissionState = (typeof TOOLOST_SUBMISSION_STATES)[number];
+
+/** #2c Too Lost release submissions (Front 14, migration 0320): the
+ *  delivery rail's own state record — one row per release. Written only
+ *  by the submit route after the AI-declaration gate passes; state runs
+ *  draft → submitting → in_review, or → failed with OUR sanitized
+ *  reason in failure_reason (never a raw provider body).
+ *  provider_release_id is stored the moment the provider draft exists
+ *  so a retry reuses the same provider draft instead of duplicating the
+ *  release on the partner side. distribution_releases.status belongs to
+ *  the sandbox packaging door and is deliberately untouched by this
+ *  rail. */
+export const distributionToolostSubmissionsTable = pgTable("distribution_toolost_submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  release_id: uuid("release_id").notNull(),
+  user_id: uuid("user_id").notNull(),
+  provider_release_id: text("provider_release_id"),
+  state: text("state").notNull().$type<ToolostSubmissionState>().default("draft"),
+  failure_reason: text("failure_reason"),
+  ai_declaration: jsonb("ai_declaration").$type<{
+    isAiGenerated: boolean;
+    aiDocumentation: { fileName: string; fileUrl: string } | null;
+  }>(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("distribution_toolost_submissions_release_uidx").on(t.release_id), index("distribution_toolost_submissions_user_idx").on(t.user_id)]);
