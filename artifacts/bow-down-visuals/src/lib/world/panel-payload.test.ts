@@ -19,10 +19,12 @@ import {
   hookTemplatePayload,
   parsePanelPayloadFor,
   thumbnailTemplatePayload,
+  videoTemplatePayload,
 } from "./panel-payload";
 import { dailyDropPanelPayload } from "./daily-drop-catalog";
 import { hookTemplatePrefill, captionPackPrefill } from "./hook-desk";
 import { getThumbnailTemplate } from "../../data/thumbnail-templates";
+import { VIDEO_TEMPLATE_METAS, getVideoTemplateMeta } from "../../data/video-templates";
 import { HOOK_TEMPLATES } from "../../data/hook-templates";
 import { CAPTION_PACKS } from "../../data/caption-templates";
 import { THUMBNAIL_TEMPLATES } from "../../data/thumbnail-templates";
@@ -131,6 +133,49 @@ describe("the Daily Drop handoff (the wired consumer)", () => {
     expect(hookTemplatePrefill("no-such-template")).toBeNull();
     expect(captionPackPrefill("no-such-pack")).toBeNull();
     expect(getThumbnailTemplate("no-such-template")).toBeUndefined();
+  });
+});
+
+describe("video-template — the fourth kind (Stack-100 wave 4, item 27)", () => {
+  it("builds from a slug and nothing else — no money ever", () => {
+    expect(videoTemplatePayload("lyric-sync-cut")).toEqual({
+      kind: "video-template",
+      templateSlug: "lyric-sync-cut",
+    });
+    expect(Object.values(videoTemplatePayload("x")).some((v) => typeof v === "number")).toBe(false);
+  });
+
+  it("parses only at the Video Desk — every other desk rejects it", () => {
+    expect(parsePanelPayloadFor("video-desk", videoTemplatePayload("a"))).toEqual({
+      kind: "video-template",
+      templateSlug: "a",
+    });
+    expect(parsePanelPayloadFor("hook-desk", videoTemplatePayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("thumbnail-desk", videoTemplatePayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("song-desk", videoTemplatePayload("a"))).toBeNull();
+    /* …and the Video Desk takes none of the older kinds. */
+    expect(parsePanelPayloadFor("video-desk", hookTemplatePayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", captionPackPayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", thumbnailTemplatePayload("a"))).toBeNull();
+  });
+
+  it("rejects garbage wholesale for the new kind too", () => {
+    expect(parsePanelPayloadFor("video-desk", null)).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", { kind: "video-template" })).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", { kind: "video-template", templateSlug: "" })).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", { kind: "video-template", templateSlug: "  " })).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", { kind: "video-template", templateSlug: 250 })).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", { kind: "video-template", templateSlug: "a", cost: 250 })).toEqual({
+      kind: "video-template",
+      templateSlug: "a",
+    });
+  });
+
+  it("every catalog key in the site's library resolves at the receiving desk's first gate", () => {
+    for (const meta of VIDEO_TEMPLATE_METAS) {
+      expect(getVideoTemplateMeta(meta.key)?.key).toBe(meta.key);
+    }
+    expect(getVideoTemplateMeta("no-such-template")).toBeNull();
   });
 });
 

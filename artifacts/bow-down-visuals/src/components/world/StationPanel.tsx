@@ -205,6 +205,7 @@ const LibraryDesk = lazy(() => import("@/components/world/native/LibraryDesk").t
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
 const TourDesk = lazy(() => import("@/components/world/native/TourDesk").then((m) => ({ default: m.TourDesk })));
 const PublishDesk = lazy(() => import("@/components/world/native/PublishDesk").then((m) => ({ default: m.PublishDesk })));
+const TemplatesDesk = lazy(() => import("@/components/world/native/TemplatesDesk").then((m) => ({ default: m.TemplatesDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -1325,6 +1326,17 @@ export default function StationPanel(props: StationPanelProps) {
                     library. */}
                 <DeskDoor isLight={isLight}>
                   <PublishDesk isLight={isLight} />
+                {/* Templates (Stack-100 wave 4, item 27 / desk
+                    #100): one browse desk for all four template
+                    galleries (videos, hooks, captions, thumbnails)
+                    folded from the site's own data libraries — a
+                    card's Use rides the panel payload to the
+                    owning desk (videos land on the Video Desk's
+                    template bench through the video-template
+                    payload kind), stacked at the My Studio board
+                    in the Create Wing. */}
+                <DeskDoor isLight={isLight}>
+                  <TemplatesDesk isLight={isLight} onOpenStation={props.onOpenStation} />
                 </DeskDoor>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,
