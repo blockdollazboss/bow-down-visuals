@@ -25,6 +25,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { StoryboardBench } from "./StoryboardBench";
 import { StoryboardPlanner } from "./StoryboardPlanner";
+import { VideoTemplateBench } from "./VideoTemplateBench";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
@@ -1443,6 +1444,12 @@ export function VideoDesk(props: CreateDeskProps) {
             : undefined
         }
       />
+      {/* Video Templates bench (Stack-100 wave 4, item 27 /
+          desk #100): the video-template payload's receiving end —
+          the rail's catalog, slot filling and the registry-priced
+          apply on /api/video-template, stacked under the
+          storyboard pair like its Create Wing neighbours. */}
+      <VideoTemplateBench isLight={isLight} panelPayload={props.panelPayload ?? null} />
     </div>
   );
 }
