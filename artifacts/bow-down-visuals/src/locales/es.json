@@ -23426,5 +23426,22 @@
     "treMarksRowDetailMany": "{{claims}} reclamaciones del trío",
     "treMarksMeta": "{{marks}} marcas",
     "treMarksHonor": "Las marcas se guardan al reclamar terminaciones del Daily Quest Trio. Solo honor — nunca se convierten en Visual Bucs."
+  },
+  "worldThemePacks": {
+    "goldenMarbleName": "Mármol Dorado",
+    "goldenMarbleTagline": "El tema de la casa — palacio de marfil de día, trono de mármol negro de noche",
+    "goldenMarbleDescription": "La piel propia del sitio: mármol blanco dorado y oro antiguo en la luz, mármol negro dorado en la oscuridad. El mundo en el que se construyó Bow Down Visuals.",
+    "sharkTankName": "Tanque del Tiburón",
+    "sharkTankTagline": "Las aguas del Rey — mármol de mar profundo, ribetes dorados",
+    "sharkTankDescription": "Las aguas que rodean el trono: mármol azul-negro profundo en la oscuridad, mármol cristal de mar pálido en la luz — el sistema de oro antiguo intacto, en el territorio del Rey Tiburón. Combina con el cursor 8-Bit Shark.",
+    "goldenHourName": "Hora Dorada",
+    "goldenHourTagline": "Atardecer sobre la plaza — mármol brasa, oro caliente",
+    "goldenHourDescription": "La plaza a la hora dorada: mármol bronce brasa y el oro más caliente de la casa en la oscuridad, que se templa a mármol champán de día. Combina con el cursor Flame.",
+    "kingsSetName": "El Conjunto del Rey",
+    "kingsSetTagline": "El buque insignia — el mármol más negro, el oro más brillante",
+    "kingsSetDescription": "Construido sobre el aprobado King's Set: el mármol más negro y la hoja de oro más brillante en la oscuridad, el marfil más brillante y el bronce antiguo más profundo de día. Combina con el cursor King's Crown.",
+    "arcadeGoldName": "Oro Arcade",
+    "arcadeGoldTagline": "Carbón de código de trucos, oro caliente, resplandor de brasa",
+    "arcadeGoldDescription": "El lado código de trucos del palacio: mármol carbón cálido, oro caliente y un resplandor de brasa en la oscuridad — mármol papel cálido y bronce profundo de día. Combina con el cursor Game Controller."
   }
 }

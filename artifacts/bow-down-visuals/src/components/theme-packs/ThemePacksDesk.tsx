@@ -29,6 +29,7 @@ import {
   packModes,
   readCachedOwnedPackIds,
   resolvePackMode,
+  themePackCopy,
   type ThemePack,
   type ThemePackMode,
   type ThemePackVariant,
@@ -394,6 +395,9 @@ function PackCard({
   }, [pack, siteMode]);
   const variant = pack.variants[viewMode]!;
   const cursorName = CURSOR_OPTIONS.find((c) => c.id === pack.cursor)?.name ?? pack.cursor;
+  /* Pack copy resolves through the catalogs (unit 53 seam); the
+     registry fields on `pack` stay the English defaults. */
+  const copy = themePackCopy(pack, t);
   const appliedHere = active && siteMode === viewMode;
   return (
     <article
@@ -404,8 +408,8 @@ function PackCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold text-foreground">{pack.name}</h3>
-          <p className="text-xs text-muted-foreground">{pack.tagline}</p>
+          <h3 className="text-base font-bold text-foreground">{copy.name}</h3>
+          <p className="text-xs text-muted-foreground">{copy.tagline}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {pack.tier === "premium" && owned ? (
@@ -443,7 +447,7 @@ function PackCard({
       <div
         className="inline-flex self-start overflow-hidden rounded-full border border-border"
         role="group"
-        aria-label={`${pack.name} — preview light or dark`}
+        aria-label={`${copy.name} — preview light or dark`}
       >
         {(["light", "dark"] as ThemePackMode[]).map((m) => (
           <button
@@ -471,7 +475,7 @@ function PackCard({
 
       <PackPreview variant={variant} mode={viewMode} />
 
-      <p className="text-xs leading-relaxed text-muted-foreground">{pack.description}</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">{copy.description}</p>
 
       <div className="mt-auto space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -763,7 +767,7 @@ export function ThemePacksDesk() {
       {look && lookPack ? (
         <div className="mt-4 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3" role="status" data-testid="theme-pack-look-banner">
           <p className="text-xs text-foreground">
-            You're previewing a shared look — <strong>{lookPack.name}</strong> wearing the sender's
+            You're previewing a shared look — <strong>{themePackCopy(lookPack, t).name}</strong> wearing the sender's
             exact customization mix.
             {lookPack.tier === "premium"
               ? " This pack is premium: the preview is free, owning it is still 1,000 VB — the sender's link never bypasses the price."
@@ -814,7 +818,7 @@ export function ThemePacksDesk() {
           <p className="text-xs text-muted-foreground">
             {t("settings.themePacksUsingPack", {
               defaultValue: "You're wearing {{pack}}. The house themes are always one tap away.",
-              pack: activePack.name,
+              pack: themePackCopy(activePack, t).name,
             })}
           </p>
           <button

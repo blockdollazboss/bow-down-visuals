@@ -23419,5 +23419,22 @@
     "treMarksRowDetailMany": "{{claims}} trio claims",
     "treMarksMeta": "{{marks}} marks",
     "treMarksHonor": "Marks are banked by claiming Daily Quest Trio finishes. Honor only — they never convert to Visual Bucs."
+  },
+  "worldThemePacks": {
+    "goldenMarbleName": "Golden Marble",
+    "goldenMarbleTagline": "The house theme — ivory palace by day, black marble throne by night",
+    "goldenMarbleDescription": "The site's own skin: golden white marble and antique gold in the light, golden black marble in the dark. The world Bow Down Visuals was built in.",
+    "sharkTankName": "Shark Tank",
+    "sharkTankTagline": "The King's waters — deep-sea marble, gold trim",
+    "sharkTankDescription": "The waters around the throne: deep blue-black marble in the dark, pale sea-glass marble in the light — the antique-gold system untouched, on the King Shark's home turf. Pairs with the 8-Bit Shark cursor.",
+    "goldenHourName": "Golden Hour",
+    "goldenHourTagline": "Sunset over the plaza — ember marble, hot gold",
+    "goldenHourDescription": "The plaza at golden hour: ember-bronze marble and the hottest gold in the house in the dark, warming to champagne marble by day. Pairs with the Flame cursor.",
+    "kingsSetName": "The King's Set",
+    "kingsSetTagline": "The flagship — blackest marble, brightest gold",
+    "kingsSetDescription": "Built on the approved King's Set: the blackest marble and the brightest gold leaf in the dark, the brightest ivory and deepest antique bronze by day. Pairs with the King's Crown cursor.",
+    "arcadeGoldName": "Arcade Gold",
+    "arcadeGoldTagline": "Cheat-code charcoal, hot gold, ember glow",
+    "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor."
   }
 }

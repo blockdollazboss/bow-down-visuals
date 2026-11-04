@@ -900,6 +900,64 @@ export const THEME_PACKS: ThemePack[] = [
   },
 ];
 
+/* ─── Pack copy (locale seam, stack100 unit 53) ─────────────────────────
+   The registry's name/tagline/description literals ARE the English
+   defaults. Surfaces that render pack copy resolve it through the
+   catalog keys below (namespace worldThemePacks) by handing their
+   translator to themePackCopy(); a caller that passes no translator
+   gets the pack's own fields back, byte-identical — so generated kit
+   content (lib/theme-kit builders) and any non-React consumer keep
+   exactly today's English. Only the copy fields resolve here: ids,
+   tiers, prices and every other registry fact stay data. */
+
+export interface ThemePackCopy {
+  name: string;
+  tagline: string;
+  description: string;
+}
+
+/** The minimal translator shape — the `t` from useTranslation() fits. */
+export type ThemePackTranslator = (key: string) => string;
+
+export const THEME_PACK_COPY_KEYS: Record<string, ThemePackCopy> = {
+  "golden-marble": {
+    name: "worldThemePacks.goldenMarbleName",
+    tagline: "worldThemePacks.goldenMarbleTagline",
+    description: "worldThemePacks.goldenMarbleDescription",
+  },
+  "shark-tank": {
+    name: "worldThemePacks.sharkTankName",
+    tagline: "worldThemePacks.sharkTankTagline",
+    description: "worldThemePacks.sharkTankDescription",
+  },
+  "golden-hour": {
+    name: "worldThemePacks.goldenHourName",
+    tagline: "worldThemePacks.goldenHourTagline",
+    description: "worldThemePacks.goldenHourDescription",
+  },
+  "kings-set": {
+    name: "worldThemePacks.kingsSetName",
+    tagline: "worldThemePacks.kingsSetTagline",
+    description: "worldThemePacks.kingsSetDescription",
+  },
+  "arcade-gold": {
+    name: "worldThemePacks.arcadeGoldName",
+    tagline: "worldThemePacks.arcadeGoldTagline",
+    description: "worldThemePacks.arcadeGoldDescription",
+  },
+};
+
+/** A pack's display copy: catalog-resolved when a translator is
+    handed in, the pack's own English fields when it is not (or when
+    the pack id carries no catalog keys — creator packs never do). */
+export function themePackCopy(pack: ThemePack, t?: ThemePackTranslator): ThemePackCopy {
+  const keys = THEME_PACK_COPY_KEYS[pack.id];
+  if (!t || !keys) {
+    return { name: pack.name, tagline: pack.tagline, description: pack.description };
+  }
+  return { name: t(keys.name), tagline: t(keys.tagline), description: t(keys.description) };
+}
+
 /* ─── Registry helpers ────────────────────────────────────────────────── */
 
 export const HOUSE_PACK_FOR_MODE: Record<ThemePackMode, string> = {

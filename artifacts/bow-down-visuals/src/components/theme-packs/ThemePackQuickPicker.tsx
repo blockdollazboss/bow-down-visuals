@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Lock, Palette, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   THEME_PACKS,
   THEME_PACK_EVENT,
@@ -9,6 +10,7 @@ import {
   getThemeMode,
   hslCss,
   isThemePackUnlocked,
+  themePackCopy,
 } from "@/lib/theme-packs";
 import { useAuth } from "@/contexts/AuthContext";
 import { stampPackSoundsForApply } from "@/lib/theme-kit";
@@ -23,6 +25,7 @@ import { stampPackSoundsForApply } from "@/lib/theme-kit";
    the full home (downloads, customization, creator packs). */
 
 export function ThemePackQuickPicker() {
+  const { t } = useTranslation();
   const { getAccessToken, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string>(() => getActiveThemePack().id);
@@ -108,7 +111,7 @@ export function ThemePackQuickPicker() {
                       ))}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold text-foreground">{pack.name}</span>
+                      <span className="block truncate text-xs font-semibold text-foreground">{themePackCopy(pack, t).name}</span>
                       <span className="block text-[10px] text-muted-foreground">
                         {pack.tier === "premium" && !unlocked
                           ? `${THEME_PACK_PRICE_VB.toLocaleString()} VB — own it forever`

@@ -23403,5 +23403,22 @@
     "treMarksRowDetailMany": "{{claims}}건 트리오 수령",
     "treMarksMeta": "{{marks}} marks",
     "treMarksHonor": "마크는 Daily Quest Trio 완료를 수령하면 쌓입니다. 명예만입니다 — 절대로 Visual Bucs로 바뀌지 않습니다."
+  },
+  "worldThemePacks": {
+    "goldenMarbleName": "골든 마블",
+    "goldenMarbleTagline": "하우스의 테마 — 낮에는 상아 궁전, 밤에는 검은 대리석 왕좌",
+    "goldenMarbleDescription": "사이트 그 자체의 피부: 빛 속에서는 황금빛 흰 대리석과 앤티크 골드, 어둠 속에서는 황금빛 검은 대리석. Bow Down Visuals가 세워진 세계.",
+    "sharkTankName": "샤크 탱크",
+    "sharkTankTagline": "왕의 물 — 심해 대리석, 금 장식",
+    "sharkTankDescription": "왕좌를 둘러싼 물: 어둠 속에서는 깊은 청흑 대리석, 빛 속에서는 옅은 시글라스 대리석 — 앤티크 골드 시스템은 그대로, 킹 샤크의 본거지에서. 8-Bit Shark 커서와 어울린다.",
+    "goldenHourName": "골든 아워",
+    "goldenHourTagline": "광장 위의 노을 — 잿불 대리석, 뜨거운 금",
+    "goldenHourDescription": "골든 아워의 광장: 어둠 속에서는 잿불 브론즈 대리석과 집에서 가장 뜨거운 금, 낮에는 샴페인 대리석으로 따뜻해진다. Flame 커서와 어울린다.",
+    "kingsSetName": "킹스 세트",
+    "kingsSetTagline": "플래그십 — 가장 검은 대리석, 가장 밝은 금",
+    "kingsSetDescription": "승인된 King's Set을 바탕으로 제작: 어둠 속에서는 가장 검은 대리석과 가장 밝은 금박, 낮에는 가장 밝은 상아와 가장 깊은 앤티크 브론즈. King's Crown 커서와 어울린다.",
+    "arcadeGoldName": "아케이드 골드",
+    "arcadeGoldTagline": "치트 코드 차콜, 뜨거운 금, 잿불 빛",
+    "arcadeGoldDescription": "궁전의 치트 코드 쪽: 따뜻한 차콜 대리석, 뜨거운 금, 그리고 어둠 속 잿불 빛 — 낮에는 따뜻한 종이 대리석과 깊은 브론즈. Game Controller 커서와 어울린다."
   }
 }
