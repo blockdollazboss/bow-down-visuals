@@ -101,6 +101,17 @@ import {
   type BeatMixerGraph,
   type BeatTrackFxConfig,
 } from "@/lib/beat-mixer";
+import {
+  automationEventsForPlays,
+  automationStepEvents,
+  BEAT_AUTOMATION_PARAM_IDS,
+  filterBeatAutomationEvents,
+  scaleBeatAutomationEvents,
+  writeBeatAutomationEvents,
+  type BeatAutomationParamId,
+  type BeatAutomationParamTarget,
+} from "@/lib/beat-automation";
+import { BeatAutomationLaneEditor } from "@/components/beat-studio/BeatAutomationLane";
 import { initialBeatMakerTab } from "@/lib/beat-maker-tab";
 import {
   beatsSellRoute,
@@ -800,6 +811,25 @@ function BeatFxPanel({ fx, onChange, isLight, sliderClass, labelClass, dimClass 
             value={fx.reverb.durationSec}
             onChange={(v) => set({ reverb: { ...fx.reverb, durationSec: v } })} />
         </>)}
+      {/* Sends (W3a): amounts feeding the SHARED echo/space buses —
+          one room for the whole beat, set on the Master strip. A send
+          at 0 keeps this channel out of the bus entirely. */}
+      <div className={`rounded-lg border p-2.5 space-y-1.5 ${sectionBox}`}>
+        <span className={`text-[11px] font-black uppercase tracking-wider ${labelClass}`}>
+          {t("beatMaker.fxSends", { defaultValue: "Sends" })}
+        </span>
+        <FxSlider {...s} label={t("beatMaker.fxDelaySend", { defaultValue: "Delay send" })}
+          min={0} max={100} step={1} unit="%"
+          value={fx.sends.delay}
+          onChange={(v) => set({ sends: { ...fx.sends, delay: v } })} />
+        <FxSlider {...s} label={t("beatMaker.fxReverbSend", { defaultValue: "Reverb send" })}
+          min={0} max={100} step={1} unit="%"
+          value={fx.sends.reverb}
+          onChange={(v) => set({ sends: { ...fx.sends, reverb: v } })} />
+        <p className={`text-[10px] leading-snug ${dimClass}`}>
+          {t("beatMaker.fxSendsHint", { defaultValue: "Feeds the shared echo and space on the Master strip — one room for the whole beat." })}
+        </p>
+      </div>
     </div>
   );
 }
@@ -856,6 +886,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [doorBusy, setDoorBusy] = useState<"song" | "sell" | null>(null);
   const [doorError, setDoorError] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(false);
+  const [showAutomation, setShowAutomation] = useState(false);
   const [showBass, setShowBass] = useState(false);
   const [showMelody, setShowMelody] = useState(false);
   const [showVelocity, setShowVelocity] = useState(false);
@@ -962,6 +993,12 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const metroCountInRef = useRef(metroCountIn);
   metroOnRef.current = metroOn;
   metroCountInRef.current = metroCountIn;
+  /* The gain-mixer state, mirrored for the automation writer inside
+   * the (ref-driven) scheduler: volume lanes multiply the channel's
+   * effective fader gain, computed from THIS state — identically in
+   * live playback and in the offline render. */
+  const mixerBaseRef = useRef({ vol, mute, solo, bassVol, bassMute });
+  mixerBaseRef.current = { vol, mute, solo, bassVol, bassMute };
   const globalStepRef = useRef(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverReadyRef = useRef(false);
@@ -1113,13 +1150,69 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── automation (W3a, lib/beat-automation) ──
+   * The AudioParam a lane writes onto, or null when the channel has
+   * no live node for that parameter (a bypassed effect). Volume lanes
+   * target the track gain itself; their event values are pre-scaled
+   * by the channel's effective fader gain below. */
+  const automationTargetFor = (
+    graph: BeatMixerGraph,
+    channel: string,
+    param: BeatAutomationParamId,
+  ): BeatAutomationParamTarget | null => {
+    const chain = graph.tracks[channel];
+    if (!chain) return null;
+    switch (param) {
+      case "volume":
+        return chain.trackGain.gain;
+      case "pan":
+        return chain.automationTargets.pan;
+      case "delay":
+        return chain.automationTargets.delayMix;
+      case "reverb":
+        return chain.automationTargets.reverbMix;
+    }
+  };
+  /* The fader base a volume lane multiplies: the mixer's own effective
+   * gain for the channel under the given mixer state (mute/solo
+   * resolved) — the bass rail's own rule for the bass channel. */
+  const automationBaseGain = (
+    channel: string,
+    m: { vol: number[]; mute: boolean[]; solo: boolean[]; bassVol: number; bassMute: boolean },
+  ): number => {
+    if (channel === "bass") return m.bassMute ? 0 : m.bassVol;
+    const ti = TRACKS.findIndex((tr) => tr.id === channel);
+    if (ti < 0) return 0;
+    return effectiveChannelGain(m.vol[ti]!, m.mute[ti]!, m.solo[ti]!, m.solo.some(Boolean));
+  };
+  /* Live: write this step's slice of every lane of the playing
+   * pattern onto the live graph — the same events the offline render
+   * writes in bulk (lib/beat-automation automationStepEvents is the
+   * per-step slice of automationEventsForPlays, anchors included). */
+  const applyAutomationStepLive = (graph: BeatMixerGraph, pat: PatternData, s: number, when: number) => {
+    if (pat.automation.length === 0) return;
+    const stepDur = 60 / bpmRef.current / 4;
+    const stepsInPattern = patternStepCount(pat);
+    for (const lane of pat.automation) {
+      const target = automationTargetFor(graph, lane.channel, lane.param);
+      if (!target) continue;
+      let events = automationStepEvents(lane, s, stepsInPattern, when, stepDur, swingRef.current);
+      if (lane.param === "volume") {
+        events = scaleBeatAutomationEvents(events, automationBaseGain(lane.channel, mixerBaseRef.current));
+      }
+      /* Cancel only at the play's step 0 (its write leads with the
+       * anchor): mid-play cancellations would cut the glide the
+       * previous step aimed and turn the curve into a staircase. */
+      writeBeatAutomationEvents(target, events, { cancel: s === 0 });
+    }
+  };
+
   const getCtx = () => {
     if (!ctxRef.current) ctxRef.current = new AudioContext();
     if (ctxRef.current.state === "suspended") void ctxRef.current.resume();
     applyMixer(ctxRef.current, vol, mute, solo, bassVol, bassMute);
     return ctxRef.current;
-  };
-  // Re-apply mixer when faders, pan or FX change during playback
+  };  // Re-apply mixer when faders, pan or FX change during playback
   useEffect(() => {
     if (ctxRef.current && playing) applyMixer(ctxRef.current, vol, mute, solo, bassVol, bassMute);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1194,6 +1287,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         scheduleMidiVoice(ctx, dest, v.id, midi, when + offsetSec);
       }
     }
+    /* Automation (W3a): this step's slice of the playing pattern's
+     * lanes, written onto the live graph at the step's own (swung)
+     * time — the same events the export render writes in bulk. */
+    applyAutomationStepLive(graph, pat, s, when);
     /* Metronome: tick on the beats of the pattern being played, accent
      * on its step 0 — straight to the destination, so track mutes/solos
      * never silence the click. The click rides the step's own `when`
@@ -1442,7 +1539,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         patternStepCount(patternsRef.current[pid] ?? patternsRef.current.A!),
     });
 
-  const renderBeat = async (stemMixer?: BeatStemMixer, stemFx?: BeatMixerFxState, format: BeatExportFormat = "wav") => {
+  const renderBeat = async (stemMixer?: BeatStemMixer, stemFx?: BeatMixerFxState, format: BeatExportFormat = "wav", autoChannel?: string | null) => {
     const scope = currentRenderScope();
     const plays: PatternId[] = scope.plays;
     /* Each play lasts its own pattern's length (1/2/4 bars) — the scope
@@ -1540,6 +1637,42 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         playStartStep += patternStepCount(pat);
       }
     }
+    /* Automation (W3a): the scope's full event list, written onto the
+     * same params the live scheduler drives, from the same pure
+     * functions — the bounce carries exactly the curves playback
+     * plays. A stem render (autoChannel set) applies ONLY its own
+     * channel's lanes: pan/FX lanes are absolute, so another channel's
+     * lane must never leak into a stem (volume lanes are multipliers
+     * over the stem's isolated gains — 0 for every other channel — so
+     * the filter is belt-and-braces there, and the whole rule for the
+     * absolute parameters). A melody stem (autoChannel null) applies
+     * none — melody has no mixer channel. */
+    {
+      const autoEvents = automationEventsForPlays(
+        plays.map((pid) => {
+          const p = patternsRef.current[pid] ?? patternsRef.current.A!;
+          return { automation: p.automation, steps: patternStepCount(p) };
+        }),
+        stepDur,
+        sw,
+      );
+      if (autoEvents.length > 0 && autoChannel !== null) {
+        const baseMixer = stemMixer ?? { vol, mute, solo, bassVol, bassMute };
+        for (const channel of new Set(autoEvents.map((e) => e.channel))) {
+          if (autoChannel !== undefined && autoChannel !== channel) continue;
+          for (const param of BEAT_AUTOMATION_PARAM_IDS) {
+            const target = automationTargetFor(graph, channel, param);
+            if (!target) continue;
+            let evs = filterBeatAutomationEvents(autoEvents, channel, param);
+            if (evs.length === 0) continue;
+            if (param === "volume") {
+              evs = scaleBeatAutomationEvents(evs, automationBaseGain(channel, baseMixer));
+            }
+            writeBeatAutomationEvents(target, evs);
+          }
+        }
+      }
+    }
     const rendered = await off.startRendering();
     /* One encode branch for every surface: WAV (the original path) or
      * MP3 (lib/beat-mp3 — the LAME encoder chunk loads on first use). */
@@ -1570,7 +1703,15 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       /* The FX pickup: the stem renders through its isolated FX state
        * (own channel's effects kept, every other channel defaulted). */
       const stemFx = isolateStemMixerFx(mixerFxRef.current, stem, TRACKS.map((tr) => tr.id));
-      const { blob } = await renderBeat(isolated, stemFx, format);
+      /* The automation pickup (W3a): the stem applies only its own
+       * channel's lanes — drums/bass by channel id, melody none. */
+      const autoChannel =
+        stem.kind === "drum" && stem.trackIndex != null
+          ? TRACKS[stem.trackIndex]!.id
+          : stem.kind === "bass"
+            ? "bass"
+            : null;
+      const { blob } = await renderBeat(isolated, stemFx, format, autoChannel);
       out.push({ stem, blob, name: stemFileName("beat", bpm, stem, format) });
     }
     return out;
@@ -1956,6 +2097,13 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         >
           <Piano className="w-3.5 h-3.5" /> {t("beatMaker.melody", { defaultValue: "Melody" })}
         </button>
+        <button aria-expanded={showAutomation}
+          type="button" data-testid="beat-automation-toggle"
+          onClick={() => setShowAutomation((v) => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1.5 transition-colors ${T.pill} ${showAutomation ? "!border-[#C9A84C] !text-[#C9A84C]" : ""}`}
+        >
+          <TrendingUp className="w-3.5 h-3.5" /> {t("beatMaker.automation", { defaultValue: "Automation" })}
+        </button>
       </div>
 
       {/* Bar pager — long patterns show one bar at a time */}
@@ -2332,6 +2480,34 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                 onChange={(v) => setMixerFx((prev) => ({ ...prev, master: { ...prev.master, limiter: { ...prev.master.limiter, thresholdDb: v } } }))}
                 sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
             )}
+            {/* Shared buses (W3a) — the echo + space every channel's
+                Sends feed. These settings shape the bus itself; a bus
+                exists only while some channel sends to it. */}
+            <div className="pt-1 space-y-1.5">
+              <span className={`text-[11px] font-black uppercase tracking-wider ${T.label}`}>
+                {t("beatMaker.sharedBuses", { defaultValue: "Shared echo + space" })}
+              </span>
+              <FxSlider label={t("beatMaker.busEchoTime", { defaultValue: "Echo time" })}
+                min={10} max={1000} step={5} unit=" ms"
+                value={mixerFx.buses.delay.timeMs}
+                onChange={(v) => setMixerFx((prev) => ({ ...prev, buses: { ...prev.buses, delay: { ...prev.buses.delay, timeMs: v } } }))}
+                sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+              <FxSlider label={t("beatMaker.busEchoFeedback", { defaultValue: "Echo feedback" })}
+                min={0} max={80} step={1} unit="%"
+                value={mixerFx.buses.delay.feedback}
+                onChange={(v) => setMixerFx((prev) => ({ ...prev, buses: { ...prev.buses, delay: { ...prev.buses.delay, feedback: v } } }))}
+                sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+              <FxSlider label={t("beatMaker.busSpaceSize", { defaultValue: "Space size" })}
+                min={0.1} max={5} step={0.1} unit=" s"
+                value={mixerFx.buses.reverb.durationSec}
+                onChange={(v) => setMixerFx((prev) => ({ ...prev, buses: { ...prev.buses, reverb: { ...prev.buses.reverb, durationSec: v } } }))}
+                sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+              <FxSlider label={t("beatMaker.busSpaceDecay", { defaultValue: "Space decay" })}
+                min={0.5} max={8} step={0.1} unit=""
+                value={mixerFx.buses.reverb.decay}
+                onChange={(v) => setMixerFx((prev) => ({ ...prev, buses: { ...prev.buses, reverb: { ...prev.buses.reverb, decay: v } } }))}
+                sliderClass={T.slider} labelClass={T.label} dimClass={T.dim} />
+            </div>
           </div>
         </div>
       )}
@@ -2398,6 +2574,24 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         <BeatMelodyRoll
           melody={patterns[activePat]!.melody}
           onChange={(next) => patchActive((p) => ({ ...p, melody: next }))}
+          currentStep={step}
+          playing={playing}
+        />
+      )}
+
+      {/* Automation lanes (W3a) — per-pattern curves for channel volume,
+          pan and the two wet FX amounts. Free manual tool; the lanes
+          save with the project and render into every export. */}
+      {showAutomation && (
+        <BeatAutomationLaneEditor
+          automation={patterns[activePat]!.automation}
+          onChange={(next) => patchActive((p) => ({ ...p, automation: next }))}
+          channels={[
+            ...TRACKS.map((tr) => ({ id: tr.id, label: t(tr.labelKey, { defaultValue: tr.id }) })),
+            { id: "bass", label: t("beatMaker.bassVol", { defaultValue: "808 Bass" }) },
+          ]}
+          steps={activeSteps}
+          page={safePage}
           currentStep={step}
           playing={playing}
         />

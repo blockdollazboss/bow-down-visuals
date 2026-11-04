@@ -43,7 +43,9 @@ import {
 } from "@/lib/beat-project";
 import { createZip } from "@/lib/sfx";
 import {
+  defaultBusesConfig,
   defaultTrackFx,
+  normalizeBusesConfig,
   type BeatMixerFxState,
 } from "@/lib/beat-mixer";
 
@@ -296,7 +298,12 @@ export function isolateStemMixerFx(
     tracks[channelId] =
       channelId === keepChannel ? fx.tracks[channelId]! : defaultTrackFx();
   }
-  return { tracks, master: fx.master };
+  /* W3a: the shared-bus settings ride along verbatim — a stem keeps
+   * its own channel's sends into the same echo/space it had in the
+   * mix (every other channel is defaulted above, so their sends are
+   * 0 and contribute nothing). Dropping this field would silently
+   * give every stem the default room instead of the mix's. */
+  return { tracks, buses: normalizeBusesConfig(fx.buses ?? defaultBusesConfig()), master: fx.master };
 }
 
 /**
