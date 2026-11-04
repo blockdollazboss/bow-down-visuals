@@ -53,6 +53,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { useSidebarAutoCollapse } from "@/hooks/use-sidebar-auto-collapse";
 
 /*
  * Stack-28 #49 (A5-P3): the marketing/SEO page modules that used to be
@@ -439,24 +440,27 @@ function AuthedLayout({ children }: { children: ReactNode }) {
   }, [user, getAccessToken]);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
-  const userTouchedSidebar = useRef(false);
   const [location] = useLocation();
   /* Homepage keeps its full-bleed stage design — no content panel. */
   const isHome = location === "/";
 
   // Sidebar preview: start open so the user sees where everything is,
-  // then auto-close after a moment. Manual toggle cancels the auto-close.
+  // then auto-close after a moment — but NEVER out from under an
+  // active user (QC-200 fix #3). The auto-collapse controller holds
+  // off while the pointer is over the sidebar or focus is inside it,
+  // honours an interaction grace window after the sidebar is used,
+  // restarts the full delay when engagement ends, and is cancelled
+  // outright by any manual toggle. See hooks/use-sidebar-auto-collapse.
   useEffect(() => {
     setSidebarCollapsed(false);
-    const t = setTimeout(() => {
-      if (!userTouchedSidebar.current) setSidebarCollapsed(true);
-    }, 3000);
-    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const { noteManualToggle } = useSidebarAutoCollapse({
+    onCollapse: () => setSidebarCollapsed(true),
+  });
 
   const handleOpenChange = (open: boolean) => {
-    userTouchedSidebar.current = true;
+    noteManualToggle();
     setSidebarCollapsed(!open);
   };
 
@@ -487,7 +491,14 @@ function AuthedLayout({ children }: { children: ReactNode }) {
         </div>
         <ExpandSidebarButton
           collapsed={sidebarCollapsed}
-          onExpand={() => setSidebarCollapsed(false)}
+          onExpand={() => {
+            /* Re-opening by hand is a manual toggle too: it cancels
+               the auto-collapse instead of fighting it (the old bare
+               setSidebarCollapsed call never marked the sidebar as
+               user-touched). */
+            noteManualToggle();
+            setSidebarCollapsed(false);
+          }}
         />
         <LiveBadge />
         {!isHome && <MobileSidebarTrigger />}
