@@ -1126,10 +1126,31 @@ export function planHostedUrl(payload: unknown): string | null {
   return str(payload["url"]);
 }
 
+/** Optional localized strings for the plan-change family (locale
+ *  unit 52): every default below is the current English literal,
+ *  byte-identical, so an unthreaded caller renders exactly what it
+ *  renders today. The charge lines are MONEY copy — the catalogs
+ *  carry the English source verbatim in every locale. */
+export interface PlanChangeStrings {
+  freeLabel?: string;
+  perMonth?: (price: number) => string;
+  chargeToday?: (amount: string, from: string, to: string) => string;
+  creditLine?: (amount: string, from: string) => string;
+  nothingCharged?: string;
+  startLine?: (to: string, renewal: string) => string;
+  renewalStays?: (date: string) => string;
+  sameRenewal?: string;
+  renewalDateFormat?: (date: Date) => string;
+  intentDidntStart?: string;
+  changeDidntGoThrough?: string;
+  failureCopy?: (status: number) => string;
+}
+
 /** A plan card's price line, the pricing page's dress: "$12/mo" for
  *  a paid plan, "Free" for the free tier. */
-export function planPriceLabel(plan: SitePlan): string {
-  return plan.priceUsdPerMonth === null ? "Free" : `$${plan.priceUsdPerMonth}/mo`;
+export function planPriceLabel(plan: SitePlan, strings?: PlanChangeStrings): string {
+  if (plan.priceUsdPerMonth === null) return strings?.freeLabel ?? "Free";
+  return strings?.perMonth ? strings.perMonth(plan.priceUsdPerMonth) : `$${plan.priceUsdPerMonth}/mo`;
 }
 
 /* ─── The subscription intent's verdict (stack600
@@ -1213,6 +1234,7 @@ function parsePlanChangePreview(
 export function planIntentOutcome(
   result: { ok: boolean; status: number; data: unknown },
   planName: string,
+  strings?: PlanChangeStrings,
 ): PlanIntentOutcome {
   const { ok, status, data } = result;
   if (ok && isObj(data)) {
@@ -1239,16 +1261,20 @@ export function planIntentOutcome(
        that is a failed start, stated plainly, not a detour. */
     return {
       kind: "error",
-      message: "Checkout didn't start — nothing was charged. Try again in a minute.",
+      message:
+        strings?.intentDidntStart ??
+        "Checkout didn't start — nothing was charged. Try again in a minute.",
     };
   }
   return {
     kind: "error",
     message: apiErrorLine(
       data,
-      checkoutFailureCopy(
-        new CheckoutTransportError("Subscription intent failed", status),
-      ),
+      strings?.failureCopy
+        ? strings.failureCopy(status)
+        : checkoutFailureCopy(
+            new CheckoutTransportError("Subscription intent failed", status),
+          ),
     ),
   };
 }
@@ -1262,22 +1288,33 @@ export function planIntentOutcome(
 /** What today's money does: the prorated charge on an upgrade, the
  *  $0-due + credit sentence on a downgrade, or the plain
  *  nothing-charged line when the swap nets to zero. */
-export function planChangeChargeLine(preview: PlanChangePreview): string {
+export function planChangeChargeLine(preview: PlanChangePreview, strings?: PlanChangeStrings): string {
   if (preview.amountDueTodayCents > 0) {
-    return `Your saved card will be charged ${moneyCents(preview.amountDueTodayCents)} today — the prorated difference between ${preview.fromPlanName} and ${preview.toPlanName} for the rest of this billing period.`;
+    return strings?.chargeToday
+      ? strings.chargeToday(moneyCents(preview.amountDueTodayCents), preview.fromPlanName, preview.toPlanName)
+      : `Your saved card will be charged ${moneyCents(preview.amountDueTodayCents)} today — the prorated difference between ${preview.fromPlanName} and ${preview.toPlanName} for the rest of this billing period.`;
   }
   if (preview.creditCents > 0) {
-    return `Nothing is charged today. The unused time on ${preview.fromPlanName} becomes a ${moneyCents(preview.creditCents)} credit toward your next invoices.`;
+    return strings?.creditLine
+      ? strings.creditLine(moneyCents(preview.creditCents), preview.fromPlanName)
+      : `Nothing is charged today. The unused time on ${preview.fromPlanName} becomes a ${moneyCents(preview.creditCents)} credit toward your next invoices.`;
   }
-  return "Nothing is charged today.";
+  return strings?.nothingCharged ?? "Nothing is charged today.";
 }
 
 /** When the new tier starts + the renewal-date-unchanged note. */
-export function planChangeStartLine(preview: PlanChangePreview): string {
-  const renewal = preview.renewalDate
-    ? `, and your renewal date stays ${new Date(preview.renewalDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-    : ", same renewal date";
-  return `${preview.toPlanName} starts right away — same subscription, same card${renewal}.`;
+export function planChangeStartLine(preview: PlanChangePreview, strings?: PlanChangeStrings): string {
+  const renewalDate = preview.renewalDate
+    ? (strings?.renewalDateFormat
+        ? strings.renewalDateFormat(new Date(preview.renewalDate))
+        : new Date(preview.renewalDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }))
+    : null;
+  const renewal = renewalDate
+    ? (strings?.renewalStays ? strings.renewalStays(renewalDate) : `, and your renewal date stays ${renewalDate}`)
+    : (strings?.sameRenewal ?? ", same renewal date");
+  return strings?.startLine
+    ? strings.startLine(preview.toPlanName, renewal)
+    : `${preview.toPlanName} starts right away — same subscription, same card${renewal}.`;
 }
 
 /** Shown when the preview says a cancel was pending: changing
@@ -1300,6 +1337,7 @@ export type PlanChangeOutcome =
 
 export function planChangeOutcome(
   result: { ok: boolean; status: number; data: unknown },
+  strings?: PlanChangeStrings,
 ): PlanChangeOutcome {
   const { ok, status, data } = result;
   if (ok && isObj(data) && data["changed"] === true) {
@@ -1315,7 +1353,8 @@ export function planChangeOutcome(
       kind: "error",
       message: apiErrorLine(
         data,
-        "That plan change didn't go through — nothing was charged. Try again in a minute.",
+        strings?.changeDidntGoThrough ??
+          "That plan change didn't go through — nothing was charged. Try again in a minute.",
       ),
     };
   }
@@ -1323,9 +1362,11 @@ export function planChangeOutcome(
     kind: "error",
     message: apiErrorLine(
       data,
-      checkoutFailureCopy(
-        new CheckoutTransportError("Plan change failed", status),
-      ),
+      strings?.failureCopy
+        ? strings.failureCopy(status)
+        : checkoutFailureCopy(
+            new CheckoutTransportError("Plan change failed", status),
+          ),
     ),
   };
 }

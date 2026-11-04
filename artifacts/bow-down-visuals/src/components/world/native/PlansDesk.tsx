@@ -5,7 +5,6 @@ import { Check, Crown, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
-  PLAN_CHANGE_CLEARS_CANCEL_LINE,
   apiErrorLine,
   parseSitePlanMe,
   parseSitePlans,
@@ -16,6 +15,7 @@ import {
   planHostedUrl,
   planIntentOutcome,
   planPriceLabel,
+  type PlanChangeStrings,
   plansNote,
   type PlanChangeOutcome,
   type PlanChangePreview,
@@ -64,8 +64,9 @@ import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-
    — stack800 lane 3: this desk previously rendered hard-coded English
    inside a 10-locale product. The plan names/taglines/features and the
    server note still ride the rail's DTO verbatim (by design, see the
-   header note), and the shared money-desks-2 change lines — which
-   state charge amounts — stay English pending human translation:
+   header note). The shared money-desks-2 change lines — which state
+   charge amounts — ride the worldRemainder catalog (locale unit 52)
+   with the English source verbatim in EVERY locale, pin-enforced:
    money copy is never agent-drafted. */
 function planStatusLabelKey(status: string): string {
   switch (status) {
@@ -190,12 +191,12 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
             "/api/embedded-checkout/subscription/intent",
             { token, body: { tier: plan.tier } },
           );
-          outcome = planIntentOutcome(result, plan.name);
+          outcome = planIntentOutcome(result, plan.name, planStrings);
         } catch (err) {
           /* Every attempt failed at transport level — the helper
              only throws for those; a server JSON answer is returned
              above, never thrown. */
-          setError(checkoutFailureCopy(err));
+          setError(checkoutFailureCopy(err, checkoutStrings));
           return;
         }
         if (outcome.kind === "embedded") {
@@ -275,11 +276,11 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
           "/api/creator-tiers/change",
           { token, body: { tier: changePreview.toTier } },
         );
-        outcome = planChangeOutcome(result);
+        outcome = planChangeOutcome(result, planStrings);
       } catch (err) {
         /* Every attempt failed at transport level — named by the
            shared failure copy, nothing-charged wording included. */
-        setError(checkoutFailureCopy(err));
+        setError(checkoutFailureCopy(err, checkoutStrings));
         return;
       }
       if (outcome.kind === "error") {
@@ -316,6 +317,29 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+
+  /* The plan-change seam's strings (money-desks-2 PlanChangeStrings):
+     the charge lines are MONEY copy — worldRemainder carries the
+     English source verbatim in all 10 catalogs. */
+  const planStrings: PlanChangeStrings = {
+    freeLabel: t("worldRemainder.plnFree"),
+    perMonth: (price) => t("worldRemainder.plnPerMonth", { price }),
+    chargeToday: (amount, from, to) => t("worldRemainder.plnChargeToday", { amount, from, to }),
+    creditLine: (amount, from) => t("worldRemainder.plnCreditLine", { amount, from }),
+    nothingCharged: t("worldRemainder.plnNothingCharged"),
+    startLine: (to, renewal) => t("worldRemainder.plnStartLine", { to, renewal }),
+    renewalStays: (date) => t("worldRemainder.plnRenewalStays", { date }),
+    sameRenewal: t("worldRemainder.plnSameRenewal"),
+    renewalDateFormat: (d) =>
+      d.toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }),
+    intentDidntStart: t("worldRemainder.pakCheckoutDidntStart"),
+    changeDidntGoThrough: t("worldRemainder.plnChangeDidntGoThrough"),
+    failureCopy: (status) => t("worldRemainder.chkServerError", { status }),
+  };
+  const checkoutStrings = {
+    serverError: (status: number) => t("worldRemainder.chkServerError", { status }),
+    unreachable: t("worldRemainder.chkUnreachable"),
+  };
 
   return (
     <NativeCard isLight={isLight} title={t("worldPlansDesk.title")}>
@@ -354,7 +378,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                       <Crown className="h-4 w-4 text-[#d4af37]" /> {plan.name}
                       {isMine && <span className="ml-auto rounded-full bg-[#d4af37] px-2 py-0.5 text-[10px] font-black text-black">{t("worldPlansDesk.yourPlan")}</span>}
                     </p>
-                    <p className="text-xl font-black text-[#d4af37]">{planPriceLabel(plan)}</p>
+                    <p className="text-xl font-black text-[#d4af37]">{planPriceLabel(plan, planStrings)}</p>
                     {plan.tagline && <p className={`text-[11px] ${muted}`}>{plan.tagline}</p>}
                     <p className={`mt-1 text-[11px] ${muted}`}>{t("worldPlansDesk.feeLine", { feePct: plan.feePct, boosts: plan.aiBoostsPerMonth })}</p>
                     <ul className={`mt-2 flex-1 space-y-1 text-[11px] ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
@@ -381,7 +405,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                       <button type="button" data-testid={`world-plan-buy-${plan.tier}`} onClick={() => void checkout(plan)} disabled={busyTier !== null}
                         className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                         {busyTier === plan.tier ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                        {busyTier === plan.tier ? t("worldPlansDesk.starting") : isSwitch ? t("worldPlansDesk.switchTo", { name: plan.name, price: planPriceLabel(plan) }) : t("worldPlansDesk.goPlan", { name: plan.name, price: planPriceLabel(plan) })}
+                        {busyTier === plan.tier ? t("worldPlansDesk.starting") : isSwitch ? t("worldPlansDesk.switchTo", { name: plan.name, price: planPriceLabel(plan, planStrings) }) : t("worldPlansDesk.goPlan", { name: plan.name, price: planPriceLabel(plan, planStrings) })}
                       </button>
                     )}
                   </div>
@@ -415,14 +439,14 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                   {t("worldPlansDesk.switchTitle", { name: changePreview.toPlanName })}
                 </p>
                 <p className={`mt-1 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
-                  {planChangeChargeLine(changePreview)}
+                  {planChangeChargeLine(changePreview, planStrings)}
                 </p>
                 <p className={`mt-1 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
-                  {planChangeStartLine(changePreview)}
+                  {planChangeStartLine(changePreview, planStrings)}
                 </p>
                 {changePreview.clearsPendingCancel && (
                   <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                    {PLAN_CHANGE_CLEARS_CANCEL_LINE}
+                    {t("worldRemainder.plnClearsCancel")}
                   </p>
                 )}
                 <div className="mt-3 flex gap-2">

@@ -130,12 +130,12 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
           setFailed(
             apiErrorMessage(
               idata,
-              t("worldRemainder.pakServerError", { status: ires.status }),
+              t("worldRemainder.chkServerError", { status: ires.status }),
             ),
           );
           return;
         } catch (err) {
-          setFailed(checkoutFailureCopy(err, { serverError: (status) => t("worldRemainder.pakServerError", { status }), unreachable: t("worldRemainder.pakUnreachable") }));
+          setFailed(checkoutFailureCopy(err, { serverError: (status) => t("worldRemainder.chkServerError", { status }), unreachable: t("worldRemainder.chkUnreachable") }));
           return;
         }
       }
