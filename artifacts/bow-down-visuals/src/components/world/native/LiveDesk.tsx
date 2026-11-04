@@ -1837,7 +1837,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
         <div className="space-y-2" data-testid="world-live-guest-room">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase ${session.state === "on_stage" ? "bg-red-500/15 text-red-300" : "bg-white/10 text-white/60"}`}>
-              {session.state === "on_stage" ? t("worldLivePromo.guestOnStageBadge") : t("worldLivePromo.guestBackstageBadgeLong")}
+              {session.state === "on_stage" ? t("worldLivePromo.guestOnStageBadgeLong") : t("worldLivePromo.guestBackstageBadgeLong")}
             </span>
             <span className={`text-sm ${muted}`}>{peers.length === 1 ? t("worldLivePromo.guestPeersOne", { count: peers.length }) : t("worldLivePromo.guestPeersMany", { count: peers.length })}</span>
             <button type="button" onClick={() => void handleLeave()} className={chipBtn(isLight)} data-testid="world-live-guest-leave">

@@ -4,6 +4,7 @@ import {
   Bell, Loader2, Pin, PinOff, Play, Plus, ShoppingBag, Square, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "@/components/world/native/NativeStates";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { buildAlertText, parsePriceToCents } from "@/lib/live-shopping";
@@ -91,6 +92,7 @@ function openCheckoutTab(url: string) {
 }
 
 export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -119,7 +121,7 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch(LIVE_SHOP_STREAM_ALERTS_PATH(streamId), { headers: await authHeaders() });
       if (!res.ok) return;
-      setAlerts(normalizeLiveShopAlerts(await res.json()));
+      setAlerts(normalizeLiveShopAlerts(await res.json(), t("worldLivePromo.shopViewerFallback")));
     } catch { /* overlay polling is best-effort — the next tick retries */ }
   }, [authHeaders]);
 
@@ -131,11 +133,11 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
       }),
       fetch(LIVE_SHOP_STREAMS_PATH, { headers: await authHeaders() }).then(async (r) => {
         if (!r.ok) throw new Error("streams");
-        return normalizeLiveShopStreams(await r.json());
+        return normalizeLiveShopStreams(await r.json(), t("worldLivePromo.liveStreamFallback"));
       }),
       fetch(LIVE_SHOP_DASHBOARD_PATH, { headers: await authHeaders() }).then(async (r) => {
         if (!r.ok) throw new Error("dashboard");
-        return normalizeLiveShopDashboard(await r.json());
+        return normalizeLiveShopDashboard(await r.json(), t("worldLivePromo.shopStreamFallback"));
       }),
     ]);
     if (catalogRes.status === "fulfilled") {
@@ -183,10 +185,10 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
       if (res.ok && liveShopVerifyConfirmed(data)) {
         try { localStorage.removeItem(liveShopPendingKey()); } catch { /* ignore */ }
         setBuySecret(null);
-        setNote("Payment confirmed — your purchase is complete and the sale is on the dashboard below.");
+        setNote(t("worldLivePromo.shopPaymentConfirmed"));
         await loadAll();
       } else {
-        setNote("A checkout is still pending — it isn't a sale until the payment confirms. Finish paying, then come back here and it verifies itself.");
+        setNote(t("worldLivePromo.shopCheckoutPending"));
       }
     } catch {
       /* status couldn't refresh — nothing about the purchase changed */
@@ -206,7 +208,7 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
     setBusy(action);
     setNote(null);
     try { await fn(); } catch (err) {
-      setNote(plainErrorText(err, "Something went wrong. Try again in a moment."));
+      setNote(plainErrorText(err, t("worldLivePromo.shopSomethingWrong")));
     } finally { setBusy(null); }
   };
 
@@ -216,9 +218,9 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
       body: JSON.stringify({ title: streamTitle.trim() }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(apiErrorMessage(data, "That selling session couldn't start."));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.shopStartFailed")));
     setStreamTitle("");
-    setNote("You're selling live — pin a product below and it shows on your overlay for viewers.");
+    setNote(t("worldLivePromo.shopSellingLiveNote"));
     await loadAll();
   });
 
@@ -231,7 +233,7 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) throw new Error("end");
       setBuySecret(null);
-      setNote("Selling session ended — purchases are closed, and the revenue below is final.");
+      setNote(t("worldLivePromo.shopEndedNote"));
       await loadAll();
     });
   };
@@ -245,7 +247,7 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify({ pinned_product_id: next }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That pin couldn't be saved."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.shopPinFailed")));
       setStreams((ss) => ss.map((s) => (s.id === activeStream.id ? { ...s, pinnedProductId: next } : s)));
     });
   };
@@ -257,10 +259,10 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
       body: JSON.stringify({ name: productName.trim(), price_cents: priceCents }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(apiErrorMessage(data, "That product couldn't be added."));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.shopProductAddFailed")));
     setProductName("");
     setProductPrice("");
-    setNote("Product added to your catalog — pin it to the stream whenever you're ready.");
+    setNote(t("worldLivePromo.shopProductAddedNote"));
     await loadAll();
   });
 
@@ -272,12 +274,12 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
         method: "POST", headers,
         body: JSON.stringify({
           product_id: product.id,
-          buyer_name: testBuyer.trim() || "A viewer",
+          buyer_name: testBuyer.trim() || t("worldLivePromo.shopViewerFallback"),
           quantity: 1,
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That test alert couldn't fire."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.shopTestAlertFailed")));
       /* The 2D page's pair: a test sale rides alongside so the
          dashboard reflects it — labelled test there forever. */
       await fetch(LIVE_SHOP_SALES_PATH, {
@@ -307,7 +309,7 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start — nothing was charged."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.shopCheckoutNoStart")));
       const sessionId = liveShopSessionId(data);
       if (sessionId) {
         try { localStorage.setItem(liveShopPendingKey(), sessionId); } catch { /* storage blocked — verify on return just won't find it */ }
@@ -315,18 +317,18 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
       const secret = liveShopEmbeddedSecret(data);
       if (secret) {
         setBuySecret(secret);
-        setNote("Finish paying right here — your purchase confirms the moment the payment lands.");
+        setNote(t("worldLivePromo.shopFinishHere"));
         return;
       }
       const url = liveShopHostedUrl(data);
       if (url) {
         openCheckoutTab(url);
-        setNote("Your checkout opened in a new tab — finish paying there. This desk keeps your place and confirms the purchase here when the payment lands.");
+        setNote(t("worldLivePromo.shopCheckoutNewTab"));
         return;
       }
-      throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      throw new Error(t("worldLivePromo.shopCheckoutNoPage"));
     } catch (err) {
-      setNote(plainErrorText(err, "Checkout didn't start — nothing was charged."));
+      setNote(plainErrorText(err, t("worldLivePromo.shopCheckoutNoStart")));
     } finally {
       setBuying(false);
     }
@@ -340,40 +342,40 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-live-shopping">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <ShoppingBag className="h-4 w-4 text-[#d4af37]" /> Live Shopping — sell on your stream
+        <ShoppingBag className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.shopTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Pin a product to your live selling session, viewers see it on the overlay, purchases fire the alert feed, and every stream&rsquo;s revenue lands below.
-        {feeBps !== null ? ` The platform fee is ${feeBps / 100}% of each sale, taken from the seller's side.` : ""}
+        {t("worldLivePromo.shopIntro")}
+        {feeBps !== null ? t("worldLivePromo.shopFeeLine", { fee: feeBps / 100 }) : ""}
       </p>
 
       {loading ? (
-        <NativeLoadingState isLight={isLight} message="Opening your shop…" />
+        <NativeLoadingState isLight={isLight} message={t("worldLivePromo.shopLoading")} />
       ) : failed ? (
         <NativeErrorState
           isLight={isLight}
-          title="Your live shop wouldn't open"
-          message="Your catalog couldn't be brought into the hall. Nothing about your shop changed — try again."
+          title={t("worldLivePromo.shopErrorTitle")}
+          message={t("worldLivePromo.shopErrorMessage")}
           onRetry={() => { setLoading(true); void loadAll(); }}
         />
       ) : (
         <>
           {!activeStream ? (
             <LiveCard isLight={isLight} testId="world-live-shop-start">
-              <p className={`text-sm font-bold ${strong}`}>Start a selling session</p>
-              <p className={`mt-1 text-sm ${muted}`}>A session is the selling side of your stream: it starts live, takes one pinned product at a time, and closes purchases the moment it ends.</p>
+              <p className={`text-sm font-bold ${strong}`}>{t("worldLivePromo.shopStartTitle")}</p>
+              <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.shopStartIntro")}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <input
                   value={streamTitle}
                   onChange={(e) => setStreamTitle(e.target.value)}
-                  placeholder="Session title — e.g. Friday drop"
+                  placeholder={t("worldLivePromo.shopTitlePlaceholder")}
                   maxLength={160}
                   className={`${inputCls(isLight)} min-w-48 flex-1`}
                   data-testid="world-live-shop-title"
-                  aria-label="Selling session title"
+                  aria-label={t("worldLivePromo.shopTitleAria")}
                 />
                 <button type="button" onClick={startStream} disabled={busy !== null || !liveShopStreamTitleReady(streamTitle)} className={goldBtn} data-testid="world-live-shop-start-btn">
-                  {busy === "start" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Start selling
+                  {busy === "start" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {t("worldLivePromo.shopStartButton")}
                 </button>
               </div>
             </LiveCard>
@@ -383,11 +385,11 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
               <LiveCard isLight={isLight} testId="world-live-shop-pinned">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> LIVE
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> {t("worldLivePromo.shopLiveBadge")}
                   </span>
                   <span className={`text-sm font-bold ${strong}`}>{activeStream.title}</span>
                   <button type="button" onClick={endStream} disabled={busy !== null} className={`${redBtn} ml-auto`} data-testid="world-live-shop-end">
-                    {busy === "end" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />} End session
+                    {busy === "end" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />} {t("worldLivePromo.shopEndButton")}
                   </button>
                 </div>
                 {pinned ? (
@@ -400,17 +402,17 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
                       <p className="text-sm font-black text-[#d4af37]">{pinned.price}</p>
                     </div>
                     <button type="button" onClick={() => void buyPinned()} disabled={buying} className={goldBtn} data-testid="world-live-shop-buy">
-                      {buying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShoppingBag className="h-3.5 w-3.5" />} Buy {pinned.price}
+                      {buying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShoppingBag className="h-3.5 w-3.5" />} {t("worldLivePromo.shopBuyButton", { price: pinned.price })}
                     </button>
                   </div>
                 ) : (
-                  <p className={`mt-2 text-sm ${muted}`}>Nothing pinned yet — pin a product from your catalog below and it appears here, on your overlay, for every viewer.</p>
+                  <p className={`mt-2 text-sm ${muted}`}>{t("worldLivePromo.shopNothingPinned")}</p>
                 )}
                 {buySecret && (
                   <div className="mt-3 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-live-shop-embedded-checkout">
                     <EmbeddedSessionCheckout clientSecret={buySecret} />
                     <button type="button" onClick={() => setBuySecret(null)} className={chipBtn(isLight)}>
-                      Close — nothing is charged until you finish paying
+                      {t("worldLivePromo.shopCloseNoCharge")}
                     </button>
                   </div>
                 )}
@@ -418,9 +420,9 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
 
               {/* Pin / unpin — the catalog IS the pin list. */}
               <div>
-                <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Pin a product</p>
+                <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>{t("worldLivePromo.shopPinTitle")}</p>
                 {products.filter((p) => p.isActive).length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="Your catalog is empty" detail="Add a product below and it can be pinned to this session." />
+                  <NativeEmptyState isLight={isLight} message={t("worldLivePromo.shopCatalogEmpty")} detail={t("worldLivePromo.shopCatalogEmptyDetail")} />
                 ) : (
                   <div className="mt-2 grid gap-2">
                     {products.filter((p) => p.isActive).map((p) => (
@@ -450,36 +452,36 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
               {/* Purchase alerts — the feed + the page's test pair. */}
               <LiveCard isLight={isLight} testId="world-live-shop-alerts">
                 <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-                  <Bell className="h-4 w-4 text-[#d4af37]" /> Purchase alerts
+                  <Bell className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.shopAlertsTitle")}
                 </p>
                 <div className="mt-2 space-y-1.5" data-testid="world-live-shop-alert-feed">
                   {alerts.length === 0 ? (
-                    <p className={`text-sm ${muted}`}>No purchases yet this session — when a viewer buys, the alert lands here and pops on your overlay.</p>
+                    <p className={`text-sm ${muted}`}>{t("worldLivePromo.shopNoPurchases")}</p>
                   ) : (
                     alerts.slice(0, 5).map((a) => (
                       <p key={a.id} className={`text-sm ${strong}`} data-testid="world-live-shop-alert-row">
-                        <span className="font-bold text-[#b8912c]">Purchase</span>{" "}
+                        <span className="font-bold text-[#b8912c]">{t("worldLivePromo.shopAlertPurchase")}</span>{" "}
                         {buildAlertText(a.buyerName, a.quantity, a.totalCents)}
                       </p>
                     ))
                   )}
                 </div>
-                <p className={`mt-3 text-xs ${muted}`}>Try the overlay: fire a test alert (it also records a test sale — labelled test on the dashboard, no money moves).</p>
+                <p className={`mt-3 text-xs ${muted}`}>{t("worldLivePromo.shopTestIntro")}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <input
                     value={testBuyer}
                     onChange={(e) => setTestBuyer(e.target.value)}
-                    placeholder="Test buyer name (optional)"
+                    placeholder={t("worldLivePromo.shopTestBuyerPlaceholder")}
                     maxLength={80}
                     className={`${inputCls(isLight)} min-w-40 flex-1`}
                     data-testid="world-live-shop-test-buyer"
-                    aria-label="Test buyer name"
+                    aria-label={t("worldLivePromo.shopTestBuyerAria")}
                   />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {products.filter((p) => p.isActive).map((p) => (
                     <button key={p.id} type="button" onClick={() => fireTestAlert(p)} disabled={busy !== null} className={chipBtn(isLight)} data-testid="world-live-shop-test-alert">
-                      <Bell className="h-3.5 w-3.5" /> {p.name} · Test
+                      <Bell className="h-3.5 w-3.5" /> {p.name} · {t("worldLivePromo.shopTestLabel")}
                     </button>
                   ))}
                 </div>
@@ -489,32 +491,32 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
 
           {/* Add a product — the page's compact core (name + price). */}
           <LiveCard isLight={isLight} testId="world-live-shop-add">
-            <p className={`text-sm font-bold ${strong}`}>Add a product</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldLivePromo.shopAddTitle")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <input
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
-                placeholder="Product name"
+                placeholder={t("worldLivePromo.shopProductNamePlaceholder")}
                 maxLength={120}
                 className={`${inputCls(isLight)} min-w-40 flex-1`}
                 data-testid="world-live-shop-product-name"
-                aria-label="Product name"
+                aria-label={t("worldLivePromo.shopProductNameAria")}
               />
               <input
                 value={productPrice}
                 onChange={(e) => setProductPrice(e.target.value)}
-                placeholder="Price — 24.99"
+                placeholder={t("worldLivePromo.shopPricePlaceholder")}
                 inputMode="decimal"
                 className={`${inputCls(isLight)} w-32`}
                 data-testid="world-live-shop-product-price"
-                aria-label="Product price"
+                aria-label={t("worldLivePromo.shopPriceAria")}
               />
               <button type="button" onClick={addProduct} disabled={busy !== null || !productReady} className={goldBtn} data-testid="world-live-shop-product-add">
-                {busy === "add-product" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add product
+                {busy === "add-product" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} {t("worldLivePromo.shopAddButton")}
               </button>
             </div>
             {products.length > 0 && (
-              <p className={`mt-2 text-xs ${muted}`}>{products.length} in your catalog. This desk&rsquo;s add form carries the name + price core; photos, links and descriptions are not part of this stream-side desk.</p>
+              <p className={`mt-2 text-xs ${muted}`}>{t("worldLivePromo.shopCatalogCount", { count: products.length })}</p>
             )}
           </LiveCard>
 
@@ -522,25 +524,25 @@ export function LiveShoppingDesk({ isLight }: { isLight: boolean }) {
           {dashboard && (
             <LiveCard isLight={isLight} testId="world-live-shop-revenue">
               <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-                <TrendingUp className="h-4 w-4 text-[#d4af37]" /> Revenue
-                {dashboard.testData ? <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">Includes test sales</span> : null}
+                <TrendingUp className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.shopRevenueTitle")}
+                {dashboard.testData ? <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">{t("worldLivePromo.shopTestSalesBadge")}</span> : null}
               </p>
               <p className={`mt-1 text-sm ${muted}`}>
-                <b className={strong}>{dashboard.revenue}</b> total · {dashboard.paidSales} paid · {dashboard.testSales} test · platform fees {dashboard.platformFees} · your payout {dashboard.creatorPayout}
+                <b className={strong}>{dashboard.revenue}</b> {t("worldLivePromo.shopRevenueLine", { paid: dashboard.paidSales, test: dashboard.testSales, fees: dashboard.platformFees, payout: dashboard.creatorPayout })}
               </p>
               {dashboard.perStream.length > 0 ? (
                 <ul className="mt-2 space-y-1.5" data-testid="world-live-shop-revenue-rows">
                   {dashboard.perStream.map((r) => (
                     <li key={r.streamId} className={`flex flex-wrap items-center justify-between gap-2 text-sm ${strong}`}>
                       <span className="min-w-0 truncate">{r.title}</span>
-                      <span className={muted}>{r.sales} sales</span>
+                      <span className={muted}>{t("worldLivePromo.shopSalesCount", { sales: r.sales })}</span>
                       <span className="font-bold text-[#d4af37]">{r.revenue}</span>
-                      <span className={muted}>fees {r.fees}</span>
+                      <span className={muted}>{t("worldLivePromo.shopFeesLabel", { fees: r.fees })}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className={`mt-1 text-sm ${muted}`}>No selling sessions yet — revenue per stream appears here after your first session.</p>
+                <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.shopNoSessions")}</p>
               )}
             </LiveCard>
           )}

@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2, Clapperboard, ClipboardList, Eye, Handshake, Loader2, Pin, PinOff,
   RotateCcw, Send, Share2, Sparkles, Trash2, User, XCircle,
@@ -44,11 +45,21 @@ import {
   makerProductName,
   personaDescriptionReady,
   scriptFromMaker,
+  ugcBriefStrings,
+  ugcMakerStrings,
   validateBriefForm,
   validateUgcMaker,
   type UgcBriefFormState,
   type UgcMakerState,
 } from "@/lib/world/ugc-station";
+
+/** Catalog keys for the board-scope chips — the scope ids ride the
+ *  rail; the desk renders the catalog words, keyed by the scope. */
+const SCOPE_LABEL_KEYS: Record<string, string> = {
+  open: "worldLivePromo.ugcScopeOpen",
+  posted: "worldLivePromo.ugcScopePosted",
+  claimed: "worldLivePromo.ugcScopeClaimed",
+};
 
 /* ─── UGC Product Ads, in-world (Stack-100 #56) ─────────────────────
    The headline Promote feature, docked in the Promote Room beside
@@ -112,6 +123,7 @@ const EMPTY_BRIEF_FORM: UgcBriefFormState = {
 };
 
 export function UgcAdsStation({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const token = useCallback(() => getAccessToken(), [getAccessToken]);
@@ -183,12 +195,17 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const noteCls = `text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`;
   const productName = makerProductName(maker, products);
+  // Surrounding component copy in the seams' own words, from the
+  // catalog (units 36–43 pattern); the seams' EN defaults ride the
+  // rails byte-identical when nothing is passed.
+  const makerStrings = ugcMakerStrings(t);
+  const briefStrings = ugcBriefStrings(t);
 
   /* ── Maker actions ── */
 
   const writeScript = async () => {
     if (!productName) {
-      setMakerError("Pick or name the product first — Turbo writes about the product.");
+      setMakerError(t("worldLivePromo.ugcScriptFirst"));
       return;
     }
     setScriptBusy(true);
@@ -201,7 +218,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       });
       set({ hook: script.hook, scriptLines: script.lines.join("\n"), cta: script.cta });
     } catch (err) {
-      setMakerError(plainErrorText(err, "The script didn't come through — try again."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcScriptFailed")));
     } finally {
       setScriptBusy(false);
     }
@@ -209,7 +226,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
 
   const makePersona = async () => {
     if (!personaDescriptionReady(personaDescription)) {
-      setMakerError("Describe the creator in a sentence or two first.");
+      setMakerError(t("worldLivePromo.ugcPersonaDescFirst"));
       return;
     }
     setPersonaBusy(true);
@@ -230,14 +247,14 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (!res.ok || typeof data.personaUrl !== "string") {
         /* A failed attempt was refunded — the retry is a NEW intent. */
         personaKeyRef.current = "";
-        setMakerError(apiErrorMessage(data, "The persona didn't come through — try again."));
+        setMakerError(apiErrorMessage(data, t("worldLivePromo.ugcPersonaFailed")));
         return;
       }
       set({ personaUrl: data.personaUrl });
       refreshProfile();
     } catch {
       personaKeyRef.current = "";
-      setMakerError("The persona didn't come through — try again.");
+      setMakerError(t("worldLivePromo.ugcPersonaFailed"));
     } finally {
       setPersonaBusy(false);
     }
@@ -258,20 +275,20 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
     const ad = normalizeUgcAd((data as { ad?: unknown }).ad);
     if (!res.ok || !ad) {
       const d = data as { error?: string; message?: string };
-      throw new Error(apiErrorMessage(d, "Generation failed — any charge was refunded."));
+      throw new Error(apiErrorMessage(d, t("worldLivePromo.ugcGenerationFailed")));
     }
     return ad;
   };
 
   const generateAd = async () => {
-    const problem = validateUgcMaker(maker);
+    const problem = validateUgcMaker(maker, makerStrings);
     if (problem) {
       setMakerError(problem);
       return;
     }
     const input = buildUgcCreateInput(maker);
     if (!input) {
-      setMakerError("The ad needs a script — write one below or let Turbo write it.");
+      setMakerError(t("worldLivePromo.ugcMakerScriptNeeded"));
       return;
     }
     setGenerating(true);
@@ -285,7 +302,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       setAdsState("ready");
       refreshProfile();
     } catch (err) {
-      setMakerError(plainErrorText(err, "Generation failed — any charge was refunded."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcGenerationFailed")));
       void loadAds();
     } finally {
       setGenerating(false);
@@ -302,7 +319,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      setMakerError(plainErrorText(err, "Generation failed — any charge was refunded."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcGenerationFailed")));
       void loadAds();
     } finally {
       setBusyAdId(null);
@@ -319,7 +336,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === saved.id) setLatestAd(saved);
       void loadProducts();
     } catch (err) {
-      setMakerError(plainErrorText(err, "That pin didn't land — try again."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcPinFailed")));
     } finally {
       setBusyAdId(null);
     }
@@ -333,7 +350,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === ad.id) setLatestAd(null);
       setConfirmDeleteId(null);
     } catch (err) {
-      setMakerError(plainErrorText(err, "Couldn't delete that ad."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcDeleteFailed")));
     } finally {
       setBusyAdId(null);
     }
@@ -344,13 +361,13 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
     const text = ugcAdShareText(ad);
     try {
       if (navigator.share) {
-        await navigator.share({ title: `${ad.productName} — UGC ad`, text, url: ad.videoUrl });
+        await navigator.share({ title: t("worldLivePromo.ugcShareTitle", { name: ad.productName }), text, url: ad.videoUrl });
         void recordUgcAdShare(await token(), ad.id, "native");
       } else {
         await navigator.clipboard.writeText(`${text}\n${ad.videoUrl}`);
         void recordUgcAdShare(await token(), ad.id, "copy");
         setMakerError(null);
-        setBoardNote("Your ad's link is on the clipboard.");
+        setBoardNote(t("worldLivePromo.ugcClipboardNote"));
       }
     } catch {
       /* a dismissed share sheet tracks nothing and says nothing */
@@ -360,7 +377,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
   /* ── Briefs board actions ── */
 
   const submitBrief = async () => {
-    const problem = validateBriefForm(briefForm);
+    const problem = validateBriefForm(briefForm, briefStrings);
     if (problem) {
       setBoardNote(problem);
       return;
@@ -373,9 +390,9 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       setBoardScope("posted");
       setBriefs((prev) => [brief, ...prev]);
       setBriefsState("ready");
-      setBoardNote("Brief posted — it's on the board, creators can claim it now.");
+      setBoardNote(t("worldLivePromo.ugcBriefPosted"));
     } catch (err) {
-      setBoardNote(plainErrorText(err, "Couldn't post that brief — try again."));
+      setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefPostFailed")));
     } finally {
       setPostingBrief(false);
     }
@@ -383,7 +400,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
 
   const runBriefAction = async (brief: UgcBrief, action: BriefAction) => {
     if (action === "deliver" && !deliverPick[brief.id]) {
-      setBoardNote("Pick one of your finished ads to deliver first.");
+      setBoardNote(t("worldLivePromo.ugcDeliverPickFirst"));
       return;
     }
     setBusyBriefId(brief.id);
@@ -395,10 +412,10 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
           .map((b) => (b.id === updated.id ? updated : b))
           .filter((b) => (boardScope === "open" ? b.status === "open" : true)),
       );
-      if (action === "deliver") setBoardNote("Delivered — the brand can review your ad now.");
-      if (action === "approve") setBoardNote("Approved — this brief is complete.");
+      if (action === "deliver") setBoardNote(t("worldLivePromo.ugcDeliveredNote"));
+      if (action === "approve") setBoardNote(t("worldLivePromo.ugcApprovedNote"));
     } catch (err) {
-      setBoardNote(plainErrorText(err, "That didn't land — try again."));
+      setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefActionFailed")));
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
@@ -424,7 +441,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
     try {
       setReviewAd(await fetchUgcAd(await token(), brief.deliveredAdId));
     } catch {
-      setBoardNote("Couldn't load the delivered ad — try again.");
+      setBoardNote(t("worldLivePromo.ugcReviewFailed"));
     } finally {
       setBusyBriefId(null);
     }
@@ -433,12 +450,10 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
   const myReadyAds = ads.filter((a) => a.status === "ready");
 
   return (
-    <NativeCard isLight={isLight} title="UGC Product Ads">
+    <NativeCard isLight={isLight} title={t("worldLivePromo.ugcTitle")}>
       <div className="space-y-4" data-testid="world-ugc-station">
         <p className={`text-sm ${muted}`}>
-          A real creator-style video ad for a product — a script with a hook, a face, your branding kit applied.
-          Video generation is {UGC_VIDEO_CREDIT_COST} Visual Bucs; a generated persona face is {UGC_PERSONA_CREDIT_COST}.
-          Prices show before anything runs, and a failed generation is refunded.
+          {t("worldLivePromo.ugcIntro", { videoCost: UGC_VIDEO_CREDIT_COST, personaCost: UGC_PERSONA_CREDIT_COST })}
         </p>
 
         {/* ── Maker ── */}
@@ -447,30 +462,30 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
             <div className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-xs ${isLight ? "border-[#C9A84C]/50" : "border-[#d4af37]/40"}`}>
               <Handshake className="h-4 w-4 text-[#d4af37]" />
               <span className={`flex-1 ${strong}`}>
-                Making this ad for a brief: <strong>{makingForBrief.productName}</strong> — “{makingForBrief.details}”
+                {t("worldLivePromo.ugcForBriefPrefix")} <strong>{makingForBrief.productName}</strong> {t("worldLivePromo.ugcForBriefSuffix", { details: makingForBrief.details })}
               </span>
               <button type="button" onClick={() => { setMakingForBrief(null); set({ briefId: null }); }} className={`font-bold bdv-touch-target ${muted}`}>
-                Not for this brief
+                {t("worldLivePromo.ugcNotForBrief")}
               </button>
             </div>
           ) : null}
 
-          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>1 · The product</p>
+          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldLivePromo.ugcStepProduct")}</p>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" data-testid="world-ugc-source-shop" aria-pressed={maker.productSource === "shop"} onClick={() => set({ productSource: "shop" })} className={chipBtn(isLight, maker.productSource === "shop")}>
-              From my shop
+              {t("worldLivePromo.ugcSourceShop")}
             </button>
             <button type="button" data-testid="world-ugc-source-upload" aria-pressed={maker.productSource === "upload"} onClick={() => set({ productSource: "upload" })} className={chipBtn(isLight, maker.productSource === "upload")}>
-              Upload a product
+              {t("worldLivePromo.ugcSourceUpload")}
             </button>
           </div>
           {maker.productSource === "shop" ? (
             productsState === "loading" ? (
-              <NativeLoadingState isLight={isLight} message="Loading your shop products…" />
+              <NativeLoadingState isLight={isLight} message={t("worldLivePromo.ugcProductsLoading")} />
             ) : productsState === "failed" ? (
-              <NativeErrorState isLight={isLight} message="Couldn't load your shop products." onRetry={() => void loadProducts()} />
+              <NativeErrorState isLight={isLight} message={t("worldLivePromo.ugcProductsFailed")} onRetry={() => void loadProducts()} />
             ) : products.length === 0 ? (
-              <p className={`text-xs ${muted}`}>No products in your shop yet — switch to “Upload a product” and name it here.</p>
+              <p className={`text-xs ${muted}`}>{t("worldLivePromo.ugcNoProducts")}</p>
             ) : (
               <div className="grid gap-1.5 sm:grid-cols-2" data-testid="world-ugc-products">
                 {products.map((p) => (
@@ -492,14 +507,14 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
             )
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
-              <input aria-label="Product name" data-testid="world-ugc-product-name" className={inputCls(isLight)} placeholder="Product name *" value={maker.productName} onChange={(e) => set({ productName: e.target.value })} maxLength={120} />
-              <input aria-label="Product price in dollars" className={inputCls(isLight)} placeholder="Price in dollars (optional)" inputMode="decimal" value={maker.productPrice} onChange={(e) => set({ productPrice: e.target.value })} />
-              <input aria-label="Product photo link" className={`${inputCls(isLight)} sm:col-span-2`} placeholder="Product photo link (https://…)" value={maker.productImageUrl} onChange={(e) => set({ productImageUrl: e.target.value })} maxLength={2048} />
+              <input aria-label={t("worldLivePromo.ugcProductNameAria")} data-testid="world-ugc-product-name" className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcProductNamePlaceholder")} value={maker.productName} onChange={(e) => set({ productName: e.target.value })} maxLength={120} />
+              <input aria-label={t("worldLivePromo.ugcProductPriceAria")} className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcProductPricePlaceholder")} inputMode="decimal" value={maker.productPrice} onChange={(e) => set({ productPrice: e.target.value })} />
+              <input aria-label={t("worldLivePromo.ugcProductPhotoAria")} className={`${inputCls(isLight)} sm:col-span-2`} placeholder={t("worldLivePromo.ugcProductPhotoPlaceholder")} value={maker.productImageUrl} onChange={(e) => set({ productImageUrl: e.target.value })} maxLength={2048} />
             </div>
           )}
-          <input aria-label="What makes it worth buying" className={inputCls(isLight)} placeholder="One line on what makes it worth buying (optional)" value={maker.productBlurb} onChange={(e) => set({ productBlurb: e.target.value })} maxLength={600} />
+          <input aria-label={t("worldLivePromo.ugcBlurbAria")} className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcBlurbPlaceholder")} value={maker.productBlurb} onChange={(e) => set({ productBlurb: e.target.value })} maxLength={600} />
 
-          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>2 · The style</p>
+          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldLivePromo.ugcStepStyle")}</p>
           <div className="flex flex-wrap gap-1.5" data-testid="world-ugc-styles">
             {UGC_STYLES.map((s) => (
               <button key={s.key} type="button" aria-pressed={maker.style === s.key} onClick={() => set({ style: s.key })} className={chipBtn(isLight, maker.style === s.key)}>
@@ -508,81 +523,81 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
             ))}
           </div>
 
-          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>3 · The face</p>
+          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldLivePromo.ugcStepFace")}</p>
           <div className="flex flex-wrap gap-1.5">
-            <button type="button" aria-pressed={maker.faceMode === "persona"} onClick={() => set({ faceMode: "persona" })} className={chipBtn(isLight, maker.faceMode === "persona")}>Generated creator persona</button>
-            <button type="button" aria-pressed={maker.faceMode === "photo"} onClick={() => set({ faceMode: "photo" })} className={chipBtn(isLight, maker.faceMode === "photo")}>My own photo</button>
-            <button type="button" aria-pressed={maker.faceMode === "none"} onClick={() => set({ faceMode: "none" })} className={chipBtn(isLight, maker.faceMode === "none")}>No face — product only</button>
+            <button type="button" aria-pressed={maker.faceMode === "persona"} onClick={() => set({ faceMode: "persona" })} className={chipBtn(isLight, maker.faceMode === "persona")}>{t("worldLivePromo.ugcFacePersona")}</button>
+            <button type="button" aria-pressed={maker.faceMode === "photo"} onClick={() => set({ faceMode: "photo" })} className={chipBtn(isLight, maker.faceMode === "photo")}>{t("worldLivePromo.ugcFacePhoto")}</button>
+            <button type="button" aria-pressed={maker.faceMode === "none"} onClick={() => set({ faceMode: "none" })} className={chipBtn(isLight, maker.faceMode === "none")}>{t("worldLivePromo.ugcFaceNone")}</button>
           </div>
           {maker.faceMode === "persona" ? (
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
                 <input
-                  aria-label="Describe the creator"
+                  aria-label={t("worldLivePromo.ugcPersonaDescAria")}
                   data-testid="world-ugc-persona-desc"
                   className={inputCls(isLight)}
                   style={{ flex: "1 1 220px", width: "auto" }}
-                  placeholder="Describe the creator — e.g. “a 30-year-old barber in Chicago, locs, warm laugh”"
+                  placeholder={t("worldLivePromo.ugcPersonaDescPlaceholder")}
                   value={personaDescription}
                   onChange={(e) => { setPersonaDescription(e.target.value); personaKeyRef.current = ""; }}
                   maxLength={400}
                 />
                 <button type="button" data-testid="world-ugc-persona-make" onClick={() => void makePersona()} disabled={personaBusy} className={goldBtn}>
                   {personaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                  {maker.personaUrl ? "Regenerate" : "Generate"} persona · {UGC_PERSONA_CREDIT_COST} VB
+                  {maker.personaUrl ? t("worldLivePromo.ugcPersonaRegenerate", { cost: UGC_PERSONA_CREDIT_COST }) : t("worldLivePromo.ugcPersonaGenerate", { cost: UGC_PERSONA_CREDIT_COST })}
                 </button>
               </div>
               {maker.personaUrl ? (
                 <div className="flex items-center gap-3">
-                  <img src={maker.personaUrl} alt="Your generated creator persona" className="h-20 w-14 rounded-lg object-cover" />
-                  <p className={`text-xs ${muted}`}>This is the face your ad is filmed with. Businesses: this is your creator — no real person needed.</p>
+                  <img src={maker.personaUrl} alt={t("worldLivePromo.ugcPersonaAlt")} className="h-20 w-14 rounded-lg object-cover" />
+                  <p className={`text-xs ${muted}`}>{t("worldLivePromo.ugcPersonaExplainer")}</p>
                 </div>
               ) : null}
             </div>
           ) : null}
           {maker.faceMode === "photo" ? (
-            <input aria-label="Your photo link" className={inputCls(isLight)} placeholder="Link to your photo or character image (https://…) — your vault photos work" value={maker.facePhotoUrl} onChange={(e) => set({ facePhotoUrl: e.target.value })} maxLength={2048} />
+            <input aria-label={t("worldLivePromo.ugcPhotoAria")} className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcPhotoPlaceholder")} value={maker.facePhotoUrl} onChange={(e) => set({ facePhotoUrl: e.target.value })} maxLength={2048} />
           ) : null}
 
-          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>4 · The script</p>
+          <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldLivePromo.ugcStepScript")}</p>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" data-testid="world-ugc-script-turbo" onClick={() => void writeScript()} disabled={scriptBusy} className={goldBtn}>
-              {scriptBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Write it with Turbo
+              {scriptBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {t("worldLivePromo.ugcScriptTurbo")}
             </button>
-            <span className={`text-[11px] ${muted}`}>Free — the script rides inside the ad. Or write your own below.</span>
+            <span className={`text-[11px] ${muted}`}>{t("worldLivePromo.ugcScriptFreeNote")}</span>
           </div>
-          <input aria-label="Hook" data-testid="world-ugc-hook" className={inputCls(isLight)} placeholder="Hook — the first line, made to stop the scroll" value={maker.hook} onChange={(e) => set({ hook: e.target.value })} maxLength={200} />
-          <textarea aria-label="Spoken lines" className={inputCls(isLight)} rows={3} placeholder={"Spoken lines — one per line\nSay what a real creator would say…"} value={maker.scriptLines} onChange={(e) => set({ scriptLines: e.target.value })} maxLength={1400} />
-          <input aria-label="Call to action" className={inputCls(isLight)} placeholder="Call to action — e.g. “Link's in my shop”" value={maker.cta} onChange={(e) => set({ cta: e.target.value })} maxLength={200} />
+          <input aria-label={t("worldLivePromo.ugcHookAria")} data-testid="world-ugc-hook" className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcHookPlaceholder")} value={maker.hook} onChange={(e) => set({ hook: e.target.value })} maxLength={200} />
+          <textarea aria-label={t("worldLivePromo.ugcLinesAria")} className={inputCls(isLight)} rows={3} placeholder={t("worldLivePromo.ugcLinesPlaceholder")} value={maker.scriptLines} onChange={(e) => set({ scriptLines: e.target.value })} maxLength={1400} />
+          <input aria-label={t("worldLivePromo.ugcCtaAria")} className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcCtaPlaceholder")} value={maker.cta} onChange={(e) => set({ cta: e.target.value })} maxLength={200} />
 
           {makerError ? <p className={noteCls} data-testid="world-ugc-error">{makerError}</p> : null}
           <button type="button" data-testid="world-ugc-generate" onClick={() => void generateAd()} disabled={generating} className={`${goldBtn} w-full justify-center`}>
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
-            {generating ? "Filming your ad — this takes a minute…" : `Generate my UGC ad · ${UGC_VIDEO_CREDIT_COST} Visual Bucs`}
+            {generating ? t("worldLivePromo.ugcFilming") : t("worldLivePromo.ugcGenerateAd", { cost: UGC_VIDEO_CREDIT_COST })}
           </button>
           <p className={`text-center text-[11px] ${muted}`}>
-            Vertical 9:16 for TikTok, Reels, and Shorts. Captions from your script are burned in, and your branding kit is applied.
+            {t("worldLivePromo.ugcFormatNote")}
           </p>
           {latestAd?.status === "ready" && latestAd.videoUrl ? (
             <div className={`rounded-xl border p-3 ${isLight ? "border-emerald-700/40" : "border-emerald-400/30"}`} data-testid="world-ugc-latest">
               <p className={`flex items-center gap-2 text-sm font-bold ${isLight ? "text-emerald-800" : "text-emerald-300"}`}>
-                <CheckCircle2 className="h-4 w-4" /> Your ad is ready — {latestAd.productName}
+                <CheckCircle2 className="h-4 w-4" /> {t("worldLivePromo.ugcAdReady", { name: latestAd.productName })}
               </p>
               <video src={latestAd.videoUrl} controls playsInline className="mt-2 aspect-[9/16] max-h-72 w-full rounded-lg bg-black object-contain" />
-              <p className={`mt-2 text-xs ${muted}`}>It's saved in your ads below and in your clip library.</p>
+              <p className={`mt-2 text-xs ${muted}`}>{t("worldLivePromo.ugcAdSavedNote")}</p>
             </div>
           ) : null}
         </div>
 
         {/* ── My ads ── */}
         <div className="space-y-2" data-testid="world-ugc-my-ads">
-          <p className={`text-sm font-black ${strong}`}>My UGC ads</p>
+          <p className={`text-sm font-black ${strong}`}>{t("worldLivePromo.ugcMyAds")}</p>
           {adsState === "loading" ? (
-            <NativeLoadingState isLight={isLight} message="Loading your ads…" />
+            <NativeLoadingState isLight={isLight} message={t("worldLivePromo.ugcAdsLoading")} />
           ) : adsState === "failed" ? (
-            <NativeErrorState isLight={isLight} message="Couldn't load your ads." onRetry={() => void loadAds()} />
+            <NativeErrorState isLight={isLight} message={t("worldLivePromo.ugcAdsFailed")} onRetry={() => void loadAds()} />
           ) : ads.length === 0 ? (
-            <NativeEmptyState isLight={isLight} message="No UGC ads yet — your first one is made above." />
+            <NativeEmptyState isLight={isLight} message={t("worldLivePromo.ugcNoAds")} />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {ads.map((ad) => (
@@ -591,7 +606,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                     <div className="min-w-0">
                       <p className={`truncate text-sm font-bold ${strong}`}>{ad.productName}</p>
                       <p className={`text-[11px] ${muted}`}>
-                        {UGC_STYLES.find((s) => s.key === ad.style)?.label ?? ad.style} · {new Date(ad.createdAt).toLocaleDateString()}
+                        {t("worldLivePromo.ugcAdMeta", { style: UGC_STYLES.find((s) => s.key === ad.style)?.label ?? ad.style, date: new Date(ad.createdAt).toLocaleDateString(i18n.language) })}
                       </p>
                     </div>
                     <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${muted}`}>{ugcAdStatusLabel(ad.status)}</span>
@@ -600,44 +615,44 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                     <video src={ad.videoUrl} controls playsInline className="mt-2 aspect-[9/16] max-h-64 w-full rounded-lg bg-black object-contain" />
                   ) : null}
                   {ad.status === "failed" && ad.lastError ? (
-                    <p className={`mt-2 text-[11px] ${noteCls}`}>{ad.lastError} Your Visual Bucs were refunded.</p>
+                    <p className={`mt-2 text-[11px] ${noteCls}`}>{ad.lastError} {t("worldLivePromo.ugcRefundedSuffix")}</p>
                   ) : null}
                   {ad.pinnedProductId ? (
                     <p className={`mt-2 flex items-center gap-1.5 text-[11px] font-bold ${strong}`}>
-                      <Pin className="h-3.5 w-3.5 text-[#d4af37]" /> Pinned to {products.find((p) => p.id === ad.pinnedProductId)?.name ?? ad.productName} — buyers see this ad on the product.
+                      <Pin className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldLivePromo.ugcPinnedLine", { name: products.find((p) => p.id === ad.pinnedProductId)?.name ?? ad.productName })}
                     </p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {ad.status === "draft" || ad.status === "failed" ? (
                       <button type="button" data-testid="world-ugc-ad-generate" onClick={() => void regenerate(ad)} disabled={busyAdId === ad.id} className={chipBtn(isLight, true)}>
-                        {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clapperboard className="h-3.5 w-3.5" />} Generate · {UGC_VIDEO_CREDIT_COST} VB
+                        {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clapperboard className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcAdGenerate", { cost: UGC_VIDEO_CREDIT_COST })}
                       </button>
                     ) : null}
                     {ad.status === "ready" && ad.videoUrl ? (
                       <button type="button" data-testid="world-ugc-ad-share" onClick={() => void shareAd(ad)} className={chipBtn(isLight, false)}>
-                        <Share2 className="h-3.5 w-3.5" /> Share
+                        <Share2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcShare")}
                       </button>
                     ) : null}
                     {pinActionFor(ad) === "pin" ? (
                       <button type="button" data-testid="world-ugc-ad-pin" onClick={() => void togglePin(ad)} disabled={busyAdId === ad.id} className={chipBtn(isLight, false)}>
-                        <Pin className="h-3.5 w-3.5" /> Pin to product
+                        <Pin className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcPinToProduct")}
                       </button>
                     ) : null}
                     {pinActionFor(ad) === "unpin" ? (
                       <button type="button" data-testid="world-ugc-ad-unpin" onClick={() => void togglePin(ad)} disabled={busyAdId === ad.id} className={chipBtn(isLight, false)}>
-                        <PinOff className="h-3.5 w-3.5" /> Unpin
+                        <PinOff className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcUnpin")}
                       </button>
                     ) : null}
                     {confirmDeleteId === ad.id ? (
                       <>
                         <button type="button" data-testid="world-ugc-ad-delete-confirm" onClick={() => void removeAd(ad)} className={chipBtn(isLight, false)}>
-                          <Trash2 className="h-3.5 w-3.5" /> Confirm delete
+                          <Trash2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcConfirmDelete")}
                         </button>
-                        <button type="button" onClick={() => setConfirmDeleteId(null)} className={chipBtn(isLight, false)}>Keep</button>
+                        <button type="button" onClick={() => setConfirmDeleteId(null)} className={chipBtn(isLight, false)}>{t("worldLivePromo.ugcKeep")}</button>
                       </>
                     ) : (
                       <button type="button" data-testid="world-ugc-ad-delete" onClick={() => setConfirmDeleteId(ad.id)} className={chipBtn(isLight, false)}>
-                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                        <Trash2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcDelete")}
                       </button>
                     )}
                   </div>
@@ -650,59 +665,53 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
         {/* ── Briefs board ── */}
         <div className={`space-y-3 border-t border-dashed pt-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-ugc-briefs">
           <p className={`flex items-center gap-2 text-sm font-black ${strong}`}>
-            <ClipboardList className="h-4 w-4 text-[#d4af37]" /> Briefs board — brands &amp; creators
+            <ClipboardList className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.ugcBriefsTitle")}
           </p>
           <p className={`rounded-xl border px-3 py-2 text-xs ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-[#d4af37]/30 text-white/70"}`} data-testid="world-ugc-payment-note">
-            {UGC_PAYMENT_NOTE} The board handles the work — the brief, the claim, the delivery, the approval — never the money.
+            {UGC_PAYMENT_NOTE} {t("worldLivePromo.ugcBoardNoteSuffix")}
           </p>
 
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-ugc-brief-form">
-            <p className={`text-xs font-bold ${strong}`}>Post a brief (for brands &amp; businesses)</p>
+            <p className={`text-xs font-bold ${strong}`}>{t("worldLivePromo.ugcBriefFormTitle")}</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <input aria-label="Brief product name" data-testid="world-ugc-brief-name" className={inputCls(isLight)} placeholder="Product name *" value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} maxLength={120} />
-              <select aria-label="Brief style" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })}>
+              <input aria-label={t("worldLivePromo.ugcBriefNameAria")} data-testid="world-ugc-brief-name" className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcProductNamePlaceholder")} value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} maxLength={120} />
+              <select aria-label={t("worldLivePromo.ugcBriefStyleAria")} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })}>
                 {UGC_STYLES.map((s) => (
                   <option key={s.key} value={s.key}>{s.label}</option>
                 ))}
               </select>
-              <input aria-label="Brief product page link" className={inputCls(isLight)} placeholder="Product page link (optional)" value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} maxLength={2048} />
-              <input aria-label="Brief deadline" type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} />
-              <input aria-label="Brief product photo link" className={`${inputCls(isLight)} sm:col-span-2`} placeholder="Product photo link (optional)" value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} maxLength={2048} />
+              <input aria-label={t("worldLivePromo.ugcBriefUrlAria")} className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcBriefUrlPlaceholder")} value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} maxLength={2048} />
+              <input aria-label={t("worldLivePromo.ugcBriefDeadlineAria")} type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} />
+              <input aria-label={t("worldLivePromo.ugcBriefPhotoAria")} className={`${inputCls(isLight)} sm:col-span-2`} placeholder={t("worldLivePromo.ugcBriefPhotoPlaceholder")} value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} maxLength={2048} />
             </div>
-            <textarea aria-label="Brief details" className={`${inputCls(isLight)} mt-2`} rows={3} placeholder="What do you want in the ad? The moments it has to hit, what to say, what to never say…" value={briefForm.details} onChange={(e) => setBriefForm({ ...briefForm, details: e.target.value })} maxLength={2000} />
+            <textarea aria-label={t("worldLivePromo.ugcBriefDetailsAria")} className={`${inputCls(isLight)} mt-2`} rows={3} placeholder={t("worldLivePromo.ugcBriefDetailsPlaceholder")} value={briefForm.details} onChange={(e) => setBriefForm({ ...briefForm, details: e.target.value })} maxLength={2000} />
             <button type="button" data-testid="world-ugc-brief-post" onClick={() => void submitBrief()} disabled={postingBrief} className={`${goldBtn} mt-2`}>
-              {postingBrief ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post the brief
+              {postingBrief ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {t("worldLivePromo.ugcPostBrief")}
             </button>
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                { key: "open", label: "Open briefs" },
-                { key: "posted", label: "Briefs I posted" },
-                { key: "claimed", label: "Briefs I claimed" },
-              ] as const
-            ).map((s) => (
-              <button key={s.key} type="button" data-testid={`world-ugc-scope-${s.key}`} aria-pressed={boardScope === s.key} onClick={() => setBoardScope(s.key)} className={chipBtn(isLight, boardScope === s.key)}>
-                {s.label}
+            {(["open", "posted", "claimed"] as const).map((scope) => (
+              <button key={scope} type="button" data-testid={`world-ugc-scope-${scope}`} aria-pressed={boardScope === scope} onClick={() => setBoardScope(scope)} className={chipBtn(isLight, boardScope === scope)}>
+                {t(SCOPE_LABEL_KEYS[scope] ?? "worldLivePromo.ugcScopeOpen")}
               </button>
             ))}
           </div>
           {boardNote ? <p className={noteCls}>{boardNote}</p> : null}
 
           {briefsState === "loading" ? (
-            <NativeLoadingState isLight={isLight} message="Loading the board…" />
+            <NativeLoadingState isLight={isLight} message={t("worldLivePromo.ugcBoardLoading")} />
           ) : briefsState === "failed" ? (
-            <NativeErrorState isLight={isLight} message="Couldn't load the board." onRetry={() => void loadBriefs()} />
+            <NativeErrorState isLight={isLight} message={t("worldLivePromo.ugcBoardFailed")} onRetry={() => void loadBriefs()} />
           ) : briefs.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
               message={
                 boardScope === "open"
-                  ? "No open briefs right now — post one above, or check back soon."
+                  ? t("worldLivePromo.ugcNoOpenBriefs")
                   : boardScope === "posted"
-                    ? "You haven't posted a brief yet — the form above is yours."
-                    : "You haven't claimed a brief yet — the open board is waiting."
+                    ? t("worldLivePromo.ugcNoPostedBriefs")
+                    : t("worldLivePromo.ugcNoClaimedBriefs")
               }
             />
           ) : (
@@ -720,7 +729,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                           <p className={`text-xs ${muted}`}>{brief.details}</p>
                           <p className={`mt-0.5 text-[11px] ${muted}`}>
                             {UGC_STYLES.find((s) => s.key === brief.style)?.label ?? brief.style}
-                            {brief.deadline ? ` · needed by ${new Date(brief.deadline).toLocaleDateString()}` : ""}
+                            {brief.deadline ? t("worldLivePromo.ugcNeededBy", { date: new Date(brief.deadline).toLocaleDateString(i18n.language) }) : ""}
                           </p>
                         </div>
                       </div>
@@ -729,33 +738,33 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
 
                     {brief.status === "delivered" && brief.brandUserId === user?.id ? (
                       <button type="button" data-testid="world-ugc-brief-review" onClick={() => void reviewDeliveredAd(brief)} disabled={busy} className={`${chipBtn(isLight, false)} mt-2`}>
-                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Review the delivered ad
+                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcReviewAd")}
                       </button>
                     ) : null}
                     {reviewAd && brief.deliveredAdId === reviewAd.id ? (
                       <div className="mt-2">
                         <video src={reviewAd.videoUrl ?? undefined} controls playsInline className="aspect-[9/16] max-h-72 w-full rounded-lg bg-black object-contain" />
-                        {reviewAd.captions.length > 0 ? <p className={`mt-1 text-[11px] ${muted}`}>Captions: {reviewAd.captions.join(" · ")}</p> : null}
+                        {reviewAd.captions.length > 0 ? <p className={`mt-1 text-[11px] ${muted}`}>{t("worldLivePromo.ugcCaptionsLine", { list: reviewAd.captions.join(" · ") })}</p> : null}
                       </div>
                     ) : null}
 
                     {actions.includes("deliver") ? (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <select
-                          aria-label="Pick a finished ad to deliver"
+                          aria-label={t("worldLivePromo.ugcDeliverPickAria")}
                           data-testid="world-ugc-deliver-pick"
                           className={inputCls(isLight)}
                           style={{ colorScheme: isLight ? "light" : "dark", flex: "1 1 180px", width: "auto" }}
                           value={deliverPick[brief.id] ?? ""}
                           onChange={(e) => setDeliverPick({ ...deliverPick, [brief.id]: e.target.value })}
                         >
-                          <option value="">Pick one of your finished ads…</option>
+                          <option value="">{t("worldLivePromo.ugcDeliverPickPlaceholder")}</option>
                           {myReadyAds.map((a) => (
-                            <option key={a.id} value={a.id}>{a.productName} — {new Date(a.createdAt).toLocaleDateString()}</option>
+                            <option key={a.id} value={a.id}>{t("worldLivePromo.ugcDeliverOption", { name: a.productName, date: new Date(a.createdAt).toLocaleDateString(i18n.language) })}</option>
                           ))}
                         </select>
                         <button type="button" data-testid="world-ugc-brief-make" onClick={() => startAdForBrief(brief)} className={chipBtn(isLight, false)}>
-                          Make the ad for this brief
+                          {t("worldLivePromo.ugcMakeForBrief")}
                         </button>
                       </div>
                     ) : null}
@@ -764,27 +773,27 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {actions.includes("claim") ? (
                           <button type="button" data-testid="world-ugc-brief-claim" onClick={() => void runBriefAction(brief, "claim")} disabled={busy} className={chipBtn(isLight, true)}>
-                            <Handshake className="h-3.5 w-3.5" /> Claim this brief
+                            <Handshake className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcClaimBrief")}
                           </button>
                         ) : null}
                         {actions.includes("deliver") ? (
                           <button type="button" data-testid="world-ugc-brief-deliver" onClick={() => void runBriefAction(brief, "deliver")} disabled={busy} className={chipBtn(isLight, true)}>
-                            <Send className="h-3.5 w-3.5" /> Deliver the ad
+                            <Send className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcDeliverAd")}
                           </button>
                         ) : null}
                         {actions.includes("approve") ? (
                           <button type="button" data-testid="world-ugc-brief-approve" onClick={() => void runBriefAction(brief, "approve")} disabled={busy} className={chipBtn(isLight, true)}>
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Approve delivery
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcApproveDelivery")}
                           </button>
                         ) : null}
                         {actions.includes("release") ? (
                           <button type="button" data-testid="world-ugc-brief-release" onClick={() => void runBriefAction(brief, "release")} disabled={busy} className={chipBtn(isLight, false)}>
-                            <RotateCcw className="h-3.5 w-3.5" /> Release
+                            <RotateCcw className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcRelease")}
                           </button>
                         ) : null}
                         {actions.includes("close") ? (
                           <button type="button" data-testid="world-ugc-brief-close" onClick={() => void runBriefAction(brief, "close")} disabled={busy} className={chipBtn(isLight, false)}>
-                            <XCircle className="h-3.5 w-3.5" /> Close brief
+                            <XCircle className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcCloseBrief")}
                           </button>
                         ) : null}
                       </div>
@@ -797,7 +806,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
         </div>
 
         <p className={`text-[11px] ${muted}`}>
-          {scriptFromMaker(maker) ? "Script's ready — hook, lines and call to action all set." : "Tip: Turbo writes the script free — the 400 Visual Bucs are only for filming the ad."}
+          {scriptFromMaker(maker) ? t("worldLivePromo.ugcScriptReady") : t("worldLivePromo.ugcTipLine")}
         </p>
       </div>
     </NativeCard>

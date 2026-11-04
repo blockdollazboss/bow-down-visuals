@@ -18,6 +18,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -42,28 +43,43 @@ import {
   type TrendItem,
 } from "@/lib/world/trends-desk";
 
+/** Catalog keys for the seam's audience rows — the seam keeps the
+ *  English labels as data (the values ride the rail payload); the
+ *  desk renders the catalog words, keyed by the audience's own id. */
+const AUDIENCE_LABEL_KEYS: Record<string, string> = {
+  starting: "worldLivePromo.trendsAudienceStartingLabel",
+  growing: "worldLivePromo.trendsAudienceGrowingLabel",
+  established: "worldLivePromo.trendsAudienceEstablishedLabel",
+};
+const AUDIENCE_BLURB_KEYS: Record<string, string> = {
+  starting: "worldLivePromo.trendsAudienceStartingBlurb",
+  growing: "worldLivePromo.trendsAudienceGrowingBlurb",
+  established: "worldLivePromo.trendsAudienceEstablishedBlurb",
+};
+
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   return (
     <div className="space-y-3" data-testid="world-trends-desk">
-      <p className={`text-base font-black ${strong}`}>Trend Predictor</p>
+      <p className={`text-base font-black ${strong}`}>{t("worldLivePromo.trendsTitle")}</p>
       <p className={`text-sm ${muted}`}>
-        You&rsquo;re visiting as a guest — forecasts run on your account, so the desk needs you
-        signed in.
+        {t("worldLivePromo.trendsGuestNote")}
       </p>
       <Link
         href="/login"
         data-testid="world-trends-desk-signin"
         className="bdv-touch-target inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37] px-4 py-2 text-xs font-bold text-black"
       >
-        Sign in to run a forecast
+        {t("worldLivePromo.trendsGuestSignIn")}
       </Link>
     </div>
   );
 }
 
 export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { getAccessToken, refreshProfile } = useAuth();
   const [niche, setNiche] = useState("Music");
@@ -134,7 +150,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   async function runForecast() {
     const payload = buildForecastPayload(niche, customNiche, platforms, audience);
     if (!payload || running) {
-      if (!payload) setError("Name your niche and pick at least one platform first.");
+      if (!payload) setError(t("worldLivePromo.trendsNeedNiche"));
       return;
     }
     setRunning(true);
@@ -162,11 +178,11 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         return;
       }
       const parsed = res.ok ? trendForecastOf(data) : null;
-      if (!parsed) throw new Error(apiErrorMessage(data, "The forecast didn't land — try again."));
+      if (!parsed) throw new Error(apiErrorMessage(data, t("worldLivePromo.trendsForecastFailed")));
       setForecast(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setError(plainErrorText(e, "The forecast didn't land — try again."));
+      setError(plainErrorText(e, t("worldLivePromo.trendsForecastFailed")));
     } finally {
       setRunning(false);
     }
@@ -199,11 +215,11 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         return;
       }
       const parsed = res.ok ? trendIdeasOf(data) : null;
-      if (!parsed) throw new Error(apiErrorMessage(data, "The ideas didn't land — try again."));
+      if (!parsed) throw new Error(apiErrorMessage(data, t("worldLivePromo.trendsIdeasFailed")));
       setIdeas(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setIdeasError(plainErrorText(e, "The ideas didn't land — try again."));
+      setIdeasError(plainErrorText(e, t("worldLivePromo.trendsIdeasFailed")));
     } finally {
       setIdeasBusy(false);
     }
@@ -212,14 +228,14 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   return (
     <div className="space-y-4" data-testid="world-trends-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Trend Predictor</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldLivePromo.trendsTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          What&rsquo;s about to move in your niche — called early, with the signals showing why.
+          {t("worldLivePromo.trendsSubtitle")}
         </p>
       </div>
 
       <div>
-        <p className={`text-xs font-bold ${muted}`}>Niche</p>
+        <p className={`text-xs font-bold ${muted}`}>{t("worldLivePromo.trendsNicheLabel")}</p>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {TREND_NICHES.map((n) => (
             <button
@@ -235,8 +251,8 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         <input
           className={`${inputCls} mt-2`}
           data-testid="world-trends-desk-custom-niche"
-          aria-label="Your own niche"
-          placeholder="…or your own niche"
+          aria-label={t("worldLivePromo.trendsCustomNicheAria")}
+          placeholder={t("worldLivePromo.trendsCustomNichePlaceholder")}
           maxLength={120}
           value={customNiche}
           onChange={(e) => setCustomNiche(e.target.value)}
@@ -245,7 +261,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
 
       <div className="flex flex-wrap gap-4">
         <div>
-          <p className={`text-xs font-bold ${muted}`}>Platforms</p>
+          <p className={`text-xs font-bold ${muted}`}>{t("worldLivePromo.trendsPlatformsLabel")}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {TREND_PLATFORMS.map((p) => (
               <button
@@ -264,7 +280,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           </div>
         </div>
         <div>
-          <p className={`text-xs font-bold ${muted}`}>Your audience</p>
+          <p className={`text-xs font-bold ${muted}`}>{t("worldLivePromo.trendsAudienceLabel")}</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {TREND_AUDIENCES.map((a) => (
               <button
@@ -273,7 +289,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 className={chipCls(audience === a.key)}
                 onClick={() => setAudience(a.key)}
               >
-                {a.label} · {a.blurb}
+                {t(AUDIENCE_LABEL_KEYS[a.key] ?? "worldLivePromo.trendsAudienceGrowingLabel")} · {t(AUDIENCE_BLURB_KEYS[a.key] ?? "worldLivePromo.trendsAudienceGrowingBlurb")}
               </button>
             ))}
           </div>
@@ -287,12 +303,11 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         disabled={running}
         onClick={() => void runForecast()}
       >
-        {running ? "Reading the signals…" : `Run the forecast — ${TREND_FORECAST_COST} Bucs`}
+        {running ? t("worldLivePromo.trendsReading") : t("worldLivePromo.trendsRunForecast", { cost: TREND_FORECAST_COST })}
       </button>
       {out ? (
         <p className={errCls}>
-          You&rsquo;re out of Visual Bucs for the {TREND_FEATURE_FORECAST}. Top up at the
-          Treasury&rsquo;s Visual Buc Packs desk and run it again.
+          {t("worldLivePromo.trendsOutOfBucs", { feature: TREND_FEATURE_FORECAST })}
         </p>
       ) : null}
       {error ? <p className={errCls}>{error}</p> : null}
@@ -307,7 +322,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`text-sm font-black ${strong}`}>{trend.trend}</p>
                 <span className={chipCls(trend.confidence >= 70)}>
-                  {trend.confidence}% confidence
+                  {t("worldLivePromo.trendsConfidence", { pct: trend.confidence })}
                 </span>
                 {trend.timeframe ? <span className={`text-xs ${muted}`}>{trend.timeframe}</span> : null}
                 <span className="ml-auto flex gap-1.5">
@@ -318,15 +333,15 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                     disabled={ideasBusy}
                     onClick={() => void runIdeas(trend)}
                   >
-                    {ideasBusy && ideasFor === trend.trend ? "Thinking…" : `Content ideas — ${TREND_IDEAS_COST} Bucs`}
+                    {ideasBusy && ideasFor === trend.trend ? t("worldLivePromo.trendsThinking") : t("worldLivePromo.trendsIdeasButton", { cost: TREND_IDEAS_COST })}
                   </button>
                   {isTracked(trend.trend) ? (
                     <button type="button" className={chipCls(true)} onClick={() => untrack(trend.trend)}>
-                      Watching ✓
+                      {t("worldLivePromo.trendsWatching")}
                     </button>
                   ) : (
                     <button type="button" className={chipCls(false)} onClick={() => track(trend)}>
-                      Watch it
+                      {t("worldLivePromo.trendsWatchIt")}
                     </button>
                   )}
                 </span>
@@ -336,15 +351,14 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               ) : null}
               {trend.earlySignals.length > 0 ? (
                 <p className={`mt-1 text-xs ${muted}`}>
-                  Early signals: {trend.earlySignals.join(" · ")}
+                  {t("worldLivePromo.trendsEarlySignals", { list: trend.earlySignals.join(" · ") })}
                 </p>
               ) : null}
               {ideasFor === trend.trend ? (
                 <div className="mt-2">
                   {ideasOut ? (
                     <p className={errCls}>
-                      You&rsquo;re out of Visual Bucs for the ideas. Top up at the Treasury&rsquo;s
-                      Visual Buc Packs desk and try again.
+                      {t("worldLivePromo.trendsIdeasOut")}
                     </p>
                   ) : null}
                   {ideasError ? <p className={errCls}>{ideasError}</p> : null}
@@ -364,14 +378,14 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
 
       {watchlist.length > 0 ? (
         <section data-testid="world-trends-desk-watchlist">
-          <p className={`text-sm font-bold ${strong}`}>Your watchlist</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldLivePromo.trendsWatchlistTitle")}</p>
           <ul className="mt-1 space-y-1">
-            {watchlist.map((t) => (
-              <li key={`${t.trend}-${t.trackedAt}`} className={`flex items-center gap-2 text-sm ${muted}`}>
-                <span className={`font-bold ${strong}`}>{t.trend}</span>
-                <span className="text-xs">{t.niche} · {t.confidence}%</span>
-                <button type="button" className={`ml-auto ${chipCls(false)}`} onClick={() => untrack(t.trend)}>
-                  Stop watching
+            {watchlist.map((w) => (
+              <li key={`${w.trend}-${w.trackedAt}`} className={`flex items-center gap-2 text-sm ${muted}`}>
+                <span className={`font-bold ${strong}`}>{w.trend}</span>
+                <span className="text-xs">{t("worldLivePromo.trendsWatchlistMeta", { niche: w.niche, confidence: w.confidence })}</span>
+                <button type="button" className={`ml-auto ${chipCls(false)}`} onClick={() => untrack(w.trend)}>
+                  {t("worldLivePromo.trendsStopWatching")}
                 </button>
               </li>
             ))}

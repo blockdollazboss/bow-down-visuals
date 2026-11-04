@@ -43,9 +43,17 @@ describe("both offers + the honest inquiry", () => {
   });
 
   it("the framing is honest: a request, not a purchase", () => {
-    expect(desk).toContain("An inquiry is a request, not a purchase — no charge is taken when you send it.");
-    expect(desk).toContain("Nothing was charged");
-    expect(desk).toContain("nothing is booked yet");
+    /* Since locale unit 44 the framing renders through the catalog
+       (both lines are MONEY lines — en verbatim in every locale);
+       the desk references the keys and en carries the words. */
+    expect(desk).toContain('t("worldLivePromo.takeoverInquiryNote")');
+    expect(desk).toContain('t("worldLivePromo.takeoverSent")');
+    const en = JSON.parse(read("../../locales/en.json")) as { worldLivePromo?: Record<string, string> };
+    expect(en.worldLivePromo?.takeoverInquiryNote).toBe(
+      "An inquiry is a request, not a purchase — no charge is taken when you send it.",
+    );
+    expect(en.worldLivePromo?.takeoverSent).toContain("Nothing was charged");
+    expect(en.worldLivePromo?.takeoverSent).toContain("nothing is booked yet");
   });
 
   it("public rails: no auth headers, no spend path", () => {

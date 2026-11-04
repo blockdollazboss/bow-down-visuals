@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, Crown, Star, Trophy, Users } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import {
@@ -15,6 +16,8 @@ import {
   normalizeReferralSummary,
   rankLine,
   referralLink,
+  referralNextTierStrings,
+  referralRankStrings,
   type ReferralContest,
   type ReferralSummary,
 } from "@/lib/world/referrals-desk";
@@ -39,6 +42,7 @@ const chipBtn = (isLight: boolean) =>
   }`;
 
 export function ReferralsDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
@@ -77,7 +81,7 @@ export function ReferralsDesk({ isLight }: { isLight: boolean }) {
       try {
         const res = await fetch(REFERRALS_CONTEST_PATH, { headers: await authHeaders() });
         if (!res.ok) return;
-        const parsed = normalizeReferralContest(await res.json());
+        const parsed = normalizeReferralContest(await res.json(), t("worldLivePromo.referralAnonymous"));
         if (!cancelled && parsed) setContest(parsed);
       } catch {
         /* tolerant — the hub stands without the contest strip */
@@ -98,20 +102,20 @@ export function ReferralsDesk({ isLight }: { isLight: boolean }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const nextLine = summary ? nextTierLine(summary) : null;
+  const nextLine = summary ? nextTierLine(summary, referralNextTierStrings(t)) : null;
 
   return (
-    <NativeCard isLight={isLight} title="Referrals — bring the kingdom">
+    <NativeCard isLight={isLight} title={t("worldLivePromo.referralTitle")}>
       <div data-testid="world-referrals-desk" className="space-y-3">
         {loadFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="Your referral hub wouldn't open"
-            message="Your code and your people are safe on the real rails — the hub just didn't answer. Try again."
-            onRetry={() => setTick((t) => t + 1)}
+            title={t("worldLivePromo.referralErrorTitle")}
+            message={t("worldLivePromo.referralErrorMessage")}
+            onRetry={() => setTick((n) => n + 1)}
           />
         ) : summary === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening your referral hub…" />
+          <NativeLoadingState isLight={isLight} message={t("worldLivePromo.referralLoading")} />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -124,42 +128,42 @@ export function ReferralsDesk({ isLight }: { isLight: boolean }) {
               </code>
               <button type="button" className={chipBtn(isLight)} onClick={copyLink}>
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Link copied" : "Copy my link"}
+                {copied ? t("worldLivePromo.referralLinkCopied") : t("worldLivePromo.referralCopyLink")}
               </button>
               <span className={`text-xs ${muted}`}>
-                Friends who join through it get {summary.refereeReward} Bucs to start — and you earn{" "}
-                {summary.revenueSharePct}% of what they spend for {summary.shareWindowDays} days.
+                {t("worldLivePromo.referralRewardLine", { reward: summary.refereeReward, pct: summary.revenueSharePct, days: summary.shareWindowDays })}
               </span>
             </div>
 
             <div className="flex flex-wrap gap-x-5 gap-y-1">
               <span className={`inline-flex items-center gap-1.5 text-sm ${strong}`}>
-                <Users className="h-4 w-4 text-[#d4af37]" /> {summary.totalReferrals} brought in
+                <Users className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.referralBroughtIn", { total: summary.totalReferrals })}
               </span>
-              <span className={`text-sm ${strong}`}>{summary.activeReferrals} earning now</span>
-              <span className={`text-sm ${strong}`}>{summary.creditsEarned.toLocaleString()} Bucs earned</span>
+              <span className={`text-sm ${strong}`}>{t("worldLivePromo.referralEarningNow", { active: summary.activeReferrals })}</span>
+              <span className={`text-sm ${strong}`}>{t("worldLivePromo.referralBucsEarned", { amount: summary.creditsEarned.toLocaleString(i18n.language) })}</span>
             </div>
 
             <div className="space-y-1">
               <p className={`inline-flex items-center gap-1.5 text-sm font-bold ${strong}`}>
                 <Star className="h-4 w-4 text-[#d4af37]" />
                 {summary.tier
-                  ? `${summary.tier.title} — ${summary.tier.ratePct}% share`
-                  : "Your promoter climb starts with your first signup"}
+                  ? t("worldLivePromo.referralTierLine", { title: summary.tier.title, rate: summary.tier.ratePct })
+                  : t("worldLivePromo.referralTierStart")}
               </p>
               {nextLine ? <p className={`text-xs ${muted}`}>{nextLine}</p> : null}
-              <p className={`text-xs ${muted}`}>{rankLine(summary)}</p>
+              <p className={`text-xs ${muted}`}>{rankLine(summary, referralRankStrings(t))}</p>
               {summary.tierLadder.length > 0 ? (
                 <p className={`text-xs ${muted}`}>
-                  The ladder:{" "}
-                  {summary.tierLadder
-                    .map(
-                      (t) =>
-                        `${t.title} at ${t.minReferrals}+ (${t.ratePct}%)${
-                          summary.claimedMilestones.includes(t.stars) ? " ✓ milestone banked" : ""
-                        }`,
-                    )
-                    .join(" · ")}
+                  {t("worldLivePromo.referralLadderLine", {
+                    list: summary.tierLadder
+                      .map(
+                        (tier) =>
+                          `${t("worldLivePromo.referralLadderItem", { title: tier.title, min: tier.minReferrals, rate: tier.ratePct })}${
+                            summary.claimedMilestones.includes(tier.stars) ? t("worldLivePromo.referralLadderBanked") : ""
+                          }`,
+                      )
+                      .join(" · "),
+                  })}
                 </p>
               ) : null}
             </div>
@@ -172,33 +176,31 @@ export function ReferralsDesk({ isLight }: { isLight: boolean }) {
                 }`}
               >
                 <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${strong}`}>
-                  <Trophy className="h-3.5 w-3.5 text-[#d4af37]" /> This month&rsquo;s contest —{" "}
-                  {contest.prizePool.toLocaleString()} Buc pool
+                  <Trophy className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldLivePromo.referralContestTitle", { pool: contest.prizePool.toLocaleString(i18n.language) })}
                 </p>
                 {contest.standings.slice(0, 3).map((s) => (
                   <p key={s.rank} className={`text-xs ${muted}`}>
-                    #{s.rank} {s.name} — {s.signups} signups
+                    {t("worldLivePromo.referralStandingLine", { rank: s.rank, name: s.name, signups: s.signups })}
                   </p>
                 ))}
                 <p className={`text-xs ${muted}`}>
-                  {contest.minSignupsToQualify}+ signups qualifies
+                  {t("worldLivePromo.referralQualify", { min: contest.minSignupsToQualify })}
                   {summary.ranks.monthly !== null
-                    ? ` · you stand #${summary.ranks.monthly} this month`
-                    : " · bring in your first signup to enter the board"}
-                  .
+                    ? t("worldLivePromo.referralYouStand", { rank: summary.ranks.monthly })
+                    : t("worldLivePromo.referralBringFirst")}
                 </p>
               </div>
             ) : null}
 
             <div className="space-y-1.5">
               <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-                <Crown className="h-3.5 w-3.5" /> Your people
+                <Crown className="h-3.5 w-3.5" /> {t("worldLivePromo.referralPeopleTitle")}
               </p>
               {summary.referrals.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="Nobody's come in on your link yet."
-                  detail="Share it anywhere — the first signup starts your climb and your earnings."
+                  message={t("worldLivePromo.referralEmpty")}
+                  detail={t("worldLivePromo.referralEmptyDetail")}
                 />
               ) : (
                 summary.referrals.slice(0, 10).map((p, i) => (
@@ -209,20 +211,21 @@ export function ReferralsDesk({ isLight }: { isLight: boolean }) {
                     }`}
                   >
                     <span className={`text-xs ${muted}`}>
-                      Joined{" "}
-                      {p.joinedAt
-                        ? new Date(p.joinedAt).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "—"}
+                      {t("worldLivePromo.referralJoined", {
+                        date: p.joinedAt
+                          ? new Date(p.joinedAt).toLocaleDateString(i18n.language, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "—",
+                      })}
                     </span>
                     <span className={`text-xs font-bold ${strong}`}>
-                      {p.creditsEarned.toLocaleString()} Bucs earned for you
+                      {t("worldLivePromo.referralEarnedForYou", { amount: p.creditsEarned.toLocaleString(i18n.language) })}
                     </span>
                     <span className={`text-xs ${muted}`}>
-                      {p.active ? `${p.daysLeft} days of sharing left` : "Share window closed"}
+                      {p.active ? t("worldLivePromo.referralDaysLeft", { days: p.daysLeft }) : t("worldLivePromo.referralWindowClosed")}
                     </span>
                   </div>
                 ))
