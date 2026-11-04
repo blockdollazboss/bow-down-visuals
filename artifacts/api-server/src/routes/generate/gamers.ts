@@ -9,7 +9,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 
 /* ─── Home of Gamers: AI Stream Title & Idea Generator ─────────────────────
    Game + niche + content-type → click-ready stream titles, video ideas, and
-   tags for gaming creators. Paid: 1 credit per generation on GPT-6 Sol.
+   tags for gaming creators. Paid: 100 Visual Bucs per generation.
    Credits are deducted BEFORE the model call (charge-before-generate) and
    auto-refunded when generation fails — the academy refund pattern. */
 
@@ -22,10 +22,11 @@ const CONTENT_TYPE_DIRECTION: Record<GamersContentType, string> = {
   shorts: "short-form vertical clips (TikTok / Shorts / Reels under 60 seconds)",
 };
 
-/* 1 credit per generation — env-overridable without a deploy. A titles/ideas
-   call is a short GPT-6 Sol completion (a fraction of a cent in provider
-   fees), so 1 credit holds a deep margin while staying an impulse buy —
-   and honors the standing rule that every AI feature costs a fee. */
+/* 100 Visual Bucs per generation — env-overridable without a deploy.
+   The pre-rescale price was 1 Buc; the default moved with the site-wide
+   ×100 rescale, and the FE registry row for /api/gamers/ideas records
+   the same 100 — display surfaces derive from that row, never from a
+   second literal (QC-200 fix #5 closed the last "1 Buc" stat). */
 export const GAMERS_CREDIT_COST = Number(process.env["GAMERS_CREDIT_COST"]) || 100;
 
 export const gamersIdeasSchema = z.object({
@@ -50,7 +51,7 @@ async function refundOnFailure(userId: string, action: string): Promise<void> {
 
 /* POST /api/gamers/ideas { game, niche?, contentType }
    → 200 { titles[5], videoIdeas[5], tags[10], creditsUsed, creditsRemaining }
-   Paid: 1 credit per generation. Auth required. */
+   Paid: 100 Visual Bucs per generation. Auth required. */
 router.post("/gamers/ideas", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = gamersIdeasSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -150,7 +151,7 @@ router.post("/gamers/ideas", requireAuth, publicApiLimiter, async (req, res) => 
       return;
     }
     logger.error({ err }, "[gamers] ideas generation failed");
-    res.status(502).json({ error: "Lag spike — the generator hiccupped. Your Visual Buc was refunded." });
+    res.status(502).json({ error: "Lag spike — the generator hiccupped. Your Visual Bucs were refunded." });
   }
 });
 
