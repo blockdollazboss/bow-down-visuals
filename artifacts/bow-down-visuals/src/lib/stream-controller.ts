@@ -25,12 +25,23 @@
  * deck builds the identical scene in the studio and frames it in
  * Preview, never straight to Program. Presets are the stream-kit
  * registry's (lib/stream-kit/scene-presets), never a deck-side copy.
+ * "scene.chroma.update" { sceneId, sourceId, cameraMode, chroma? }
+ * is the per-source green-screen relay: the stage executes it
+ * through Stage.updateSource — the SAME write the studio's own
+ * SourcesPanel makes — so a camera source keyed from a deck is
+ * keyed exactly as if the creator had flipped it in the studio,
+ * and the kit's applyChromaKey does the keying in the stage
+ * compositor. No second keyer exists on any deck. The state that
+ * confirms it is the Preview scene's camera-source list the studio
+ * publishes alongside its scenes (cameraSources below).
  */
 import { scenePresetById } from "./stream-kit/scene-presets";
+import type { ChromaSettings } from "./stream-kit/scenes";
 
 export const CONTROLLER_COMMANDS = [
   "scene.select",
   "scene.preset.apply",
+  "scene.chroma.update",
   "transition.cut",
   "transition.fade",
   "mic.toggle",
@@ -51,6 +62,21 @@ interface ControllerScene {
   name: string;
 }
 
+/**
+ * One camera source of the studio's Preview scene — the only
+ * sources with a mode to key — with the chroma state SourcesPanel
+ * edits. `chroma` is the source's stored key settings, or null when
+ * it carries none (the stage then keys with the kit's creation
+ * defaults, stage.ts's fallback).
+ */
+export interface ControllerCameraSource {
+  sceneId: string;
+  sourceId: string;
+  name: string;
+  cameraMode: "kit" | "chroma";
+  chroma: ChromaSettings | null;
+}
+
 /** The studio's confirmed state — the ONLY thing deck buttons show. */
 export interface ControllerState {
   /** Stable per studio tab; the remote targets the live/most recent. */
@@ -62,6 +88,14 @@ export interface ControllerState {
   scenes: ControllerScene[];
   activeSceneId: string | null;
   previewSceneId: string | null;
+  /**
+   * The Preview scene's camera sources with their chroma state —
+   * what a scene.chroma.update press is confirmed against.
+   * Optional because older snapshots omit it: an omitted field
+   * reads as NO source state yet (a deck shows its chroma section
+   * as unavailable), never as guessed values.
+   */
+  cameraSources?: ControllerCameraSource[];
   micMuted: boolean;
   /**
    * A real mic input exists right now (mixer present, studio phase not
@@ -131,11 +165,60 @@ export function controllerSocketUrl(
   return (token: string) => defaultSocketUrl(locationLike, role, token);
 }
 
+/* ── scene.chroma.update — the per-source green-screen relay ────── */
+
+/** SourcesPanel's slider caps, as stored values: Similarity runs
+ *  0–90 and Smoothness 0–60 on the panel, each stored ÷100. The
+ *  protocol accepts nothing wider — a deck asking for more is
+ *  asking for a key the panel itself cannot set. */
+export const CHROMA_SIMILARITY_MAX = 0.9;
+export const CHROMA_SMOOTHNESS_MAX = 0.6;
+
+/** ChromaSettings.color's shape (scenes.ts): a #rrggbb hex. */
+export const CHROMA_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+/** A validated scene.chroma.update: parameters only, never state. */
+export interface ChromaUpdate {
+  sceneId: string;
+  sourceId: string;
+  cameraMode: "kit" | "chroma";
+  /** The key settings when keying; null for the "kit" flip, where
+   *  the settings are ignored entirely (the panel's mode-only patch
+   *  leaves a source's stored settings in place). */
+  chroma: ChromaSettings | null;
+}
+
+/**
+ * The one validator for the chroma command's args — the stage
+ * executor applies only what this returns, and the live-desk
+ * seam's readiness gate is this same read, so the wire can never
+ * carry an update one side accepts and the other rejects.
+ * Anything malformed (missing ids, an unknown mode, a bad color,
+ * an out-of-range or non-finite tuning value) returns null, and a
+ * null applies nothing and can never confirm.
+ */
+export function parseChromaUpdate(args: Record<string, unknown> | undefined): ChromaUpdate | null {
+  if (!args) return null;
+  const { sceneId, sourceId, cameraMode } = args;
+  if (typeof sceneId !== "string" || sceneId.length === 0) return null;
+  if (typeof sourceId !== "string" || sourceId.length === 0) return null;
+  if (cameraMode !== "kit" && cameraMode !== "chroma") return null;
+  if (cameraMode === "kit") return { sceneId, sourceId, cameraMode, chroma: null };
+  const c = args.chroma;
+  if (!c || typeof c !== "object") return null;
+  const { color, similarity, smoothness } = c as Record<string, unknown>;
+  if (typeof color !== "string" || !CHROMA_COLOR_PATTERN.test(color)) return null;
+  if (typeof similarity !== "number" || !Number.isFinite(similarity) || similarity < 0 || similarity > CHROMA_SIMILARITY_MAX) return null;
+  if (typeof smoothness !== "number" || !Number.isFinite(smoothness) || smoothness < 0 || smoothness > CHROMA_SMOOTHNESS_MAX) return null;
+  return { sceneId, sourceId, cameraMode, chroma: { color, similarity, smoothness } };
+}
+
 interface PendingCommand {
   id: string;
   command: ControllerCommand;
   sceneId?: string;
   presetId?: string;
+  sourceId?: string;
   sentAt: number;
   /** Confirm predicate against a fresh confirmed state. */
   expect: (s: ControllerState) => boolean;
@@ -330,14 +413,29 @@ export class ControllerRemoteClient {
     this.onChange();
   }
 
-  /** `targetId` names the press's target where the command has one:
-   *  the scene id for scene.select, the preset id for
-   *  scene.preset.apply; other commands pend as a whole. */
+  /** `targetId` names the press's target where the command has
+   *  one: the scene id for scene.select, the preset id for
+   *  scene.preset.apply, the source id for scene.chroma.update;
+   *  other commands pend as a whole. A targeted read scans every
+   *  pending beat for the command — presses on different targets
+   *  can be in flight together (two sources' chroma, two scene
+   *  picks), and the first beat in the map must not answer for
+   *  another target's press. */
   isPending(command: ControllerCommand, targetId?: string): boolean {
     for (const p of this._pending.values()) {
       if (p.command !== command) continue;
-      if (command === "scene.select") return p.sceneId === targetId;
-      if (command === "scene.preset.apply") return p.presetId === targetId;
+      if (command === "scene.select") {
+        if (p.sceneId === targetId) return true;
+        continue;
+      }
+      if (command === "scene.preset.apply") {
+        if (p.presetId === targetId) return true;
+        continue;
+      }
+      if (command === "scene.chroma.update") {
+        if (p.sourceId === targetId) return true;
+        continue;
+      }
       return true;
     }
     return false;
@@ -351,8 +449,10 @@ export class ControllerRemoteClient {
     const sceneId = typeof args?.sceneId === "string" ? args.sceneId : undefined;
     const presetId = typeof args?.presetId === "string" ? args.presetId : undefined;
     const id = `${command}:${sceneId ?? presetId ?? ""}:${++this._seq}`;
+    const sourceId = typeof args?.sourceId === "string" ? args.sourceId : undefined;
+    const id = `${command}:${sceneId ?? sourceId ?? ""}:${++this._seq}`;
     const expect = expectFor(command, args, current);
-    this._pending.set(id, { id, command, sceneId, presetId, sentAt: (this.deps.now ?? Date.now)(), expect });
+    this._pending.set(id, { id, command, sceneId, presetId, sourceId, sentAt: (this.deps.now ?? Date.now)(), expect });
     this.notice = null;
     try {
       this._socket.send(
@@ -404,6 +504,31 @@ export function expectFor(
         !beforeIds.has(s.previewSceneId) &&
         s.scenes.find((sc) => sc.id === s.previewSceneId)?.name === preset.name &&
         s.activeSceneId === beforeProgram;
+    case "scene.chroma.update": {
+      /* The application's signature in fresh state: the named
+         camera source of the named scene carrying exactly the
+         requested mode — and, when keying, the exact key settings.
+         A state without source state (an older snapshot) can never
+         confirm, and neither can a partial match (right mode,
+         wrong smoothness is a different key than the one sent).
+         For the "kit" flip the stored settings are not part of
+         the signature — the panel's patch leaves them in place. */
+      const update = parseChromaUpdate(args);
+      if (!update) return () => false;
+      return (s) => {
+        const src = s.cameraSources?.find(
+          (c) => c.sceneId === update.sceneId && c.sourceId === update.sourceId,
+        );
+        if (!src || src.cameraMode !== update.cameraMode) return false;
+        if (update.cameraMode === "kit") return true;
+        const want = update.chroma!;
+        return (
+          src.chroma !== null &&
+          src.chroma.color === want.color &&
+          src.chroma.similarity === want.similarity &&
+          src.chroma.smoothness === want.smoothness
+        );
+      };
     }
     case "mic.toggle":
       return (s) => (current ? s.micMuted !== current.micMuted : true);

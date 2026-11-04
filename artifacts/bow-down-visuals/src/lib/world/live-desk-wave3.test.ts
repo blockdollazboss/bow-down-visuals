@@ -20,9 +20,11 @@
  *   the fallback note with its real reason, and engine-down only
  *   when a backdrop mode is in play AND the kit carries an error;
  * - law: nothing charges (going live and its effects are free on
- *   the 2D site), the scene kit's chroma key is named a follow-on
- *   (it rides the stage compositor — no second keyer here), and
- *   RTMP's verdict is the deployment's env gate, not a fake door.
+ *   the 2D site), the scene kit's chroma key rides the stage
+ *   compositor — no second keyer here (wave IV #95 carries it
+ *   over the controller relay; live-desk-chroma pins the carry),
+ *   and RTMP's verdict is the deployment's env gate, not a fake
+ *   door.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -251,19 +253,22 @@ describe("#92 the board records wave III and the honest follow-ons", () => {
     expect(LIVE_WAVE3_PROMOTIONS[0]).toContain("BackgroundChanger");
   });
 
-  it("names the chroma-key follow-on; the changer follow-ons are carried now (#93)", () => {
+  it("names neither follow-on; the changer follow-ons (#93) and the chroma key (#95) are carried now", () => {
     const joined = LIVE_NATIVE_FOLLOW_ONS.join(" ");
-    expect(joined).toContain("chroma key");
-    expect(joined).toContain("stage compositor");
-    /* Camera effects, noise cancellation / voice effects, and
-       camera + mic switching left the follow-on board in wave IV —
-       they ride the desk's own changer now. The dedicated
-       live-desk-changer suite pins the carry; the chroma key stays
-       named here until its own lane lands it. */
+    /* Both wave-III follow-ons left the board in wave IV: the
+       changer follow-ons ride the desk's own changer now (#93,
+       pinned by the live-desk-changer suite) and the scene kit's
+       per-source chroma key rides the controller relay to the
+       running studio's stage compositor (#95, pinned by the
+       live-desk-chroma suite). */
+    expect(joined).not.toContain("chroma key");
     expect(joined).not.toContain("Camera effects");
     expect(joined).not.toContain("not yet carried");
-    expect(LIVE_WAVE4_PROMOTIONS).toHaveLength(1);
-    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("#93");
+    const changer = LIVE_WAVE4_PROMOTIONS.filter((entry) => entry.includes("#93"));
+    expect(changer).toHaveLength(1);
+    const chroma = LIVE_WAVE4_PROMOTIONS.filter((entry) => entry.includes("#95"));
+    expect(chroma).toHaveLength(1);
+    expect(chroma[0]).toContain("scene.chroma.update");
   });
 
   it("RTMP's verdict is the deployment env gate — the server's own words", () => {
