@@ -1288,7 +1288,7 @@ export function DiscordBench({ isLight }: { isLight: boolean }) {
                         <span className={`block text-xs font-normal ${cls.subCls}`}>
                           in {live.data.channelName}
                           {live.data.startedAt
-                            ? ` · since ${new Date(live.data.startedAt).toLocaleString()}`
+                            ? ` · since ${new Date(live.data.startedAt).toLocaleString(i18n.language)}`
                             : ""}
                         </span>
                       ) : null}
