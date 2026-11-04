@@ -42,8 +42,11 @@
  * W2-L2 (additive): each drum track carries a sound assignment —
  * `trackSounds[trackIndex]` is a sound-registry id (lib/beat-sounds.ts)
  * and `trackSoundNames[trackIndex]` its display name at assignment time
- * (so an upload whose bytes live only in this session can still be named
- * honestly after a reload, when playback falls back to the synth voice).
+ * (so an upload whose bytes aren't loaded in this session can still be
+ * named honestly after a reload, when playback falls back to the synth
+ * voice). Uploads saved to the creator's library carry the durable
+ * `upload:<sample id>` (stack1500 beat persistence) and rehydrate via
+ * lib/beat-sample-library.ts — no project-shape change was needed.
  * Older projects without these fields normalize to the built-in synth
  * voices — exactly the sounds they always played.
  */

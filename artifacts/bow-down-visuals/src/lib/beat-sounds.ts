@@ -15,13 +15,18 @@
  *     picker, the transport, the offline render — pick the sounds up
  *     with NO code changes;
  *   • an "upload" source for a signed-in creator's own audio file,
- *     decoded in the browser and held SESSION-SCOPED in memory (an
- *     object URL + AudioBuffer in this module). The assignment (the
- *     sound id + display name) persists in the beat project, the bytes
- *     do not: after a reload the buffer is gone, resolution reports the
- *     honest fallback and playback uses the track's built-in synth
- *     voice — never a silent dead track. Persisting uploads to durable
- *     storage (R2) is a named future gap, not built here.
+ *     decoded in the browser and held in memory (an object URL +
+ *     AudioBuffer in this module). The assignment (the sound id +
+ *     display name) persists in the beat project. The bytes persist
+ *     too when the file is saved to the creator's sound library
+ *     (stack1500 beat persistence: /api/beat-samples stores them in
+ *     R2 and lib/beat-sample-library.ts registers the durable
+ *     `upload:<sample id>` entries, URL attached, through the manifest
+ *     seam below; buffers then load on demand via
+ *     ensureBeatSampleBuffer). An upload that was never saved — or
+ *     whose bytes can't load in this session — still reports the
+ *     honest fallback after a reload and playback uses the track's
+ *     built-in synth voice — never a silent dead track.
  *
  * Pure UI = FREE. No charges, no provider calls, no sound generation.
  */
@@ -333,8 +338,12 @@ export function createUploadSoundId(): string {
 }
 
 /** Register a decoded user file as a track-playable upload sound.
- *  The entry + buffer live only in this session's memory; the beat
- *  project persists just the id + name (see lib/beat-project.ts). */
+ *  The entry + buffer live in this session's memory; the beat project
+ *  persists just the id + name (see lib/beat-project.ts). When the
+ *  file is saved to the creator's library (lib/beat-sample-library.ts)
+ *  the page re-registers the same decoded buffer under the durable
+ *  `upload:<sample id>` with its storage URL, so the saved id keeps
+ *  playing in-session and rehydrates after a reload. */
 export function registerUploadSound(args: {
   id?: string;
   name: string;

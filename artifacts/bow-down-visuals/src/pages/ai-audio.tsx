@@ -79,12 +79,26 @@ import {
   defaultSoundIdForTrack,
   ensureBeatSampleBuffer,
   getBeatSound,
+  getSampleBuffer,
+  hasSampleBuffer,
   isUnavailableSampleAssignment,
   listBeatSoundsBySource,
   playSampleBuffer,
+  registerUploadSound,
   resolveTrackSound,
+  unregisterBeatSound,
   type BeatSoundEntry,
 } from "@/lib/beat-sounds";
+import {
+  beatSampleEntries,
+  deleteBeatSample,
+  fetchBeatSamples,
+  isPersistedBeatSoundId,
+  persistBeatSample,
+  registerBeatSampleLibrary,
+  sampleIdFromBeatSoundId,
+  validateBeatSampleFile,
+} from "@/lib/beat-sample-library";
 import {
   beatMixerGraphSignature,
   buildBeatMixerGraph,
@@ -878,8 +892,13 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const [playBar, setPlayBar] = useState(0);
   /* W2-L2: per-track sound assignments (registry ids + captured names),
    * restored with the project and auto-saved with it like everything
-   * else. Upload bytes live only in this session (lib/beat-sounds.ts);
-   * sessionUploads lists the files loaded since this page mounted. */
+   * else. sessionUploads lists every "your sounds" entry this page can
+   * offer: files loaded this session AND the signed-in creator's saved
+   * library (stack1500 beat persistence — library sounds rehydrate on
+   * mount through lib/beat-sample-library.ts; durableSoundIds tracks
+   * which entries are actually saved, sessionOnlyIds the ones whose
+   * save failed or was refused, so the picker never claims a save that
+   * didn't happen). */
   const [trackSounds, setTrackSounds] = useState<string[]>(() =>
     restored ? [...restored.trackSounds] : defaultTrackSounds(),
   );
@@ -887,6 +906,11 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     restored ? [...restored.trackSoundNames] : defaultTrackSoundNames(),
   );
   const [sessionUploads, setSessionUploads] = useState<BeatSoundEntry[]>([]);
+  const [durableSoundIds, setDurableSoundIds] = useState<ReadonlySet<string>>(new Set());
+  const [sessionOnlyIds, setSessionOnlyIds] = useState<ReadonlySet<string>>(new Set());
+  const [soundNotice, setSoundNotice] = useState<string | null>(null);
+  const [removingSoundId, setRemovingSoundId] = useState<string | null>(null);
+  const libraryLoadAttemptedRef = useRef<Set<string>>(new Set());
   const [uploadingTrack, setUploadingTrack] = useState<number | null>(null);
   const [soundError, setSoundError] = useState<string | null>(null);
   const [, setSoundLoadTick] = useState(0); // re-render when a bank buffer lands
@@ -1001,6 +1025,64 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ── saved sound library (stack1500 beat persistence): on mount, a
+   * signed-in creator's saved samples register into the sound registry
+   * through the manifest seam and join the picker, so assignments a
+   * project saved (`upload:<sample id>`) resolve to the real sounds
+   * again. A failed load changes nothing: unregistered assignments
+   * keep the honest synth-fallback notice they already had. ── */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const token = await getAccessToken().catch(() => null);
+      if (!token || cancelled) return;
+      try {
+        const records = await fetchBeatSamples(token);
+        if (cancelled || records.length === 0) return;
+        registerBeatSampleLibrary(records);
+        const entries = beatSampleEntries(records);
+        setSessionUploads((prev) => [
+          ...entries,
+          ...prev.filter((u) => !entries.some((e) => e.id === u.id)),
+        ]);
+        setDurableSoundIds((prev) => new Set([...prev, ...entries.map((e) => e.id)]));
+      } catch {
+        /* library unreachable — session behavior stands */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Saved sounds (and bank sounds picked from the list) load their
+   * decoded buffer on assignment, so playback uses the creator's own
+   * sound instead of the synth stand-in. Decoding runs on a throwaway
+   * offline context — no user gesture needed — and each id is tried
+   * once per page session; a sound that can't load keeps the honest
+   * fallback notice. */
+  useEffect(() => {
+    const missing = trackSounds.filter((sid) => {
+      if (!sid || libraryLoadAttemptedRef.current.has(sid)) return false;
+      const entry = getBeatSound(sid);
+      return !!entry && entry.source !== "synth" && !!entry.url && !hasSampleBuffer(entry);
+    });
+    if (missing.length === 0) return;
+    for (const sid of missing) libraryLoadAttemptedRef.current.add(sid);
+    let cancelled = false;
+    void (async () => {
+      const decodeCtx = new OfflineAudioContext(1, 1, 44100);
+      let landed = false;
+      for (const sid of missing) {
+        const entry = getBeatSound(sid);
+        if (!entry) continue;
+        const buf = await ensureBeatSampleBuffer(entry, decodeCtx).catch(() => null);
+        if (buf) landed = true;
+      }
+      if (landed && !cancelled) setSoundLoadTick((x) => x + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [trackSounds, sessionUploads]);
 
   /* Debounced auto-save: local immediately on every edit, server when
    * signed in (and never before the restore attempt has settled, so a
@@ -1234,7 +1316,11 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
   /* ── track sounds (W2-L2): assign a registry sound to a track, or
    * load the creator's own file onto it. Assignment persists in the
-   * beat project; upload bytes stay in this session only. ── */
+   * beat project; the file itself now ALSO saves to the creator's
+   * sound library (stack1500) so it survives a reload — when that save
+   * fails or the file is over the library rules, the sound stays
+   * session-only and the page says so, never claiming a save that
+   * didn't happen. ── */
   const assignTrackSound = useCallback((ti: number, soundId: string) => {
     const entry = getBeatSound(soundId);
     setTrackSounds((prev) => prev.map((s, i) => (i === ti ? soundId : s)));
@@ -1259,6 +1345,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const onUploadSoundFile = async (ti: number, file: File | null) => {
     if (!file) return;
     setSoundError(null);
+    setSoundNotice(null);
     const token = await getAccessToken().catch(() => null);
     if (!token) {
       setSoundError(t("beatMaker.soundSignIn", { defaultValue: "Sign in to load your own sounds onto a track." }));
@@ -1270,10 +1357,84 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       const entry = await decodeAndRegisterUpload(file, TRACKS[ti]!.id, ctx);
       setSessionUploads((prev) => [...prev.filter((u) => u.id !== entry.id), entry]);
       assignTrackSound(ti, entry.id);
+      /* Durable save, layered on the session load: on success the
+       * session entry is swapped for the library entry (same decoded
+       * buffer, durable `upload:<sample id>` + URL) and every track
+       * pointing at the session id follows; on any failure the sound
+       * stays session-only and the notice says exactly that. */
+      const verdict = validateBeatSampleFile(file);
+      if (!verdict.ok) {
+        setSessionOnlyIds((prev) => new Set(prev).add(entry.id));
+        setSoundNotice(
+          verdict.reason === "too-large"
+            ? t("beatMaker.soundTooLargeToSave", { name: entry.name, defaultValue: "“{{name}}” is loaded for this session only — it's over the 20 MB library limit, so it isn't saved to your library." })
+            : t("beatMaker.soundTypeNotSaved", { name: entry.name, defaultValue: "“{{name}}” is loaded for this session only — that file type can't be saved to your library." }),
+        );
+      } else {
+        try {
+          const record = await persistBeatSample({ token, file, name: entry.name, kind: entry.kind });
+          const decoded = getSampleBuffer(entry.id);
+          let durable: BeatSoundEntry;
+          if (decoded) {
+            durable = registerUploadSound({ id: record.soundId, name: record.name, kind: record.kind, buffer: decoded, url: record.url });
+          } else {
+            registerBeatSampleLibrary([record]);
+            durable = getBeatSound(record.soundId) ?? {
+              id: record.soundId, name: record.name, kind: record.kind,
+              source: "upload", url: record.url, defaultVolume: 1,
+            };
+          }
+          unregisterBeatSound(entry.id);
+          setSessionUploads((prev) => [
+            ...prev.filter((u) => u.id !== entry.id && u.id !== durable.id),
+            durable,
+          ]);
+          setDurableSoundIds((prev) => new Set(prev).add(durable.id));
+          setTrackSounds((prev) => prev.map((s) => (s === entry.id ? durable.id : s)));
+          setSoundNotice(t("beatMaker.soundSavedToLibrary", { name: record.name, defaultValue: "“{{name}}” is saved to your sound library — it will be here next time you open Beat Studio." }));
+        } catch {
+          setSessionOnlyIds((prev) => new Set(prev).add(entry.id));
+          setSoundNotice(t("beatMaker.soundSessionOnly", { name: entry.name, defaultValue: "“{{name}}” is loaded for this session only — it couldn't be saved to your library, so it won't be here after a reload." }));
+        }
+      }
     } catch {
       setSoundError(t("beatMaker.soundLoadFailed", { defaultValue: "That file couldn't be loaded as a sound — try a WAV or MP3 file." }));
     } finally {
       setUploadingTrack(null);
+    }
+  };
+
+  /* Remove a saved library sound everywhere: the rail deletes the row
+   * + stored object, the registry forgets it, and any track using it
+   * returns to its built-in voice. A failed delete changes nothing and
+   * says so. */
+  const onRemoveLibrarySound = async (ti: number, soundId: string) => {
+    const sampleId = sampleIdFromBeatSoundId(soundId);
+    if (!sampleId) return;
+    setSoundError(null);
+    setSoundNotice(null);
+    const token = await getAccessToken().catch(() => null);
+    if (!token) {
+      setSoundError(t("beatMaker.soundSignIn", { defaultValue: "Sign in to load your own sounds onto a track." }));
+      return;
+    }
+    setRemovingSoundId(soundId);
+    try {
+      await deleteBeatSample(token, sampleId);
+      const removed = getBeatSound(soundId);
+      unregisterBeatSound(soundId);
+      setSessionUploads((prev) => prev.filter((u) => u.id !== soundId));
+      setDurableSoundIds((prev) => {
+        const next = new Set(prev);
+        next.delete(soundId);
+        return next;
+      });
+      if (trackSounds[ti] === soundId) assignTrackSound(ti, defaultSoundIdForTrack(ti));
+      setSoundNotice(t("beatMaker.soundRemovedFromLibrary", { name: removed?.name ?? t("beatMaker.soundSaved", { defaultValue: "Saved sound" }), defaultValue: "“{{name}}” was removed from your sound library." }));
+    } catch {
+      setSoundError(t("beatMaker.soundRemoveFailed", { defaultValue: "That sound couldn't be removed from your library — try again." }));
+    } finally {
+      setRemovingSoundId(null);
     }
   };
 
@@ -1441,13 +1602,14 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
     const drums = TRACKS.map((tr) => graph.tracks[tr.id]!.input);
     const bassG = graph.tracks["bass"]!.input;
     /* Sample-backed tracks render from their decoded buffers too:
-     * uploads are already in the session cache; bank sounds load from
-     * their URL into the cache first. A sound that can't load renders
-     * as the track's synth voice (playTrackHit's honest fallback). */
+     * session uploads are already in the session cache; bank sounds
+     * and saved library sounds load from their URL into the cache
+     * first. A sound that can't load renders as the track's synth
+     * voice (playTrackHit's honest fallback). */
     await Promise.all(
       trackSoundsRef.current.map(async (sid) => {
         const e = sid ? getBeatSound(sid) : null;
-        if (e && e.source === "bank") await ensureBeatSampleBuffer(e, off);
+        if (e && (e.source === "bank" || (e.source === "upload" && e.url))) await ensureBeatSampleBuffer(e, off);
       }),
     );
     const sw = swingRef.current;
@@ -1958,7 +2120,10 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                     <optgroup label={t("beatMaker.soundGroupYours", { defaultValue: "Your sounds" })}>
                       {sessionUploads.length > 0 ? (
                         sessionUploads.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                            {sessionOnlyIds.has(s.id) ? ` (${t("beatMaker.soundSessionOnlyShort", { defaultValue: "this session only" })})` : ""}
+                          </option>
                         ))
                       ) : (
                         <option disabled value="__yours-empty">
@@ -1977,6 +2142,19 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                   >
                     {uploadingTrack === ti ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                   </button>
+                  {isPersistedBeatSoundId(soundId) && (
+                    <button
+                      type="button"
+                      onClick={() => void onRemoveLibrarySound(ti, soundId)}
+                      disabled={removingSoundId === soundId}
+                      className={`shrink-0 w-6 h-6 rounded-md border flex items-center justify-center transition-colors disabled:opacity-50 ${T.pill}`}
+                      title={t("beatMaker.soundRemoveFromLibrary", { defaultValue: "Remove this sound from your library" })}
+                      aria-label={t("beatMaker.soundRemoveFromLibrary", { defaultValue: "Remove this sound from your library" })}
+                      data-testid={`beat-sound-remove-${tr.id}`}
+                    >
+                      {removingSoundId === soundId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                    </button>
+                  )}
                   <input
                     ref={(el) => { fileInputRefs.current[ti] = el; }}
                     type="file"
@@ -2033,11 +2211,16 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         {t("beatMaker.accentHint", { defaultValue: "Click a step to toggle · right-click for accent · gold ring = accent hit" })}
       </p>
       <p className={`text-xs ${T.dim}`}>
-        {t("beatMaker.soundHint", { defaultValue: "Pick a sound for each track, or load your own WAV or MP3 onto it — free, and it plays on that track's steps and in your export." })}
+        {t("beatMaker.soundHint", { defaultValue: "Pick a sound for each track, or load your own WAV or MP3 onto it — free, saved to your sound library, and it plays on that track's steps and in your export." })}
       </p>
       {soundError && (
         <p role="alert" className={`text-xs flex items-center gap-1.5 ${isLight ? "text-red-700" : "text-red-300"}`}>
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {soundError}
+        </p>
+      )}
+      {soundNotice && (
+        <p role="status" data-testid="beat-sound-notice" className={`text-xs flex items-center gap-1.5 ${isLight ? "text-[#4A3B22]/80" : "text-white/60"}`}>
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> {soundNotice}
         </p>
       )}
 
