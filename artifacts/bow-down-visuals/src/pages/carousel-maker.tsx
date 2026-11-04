@@ -19,7 +19,7 @@ import {
   CalendarClock, Sparkles, Check, GripVertical, Type, Palette, Layers,
 } from "lucide-react";
 import {
-  CAROUSEL_TEMPLATES, renderCarouselSlide, downloadCarouselSlide,
+  CAROUSEL_TEMPLATES, renderCarouselSlide, downloadCarouselSlide, resolveCarouselTemplate,
   type CarouselDisclosure,
   type CarouselSlide, type CarouselFormat, type CarouselTemplate,
 } from "@/lib/carousel-renderer";
@@ -54,16 +54,17 @@ export default function CarouselMaker() {
     try {
       const slug = new URLSearchParams(window.location.search).get("template");
       if (!slug) return;
-      // Library slugs are prefixed (e.g. "carousel-bold-statement"); strip prefix and fuzzy-match
-      const needle = slug.replace(/^carousel-/, "").toLowerCase();
-      const match =
-        CAROUSEL_TEMPLATES.find((x) => x.id === slug) ??
-        CAROUSEL_TEMPLATES.find((x) => x.id.toLowerCase() === needle) ??
-        CAROUSEL_TEMPLATES.find((x) => x.id.toLowerCase().startsWith(needle.split("-")[0])) ??
-        CAROUSEL_TEMPLATES.find((x) => needle.startsWith(x.id.toLowerCase().split("-")[0]));
+      // Library slugs are prefixed (e.g. "carousel-myth-buster"); the slug
+      // minus the prefix IS the template id — resolved exactly. The old
+      // fuzzy prefix matcher silently landed 13 of the Library's 20 picks
+      // on the default template; an unknown slug now says so out loud and
+      // stays on the picker instead of substituting in silence.
+      const match = resolveCarouselTemplate(slug);
       if (match) {
         setTemplateId(match.id);
         setStep("edit");
+      } else {
+        toast({ title: t("carouselMaker.templateLinkMissed"), variant: "destructive" });
       }
     } catch {
       /* non-browser or malformed URL — ignore */
