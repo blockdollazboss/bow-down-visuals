@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   BookOpen,
@@ -115,6 +116,7 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
 /* ═══ 1a. SPLITS — the release overview ═════════════════════════════ */
 
 function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const [data, setData] = useState<SplitsOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -130,12 +132,12 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
       const res = await confirmedFetch("/api/splits/overview", { skipConfirm: true });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, "Couldn't load the splits overview."));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subSplitsLoadError")));
       const parsed = parseSplitsOverview(json);
-      if (!parsed) throw new Error("Couldn't load the splits overview.");
+      if (!parsed) throw new Error(t("worldCoachMoney.subSplitsLoadError"));
       setData(parsed);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't load the splits overview."));
+      setError(plainErrorText(err, t("worldCoachMoney.subSplitsLoadError")));
     } finally {
       setLoading(false);
     }
@@ -146,7 +148,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <NativeLoadingState isLight={isLight} message="Computing everyone's shares…" />;
+  if (loading) return <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.subComputingShares")} />;
   if (error) {
     return <NativeErrorState isLight={isLight} message={error} onRetry={() => void load()} />;
   }
@@ -154,8 +156,8 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
     return (
       <NativeEmptyState
         isLight={isLight}
-        message="No split agreements yet"
-        detail="Set up royalty splits on a release, then link income entries to it — this view will show exactly what each collaborator earns. Split agreements themselves are set at the Release Desk, in this same desk."
+        message={t("worldCoachMoney.subNoSplitsYet")}
+        detail={t("worldCoachMoney.subNoSplitsDetail")}
       />
     );
   }
@@ -168,7 +170,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
 
       {data.collaboratorTotals.length > 0 ? (
         <div>
-          <SubHead isLight={isLight}><PiggyBank className="mr-1 inline h-3.5 w-3.5" />Everyone's share of logged income</SubHead>
+          <SubHead isLight={isLight}><PiggyBank className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subEveryoneShare")}</SubHead>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {data.collaboratorTotals.map((c) => (
               <InnerBlock key={c.name.toLowerCase()} isLight={isLight}>
@@ -190,10 +192,10 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
                   <Disc3 className="h-4 w-4 shrink-0 text-[#d4af37]" /> <span className="truncate">{r.title}</span>
                 </p>
                 <p className={`text-xs ${muted}`}>
-                  {r.artistName} · {fmtPlanMoney(r.totalIncomeCents)} linked income
+                  {r.artistName} · {t("worldCoachMoney.subLinkedIncome", { amount: fmtPlanMoney(r.totalIncomeCents) })}
                 </p>
               </div>
-              <span className={`text-[11px] ${muted}`}>Agreements are edited at the Release Desk</span>
+              <span className={`text-[11px] ${muted}`}>{t("worldCoachMoney.subAgreementsAtReleaseDesk")}</span>
             </div>
 
             {r.activeSplits.length > 0 ? (
@@ -204,7 +206,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
                   </span>
                 ))}
                 <span className={`inline-flex items-center px-1.5 text-[11px] ${muted}`}>
-                  v{r.activeSplits[0]!.agreementVersion} · edits apply to future earnings only
+                  {t("worldCoachMoney.subAgreementNote", { version: r.activeSplits[0]!.agreementVersion })}
                 </span>
               </div>
             ) : null}
@@ -226,9 +228,9 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
                   <div key={e.id} className={`border-t pt-2.5 ${isLight ? "border-[#C9A84C]/20" : "border-white/[0.06]"}`}>
                     <p className="flex items-baseline justify-between gap-2">
                       <span className={`min-w-0 truncate text-sm font-semibold ${strong}`}>
-                        {e.note || "Income"}
+                        {e.note || t("worldCoachMoney.subIncomeFallback")}
                         <span className={`ml-2 text-[11px] font-normal ${muted}`}>
-                          {e.entryDate} · agreement v{e.agreementVersion}
+                          {e.entryDate} · {t("worldCoachMoney.subEntryAgreement", { version: e.agreementVersion })}
                         </span>
                       </span>
                       <span className={`shrink-0 text-sm font-black ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
@@ -248,7 +250,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
               </div>
             ) : (
               <p className={`mt-2.5 rounded-lg border border-dashed px-3 py-2.5 text-xs ${isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/15 text-white/45"}`}>
-                No income linked to this release yet. Link income entries from the ledger and the splits apply here automatically.
+                {t("worldCoachMoney.subNoIncomeLinked")}
               </p>
             )}
           </div>
@@ -259,9 +261,10 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
         <p className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${isLight ? "border-amber-600/30 bg-amber-500/[0.07] text-[#92600a]" : "border-amber-500/30 bg-amber-500/[0.06] text-amber-200/90"}`}>
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            {fmtPlanMoney(data.unlinkedIncomeCents)} across {data.unlinkedIncomeCount} income{" "}
-            {data.unlinkedIncomeCount === 1 ? "entry" : "entries"} isn't linked to a release. Link entries from the
-            ledger to apply splits to them.
+            {t(data.unlinkedIncomeCount === 1 ? "worldCoachMoney.subUnlinkedOne" : "worldCoachMoney.subUnlinkedMany", {
+              amount: fmtPlanMoney(data.unlinkedIncomeCents),
+              count: data.unlinkedIncomeCount,
+            })}
           </span>
         </p>
       ) : null}
@@ -274,6 +277,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
 const EMPTY_WRITER_ROW: PublishingWriterDraft = { name: "", profileId: "", sharePct: "" };
 
 function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const [data, setData] = useState<ReturnType<typeof parsePublishingMine>>(null);
   const [loading, setLoading] = useState(true);
@@ -303,12 +307,12 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
       const res = await confirmedFetch(PUBLISHING_SPLITS_MINE_PATH, { skipConfirm: true });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, "Couldn't load the publishing splits registry."));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subRegistryLoadError")));
       const parsed = parsePublishingMine(json);
-      if (!parsed) throw new Error("Couldn't load the publishing splits registry.");
+      if (!parsed) throw new Error(t("worldCoachMoney.subRegistryLoadError"));
       setData(parsed);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't load the publishing splits registry."));
+      setError(plainErrorText(err, t("worldCoachMoney.subRegistryLoadError")));
     } finally {
       setLoading(false);
     }
@@ -359,7 +363,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
       writers.map((w) => ({ name: w.name, sharePct: w.share_pct })),
     );
     if (!amendId && !songId) {
-      setFormError("Pick the song these splits belong to.");
+      setFormError(t("worldCoachMoney.subPickSongFirst"));
       return;
     }
     if (validation) {
@@ -379,12 +383,12 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
       });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, "Couldn't save the registration."));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subSaveRegistrationError")));
       setShowForm(false);
       setAmendId(null);
       await load();
     } catch (err) {
-      setFormError(plainErrorText(err, "Couldn't save the registration."));
+      setFormError(plainErrorText(err, t("worldCoachMoney.subSaveRegistrationError")));
     } finally {
       setSaving(false);
     }
@@ -402,10 +406,10 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
       });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, `Couldn't ${action} the share.`));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t(action === "confirm" ? "worldCoachMoney.subPubConfirmFailed" : "worldCoachMoney.subPubDisputeFailed")));
       await load();
     } catch (err) {
-      setActionError(plainErrorText(err, `Couldn't ${action} the share.`));
+      setActionError(plainErrorText(err, t(action === "confirm" ? "worldCoachMoney.subPubConfirmFailed" : "worldCoachMoney.subPubDisputeFailed")));
     } finally {
       setBusyId(null);
     }
@@ -418,10 +422,10 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
       const res = await confirmedFetch(publishingSheetPath(item.id), { skipConfirm: true });
       if (!res) return;
       const json = (await res.json().catch(() => ({}))) as { sheet_code?: string; sheet_text?: string; error?: string };
-      if (!res.ok || !json.sheet_text) throw new Error(apiErrorMessage(json, "Couldn't build the split sheet."));
+      if (!res.ok || !json.sheet_text) throw new Error(apiErrorMessage(json, t("worldCoachMoney.subBuildSheetError")));
       setSheet({ code: json.sheet_code ?? "", text: json.sheet_text });
     } catch (err) {
-      setActionError(plainErrorText(err, "Couldn't build the split sheet."));
+      setActionError(plainErrorText(err, t("worldCoachMoney.subBuildSheetError")));
     } finally {
       setBusyId(null);
     }
@@ -444,12 +448,8 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
     <div data-testid="world-coach-publishing-panel">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <SubHead isLight={isLight}><BookOpen className="mr-1 inline h-3.5 w-3.5" />Songwriter splits — publishing registry</SubHead>
-          <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
-            The splits above divide a recording. This registry records the other half: who <em>wrote</em> each
-            song, and what share of the songwriting is theirs. Writers on Bow Down Visuals can confirm or
-            dispute their own share.
-          </p>
+          <SubHead isLight={isLight}><BookOpen className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subRegistryHeading")}</SubHead>
+          <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>{t("worldCoachMoney.subRegistryIntro")}</p>
         </div>
         <button
           type="button"
@@ -457,19 +457,18 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
           className={goldBtn}
           onClick={() => void openForm()}
         >
-          <Plus className="h-4 w-4" /> Register a song
+          <Plus className="h-4 w-4" /> {t("worldCoachMoney.subRegisterSong")}
         </button>
       </div>
 
       {/* The honesty banner — the registry collects nothing today. */}
       <p className={`mt-2.5 rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${isLight ? "border-[#C9A84C]/30 bg-white/40 text-[#6B5B36]" : "border-white/10 bg-white/[0.03] text-white/55"}`}>
-        {PUBLISHING_COPY.registryOnly} <b className={strong}>Status: {PUBLISHING_COPY.collectionNotice}</b>
+        {PUBLISHING_COPY.registryOnly} <b className={strong}>{t("worldCoachMoney.subStatusPrefix")} {PUBLISHING_COPY.collectionNotice}</b>
       </p>
 
       {data && !data.registryReady ? (
         <p className={`mt-2.5 rounded-xl border px-3 py-2.5 text-xs ${isLight ? "border-amber-600/30 bg-amber-500/[0.07] text-[#92600a]" : "border-amber-500/30 bg-amber-500/[0.06] text-amber-200/90"}`}>
-          The registry is still being switched on — registration opens as soon as its storage lands. Nothing
-          you prepare here is lost or charged.
+          {t("worldCoachMoney.subRegistryWarming")}
         </p>
       ) : null}
 
@@ -484,21 +483,20 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
           <div className="space-y-2.5" data-testid="world-coach-publishing-form">
             <div className="flex items-center justify-between gap-2">
               <p className={`text-sm font-bold ${strong}`}>
-                {amendId ? "Revise songwriter splits" : "Register a song's songwriter splits"}
+                {amendId ? t("worldCoachMoney.subReviseTitle") : t("worldCoachMoney.subRegisterTitle")}
               </p>
-              <button type="button" aria-label="Close form" className={smallBtn(isLight)} onClick={() => { setShowForm(false); setAmendId(null); }}>
+              <button type="button" aria-label={t("worldCoachMoney.subCloseForm")} className={smallBtn(isLight)} onClick={() => { setShowForm(false); setAmendId(null); }}>
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
             {amendId ? (
               <p className={`text-xs ${muted}`}>
-                Revising resets every linked writer (except you) to awaiting confirmation and clears any
-                dispute — new shares need fresh confirmation. {PUBLISHING_COPY.disputeRule}
+                {t("worldCoachMoney.subAmendNote")} {PUBLISHING_COPY.disputeRule}
               </p>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block">
-                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Song comes from</span>
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subSongFrom")}</span>
                   <select
                     data-testid="world-coach-publishing-kind"
                     className={inputCls(isLight)}
@@ -506,12 +504,12 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                     value={songKind}
                     onChange={(e) => { setSongKind(e.target.value as "release" | "song"); setSongId(""); }}
                   >
-                    <option value="release">My releases (Distribute)</option>
-                    <option value="song">My song library</option>
+                    <option value="release">{t("worldCoachMoney.subKindReleases")}</option>
+                    <option value="song">{t("worldCoachMoney.subKindSongs")}</option>
                   </select>
                 </label>
                 <label className="block">
-                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Song</span>
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subSongLabel")}</span>
                   <select
                     data-testid="world-coach-publishing-song"
                     className={inputCls(isLight)}
@@ -519,7 +517,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                     value={songId}
                     onChange={(e) => setSongId(e.target.value)}
                   >
-                    <option value="">Pick one of your songs…</option>
+                    <option value="">{t("worldCoachMoney.subPickSong")}</option>
                     {songOptions.map((s) => (
                       <option key={s.id} value={s.id}>{s.title}</option>
                     ))}
@@ -532,21 +530,21 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
               {rows.map((row, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2">
                   <input
-                    aria-label="Songwriter name"
+                    aria-label={t("worldCoachMoney.subWriterName")}
                     className={`${inputCls(isLight)} min-w-32 flex-1`}
                     value={row.name}
                     onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))}
-                    placeholder="Songwriter name"
+                    placeholder={t("worldCoachMoney.subWriterName")}
                   />
                   <input
-                    aria-label="Creator profile ID (optional — links their account)"
+                    aria-label={t("worldCoachMoney.subProfileIdAria")}
                     className={`${inputCls(isLight)} min-w-32 flex-1`}
                     value={row.profileId}
                     onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, profileId: e.target.value } : r)))}
-                    placeholder="Creator profile ID (optional)"
+                    placeholder={t("worldCoachMoney.subProfileIdPlaceholder")}
                   />
                   <input
-                    aria-label="Share percent"
+                    aria-label={t("worldCoachMoney.subSharePercentAria")}
                     className={`${inputCls(isLight)} w-20`}
                     value={row.sharePct}
                     onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, sharePct: e.target.value } : r)))}
@@ -555,7 +553,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                   />
                   <button
                     type="button"
-                    aria-label="Remove songwriter"
+                    aria-label={t("worldCoachMoney.subRemoveWriter")}
                     className={smallBtn(isLight)}
                     onClick={() => setRows(rows.filter((_, j) => j !== i))}
                   >
@@ -566,18 +564,15 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={smallBtn(isLight)} onClick={() => setRows([...rows, { ...EMPTY_WRITER_ROW }])}>
-                <Plus className="h-3 w-3" /> Add songwriter
+                <Plus className="h-3 w-3" /> {t("worldCoachMoney.subAddSongwriter")}
               </button>
-              <span className={`text-xs ${muted}`}>
-                Shares must total exactly 100%. Link a writer's creator profile ID so they can confirm or
-                dispute their share — name-only writers are recorded as not on Bow Down Visuals.
-              </span>
+              <span className={`text-xs ${muted}`}>{t("worldCoachMoney.subSharesNote")}</span>
             </div>
             {formError ? <p className={`text-sm font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>{formError}</p> : null}
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" data-testid="world-coach-publishing-save" className={goldBtn} disabled={saving} onClick={() => void submitForm()}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {amendId ? "Save revised splits" : "Register splits"}
+                {amendId ? t("worldCoachMoney.subSaveRevised") : t("worldCoachMoney.subRegisterSplits")}
               </button>
               <span className={`text-[11px] ${muted}`}>{PUBLISHING_COPY.collectionNotice}</span>
             </div>
@@ -589,11 +584,11 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
         <InnerBlock isLight={isLight}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className={`flex items-center gap-1.5 text-sm font-bold ${strong}`}>
-              <FileText className="h-4 w-4 text-[#d4af37]" /> Split sheet {sheet.code}
+              <FileText className="h-4 w-4 text-[#d4af37]" /> {t("worldCoachMoney.subSplitSheetCode", { code: sheet.code })}
             </p>
             <span className="flex gap-1.5">
-              <button type="button" className={smallBtn(isLight)} onClick={downloadSheet}>Download .txt</button>
-              <button type="button" aria-label="Close split sheet" className={smallBtn(isLight)} onClick={() => setSheet(null)}>
+              <button type="button" className={smallBtn(isLight)} onClick={downloadSheet}>{t("worldCoachMoney.subDownloadTxt")}</button>
+              <button type="button" aria-label={t("worldCoachMoney.subCloseSheet")} className={smallBtn(isLight)} onClick={() => setSheet(null)}>
                 <X className="h-3.5 w-3.5" />
               </button>
             </span>
@@ -605,14 +600,14 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
       ) : null}
 
       {loading ? (
-        <NativeLoadingState isLight={isLight} message="Loading the registry…" />
+        <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.subLoadingRegistry")} />
       ) : error ? (
         <NativeErrorState isLight={isLight} message={error} onRetry={() => void load()} />
       ) : !data || data.registrations.length === 0 ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No songs registered yet."
-          detail="Register a song you wrote on and its songwriter splits live here — yours to read back any time, with every writer's confirmation on record."
+          message={t("worldCoachMoney.subNoSongsRegistered")}
+          detail={t("worldCoachMoney.subNoSongsDetail")}
         />
       ) : (
         <div className="space-y-2.5">
@@ -622,7 +617,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
               <InnerBlock key={item.id} isLight={isLight}>
                 <div data-testid="world-coach-publishing-item">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className={`text-sm font-bold ${strong}`}>{item.song_title || "Untitled song"}</p>
+                    <p className={`text-sm font-bold ${strong}`}>{item.song_title || t("worldCoachMoney.subUntitledSong")}</p>
                     <span
                       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
                         item.state === "disputed"
@@ -636,8 +631,8 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                     </span>
                   </div>
                   <p className={`mt-1 text-[11px] ${muted}`}>
-                    {item.is_owner ? "Registered by you" : "You're a songwriter on this song"}
-                    {item.my_share_pct !== null ? ` · your share ${item.my_share_pct}%` : ""} · {item.collection_notice}
+                    {item.is_owner ? t("worldCoachMoney.subRegisteredByYou") : t("worldCoachMoney.subYoureSongwriter")}
+                    {item.my_share_pct !== null ? t("worldCoachMoney.subYourShareSuffix", { pct: item.my_share_pct }) : ""} · {item.collection_notice}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {item.writers.map((w, i) => (
@@ -672,17 +667,17 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                           disabled={busyId === item.id}
                           onClick={() => void act(item, "confirm")}
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Confirm my {item.my_share_pct}%
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {t("worldCoachMoney.subConfirmMy", { pct: item.my_share_pct })}
                         </button>
                       ) : null}
                       {actions.includes("dispute") ? (
                         <>
                           <input
-                            aria-label="Why is this share wrong? (optional)"
+                            aria-label={t("worldCoachMoney.subDisputePlaceholder")}
                             className={`${inputCls(isLight)} min-w-40 flex-1 py-1.5 text-xs`}
                             value={disputeNote[item.id] ?? ""}
                             onChange={(e) => setDisputeNote({ ...disputeNote, [item.id]: e.target.value })}
-                            placeholder="Why is this share wrong? (optional)"
+                            placeholder={t("worldCoachMoney.subDisputePlaceholder")}
                           />
                           <button
                             type="button"
@@ -690,7 +685,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                             disabled={busyId === item.id}
                             onClick={() => void act(item, "dispute")}
                           >
-                            <Flag className="h-3.5 w-3.5" /> Dispute my share
+                            <Flag className="h-3.5 w-3.5" /> {t("worldCoachMoney.subDisputeMyShare")}
                           </button>
                         </>
                       ) : null}
@@ -704,11 +699,11 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                       disabled={busyId === item.id}
                       onClick={() => void openSheet(item)}
                     >
-                      <FileText className="h-3.5 w-3.5" /> Split sheet
+                      <FileText className="h-3.5 w-3.5" /> {t("worldCoachMoney.subSplitSheetButton")}
                     </button>
                     {actions.includes("amend") ? (
                       <button type="button" className={smallBtn(isLight)} onClick={() => void openForm(item)}>
-                        <Pencil className="h-3.5 w-3.5" /> Revise splits
+                        <Pencil className="h-3.5 w-3.5" /> {t("worldCoachMoney.subReviseSplits")}
                       </button>
                     ) : null}
                   </div>
@@ -736,7 +731,7 @@ export function CoachSplitsSection({ isLight }: { isLight: boolean }) {
 /** The page's own PDF rule: gold on black, built locally from the
  * audited payload the server returned — nothing re-derived. jspdf is
  * loaded on tap so the World bundle never carries it. */
-async function renderSplitSheetPdf(sheet: FinalizedSplitSheet) {
+async function renderSplitSheetPdf(sheet: FinalizedSplitSheet, lang = "en-US") {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF();
   const BRAND = [212, 175, 55] as const;
@@ -752,7 +747,7 @@ async function renderSplitSheetPdf(sheet: FinalizedSplitSheet) {
   doc.setFontSize(15);
   doc.text(sheet.songTitle, 105, 58, { align: "center" });
   doc.setFontSize(11);
-  doc.text(`Finalized ${new Date(sheet.finalizedAt).toLocaleDateString("en-US")}`, 105, 66, { align: "center" });
+  doc.text(`Finalized ${new Date(sheet.finalizedAt).toLocaleDateString(lang)}`, 105, 66, { align: "center" });
   let y = 86;
   doc.setTextColor(...BRAND);
   doc.setFontSize(12);
@@ -789,6 +784,7 @@ export function CoachSplitSheetsSection({
   isLight: boolean;
   onLedgerPosted?: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const [sheets, setSheets] = useState<Wave8Sheet[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -818,12 +814,12 @@ export function CoachSplitSheetsSection({
       const res = await confirmedFetch("/api/wave8/splits", { skipConfirm: true });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, "Couldn't load your split sheets."));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subSheetsLoadError")));
       const parsed = parseWave8Sheets(json);
-      if (!parsed) throw new Error("Couldn't load your split sheets.");
+      if (!parsed) throw new Error(t("worldCoachMoney.subSheetsLoadError"));
       setSheets(parsed);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't load your split sheets."));
+      setError(plainErrorText(err, t("worldCoachMoney.subSheetsLoadError")));
     } finally {
       setLoading(false);
     }
@@ -842,7 +838,13 @@ export function CoachSplitSheetsSection({
   };
 
   const save = async () => {
-    const validation = validateWave8Draft(title, rows);
+    const validation = validateWave8Draft(title, rows, {
+      title: t("worldCoachMoney.subSheetNeedsTitle"),
+      collaborator: t("worldCoachMoney.subSheetNeedsCollaborator"),
+      name: t("worldCoachMoney.subSheetNeedsName"),
+      shareRange: t("worldCoachMoney.subSheetShareRange"),
+      total: t("worldCoachMoney.subSheetTotalExact"),
+    });
     if (validation) {
       setFormError(validation);
       return;
@@ -859,11 +861,11 @@ export function CoachSplitSheetsSection({
       });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, "Couldn't save the split sheet."));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subSheetSaveError")));
       resetForm();
       await load();
     } catch (err) {
-      setFormError(plainErrorText(err, "Couldn't save the split sheet."));
+      setFormError(plainErrorText(err, t("worldCoachMoney.subSheetSaveError")));
     } finally {
       setSaving(false);
     }
@@ -883,12 +885,12 @@ export function CoachSplitSheetsSection({
       const res = await confirmedFetch(`/api/wave8/splits/${deleteTarget.id}`, { method: "DELETE", skipConfirm: true });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, "Couldn't delete the split sheet."));
+      if (!res.ok) throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subSheetDeleteError")));
       if (editingId === deleteTarget.id) resetForm();
       setDeleteTarget(null);
       await load();
     } catch (err) {
-      setFormError(plainErrorText(err, "Couldn't delete the split sheet."));
+      setFormError(plainErrorText(err, t("worldCoachMoney.subSheetDeleteError")));
     } finally {
       setBusyId(null);
     }
@@ -903,22 +905,22 @@ export function CoachSplitSheetsSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ splitId: sheet.id }),
         overrideCost: SPLIT_SHEET_PDF_COST_VISUAL_BUCS,
-        overrideFeature: "Royalty Split Sheet PDF",
+        overrideFeature: t("worldCoachMoney.subPdfFeature"),
       });
       if (!res) return;
       const json: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           isOutOfCreditsResponse(res.status, json)
-            ? `Not enough Visual Bucs — the PDF costs ${SPLIT_SHEET_PDF_COST_VISUAL_BUCS} Visual Bucs.`
-            : apiErrorMessage(json as { error?: string }, "Couldn't build the PDF."),
+            ? t("worldCoachMoney.subPdfOutOfBucs", { cost: SPLIT_SHEET_PDF_COST_VISUAL_BUCS })
+            : apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subBuildPdfError")),
         );
       }
       const finalized = parseFinalizedSheet(json);
-      if (!finalized) throw new Error("Couldn't build the PDF.");
-      await renderSplitSheetPdf(finalized);
+      if (!finalized) throw new Error(t("worldCoachMoney.subBuildPdfError"));
+      await renderSplitSheetPdf(finalized, i18n.language);
     } catch (err) {
-      setPdfError(plainErrorText(err, "Couldn't build the PDF."));
+      setPdfError(plainErrorText(err, t("worldCoachMoney.subBuildPdfError")));
     } finally {
       setFinalizingId(null);
     }
@@ -929,14 +931,14 @@ export function CoachSplitSheetsSection({
     if (!Number.isFinite(amountDollars) || amountDollars <= 0) {
       setPostedStatus((prev) => ({
         ...prev,
-        [sheet.id]: { kind: "error", text: "Enter the total royalty amount first." },
+        [sheet.id]: { kind: "error", text: t("worldCoachMoney.subEnterAmountFirst") },
       }));
       return;
     }
     if (sheet.collaborators.length === 0) {
       setPostedStatus((prev) => ({
         ...prev,
-        [sheet.id]: { kind: "error", text: "This sheet doesn't list any collaborators." },
+        [sheet.id]: { kind: "error", text: t("worldCoachMoney.subNoCollaborators") },
       }));
       return;
     }
@@ -962,24 +964,24 @@ export function CoachSplitSheetsSection({
           skipConfirm: true,
         });
         if (!res) {
-          setPostedStatus((prev) => ({ ...prev, [sheet.id]: { kind: "error", text: "Posting was cancelled." } }));
+          setPostedStatus((prev) => ({ ...prev, [sheet.id]: { kind: "error", text: t("worldCoachMoney.subPostingCancelled") } }));
           return;
         }
         if (!res.ok) {
           const json: unknown = await res.json().catch(() => ({}));
-          throw new Error(apiErrorMessage(json as { error?: string }, `Couldn't post ${c.name}'s entry.`));
+          throw new Error(apiErrorMessage(json as { error?: string }, t("worldCoachMoney.subPostEntryError", { name: c.name })));
         }
       }
       setPostedStatus((prev) => ({
         ...prev,
         [sheet.id]: {
           kind: "ok",
-          text: `Posted ${sheet.collaborators.length} income entries to the ledger — in the Income & Expenses view above.`,
+          text: t("worldCoachMoney.subPostedOk", { count: sheet.collaborators.length }),
         },
       }));
       onLedgerPosted?.();
     } catch (err) {
-      setPostedStatus((prev) => ({ ...prev, [sheet.id]: { kind: "error", text: plainErrorText(err, "Couldn't post to the ledger.") } }));
+      setPostedStatus((prev) => ({ ...prev, [sheet.id]: { kind: "error", text: plainErrorText(err, t("worldCoachMoney.subPostLedgerError")) } }));
     } finally {
       setPostingId(null);
     }
@@ -987,44 +989,41 @@ export function CoachSplitSheetsSection({
 
   return (
     <div data-testid="world-coach-sheets-panel">
-      <SubHead isLight={isLight}><FileText className="mr-1 inline h-3.5 w-3.5" />Split agreements</SubHead>
-      <p className={`mt-1.5 text-sm leading-relaxed ${muted}`}>
-        Who gets what when the money lands — write it down before the song blows up, post royalties straight
-        to the ledger, and lock the agreement into a PDF.
-      </p>
+      <SubHead isLight={isLight}><FileText className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subSheetsHeading")}</SubHead>
+      <p className={`mt-1.5 text-sm leading-relaxed ${muted}`}>{t("worldCoachMoney.subSheetsIntro")}</p>
 
       <InnerBlock isLight={isLight}>
         <div className="space-y-2.5">
-          <p className={`text-sm font-bold ${strong}`}>{editingId ? "Edit the agreement" : "New agreement"}</p>
+          <p className={`text-sm font-bold ${strong}`}>{editingId ? t("worldCoachMoney.subEditAgreement") : t("worldCoachMoney.subNewAgreement")}</p>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Song title</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subSongTitleLabel")}</span>
             <input
               data-testid="world-coach-sheets-title"
               className={inputCls(isLight)}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Midnight Run"
+              placeholder={t("worldCoachMoney.subSongTitlePlaceholder")}
             />
           </label>
           <div className="space-y-2">
             {rows.map((row, i) => (
               <div key={i} className="flex flex-wrap items-center gap-2">
                 <input
-                  aria-label="Collaborator name"
+                  aria-label={t("worldCoachMoney.subCollabNameAria")}
                   className={`${inputCls(isLight)} min-w-32 flex-1`}
                   value={row.name}
                   onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))}
-                  placeholder="Name"
+                  placeholder={t("worldCoachMoney.subNamePlaceholder")}
                 />
                 <input
-                  aria-label="Role"
+                  aria-label={t("worldCoachMoney.subRoleAria")}
                   className={`${inputCls(isLight)} min-w-24 flex-1`}
                   value={row.role}
                   onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, role: e.target.value } : r)))}
-                  placeholder="Role (e.g. Producer)"
+                  placeholder={t("worldCoachMoney.subRolePlaceholder")}
                 />
                 <input
-                  aria-label="Percent"
+                  aria-label={t("worldCoachMoney.subPercentAria")}
                   className={`${inputCls(isLight)} w-20`}
                   value={row.pct}
                   onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, pct: e.target.value } : r)))}
@@ -1033,7 +1032,7 @@ export function CoachSplitSheetsSection({
                 />
                 <button
                   type="button"
-                  aria-label="Remove collaborator"
+                  aria-label={t("worldCoachMoney.subRemoveCollab")}
                   className={smallBtn(isLight)}
                   onClick={() => setRows(rows.filter((_, j) => j !== i))}
                 >
@@ -1044,35 +1043,35 @@ export function CoachSplitSheetsSection({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className={smallBtn(isLight)} onClick={() => setRows([...rows, NEW_ROW()])}>
-              <Plus className="h-3 w-3" /> Add collaborator
+              <Plus className="h-3 w-3" /> {t("worldCoachMoney.subAddCollaborator")}
             </button>
             <span className={`text-xs font-bold ${draftTotal === 100 ? (isLight ? "text-emerald-700" : "text-emerald-300") : (isLight ? "text-amber-700" : "text-amber-300")}`}>
-              Total: {draftTotal}%
+              {t("worldCoachMoney.subTotalLabel", { pct: draftTotal })}
             </span>
-            <span className={`text-xs ${muted}`}>Percentages should add up to 100.</span>
+            <span className={`text-xs ${muted}`}>{t("worldCoachMoney.subPercentNote")}</span>
           </div>
           {formError ? <p className={`text-sm font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>{formError}</p> : null}
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" data-testid="world-coach-sheets-save" className={goldBtn} disabled={saving} onClick={() => void save()}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {editingId ? "Save agreement" : "Save agreement"}
+              {t("worldCoachMoney.subSaveAgreement")}
             </button>
             {editingId ? (
-              <button type="button" className={smallBtn(isLight)} onClick={resetForm}>Cancel edit</button>
+              <button type="button" className={smallBtn(isLight)} onClick={resetForm}>{t("worldCoachMoney.subCancelEdit")}</button>
             ) : null}
           </div>
         </div>
       </InnerBlock>
 
       {loading ? (
-        <NativeLoadingState isLight={isLight} message="Loading your split sheets…" />
+        <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.subLoadingSheets")} />
       ) : error ? (
         <NativeErrorState isLight={isLight} message={error} onRetry={() => void load()} />
       ) : !sheets || sheets.length === 0 ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No split agreements yet."
-          detail="Write your first one above — who wrote it, who produced it, and everyone's percentage."
+          message={t("worldCoachMoney.subNoSheetsYet")}
+          detail={t("worldCoachMoney.subNoSheetsDetail")}
         />
       ) : (
         <div className="space-y-2.5">
@@ -1085,12 +1084,12 @@ export function CoachSplitSheetsSection({
                     <div className="min-w-0">
                       <p className={`truncate text-sm font-bold ${strong}`}>{sheet.songTitle}</p>
                       <p className={`text-[11px] ${muted}`}>
-                        {sheet.collaborators.length} {sheet.collaborators.length === 1 ? "collaborator" : "collaborators"}
+                        {t(sheet.collaborators.length === 1 ? "worldCoachMoney.subCollaboratorsOne" : "worldCoachMoney.subCollaboratorsMany", { count: sheet.collaborators.length })}
                       </p>
                     </div>
                     <span className="flex gap-1.5">
                       <button type="button" className={smallBtn(isLight)} onClick={() => startEdit(sheet)}>
-                        <Pencil className="h-3 w-3" /> Edit
+                        <Pencil className="h-3 w-3" /> {t("worldCoachMoney.subEdit")}
                       </button>
                       <button
                         type="button"
@@ -1098,7 +1097,7 @@ export function CoachSplitSheetsSection({
                         disabled={busyId === sheet.id}
                         onClick={() => setDeleteTarget(sheet)}
                       >
-                        <Trash2 className="h-3 w-3" /> Delete
+                        <Trash2 className="h-3 w-3" /> {t("worldCoachMoney.subDelete")}
                       </button>
                     </span>
                   </div>
@@ -1122,11 +1121,11 @@ export function CoachSplitSheetsSection({
 
                   {deleteTarget?.id === sheet.id ? (
                     <div className={`mt-2.5 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-red-600/30 bg-red-500/[0.05]" : "border-red-500/30 bg-red-500/[0.05]"}`}>
-                      <span className={`text-xs font-semibold ${strong}`}>Delete "{sheet.songTitle}"?</span>
+                      <span className={`text-xs font-semibold ${strong}`}>{t("worldCoachMoney.subDeleteConfirmQ", { title: sheet.songTitle })}</span>
                       <button type="button" className={smallBtn(isLight)} disabled={busyId === sheet.id} onClick={() => void remove()}>
-                        Delete
+                        {t("worldCoachMoney.subDelete")}
                       </button>
-                      <button type="button" className={smallBtn(isLight)} onClick={() => setDeleteTarget(null)}>Keep it</button>
+                      <button type="button" className={smallBtn(isLight)} onClick={() => setDeleteTarget(null)}>{t("worldCoachMoney.subKeepIt")}</button>
                     </div>
                   ) : null}
 
@@ -1139,25 +1138,22 @@ export function CoachSplitSheetsSection({
                       onClick={() => void finalizePdf(sheet)}
                     >
                       {finalizingId === sheet.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                      Get PDF · {SPLIT_SHEET_PDF_COST_VISUAL_BUCS} VB
+                      {t("worldCoachMoney.subPdfButton", { cost: SPLIT_SHEET_PDF_COST_VISUAL_BUCS })}
                     </button>
                   </div>
 
                   <div className={`mt-3 rounded-lg border px-3 py-2.5 ${isLight ? "border-[#C9A84C]/25 bg-white/40" : "border-white/10 bg-black/20"}`}>
                     <p className={`flex items-center gap-1.5 text-xs font-bold ${strong}`}>
-                      <DollarSign className="h-3.5 w-3.5 text-[#d4af37]" /> Post royalties to the ledger
+                      <DollarSign className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCoachMoney.subPostRoyaltiesTitle")}
                     </p>
-                    <p className={`mt-1 text-[11px] ${muted}`}>
-                      Enter the total this song earned and each person's share lands in the ledger as income,
-                      split by this sheet's percentages.
-                    </p>
+                    <p className={`mt-1 text-[11px] ${muted}`}>{t("worldCoachMoney.subPostRoyaltiesBody")}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <input
-                        aria-label="Total royalty amount (USD)"
+                        aria-label={t("worldCoachMoney.subTotalAmountAria")}
                         className={`${inputCls(isLight)} w-36 py-1.5 text-xs`}
                         value={amounts[sheet.id] ?? ""}
                         onChange={(e) => setAmounts({ ...amounts, [sheet.id]: e.target.value })}
-                        placeholder="Total $"
+                        placeholder={t("worldCoachMoney.subTotalPlaceholder")}
                         inputMode="decimal"
                       />
                       <button
@@ -1167,7 +1163,7 @@ export function CoachSplitSheetsSection({
                         onClick={() => void postToLedger(sheet)}
                       >
                         {postingId === sheet.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PiggyBank className="h-3.5 w-3.5" />}
-                        Post to ledger
+                        {t("worldCoachMoney.subPostToLedger")}
                       </button>
                       {status ? (
                         <span className={`text-xs font-semibold ${status.kind === "ok" ? (isLight ? "text-emerald-700" : "text-emerald-300") : (isLight ? "text-red-700" : "text-red-300")}`}>
@@ -1194,15 +1190,27 @@ export function CoachSplitSheetsSection({
 
 /* ═══ 3. ROYALTIES — the dashboard ══════════════════════════════════ */
 
-/** The page's payout status words (royalties.payouts.status.*). */
-const PAYOUT_STATUS_LABELS: Record<string, string> = {
-  expected: "expected",
-  received: "received",
-  partial: "partial",
-  overdue: "overdue",
+/** The page's payout status words (royalties.payouts.status.*) — catalog
+ * keys per status; an unmapped status renders verbatim. */
+const PAYOUT_STATUS_KEYS: Record<string, string> = {
+  expected: "worldCoachMoney.subPayoutExpected",
+  received: "worldCoachMoney.subPayoutReceived",
+  partial: "worldCoachMoney.subPayoutPartial",
+  overdue: "worldCoachMoney.subPayoutOverdue",
+};
+const PAYOUT_STATUS_OPTION_KEYS: Record<string, string> = {
+  expected: "worldCoachMoney.subPayoutExpectedCap",
+  received: "worldCoachMoney.subPayoutReceivedCap",
+  partial: "worldCoachMoney.subPayoutPartialCap",
+  overdue: "worldCoachMoney.subPayoutOverdueCap",
 };
 
 export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
+  const payoutStatusLabel = (status: string): string => {
+    const key = PAYOUT_STATUS_KEYS[status];
+    return key ? t(key) : status;
+  };
   const { user, refreshProfile } = useAuth();
   const authHeaders = useCoachAuthHeaders();
 
@@ -1275,7 +1283,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
   const doImport = async () => {
     const csv = csvText.trim();
     if (!csv) {
-      setImportMsg({ kind: "error", text: "Paste or upload a CSV first." });
+      setImportMsg({ kind: "error", text: t("worldCoachMoney.subImportFirst") });
       return;
     }
     setImporting(true);
@@ -1287,17 +1295,17 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         body: JSON.stringify({ csv }),
       });
       const data = (await res.json().catch(() => ({}))) as { imported?: number; warnings?: unknown[]; error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Import failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCoachMoney.subImportFailed")));
       const imported = typeof data.imported === "number" ? data.imported : 0;
       const warnings = Array.isArray(data.warnings) ? data.warnings.length : 0;
       setImportMsg({
         kind: "ok",
-        text: `Imported ${imported} entries.${warnings > 0 ? ` ${warnings} row(s) skipped — see the report on the Royalties page for details.` : ""}`,
+        text: `${t("worldCoachMoney.subImportedLine", { count: imported })}${warnings > 0 ? t("worldCoachMoney.subImportWarningsSuffix", { count: warnings }) : ""}`,
       });
       setCsvText("");
       await load();
     } catch (err) {
-      setImportMsg({ kind: "error", text: plainErrorText(err, "Import failed.") });
+      setImportMsg({ kind: "error", text: plainErrorText(err, t("worldCoachMoney.subImportFailed")) });
     } finally {
       setImporting(false);
     }
@@ -1313,17 +1321,17 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         body: JSON.stringify({ platform: name }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't connect the platform."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCoachMoney.subConnectPlatformError")));
       await load();
     } catch (err) {
-      setPlatformError(plainErrorText(err, "Couldn't connect the platform."));
+      setPlatformError(plainErrorText(err, t("worldCoachMoney.subConnectPlatformError")));
     } finally {
       setPlatformBusy(null);
     }
   };
 
   const savePayout = async () => {
-    const validation = validateRoyaltyPayoutDraft(payoutDraft);
+    const validation = validateRoyaltyPayoutDraft(payoutDraft, t("worldCoachMoney.subPayoutRequired"));
     if (validation) {
       setPayoutMsg({ kind: "error", text: validation });
       return;
@@ -1337,12 +1345,12 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildRoyaltyPayoutPayload(payoutDraft)),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the payout."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCoachMoney.subPayoutSaveError")));
       setPayoutDraft({ distributor: "", periodStart: "", periodEnd: "", expected: "", received: "", status: "expected" });
-      setPayoutMsg({ kind: "ok", text: "Payout saved." });
+      setPayoutMsg({ kind: "ok", text: t("worldCoachMoney.subPayoutSaved") });
       await load();
     } catch (err) {
-      setPayoutMsg({ kind: "error", text: plainErrorText(err, "Couldn't save the payout.") });
+      setPayoutMsg({ kind: "error", text: plainErrorText(err, t("worldCoachMoney.subPayoutSaveError")) });
     } finally {
       setPayoutBusy(false);
     }
@@ -1361,31 +1369,28 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
       if (!res.ok) {
         throw new Error(
           isOutOfCreditsResponse(res.status, data)
-            ? `Not enough Visual Bucs — insights cost ${ROYALTY_INSIGHTS_COST_VISUAL_BUCS} Visual Bucs.`
-            : apiErrorMessage(data as { error?: string }, "Couldn't load insights."),
+            ? t("worldCoachMoney.subInsightsOut", { cost: ROYALTY_INSIGHTS_COST_VISUAL_BUCS })
+            : apiErrorMessage(data as { error?: string }, t("worldCoachMoney.subInsightsLoadError")),
         );
       }
       if (user) refreshProfile();
       const parsed = parseRoyaltyInsights(data);
-      if (!parsed) throw new Error("Couldn't load insights.");
+      if (!parsed) throw new Error(t("worldCoachMoney.subInsightsLoadError"));
       setInsights(parsed);
     } catch (err) {
-      setInsightsError(plainErrorText(err, "Couldn't load insights."));
+      setInsightsError(plainErrorText(err, t("worldCoachMoney.subInsightsLoadError")));
     } finally {
       setInsightsBusy(false);
     }
   };
 
-  if (loading) return <NativeLoadingState isLight={isLight} message="Loading your royalties…" />;
+  if (loading) return <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.subLoadingRoyalties")} />;
 
   return (
     <div className="space-y-3" data-testid="world-coach-royalties-panel">
       <div>
-        <SubHead isLight={isLight}><TrendingUp className="mr-1 inline h-3.5 w-3.5" />Royalties</SubHead>
-        <p className={`mt-1.5 text-sm leading-relaxed ${muted}`}>
-          Import the reports from your distributor and see every dollar,
-          platform and payout in one place.
-        </p>
+        <SubHead isLight={isLight}><TrendingUp className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subRoyaltiesTitle")}</SubHead>
+        <p className={`mt-1.5 text-sm leading-relaxed ${muted}`}>{t("worldCoachMoney.subRoyaltiesIntro")}</p>
       </div>
 
       {summaryError ? (
@@ -1394,33 +1399,33 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
         <>
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
             <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><DollarSign className="h-3.5 w-3.5" />Total earnings</p>
-              <p className={`mt-1 text-xl font-black ${strong}`}>{royaltyMoneyLabel(summary.total)}</p>
-              <p className={`mt-0.5 text-[11px] ${muted}`}>{summary.entryCount} entries tracked</p>
+              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><DollarSign className="h-3.5 w-3.5" />{t("worldCoachMoney.subTotalEarnings")}</p>
+              <p className={`mt-1 text-xl font-black ${strong}`}>{royaltyMoneyLabel(summary.total, "USD", i18n.language)}</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>{t("worldCoachMoney.subEntriesTracked", { count: summary.entryCount })}</p>
             </div>
             <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><TrendingUp className="h-3.5 w-3.5" />Total streams</p>
-              <p className={`mt-1 text-xl font-black ${strong}`}>{summary.totalStreams.toLocaleString()}</p>
-              <p className={`mt-0.5 text-[11px] ${muted}`}>across all platforms</p>
+              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><TrendingUp className="h-3.5 w-3.5" />{t("worldCoachMoney.subTotalStreams")}</p>
+              <p className={`mt-1 text-xl font-black ${strong}`}>{summary.totalStreams.toLocaleString(i18n.language)}</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>{t("worldCoachMoney.subAcrossPlatforms")}</p>
             </div>
             <div className={cardCls}>
-              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><Music2 className="h-3.5 w-3.5" />Songs earning</p>
+              <p className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}><Music2 className="h-3.5 w-3.5" />{t("worldCoachMoney.subSongsEarning")}</p>
               <p className={`mt-1 text-xl font-black ${strong}`}>{summary.perSong.length}</p>
-              <p className={`mt-0.5 text-[11px] ${muted}`}>{summary.perPlatform.length} platforms reporting</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>{t("worldCoachMoney.subPlatformsReporting", { count: summary.perPlatform.length })}</p>
             </div>
           </div>
 
           {!hasData ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No royalty data yet"
-              detail="Drop in a royalty report below — download the statements from your distributor and import the CSV. Your royalties will show up here automatically."
+              message={t("worldCoachMoney.subNoRoyaltyData")}
+              detail={t("worldCoachMoney.subNoRoyaltyDetail")}
             />
           ) : (
             <>
               {summary.monthly.length > 0 ? (
                 <div className={cardCls}>
-                  <SubHead isLight={isLight}>Monthly royalties</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.subMonthlyRoyalties")}</SubHead>
                   <div className="mt-2 flex items-end gap-1.5 overflow-x-auto pb-1">
                     {summary.monthly.map((m) => (
                       <div key={m.month} className="flex min-w-8 flex-col items-center gap-1">
@@ -1440,7 +1445,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
               <div className="grid gap-2 lg:grid-cols-2">
                 {summary.perSong.length > 0 ? (
                   <div className={cardCls}>
-                    <SubHead isLight={isLight}>Top songs</SubHead>
+                    <SubHead isLight={isLight}>{t("worldCoachMoney.subTopSongs")}</SubHead>
                     <div className="mt-2 space-y-1.5">
                       {summary.perSong.slice(0, 8).map((s) => (
                         <div key={s.song} className="flex items-center gap-2">
@@ -1448,8 +1453,8 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                           <span className={`h-2 flex-1 overflow-hidden rounded-full ${isLight ? "bg-black/[0.08]" : "bg-white/10"}`}>
                             <span className="block h-full rounded-full bg-[#d4af37]" style={{ width: `${royaltyBarPct(s.cents, topSongMax)}%` }} />
                           </span>
-                          <span className={`text-[11px] ${muted}`}>{s.streams.toLocaleString()} streams</span>
-                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>{royaltyMoneyLabel(s.amount)}</span>
+                          <span className={`text-[11px] ${muted}`}>{t("worldCoachMoney.subStreamsSuffix", { count: s.streams.toLocaleString(i18n.language) })}</span>
+                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>{royaltyMoneyLabel(s.amount, "USD", i18n.language)}</span>
                         </div>
                       ))}
                     </div>
@@ -1458,7 +1463,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
                 {summary.perPlatform.length > 0 ? (
                   <div className={cardCls}>
-                    <SubHead isLight={isLight}>By platform</SubHead>
+                    <SubHead isLight={isLight}>{t("worldCoachMoney.subByPlatform")}</SubHead>
                     <div className="mt-2 space-y-1.5">
                       {summary.perPlatform.map((p) => (
                         <div key={p.platform} className="flex items-center gap-2">
@@ -1466,7 +1471,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                           <span className={`h-2 flex-1 overflow-hidden rounded-full ${isLight ? "bg-black/[0.08]" : "bg-white/10"}`}>
                             <span className="block h-full rounded-full bg-[#d4af37]" style={{ width: `${royaltyBarPct(p.cents, platformMax)}%` }} />
                           </span>
-                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>{royaltyMoneyLabel(p.amount)}</span>
+                          <span className={`w-16 text-right text-xs font-bold ${strong}`}>{royaltyMoneyLabel(p.amount, "USD", i18n.language)}</span>
                         </div>
                       ))}
                     </div>
@@ -1475,11 +1480,8 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
               </div>
 
               <InnerBlock isLight={isLight}>
-                <SubHead isLight={isLight}><Sparkles className="mr-1 inline h-3.5 w-3.5" />Insights</SubHead>
-                <p className={`mt-1.5 text-xs ${muted}`}>
-                  Smart read of your royalty picture — what's working, what's leaking. Costs{" "}
-                  {ROYALTY_INSIGHTS_COST_VISUAL_BUCS} Visual Bucs per run.
-                </p>
+                <SubHead isLight={isLight}><Sparkles className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subInsightsTitle")}</SubHead>
+                <p className={`mt-1.5 text-xs ${muted}`}>{t("worldCoachMoney.subInsightsIntro", { cost: ROYALTY_INSIGHTS_COST_VISUAL_BUCS })}</p>
                 <button
                   type="button"
                   data-testid="world-coach-royalties-insights"
@@ -1488,7 +1490,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                   onClick={() => void runInsights()}
                 >
                   {insightsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Analyze my royalties
+                  {t("worldCoachMoney.subAnalyzeRoyalties")}
                 </button>
                 {insightsError ? <p className={`mt-2 text-sm font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>{insightsError}</p> : null}
                 {insights && insights.length > 0 ? (
@@ -1509,23 +1511,20 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
       {/* Import — the same CSV rail, free. */}
       <InnerBlock isLight={isLight}>
-        <SubHead isLight={isLight}><Upload className="mr-1 inline h-3.5 w-3.5" />Import royalties</SubHead>
-        <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
-          Paste the CSV from your distributor's report, or drop the file here. Columns like song / title,
-          platform, streams, amount and date are read automatically.
-        </p>
+        <SubHead isLight={isLight}><Upload className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subImportTitle")}</SubHead>
+        <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>{t("worldCoachMoney.subImportBody")}</p>
         <label className={`mt-2.5 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-xs font-bold ${isLight ? "border-[#7A5A12]/40 text-[#6B5B36]" : "border-white/25 text-white/70"}`}>
-          <Upload className="h-4 w-4" /> Drop a CSV file or tap to choose
+          <Upload className="h-4 w-4" /> {t("worldCoachMoney.subDropCsv")}
           <input
             type="file"
             accept=".csv,text/csv"
             className="hidden"
-            aria-label="Upload a royalty CSV file"
+            aria-label={t("worldCoachMoney.subUploadCsvAria")}
             onChange={(e) => void onCsvFile(e.target.files?.[0] ?? null)}
           />
         </label>
         <label className="mt-2.5 block">
-          <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>…or paste the CSV</span>
+          <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subOrPaste")}</span>
           <textarea
             data-testid="world-coach-royalties-csv"
             className={`${inputCls(isLight)} min-h-24 font-mono text-xs`}
@@ -1542,7 +1541,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
           onClick={() => void doImport()}
         >
           {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          Import CSV
+          {t("worldCoachMoney.subImportButton")}
         </button>
         {importMsg ? (
           <p className={`mt-2 text-sm font-semibold ${importMsg.kind === "ok" ? (isLight ? "text-emerald-700" : "text-emerald-300") : (isLight ? "text-red-700" : "text-red-300")}`}>
@@ -1553,15 +1552,14 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
       {/* Platforms — manual connect today, auto-sync honest. */}
       <div className={cardCls}>
-        <SubHead isLight={isLight}><Link2 className="mr-1 inline h-3.5 w-3.5" />Platform connections</SubHead>
+        <SubHead isLight={isLight}><Link2 className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subPlatformConnections")}</SubHead>
         <p className={`mt-1.5 text-xs leading-relaxed ${muted}`}>
-          Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists — their
-          auto-sync is honestly <b className={strong}>coming soon</b>. CSV import works for everything today.
+          {t("worldCoachMoney.subPlatformsBodyA")} <b className={strong}>{t("worldCoachMoney.subComingSoon")}</b>{t("worldCoachMoney.subPlatformsBodyB")}
         </p>
         {platformsError ? (
           <NativeErrorState isLight={isLight} message={platformsError} onRetry={() => void load()} />
         ) : platforms.length === 0 ? (
-          <p className={`mt-2 text-xs ${muted}`}>No platforms to show yet.</p>
+          <p className={`mt-2 text-xs ${muted}`}>{t("worldCoachMoney.subNoPlatforms")}</p>
         ) : (
           <div className="mt-2.5 space-y-1.5">
             {platforms.map((p: PlatformStatus) => (
@@ -1570,10 +1568,10 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                   <span className={`block text-sm font-bold ${strong}`}>{p.label}</span>
                   <span className={`block text-[11px] ${muted}`}>
                     {p.connected
-                      ? `Connected${p.accountLabel ? ` · ${p.accountLabel}` : ""}`
+                      ? `${t("worldCoachMoney.subConnected")}${p.accountLabel ? ` · ${p.accountLabel}` : ""}`
                       : p.connectable
-                        ? "Not connected"
-                        : "Auto-sync coming soon"}
+                        ? t("worldCoachMoney.subNotConnected")
+                        : t("worldCoachMoney.subAutoSyncSoon")}
                   </span>
                 </span>
                 {p.connected ? (
@@ -1586,7 +1584,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                     onClick={() => void connectPlatform(p.key)}
                   >
                     {platformBusy === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Connect
+                    {t("worldCoachMoney.subConnect")}
                   </button>
                 ) : (
                   <Clock3 className={`h-5 w-5 ${muted}`} />
@@ -1600,13 +1598,11 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
       {/* Payouts — the tracking rows + the record form. */}
       <div className={cardCls}>
-        <SubHead isLight={isLight}><Wallet className="mr-1 inline h-3.5 w-3.5" />Payout tracking</SubHead>
+        <SubHead isLight={isLight}><Wallet className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.subPayoutTracking")}</SubHead>
         {payoutsError ? (
           <NativeErrorState isLight={isLight} message={payoutsError} onRetry={() => void load()} />
         ) : payouts.length === 0 ? (
-          <p className={`mt-2 text-xs leading-relaxed ${muted}`}>
-            No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.
-          </p>
+          <p className={`mt-2 text-xs leading-relaxed ${muted}`}>{t("worldCoachMoney.subNoPayouts")}</p>
         ) : (
           <div className="mt-2.5 space-y-1.5">
             {payouts.map((p: Payout) => (
@@ -1615,9 +1611,9 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                   <span className={`block text-sm font-bold ${strong}`}>{p.distributor}</span>
                   <span className={`block text-[11px] ${muted}`}>{p.period_start} → {p.period_end}</span>
                   <span className={`mt-0.5 block text-xs ${muted}`}>
-                    Expected <b className={strong}>{royaltyMoneyLabel(p.expected_amount, p.currency)}</b>
+                    {t("worldCoachMoney.subExpectedLabel")} <b className={strong}>{royaltyMoneyLabel(p.expected_amount, p.currency, i18n.language)}</b>
                     {p.received_amount ? (
-                      <> · Received <b className={isLight ? "text-emerald-700" : "text-emerald-300"}>{royaltyMoneyLabel(p.received_amount, p.currency)}</b></>
+                      <> {t("worldCoachMoney.subReceivedPart")} <b className={isLight ? "text-emerald-700" : "text-emerald-300"}>{royaltyMoneyLabel(p.received_amount, p.currency, i18n.language)}</b></>
                     ) : null}
                   </span>
                 </span>
@@ -1633,7 +1629,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
                   }`}
                 >
                   {p.status === "overdue" ? <AlertTriangle className="h-3 w-3" /> : null}
-                  {PAYOUT_STATUS_LABELS[p.status] ?? p.status}
+                  {payoutStatusLabel(p.status)}
                 </span>
               </div>
             ))}
@@ -1642,31 +1638,30 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Distributor</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subDistributor")}</span>
             <input
               data-testid="world-coach-royalties-payout-distributor"
               className={inputCls(isLight)}
               value={payoutDraft.distributor}
               onChange={(e) => setPayoutDraft({ ...payoutDraft, distributor: e.target.value })}
-              placeholder="Your distributor"
+              placeholder={t("worldCoachMoney.subDistributorPlaceholder")}
             />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Status</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subStatusLabel")}</span>
             <select
               className={inputCls(isLight)}
               style={{ colorScheme: isLight ? "light" : "dark" }}
               value={payoutDraft.status}
               onChange={(e) => setPayoutDraft({ ...payoutDraft, status: e.target.value })}
             >
-              <option value="expected">Expected</option>
-              <option value="received">Received</option>
-              <option value="partial">Partial</option>
-              <option value="overdue">Overdue</option>
+              {Object.entries(PAYOUT_STATUS_OPTION_KEYS).map(([value, key]) => (
+                <option key={value} value={value}>{t(key)}</option>
+              ))}
             </select>
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Period start</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subPeriodStart")}</span>
             <input
               type="date"
               className={inputCls(isLight)}
@@ -1676,7 +1671,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
             />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Period end</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subPeriodEnd")}</span>
             <input
               type="date"
               className={inputCls(isLight)}
@@ -1686,7 +1681,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
             />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Expected amount</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subExpectedAmount")}</span>
             <input
               className={inputCls(isLight)}
               value={payoutDraft.expected}
@@ -1696,7 +1691,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
             />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Received amount (optional)</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.subReceivedAmount")}</span>
             <input
               className={inputCls(isLight)}
               value={payoutDraft.received}
@@ -1714,7 +1709,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
           onClick={() => void savePayout()}
         >
           {payoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Save payout
+          {t("worldCoachMoney.subSavePayout")}
         </button>
         {payoutMsg ? (
           <p className={`mt-2 text-sm font-semibold ${payoutMsg.kind === "ok" ? (isLight ? "text-emerald-700" : "text-emerald-300") : (isLight ? "text-red-700" : "text-red-300")}`}>
@@ -1725,8 +1720,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
 
       <p className={`flex items-start gap-2 text-[11px] leading-relaxed ${muted}`}>
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Royalties shown here are the ones you've imported and recorded — always double-check against your
-        distributor's own statements for the final word.
+        {t("worldCoachMoney.subRoyaltiesFootnote")}
       </p>
     </div>
   );

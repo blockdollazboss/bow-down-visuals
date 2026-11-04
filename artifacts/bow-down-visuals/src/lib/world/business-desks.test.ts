@@ -1109,7 +1109,7 @@ describe("coach money sub-views in-world (Ring 4 #6)", () => {
     expect(subViews).toContain('confirmedFetch("/api/wave8/splits"');
     expect(subViews).toContain('confirmedFetch("/api/wave8/splits/pdf"');
     expect(subViews).toContain("SPLIT_SHEET_PDF_COST_VISUAL_BUCS");
-    expect(subViews).toContain('overrideFeature: "Royalty Split Sheet PDF"');
+    expect(subViews).toContain('overrideFeature: t("worldCoachMoney.subPdfFeature")');
     expect(subViews).toContain('await import("jspdf")');
     expect(subViews).toContain("buildSplitLedgerPostBody({");
     expect(subViews).toContain("splitCentsLargestRemainder(totalCents");
