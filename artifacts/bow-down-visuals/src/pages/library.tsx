@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
   Library as LibraryIcon, Search, Sparkles, Type, Wand2, Heart, Mic2,
-  ArrowRight, Clock, X, Check, Copy, ChevronRight, ShoppingBag,
+  ArrowRight, Clock, X, Check, Copy, ChevronRight, ShoppingBag, Bookmark,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -26,13 +26,16 @@ import { fetchWishlist } from "@/lib/wishlists";
 import { libraryTabFromParams, type LibraryTab } from "@/lib/library-tab";
 import WishlistPanel from "@/components/wishlist/WishlistPanel";
 import PurchasesPanel from "@/components/library/PurchasesPanel";
+import SavedPanel from "@/components/library/SavedPanel";
+import { apiJson } from "@/lib/social-api";
+import { SAVES_PATH } from "@/lib/world/saved-desk";
 import { FeatureVersePanel } from "@/components/collabs/FeatureVersePanel";
 import GiftsForYou from "@/components/storefront/GiftsForYou";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
    The connective tissue between tools: templates, presets, and fonts.
    Every "Use" deep-links into the exact tool with the item pre-loaded.
-   - ?tab=templates|presets|fonts|wishlist — pre-select tab (context-aware entry)
+   - ?tab=templates|presets|fonts|wishlist|saved|features|purchases — pre-select tab (context-aware entry)
    - ?category=<name> — pre-select category
    - ?tool=thumbnail|video|brand — context hint from the calling tool
    Recent + favorites tracked in localStorage per user. */
@@ -78,6 +81,7 @@ export default function Library() {
      wishlist; the panel keeps it honest as items are removed. */
   const { user, getAccessToken } = useAuth();
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
   const [featureOrderCount, setFeatureOrderCount] = useState(0);
   const [purchasesCount, setPurchasesCount] = useState(0);
   useEffect(() => {
@@ -88,6 +92,20 @@ export default function Library() {
     let alive = true;
     fetchWishlist(getAccessToken)
       .then((list) => { if (alive) setWishlistCount(list.length); })
+      .catch(() => { /* badge only — the panel reports its own errors */ });
+    return () => { alive = false; };
+  }, [user, getAccessToken]);
+  /* Saved tab (Stack-100 A16): the count badge reads the member's
+     real saves rail — the same store /saved and the World SavedDesk
+     read; the panel keeps it honest as items are unsaved. */
+  useEffect(() => {
+    if (!user) {
+      setSavedCount(0);
+      return;
+    }
+    let alive = true;
+    apiJson<{ saves: unknown[] }>(getAccessToken, SAVES_PATH)
+      .then((data) => { if (alive) setSavedCount(Array.isArray(data.saves) ? data.saves.length : 0); })
       .catch(() => { /* badge only — the panel reports its own errors */ });
     return () => { alive = false; };
   }, [user, getAccessToken]);
@@ -163,6 +181,7 @@ export default function Library() {
     { key: "presets", label: t("library.tabPresets", { defaultValue: "Presets" }), icon: Wand2, count: LIBRARY_PRESETS.length },
     { key: "fonts", label: t("library.tabFonts", { defaultValue: "Fonts" }), icon: Type, count: LIBRARY_FONTS.length },
     { key: "wishlist", label: t("library.tabWishlist", { defaultValue: "Wishlist" }), icon: Heart, count: wishlistCount },
+    { key: "saved", label: t("library.tabSaved", { defaultValue: "Saved" }), icon: Bookmark, count: savedCount },
     { key: "features", label: t("library.tabFeatures", { defaultValue: "Feature Orders" }), icon: Mic2, count: featureOrderCount },
     { key: "purchases", label: t("library.tabPurchases", { defaultValue: "Purchases" }), icon: ShoppingBag, count: purchasesCount },
   ];
@@ -301,6 +320,15 @@ export default function Library() {
         {/* ═══ WISHLIST (Wave 4 #38) ═══ */}
         {tab === "wishlist" && (
           <WishlistPanel onCountChange={setWishlistCount} />
+        )}
+
+        {/* ═══ SAVED (Stack-100 A16) — the member's bookmark shelf
+            docked in the collection home: posts, sounds, videos and
+            creators saved across the site, on the same saves rail
+            /saved and the World SavedDesk read. /saved stays as the
+            door it already is. ═══ */}
+        {tab === "saved" && (
+          <SavedPanel onCountChange={setSavedCount} />
         )}
 
         {/* ═══ FEATURE ORDERS (Stack-200 N7) — the buyer's/seller's
