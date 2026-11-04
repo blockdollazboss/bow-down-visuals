@@ -200,6 +200,7 @@ const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then(
 const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
 const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
 const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
+const LibraryDesk = lazy(() => import("@/components/world/native/LibraryDesk").then((m) => ({ default: m.LibraryDesk })));
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
@@ -1265,6 +1266,19 @@ export default function StationPanel(props: StationPanelProps) {
                     board. */}
                 <DeskDoor isLight={isLight}>
                   <SavedDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Thy Library (stack1600 wave 4, item 26 — desk
+                    #99): the /library page's three un-carried tabs
+                    as one native desk — the 65-preset catalog from
+                    the page's own data module with the picked look
+                    applied live to the desk's preview stage, the
+                    31-font catalog with the page's copy-the-CSS
+                    apply, and the wishlist on the /api/wishlists
+                    rails — stacked at the My Studio board beside
+                    Saved; a preset's Use opens the Visual Vibes
+                    Editor station in-World. */}
+                <DeskDoor isLight={isLight}>
+                  <LibraryDesk isLight={isLight} onOpenStation={props.onOpenStation} />
                 </DeskDoor>
                 {/* Setlist Builder (stack1500 parity wave #3):
                     the free hand builder + the 100-Buc AI flow on
