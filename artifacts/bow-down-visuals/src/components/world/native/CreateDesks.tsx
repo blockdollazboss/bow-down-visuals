@@ -69,6 +69,7 @@ import {
   buildRunwayClipPayload,
   buildSongPayloadAdvanced,
   buildSongPayloadTurbo,
+  applySongStarter,
   buildSongVideoPayloadAdvanced,
   buildSongVideoPayloadTurbo,
   buildThumbnailPayload,
@@ -107,6 +108,11 @@ import {
   type SongVideoAdvanced,
 } from "@/lib/world/create-desks";
 import { fetchAssetLibrary, libraryAssetsOfKind, type LibraryAsset } from "@/lib/asset-library";
+import {
+  SONG_PRESET_GROUPS,
+  songPresetsByGroup,
+  type SongPreset,
+} from "@/lib/song-presets";
 
 /* ─── The Create Wing desks (NATIVE-PLAN §3.6) ───────────────────────
    Five of the six quick-create benches live here (the Audio Studio
@@ -341,6 +347,11 @@ export function SongDesk(props: CreateDeskProps) {
   const [intakeNote, setIntakeNote] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [adv, setAdv] = useState<SongAdvanced>(EMPTY_SONG_ADVANCED);
+  /* Org wave #4: the make-song starter shelf's active pick. A starter
+     is a prefill only (see applyStarter) — the marker clears the
+     moment the creator edits the prompt or any Advanced field by
+     hand, so it never claims a starter the form no longer matches. */
+  const [activeStarterId, setActiveStarterId] = useState<string | null>(null);
   const [state, setState] = useState<CreateDeskJobState>("idle");
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [genHistoryId, setGenHistoryId] = useState<string | null>(null);
@@ -352,7 +363,19 @@ export function SongDesk(props: CreateDeskProps) {
   const draft = useDraftSaver();
 
   const useAdvanced = Object.values(adv).some((v) => v.trim().length > 0);
-  const set = (k: keyof SongAdvanced) => (v: string) => setAdv((a) => ({ ...a, [k]: v }));
+  const set = (k: keyof SongAdvanced) => (v: string) => { setActiveStarterId(null); setAdv((a) => ({ ...a, [k]: v })); };
+  /* A starter tap ONLY prefills — the prompt takes the preset's
+     description text and the Advanced fields take its real form
+     patch (lib/world/create-desks applySongStarter, off the page's
+     own registry). Nothing submits, nothing charges: making the song
+     is still the desk's own tap below, at the price shown there. */
+  const applyStarter = (preset: SongPreset) => {
+    const next = applySongStarter(preset, { prompt, adv });
+    setPrompt(next.prompt);
+    setAdv(next.adv);
+    setActiveStarterId(preset.id);
+  };
+  const editPrompt = (v: string) => { setActiveStarterId(null); setPrompt(v); };
   /* Audit #5: the package leg prices by the chosen length tier, so
      the desk's one up-front total follows the Advanced length pick
      (Turbo posts no length and prices at the base tier). */
@@ -414,6 +437,7 @@ export function SongDesk(props: CreateDeskProps) {
       if (!res.ok) throw new Error(apiErrorMessage(data, "Transcription failed."));
       const transcript = transcriptOfResponse(data);
       if (!transcript) throw new Error("The transcription came back empty — paste the words instead.");
+      setActiveStarterId(null);
       setPrompt(transcript.slice(0, 2000));
       setIntakeNote("Transcribed — the words are in the prompt below, ready to make the song.");
       refreshProfile();
@@ -521,6 +545,37 @@ export function SongDesk(props: CreateDeskProps) {
         </label>
         {intakeNote ? <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{intakeNote}</span> : null}
       </div>
+      {/* Org wave #4: the song starter shelf — the make-song page's
+          own registry (lib/song-presets), grouped the page's way.
+          A tap prefills the prompt + the Advanced fields and nothing
+          else; the desk's price line below still prices the run. */}
+      <div className="space-y-2" data-testid="world-song-starters">
+        <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
+          Starters — one tap fills the desk in
+        </p>
+        {SONG_PRESET_GROUPS.map((group) => (
+          <div key={group.id} className="space-y-1.5">
+            <p className={`text-[11px] font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>{group.label}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {songPresetsByGroup(group.id).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  data-testid={`world-song-starter-${preset.id}`}
+                  aria-pressed={activeStarterId === preset.id}
+                  onClick={() => applyStarter(preset)}
+                  className={songTabBtn(activeStarterId === preset.id)}
+                >
+                  {preset.emoji} {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
+          A starter only fills the desk in — nothing runs and nothing is charged until you tap Make the song.
+        </p>
+      </div>
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
           <DeskTextField isLight={isLight} label="Artist name" value={adv.artistName} onChange={set("artistName")} />
@@ -543,7 +598,7 @@ export function SongDesk(props: CreateDeskProps) {
         isLight={isLight}
         promptLabel="Describe the song"
         prompt={prompt}
-        onPromptChange={setPrompt}
+        onPromptChange={editPrompt}
         costVisualBucs={deskTotalCost}
         state={state}
         errorMessage={error}

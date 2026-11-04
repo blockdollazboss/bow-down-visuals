@@ -36,6 +36,7 @@ import {
   type ColorKey,
   type ProductKey,
 } from "@/lib/branding-shop";
+import { SHOP_HEX_COLOR_RE } from "@/lib/shop-starters";
 
 /** The one marked door out (§3.9): the exact label on every stand's
  *  checkout action. It names where the walker is going — payment
@@ -629,6 +630,39 @@ export interface MineShopDto {
   tagline: string | null;
   description: string | null;
   product_count: number;
+  /** The shop's persisted design colors (shops.banner_color /
+   *  accent_color), kept when the row carries them as valid hex —
+   *  org wave #4's Look starters shelf reads them (see
+   *  shopDesignColors). Absent on hand-built rows; the columns
+   *  themselves are NOT NULL with schema defaults, so a real
+   *  /api/shops/mine row always carries them. */
+  banner_color?: string;
+  accent_color?: string;
+}
+
+/** The design-color columns' schema defaults (lib/db
+ *  customer-shops: banner #0a0a0a, accent #d4af37 — the registry's
+ *  Gold Noir pairing, the platform default). */
+export const SHOP_DEFAULT_BANNER_COLOR = "#0a0a0a";
+export const SHOP_DEFAULT_ACCENT_COLOR = "#d4af37";
+
+/** A row's design colors when BOTH are valid hex, else null — the
+ *  parsers keep colors only as a proven pair, never a half-pair. */
+function designColorPair(row: Record<string, unknown>): { banner_color: string; accent_color: string } | null {
+  const banner = row["banner_color"];
+  const accent = row["accent_color"];
+  if (typeof banner === "string" && SHOP_HEX_COLOR_RE.test(banner) && typeof accent === "string" && SHOP_HEX_COLOR_RE.test(accent)) {
+    return { banner_color: banner, accent_color: accent };
+  }
+  return null;
+}
+
+/** The colors a shop's Look shelf works from: the row's own proven
+ *  pair, else the schema defaults (the values a shop that never
+ *  picked a look actually wears on its storefront). */
+export function shopDesignColors(shop: { banner_color?: string; accent_color?: string }): { banner_color: string; accent_color: string } {
+  const pair = designColorPair(shop as Record<string, unknown>);
+  return pair ?? { banner_color: SHOP_DEFAULT_BANNER_COLOR, accent_color: SHOP_DEFAULT_ACCENT_COLOR };
 }
 
 /** Parse the /api/shops/mine payload tolerantly: rows without a
@@ -645,6 +679,7 @@ export function parseMineShops(payload: unknown): MineShopDto[] {
   for (const r of rows as Array<Record<string, unknown>>) {
     if (!r || typeof r !== "object") continue;
     if (typeof r["id"] !== "string" || typeof r["name"] !== "string" || typeof r["handle"] !== "string") continue;
+    const colors = designColorPair(r);
     out.push({
       id: r["id"],
       name: r["name"],
@@ -652,6 +687,7 @@ export function parseMineShops(payload: unknown): MineShopDto[] {
       tagline: typeof r["tagline"] === "string" ? r["tagline"] : null,
       description: typeof r["description"] === "string" ? r["description"] : null,
       product_count: typeof r["product_count"] === "number" && Number.isFinite(r["product_count"]) ? r["product_count"] : 0,
+      ...(colors ? { banner_color: colors.banner_color, accent_color: colors.accent_color } : {}),
     });
   }
   return out;
@@ -900,6 +936,7 @@ export function savedShopDto(payload: unknown): { mine: MineShopDto; pub: Public
   if (typeof row["id"] !== "string" || typeof row["name"] !== "string" || typeof row["handle"] !== "string") return null;
   const tagline = typeof row["tagline"] === "string" ? row["tagline"] : null;
   const description = typeof row["description"] === "string" ? row["description"] : null;
+  const colors = designColorPair(row);
   return {
     mine: {
       id: row["id"],
@@ -908,6 +945,7 @@ export function savedShopDto(payload: unknown): { mine: MineShopDto; pub: Public
       tagline,
       description,
       product_count: typeof row["product_count"] === "number" && Number.isFinite(row["product_count"]) ? row["product_count"] : 0,
+      ...(colors ? { banner_color: colors.banner_color, accent_color: colors.accent_color } : {}),
     },
     pub: { id: row["id"], name: row["name"], handle: row["handle"], tagline, description },
   };
