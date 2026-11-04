@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "d1e50adbb05d7cb2ed242048ba5f0e1dab55c522",
+  "baseCommit": "39e3a490bebd65cf463d79fe1711f05e4f208a9b",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -21,10 +21,10 @@
     "takeoverOffers": 2,
     "withDescriptions": 251,
     "withoutDescriptions": 0,
-    "serverRouteFiles": 430,
-    "serverEndpoints": 1737,
+    "serverRouteFiles": 431,
+    "serverEndpoints": 1740,
     "serverEndpointsVisible": 1077,
-    "serverFilesClassified": 99
+    "serverFilesClassified": 100
   },
   "packs": [
     {
@@ -18051,6 +18051,20 @@
         "endpoints": 1,
         "visible": 1,
         "unseen": []
+      },
+      {
+        "file": "artifacts/api-server/src/routes/beat-samples.ts",
+        "endpoints": 3,
+        "visible": 0,
+        "unseen": [
+          "/api/beat-samples",
+          "/api/beat-samples/:id",
+          "/api/beat-samples/:id/complete"
+        ],
+        "classification": {
+          "surface": "creator-tools",
+          "reason": "Beat Studio sample-library rail (create/list/delete + presigned upload) — a creator's durable uploaded sounds, called from Beat Studio through the shared lib/beat-sample-library helper past the page scan's one hop; no page of its own."
+        }
       },
       {
         "file": "artifacts/api-server/src/routes/bio-pages.ts",

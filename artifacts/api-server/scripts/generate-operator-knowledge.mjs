@@ -1545,6 +1545,10 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
      through shared client helpers past the page scan's one hop, so no
      feature entry carries them. The census carries each family by
      name; the reason names the tool. */
+  "artifacts/api-server/src/routes/beat-samples.ts": {
+    surface: "creator-tools",
+    reason: "Beat Studio sample-library rail (create/list/delete + presigned upload) — a creator's durable uploaded sounds, called from Beat Studio through the shared lib/beat-sample-library helper past the page scan's one hop; no page of its own.",
+  },
   "artifacts/api-server/src/routes/generate/aspect-convert.ts": {
     surface: "creator-tools",
     reason: "Aspect-ratio converter rail (ratio list + convert) — an editor tool called through shared helpers; no page of its own.",
