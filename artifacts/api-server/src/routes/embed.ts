@@ -228,34 +228,73 @@ interface EmbedProfileData {
   avatar_url: string | null;
   bio: string | null;
   follower_count: number;
+  /** Published-content counts (stats row) — real rows only, never
+   *  estimates; the card hides a stat whose count is 0. */
+  track_count: number;
+  video_count: number;
   ref_code: string | null;
   featured: { kind: "track" | "video"; id: string; title: string; media_url: string; thumb: string | null } | null;
+  /** Up to 3 more of the creator's top published tracks after the
+   *  featured one (play-count order) — the mini-list that fills the
+   *  card under the featured drop. Empty when the creator has fewer
+   *  than 2 published tracks. */
+  top_tracks: Array<{ id: string; title: string; play_count: number; artwork_url: string | null }>;
 }
 
-/** Real follower count for a public profile (follows rows are the same
- *  truth the site itself renders). Fails soft to 0 — a count hiccup must
- *  never take the creator's billboard down. */
-async function followerCountFor(profileId: string): Promise<number> {
+/** One aggregate count, fail-soft to 0 — a count hiccup must never
+ *  take the creator's billboard down (same discipline as the
+ *  follower count below). */
+async function embedCount(
+  run: () => Promise<Array<{ value: unknown }>>,
+): Promise<number> {
   try {
-    const rows = await db
-      .select({ value: sql<number>`count(*)` })
-      .from(followsTable)
-      .where(eq(followsTable.profileId, profileId));
+    const rows = await run();
     return Number(rows[0]?.value ?? 0) || 0;
   } catch {
     return 0;
   }
 }
 
+/** Real follower count for a public profile (follows rows are the same
+ *  truth the site itself renders). Fails soft to 0 — a count hiccup must
+ *  never take the creator's billboard down. */
+async function followerCountFor(profileId: string): Promise<number> {
+  return embedCount(() =>
+    db
+      .select({ value: sql<number>`count(*)` })
+      .from(followsTable)
+      .where(eq(followsTable.profileId, profileId)),
+  );
+}
+
+/** Published tracks/videos count for a public profile — the same
+ *  isPublished truth the featured pick and the top-tracks list use. */
+async function publishedCountFor(
+  table: typeof profileTracksTable | typeof profileVideosTable,
+  profileId: string,
+): Promise<number> {
+  return embedCount(() =>
+    db
+      .select({ value: sql<number>`count(*)` })
+      .from(table)
+      .where(
+        and(eq(table.profileId, profileId), eq(table.isPublished, true)),
+      ),
+  );
+}
+
 async function getEmbedProfile(slug: string): Promise<EmbedProfileData | null> {
   const profile = await publicProfileBySlug(slug);
   if (!profile) return null;
-  const [topTrack] = await db
+  /* Top 4 by plays: #1 becomes the featured drop, the next 3 fill the
+     "Top tracks" list — one query, no duplicates between the two. */
+  const topTrackRows = await db
     .select()
     .from(profileTracksTable)
     .where(and(eq(profileTracksTable.profileId, profile.id), eq(profileTracksTable.isPublished, true)))
     .orderBy(desc(profileTracksTable.playCount))
-    .limit(1);
+    .limit(4);
+  const [topTrack] = topTrackRows;
   let featured: EmbedProfileData["featured"] = null;
   if (topTrack) {
     featured = { kind: "track", id: topTrack.id, title: topTrack.title, media_url: await mediaUrl(topTrack.audioUrl), thumb: await refreshedUrl(topTrack.artworkUrl) };
@@ -270,15 +309,36 @@ async function getEmbedProfile(slug: string): Promise<EmbedProfileData | null> {
       featured = { kind: "video", id: topVideo.id, title: topVideo.title, media_url: await mediaUrl(topVideo.videoUrl), thumb: await refreshedUrl(topVideo.thumbnailUrl) };
     }
   }
+  const top_tracks: EmbedProfileData["top_tracks"] = await Promise.all(
+    topTrackRows.slice(1).map(async (t) => ({
+      id: t.id,
+      title: t.title,
+      play_count: t.playCount ?? 0,
+      artwork_url: await refreshedUrl(t.artworkUrl),
+    })),
+  );
+  const [follower_count, track_count, video_count] = await Promise.all([
+    followerCountFor(profile.id),
+    publishedCountFor(profileTracksTable, profile.id),
+    publishedCountFor(profileVideosTable, profile.id),
+  ]);
   return {
     kind: "profile",
     slug: profile.slug,
     display_name: profile.displayName,
     avatar_url: await refreshedUrl(profile.avatarUrl),
-    bio: profile.bio ? profile.bio.split("\n")[0]!.slice(0, 160) : null,
-    follower_count: await followerCountFor(profile.id),
+    /* Two lines now (was first line only): the card clamps the bio to
+       2 lines, and a one-line cut threw away the creator's own words
+       on their own billboard. */
+    bio: profile.bio
+      ? profile.bio.split("\n").slice(0, 2).join("\n").slice(0, 220)
+      : null,
+    follower_count,
+    track_count,
+    video_count,
     ref_code: await refCodeForUser(profile.userId),
     featured,
+    top_tracks,
   };
 }
 
@@ -696,6 +756,39 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
 @media (min-width:768px){
 .title{font-size:16px}
 }
+/* Brand text never wraps mid-name: at 320px the name used to split
+   "Bow Down / Visuals" beside the CTA. The span may shrink (ellipsis
+   is the last resort at extreme widths); the name itself never does. */
+.brandbar .brandtxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.brandbar b{white-space:nowrap}
+/* Profile card (embed-profile fix): a full-frame column — header,
+   stats, featured drop, top tracks — with the Follow door pinned to
+   the bottom by margin-top:auto, so the card fills its frame at any
+   height (~200–520px) instead of leaving a void under a top-loaded
+   header. All colors ride the shared theme variables, so the light
+   palette designs this layout too. */
+.pf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;width:100%;flex:1;min-height:0}
+.pf-avatar{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
+.pf-avatar-fb{background:var(--fallback);display:flex;align-items:center;justify-content:center;font-size:34px}
+.pf-avatar-lg{width:104px;height:104px}
+.pf-avatar-fb.pf-avatar-lg{font-size:42px}
+.pf-name{font-size:18px}
+.pf-bio{font-size:12px;color:var(--dim);line-height:1.4;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.pf-stats{display:flex;gap:16px;font-size:12px;color:var(--dim)}
+.pf-stats b{color:var(--ink);font-size:13px}
+.pf-sec{width:100%;text-align:left}
+.pf-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold-text);font-weight:700;margin-bottom:6px}
+.pf-box{background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:10px}
+.pf-rows{display:flex;flex-direction:column;gap:4px}
+.pf-row{display:flex;align-items:center;gap:10px;padding:6px 8px;min-height:44px;border-radius:10px;background:var(--chip)}
+.pf-row:hover{filter:brightness(1.15)}
+.pf-row img{width:38px;height:38px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.pf-row-fb{width:38px;height:38px;border-radius:8px;background:var(--chip);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.pf-row-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.pf-row-plays{font-size:11px;color:var(--faint);white-space:nowrap;flex-shrink:0}
+.pf-follow{margin-top:auto}
+.pf-empty{width:100%;border:1px dashed var(--line);border-radius:12px;padding:18px 14px;color:var(--dim);font-size:13px;line-height:1.45}
+.pf-empty b{color:var(--ink);display:block;font-size:14px;margin-bottom:4px}
 `;
 
 /* ── Stack1000 P4 (share truth): embed share cards ─────────────────────────
@@ -871,7 +964,7 @@ export function embedShell(kind: string, id: string, inner: string, og?: EmbedOg
 <title>${title}</title>${ogTags}<script>try{if(new URLSearchParams(location.search).get("theme")==="light")document.documentElement.classList.add("light");}catch(e){}</script><style>${EMBED_CSS}</style></head>
 <body>
 <div class="player" id="player"><div class="spin"></div></div>
-<div class="brandbar"><span class="dot"></span><span>Made with <b>Bow Down Visuals</b></span><a class="cta" id="cta" href="/signup" target="_blank" rel="noopener">Create your own →</a></div>
+<div class="brandbar"><span class="dot"></span><span class="brandtxt">Made with <b>Bow Down Visuals</b></span><a class="cta" id="cta" href="/signup" target="_blank" rel="noopener">Create your own →</a></div>
 <script>
 (function(){
 var KIND=${JSON.stringify(kind)}, ID=${JSON.stringify(id)};
@@ -936,27 +1029,42 @@ p.innerHTML=
 
 const PROFILE_JS = `
 var p=document.getElementById("player");
-p.style.flexDirection="column";p.style.padding="14px";p.style.gap="10px";p.style.alignItems="center";p.style.textAlign="center";p.style.overflowY="auto";
+p.style.flexDirection="column";p.style.padding="14px";p.style.overflowY="auto";
+function fmt(n){n=Number(n)||0;if(n>=1000000)return (Math.round(n/100000)/10)+"M";if(n>=1000)return (Math.round(n/100)/10)+"k";return String(n);}
+var stats=[];
+if(d.track_count>0)stats.push("<span><b>"+fmt(d.track_count)+"</b> "+(d.track_count===1?"track":"tracks")+"</span>");
+if(d.video_count>0)stats.push("<span><b>"+fmt(d.video_count)+"</b> "+(d.video_count===1?"video":"videos")+"</span>");
 var feat="";
 if(d.featured){
-feat='<div style="width:100%;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left">'+
-'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold-text);font-weight:700;margin-bottom:6px">Featured drop</div>'+
+feat='<div class="pf-sec"><div class="pf-box">'+
+'<div class="pf-label">Featured drop</div>'+
 '<div class="title" style="font-size:13px">'+esc(d.featured.title)+'</div>'+
 (d.featured.kind==="track"
 ?'<audio controls preload="metadata" src="'+esc(d.featured.media_url)+'" style="margin-top:8px"></audio>'
 :'<a href="/watch/'+esc(d.featured.id)+'" target="_blank" rel="noopener" style="display:block;margin-top:8px;position:relative">'+
 (d.featured.thumb?'<img src="'+esc(d.featured.thumb)+'" alt="" style="width:100%;border-radius:8px;display:block"/>':"")+
 '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="width:44px;height:44px;border-radius:50%;background:var(--gold);color:var(--gold-ink);display:flex;align-items:center;justify-content:center;font-size:18px">▶</span></span></a>')+
-'</div>';
+'</div></div>';
 }
-p.innerHTML=
-(d.avatar_url?'<img src="'+esc(d.avatar_url)+'" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)"/>':
-'<div style="width:72px;height:72px;border-radius:50%;background:var(--fallback);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:30px">🦈</div>')+
-'<div><div class="title" style="font-size:17px">'+esc(d.display_name)+'</div>'+
-(d.follower_count>0?'<div class="artist">'+d.follower_count+' follower'+(d.follower_count===1?'':'s')+'</div>':"")+
-(d.bio?'<div class="artist" style="white-space:normal;margin-top:4px">'+esc(d.bio)+'</div>':"")+'</div>'+
-'<a class="door" href="/artist/'+esc(d.slug)+'" target="_blank" rel="noopener">Follow on Bow Down Visuals</a>'+
-feat;`;
+var rows=(d.top_tracks||[]).map(function(t){
+return '<a class="pf-row" href="/track/'+esc(t.id)+'" target="_blank" rel="noopener">'+
+(t.artwork_url?'<img src="'+esc(t.artwork_url)+'" alt=""/>':'<span class="pf-row-fb">🎵</span>')+
+'<span class="pf-row-title">'+esc(t.title)+'</span>'+
+'<span class="pf-row-plays">▶ '+fmt(t.play_count)+'</span></a>';
+}).join("");
+var hasContent=!!d.featured||rows.length>0;
+p.innerHTML='<div class="pf">'+
+(d.avatar_url?'<img class="pf-avatar'+(hasContent?"":" pf-avatar-lg")+'" src="'+esc(d.avatar_url)+'" alt=""/>':
+'<div class="pf-avatar pf-avatar-fb'+(hasContent?"":" pf-avatar-lg")+'">🦈</div>')+
+'<div><div class="title pf-name">'+esc(d.display_name)+'</div>'+
+(d.follower_count>0?'<div class="artist">'+fmt(d.follower_count)+' follower'+(d.follower_count===1?'':'s')+'</div>':"")+
+(d.bio?'<div class="pf-bio">'+esc(d.bio)+'</div>':"")+'</div>'+
+(stats.length?'<div class="pf-stats">'+stats.join("")+'</div>':"")+
+feat+
+(rows?'<div class="pf-sec"><div class="pf-label">Top tracks</div><div class="pf-rows">'+rows+'</div></div>':"")+
+(hasContent?"":'<div class="pf-empty"><b>New creator on Bow Down Visuals</b>Follow to catch their first drop.</div>')+
+'<a class="door pf-follow" href="/artist/'+esc(d.slug)+'" target="_blank" rel="noopener">Follow on Bow Down Visuals</a>'+
+'</div>';`;
 
 const LATEST_JS = `
 var p=document.getElementById("player");
