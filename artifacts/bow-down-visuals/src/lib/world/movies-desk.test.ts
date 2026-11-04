@@ -284,7 +284,7 @@ describe("the station + dispatch (source pins)", () => {
     /* The price is printed before the run, from the seam. */
     expect(deskSrc).toContain('data-testid="world-movies-desk-cost"');
     expect(deskSrc).toContain("moviesDeskModeCost(mode)");
-    expect(deskSrc).toContain("shown before anything runs");
+    expect(deskSrc).toContain("worldCatalogLibrary.moviesCostLine");
     /* Honest states: 402 reads as out-of-credits; results in-panel. */
     expect(deskSrc).toContain('data-testid="world-create-movies-desk"');
     expect(deskSrc).toContain('data-testid="world-movies-desk-result"');
