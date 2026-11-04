@@ -296,6 +296,20 @@ export function isVideoTemplateId(id: string | null | undefined): id is VideoTem
   return !!id && VIDEO_TEMPLATES.some((t) => t.id === id);
 }
 
+/* ── Claim-to-asset door: the winners' circle "Build Winner Reel" ──────
+   Opens the editor with the winner-reel template EXECUTED on arrival —
+   the editor's ?make= deep link runs the same applyTemplate path a
+   picker click runs (lib/template-execution.ts builds the timeline).
+   Title/hook carry only facts the caller already holds: the winning
+   entry's title and the winner's crown line. Execution never invents
+   text, so an empty field is simply left out of the link. */
+export function buildWinnerReelHref(input: { title: string; hook: string }): string {
+  const params = new URLSearchParams({ make: "winner-reel" });
+  if (input.title.trim()) params.set("title", input.title);
+  if (input.hook.trim()) params.set("hook", input.hook);
+  return `/video-editor?${params.toString()}`;
+}
+
 /* ── localStorage: custom card order + last choice ── */
 
 const ORDER_KEY = "bdv-template-order";
