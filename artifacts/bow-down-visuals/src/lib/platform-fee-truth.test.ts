@@ -13,6 +13,11 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  STOREFRONT_PLATFORM_FEE_BPS,
+  STOREFRONT_PLATFORM_FEE_PCT,
+  storefrontFeeCents,
+} from "./shops";
 
 function readFe(rel: string): string {
   return readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
@@ -67,5 +72,96 @@ describe("storefront fee displays tell the single flat-5% story", () => {
     const sync = readApi("lib/creator-tier-sync.ts");
     expect(sync).toContain("One flat 5% platform fee on everything you sell");
     expect(sync).not.toContain("Lower platform fees on everything you sell");
+  });
+});
+
+/* ── Shop fee displays derive from the rail constant (stack1600 fee-display
+   lane). The staging walk caught a wrong fee figure on the shop surface;
+   the audit found FE displays computing their own percent: the store
+   dashboard's digital-sales fee preview ran 10% math and the public shop
+   page initialised its fee state to 10 until the payload landed. These
+   pins hold every shop display to the one mirror constant, and the
+   mirror to the rail's own default. ──────────────────────────────── */
+describe("shop fee displays == the shops rail constant", () => {
+  it("the FE mirror constant equals the rail's own default (500 bps = 5%)", () => {
+    const shops = readApi("routes/generate/shops.ts");
+    const m = shops.match(
+      /STOREFRONT_PLATFORM_FEE_BPS\s*=\s*Number\(process\.env\["STOREFRONT_PLATFORM_FEE_BPS"\]\)\s*\|\|\s*(\d+)/,
+    );
+    expect(m, "STOREFRONT_PLATFORM_FEE_BPS default in shops.ts").toBeTruthy();
+    expect(Number(m![1])).toBe(STOREFRONT_PLATFORM_FEE_BPS);
+    expect(STOREFRONT_PLATFORM_FEE_BPS).toBe(500);
+    expect(STOREFRONT_PLATFORM_FEE_PCT).toBe(5);
+    /* routes/store.ts (the digital-store rail behind the dashboard's
+       Digital sales section) reuses the same knob — no second rate. */
+    const store = readApi("routes/store.ts");
+    expect(store).toContain("const PLATFORM_FEE_BPS = STOREFRONT_PLATFORM_FEE_BPS");
+  });
+
+  it("storefrontFeeCents matches the rail's rounding at the flat 5%", () => {
+    expect(storefrontFeeCents(10_000)).toBe(500); // $100.00 → $5.00
+    expect(storefrontFeeCents(2000)).toBe(100); // $20.00 → $1.00
+    expect(storefrontFeeCents(333)).toBe(17); // $3.33 → 16.65 → 17
+    expect(storefrontFeeCents(0)).toBe(0);
+  });
+
+  it("store dashboard's fee preview derives from the mirror, never 10% math", () => {
+    const dash = readFe("pages/store-dashboard.tsx");
+    expect(dash).toContain("storefrontFeeCents(cents)");
+    expect(dash).not.toContain("(cents * 10) / 100");
+  });
+
+  it("public shop page never initialises or falls back to a stale fee rate", () => {
+    const shop = readFe("pages/shop.tsx");
+    expect(shop).toContain("useState(STOREFRONT_PLATFORM_FEE_PCT)");
+    expect(shop).not.toContain("useState(10)");
+    expect(shop).toContain("?? STOREFRONT_PLATFORM_FEE_PCT");
+  });
+
+  it("my-shop fee sentences interpolate the mirror constant", () => {
+    const mine = readFe("pages/my-shop.tsx");
+    expect(mine).toContain("The {STOREFRONT_PLATFORM_FEE_PCT}% platform fee");
+    expect(mine).toContain("stays the flat {STOREFRONT_PLATFORM_FEE_PCT}%");
+    expect(mine).not.toContain("stays the flat 5%");
+  });
+});
+
+/* ── The other ruled fees: display == rail (stack1600 sweep). Each
+   product keeps its own ratified rate; these pins hold the headline
+   display and the rail constant in lockstep so one cannot drift
+   without the other side of the pin failing too. ─────────────────── */
+describe("the other ruled fees: displays match their rails", () => {
+  const en = JSON.parse(readFe("locales/en.json")) as Record<string, any>;
+
+  it("memberships: rail 10% == the after-fee display", () => {
+    const rail = readApi("routes/generate/memberships.ts");
+    expect(rail).toContain("MEMBERSHIPS_PLATFORM_FEE_PCT = 10");
+    expect(en.memberships.afterFee).toContain("10% platform fee");
+  });
+
+  it("beats: rail 15% commission == the commission line displays", () => {
+    const rail = readApi("routes/generate/beats-pricing.ts");
+    expect(rail).toContain("BEAT_SALE_COMMISSION_PCT = 15");
+    const line = readFe("lib/world/money-desks-2.ts");
+    expect(line).toContain("15% site commission on sales");
+  });
+
+  it("sponsors: rail 15% (1500 bps default) == the dashboard displays", () => {
+    const rail = readApi("routes/generate/sponsors.ts");
+    const m = rail.match(
+      /SPONSOR_PLATFORM_FEE_BPS\s*=\s*Number\(process\.env\["SPONSOR_PLATFORM_FEE_BPS"\]\)\s*\|\|\s*(\d+)/,
+    );
+    expect(m, "SPONSOR_PLATFORM_FEE_BPS default in sponsors.ts").toBeTruthy();
+    expect(Number(m![1])).toBe(1500);
+    expect(en.sponsorDashboard.earnedHint).toContain("15% platform fee");
+    expect(en.sponsorDealDetail.platformFeeLabel).toContain("(15%)");
+  });
+
+  it("tips: the rail takes no fee at all == the no-fee displays", () => {
+    const rail = readApi("routes/generate/tip-jar.ts");
+    expect(rail).not.toContain("application_fee_amount");
+    expect(rail).not.toContain("payment_intent_data");
+    const door = readFe("components/tips/WatchTipDoor.tsx");
+    expect(door).toContain("100% reaches the creator");
   });
 });
