@@ -3460,7 +3460,11 @@
     "installUrlErrorRetry": "Não foi possível montar a URL de instalação. Tente de novo.",
     "saveConfiguration": "Salvar configuração",
     "set": "definido",
-    "missing": "ausente"
+    "missing": "ausente",
+    "notSetUp": "não configurado",
+    "setupStateNote": "Ainda não conectado — nada está quebrado. Este é um estado de configuração: assim que as chaves do servidor da lista de verificação abaixo estiverem no lugar, Instalar e o formulário de ligação são ativados.",
+    "installNeedsClientId": "Instalar está desativado até que DISCORD_CLIENT_ID seja definido no servidor — veja os passos 1 e 4 na lista de verificação abaixo.",
+    "wiringLockedNote": "Bloqueado por enquanto: estas definições seriam guardadas, mas o bot não pode anunciar nada até estar conectado. Elas ativam-se assim que as chaves do servidor estiverem no lugar."
   },
   "distribute": {
     "songs_load_error": "Não foi possível carregar sua biblioteca de músicas — suas músicas estão seguras, apenas não foi possível acessá-las.",
@@ -5783,6 +5787,7 @@
     "confirmLeave": "Sair {{name}}?",
     "confirmRemove": "Remover {{email}} da equipe?",
     "createTeam": "Criar Equipe",
+    "createTeamHint": "Desbloqueia em Shot Caller (★4) — um Creator Rank conquistado, nunca um plano que possas comprar: os pontos de classificação vêm de publicar trabalho, vendas e fazer crescer a tua audiência (300 pontos para ★4). Juntem os vossos Visual Bucs, partilhem cofres de artista e criem juntos.",
     "createTeamTitle": "Criar Equipe",
     "creating": "Criando…",
     "decline": "Recusar",
