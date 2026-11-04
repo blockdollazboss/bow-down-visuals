@@ -24,6 +24,9 @@ import { buildPhotoLayerContextItems } from "@/lib/photo-context-menu";
 import {
   buildSvgExport, buildLayerSetManifest, layerFileName, summarizeDesignExport,
 } from "@/lib/photo-design-export";
+import {
+  PHOTO_DEVELOP_PRESETS, developMatchesPreset, type PhotoDevelopPreset,
+} from "@/lib/photo-develop-presets";
 import { createZip, type ZipEntry } from "@/lib/sfx";
 
 /**
@@ -403,6 +406,16 @@ export function PhotoCanvasEditor() {
     patch(activeImage, { develop: clampDevelop(p.recipe.develop) } as Partial<PhotoLayer>);
   }
 
+  /* Built-in looks (lib/photo-develop-presets) apply through the exact
+     same patch as a member's saved preset — one tap lands the whole
+     develop set on the layer, free like all editing here. Once applied
+     it IS the layer's develop state, so the sliders can tune it and the
+     save form below can keep it as the member's own preset. */
+  function applyBuiltinPreset(p: PhotoDevelopPreset) {
+    if (!activeImage) { toast({ title: "Add a photo first", description: "Presets apply to a photo layer." }); return; }
+    patch(activeImage, { develop: clampDevelop(p.develop) } as Partial<PhotoLayer>);
+  }
+
   /* ── server draft (house /api/drafts slot) ── */
   async function saveDraft() {
     setBusy("draft");
@@ -582,6 +595,32 @@ export function PhotoCanvasEditor() {
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
           <h3 className="text-sm font-bold text-white">Preset packs</h3>
+          {/* Built-in starter shelf (Stack 100 A12): real looks on day
+              one, before the member has saved anything of their own. */}
+          <div className="space-y-2" data-testid="builtin-looks">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-white/60">Built-in looks</h4>
+            <p className="text-xs text-white/40">One tap applies the whole look — free, like all editing here. Tune it with the Develop sliders, then save it below as your own.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PHOTO_DEVELOP_PRESETS.map((p) => {
+                const active = !!activeImage && developMatchesPreset(activeImage.develop, p);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    data-testid={`builtin-look-${p.id}`}
+                    aria-pressed={active}
+                    onClick={() => applyBuiltinPreset(p)}
+                    className={`rounded-xl border p-2 text-left transition ${active ? "border-amber-400/70 bg-amber-400/10" : "border-white/10 bg-black/30 hover:border-white/25"}`}
+                  >
+                    <span aria-hidden="true" className="mb-1.5 block h-7 rounded-md" style={{ background: `linear-gradient(135deg, ${p.swatch[0]}, ${p.swatch[1]})` }} />
+                    <span className="block text-xs font-bold text-white">{p.name}</span>
+                    <span className="block text-[11px] leading-snug text-white/45">{p.blurb}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <h4 className="border-t border-white/10 pt-3 text-xs font-bold uppercase tracking-wide text-white/60">Your saved presets</h4>
           <p className="text-xs text-white/40">Save the current look as a named preset. Public presets get a share link anyone can open.</p>
           <div className="flex gap-1">
             <Input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Preset name" className="h-9" />
