@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft, BadgeDollarSign, Banknote, Briefcase, CheckCircle2, Loader2,
   Megaphone, PackageCheck, PenLine, Play, ShieldCheck, Sparkles, Users, XCircle,
@@ -43,10 +44,13 @@ import {
   sponsorDealStepIndex,
   sponsorApplicationPath,
   sponsorErrorMessage,
+  sponsorErrorStrings,
   sponsorFundAmountCents,
   sponsorMoneyCents,
   sponsorPostFormError,
+  sponsorPostFormStrings,
   sponsorReleasePreview,
+  sponsorReviewStrings,
   type SponsorApplication,
   type SponsorDashboardData,
   type SponsorFullDeal,
@@ -92,7 +96,19 @@ const chipBtn = (isLight: boolean) =>
       : "border-white/15 text-white/75 hover:text-white"
   }`;
 
+/* Pitch-writer tone labels (stack100 locale unit 47): the seam's
+   SPONSOR_PITCH_TONES labels are lowercase rail tokens on the 2D
+   page, not display words — the desk's tone names are its own
+   catalog keys, keyed by the same tone tokens. */
+const TONE_KEYS: Record<string, string> = {
+  professional: "worldSponsorPress.spToneProfessional",
+  bold: "worldSponsorPress.spToneBold",
+  friendly: "worldSponsorPress.spToneFriendly",
+  funny: "worldSponsorPress.spToneFunny",
+};
+
 export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { user, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
@@ -212,7 +228,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
 
   /* ── Post a deal ─────────────────────────────────────────────── */
   const postDeal = async () => {
-    const formError = sponsorPostFormError(postForm);
+    const formError = sponsorPostFormError(postForm, sponsorPostFormStrings(t));
     if (formError) {
       setPostError(formError);
       return;
@@ -237,12 +253,12 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
       }
       if (isSponsorSpendingPaused(body, res.status)) {
         setSpendingPaused(true);
-        setPostError(sponsorErrorMessage(body, res.status, "Posting didn't go through — try again."));
+        setPostError(sponsorErrorMessage(body, res.status, t("worldSponsorPress.spErrorPosting"), sponsorErrorStrings(t)));
         refreshProfile();
         return;
       }
       if (!res.ok) {
-        setPostError(sponsorErrorMessage(body, res.status, "Posting the deal didn't go through — try again."));
+        setPostError(sponsorErrorMessage(body, res.status, t("worldSponsorPress.spErrorPostingDeal"), sponsorErrorStrings(t)));
         return;
       }
       const result = normalizeSponsorPostResult(body);
@@ -252,7 +268,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
       setTick((n) => n + 1);
       if (result) openDeal(result.dealId);
     } catch {
-      setPostError("Posting the deal didn't go through — try again.");
+      setPostError(t("worldSponsorPress.spErrorPostingDeal"));
     } finally {
       setPosting(false);
     }
@@ -276,14 +292,14 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
       });
       const data: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        setDetailError(sponsorErrorMessage(data, res.status, "That didn't go through — try again."));
+        setDetailError(sponsorErrorMessage(data, res.status, t("worldSponsorPress.spErrorGeneric"), sponsorErrorStrings(t)));
         return null;
       }
       await loadDetail(openId);
       setTick((n) => n + 1);
       return (data ?? {}) as Record<string, unknown>;
     } catch {
-      setDetailError("That didn't go through — try again.");
+      setDetailError(t("worldSponsorPress.spErrorGeneric"));
       return null;
     } finally {
       setBusy(null);
@@ -294,7 +310,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
     if (!openId) return;
     const payload = buildSponsorApplyPayload(pitch, portfolioUrl);
     if (!payload) {
-      setDetailError("Write your pitch first.");
+      setDetailError(t("sponsorDealDetail.errorPitchFirst"));
       return;
     }
     const data = await runAction(sponsorDealApplyPath(openId), "POST", payload, "apply");
@@ -314,7 +330,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
       tone: pitchTone,
     });
     if (!payload) {
-      setDetailError("Add your niche first — the pitch writer needs it.");
+      setDetailError(t("worldSponsorPress.spErrorNicheFirst"));
       return;
     }
     setPitchWriting(true);
@@ -335,13 +351,13 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
       }
       const written = res.ok ? normalizeSponsorPitchResult(body) : null;
       if (!written) {
-        setDetailError(sponsorErrorMessage(body, res.status, "The pitch writer didn't answer — try again."));
+        setDetailError(sponsorErrorMessage(body, res.status, t("worldSponsorPress.spErrorPitchWriter"), sponsorErrorStrings(t)));
         return;
       }
       setPitch(written);
       refreshProfile();
     } catch {
-      setDetailError("The pitch writer didn't answer — try again.");
+      setDetailError(t("worldSponsorPress.spErrorPitchWriter"));
     } finally {
       setPitchWriting(false);
     }
@@ -349,7 +365,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
 
   const reviewApplication = async (app: SponsorApplication, action: "accept" | "reject") => {
     if (!deal) return;
-    const built = buildSponsorReviewPayload(action, agreedDollars, deal);
+    const built = buildSponsorReviewPayload(action, agreedDollars, deal, sponsorReviewStrings(t), i18n.language);
     if ("error" in built) {
       setDetailError(built.error);
       return;
@@ -362,7 +378,7 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
     if (!openId || !deal) return;
     const amountCents = sponsorFundAmountCents(deal, agreedDollars);
     if (!amountCents) {
-      setDetailError("There's no agreed payout to fund yet.");
+      setDetailError(t("worldSponsorPress.spErrorNoAgreedPayout"));
       return;
     }
     setFundSecret(null);
@@ -398,19 +414,19 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-sponsor-depth-desk">
       {openId ? (
-        <NativeCard isLight={isLight} title="Sponsor deal">
+        <NativeCard isLight={isLight} title={t("worldSponsorPress.spDealTitle")}>
           <button type="button" data-testid="world-sponsor-depth-back" onClick={closeDeal} className={chipBtn(isLight)}>
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to your sponsor desk
+            <ArrowLeft className="h-3.5 w-3.5" /> {t("worldSponsorPress.spBackButton")}
           </button>
           {detailFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The deal wouldn't open"
-              message="The deal is safe — its page just didn't answer. Try again."
+              title={t("worldSponsorPress.spDealErrorTitle")}
+              message={t("worldSponsorPress.spDealErrorMessage")}
               onRetry={() => void loadDetail(openId)}
             />
           ) : !deal ? (
-            <NativeLoadingState isLight={isLight} message="Opening the deal…" />
+            <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.spDealLoading")} />
           ) : (
             <div className="mt-3 space-y-4">
               <div>
@@ -419,12 +435,15 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                 </p>
                 <p className={`mt-1 text-lg font-black ${strong}`}>{deal.brandName}</p>
                 <p className={`text-xs ${muted}`}>
-                  {daysLeftLabel(deal.deadline)} · {formatBudgetRange(deal.budgetMin, deal.budgetMax)} budget ·{" "}
-                  {deal.applicationCount} application{deal.applicationCount === 1 ? "" : "s"}
+                  {t(deal.applicationCount === 1 ? "worldSponsorPress.spDealMetaOne" : "worldSponsorPress.spDealMetaOther", {
+                    days: daysLeftLabel(deal.deadline),
+                    budget: formatBudgetRange(deal.budgetMin, deal.budgetMax),
+                    count: deal.applicationCount,
+                  })}
                 </p>
                 <p className={`mt-2 text-sm ${strong}`}>{deal.description}</p>
                 <p className={`mt-2 text-xs ${muted}`}>
-                  <span className="font-bold">Deliverables:</span> {deal.deliverables}
+                  <span className="font-bold">{t("sponsorDealDetail.deliverables")}:</span> {deal.deliverables}
                 </p>
               </div>
 
@@ -452,17 +471,16 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                 className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
               >
                 <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${muted}`}>
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#d4af37]" /> Escrow
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSponsorPress.spEscrowTitle")}
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                  <span className={muted}>Status<br /><span className={`text-sm font-bold capitalize ${strong}`}>{deal.escrowStatus.replace("_", " ")}</span></span>
-                  <span className={muted}>Agreed payout<br /><span className={`text-sm font-bold ${strong}`}>{sponsorMoneyCents(deal.agreedAmountCents)}</span></span>
-                  <span className={muted}>Platform fee<br /><span className={`text-sm font-bold ${strong}`}>{sponsorMoneyCents(deal.platformFeeCents)}</span></span>
-                  <span className={muted}>Creator gets<br /><span className="text-sm font-bold text-[#d4af37]">{sponsorMoneyCents(deal.creatorPayoutCents)}</span></span>
+                  <span className={muted}>{t("worldSponsorPress.spEscrowStatus")}<br /><span className={`text-sm font-bold capitalize ${strong}`}>{deal.escrowStatus.replace("_", " ")}</span></span>
+                  <span className={muted}>{t("worldSponsorPress.spEscrowAgreed")}<br /><span className={`text-sm font-bold ${strong}`}>{sponsorMoneyCents(deal.agreedAmountCents, i18n.language)}</span></span>
+                  <span className={muted}>{t("worldSponsorPress.spEscrowFee")}<br /><span className={`text-sm font-bold ${strong}`}>{sponsorMoneyCents(deal.platformFeeCents, i18n.language)}</span></span>
+                  <span className={muted}>{t("worldSponsorPress.spEscrowCreatorGets")}<br /><span className="text-sm font-bold text-[#d4af37]">{sponsorMoneyCents(deal.creatorPayoutCents, i18n.language)}</span></span>
                 </div>
                 <p className={`mt-2 text-xs ${muted}`}>
-                  The brand funds the escrow up front; the money releases to the creator when the
-                  work is delivered, with the platform fee split out by the rail.
+                  {t("worldSponsorPress.spEscrowNote")}
                 </p>
               </div>
 
@@ -477,28 +495,28 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                 <div className="space-y-3" data-testid="world-sponsor-depth-apply">
                   {deal.myApplicationStatus ? (
                     <p className={`inline-flex items-center gap-1.5 text-sm font-bold ${strong}`}>
-                      <CheckCircle2 className="h-4 w-4 text-[#d4af37]" /> You applied — status: {deal.myApplicationStatus}
+                      <CheckCircle2 className="h-4 w-4 text-[#d4af37]" /> {t("worldSponsorPress.spAppliedStatus", { status: deal.myApplicationStatus })}
                     </p>
                   ) : (
                     <>
                       <p className={`flex items-center gap-2 text-sm font-black ${strong}`}>
-                        <PenLine className="h-4 w-4 text-[#d4af37]" /> Apply for this deal
+                        <PenLine className="h-4 w-4 text-[#d4af37]" /> {t("worldSponsorPress.spApplyTitle")}
                       </p>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1">
-                          <label className={labelCls} htmlFor="world-sponsor-pitch-name">Your name</label>
+                          <label className={labelCls} htmlFor="world-sponsor-pitch-name">{t("worldSponsorPress.spPitchNameLabel")}</label>
                           <input id="world-sponsor-pitch-name" className={deskInputCls(isLight)} maxLength={120} value={pitchName} onChange={(e) => setPitchName(e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className={labelCls} htmlFor="world-sponsor-pitch-niche">Your niche</label>
+                          <label className={labelCls} htmlFor="world-sponsor-pitch-niche">{t("worldSponsorPress.spPitchNicheLabel")}</label>
                           <input id="world-sponsor-pitch-niche" data-testid="world-sponsor-pitch-niche" className={deskInputCls(isLight)} maxLength={120} value={pitchNiche} onChange={(e) => setPitchNiche(e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <label className={labelCls} htmlFor="world-sponsor-pitch-followers">Followers</label>
+                          <label className={labelCls} htmlFor="world-sponsor-pitch-followers">{t("worldSponsorPress.spPitchFollowersLabel")}</label>
                           <input id="world-sponsor-pitch-followers" className={deskInputCls(isLight)} inputMode="numeric" value={pitchFollowers} onChange={(e) => setPitchFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))} />
                         </div>
                         <div className="space-y-1">
-                          <span className={labelCls}>Tone</span>
+                          <span className={labelCls}>{t("worldSponsorPress.spPitchToneLabel")}</span>
                           <div className="flex flex-wrap gap-1.5">
                             {SPONSOR_PITCH_TONES.map((toneDef) => (
                               <button
@@ -508,34 +526,34 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                                 onClick={() => setPitchTone(toneDef.key)}
                                 className={pitchTone === toneDef.key ? goldBtn : chipBtn(isLight)}
                               >
-                                {toneDef.label}
+                                {TONE_KEYS[toneDef.key] ? t(TONE_KEYS[toneDef.key]) : toneDef.label}
                               </button>
                             ))}
                           </div>
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className={labelCls} htmlFor="world-sponsor-pitch-wins">Your wins</label>
+                        <label className={labelCls} htmlFor="world-sponsor-pitch-wins">{t("worldSponsorPress.spPitchWinsLabel")}</label>
                         <input id="world-sponsor-pitch-wins" className={deskInputCls(isLight)} maxLength={500} value={pitchWins} onChange={(e) => setPitchWins(e.target.value)} />
                       </div>
                       <button type="button" data-testid="world-sponsor-write-pitch" onClick={() => void writePitch()} disabled={pitchWriting} className={chipBtn(isLight)}>
                         {pitchWriting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                        {pitchWriting ? "Writing…" : `Write my pitch — ${SPONSOR_PITCH_COST_VB} Visual Bucs`}
+                        {pitchWriting ? t("sponsorDealDetail.writingPitch") : t("worldSponsorPress.spWritePitchButton", { cost: SPONSOR_PITCH_COST_VB })}
                       </button>
                       {pitchOutOfCredits && (
-                        <p className={`text-xs font-semibold ${strong}`}>Not enough Visual Bucs for the pitch writer — applying yourself below is free.</p>
+                        <p className={`text-xs font-semibold ${strong}`}>{t("worldSponsorPress.spPitchOutOfCredits")}</p>
                       )}
                       <div className="space-y-1">
-                        <label className={labelCls} htmlFor="world-sponsor-pitch">Your pitch</label>
+                        <label className={labelCls} htmlFor="world-sponsor-pitch">{t("worldSponsorPress.spPitchLabel")}</label>
                         <textarea id="world-sponsor-pitch" data-testid="world-sponsor-pitch" className={deskInputCls(isLight)} rows={4} maxLength={2000} value={pitch} onChange={(e) => setPitch(e.target.value)} />
                       </div>
                       <div className="space-y-1">
-                        <label className={labelCls} htmlFor="world-sponsor-portfolio">Portfolio link (optional)</label>
+                        <label className={labelCls} htmlFor="world-sponsor-portfolio">{t("worldSponsorPress.spPortfolioLabel")}</label>
                         <input id="world-sponsor-portfolio" className={deskInputCls(isLight)} maxLength={500} value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} />
                       </div>
                       <button type="button" data-testid="world-sponsor-apply" onClick={() => void applyToDeal()} disabled={busy === "apply" || !pitch.trim()} className={goldBtn}>
                         {busy === "apply" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PenLine className="h-3.5 w-3.5" />}
-                        {busy === "apply" ? "Sending…" : "Send application — free"}
+                        {busy === "apply" ? t("sponsorDealDetail.sending") : t("worldSponsorPress.spApplyButton")}
                       </button>
                     </>
                   )}
@@ -545,22 +563,22 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
               {/* Creator: the work */}
               {isCreator && (deal.status === "funded" || deal.status === "in_progress" || deal.status === "completed" || deal.status === "paid") && (
                 <div className="space-y-2" data-testid="world-sponsor-depth-work">
-                  <p className={`text-sm font-black ${strong}`}>Your deal</p>
+                  <p className={`text-sm font-black ${strong}`}>{t("worldSponsorPress.spYourDealTitle")}</p>
                   <p className={`text-xs ${muted}`}>
-                    {deal.status === "funded" && "The escrow is funded — start the work when you're ready."}
-                    {deal.status === "in_progress" && "Work is under way — mark it delivered when it's done."}
-                    {deal.status === "completed" && "Delivered — the brand releases the payment next."}
-                    {deal.status === "paid" && `Paid out — you received ${sponsorMoneyCents(deal.creatorPayoutCents)}.`}
+                    {deal.status === "funded" && t("worldSponsorPress.spWorkFunded")}
+                    {deal.status === "in_progress" && t("worldSponsorPress.spWorkInProgress")}
+                    {deal.status === "completed" && t("worldSponsorPress.spWorkCompleted")}
+                    {deal.status === "paid" && t("worldSponsorPress.spWorkPaid", { amount: sponsorMoneyCents(deal.creatorPayoutCents, i18n.language) })}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {deal.status === "funded" && (
                       <button type="button" data-testid="world-sponsor-start" onClick={() => void runAction(sponsorDealActionPath(deal.id, "start"), "POST", undefined, "start")} disabled={!!busy} className={goldBtn}>
-                        {busy === "start" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Start work
+                        {busy === "start" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {t("worldSponsorPress.spStartWork")}
                       </button>
                     )}
                     {deal.status === "in_progress" && (
                       <button type="button" data-testid="world-sponsor-complete" onClick={() => void runAction(sponsorDealActionPath(deal.id, "complete"), "POST", undefined, "complete")} disabled={!!busy} className={goldBtn}>
-                        {busy === "complete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackageCheck className="h-3.5 w-3.5" />} Mark delivered
+                        {busy === "complete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackageCheck className="h-3.5 w-3.5" />} {t("sponsorDealDetail.markDelivered")}
                       </button>
                     )}
                   </div>
@@ -571,12 +589,12 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
               {isBrand && (
                 <div className="space-y-3" data-testid="world-sponsor-depth-brand">
                   <p className={`flex items-center gap-2 text-sm font-black ${strong}`}>
-                    <Users className="h-4 w-4 text-[#d4af37]" /> Applications ({deal.applicationCount})
+                    <Users className="h-4 w-4 text-[#d4af37]" /> {t("worldSponsorPress.spApplicationsTitle", { count: deal.applicationCount })}
                   </p>
                   {applications === null ? (
-                    <p className={`text-xs ${muted}`}>Applications couldn't be read just now — try reopening the deal.</p>
+                    <p className={`text-xs ${muted}`}>{t("worldSponsorPress.spApplicationsUnreadable")}</p>
                   ) : applications.length === 0 ? (
-                    <p className={`text-xs ${muted}`}>No applications yet — creators see your deal in the marketplace.</p>
+                    <p className={`text-xs ${muted}`}>{t("worldSponsorPress.spApplicationsEmpty")}</p>
                   ) : (
                     applications.map((a) => (
                       <div key={a.id} className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
@@ -584,28 +602,28 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                           <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold capitalize ${
                             a.status === "accepted" ? "border-emerald-500/40 text-emerald-500" : a.status === "rejected" ? "border-red-500/40 text-red-400" : isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/60"
                           }`}>{a.status}</span>
-                          <span className={`text-[11px] ${muted}`}>{a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ""}</span>
+                          <span className={`text-[11px] ${muted}`}>{a.createdAt ? new Date(a.createdAt).toLocaleDateString(i18n.language) : ""}</span>
                         </div>
                         <p className={`mt-2 text-sm ${strong}`}>{a.pitch}</p>
                         {a.portfolioUrl && (
-                          <p className={`mt-1 break-all text-xs ${muted}`}>Portfolio: {a.portfolioUrl}</p>
+                          <p className={`mt-1 break-all text-xs ${muted}`}>{t("worldSponsorPress.spPortfolioLine", { url: a.portfolioUrl })}</p>
                         )}
                         {a.status === "pending" && deal.status === "active" && (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             <input
-                              aria-label="Agreed payout in dollars"
+                              aria-label={t("worldSponsorPress.spAgreedAria")}
                               data-testid="world-sponsor-agreed"
                               className={`${deskInputCls(isLight)} w-44`}
                               inputMode="decimal"
-                              placeholder={`$${deal.budgetMin.toLocaleString("en-US")}–$${deal.budgetMax.toLocaleString("en-US")}`}
+                              placeholder={`$${deal.budgetMin.toLocaleString(i18n.language)}–$${deal.budgetMax.toLocaleString(i18n.language)}`}
                               value={agreedDollars}
                               onChange={(e) => setAgreedDollars(e.target.value.replace(/[^0-9.]/g, "").slice(0, 10))}
                             />
                             <button type="button" data-testid="world-sponsor-accept" onClick={() => void reviewApplication(a, "accept")} disabled={busy === `review-${a.id}`} className={goldBtn}>
-                              {busy === `review-${a.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Accept
+                              {busy === `review-${a.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} {t("sponsorDealDetail.accept")}
                             </button>
                             <button type="button" data-testid="world-sponsor-reject" onClick={() => void reviewApplication(a, "reject")} disabled={busy === `review-${a.id}`} className={chipBtn(isLight)}>
-                              <XCircle className="h-3.5 w-3.5" /> Reject
+                              <XCircle className="h-3.5 w-3.5" /> {t("sponsorDealDetail.reject")}
                             </button>
                           </div>
                         )}
@@ -616,48 +634,50 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
                   {deal.acceptedApplicationId && deal.escrowStatus === "unfunded" && (
                     <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
                       <p className={`flex items-center gap-1.5 text-sm font-bold ${strong}`}>
-                        <ShieldCheck className="h-4 w-4 text-[#d4af37]" /> Fund the escrow — {sponsorMoneyCents(deal.agreedAmountCents)}
+                        <ShieldCheck className="h-4 w-4 text-[#d4af37]" /> {t("worldSponsorPress.spFundTitle", { amount: sponsorMoneyCents(deal.agreedAmountCents, i18n.language) })}
                       </p>
-                      <p className={`mt-1 text-xs ${muted}`}>The money is held safely until the creator delivers; the payment form opens right here.</p>
+                      <p className={`mt-1 text-xs ${muted}`}>{t("worldSponsorPress.spFundNote")}</p>
                       <button type="button" data-testid="world-sponsor-fund" onClick={() => void fundDeal()} disabled={busy === "fund" || busy === "fund-confirm"} className={`${goldBtn} mt-2`}>
                         {busy === "fund" || busy === "fund-confirm" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                        {busy ? "Processing…" : `Fund ${sponsorMoneyCents(deal.agreedAmountCents)}`}
+                        {busy ? t("sponsorDealDetail.processing") : t("worldSponsorPress.spFundButton", { amount: sponsorMoneyCents(deal.agreedAmountCents, i18n.language) })}
                       </button>
                     </div>
                   )}
                   {fundSecret && (
                     <div className="space-y-2" data-testid="world-sponsor-fund-embedded">
-                      <p className={`text-xs ${muted}`}>Finish funding the escrow right here — the deal shows as funded the moment the payment lands.</p>
+                      <p className={`text-xs ${muted}`}>{t("worldSponsorPress.spFundEmbeddedNote")}</p>
                       <EmbeddedSessionCheckout clientSecret={fundSecret} />
                       <button type="button" onClick={() => setFundSecret(null)} className={chipBtn(isLight)}>
-                        Close — the escrow stays unfunded until a payment completes
+                        {t("worldSponsorPress.spFundClose")}
                       </button>
                     </div>
                   )}
                   {deal.status === "completed" && (
                     <div className={`rounded-xl border p-3 ${isLight ? "border-emerald-500/30 bg-emerald-500/5" : "border-emerald-500/30 bg-emerald-500/5"}`}>
                       <p className={`flex items-center gap-1.5 text-sm font-bold ${strong}`}>
-                        <Banknote className="h-4 w-4 text-emerald-500" /> Release {sponsorMoneyCents(deal.agreedAmountCents)}
+                        <Banknote className="h-4 w-4 text-emerald-500" /> {t("worldSponsorPress.spReleaseTitle", { amount: sponsorMoneyCents(deal.agreedAmountCents, i18n.language) })}
                       </p>
                       <p className={`mt-1 text-xs ${muted}`}>
-                        The creator receives {releasePreview ? sponsorMoneyCents(releasePreview.netCents) : "—"} after the platform fee
-                        {releasePreview ? ` (${sponsorMoneyCents(releasePreview.feeCents)})` : ""} — the rail stamps the settled split on the deal.
+                        {t("worldSponsorPress.spReleaseLine", {
+                          net: releasePreview ? sponsorMoneyCents(releasePreview.netCents, i18n.language) : "—",
+                          feePart: releasePreview ? t("worldSponsorPress.spReleaseFeePart", { fee: sponsorMoneyCents(releasePreview.feeCents, i18n.language) }) : "",
+                        })}
                       </p>
                       <button type="button" data-testid="world-sponsor-release" onClick={() => void runAction(sponsorDealActionPath(deal.id, "release"), "POST", undefined, "release")} disabled={busy === "release"} className={`${goldBtn} mt-2`}>
-                        {busy === "release" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Release payment
+                        {busy === "release" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} {t("worldSponsorPress.spReleaseButton")}
                       </button>
                     </div>
                   )}
                   {deal.status === "paid" && (
                     <p className={`inline-flex items-center gap-1.5 text-sm font-bold ${strong}`}>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Paid out — the creator received {sponsorMoneyCents(deal.creatorPayoutCents)}.
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" /> {t("worldSponsorPress.spPaidOutLine", { amount: sponsorMoneyCents(deal.creatorPayoutCents, i18n.language) })}
                     </p>
                   )}
                 </div>
               )}
 
               {!isBrand && !isCreator && deal.status !== "active" && (
-                <p className={`text-xs ${muted}`}>This deal is {deal.status.replace("_", " ")} — applications are closed.</p>
+                <p className={`text-xs ${muted}`}>{t("worldSponsorPress.spDealClosedNote", { status: deal.status.replace("_", " ") })}</p>
               )}
             </div>
           )}
@@ -665,88 +685,88 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
       ) : (
         <>
           {/* Summary — numbers only from a successful load */}
-          <NativeCard isLight={isLight} title="Sponsor desk">
+          <NativeCard isLight={isLight} title={t("worldSponsorPress.spDeskTitle")}>
             {dashFailed ? (
               <NativeErrorState
                 isLight={isLight}
-                title="The sponsor desk wouldn't open"
-                message="Your deals and earnings are safe — the desk just didn't answer. Try again."
+                title={t("worldSponsorPress.spDeskErrorTitle")}
+                message={t("worldSponsorPress.spDeskErrorMessage")}
                 onRetry={() => void loadDashboard()}
               />
             ) : !dashboard ? (
-              <NativeLoadingState isLight={isLight} message="Opening your sponsor desk…" />
+              <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.spDeskLoading")} />
             ) : (
               <div className="space-y-3" data-testid="world-sponsor-depth-summary">
                 <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
                   <span className={strong}>
                     <Banknote className="mr-1 inline h-4 w-4 text-[#d4af37]" />
-                    <span className="font-black text-[#d4af37]">{sponsorMoneyCents(dashboard.totalEarnedCents)}</span> earned as a creator
+                    <span className="font-black text-[#d4af37]">{sponsorMoneyCents(dashboard.totalEarnedCents, i18n.language)}</span>{t("worldSponsorPress.spEarnedSuffix")}
                   </span>
                   <span className={strong}>
-                    <span className="font-black">{dashboard.postedDeals.length}</span> deal{dashboard.postedDeals.length === 1 ? "" : "s"} posted ·{" "}
-                    {dashboard.postedDeals.filter((d) => d.status === "active").length} open
+                    <span className="font-black">{dashboard.postedDeals.length}</span> {t(dashboard.postedDeals.length === 1 ? "worldSponsorPress.spDealsPostedWordOne" : "worldSponsorPress.spDealsPostedWordOther")} ·{" "}
+                    <span className="font-black">{dashboard.postedDeals.filter((d) => d.status === "active").length}</span> {t("worldSponsorPress.spOpenWord")}
                   </span>
                   <span className={strong}>
-                    <span className="font-black">{dashboard.applications.length}</span> application{dashboard.applications.length === 1 ? "" : "s"} sent ·{" "}
-                    {dashboard.applications.filter((a) => a.applicationStatus === "accepted").length} accepted
+                    <span className="font-black">{dashboard.applications.length}</span> {t(dashboard.applications.length === 1 ? "worldSponsorPress.spApplicationsSentWordOne" : "worldSponsorPress.spApplicationsSentWordOther")} ·{" "}
+                    <span className="font-black">{dashboard.applications.filter((a) => a.applicationStatus === "accepted").length}</span> {t("worldSponsorPress.spAcceptedWord")}
                   </span>
                 </div>
                 <button type="button" data-testid="world-sponsor-post-toggle" aria-expanded={showPost} onClick={() => setShowPost((v) => !v)} disabled={spendingPaused} className={goldBtn}>
-                  <Megaphone className="h-3.5 w-3.5" /> Post a deal — {SPONSOR_POST_COST_VB} Visual Bucs
+                  <Megaphone className="h-3.5 w-3.5" /> {t("worldSponsorPress.spPostToggleButton", { cost: SPONSOR_POST_COST_VB })}
                 </button>
                 {spendingPaused && (
-                  <p className={`text-xs font-semibold ${strong}`}>Credit spending is paused on this account right now — posting is paused with it, and nothing was charged.</p>
+                  <p className={`text-xs font-semibold ${strong}`}>{t("worldSponsorPress.spSpendingPausedNote")}</p>
                 )}
               </div>
             )}
           </NativeCard>
 
           {showPost && !spendingPaused && (
-            <NativeCard isLight={isLight} title="Post a sponsorship deal">
+            <NativeCard isLight={isLight} title={t("worldSponsorPress.spPostCardTitle")}>
               <div className="space-y-3" data-testid="world-sponsor-post-form">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <label className={labelCls} htmlFor="world-sponsor-post-brand">Brand name</label>
+                    <label className={labelCls} htmlFor="world-sponsor-post-brand">{t("worldSponsorPress.spPostBrandLabel")}</label>
                     <input id="world-sponsor-post-brand" data-testid="world-sponsor-post-brand" className={deskInputCls(isLight)} maxLength={120} value={postForm.brandName} onChange={setPostField("brandName")} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelCls} htmlFor="world-sponsor-post-niche">Niche</label>
+                    <label className={labelCls} htmlFor="world-sponsor-post-niche">{t("worldSponsorPress.spPostNicheLabel")}</label>
                     <input id="world-sponsor-post-niche" className={deskInputCls(isLight)} maxLength={120} value={postForm.niche} onChange={setPostField("niche")} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelCls} htmlFor="world-sponsor-post-min">Budget min ($)</label>
+                    <label className={labelCls} htmlFor="world-sponsor-post-min">{t("worldSponsorPress.spPostBudgetMinLabel")}</label>
                     <input id="world-sponsor-post-min" className={deskInputCls(isLight)} inputMode="numeric" value={postForm.budgetMin} onChange={(e) => setPostForm((f) => ({ ...f, budgetMin: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) }))} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelCls} htmlFor="world-sponsor-post-max">Budget max ($)</label>
+                    <label className={labelCls} htmlFor="world-sponsor-post-max">{t("worldSponsorPress.spPostBudgetMaxLabel")}</label>
                     <input id="world-sponsor-post-max" className={deskInputCls(isLight)} inputMode="numeric" value={postForm.budgetMax} onChange={(e) => setPostForm((f) => ({ ...f, budgetMax: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) }))} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelCls} htmlFor="world-sponsor-post-deadline">Deadline</label>
+                    <label className={labelCls} htmlFor="world-sponsor-post-deadline">{t("worldSponsorPress.spPostDeadlineLabel")}</label>
                     <input id="world-sponsor-post-deadline" data-testid="world-sponsor-post-deadline" type="date" className={deskInputCls(isLight)} value={postForm.deadline} onChange={setPostField("deadline")} />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelCls} htmlFor="world-sponsor-post-deliverables">Deliverables</label>
+                    <label className={labelCls} htmlFor="world-sponsor-post-deliverables">{t("worldSponsorPress.spPostDeliverablesLabel")}</label>
                     <input id="world-sponsor-post-deliverables" className={deskInputCls(isLight)} maxLength={500} value={postForm.deliverables} onChange={setPostField("deliverables")} />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className={labelCls} htmlFor="world-sponsor-post-description">Description</label>
+                  <label className={labelCls} htmlFor="world-sponsor-post-description">{t("worldSponsorPress.spPostDescriptionLabel")}</label>
                   <textarea id="world-sponsor-post-description" className={deskInputCls(isLight)} rows={3} maxLength={2000} value={postForm.description} onChange={setPostField("description")} />
                 </div>
                 {postError && (
                   <p role="alert" data-testid="world-sponsor-post-error" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{postError}</p>
                 )}
                 {postOutOfCredits && (
-                  <p className={`text-xs font-semibold ${strong}`}>Not enough Visual Bucs to post — it costs {SPONSOR_POST_COST_VB}. Top up at the Treasury; nothing was charged.</p>
+                  <p className={`text-xs font-semibold ${strong}`}>{t("worldSponsorPress.spPostOutOfCredits", { cost: SPONSOR_POST_COST_VB })}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-3">
                   <button type="button" data-testid="world-sponsor-post-submit" onClick={() => void postDeal()} disabled={posting} className={goldBtn}>
                     {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Megaphone className="h-3.5 w-3.5" />}
-                    {posting ? "Posting…" : `Post the deal — ${SPONSOR_POST_COST_VB} Visual Bucs`}
+                    {posting ? t("sponsorsPost.posting") : t("worldSponsorPress.spPostSubmitButton", { cost: SPONSOR_POST_COST_VB })}
                   </button>
                   <span className={`inline-flex items-center gap-1 text-xs ${muted}`}>
-                    <BadgeDollarSign className="h-3.5 w-3.5 text-[#d4af37]" /> Charged before the save; a failed save is refunded automatically.
+                    <BadgeDollarSign className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSponsorPress.spPostChargeNote")}
                   </span>
                 </div>
               </div>
@@ -755,57 +775,57 @@ export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {
 
           {dashboard && (
             <>
-              <NativeBoard isLight={isLight} title="Deals you posted">
+              <NativeBoard isLight={isLight} title={t("worldSponsorPress.spBoardPostedTitle")}>
                 {dashboard.postedDeals.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="No deals posted yet." detail="Post one above — it lands in the marketplace for creators to apply to." />
+                  <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.spBoardPostedEmpty")} detail={t("worldSponsorPress.spBoardPostedEmptyDetail")} />
                 ) : (
                   dashboard.postedDeals.map((d) => (
                     <NativeBoardRow
                       key={d.id}
                       isLight={isLight}
                       title={d.brandName}
-                      detail={[d.niche, d.status.replace("_", " "), `${d.applicationCount} application${d.applicationCount === 1 ? "" : "s"}`, d.agreedAmountCents != null ? `escrow ${d.escrowStatus}: ${sponsorMoneyCents(d.agreedAmountCents)}` : null].filter(Boolean).join(" · ")}
+                      detail={[d.niche, d.status.replace("_", " "), t(d.applicationCount === 1 ? "worldSponsorPress.spRowApplicationsOne" : "worldSponsorPress.spRowApplicationsOther", { count: d.applicationCount }), d.agreedAmountCents != null ? t("worldSponsorPress.spRowEscrow", { status: d.escrowStatus, amount: sponsorMoneyCents(d.agreedAmountCents, i18n.language) }) : null].filter(Boolean).join(" · ")}
                       meta={formatBudgetRange(d.budgetMin, d.budgetMax)}
                       action={
-                        <button type="button" data-testid="world-sponsor-open-deal" onClick={() => openDeal(d.id)} className={goldBtn}>Open</button>
+                        <button type="button" data-testid="world-sponsor-open-deal" onClick={() => openDeal(d.id)} className={goldBtn}>{t("worldSponsorPress.spOpenButton")}</button>
                       }
                     />
                   ))
                 )}
               </NativeBoard>
 
-              <NativeBoard isLight={isLight} title="Your applications">
+              <NativeBoard isLight={isLight} title={t("worldSponsorPress.spBoardApplicationsTitle")}>
                 {dashboard.applications.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="No applications sent yet." detail="Open a deal from the marketplace boards and apply with a pitch." />
+                  <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.spBoardApplicationsEmpty")} detail={t("worldSponsorPress.spBoardApplicationsEmptyDetail")} />
                 ) : (
                   dashboard.applications.map((a) => (
                     <NativeBoardRow
                       key={a.id}
                       isLight={isLight}
                       title={a.brandName}
-                      detail={[a.niche, `deal ${a.dealStatus.replace("_", " ")}`, a.pitch].filter(Boolean).join(" · ")}
+                      detail={[a.niche, t("worldSponsorPress.spRowDealStatus", { status: a.dealStatus.replace("_", " ") }), a.pitch].filter(Boolean).join(" · ")}
                       meta={a.applicationStatus}
                       action={
-                        <button type="button" data-testid="world-sponsor-open-application" onClick={() => openDeal(a.dealId)} className={goldBtn}>Open</button>
+                        <button type="button" data-testid="world-sponsor-open-application" onClick={() => openDeal(a.dealId)} className={goldBtn}>{t("worldSponsorPress.spOpenButton")}</button>
                       }
                     />
                   ))
                 )}
               </NativeBoard>
 
-              <NativeBoard isLight={isLight} title="Your sponsor earnings">
+              <NativeBoard isLight={isLight} title={t("worldSponsorPress.spBoardEarningsTitle")}>
                 {dashboard.payouts.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="No payouts yet." detail="When a brand releases a deal you delivered, the payout lands here." />
+                  <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.spBoardEarningsEmpty")} detail={t("worldSponsorPress.spBoardEarningsEmptyDetail")} />
                 ) : (
                   dashboard.payouts.map((p) => (
                     <NativeBoardRow
                       key={p.id}
                       isLight={isLight}
                       title={p.brandName}
-                      detail={[p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "", `gross ${sponsorMoneyCents(p.grossCents)} · fee ${sponsorMoneyCents(p.feeCents)}`].filter(Boolean).join(" · ")}
-                      meta={sponsorMoneyCents(p.netCents)}
+                      detail={[p.createdAt ? new Date(p.createdAt).toLocaleDateString(i18n.language) : "", t("worldSponsorPress.spRowGrossFee", { gross: sponsorMoneyCents(p.grossCents, i18n.language), fee: sponsorMoneyCents(p.feeCents, i18n.language) })].filter(Boolean).join(" · ")}
+                      meta={sponsorMoneyCents(p.netCents, i18n.language)}
                       action={
-                        <button type="button" data-testid="world-sponsor-open-payout" onClick={() => openDeal(p.dealId)} className={goldBtn}>Open</button>
+                        <button type="button" data-testid="world-sponsor-open-payout" onClick={() => openDeal(p.dealId)} className={goldBtn}>{t("worldSponsorPress.spOpenButton")}</button>
                       }
                     />
                   ))

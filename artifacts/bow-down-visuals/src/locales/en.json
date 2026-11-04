@@ -15894,12 +15894,6 @@
     "spDeskErrorTitle": "The sponsor desk wouldn't open",
     "spDeskErrorMessage": "Your deals and earnings are safe — the desk just didn't answer. Try again.",
     "spDeskLoading": "Opening your sponsor desk…",
-    "spEarnedLine": "{{amount}} earned as a creator",
-    "spDealsPostedOne": "1 deal posted",
-    "spDealsPostedOther": "{{count}} deals posted",
-    "spDealsOpenSuffix": " · {{open}} open",
-    "spApplicationsSentOne": "1 application sent · {{accepted}} accepted",
-    "spApplicationsSentOther": "{{count}} applications sent · {{accepted}} accepted",
     "spPostToggleButton": "Post a deal — {{cost}} Visual Bucs",
     "spSpendingPausedNote": "Credit spending is paused on this account right now — posting is paused with it, and nothing was charged.",
     "spPostCardTitle": "Post a sponsorship deal",
@@ -16241,7 +16235,14 @@
     "soFanEmailPlaceholder": "Your email (optional — for the delivery)",
     "soFanEmailAria": "Your email",
     "soOccasionPlaceholder": "Occasion — birthday, pep talk, anniversary…",
-    "soDisplayNamePlaceholder": "Display name fans see"
+    "soDisplayNamePlaceholder": "Display name fans see",
+    "spEarnedSuffix": " earned as a creator",
+    "spDealsPostedWordOne": "deal posted",
+    "spDealsPostedWordOther": "deals posted",
+    "spOpenWord": "open",
+    "spApplicationsSentWordOne": "application sent",
+    "spApplicationsSentWordOther": "applications sent",
+    "spAcceptedWord": "accepted"
   },
   "officeHours": {
     "panelTitle": "Book an Office Hours session",
