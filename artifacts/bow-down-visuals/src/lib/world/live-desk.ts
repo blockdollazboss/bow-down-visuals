@@ -55,6 +55,9 @@ import type { GreenScreenFineTune } from "../stream-kit/greenscreen-finetune";
 import {
   isSelectionActive, type BackdropSelection,
 } from "../stream-kit/backdrop-selection";
+import type {
+  RequestRulesDto, CatalogSongDto, SongRequestDto,
+} from "../song-requests";
 
 /* ── #85 studio rails ─────────────────────────────────────────────── */
 
@@ -636,3 +639,235 @@ export function fineTuneSlidersForMode(mode: BackgroundMode): typeof GREENSCREEN
 export const LIVE_WAVE3_PROMOTIONS = [
   "#92 Behind me in the hall Screen panel: the 2D studio's green-screen depth on the SAME BackgroundChanger kit BroadcastStudio runs — background modes (Green Screen / Blur / Backdrop / Original), quality (Auto / Pro / MediaPipe), the backdrop picker (built-in scenes, your own photo upload, a pasted image link — backdrop-selection's ONE selection), and the fine-tune sliders over greenscreen-finetune's shared device settings (the same bdv-greenscreen-finetune store the 2D studio reads, so a tuned cutout follows the creator between surfaces), with the engine's live status and any fallback spoken plainly. Free, exactly as on the page",
 ] as const;
+
+/* ── Song Requests (stack100 wave 3, item 17 / B11) ───────────────
+   The 2D Song Requests surfaces (components/live/SongRequests.tsx),
+   carried into the hall on their exact rails — ONE queue, two
+   faces, here and on the website:
+   - the fan face (SongRequestPanel on the live-watch page): GET
+     /api/live/:id/song-requests (public — rules + catalog + queue),
+     POST the same path with a Bearer token { songId, amountVb,
+     idempotencyKey } to place a tipped request. Tips are the rail's
+     own live-tip money (bounds + the creator's minimum come FROM
+     the payload — nothing here invents an amount or a price).
+   - the creator face (SongRequestDesk on the go-live page): GET /
+     PUT /api/song-request-rules (my rules + my catalog + my current
+     live stream id), and while live the queue doors on the same
+     queue path — POST …/play-next, POST …/:requestId/skip (decline
+     + refund), POST …/close (expire + refund the line).
+   In-world the fan face docks into the watch desk (the stream on
+   the big screen) and the creator face is its own desk in the same
+   members-only Screen panel — the panel's gate is what keeps
+   palace guests voiceless here, exactly like the other live desks. */
+
+export const SONG_REQUESTS_PATH = (streamId: string) => `/api/live/${encodeURIComponent(streamId)}/song-requests`;
+export const SONG_REQUEST_PLAY_NEXT_PATH = (streamId: string) => `${SONG_REQUESTS_PATH(streamId)}/play-next`;
+export const SONG_REQUEST_CLOSE_PATH = (streamId: string) => `${SONG_REQUESTS_PATH(streamId)}/close`;
+export const SONG_REQUEST_SKIP_PATH = (streamId: string, requestId: string) =>
+  `${SONG_REQUESTS_PATH(streamId)}/${encodeURIComponent(requestId)}/skip`;
+export const SONG_REQUEST_RULES_PATH = "/api/song-request-rules";
+
+export interface SongRequestTipBounds {
+  minVb: number;
+  maxVb: number;
+}
+
+export interface SongRequestQueueView {
+  streamId: string | null;
+  available: boolean;
+  rules: RequestRulesDto;
+  refundCopy: string;
+  tipBounds: SongRequestTipBounds | null;
+  catalog: CatalogSongDto[];
+  queue: SongRequestDto[];
+}
+
+export interface SongRequestRulesView {
+  available: boolean;
+  rules: RequestRulesDto;
+  refundCopy: string;
+  tipBounds: SongRequestTipBounds | null;
+  catalog: CatalogSongDto[];
+  liveStreamId: string | null;
+}
+
+/** The server's own defaults (api lib/song-requests.ts
+ *  DEFAULT_REQUEST_RULES) — what a payload means when a field is
+ *  absent, never an in-world invention. */
+const SONG_REQUEST_DEFAULT_RULES: RequestRulesDto = {
+  requestsOpen: true,
+  catalogOnly: true,
+  excludedSongIds: [],
+  minTipVb: null,
+};
+
+function normalizeSongRequestRules(raw: unknown): RequestRulesDto {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return {
+    requestsOpen: typeof r["requestsOpen"] === "boolean" ? r["requestsOpen"] : SONG_REQUEST_DEFAULT_RULES.requestsOpen,
+    catalogOnly: typeof r["catalogOnly"] === "boolean" ? r["catalogOnly"] : SONG_REQUEST_DEFAULT_RULES.catalogOnly,
+    excludedSongIds: Array.isArray(r["excludedSongIds"])
+      ? r["excludedSongIds"].filter((x): x is string => typeof x === "string")
+      : [],
+    minTipVb: typeof r["minTipVb"] === "number" && Number.isInteger(r["minTipVb"]) ? r["minTipVb"] : null,
+  };
+}
+
+/** The rail's tip bounds, or null when the payload didn't carry
+ *  them — unknown bounds block the tip form (the gate below), they
+ *  are never guessed. */
+function normalizeSongRequestTipBounds(raw: unknown): SongRequestTipBounds | null {
+  const b = (raw ?? {}) as Record<string, unknown>;
+  return typeof b["minVb"] === "number" && typeof b["maxVb"] === "number"
+    ? { minVb: b["minVb"], maxVb: b["maxVb"] }
+    : null;
+}
+
+function normalizeSongRequestCatalog(raw: unknown): CatalogSongDto[] {
+  const rows = Array.isArray(raw) ? raw : [];
+  const out: CatalogSongDto[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const s = r as Record<string, unknown>;
+    if (typeof s["id"] !== "string" || typeof s["title"] !== "string") continue;
+    out.push({
+      id: s["id"],
+      title: s["title"],
+      durationSec: typeof s["durationSec"] === "string" ? s["durationSec"] : null,
+      excluded: s["excluded"] === true,
+    });
+  }
+  return out;
+}
+
+const SONG_REQUEST_STATUSES = ["queued", "playing", "played", "skipped", "expired"] as const;
+
+function normalizeSongRequestQueue(raw: unknown): SongRequestDto[] {
+  const rows = Array.isArray(raw) ? raw : [];
+  const out: SongRequestDto[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const q = r as Record<string, unknown>;
+    if (typeof q["id"] !== "string" || typeof q["songTitle"] !== "string") continue;
+    if (typeof q["amountVb"] !== "number" || !Number.isFinite(q["amountVb"])) continue;
+    const status = q["status"];
+    if (typeof status !== "string" || !(SONG_REQUEST_STATUSES as readonly string[]).includes(status)) continue;
+    const fan = (q["fan"] ?? {}) as Record<string, unknown>;
+    out.push({
+      id: q["id"],
+      streamId: typeof q["streamId"] === "string" ? q["streamId"] : "",
+      songId: typeof q["songId"] === "string" ? q["songId"] : null,
+      songTitle: q["songTitle"],
+      amountVb: q["amountVb"],
+      status: status as SongRequestDto["status"],
+      position: typeof q["position"] === "number" ? q["position"] : null,
+      fanUserId: typeof q["fanUserId"] === "string" ? q["fanUserId"] : "",
+      fan: {
+        displayName: typeof fan["displayName"] === "string" ? fan["displayName"] : "Fan",
+        avatarUrl: typeof fan["avatarUrl"] === "string" ? fan["avatarUrl"] : null,
+        slug: typeof fan["slug"] === "string" ? fan["slug"] : null,
+      },
+      refunded: q["refunded"] === true,
+      createdAt: typeof q["createdAt"] === "string" ? q["createdAt"] : "",
+      playedAt: typeof q["playedAt"] === "string" ? q["playedAt"] : null,
+    });
+  }
+  return out;
+}
+
+/** The public queue read (fan face), normalized: the rows the desk
+ *  renders ARE the rail's rows — same ids, order, statuses,
+ *  positions, amounts and refund flags, so the in-world queue can
+ *  never drift from the queue the 2D surfaces show. */
+export function normalizeSongRequestQueuePayload(raw: unknown): SongRequestQueueView {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  return {
+    streamId: typeof d["streamId"] === "string" ? d["streamId"] : null,
+    available: d["available"] === true,
+    rules: normalizeSongRequestRules(d["rules"]),
+    refundCopy: typeof d["refundCopy"] === "string" ? d["refundCopy"] : "",
+    tipBounds: normalizeSongRequestTipBounds(d["tipBounds"]),
+    catalog: normalizeSongRequestCatalog(d["catalog"]),
+    queue: normalizeSongRequestQueue(d["queue"]),
+  };
+}
+
+/** The creator's rules read (creator face): rules + catalog + the
+ *  creator's own live stream id the queue controls dock to. */
+export function normalizeSongRequestRulesPayload(raw: unknown): SongRequestRulesView {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  return {
+    available: d["available"] === true,
+    rules: normalizeSongRequestRules(d["rules"]),
+    refundCopy: typeof d["refundCopy"] === "string" ? d["refundCopy"] : "",
+    tipBounds: normalizeSongRequestTipBounds(d["tipBounds"]),
+    catalog: normalizeSongRequestCatalog(d["catalog"]),
+    liveStreamId: typeof d["liveStreamId"] === "string" ? d["liveStreamId"] : null,
+  };
+}
+
+/** The fan submit's body, verbatim (submitSchema): the song pick,
+ *  the whole-VB tip, and the intent key that makes a retried tap
+ *  the same request instead of a second charge. */
+export function songRequestSubmitBody(songId: string, amountVb: number, idempotencyKey: string): {
+  songId: string;
+  amountVb: number;
+  idempotencyKey: string;
+} {
+  return { songId, amountVb, idempotencyKey };
+}
+
+/** The rules save's body, verbatim (rulesSchema): the four rule
+ *  fields, nothing else rides along. */
+export function songRequestRulesBody(rules: RequestRulesDto): RequestRulesDto {
+  return {
+    requestsOpen: rules.requestsOpen,
+    catalogOnly: rules.catalogOnly,
+    excludedSongIds: [...rules.excludedSongIds],
+    minTipVb: rules.minTipVb,
+  };
+}
+
+/** The fan form's tip gate, mirroring the server's own rule: a
+ *  whole amount inside the rail's bounds AND at or above the
+ *  creator's minimum when they set one. Unknown bounds (a malformed
+ *  read) submit nothing. */
+export function songRequestTipReady(
+  amountRaw: string,
+  rules: RequestRulesDto,
+  tipBounds: SongRequestTipBounds | null,
+): boolean {
+  if (!tipBounds) return false;
+  const n = Number(amountRaw);
+  if (!Number.isInteger(n)) return false;
+  if (n < tipBounds.minVb || n > tipBounds.maxVb) return false;
+  if (rules.minTipVb !== null && n < rules.minTipVb) return false;
+  return true;
+}
+
+/** The rules form's minimum-tip box: blank means "no minimum"
+ *  (null — exactly what the rail stores); a typed minimum must be
+ *  a whole amount inside the rail's bounds (rulesSchema's rule). */
+export function songRequestMinTipReady(minTipRaw: string, tipBounds: SongRequestTipBounds | null): boolean {
+  const t = minTipRaw.trim();
+  if (t === "") return true;
+  if (!tipBounds) return false;
+  const n = Number(t);
+  return Number.isInteger(n) && n >= tipBounds.minVb && n <= tipBounds.maxVb;
+}
+
+export function songRequestMinTipValue(minTipRaw: string): number | null {
+  const t = minTipRaw.trim();
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isInteger(n) ? n : null;
+}
+
+/** The catalog songs a fan can actually pick — the server already
+ *  flags the creator's exclusions on each row. */
+export function songRequestRequestableSongs(view: Pick<SongRequestQueueView, "catalog">): CatalogSongDto[] {
+  return view.catalog.filter((s) => !s.excluded);
+}
+
+export const LIVE_SONG_REQUESTS_PROMOTION =
+  "Song Requests in the hall Screen panel (stack100 item 17): the creator's queue desk — request rules on GET/PUT /api/song-request-rules and, while live, the queue doors (play-next / skip + refund / close + refund the line) — plus the fan request panel docked into the watch desk (up-front rules and refund copy, the live queue, tipped requests with an idempotency key) on GET/POST /api/live/:id/song-requests. One queue, two faces: the 2D SongRequests surfaces' rails verbatim, tips exactly as the rail bounds them";
