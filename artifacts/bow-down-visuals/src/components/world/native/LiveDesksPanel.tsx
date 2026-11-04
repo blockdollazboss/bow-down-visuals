@@ -20,6 +20,7 @@ import {
 } from "./LiveDesk";
 import { LiveShoppingDesk } from "./LiveShoppingDesk";
 import { LiveCopilotDesk } from "./LiveCopilotDesk";
+import { GamersDesk } from "./GamersDesk";
 
 export interface LiveDesksPanelProps {
   isLight: boolean;
@@ -64,6 +65,12 @@ export default function LiveDesksPanel({ isLight, screen, onStreamChange }: Live
           /api/live-prefs + the per-stream stage rails. Same
           members-only panel. */}
       <LiveCopilotDesk isLight={isLight} />
+      {/* Stack 100 wave 3, item 20: the Gamers Hub desk (#96) —
+          the Home of Gamers idea engine on the Gamers page's own
+          rail, registry-priced through confirmedFetch, its toolkit
+          carried as a browse shelf (no page pull-ups). Same
+          members-only panel. */}
+      <GamersDesk isLight={isLight} />
     </div>
   );
 }
