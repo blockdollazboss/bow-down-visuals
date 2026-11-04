@@ -4,11 +4,13 @@ import {
   estimateTopicModeCost,
   estimateDialogueCost,
   formatDuration,
+  getPodcastEpisodeTemplate,
   WORDS_PER_MINUTE,
   SECONDS_PER_BLOCK,
   PODCAST_CREDITS_PER_10MIN,
   DIALOGUE_CREDITS_PER_10MIN,
   DIALOGUE_SECONDS_PER_BLOCK,
+  PODCAST_EPISODE_TEMPLATES,
 } from "./podcast";
 
 describe("estimatePodcastCost", () => {
@@ -88,5 +90,20 @@ describe("formatDuration", () => {
     expect(formatDuration(0)).toBe("0:00");
     expect(formatDuration(65)).toBe("1:05");
     expect(formatDuration(600)).toBe("10:00");
+  });
+});
+
+describe("episode templates registry (Stack-100 A7 — full pins in podcast-episode-templates.test.ts)", () => {
+  it("carries the six named starter templates", () => {
+    expect(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).toEqual([
+      "interview",
+      "solo-commentary",
+      "news-roundup",
+      "story-episode",
+      "panel-discussion",
+      "listener-qa",
+    ]);
+    expect(getPodcastEpisodeTemplate("interview")?.name).toBe("Interview");
+    expect(getPodcastEpisodeTemplate("missing")).toBeNull();
   });
 });

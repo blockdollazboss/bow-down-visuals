@@ -9874,6 +9874,12 @@
         "tooManySpeakers": "Dialoge unterstützen bis zu {{max}} Sprecher.",
         "voiceFor": "Wähle zuerst eine Stimme für „{{name}}“."
       }
+    },
+    "templates": {
+      "title": "Episoden-Vorlagen",
+      "note": "Wähle eine Startstruktur — sie füllt nur das Formular unten aus, mit Kapitelüberschriften und Startzeilen, die du bearbeiten kannst. Sie startet niemals eine Generierung.",
+      "apply": "Diese Struktur verwenden",
+      "applied": "Struktur geladen"
     }
   },
   "presave": {

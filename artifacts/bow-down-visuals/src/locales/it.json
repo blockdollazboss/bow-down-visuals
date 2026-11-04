@@ -9635,6 +9635,12 @@
         "tooManySpeakers": "Il dialogo supporta fino a {{max}} interlocutori.",
         "voiceFor": "Prima scegli una voce per «{{name}}»."
       }
+    },
+    "templates": {
+      "title": "Modelli di episodio",
+      "note": "Scegli una struttura di partenza: compila solo il modulo qui sotto, con titoli dei capitoli e righe iniziali da modificare. Non avvia mai una generazione.",
+      "apply": "Usa questa struttura",
+      "applied": "Struttura caricata"
     }
   },
   "presave": {

@@ -7,6 +7,7 @@ import {
   Podcast as PodcastIcon, Loader2, Play, Pause, Download, Rss,
   AlertTriangle, Sparkles, FileText, Timer, Copy, Check,
   Users, User, Music, Video, PenLine, Lightbulb, MessagesSquare, Drama,
+  LayoutTemplate,
 } from "lucide-react";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { PodcastMultiplyPanel } from "@/components/audio-studio/PodcastMultiplyPanel";
@@ -27,10 +28,16 @@ import {
   SAMPLE_DIALOGUE,
   DIALOGUE_CREDITS_PER_10MIN,
   MAX_DIALOGUE_SPEAKERS,
+  PODCAST_EPISODE_TEMPLATES,
+  PODCAST_SEGMENT_KIND_LABELS,
+  podcastTemplatePrefill,
+  podcastTemplateSummary,
   type PodcastMode,
   type PodcastFormat,
   type PodcastChapter,
   type DialogueEstimate,
+  type PodcastEpisodeTemplate,
+  type PodcastTemplateId,
 } from "@/lib/podcast";
 
 /* ─── AI Podcast Studio ─────────────────────────────────────────────────
@@ -196,6 +203,23 @@ export default function PodcastStudio() {
   const [rssCopied, setRssCopied] = useState(false);
   const [tab, setTab] = useState<"studio" | "questions">("studio");
   const [prefillGuest, setPrefillGuest] = useState("");
+
+  /* ── episode templates (lib/podcast registry) ──
+     Applying a starter ONLY prefills: it selects the template's mode
+     (and host format for Script starters) and seeds the matching
+     script box with the segment structure. It never submits, never
+     charges, and never touches title, description, voices or the
+     music bed. Producing still happens only from the Produce button. */
+  const [activeTemplateId, setActiveTemplateId] = useState<PodcastTemplateId | null>(null);
+
+  function applyTemplate(template: PodcastEpisodeTemplate) {
+    const prefill = podcastTemplatePrefill(template);
+    setMode(prefill.mode);
+    if (prefill.format) setFormat(prefill.format);
+    if (prefill.script !== null) setScript(prefill.script);
+    if (prefill.dialogueScript !== null) setDialogueScript(prefill.dialogueScript);
+    setActiveTemplateId(template.id);
+  }
 
   /* Deep-link protocol (used by the Audio Extract handoff):
      /podcast?mode=video&videoUrl=… (audio URLs work too — the backend
@@ -497,6 +521,69 @@ export default function PodcastStudio() {
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {/* ── left: builder ── */}
           <div className="space-y-6">
+            {/* episode templates — starter structures from the
+                lib/podcast registry. A tap only prefills the form
+                below (see applyTemplate); the rundown on each card is
+                the template's own segment guidance, rendered from the
+                registry — no page-local copies. */}
+            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
+                <LayoutTemplate className="h-4 w-4 text-primary" />
+                {t("podcast.templates.title")}
+              </h2>
+              <p className="mb-4 text-xs leading-relaxed text-white/35">
+                {t("podcast.templates.note")}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2" data-testid="podcast-template-shelf">
+                {PODCAST_EPISODE_TEMPLATES.map((template) => {
+                  const isActive = activeTemplateId === template.id;
+                  return (
+                    <div
+                      key={template.id}
+                      data-testid={`podcast-template-${template.id}`}
+                      className={`flex flex-col rounded-xl border p-3.5 transition ${
+                        isActive
+                          ? "border-primary/60 bg-primary/[0.08]"
+                          : "border-white/10 bg-black/40"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">{template.name}</div>
+                      <div className="mt-0.5 text-xs text-white/40">{template.tagline}</div>
+                      <div className="mt-1.5 text-[11px] font-medium text-white/55">
+                        {podcastTemplateSummary(template)}
+                      </div>
+                      <ul className="mt-2.5 flex-1 space-y-1.5">
+                        {template.segments.map((segment) => (
+                          <li key={segment.title} className="text-[11px] leading-snug text-white/40">
+                            <span className="font-semibold text-white/60">
+                              {PODCAST_SEGMENT_KIND_LABELS[segment.kind]} · {segment.title} · {segment.minutes} min
+                            </span>{" "}
+                            — {segment.guidance}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2.5 text-[11px] leading-snug text-white/35">
+                        {template.description}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => applyTemplate(template)}
+                        aria-pressed={isActive}
+                        className={`mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                          isActive
+                            ? "bg-primary text-black"
+                            : "border border-white/15 text-white/70 hover:border-primary/50 hover:text-primary"
+                        }`}
+                      >
+                        {isActive && <Check className="h-3.5 w-3.5" />}
+                        {isActive ? t("podcast.templates.applied") : t("podcast.templates.apply")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
             {/* episode basics */}
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">

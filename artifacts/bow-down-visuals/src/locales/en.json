@@ -10381,6 +10381,12 @@
         "tooManySpeakers": "Dialogue supports up to {{max}} speakers.",
         "voiceFor": "Pick a voice for \"{{name}}\" first."
       }
+    },
+    "templates": {
+      "title": "Episode templates",
+      "note": "Pick a starting structure — it only fills in the form below, with chapter headings and starter lines for you to edit. It never starts a generation.",
+      "apply": "Use this structure",
+      "applied": "Structure loaded"
     }
   },
   "presave": {

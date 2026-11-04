@@ -10182,6 +10182,12 @@
         "tooManySpeakers": "Le dialogue prend en charge jusqu'à {{max}} intervenants.",
         "voiceFor": "Choisis d'abord une voix pour «{{name}}»."
       }
+    },
+    "templates": {
+      "title": "Modèles d'épisode",
+      "note": "Choisissez une structure de départ : elle remplit uniquement le formulaire ci-dessous, avec des titres de chapitres et des lignes de départ à modifier. Elle ne lance jamais de génération.",
+      "apply": "Utiliser cette structure",
+      "applied": "Structure chargée"
     }
   },
   "presave": {
