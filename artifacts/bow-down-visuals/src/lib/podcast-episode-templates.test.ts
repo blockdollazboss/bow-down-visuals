@@ -29,7 +29,7 @@ function readFe(rel: string): string {
   return readFileSync(url, "utf8");
 }
 
-const page = readFe("pages/podcast.tsx");
+const page = readFe("components/audio-studio/PodcastStudio.tsx");
 const lib = readFe("lib/podcast.ts");
 
 const EXPECTED_IDS = [

@@ -1077,7 +1077,7 @@ const FIXTURE_PRESETS: Record<string, BeatPreset> = {
 };
 
 const page = readFileSync(
-  path.resolve(import.meta.dirname, "../pages/ai-audio.tsx"),
+  path.resolve(import.meta.dirname, "../components/audio-studio/AiAudio.tsx"),
   "utf8",
 );
 
