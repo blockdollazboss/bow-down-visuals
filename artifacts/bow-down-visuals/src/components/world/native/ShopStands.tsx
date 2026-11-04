@@ -1565,7 +1565,7 @@ function StandManager({
                     className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="flex overflow-hidden rounded-md border border-white/20">
+                      <span className="flex rounded-md border border-white/20">
                         <span className="block h-4 w-4" style={{ background: starter.settings.banner_color }} />
                         <span className="block h-4 w-4" style={{ background: starter.settings.accent_color }} />
                       </span>
