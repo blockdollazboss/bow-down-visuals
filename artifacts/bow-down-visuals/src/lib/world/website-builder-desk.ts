@@ -582,7 +582,7 @@ export const WEBSITE_BUILDER_SAVE_FAILED_LINE =
 export const WEBSITE_BUILDER_PREVIEW_OPENS_NOTE = "Preview renders live when you open it";
 
 export const WEBSITE_BUILDER_DESK_PROMOTION =
-  "#97 Website Builder in the My Studio stack: describe a site and the AI builds the full package on the /api/website-builder rails — generate at the registry's Website Build price and conversational edits at the Website Edit price through the standing spend confirm, projects + version history + restore on the free projects rails, private in-desk preview and the zip download in the room — nothing published or hosted on bowdownvisuals.com";
+  "#97 Website Builder in the My Studio stack: describe a site and the AI builds the full package on the /api/website-builder rails — generate at the registry's Website Build price and conversational edits at the Website Edit price through the standing spend confirm, projects + version history + restore on the free projects rails, private in-desk preview and the zip download in the room — nothing is published or hosted on bowdownvisuals.com";
 
 export const WEBSITE_BUILDER_DESK_FOLLOW_ONS = [
   "The zip download is a file act done in-desk with the page's own JSZip loader (cdnjs 3.10.1) — a download, not a page pull-up; World law forbids the exit, not the file",
