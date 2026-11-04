@@ -77,10 +77,10 @@ describe("all sixteen benches mount in the one desk", () => {
   });
 
   it("the program benches carry their own sections", () => {
-    expect(program).toContain('title="Challenges"');
-    expect(program).toContain('title="Community Grants"');
-    expect(program).toContain('title="Remix King"');
-    expect(program).toContain('title="Palace Drops"');
+    expect(program).toContain('title={t("worldAdminDesk.challengesTitle")}');
+    expect(program).toContain('title={t("worldAdminDesk.grantsTitle")}');
+    expect(program).toContain('title={t("worldAdminDesk.remixTitle")}');
+    expect(program).toContain('title={t("worldAdminDesk.dropsTitle")}');
   });
 
   it("the desk is hung in the StationPanel's my-studio stack", () => {

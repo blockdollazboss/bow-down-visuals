@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { NativeEmptyState } from "@/components/world/native/NativeStates";
 import { deskInputCls } from "@/components/world/native/CreateDeskLeaf";
@@ -100,86 +102,89 @@ import {
 
 /* ─── draft-rule keys → plain sentences ──────────────────────────── */
 
-function prizeDraftSentence(key: string): string {
+function prizeDraftSentence(t: TFunction, key: string): string {
   switch (key) {
     case "empty":
-      return "Add at least one prize row before saving.";
+      return t("worldAdminDesk.prizeErrEmpty");
     case "placeRange":
-      return "Places run from 1 to 10.";
+      return t("worldAdminDesk.prizeErrPlaceRange");
     case "placeDuplicate":
-      return "Each place can only appear once.";
+      return t("worldAdminDesk.prizeErrPlaceDuplicate");
     case "amountWhole":
-      return "Prize amounts are whole Visual Bucs.";
+      return t("worldAdminDesk.prizeErrAmountWhole");
     case "amountMultiple":
-      return "Prize amounts are multiples of 100 Visual Bucs.";
+      return t("worldAdminDesk.prizeErrAmountMultiple");
     case "amountRange":
-      return "Prize amounts run from 100 to 10,000,000 Visual Bucs.";
+      return t("worldAdminDesk.prizeErrAmountRange");
     case "overCap":
-      return "The prize pool total is over the weekly cap.";
+      return t("worldAdminDesk.prizeErrOverCap");
     default:
-      return "This prize table isn't sendable yet.";
+      return t("worldAdminDesk.prizeErrDefault");
   }
 }
 
-function splitDraftSentence(key: string): string {
+function splitDraftSentence(t: TFunction, key: string): string {
   switch (key) {
     case "empty":
-      return "Add at least one split.";
+      return t("worldAdminDesk.splitErrEmpty");
     case "tooMany":
-      return "Three splits at most.";
+      return t("worldAdminDesk.splitErrTooMany");
     case "roleUnknown":
-      return "Pick a known role for every split.";
+      return t("worldAdminDesk.splitErrRoleUnknown");
     case "roleDuplicate":
-      return "Each role appears once.";
+      return t("worldAdminDesk.splitErrRoleDuplicate");
     case "nameMissing":
-      return "Every split needs a name.";
+      return t("worldAdminDesk.splitErrNameMissing");
     case "shareRange":
-      return "Shares are whole numbers from 1 to 100.";
+      return t("worldAdminDesk.splitErrShareRange");
     case "winnerMissing":
-      return "The winner's split has to be there.";
+      return t("worldAdminDesk.splitErrWinnerMissing");
     case "sumNot100":
-      return "The splits have to add up to exactly 100.";
+      return t("worldAdminDesk.splitErrSum");
     default:
-      return "These splits aren't sendable yet.";
+      return t("worldAdminDesk.splitErrDefault");
   }
 }
 
-function dropDraftSentence(key: string): string {
+function dropDraftSentence(t: TFunction, key: string): string {
   switch (key) {
     case "titleRequired":
-      return "Give the drop a title.";
+      return t("worldAdminDesk.dropErrTitleRequired");
     case "titleTooLong":
-      return "That title is too long.";
+      return t("worldAdminDesk.dropErrTitleTooLong");
     case "roomUnknown":
-      return "Pick a room the drop can land in.";
+      return t("worldAdminDesk.dropErrRoomUnknown");
     case "amountRange":
-      return `Each claim runs ${DROP_MIN_AMOUNT_VB} to ${DROP_MAX_AMOUNT_VB} Visual Bucs.`;
+      return t("worldAdminDesk.dropErrAmountRange", {
+        min: DROP_MIN_AMOUNT_VB,
+        max: DROP_MAX_AMOUNT_VB,
+      });
     case "claimRange":
-      return `Claims run ${DROP_MIN_CLAIMS} to ${DROP_MAX_CLAIMS}.`;
+      return t("worldAdminDesk.dropErrClaimRange", { min: DROP_MIN_CLAIMS, max: DROP_MAX_CLAIMS });
     case "durationTooShort":
     case "durationTooLong":
-      return "Pick one of the offered lengths.";
+      return t("worldAdminDesk.dropErrDuration");
     case "startRequired":
-      return "Pick a start time.";
+      return t("worldAdminDesk.dropErrStartRequired");
     case "startPast":
-      return "That start time has already passed.";
+      return t("worldAdminDesk.dropErrStartPast");
     case "startTooFar":
-      return "That start is too far ahead.";
+      return t("worldAdminDesk.dropErrStartTooFar");
     default:
-      return "This drop isn't bookable yet.";
+      return t("worldAdminDesk.dropErrDefault");
   }
 }
 
-function dropServerSentence(key: string): string {
+function dropServerSentence(t: TFunction, key: string): string {
   switch (key) {
     case "refusedAdmin":
-      return "Booking drops is the house's own job — this session isn't the house's.";
+      return t("worldAdminDesk.dropSrvRefused");
     case "slotTaken":
-      return "That slot is already taken — pick another time.";
+      return t("worldAdminDesk.dropSrvSlotTaken");
     case "signIn":
-      return "Sign in first.";
+      return t("worldAdminDesk.dropSrvSignIn");
     default:
-      return "The booking didn't go through — try again.";
+      return t("worldAdminDesk.dropSrvFailed");
   }
 }
 
@@ -191,6 +196,7 @@ function currentMonthKey(): string {
 /* ─── Challenges ─────────────────────────────────────────────────── */
 
 export function ChallengesBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const bench = useBench(async (a) => parseAdminChallenges(await a.get(ADMIN_CHALLENGES_PATH)));
@@ -234,7 +240,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
     } catch (e) {
       if (adminDenied(e)) setDetailPhase("denied");
       else {
-        setDetailFail(plainErrorText(e, "This challenge wouldn't open."));
+        setDetailFail(plainErrorText(e, t("worldAdminDesk.challengesOpenFailed")));
         setDetailPhase("failed");
       }
     }
@@ -257,7 +263,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
   const prizeTotal = prizeDraftTotal(prizes);
 
   return (
-    <BenchSection isLight={isLight} title="Challenges" blurb="Contest lifecycles, prize tables and judging — the website's challenge bench, native in the palace.">
+    <BenchSection isLight={isLight} title={t("worldAdminDesk.challengesTitle")} blurb={t("worldAdminDesk.challengesBlurb")}>
       {act.denied ? (
         <BenchDenied isLight={isLight} />
       ) : (
@@ -266,11 +272,11 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
           phase={bench.phase}
           failMessage={bench.failMessage}
           onRetry={bench.reload}
-          loadingMessage="Opening the challenges bench…"
+          loadingMessage={t("worldAdminDesk.challengesLoading")}
         >
           <div className="flex flex-col gap-3">
             {bench.data && bench.data.length === 0 ? (
-              <NativeEmptyState isLight={isLight} message="No challenges yet." />
+              <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.challengesEmpty")} />
             ) : (
               bench.data?.map((row) => (
                 <button
@@ -285,12 +291,20 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                     <span className={`text-sm font-bold ${cls.titleCls}`}>{row.title}</span>
                     <StatusPill status={row.effectiveStatus} isLight={isLight} />
                     {row.winnersAnnounced ? (
-                      <span className={`text-[11px] font-bold ${cls.subCls}`}>winners crowned</span>
+                      <span className={`text-[11px] font-bold ${cls.subCls}`}>{t("worldAdminDesk.challengesCrowned")}</span>
                     ) : null}
                   </span>
                   <span className={`mt-1 block text-xs ${cls.subCls}`}>
-                    {row.hashtag} · {row.entryCount} entries · pool {row.prizePoolCredits.toLocaleString()} VB ·{" "}
-                    {row.startsAt ? `starts ${new Date(row.startsAt).toLocaleString()}` : "no start set"}
+                    {t("worldAdminDesk.challengesRowLine", {
+                      hashtag: row.hashtag,
+                      entries: row.entryCount,
+                      pool: row.prizePoolCredits.toLocaleString(i18n.language),
+                      start: row.startsAt
+                        ? t("worldAdminDesk.challengesStartsWhen", {
+                            date: new Date(row.startsAt).toLocaleString(i18n.language),
+                          })
+                        : t("worldAdminDesk.challengesNoStart"),
+                    })}
                   </span>
                 </button>
               ))
@@ -299,35 +313,39 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
             {selected ? (
               <div className={`rounded-xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
                 {detailPhase === "loading" ? (
-                  <p className={`text-xs ${cls.subCls}`}>Opening this challenge…</p>
+                  <p className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.challengesOpening")}</p>
                 ) : detailPhase === "denied" ? (
                   <BenchDenied isLight={isLight} />
                 ) : detailPhase === "failed" ? (
                   <p className={`text-xs font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>
                     {detailFail}{" "}
                     <button type="button" className="underline" onClick={() => void loadDetail(selected)}>
-                      Try again
+                      {t("worldAdminDesk.tryAgain")}
                     </button>
                   </p>
                 ) : detail ? (
                   <div className="flex flex-col gap-4">
                     <p className={`text-sm font-bold ${cls.titleCls}`}>
-                      {detail.title} — {detail.entryCount} entries · pool {detail.prizePoolCredits.toLocaleString()} VB
+                      {t("worldAdminDesk.challengesDetailLine", {
+                        title: detail.title,
+                        entries: detail.entryCount,
+                        pool: detail.prizePoolCredits.toLocaleString(i18n.language),
+                      })}
                     </p>
 
                     {/* lifecycle */}
                     <div className="flex flex-col gap-2">
-                      <span className={cls.labelCls}>Lifecycle</span>
+                      <span className={cls.labelCls}>{t("worldAdminDesk.challengesLifecycle")}</span>
                       {selectedRow && challengeLifecycleTargets(selectedRow).length > 0 ? (
                         <>
                           <div className="flex flex-wrap gap-2">
                             <select
-                              aria-label="Lifecycle status"
+                              aria-label={t("worldAdminDesk.challengesStatusAria")}
                               className={cls.selectCls}
                               value={lifeStatus}
                               onChange={(e) => setLifeStatus(e.target.value)}
                             >
-                              <option value="">Leave status as is</option>
+                              <option value="">{t("worldAdminDesk.challengesLeaveStatus")}</option>
                               {challengeLifecycleTargets(selectedRow).map((s) => (
                                 <option key={s} value={s}>
                                   {s}
@@ -337,20 +355,20 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                           </div>
                           <div className="grid gap-2 sm:grid-cols-3">
                             <label className="flex flex-col gap-1">
-                              <span className={cls.labelCls}>Starts</span>
+                              <span className={cls.labelCls}>{t("worldAdminDesk.challengesStartsLabel")}</span>
                               <input type="datetime-local" className={deskInputCls(isLight)} value={starts} onChange={(e) => setStarts(e.target.value)} />
                             </label>
                             <label className="flex flex-col gap-1">
-                              <span className={cls.labelCls}>Ends</span>
+                              <span className={cls.labelCls}>{t("worldAdminDesk.challengesEndsLabel")}</span>
                               <input type="datetime-local" className={deskInputCls(isLight)} value={ends} onChange={(e) => setEnds(e.target.value)} />
                             </label>
                             <label className="flex flex-col gap-1">
-                              <span className={cls.labelCls}>Judging ends</span>
+                              <span className={cls.labelCls}>{t("worldAdminDesk.challengesJudgingEndsLabel")}</span>
                               <input type="datetime-local" className={deskInputCls(isLight)} value={judgingEnds} onChange={(e) => setJudgingEnds(e.target.value)} />
                             </label>
                           </div>
                           <p className={`text-[11px] ${cls.subCls}`}>
-                            A cleared date box clears that date on the challenge; the status only moves when you pick one.
+                            {t("worldAdminDesk.challengesDateNote")}
                           </p>
                           <div>
                             <button
@@ -370,28 +388,28 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                                     }),
                                   );
                                   await reloadAll();
-                                  return "Lifecycle saved.";
+                                  return t("worldAdminDesk.challengesLifecycleSaved");
                                 })
                               }
                             >
-                              <BusyLabel busy={act.busy === "lifecycle"}>Save lifecycle</BusyLabel>
+                              <BusyLabel busy={act.busy === "lifecycle"}>{t("worldAdminDesk.challengesSaveLifecycle")}</BusyLabel>
                             </button>
                           </div>
                         </>
                       ) : (
                         <p className={`text-xs ${cls.subCls}`}>
-                          Winners are crowned — this challenge's lifecycle is closed.
+                          {t("worldAdminDesk.challengesLifecycleClosed")}
                         </p>
                       )}
                     </div>
 
                     {/* prizes */}
                     <div className="flex flex-col gap-2">
-                      <span className={cls.labelCls}>Prizes</span>
+                      <span className={cls.labelCls}>{t("worldAdminDesk.challengesPrizes")}</span>
                       {prizes.map((row, i) => (
                         <div key={i} className="flex flex-wrap items-end gap-2">
                           <label className="flex flex-col gap-1">
-                            <span className={cls.labelCls}>Place</span>
+                            <span className={cls.labelCls}>{t("worldAdminDesk.challengesPlace")}</span>
                             <input
                               type="number"
                               min={1}
@@ -404,7 +422,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                             />
                           </label>
                           <label className="flex flex-col gap-1">
-                            <span className={cls.labelCls}>Visual Bucs</span>
+                            <span className={cls.labelCls}>{t("worldAdminDesk.challengesVisualBucs")}</span>
                             <input
                               type="number"
                               className={`${deskInputCls(isLight)} w-32`}
@@ -415,7 +433,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                             />
                           </label>
                           <label className="flex flex-1 flex-col gap-1">
-                            <span className={cls.labelCls}>Description</span>
+                            <span className={cls.labelCls}>{t("worldAdminDesk.challengesDescription")}</span>
                             <input
                               type="text"
                               className={deskInputCls(isLight)}
@@ -430,7 +448,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                             className={cls.smallBtn}
                             onClick={() => setPrizes((prev) => prev.filter((_, j) => j !== i))}
                           >
-                            Remove
+                            {t("worldAdminDesk.removeButton")}
                           </button>
                         </div>
                       ))}
@@ -446,15 +464,18 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                             ])
                           }
                         >
-                          Add a prize
+                          {t("worldAdminDesk.challengesAddPrize")}
                         </button>
                         <span className={`text-xs ${cls.subCls}`}>
-                          Pool total {prizeTotal.toLocaleString()} of {CHALLENGE_PRIZE_POOL_CAP_VB.toLocaleString()} VB weekly cap
+                          {t("worldAdminDesk.challengesPoolTotal", {
+                            total: prizeTotal.toLocaleString(i18n.language),
+                            cap: CHALLENGE_PRIZE_POOL_CAP_VB.toLocaleString(i18n.language),
+                          })}
                         </span>
                       </div>
                       {prizeError ? (
                         <p className={`text-xs font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>
-                          {prizeDraftSentence(prizeError)}
+                          {prizeDraftSentence(t, prizeError)}
                         </p>
                       ) : null}
                       <div>
@@ -466,37 +487,37 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                             void act.run("prizes", async () => {
                               await api.send(adminChallengePrizesPath(detail.slug), "POST", buildPrizesBody(prizes));
                               await reloadAll();
-                              return "Prizes saved.";
+                              return t("worldAdminDesk.challengesPrizesSaved");
                             })
                           }
                         >
-                          <BusyLabel busy={act.busy === "prizes"}>Save prizes</BusyLabel>
+                          <BusyLabel busy={act.busy === "prizes"}>{t("worldAdminDesk.challengesSavePrizes")}</BusyLabel>
                         </button>
                       </div>
                     </div>
 
                     {/* judging */}
                     <div className="flex flex-col gap-2">
-                      <span className={cls.labelCls}>Judging</span>
+                      <span className={cls.labelCls}>{t("worldAdminDesk.challengesJudging")}</span>
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           className={judgeMode === "votes" ? cls.goldBtn : cls.ghostBtn}
                           onClick={() => setJudgeMode("votes")}
                         >
-                          Crown by votes
+                          {t("worldAdminDesk.challengesCrownVotes")}
                         </button>
                         <button
                           type="button"
                           className={judgeMode === "picks" ? cls.goldBtn : cls.ghostBtn}
                           onClick={() => setJudgeMode("picks")}
                         >
-                          Pick by hand
+                          {t("worldAdminDesk.challengesPickHand")}
                         </button>
                       </div>
                       {judgeMode === "votes" ? (
                         <label className="flex flex-col gap-1">
-                          <span className={cls.labelCls}>Places to crown (1–10)</span>
+                          <span className={cls.labelCls}>{t("worldAdminDesk.challengesPlacesLabel")}</span>
                           <input
                             type="number"
                             min={1}
@@ -510,16 +531,20 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                         <div className="flex flex-col gap-2">
                           {[1, 2, 3].map((place) => (
                             <label key={place} className="flex flex-col gap-1">
-                              <span className={cls.labelCls}>Place {place}</span>
+                              <span className={cls.labelCls}>{t("worldAdminDesk.challengesPlaceN", { place })}</span>
                               <select
                                 className={cls.selectCls}
                                 value={picks[place] ?? ""}
                                 onChange={(e) => setPicks((prev) => ({ ...prev, [place]: e.target.value }))}
                               >
-                                <option value="">No pick</option>
+                                <option value="">{t("worldAdminDesk.challengesNoPick")}</option>
                                 {detail.entries.map((entry) => (
                                   <option key={entry.id} value={entry.id}>
-                                    {entry.title} — {entry.creatorName} ({entry.voteCount} votes)
+                                    {t("worldAdminDesk.challengesEntryOption", {
+                                      title: entry.title,
+                                      creator: entry.creatorName,
+                                      votes: entry.voteCount,
+                                    })}
                                   </option>
                                 ))}
                               </select>
@@ -530,7 +555,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                       {confirmJudge ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`text-xs font-semibold ${cls.titleCls}`}>
-                            Crowning pays the prizes out. Tap again to judge for real.
+                            {t("worldAdminDesk.challengesJudgeConfirm")}
                           </span>
                           <button
                             type="button"
@@ -545,48 +570,59 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
                                 const raw = await api.send(adminChallengeJudgePath(detail.slug), "POST", body);
                                 const parsed = parseJudgeResult(raw);
                                 if (!parsed) {
-                                  throw new Error("The judging answer came back unreadable — reload before trusting it.");
+                                  throw new Error(t("worldAdminDesk.challengesJudgeUnreadable"));
                                 }
                                 setJudgeResult(parsed);
                                 setConfirmJudge(false);
                                 await reloadAll();
-                                return "Judging is done.";
+                                return t("worldAdminDesk.challengesJudged");
                               })
                             }
                           >
-                            <BusyLabel busy={act.busy === "judge"}>Judge now</BusyLabel>
+                            <BusyLabel busy={act.busy === "judge"}>{t("worldAdminDesk.challengesJudgeNow")}</BusyLabel>
                           </button>
                           <button type="button" className={cls.ghostBtn} onClick={() => setConfirmJudge(false)}>
-                            Not yet
+                            {t("worldAdminDesk.notYet")}
                           </button>
                         </div>
                       ) : (
                         <div>
                           <button type="button" className={cls.goldBtn} onClick={() => setConfirmJudge(true)}>
-                            Judge this challenge
+                            {t("worldAdminDesk.challengesJudgeButton")}
                           </button>
                         </div>
                       )}
                       {judgeResult ? (
                         <div className={cls.rowCls}>
                           <p className={`text-xs font-bold ${cls.titleCls}`}>
-                            Paid {judgeResult.paid} · already paid {judgeResult.alreadyPaid} ·{" "}
-                            {judgeResult.weeklyPaidVb.toLocaleString()} of {judgeResult.weeklyCapVb.toLocaleString()} VB paid this week
+                            {t("worldAdminDesk.challengesPaidLine", {
+                              paid: judgeResult.paid,
+                              alreadyPaid: judgeResult.alreadyPaid,
+                              weeklyPaid: judgeResult.weeklyPaidVb.toLocaleString(i18n.language),
+                              weeklyCap: judgeResult.weeklyCapVb.toLocaleString(i18n.language),
+                            })}
                           </p>
                           {judgeResult.winners.map((w) => (
                             <p key={w.place} className={`mt-1 text-xs ${cls.subCls}`}>
-                              Place {w.place} — {w.prizeCredits.toLocaleString()} VB
-                              {w.paidAt ? ` · paid ${new Date(w.paidAt).toLocaleString()}` : " · not paid yet"}
+                              {t("worldAdminDesk.challengesWinnerLine", {
+                                place: w.place,
+                                credits: w.prizeCredits.toLocaleString(i18n.language),
+                              })}
+                              {w.paidAt
+                                ? t("worldAdminDesk.challengesPaidAt", {
+                                    date: new Date(w.paidAt).toLocaleString(i18n.language),
+                                  })
+                                : t("worldAdminDesk.challengesNotPaid")}
                             </p>
                           ))}
                           {judgeResult.budgetCapped.length > 0 ? (
                             <p className={`mt-1 text-xs font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>
-                              Held by the weekly cap: {judgeResult.budgetCapped.join(", ")}
+                              {t("worldAdminDesk.challengesCapped", { list: judgeResult.budgetCapped.join(", ") })}
                             </p>
                           ) : null}
                           {judgeResult.payoutErrors.length > 0 ? (
                             <p className={`mt-1 text-xs font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>
-                              Payout problems: {judgeResult.payoutErrors.join(" · ")}
+                              {t("worldAdminDesk.challengesPayoutProblems", { list: judgeResult.payoutErrors.join(" · ") })}
                             </p>
                           ) : null}
                         </div>
@@ -607,6 +643,7 @@ export function ChallengesBench({ isLight }: { isLight: boolean }) {
 /* ─── Community Grants ───────────────────────────────────────────── */
 
 export function GrantsBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const bench = useBench(async (a) => parseGrantsAdmin(await a.get(GRANTS_SURFACE_PATH)));
@@ -641,7 +678,7 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
 
   const openRound = () => {
     if (!grantOpenReady(monthKey, pool)) {
-      act.setError("A round needs a YYYY-MM month key and a whole, positive Visual Buc pool.");
+      act.setError(t("worldAdminDesk.grantsOpenErrMonth"));
       return;
     }
     const converted = [
@@ -651,7 +688,7 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
       windows.votingCloseAt,
     ].map(localInputToIso);
     if (converted.some((v) => v === null)) {
-      act.setError("Set all four windows — submissions open and close, voting open and close — before opening the round.");
+      act.setError(t("worldAdminDesk.grantsOpenErrWindows"));
       return;
     }
     void act.run("open", async () => {
@@ -661,7 +698,7 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
         buildGrantRoundBody({ monthKey, poolVb: Number(pool), windows }),
       );
       bench.reload();
-      return `Round opened for ${monthKey}.`;
+      return t("worldAdminDesk.grantsOpened", { month: monthKey });
     });
   };
 
@@ -672,10 +709,10 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
     <div className="grid gap-2 sm:grid-cols-2">
       {(
         [
-          ["submissionsOpenAt", "Submissions open"],
-          ["submissionsCloseAt", "Submissions close"],
-          ["votingOpenAt", "Voting opens"],
-          ["votingCloseAt", "Voting closes"],
+          ["submissionsOpenAt", t("worldAdminDesk.grantsWinSubOpen")],
+          ["submissionsCloseAt", t("worldAdminDesk.grantsWinSubClose")],
+          ["votingOpenAt", t("worldAdminDesk.grantsWinVoteOpen")],
+          ["votingCloseAt", t("worldAdminDesk.grantsWinVoteClose")],
         ] as const
       ).map(([key, label]) => (
         <label key={key} className="flex flex-col gap-1">
@@ -692,7 +729,7 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
   );
 
   return (
-    <BenchSection isLight={isLight} title="Community Grants" blurb="Monthly grant rounds — open a round, keep its windows honest, settle the winner.">
+    <BenchSection isLight={isLight} title={t("worldAdminDesk.grantsTitle")} blurb={t("worldAdminDesk.grantsBlurb")}>
       {act.denied ? (
         <BenchDenied isLight={isLight} />
       ) : (
@@ -701,37 +738,44 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
           phase={bench.phase}
           failMessage={bench.failMessage}
           onRetry={bench.reload}
-          loadingMessage="Opening the grants bench…"
+          loadingMessage={t("worldAdminDesk.grantsLoading")}
         >
           <div className="flex flex-col gap-4">
             {current ? (
               <div className={cls.rowCls}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`text-sm font-bold ${cls.titleCls}`}>{current.round.monthKey} round</span>
+                  <span className={`text-sm font-bold ${cls.titleCls}`}>{t("worldAdminDesk.grantsRoundTitle", { month: current.round.monthKey })}</span>
                   <StatusPill status={current.phase} isLight={isLight} />
                   <StatusPill status={current.round.resultStatus} isLight={isLight} />
                 </div>
                 <p className={`mt-1 text-xs ${cls.subCls}`}>
-                  Pool {current.round.poolVb.toLocaleString()} VB · {current.candidates.length} candidates ·{" "}
-                  {current.totalVotes.toLocaleString()} votes
+                  {t("worldAdminDesk.grantsPoolLine", {
+                    pool: current.round.poolVb.toLocaleString(i18n.language),
+                    candidates: current.candidates.length,
+                    votes: current.totalVotes.toLocaleString(i18n.language),
+                  })}
                 </p>
                 {current.candidates.map((c) => (
                   <div key={c.id} className="mt-2">
                     <p className={`text-xs font-bold ${cls.titleCls}`}>
-                      {c.creatorName} — {c.title}
-                      {c.isWinner ? " · Winner" : ""} · {c.votes.toLocaleString()} votes
+                      {t("worldAdminDesk.grantsCandidateLine", {
+                        name: c.creatorName,
+                        title: c.title,
+                        winner: c.isWinner ? t("worldAdminDesk.grantsWinnerChip") : "",
+                        votes: c.votes.toLocaleString(i18n.language),
+                      })}
                     </p>
                     {c.reportBack ? (
-                      <p className={`text-xs ${cls.subCls}`}>Report-back: {c.reportBack}</p>
+                      <p className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.grantsReportBack", { text: c.reportBack })}</p>
                     ) : c.reportBackOwed ? (
-                      <p className={`text-xs ${cls.subCls}`}>Report-back still owed.</p>
+                      <p className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.grantsReportOwed")}</p>
                     ) : null}
                   </div>
                 ))}
 
                 {editWindows ? (
                   <div className="mt-3 flex flex-col gap-2">
-                    <span className={cls.labelCls}>Round windows</span>
+                    <span className={cls.labelCls}>{t("worldAdminDesk.grantsWindows")}</span>
                     {windowFields(editWindows, setEditWindows)}
                     {grantWindowsEditable(current.round) ? (
                       <div>
@@ -747,15 +791,15 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
                                 buildGrantWindowsBody(editWindows),
                               );
                               bench.reload();
-                              return "Windows saved.";
+                              return t("worldAdminDesk.grantsWindowsSaved");
                             })
                           }
                         >
-                          <BusyLabel busy={act.busy === "windows"}>Save windows</BusyLabel>
+                          <BusyLabel busy={act.busy === "windows"}>{t("worldAdminDesk.grantsSaveWindows")}</BusyLabel>
                         </button>
                       </div>
                     ) : (
-                      <p className={`text-xs ${cls.subCls}`}>This round is paid — its windows are locked.</p>
+                      <p className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.grantsWindowsLocked")}</p>
                     )}
                   </div>
                 ) : null}
@@ -765,7 +809,7 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
                     {confirmSettle ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`text-xs font-semibold ${cls.titleCls}`}>
-                          Settling pays the winner out of the pool. Tap again to settle for real.
+                          {t("worldAdminDesk.grantsSettleConfirm")}
                         </span>
                         <button
                           type="button"
@@ -776,39 +820,41 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
                               const raw = await api.send(adminGrantSettlePath(current.round.id), "POST");
                               const outcome = parseGrantSettleOutcome(raw);
                               if (!outcome) {
-                                throw new Error("The settle answer came back unreadable — reload before trusting it.");
+                                throw new Error(t("worldAdminDesk.grantsSettleUnreadable"));
                               }
                               setConfirmSettle(false);
                               bench.reload();
                               return outcome.amountVb !== null
-                                ? `Round settled — ${outcome.amountVb.toLocaleString()} Visual Bucs paid to the winner.`
-                                : `Round settled (${outcome.outcome}).`;
+                                ? t("worldAdminDesk.grantsSettledPaid", {
+                                    amount: outcome.amountVb.toLocaleString(i18n.language),
+                                  })
+                                : t("worldAdminDesk.grantsSettledOutcome", { outcome: outcome.outcome });
                             })
                           }
                         >
-                          <BusyLabel busy={act.busy === "settle"}>Settle now</BusyLabel>
+                          <BusyLabel busy={act.busy === "settle"}>{t("worldAdminDesk.grantsSettleNow")}</BusyLabel>
                         </button>
                         <button type="button" className={cls.ghostBtn} onClick={() => setConfirmSettle(false)}>
-                          Not yet
+                          {t("worldAdminDesk.notYet")}
                         </button>
                       </div>
                     ) : (
                       <button type="button" className={cls.goldBtn} onClick={() => setConfirmSettle(true)}>
-                        Settle this round
+                        {t("worldAdminDesk.grantsSettleButton")}
                       </button>
                     )}
                   </div>
                 ) : null}
               </div>
             ) : (
-              <NativeEmptyState isLight={isLight} message="No grant round is running. Open one below." />
+              <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.grantsEmpty")} />
             )}
 
             <div className="flex flex-col gap-2">
-              <span className={cls.labelCls}>Open a round</span>
+              <span className={cls.labelCls}>{t("worldAdminDesk.grantsOpenTitle")}</span>
               <div className="flex flex-wrap gap-2">
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Month (YYYY-MM)</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.monthLabel")}</span>
                   <input
                     type="text"
                     className={`${deskInputCls(isLight)} w-36`}
@@ -817,7 +863,7 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
                   />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Pool (Visual Bucs)</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.grantsPoolLabel")}</span>
                   <input
                     type="number"
                     className={`${deskInputCls(isLight)} w-36`}
@@ -829,21 +875,25 @@ export function GrantsBench({ isLight }: { isLight: boolean }) {
               {windowFields(windows, setWindows)}
               <div>
                 <button type="button" className={cls.goldBtn} disabled={act.busy !== null} onClick={openRound}>
-                  <BusyLabel busy={act.busy === "open"}>Open the round</BusyLabel>
+                  <BusyLabel busy={act.busy === "open"}>{t("worldAdminDesk.grantsOpenButton")}</BusyLabel>
                 </button>
               </div>
             </div>
 
             {bench.data && bench.data.past.length > 0 ? (
               <div className="flex flex-col gap-2">
-                <span className={cls.labelCls}>Past rounds</span>
+                <span className={cls.labelCls}>{t("worldAdminDesk.grantsPastTitle")}</span>
                 {bench.data.past.map((past) => {
                   const winner = past.candidates.find((c) => c.isWinner);
                   return (
                     <div key={past.round.id} className={cls.rowCls}>
                       <p className={`text-xs font-bold ${cls.titleCls}`}>
-                        {past.round.monthKey} — pool {past.round.poolVb.toLocaleString()} VB · {past.phase}
-                        {winner ? ` · won by ${winner.creatorName}` : ""}
+                        {t("worldAdminDesk.grantsPastLine", {
+                          month: past.round.monthKey,
+                          pool: past.round.poolVb.toLocaleString(i18n.language),
+                          phase: past.phase,
+                        })}
+                        {winner ? t("worldAdminDesk.grantsWonBy", { name: winner.creatorName }) : ""}
                       </p>
                     </div>
                   );
@@ -869,15 +919,16 @@ function SplitsEditor({
   splits: SplitDraft[];
   onChange: (next: SplitDraft[]) => void;
 }) {
+  const { t } = useTranslation();
   const cls = adminCls(isLight);
   const err = splitDraftError(splits);
   return (
     <div className="flex flex-col gap-2">
-      <span className={cls.labelCls}>Splits</span>
+      <span className={cls.labelCls}>{t("worldAdminDesk.remixSplits")}</span>
       {splits.map((row, i) => (
         <div key={i} className="flex flex-wrap items-end gap-2">
           <label className="flex flex-col gap-1">
-            <span className={cls.labelCls}>Role</span>
+            <span className={cls.labelCls}>{t("worldAdminDesk.remixRole")}</span>
             <select
               className={cls.selectCls}
               value={row.role}
@@ -891,7 +942,7 @@ function SplitsEditor({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className={cls.labelCls}>Payee name</span>
+            <span className={cls.labelCls}>{t("worldAdminDesk.remixPayeeName")}</span>
             <input
               type="text"
               className={`${deskInputCls(isLight)} w-40`}
@@ -900,7 +951,7 @@ function SplitsEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className={cls.labelCls}>Payee account (optional)</span>
+            <span className={cls.labelCls}>{t("worldAdminDesk.remixPayeeAccount")}</span>
             <input
               type="text"
               className={`${deskInputCls(isLight)} w-40`}
@@ -909,7 +960,7 @@ function SplitsEditor({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className={cls.labelCls}>Share %</span>
+            <span className={cls.labelCls}>{t("worldAdminDesk.remixShare")}</span>
             <input
               type="number"
               className={`${deskInputCls(isLight)} w-24`}
@@ -918,7 +969,7 @@ function SplitsEditor({
             />
           </label>
           <button type="button" className={cls.smallBtn} onClick={() => onChange(splits.filter((_, j) => j !== i))}>
-            Remove
+            {t("worldAdminDesk.removeButton")}
           </button>
         </div>
       ))}
@@ -931,13 +982,13 @@ function SplitsEditor({
             onChange([...splits, { role: "king", payeeName: "", payeeUserId: "", sharePct: "" }])
           }
         >
-          Add a split
+          {t("worldAdminDesk.remixAddSplit")}
         </button>
-        <span className={`text-xs ${cls.subCls}`}>Splits total {splitDraftSum(splits)} of 100</span>
+        <span className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.remixSplitsTotal", { sum: splitDraftSum(splits) })}</span>
       </div>
       {err ? (
         <p className={`text-xs font-semibold ${isLight ? "text-red-700" : "text-red-300"}`}>
-          {splitDraftSentence(err)}
+          {splitDraftSentence(t, err)}
         </p>
       ) : null}
     </div>
@@ -953,39 +1004,40 @@ function RemixEventFields({
   draft: RemixEventDraft;
   onChange: (next: RemixEventDraft) => void;
 }) {
+  const { t } = useTranslation();
   const cls = adminCls(isLight);
   const set = (patch: Partial<RemixEventDraft>) => onChange({ ...draft, ...patch });
   return (
     <div className="flex flex-col gap-2">
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
-          <span className={cls.labelCls}>Event title</span>
+          <span className={cls.labelCls}>{t("worldAdminDesk.remixEventTitle")}</span>
           <input type="text" className={deskInputCls(isLight)} value={draft.title} onChange={(e) => set({ title: e.target.value })} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={cls.labelCls}>King track title</span>
+          <span className={cls.labelCls}>{t("worldAdminDesk.remixKingTrack")}</span>
           <input type="text" className={deskInputCls(isLight)} value={draft.kingTrackTitle} onChange={(e) => set({ kingTrackTitle: e.target.value })} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={cls.labelCls}>King track audio link</span>
+          <span className={cls.labelCls}>{t("worldAdminDesk.remixKingAudio")}</span>
           <input type="text" className={deskInputCls(isLight)} value={draft.kingTrackAudioUrl} onChange={(e) => set({ kingTrackAudioUrl: e.target.value })} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={cls.labelCls}>King track stems link</span>
+          <span className={cls.labelCls}>{t("worldAdminDesk.remixKingStems")}</span>
           <input type="text" className={deskInputCls(isLight)} value={draft.kingTrackStemsUrl} onChange={(e) => set({ kingTrackStemsUrl: e.target.value })} />
         </label>
       </div>
       <label className="flex flex-col gap-1">
-        <span className={cls.labelCls}>Description</span>
+        <span className={cls.labelCls}>{t("worldAdminDesk.remixDescription")}</span>
         <textarea className={deskInputCls(isLight)} rows={2} value={draft.description} onChange={(e) => set({ description: e.target.value })} />
       </label>
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
-          <span className={cls.labelCls}>Entries open</span>
+          <span className={cls.labelCls}>{t("worldAdminDesk.remixEntriesOpen")}</span>
           <input type="datetime-local" className={deskInputCls(isLight)} value={draft.entriesOpenAt} onChange={(e) => set({ entriesOpenAt: e.target.value })} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className={cls.labelCls}>Entries close</span>
+          <span className={cls.labelCls}>{t("worldAdminDesk.remixEntriesClose")}</span>
           <input type="datetime-local" className={deskInputCls(isLight)} value={draft.entriesCloseAt} onChange={(e) => set({ entriesCloseAt: e.target.value })} />
         </label>
       </div>
@@ -1006,6 +1058,7 @@ const EMPTY_REMIX_DRAFT: RemixEventDraft = {
 };
 
 export function RemixBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const bench = useBench(async (a) => parseRemixAdminEvents(await a.get(ADMIN_REMIX_EVENTS_PATH)));
@@ -1024,7 +1077,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
   const draftFor = (event: RemixEventRow): RemixEventDraft => editors[event.id] ?? remixDraftFromEvent(event);
 
   return (
-    <BenchSection isLight={isLight} title="Remix King" blurb="The monthly remix contest — events, entries, the crown and split payments.">
+    <BenchSection isLight={isLight} title={t("worldAdminDesk.remixTitle")} blurb={t("worldAdminDesk.remixBlurb")}>
       {act.denied ? (
         <BenchDenied isLight={isLight} />
       ) : (
@@ -1033,13 +1086,13 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
           phase={bench.phase}
           failMessage={bench.failMessage}
           onRetry={bench.reload}
-          loadingMessage="Opening the Remix King bench…"
+          loadingMessage={t("worldAdminDesk.remixLoading")}
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <span className={cls.labelCls}>New event</span>
+              <span className={cls.labelCls}>{t("worldAdminDesk.remixNewEvent")}</span>
               <label className="flex flex-col gap-1">
-                <span className={cls.labelCls}>Month (YYYY-MM)</span>
+                <span className={cls.labelCls}>{t("worldAdminDesk.monthLabel")}</span>
                 <input
                   type="text"
                   className={`${deskInputCls(isLight)} w-36`}
@@ -1062,17 +1115,17 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                       );
                       setCreateDraft(EMPTY_REMIX_DRAFT);
                       bench.reload();
-                      return `Remix King event drafted for ${createMonth}.`;
+                      return t("worldAdminDesk.remixCreated", { month: createMonth });
                     })
                   }
                 >
-                  <BusyLabel busy={act.busy === "create"}>Create the event</BusyLabel>
+                  <BusyLabel busy={act.busy === "create"}>{t("worldAdminDesk.remixCreateButton")}</BusyLabel>
                 </button>
               </div>
             </div>
 
             {bench.data && bench.data.length === 0 ? (
-              <NativeEmptyState isLight={isLight} message="No Remix King events yet." />
+              <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.remixEmpty")} />
             ) : (
               bench.data?.map((bundle) => {
                 const event = bundle.event;
@@ -1086,10 +1139,17 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                       <StatusPill status={event.status} isLight={isLight} />
                     </div>
                     <p className={`mt-1 text-xs ${cls.subCls}`}>
-                      {event.monthKey} · King track: {event.kingTrackTitle} · entries{" "}
-                      {event.entriesOpenAt ? new Date(event.entriesOpenAt).toLocaleString() : "not set"} →{" "}
-                      {event.entriesCloseAt ? new Date(event.entriesCloseAt).toLocaleString() : "not set"}
-                      {event.winnerEntryId ? " · winner crowned" : ""}
+                      {t("worldAdminDesk.remixEventMeta", {
+                        month: event.monthKey,
+                        track: event.kingTrackTitle,
+                        open: event.entriesOpenAt
+                          ? new Date(event.entriesOpenAt).toLocaleString(i18n.language)
+                          : t("worldAdminDesk.remixNotSet"),
+                        close: event.entriesCloseAt
+                          ? new Date(event.entriesCloseAt).toLocaleString(i18n.language)
+                          : t("worldAdminDesk.remixNotSet"),
+                      })}
+                      {event.winnerEntryId ? t("worldAdminDesk.remixWinnerCrowned") : ""}
                     </p>
 
                     {remixStatusTargets(event.status).length > 0 ? (
@@ -1098,7 +1158,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                           target === "cancelled" ? (
                             confirmKey === `cancel:${event.id}` ? (
                               <span key={target} className="inline-flex flex-wrap items-center gap-2">
-                                <span className={`text-xs font-semibold ${cls.titleCls}`}>Tap again to cancel the event.</span>
+                                <span className={`text-xs font-semibold ${cls.titleCls}`}>{t("worldAdminDesk.remixCancelConfirm")}</span>
                                 <button
                                   type="button"
                                   className={cls.smallBtn}
@@ -1108,14 +1168,14 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                       await api.send(adminRemixStatusPath(event.id), "POST", buildRemixStatus("cancelled"));
                                       setConfirmKey(null);
                                       bench.reload();
-                                      return "Event cancelled.";
+                                      return t("worldAdminDesk.remixCancelled");
                                     })
                                   }
                                 >
-                                  <BusyLabel busy={act.busy === `status:${event.id}`}>Cancel for real</BusyLabel>
+                                  <BusyLabel busy={act.busy === `status:${event.id}`}>{t("worldAdminDesk.cancelForReal")}</BusyLabel>
                                 </button>
                                 <button type="button" className={cls.smallBtn} onClick={() => setConfirmKey(null)}>
-                                  Keep it
+                                  {t("worldAdminDesk.keepIt")}
                                 </button>
                               </span>
                             ) : (
@@ -1125,7 +1185,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                 className={cls.smallBtn}
                                 onClick={() => setConfirmKey(`cancel:${event.id}`)}
                               >
-                                Cancel event
+                                {t("worldAdminDesk.remixCancelEvent")}
                               </button>
                             )
                           ) : (
@@ -1138,11 +1198,11 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                 void act.run(`status:${event.id}`, async () => {
                                   await api.send(adminRemixStatusPath(event.id), "POST", buildRemixStatus(target));
                                   bench.reload();
-                                  return `Event moved to ${target}.`;
+                                  return t("worldAdminDesk.remixMovedTo", { status: target });
                                 })
                               }
                             >
-                              Move to {target}
+                              {t("worldAdminDesk.remixMoveTo", { status: target })}
                             </button>
                           ),
                         )}
@@ -1151,7 +1211,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
 
                     {event.status === "draft" ? (
                       <div className="mt-3 flex flex-col gap-2">
-                        <span className={cls.labelCls}>Edit the draft — splits freeze once the event goes live</span>
+                        <span className={cls.labelCls}>{t("worldAdminDesk.remixEditNote")}</span>
                         <RemixEventFields
                           isLight={isLight}
                           draft={draft}
@@ -1166,11 +1226,11 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                               void act.run(`patch:${event.id}`, async () => {
                                 await api.send(adminRemixEventPath(event.id), "PATCH", buildRemixPatchBody(draft));
                                 bench.reload();
-                                return "Draft saved.";
+                                return t("worldAdminDesk.remixDraftSaved");
                               })
                             }
                           >
-                            <BusyLabel busy={act.busy === `patch:${event.id}`}>Save the draft</BusyLabel>
+                            <BusyLabel busy={act.busy === `patch:${event.id}`}>{t("worldAdminDesk.remixSaveDraft")}</BusyLabel>
                           </button>
                         </div>
                       </div>
@@ -1178,14 +1238,14 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
 
                     {bundle.entries.length > 0 ? (
                       <div className="mt-3 flex flex-col gap-2">
-                        <span className={cls.labelCls}>Entries</span>
+                        <span className={cls.labelCls}>{t("worldAdminDesk.remixEntries")}</span>
                         {bundle.entries.map((entry) => (
                           <div key={entry.id} className="flex flex-wrap items-center gap-2">
                             <span className={`text-xs font-bold ${cls.titleCls}`}>
                               {entry.remixTitle} — {entry.entrantName}
                             </span>
                             <StatusPill status={entry.status} isLight={isLight} />
-                            <span className={`text-xs ${cls.subCls}`}>{entry.voteCount.toLocaleString()} votes</span>
+                            <span className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.remixVotes", { count: entry.voteCount.toLocaleString(i18n.language) })}</span>
                             {remixShortlistAvailable(entry) ? (
                               <button
                                 type="button"
@@ -1200,19 +1260,23 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                       buildRemixShortlist(next),
                                     );
                                     bench.reload();
-                                    return next ? "Entry shortlisted." : "Entry taken off the shortlist.";
+                                    return next
+                                      ? t("worldAdminDesk.remixShortlisted")
+                                      : t("worldAdminDesk.remixUnshortlisted");
                                   })
                                 }
                               >
                                 <BusyLabel busy={act.busy === `shortlist:${entry.id}`}>
-                                  {entry.status === "shortlisted" ? "Unshortlist" : "Shortlist"}
+                                  {entry.status === "shortlisted"
+                                    ? t("worldAdminDesk.remixUnshortlist")
+                                    : t("worldAdminDesk.remixShortlist")}
                                 </BusyLabel>
                               </button>
                             ) : null}
                             {remixWinnerAvailable(event) ? (
                               confirmKey === `crown:${entry.id}` ? (
                                 <span className="inline-flex flex-wrap items-center gap-2">
-                                  <span className={`text-xs font-semibold ${cls.titleCls}`}>Tap again to crown this entry.</span>
+                                  <span className={`text-xs font-semibold ${cls.titleCls}`}>{t("worldAdminDesk.remixCrownConfirm")}</span>
                                   <button
                                     type="button"
                                     className={cls.smallBtn}
@@ -1226,14 +1290,14 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                         );
                                         setConfirmKey(null);
                                         bench.reload();
-                                        return "Winner crowned.";
+                                        return t("worldAdminDesk.remixCrowned");
                                       })
                                     }
                                   >
-                                    <BusyLabel busy={act.busy === `crown:${entry.id}`}>Crown for real</BusyLabel>
+                                    <BusyLabel busy={act.busy === `crown:${entry.id}`}>{t("worldAdminDesk.remixCrownReal")}</BusyLabel>
                                   </button>
                                   <button type="button" className={cls.smallBtn} onClick={() => setConfirmKey(null)}>
-                                    Not yet
+                                    {t("worldAdminDesk.notYet")}
                                   </button>
                                 </span>
                               ) : (
@@ -1242,7 +1306,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                   className={cls.smallBtn}
                                   onClick={() => setConfirmKey(`crown:${entry.id}`)}
                                 >
-                                  Crown winner
+                                  {t("worldAdminDesk.remixCrown")}
                                 </button>
                               )
                             ) : null}
@@ -1253,29 +1317,35 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
 
                     {bundle.release ? (
                       <div className="mt-3 flex flex-col gap-2">
-                        <span className={cls.labelCls}>Release</span>
+                        <span className={cls.labelCls}>{t("worldAdminDesk.remixRelease")}</span>
                         <p className={`text-xs font-bold ${cls.titleCls}`}>
                           {bundle.release.releaseTitle} — {bundle.release.winnerName}{" "}
                           <StatusPill status={bundle.release.status} isLight={isLight} />
                         </p>
                         {bundle.release.splits.map((s, i) => (
                           <p key={i} className={`text-xs ${cls.subCls}`}>
-                            {s.role}: {s.payeeName} — {s.sharePct}%
+                            {t("worldAdminDesk.remixSplitLine", { role: s.role, name: s.payeeName, share: s.sharePct })}
                           </p>
                         ))}
                         {bundle.payments.length > 0 ? (
                           <div className="flex flex-col gap-1">
-                            <span className={cls.labelCls}>Split payments</span>
+                            <span className={cls.labelCls}>{t("worldAdminDesk.remixSplitPayments")}</span>
                             {bundle.payments.map((p) => (
                               <p key={p.id} className={`text-xs ${cls.subCls}`}>
-                                {p.payeeName} · {p.role} · {p.amountVb.toLocaleString()} VB · {p.period} · {p.status}
+                                {t("worldAdminDesk.remixPaymentLine", {
+                                  name: p.payeeName,
+                                  role: p.role,
+                                  amount: p.amountVb.toLocaleString(i18n.language),
+                                  period: p.period,
+                                  status: p.status,
+                                })}
                               </p>
                             ))}
                           </div>
                         ) : null}
                         <div className="flex flex-wrap items-end gap-2">
                           <label className="flex flex-col gap-1">
-                            <span className={cls.labelCls}>Period (YYYY-MM)</span>
+                            <span className={cls.labelCls}>{t("worldAdminDesk.remixPeriodLabel")}</span>
                             <input
                               type="text"
                               className={`${deskInputCls(isLight)} w-32`}
@@ -1289,7 +1359,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                             />
                           </label>
                           <label className="flex flex-col gap-1">
-                            <span className={cls.labelCls}>Total (Visual Bucs)</span>
+                            <span className={cls.labelCls}>{t("worldAdminDesk.remixTotalLabel")}</span>
                             <input
                               type="number"
                               className={`${deskInputCls(isLight)} w-32`}
@@ -1314,11 +1384,11 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
                                   buildRemixSplitPayments(pay.period, Number(pay.total)),
                                 );
                                 bench.reload();
-                                return `Split payments recorded for ${pay.period}.`;
+                                return t("worldAdminDesk.remixSplitRecorded", { period: pay.period });
                               })
                             }
                           >
-                            <BusyLabel busy={act.busy === `pay:${bundle.release.id}`}>Send split payments</BusyLabel>
+                            <BusyLabel busy={act.busy === `pay:${bundle.release.id}`}>{t("worldAdminDesk.remixSendSplit")}</BusyLabel>
                           </button>
                         </div>
                       </div>
@@ -1338,6 +1408,7 @@ export function RemixBench({ isLight }: { isLight: boolean }) {
 /* ─── Palace Drops ───────────────────────────────────────────────── */
 
 export function DropsBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const bench = useBench(async (a) => parseUpcomingDrops(await a.get(DROP_SLATE_PATH), Date.now()));
@@ -1368,7 +1439,7 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
       Date.now(),
     );
     if (!built.ok) {
-      act.setError(dropDraftSentence(built.error));
+      act.setError(dropDraftSentence(t, built.error));
       return;
     }
     void act.run("book", async () => {
@@ -1376,17 +1447,17 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
       if (status >= 200 && status < 300) {
         setTitle("");
         bench.reload();
-        return "Drop booked.";
+        return t("worldAdminDesk.dropsBooked");
       }
       const classified = dropBookingError(status, data);
-      if (classified.kind === "message") throw new Error(apiErrorMessage(data, dropServerSentence("failed")));
+      if (classified.kind === "message") throw new Error(apiErrorMessage(data, dropServerSentence(t, "failed")));
       const key = status === 403 && classified.key === "failed" ? "refusedAdmin" : classified.key;
-      throw new Error(dropServerSentence(key));
+      throw new Error(dropServerSentence(t, key));
     });
   };
 
   return (
-    <BenchSection isLight={isLight} title="Palace Drops" blurb="Book Visual Buc drops into palace rooms against the weekly spectacle budget.">
+    <BenchSection isLight={isLight} title={t("worldAdminDesk.dropsTitle")} blurb={t("worldAdminDesk.dropsBlurb")}>
       {act.denied ? (
         <BenchDenied isLight={isLight} />
       ) : (
@@ -1395,24 +1466,28 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
           phase={bench.phase}
           failMessage={bench.failMessage}
           onRetry={bench.reload}
-          loadingMessage="Opening the drops bench…"
+          loadingMessage={t("worldAdminDesk.dropsLoading")}
         >
           <div className="flex flex-col gap-4">
             <p className={`text-xs ${cls.subCls}`}>
-              Drops ride the palace's weekly spectacle budget: {DROP_WEEKLY_BUDGET_VB.toLocaleString()} Visual Bucs a
-              week across every drop, {DROP_MIN_AMOUNT_VB}–{DROP_MAX_AMOUNT_VB} Bucs a claim, {DROP_MIN_CLAIMS}–
-              {DROP_MAX_CLAIMS} claims a drop. Booking is the house's own job — the rail refuses anyone else.
+              {t("worldAdminDesk.dropsBudgetLine", {
+                budget: DROP_WEEKLY_BUDGET_VB.toLocaleString(i18n.language),
+                minAmount: DROP_MIN_AMOUNT_VB,
+                maxAmount: DROP_MAX_AMOUNT_VB,
+                minClaims: DROP_MIN_CLAIMS,
+                maxClaims: DROP_MAX_CLAIMS,
+              })}
             </p>
 
             <div className="flex flex-col gap-2">
-              <span className={cls.labelCls}>Book a drop</span>
+              <span className={cls.labelCls}>{t("worldAdminDesk.dropsBookTitle")}</span>
               <label className="flex flex-col gap-1">
-                <span className={cls.labelCls}>Title</span>
+                <span className={cls.labelCls}>{t("worldAdminDesk.dropsTitleLabel")}</span>
                 <input type="text" className={deskInputCls(isLight)} value={title} onChange={(e) => setTitle(e.target.value)} />
               </label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Room</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.dropsRoom")}</span>
                   <select className={cls.selectCls} value={roomId} onChange={(e) => setRoomId(e.target.value)}>
                     {dropRooms().map((room) => (
                       <option key={room.id} value={room.id}>
@@ -1422,39 +1497,39 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
                   </select>
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Starts</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.dropsStarts")}</span>
                   <input type="datetime-local" className={deskInputCls(isLight)} value={start} onChange={(e) => setStart(e.target.value)} />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Length</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.dropsLength")}</span>
                   <select className={cls.selectCls} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
                     {DROP_DURATION_PRESETS_MIN.map((min) => (
                       <option key={min} value={min}>
-                        {min} minutes
+                        {t("worldAdminDesk.dropsMinutes", { count: min })}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Visual Bucs per claim</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.dropsPerClaim")}</span>
                   <input type="number" className={deskInputCls(isLight)} value={amount} onChange={(e) => setAmount(e.target.value)} />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className={cls.labelCls}>Claims</span>
+                  <span className={cls.labelCls}>{t("worldAdminDesk.dropsClaims")}</span>
                   <input type="number" className={deskInputCls(isLight)} value={claims} onChange={(e) => setClaims(e.target.value)} />
                 </label>
               </div>
               <div>
                 <button type="button" className={cls.goldBtn} disabled={act.busy !== null} onClick={book}>
-                  <BusyLabel busy={act.busy === "book"}>Book the drop</BusyLabel>
+                  <BusyLabel busy={act.busy === "book"}>{t("worldAdminDesk.dropsBookButton")}</BusyLabel>
                 </button>
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className={cls.labelCls}>On the slate</span>
+              <span className={cls.labelCls}>{t("worldAdminDesk.dropsSlate")}</span>
               {bench.data && bench.data.length === 0 ? (
-                <NativeEmptyState isLight={isLight} message="No drops on the slate." />
+                <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.dropsEmpty")} />
               ) : (
                 bench.data?.map((drop) => (
                   <div key={drop.id} className={cls.rowCls}>
@@ -1463,13 +1538,19 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
                       <StatusPill status={drop.status} isLight={isLight} />
                     </div>
                     <p className={`mt-1 text-xs ${cls.subCls}`}>
-                      {roomName(drop.roomId)} · hosted by {drop.hostName} · {new Date(drop.startsAt).toLocaleString()} →{" "}
-                      {new Date(drop.endsAt).toLocaleString()} · {drop.amountVb.toLocaleString()} VB × {drop.claimCap} claims
+                      {t("worldAdminDesk.dropsMeta", {
+                        room: roomName(drop.roomId),
+                        host: drop.hostName,
+                        start: new Date(drop.startsAt).toLocaleString(i18n.language),
+                        end: new Date(drop.endsAt).toLocaleString(i18n.language),
+                        amount: drop.amountVb.toLocaleString(i18n.language),
+                        claims: drop.claimCap,
+                      })}
                     </p>
                     <div className="mt-2">
                       {confirmCancel === drop.id ? (
                         <span className="inline-flex flex-wrap items-center gap-2">
-                          <span className={`text-xs font-semibold ${cls.titleCls}`}>Tap again to cancel this drop.</span>
+                          <span className={`text-xs font-semibold ${cls.titleCls}`}>{t("worldAdminDesk.dropsCancelConfirm")}</span>
                           <button
                             type="button"
                             className={cls.smallBtn}
@@ -1479,19 +1560,19 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
                                 await api.send(dropCancelPath(drop.id), "DELETE");
                                 setConfirmCancel(null);
                                 bench.reload();
-                                return "Drop cancelled.";
+                                return t("worldAdminDesk.dropsCancelled");
                               })
                             }
                           >
-                            <BusyLabel busy={act.busy === `cancel:${drop.id}`}>Cancel for real</BusyLabel>
+                            <BusyLabel busy={act.busy === `cancel:${drop.id}`}>{t("worldAdminDesk.cancelForReal")}</BusyLabel>
                           </button>
                           <button type="button" className={cls.smallBtn} onClick={() => setConfirmCancel(null)}>
-                            Keep it
+                            {t("worldAdminDesk.keepIt")}
                           </button>
                         </span>
                       ) : (
                         <button type="button" className={cls.smallBtn} onClick={() => setConfirmCancel(drop.id)}>
-                          Cancel drop
+                          {t("worldAdminDesk.dropsCancel")}
                         </button>
                       )}
                     </div>
