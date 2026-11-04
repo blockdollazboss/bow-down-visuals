@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { parsePanelPayloadFor } from "@/lib/world/panel-payload";
@@ -79,6 +80,8 @@ export function ThumbnailBenches({
    *  this station only. Absent/garbage = the benches open blank. */
   panelPayload?: unknown;
 }) {
+  const { t, i18n } = useTranslation();
+  const fmtCost = (n: number) => n.toLocaleString(i18n.language);
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -176,7 +179,11 @@ export function ThumbnailBenches({
           setSelected(partial[0]!.variation);
           setFailedCount(THUMBNAIL_BATCH_SIZE - partial.length);
           setBatchNote(
-            `${partial.length} of ${THUMBNAIL_BATCH_SIZE} landed before the batch stopped — your ${thumbnailGeneratorCost().toLocaleString("en-US")} Visual Bucs were refunded. What's here is real and saved; the empty slots didn't generate.`,
+            t("worldCreateMedia.thBatchNote", {
+              landed: partial.length,
+              total: THUMBNAIL_BATCH_SIZE,
+              cost: fmtCost(thumbnailGeneratorCost()),
+            }),
           );
           setWinner(null);
           setVariants([]);
@@ -185,10 +192,10 @@ export function ThumbnailBenches({
           void quest.checkAfter();
           return;
         }
-        throw new Error(apiErrorMessage(data, "Thumbnail generation failed."));
+        throw new Error(apiErrorMessage(data, t("worldCreateMedia.thErrGeneration")));
       }
       const parsed = thumbnailImagesOfResponse(data);
-      if (parsed.length === 0) throw new Error("The maker came back without images — nothing to pick from.");
+      if (parsed.length === 0) throw new Error(t("worldCreateMedia.thErrNoImages"));
       landedThisRun = true;
       setImages(parsed);
       setSelected(parsed[0]!.variation);
@@ -205,7 +212,7 @@ export function ThumbnailBenches({
          retry. A re-run's failure never clears a bench that already
          holds real images. */
       if (!landedThisRun && images.length === 0) setFailedCount(THUMBNAIL_BATCH_SIZE);
-      setError(plainErrorText(err, "Thumbnail generation failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.thErrGeneration")));
     } finally {
       setBusy(null);
     }
@@ -223,12 +230,12 @@ export function ThumbnailBenches({
         body: JSON.stringify(buildThumbnailVariantsPayload({ sourceImageUrl: selectedUrl, title: overlayText || prompt, niche: stylePreset })),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Variant generation failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateMedia.thErrVariants")));
       setVariants(thumbnailVariantsOfResponse(data));
       setVariantsSource(selectedUrl);
       refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, "Variant generation failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.thErrVariants")));
     } finally {
       setBusy(null);
     }
@@ -262,14 +269,14 @@ export function ThumbnailBenches({
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The prediction didn't land."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateMedia.thErrPredictionLanded")));
       const parsed = ctrPredictionOfResponse(data);
-      if (!parsed) throw new Error("The prediction came back unreadable — nothing was concluded.");
+      if (!parsed) throw new Error(t("worldCreateMedia.thErrPredictionUnreadable"));
       setCtr(parsed);
       setImprovedUrls({});
       refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, "CTR prediction failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.thErrCtr")));
     } finally {
       setBusy(null);
     }
@@ -298,17 +305,17 @@ export function ThumbnailBenches({
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (res.status === 402) {
-        setError("You're out of Visual Bucs — top up to generate improved thumbnails.");
+        setError(t("worldCreateMedia.thErrOutOfBucs"));
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The improved version didn't land."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateMedia.thErrImprovedLanded")));
       const url = thumbnailImprovedUrlOfResponse(data);
-      if (!url) throw new Error("The improved version came back without an image.");
+      if (!url) throw new Error(t("worldCreateMedia.thErrImprovedNoImage"));
       setImprovedUrls((prev) => ({ ...prev, [index]: url }));
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "The improved version didn't land."));
+      setError(plainErrorText(err, t("worldCreateMedia.thErrImprovedLanded")));
     } finally {
       setImproving(null);
     }
@@ -317,23 +324,23 @@ export function ThumbnailBenches({
   return (
     <div data-testid="world-thumbnail-benches" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
       <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        Pro benches — variations, A/B, predicted clicks
+        {t("worldCreateMedia.thHeading")}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <DeskTextField isLight={isLight} label="Thumbnail idea" value={prompt} onChange={setPrompt} />
-        <DeskSelectField isLight={isLight} label="Style preset" value={stylePreset} onChange={setStylePreset} options={["bold-text-pop", "shocked-face", "luxury", "gaming", "vlog", "minimal"].map((s) => ({ value: s, label: s }))} />
-        <DeskSelectField isLight={isLight} label="Format" value={aspectRatio} onChange={setAspectRatio} options={[{ value: "16:9", label: "Wide 16:9" }, { value: "9:16", label: "Vertical 9:16" }, { value: "1:1", label: "Square 1:1" }]} />
+        <DeskTextField isLight={isLight} label={t("worldCreateMedia.thIdeaLabel")} value={prompt} onChange={setPrompt} />
+        <DeskSelectField isLight={isLight} label={t("worldCreateMedia.thStyleLabel")} value={stylePreset} onChange={setStylePreset} options={["bold-text-pop", "shocked-face", "luxury", "gaming", "vlog", "minimal"].map((s) => ({ value: s, label: s }))} />
+        <DeskSelectField isLight={isLight} label={t("worldCreateMedia.thFormatLabel")} value={aspectRatio} onChange={setAspectRatio} options={[{ value: "16:9", label: t("worldCreateMedia.thFormatWide") }, { value: "9:16", label: t("worldCreateMedia.thFormatVertical") }, { value: "1:1", label: t("worldCreateMedia.thFormatSquare") }]} />
       </div>
 
       {/* Text-overlay editor: words + placement, previewed live over
           the current image; the maker renders them in server-side. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <DeskTextField isLight={isLight} label="Overlay text (the words on the thumbnail)" value={overlayText} onChange={setOverlayText} />
-        <DeskSelectField isLight={isLight} label="Overlay placement (preview)" value={overlayPosition} onChange={(v) => setOverlayPosition(v as "top" | "middle" | "bottom")} options={[{ value: "top", label: "Top" }, { value: "middle", label: "Middle" }, { value: "bottom", label: "Bottom" }]} />
+        <DeskTextField isLight={isLight} label={t("worldCreateMedia.thOverlayLabel")} value={overlayText} onChange={setOverlayText} />
+        <DeskSelectField isLight={isLight} label={t("worldCreateMedia.thOverlayPlacementLabel")} value={overlayPosition} onChange={(v) => setOverlayPosition(v as "top" | "middle" | "bottom")} options={[{ value: "top", label: t("worldCreateMedia.thTop") }, { value: "middle", label: t("worldCreateMedia.thMiddle") }, { value: "bottom", label: t("worldCreateMedia.thBottom") }]} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className={chipBtn(isLight)}>
-          {faceFile ? `Face photo: ${faceFile.name}` : "Add your face / an asset photo"}
+          {faceFile ? t("worldCreateMedia.thFacePhoto", { name: faceFile.name }) : t("worldCreateMedia.thAddFace")}
           <input
             ref={faceRef}
             type="file"
@@ -349,22 +356,22 @@ export function ThumbnailBenches({
             }}
           />
         </label>
-        {facePreview ? <img src={facePreview} alt="Face or asset for the thumbnail" className="h-10 w-10 rounded-lg object-cover" /> : null}
+        {facePreview ? <img src={facePreview} alt={t("worldCreateMedia.thFaceAlt")} className="h-10 w-10 rounded-lg object-cover" /> : null}
         <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
           <input type="checkbox" checked={attribution} onChange={(e) => setAttribution(e.target.checked)} />
-          Made-with credit on the thumbnail
+          {t("worldCreateMedia.thMadeWithCredit")}
         </label>
       </div>
       <button type="button" data-testid="world-thumbnail-maker-run" onClick={() => void runMaker()} disabled={busy !== null || prompt.trim().length < 3} className={goldBtn}>
         {busy === "maker" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Make 4 variations · {thumbnailGeneratorCost().toLocaleString("en-US")} Visual Bucs
+        {t("worldCreateMedia.thMakeVariations", { cost: fmtCost(thumbnailGeneratorCost()) })}
       </button>
 
       {benchTouched ? (
         <div className="space-y-2" data-testid="world-thumbnail-bench">
           {selectedUrl ? (
             <div className="relative overflow-hidden rounded-xl">
-              <img src={selectedUrl} alt="Your thumbnail" className="w-full rounded-xl object-contain" />
+              <img src={selectedUrl} alt={t("worldCreateMedia.thYourThumbnailAlt")} className="w-full rounded-xl object-contain" />
               {overlayText.trim() ? (
                 <span
                   data-testid="world-thumbnail-overlay-preview"
@@ -389,7 +396,7 @@ export function ThumbnailBenches({
                   data-testid="world-thumbnail-failed-slot"
                   className={`flex h-14 items-center justify-center rounded-lg border-2 border-dashed text-center ${isLight ? "border-[#92600a]/40" : "border-white/20"}`}
                 >
-                  <span className={`px-1 text-[11px] font-bold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Didn&rsquo;t land</span>
+                  <span className={`px-1 text-[11px] font-bold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldCreateMedia.thDidntLand")}</span>
                 </div>
               ),
             )}
@@ -398,13 +405,13 @@ export function ThumbnailBenches({
           {failedCount > 0 ? (
             <button type="button" data-testid="world-thumbnail-fresh-batch" onClick={() => void runMaker()} disabled={busy !== null || prompt.trim().length < 3} className={chipBtn(isLight)}>
               {busy === "maker" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Run a fresh batch · {thumbnailGeneratorCost().toLocaleString("en-US")} Visual Bucs
+              {t("worldCreateMedia.thFreshBatch", { cost: fmtCost(thumbnailGeneratorCost()) })}
             </button>
           ) : null}
           {selectedUrl ? (
             <button type="button" data-testid="world-thumbnail-variants-run" onClick={() => void runVariants()} disabled={busy !== null} className={chipBtn(isLight)}>
               {busy === "variants" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Make A/B variants of this one · {thumbnailVariantsCost().toLocaleString("en-US")} Visual Bucs
+              {t("worldCreateMedia.thMakeVariants", { cost: fmtCost(thumbnailVariantsCost()) })}
             </button>
           ) : null}
         </div>
@@ -412,12 +419,12 @@ export function ThumbnailBenches({
 
       {variants.length > 0 ? (
         <div className="space-y-2" data-testid="world-thumbnail-variants">
-          <p className={`text-xs font-semibold ${muted}`}>Head to head — pick the winner. That&rsquo;s the one that ships.</p>
+          <p className={`text-xs font-semibold ${muted}`}>{t("worldCreateMedia.thHeadToHead")}</p>
           <div className="grid gap-2 sm:grid-cols-3">
             {variantsSource ? (
               <div className={`overflow-hidden rounded-lg border-2 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-                <img src={variantsSource} alt="Your original thumbnail" className="aspect-video w-full object-cover" />
-                <span className="block px-1.5 py-1 text-[11px] font-bold">Your original</span>
+                <img src={variantsSource} alt={t("worldCreateMedia.thOriginalAlt")} className="aspect-video w-full object-cover" />
+                <span className="block px-1.5 py-1 text-[11px] font-bold">{t("worldCreateMedia.thOriginal")}</span>
               </div>
             ) : null}
             {variants.map((v) => (
@@ -426,10 +433,10 @@ export function ThumbnailBenches({
                 <div className="flex items-center justify-between gap-1 px-1.5 py-1">
                   <span className="min-w-0 truncate text-[11px] font-bold">{v.label}</span>
                   {winner === v.url ? (
-                    <span className="shrink-0 text-[11px] font-bold text-[#d4af37]">Your winner</span>
+                    <span className="shrink-0 text-[11px] font-bold text-[#d4af37]">{t("worldCreateMedia.thYourWinner")}</span>
                   ) : (
                     <button type="button" data-testid="world-thumbnail-pick-winner" onClick={() => pickWinner(v.url)} className={chipBtn(isLight)}>
-                      Pick the winner
+                      {t("worldCreateMedia.thPickWinner")}
                     </button>
                   )}
                 </div>
@@ -439,7 +446,7 @@ export function ThumbnailBenches({
           {winner ? (
             <div data-testid="world-thumbnail-winner" className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-semibold">
-                Winner saved — it&rsquo;s the thumbnail your video packaging flow picks up.
+                {t("worldCreateMedia.thWinnerSaved")}
               </p>
               <a
                 href={buildThumbnailWinnerPublishHref({ winnerUrl: winner, title: overlayText || prompt })}
@@ -447,7 +454,7 @@ export function ThumbnailBenches({
                 rel="noreferrer"
                 className={chipBtn(isLight)}
               >
-                Use as thumbnail for a video
+                {t("worldCreateMedia.thUseAsThumbnail")}
               </a>
               <button
                 type="button"
@@ -456,7 +463,7 @@ export function ThumbnailBenches({
                 onClick={() => setWinnerScheduleOpen((v) => !v)}
                 className={chipBtn(isLight)}
               >
-                Schedule it
+                {t("worldCreateMedia.thScheduleIt")}
               </button>
               {winnerScheduleOpen ? (
                 <div className="w-full">
@@ -475,7 +482,9 @@ export function ThumbnailBenches({
           predictor scores them. A prediction, never a guarantee. */}
       <div className="space-y-2 border-t border-dashed border-[#d4af37]/30 pt-3">
         <label className={chipBtn(isLight)}>
-          {testFiles.length > 0 ? `${testFiles.length} candidate(s) picked` : `Pick ${THUMBNAIL_TEST_MIN_FILES}–${THUMBNAIL_TEST_MAX_FILES} thumbnails to compare`}
+          {testFiles.length > 0
+            ? t("worldCreateMedia.thCandidatesPicked", { count: testFiles.length })
+            : t("worldCreateMedia.thPickToCompare", { min: THUMBNAIL_TEST_MIN_FILES, max: THUMBNAIL_TEST_MAX_FILES })}
           <input
             type="file"
             accept="image/*"
@@ -494,23 +503,23 @@ export function ThumbnailBenches({
         {testPreviews.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {testPreviews.map((p, i) => (
-              <img key={p} src={p} alt={`Candidate ${i + 1}`} className="h-14 w-24 rounded-lg object-cover" />
+              <img key={p} src={p} alt={t("worldCreateMedia.thCandidateAlt", { number: i + 1 })} className="h-14 w-24 rounded-lg object-cover" />
             ))}
           </div>
         ) : null}
         <button type="button" data-testid="world-thumbnail-ctr-run" onClick={() => void runCtr()} disabled={busy !== null || testFiles.length < THUMBNAIL_TEST_MIN_FILES} className={goldBtn}>
           {busy === "ctr" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Predict the clicks · {thumbnailTestCost().toLocaleString("en-US")} Visual Bucs
+          {t("worldCreateMedia.thPredictClicks", { cost: fmtCost(thumbnailTestCost()) })}
         </button>
         {ctr ? (
           <div data-testid="world-thumbnail-ctr-result" className="space-y-1">
             <p className="flex items-center gap-2 text-sm font-black">
               <Trophy className="h-4 w-4 text-[#d4af37]" />
-              Predicted winner: thumbnail {ctr.winnerIndex + 1} — {ctr.confidence}% confidence
+              {t("worldCreateMedia.thPredictedWinner", { number: ctr.winnerIndex + 1, confidence: ctr.confidence })}
             </p>
-            <p className={`text-xs ${muted}`}>Scores: {ctr.overallScores.map((s, i) => `#${i + 1}: ${s}`).join(" · ")}</p>
+            <p className={`text-xs ${muted}`}>{t("worldCreateMedia.thScoresLine", { scores: ctr.overallScores.map((s, i) => `#${i + 1}: ${s}`).join(" · ") })}</p>
             {ctr.reasoning ? <p className={`text-xs ${muted}`}>{ctr.reasoning}</p> : null}
-            <p className={`text-[11px] italic ${muted}`}>{ctr.disclaimer || "A prediction from thumbnail best practices — not a guarantee of real clicks."}</p>
+            <p className={`text-[11px] italic ${muted}`}>{ctr.disclaimer || t("worldCreateMedia.thDisclaimerFallback")}</p>
             {/* Stack-100 #50: apply a candidate's own tips on the
                 improve rail — offered only where the prediction
                 actually carried tips for that candidate. */}
@@ -519,9 +528,9 @@ export function ThumbnailBenches({
                 tips.length > 0 && testFiles[i] ? (
                   <div key={i} className="space-y-1.5" data-testid={`world-thumbnail-ctr-apply-row-${i}`}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold">Thumbnail {i + 1} — the predictor&rsquo;s tips:</span>
+                      <span className="text-xs font-bold">{t("worldCreateMedia.thTipsHeading", { number: i + 1 })}</span>
                       {improvedUrls[i] ? (
-                        <span className="text-xs font-bold text-[#d4af37]">Improved version ready below</span>
+                        <span className="text-xs font-bold text-[#d4af37]">{t("worldCreateMedia.thImprovedReady")}</span>
                       ) : (
                         <button
                           type="button"
@@ -531,7 +540,7 @@ export function ThumbnailBenches({
                           className={chipBtn(isLight)}
                         >
                           {improving === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                          Apply suggestions · {thumbnailImproveCost().toLocaleString("en-US")} Visual Bucs
+                          {t("worldCreateMedia.thApplySuggestions", { cost: fmtCost(thumbnailImproveCost()) })}
                         </button>
                       )}
                     </div>
@@ -542,17 +551,17 @@ export function ThumbnailBenches({
                     </ul>
                     {improvedUrls[i] ? (
                       <div className="space-y-1.5" data-testid="world-thumbnail-ctr-improved">
-                        <img src={improvedUrls[i]} alt={`Improved thumbnail ${i + 1}`} className="aspect-video w-full max-w-md rounded-xl object-cover" />
+                        <img src={improvedUrls[i]} alt={t("worldCreateMedia.thImprovedAlt", { number: i + 1 })} className="aspect-video w-full max-w-md rounded-xl object-cover" />
                         <div className="flex flex-wrap gap-2">
                           {winner === improvedUrls[i] ? (
-                            <span className="text-xs font-bold text-[#d4af37]">Saved as your winner</span>
+                            <span className="text-xs font-bold text-[#d4af37]">{t("worldCreateMedia.thSavedAsWinner")}</span>
                           ) : (
                             <button type="button" data-testid="world-thumbnail-ctr-improved-save" onClick={() => pickWinner(improvedUrls[i]!)} className={chipBtn(isLight)}>
-                              Save as the winner
+                              {t("worldCreateMedia.thSaveAsWinner")}
                             </button>
                           )}
                           <a href={improvedUrls[i]} download className={chipBtn(isLight)}>
-                            Download the improved one
+                            {t("worldCreateMedia.thDownloadImproved")}
                           </a>
                         </div>
                       </div>
