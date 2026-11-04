@@ -1,11 +1,13 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Check, Copy, Download, Loader2, Lock, RotateCcw, Share2, SlidersHorizontal, Sparkles, Store,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   hslToHex,
+  themePackCopy,
   type ThemePack,
   type ThemePackMode,
 } from "@/lib/theme-packs";
@@ -70,7 +72,12 @@ export function ThemeKitPanel({
   unlocked: boolean;
   previewMix?: PackCustomization | null;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
+  /* The panel's own labels speak the pack's catalog name; the kit
+     builders below keep the raw pack — generated file content stays
+     the registry's English (unit 53 seam rule). */
+  const copyName = themePackCopy(pack, t).name;
   const [busy, setBusy] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -243,7 +250,7 @@ export function ThemeKitPanel({
       <p className="text-[11px] font-semibold text-foreground" style={DISPLAY}>
         The whole-device kit — {manifest.components.length} components, light + dark
       </p>
-      <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5" aria-label={`${pack.name} kit components`}>
+      <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5" aria-label={`${copyName} kit components`}>
         {manifest.components.map((c) => (
           <li key={c.component} className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Check className="h-3 w-3 shrink-0" /> {c.label}
@@ -258,10 +265,10 @@ export function ThemeKitPanel({
       </p>
       {/* The designed art itself — these are the exact files the kit
           downloads ship (app icon first: the real logo lockup, whole). */}
-      <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={`${pack.name} designed icons (${mode})`}>
+      <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={`${copyName} designed icons (${mode})`}>
         <img
           src={designedAppIconPath(pack.id, mode)}
-          alt={`${pack.name} app icon — the Bow Down Visuals logo lockup on the pack tile (${mode})`}
+          alt={`${copyName} app icon — the Bow Down Visuals logo lockup on the pack tile (${mode})`}
           className="h-9 w-9 rounded-[9px] border border-primary/50 object-cover"
           loading="lazy"
         />
@@ -269,7 +276,7 @@ export function ThemeKitPanel({
           <img
             key={name}
             src={designedIconPath(pack.id, name, mode)}
-            alt={`${pack.name} ${name} icon (${mode})`}
+            alt={`${copyName} ${name} icon (${mode})`}
             title={name}
             className="h-9 w-9 rounded-[9px] border border-border/60 object-cover"
             loading="lazy"
