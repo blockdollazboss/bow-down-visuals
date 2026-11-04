@@ -189,6 +189,34 @@
  *     at most every 3rd tick; per-tick compositing is canvas draw
  *     ops only.
  *
+ * STEP-UP (Nov 4, 2026 — the owner: "better than before, but
+ * nowhere near Apple's level — whatever is wrong needs to be
+ * fixed"). End-to-end audit + a headless bench of the vendored
+ * model found TWO stacked caps. (1) RATIOS: the step table ran
+ * RVM's low-res branch at 205–320px wide; the bench proved the
+ * branch's operating band tops out near ~210px — above it the
+ * matte under-fires on textured content and collapses almost
+ * empty on flat content, and the ladder (which walks only on
+ * slowness) never rescued a fast device from the worst step.
+ * RVM_STEPS now holds the branch at ~155–210px at every step
+ * and raises the top FEED to 960px (rvm-engine.ts has the full
+ * bench table). (2) RESOLUTION: the matte was stretched from
+ * feed size over the 1080p composite with a plain bilinear
+ * drawImage, so every edge smeared across the scale factor and
+ * the fine-tune sliders could only tune a picture whose detail
+ * was never computed. A landed matte is now upsampled to the
+ * output size GUIDED by the frame it describes
+ * (matte-upsample.ts, in _storeLandedMatte), so the edge lands
+ * where the full-res picture's edge actually is instead of
+ * where the feed grid put it — the browser-feasible half of
+ * Apple's full-res segmentation. The upsampler carries a cost
+ * governor: two consecutive over-budget calls latch it off and
+ * the plain raster returns. What this does NOT change:
+ * inference is still WASM (the vendored runtime's WebGPU
+ * provider cannot run this graph — see rvm-worker.js), so
+ * matte rate on weak devices is still bounded by CPU; the
+ * step-up buys edge truth, not inference speed.
+ *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)
  * first — the output stream then holds the processed picture and the
@@ -204,6 +232,7 @@ import { VoiceIsolator, VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIs
 import { RvmEngine, RvmEngineError, RVM_MAX_STEP, type EngineMatte, type MattingEngine } from "./rvm-engine";
 import { TasksSegmenterEngine, TasksSegmenterError, TASKS_MAX_STEP } from "./tasks-segmenter-engine";
 import { MattePostProcessor, despillRgba } from "./matte-post";
+import { MatteUpsampler } from "./matte-upsample";
 import {
   sanitizeFineTune,
   composeMattePostOptions,
@@ -565,6 +594,22 @@ export class BackgroundChanger {
   private _matteCanvas: HTMLCanvasElement;
   private _matteCtx: CanvasRenderingContext2D;
   private _matteImage: ImageData | null = null;
+  /* Edge-aware matte upsampling (matte-upsample.ts, green-screen
+     step-up Nov 4, 2026): a landed matte is computed at the
+     engine's feed resolution — hundreds of px wide against a
+     1080p composite. Stored plain, the composite stretches it
+     with a bilinear drawImage and every edge smears across the
+     scale factor. When the engine carried the frame the matte
+     describes (EngineMatte.frame), the matte is instead
+     upsampled to the output size GUIDED by that frame, so edges
+     land where the picture's real edges are. The upsampler
+     governs its own cost: two consecutive over-budget calls
+     latch it off and the plain raster returns — a refinement
+     never janks the studio. _guideCanvas rasterises the guide
+     frame at output size, once per landed matte. */
+  private readonly _upsampler = new MatteUpsampler();
+  private _guideCanvas: HTMLCanvasElement;
+  private _guideCtx: CanvasRenderingContext2D | null;
   canvas: HTMLCanvasElement;
   private _ncLevel: NoiseCancellationLevel | null;
   private _fxName: string;
@@ -645,6 +690,8 @@ export class BackgroundChanger {
     this._personCtx = this._person.getContext("2d")!;
     this._matteCanvas = document.createElement("canvas"); // rasterised alpha matte
     this._matteCtx = this._matteCanvas.getContext("2d", { willReadFrequently: true })!;
+    this._guideCanvas = document.createElement("canvas"); // guide frame for matte upsampling
+    this._guideCtx = this._guideCanvas.getContext("2d", { willReadFrequently: true });
   }
 
   /* ------------------------------------------------------------ public API */
@@ -747,6 +794,7 @@ export class BackgroundChanger {
     // state so no ghost of the old feed lingers in the matte.
     this._engine?.reset();
     this._mattePost.reset();
+    this._upsampler.reset();
     await this._syncAudioTracks();
   }
 
@@ -1303,6 +1351,7 @@ export class BackgroundChanger {
        clears so the detail reports a plain 'off'. */
     this._exitReason = null;
     this._mattePost.reset();
+    this._upsampler.reset();
     if (old) {
       try {
         await old.dispose();
@@ -1334,6 +1383,7 @@ export class BackgroundChanger {
     this._busy = false;
     this._frameStall.reset(performance.now());
     this._mattePost.reset();
+    this._upsampler.reset();
     if (next) {
       if (next.kind === "pro") {
         /* A fresh Pro engine starts at the sharpest internal step:
@@ -1478,6 +1528,7 @@ export class BackgroundChanger {
        earned at the old framing — reseed it rather than blend
        across the resize. */
     this._mattePost.reset();
+    this._upsampler.reset();
   }
 
   private async _acquireCamera(deviceId: string | null | undefined): Promise<void> {
@@ -1770,21 +1821,59 @@ export class BackgroundChanger {
     const mw = matte.width;
     const mh = matte.height;
     const post = this._mattePost.process(matte.alpha, mw, mh);
-    if (this._matteCanvas.width !== mw || this._matteCanvas.height !== mh) {
-      this._matteCanvas.width = mw;
-      this._matteCanvas.height = mh;
+    /* Step-up (Nov 4, 2026): when the matte is smaller than the
+       output and the engine carried the frame it describes, the
+       stored matte is the GUIDED upsample at output size (see
+       matte-upsample.ts) — edges at the picture's real edges,
+       not the feed grid's. Any failure or refusal (latched off,
+       no frame, no guide context) keeps the plain matte-res
+       raster exactly as before. */
+    let alpha: Float32Array = post;
+    let aw = mw;
+    let ah = mh;
+    const outW = this._person.width;
+    const outH = this._person.height;
+    if (matte.frame && this._guideCtx && outW > mw && outH > mh) {
+      try {
+        if (this._guideCanvas.width !== outW || this._guideCanvas.height !== outH) {
+          this._guideCanvas.width = outW;
+          this._guideCanvas.height = outH;
+        }
+        this._guideCtx.drawImage(matte.frame, 0, 0, outW, outH);
+        const guide = this._guideCtx.getImageData(0, 0, outW, outH);
+        const up = this._upsampler.upsample(post, mw, mh, {
+          rgb: guide.data,
+          components: 4,
+          width: outW,
+          height: outH,
+        });
+        if (up) {
+          alpha = up;
+          aw = outW;
+          ah = outH;
+        }
+      } catch {
+        /* a guide failure is a plain matte, never a lost frame */
+        alpha = post;
+        aw = mw;
+        ah = mh;
+      }
+    }
+    if (this._matteCanvas.width !== aw || this._matteCanvas.height !== ah) {
+      this._matteCanvas.width = aw;
+      this._matteCanvas.height = ah;
       this._matteImage = null;
     }
-    if (!this._matteImage) this._matteImage = this._matteCtx.createImageData(mw, mh);
+    if (!this._matteImage) this._matteImage = this._matteCtx.createImageData(aw, ah);
     const px = this._matteImage.data;
-    for (let i = 0, j = 0; i < post.length; i++, j += 4) {
+    for (let i = 0, j = 0; i < alpha.length; i++, j += 4) {
       px[j] = 255;
       px[j + 1] = 255;
       px[j + 2] = 255;
-      px[j + 3] = Math.round(post[i] * 255);
+      px[j + 3] = Math.round(alpha[i] * 255);
     }
     this._matteCtx.putImageData(this._matteImage, 0, 0);
-    this._liveMatte = { epoch, width: mw, height: mh };
+    this._liveMatte = { epoch, width: aw, height: ah };
     this._liveMatteFresh = true;
   }
 
