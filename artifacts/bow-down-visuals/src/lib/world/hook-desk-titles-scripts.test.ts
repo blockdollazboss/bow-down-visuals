@@ -260,8 +260,11 @@ describe("session history — the benches' makes ride whole", () => {
 
 describe("the benches in the component (source pins)", () => {
   it("both benches are tabs on the desk, priced from the seam", () => {
-    expect(deskSrc).toContain('{ key: "titles", label: "Titles"');
-    expect(deskSrc).toContain('{ key: "scripts", label: "Scripts"');
+    /* Join repoint (stack100 phase-2): the tab labels render through
+       the catalog since locale unit 38 — the pin now holds the
+       labelKey wiring (en values pinned in the unit-38 i18n pin). */
+    expect(deskSrc).toContain('{ key: "titles", labelKey: "worldCreateMedia.hookModeTitles"');
+    expect(deskSrc).toContain('{ key: "scripts", labelKey: "worldCreateMedia.hookModeScripts"');
     expect(deskSrc).toContain("hookDeskModeCost(mode)");
   });
 

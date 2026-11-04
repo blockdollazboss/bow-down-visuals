@@ -1,7 +1,7 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, ScrollText, Sparkles, Type, Zap } from "lucide-react";
-import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, Sparkles, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
