@@ -97,14 +97,12 @@ const chipBtn = (isLight: boolean) =>
   }`;
 
 /* Pitch-writer tone labels (stack100 locale unit 47): the seam's
-   SPONSOR_PITCH_TONES labels are lowercase rail tokens on the 2D
-   page, not display words — the desk's tone names are its own
-   catalog keys, keyed by the same tone tokens. */
+   SPONSOR_PITCH_TONES stays the pinned English mirror; the desk
+   renders the tone names from the catalog, keyed by tone token. */
 const TONE_KEYS: Record<string, string> = {
   professional: "worldSponsorPress.spToneProfessional",
   bold: "worldSponsorPress.spToneBold",
   friendly: "worldSponsorPress.spToneFriendly",
-  funny: "worldSponsorPress.spToneFunny",
 };
 
 export function SponsorDepthDesk({ isLight }: { isLight: boolean }) {

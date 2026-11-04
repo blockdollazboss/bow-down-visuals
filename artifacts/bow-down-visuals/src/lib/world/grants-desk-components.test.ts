@@ -57,7 +57,7 @@ describe("the member loop in-panel", () => {
   it("guests read; actions gate on sign-in; no-round is plain", () => {
     expect(desk).toContain('data-testid="world-grants-desk-signin"');
     expect(desk).toContain('data-testid="world-grants-desk-noround"');
-    expect(desk).toContain("No round is open right now");
+    expect(desk).toContain("worldSponsorPress.grNoRound"); // "No round is open right now" — via the catalog (unit 47)
   });
 
   it("no spend path and no admin path", () => {

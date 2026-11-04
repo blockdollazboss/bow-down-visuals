@@ -51,8 +51,8 @@ const TYPE_KEYS: Record<string, string> = {
   single: "worldSponsorPress.prTypeSingle",
   album: "worldSponsorPress.prTypeAlbum",
   tour: "worldSponsorPress.prTypeTour",
-  video: "worldSponsorPress.prTypeVideo",
-  other: "worldSponsorPress.prTypeMilestone",
+  launch: "worldSponsorPress.prTypeLaunch",
+  milestone: "worldSponsorPress.prTypeMilestone",
 };
 
 export function PressReleaseWriter({

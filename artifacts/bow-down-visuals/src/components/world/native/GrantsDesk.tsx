@@ -41,17 +41,16 @@ import { useDeskAuthHeaders } from "./CreateDeskLeaf";
    seam's GRANT_PHASE_LABELS / GRANT_RESULT_LABELS stay the pinned
    English mirrors; the desk renders the names from the catalog. */
 const PHASE_KEYS: Record<string, string> = {
+  upcoming: "worldSponsorPress.grPhaseUpcoming",
   submissions: "worldSponsorPress.grPhaseSubmissions",
+  between: "worldSponsorPress.grPhaseBetween",
   voting: "worldSponsorPress.grPhaseVoting",
-  decided: "worldSponsorPress.grPhaseDecided",
-  reported: "worldSponsorPress.grPhaseReported",
+  closed: "worldSponsorPress.grPhaseClosed",
 };
 const RESULT_KEYS: Record<string, string> = {
-  pending: "worldSponsorPress.grResultPending",
   winner: "worldSponsorPress.grResultWinner",
   tie: "worldSponsorPress.grResultTie",
   no_candidates: "worldSponsorPress.grResultNoCandidates",
-  no_votes: "worldSponsorPress.grResultNoVotes",
 };
 
 export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {

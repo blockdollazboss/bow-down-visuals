@@ -40,7 +40,7 @@ describe("the whole coach in-panel", () => {
       'data-testid="world-interview-desk-name"',
       'data-testid="world-interview-desk-build"',
       'data-testid="world-interview-desk-session"',
-      "Your talking points — land these no matter what",
+      "worldSponsorPress.ivTalkingPointsTitle", // "Your talking points — land these no matter what" — via the catalog (unit 47)
       "Coach&rsquo;s tip:",
       'data-testid="world-interview-desk-answer"',
       'data-testid="world-interview-desk-score"',
@@ -69,13 +69,13 @@ describe("spend discipline in source", () => {
 
   it("printed prices come from the constants", () => {
     expect(desk).toContain('data-testid="world-interview-desk-cost"');
-    expect(desk).toContain("INTERVIEW_SESSION_COST.toLocaleString()");
-    expect(desk).toContain("INTERVIEW_FEEDBACK_COST.toLocaleString()");
+    expect(desk).toContain("INTERVIEW_SESSION_COST.toLocaleString(i18n.language)");
+    expect(desk).toContain("INTERVIEW_FEEDBACK_COST.toLocaleString(i18n.language)");
     expect(seam).toContain("registryCost(INTERVIEW_SESSION_PATH)");
   });
 
   it("402 names the Treasury's packs desk", () => {
-    expect(desk).toContain("Visual Buc Packs desk in the Treasury");
+    expect(desk).toContain("worldSponsorPress.ivOutOfCredits"); // names the Visual Buc Packs desk in the Treasury — via the catalog (unit 47)
   });
 });
 
