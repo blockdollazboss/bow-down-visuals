@@ -56,11 +56,12 @@ export type VideoTemplateId =
   | "social-short"
   | "slideshow"
   | "intro-outro"
+  | "winner-reel"
   | "blank-canvas";
 
 export type TemplateIconName =
   | "music" | "megaphone" | "mic" | "video"
-  | "smartphone" | "images" | "sparkles" | "layout";
+  | "smartphone" | "images" | "sparkles" | "layout" | "trophy";
 
 export interface VideoTemplate {
   id: VideoTemplateId;
@@ -239,6 +240,28 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     ],
   },
   {
+    id: "winner-reel",
+    name: "Winner Reel",
+    tagline: "Crown your win",
+    description: "9:16 · gold captions · celebration glow · branding up front for the watermark",
+    icon: "trophy",
+    accent: "from-amber-400/25 to-yellow-600/10 border-amber-400/40",
+    defaultFormat: "9:16",
+    priorityTabs: ["clips", "captions", "effects", "branding", "music", "timeline", "export"],
+    defaultCaptionPreset: "gold-hiphop",
+    captionPresets: ["gold-hiphop", "luxury", "karaoke-word", "pill-pop", "clean-white"],
+    effects: ["Glow", "Slow Zoom", "Vignette", "Film Grain"],
+    transitions: ["Flash", "Zoom", "Light Leak", "Crossfade"],
+    colorGrades: ["Luxury Gold", "Cinematic Contrast", "Warm Grade"],
+    aiEditStyle: "gold-luxury-brand",
+    captionAnimation: "pop",
+    transitionDurationSec: 0.4,
+    overlaySequence: [
+      { role: "title", position: "center", startSec: 0, durationSec: 3, animation: "fade-in-out" },
+      { role: "hook", position: "bottom-center", startSec: 0, durationSec: 3 },
+    ],
+  },
+  {
     id: "blank-canvas",
     name: "Blank Canvas",
     tagline: "Everything, unfiltered",
@@ -260,7 +283,17 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
 ];
 
 export function getVideoTemplate(id: string | null | undefined): VideoTemplate {
-  return VIDEO_TEMPLATES.find((t) => t.id === id) ?? VIDEO_TEMPLATES[7]!;
+  /* Fallback is Blank Canvas BY ID, never by array index — the registry
+     grows (winner-reel landed after intro-outro) and an index fallback
+     would silently re-point unknown ids at the wrong template. */
+  return (
+    VIDEO_TEMPLATES.find((t) => t.id === id) ??
+    VIDEO_TEMPLATES.find((t) => t.id === "blank-canvas")!
+  );
+}
+
+export function isVideoTemplateId(id: string | null | undefined): id is VideoTemplateId {
+  return !!id && VIDEO_TEMPLATES.some((t) => t.id === id);
 }
 
 /* ── localStorage: custom card order + last choice ── */
