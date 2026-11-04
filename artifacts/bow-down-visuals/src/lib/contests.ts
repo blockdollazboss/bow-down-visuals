@@ -31,11 +31,11 @@ export function shortSeed(seed: string | undefined | null): string {
  * Formats the draw timestamp for the audit panel.
  * Falls back to the raw string when it isn't a valid date.
  */
-export function formatDrawnAt(iso: string | undefined | null): string {
+export function formatDrawnAt(iso: string | undefined | null, locale?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
