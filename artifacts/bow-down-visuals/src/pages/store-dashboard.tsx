@@ -29,6 +29,7 @@ import {
   type ServiceDetails,
 } from "@/lib/storefront-api";
 import { formatDropLocal } from "@/lib/product-drop";
+import { storefrontFeeCents } from "@/lib/shops";
 import {
   availabilityFormFrom, availabilityFromForm, browserTimeZone, emptyAvailabilityForm,
   isOfficeHoursFlagged, officeHoursPriceVb, weekdayShortLabel,
@@ -3309,7 +3310,10 @@ function DigitalSalesTab() {
   }
 
   function feePreview(cents: number): string {
-    const fee = Math.round((cents * 10) / 100);
+    /* The digital-store rail charges the flat shop fee (5%,
+       STOREFRONT_PLATFORM_FEE_BPS via routes/store.ts) — the preview
+       derives from the same mirror constant, never its own percent. */
+    const fee = storefrontFeeCents(cents);
     return `You keep $${((cents - fee) / 100).toFixed(2)} · $${(fee / 100).toFixed(2)} platform fee`;
   }
 
