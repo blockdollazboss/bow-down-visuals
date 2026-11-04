@@ -70,4 +70,14 @@ describe("QC fix #5 — Gamers idea-pack price: display == registry == rail", ()
   it("the rail's failure copy no longer claims a single Buc was refunded", () => {
     expect(railSrc).not.toContain("Your Visual Buc was refunded");
   });
+
+  it("sibling hero stats are derived, not literals — the toolkit renders 6 cards, not the 5 the stat claimed", () => {
+    expect(page).toContain("String(TOOL_CARDS.length)");
+    expect(page).toContain("String(CONTENT_TYPES.length)");
+    expect(page).not.toMatch(/\{\s*n:\s*"5",\s*l:\s*"Gamer tools wired in"\s*\}/);
+    expect(page).not.toMatch(/\{\s*n:\s*"3",\s*l:\s*"Content types"\s*\}/);
+    // the toolkit grid really does carry 6 cards today
+    const cards = page.match(/^\s+href:\s*"\//gm) ?? [];
+    expect(cards.length).toBe(6);
+  });
 });

@@ -287,8 +287,8 @@ export default function GamersHub() {
           </div>
           <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-3">
             {[
-              { n: "5", l: "Gamer tools wired in" },
-              { n: "3", l: "Content types" },
+              { n: String(TOOL_CARDS.length), l: "Gamer tools wired in" },
+              { n: String(CONTENT_TYPES.length), l: "Content types" },
               { n: String(GAMERS_IDEAS_COST), l: "Visual Bucs per idea pack" },
             ].map((s) => (
               <div key={s.l} className={`rounded-2xl border px-3 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
