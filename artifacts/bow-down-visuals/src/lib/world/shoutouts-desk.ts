@@ -5,7 +5,8 @@
 
      GET  /api/shoutouts/creators            (public) → { creators:
            [{ id, displayName, priceDollars, turnaroundDays,
-              guidelines }], paymentsLive: false }
+              guidelines }], paymentsLive } — the flag derives from
+           the configured rail (see HONESTY below).
      POST /api/shoutouts/requests            (public) → 201
            { request, paymentsLive } — a FREE request is delivered
            to the creator the moment it lands; a priced one waits
@@ -39,9 +40,12 @@
    message helper, 100 VB) is a sell-side drafting aid and is NOT
    part of this buy-side desk.
 
-   HONESTY: the creators list still carries its v1 `paymentsLive:
-   false` flag even though the checkout rail is live — the desk
-   never reads payment truth from that flag. Truth comes from the
+   HONESTY: the creators list's `paymentsLive` flag once was a
+   hardcoded v1 `false`; it now derives from the configured rail —
+   the same STRIPE_SECRET_KEY truth the checkout endpoint enforces
+   (stack1500) — so it reports whether paid shoutouts can settle at
+   all. The desk still never takes money-moment truth from that
+   rail-level flag: truth at the money moment comes from the
    request answer (paymentsLive = the request is priced) and from
    the checkout/verify answers themselves. Creators whose rows
    drift off the rail's shape are dropped, never dressed up. */
