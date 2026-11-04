@@ -16,7 +16,11 @@ const router = Router();
 
 /* ─── Pricing ───────────────────────────────────────────────────────────────
    200 Visual Bucs standard / 300 premium — in line with site image
-   pricing. Env-overridable without a deploy. */
+   pricing. Env-overridable without a deploy.
+   REGISTRY: this route owns the cover-art lists of record (styles,
+   ratios, tier prices below). The FE mirror in lib/cover-art.ts is
+   pinned to them by cover-art-registry-parity.test.ts — edit here
+   and the pin carries the change; edit only the FE and it fails. */
 export const COVER_ART_STANDARD_CREDITS =
   Number(process.env["COVER_ART_STANDARD_CREDITS"]) || 200;
 export const COVER_ART_PREMIUM_CREDITS =
@@ -28,7 +32,10 @@ const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunbu
 /** Supabase Storage bucket for generated cover art. */
 const COVER_ART_BUCKET = "artist-references";
 
-/* ─── Style presets ───────────────────────────────────────────────────────── */
+/* ─── Style presets ─────────────────────────────────────────────────────────
+   The registry of record — coverArtSchema validates against these keys
+   and resolveCoverArtStyle reads the direction from here. The FE mirror
+   adds only its swatch field; key/label/blurb are pinned identical. */
 export const COVER_ART_STYLES = [
   {
     key: "luxury-gold",
@@ -74,7 +81,9 @@ export const COVER_ART_STYLES = [
   },
 ] as const;
 
-/* ─── Aspect ratios ───────────────────────────────────────────────────────── */
+/* ─── Aspect ratios ─────────────────────────────────────────────────────────
+   The registry of record — the FE mirror adds only its css field;
+   key/label/blurb are pinned identical. */
 export const COVER_ART_RATIOS = [
   { key: "1:1", label: "Square 1:1", blurb: "Streaming platforms", size: "1024x1024" },
   { key: "16:9", label: "Wide 16:9", blurb: "YouTube banner", size: "1536x1024" },

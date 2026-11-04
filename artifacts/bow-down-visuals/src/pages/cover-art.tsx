@@ -17,6 +17,7 @@ import { coverArtSeedFromAsset, COVER_ART_PROMPT_MAX } from "@/lib/hub-song";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import {
+  COVER_ART_PRESETS,
   COVER_ART_STYLES,
   COVER_ART_RATIOS,
   COVER_ART_TIERS,
@@ -81,14 +82,7 @@ export default function CoverArt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* One-click cover art presets */
-  const COVER_PRESETS = [
-    { label: "💎 Luxury Gold", style: "luxury-gold", mood: "luxurious and premium" },
-    { label: "🌙 Dark Moody", style: "dark-moody", mood: "dark and atmospheric" },
-    { label: "🎨 Vibrant Pop", style: "vibrant-pop", mood: "bold and energetic" },
-    { label: "🎬 Cinematic", style: "cinematic", mood: "epic and dramatic" },
-  ];
-
+  /* One-click cover art presets — the shared COVER_ART_PRESETS list in lib/cover-art. */
   const tierInfo = getCoverArtTier(tier);
   const canGenerate = songTitle.trim().length > 0 && artistName.trim().length > 0 && !generating;
 
@@ -226,7 +220,7 @@ export default function CoverArt() {
               <div className="space-y-4">
                 <p className="text-sm text-white/60">{t("cover-art.pickVibe", { defaultValue: "Pick a vibe — one tap, done." })}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {COVER_PRESETS.map((preset) => (
+                  {COVER_ART_PRESETS.map((preset) => (
                     <button
                       key={preset.label}
                       type="button"
