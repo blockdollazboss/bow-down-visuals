@@ -33,6 +33,7 @@ const slateSrc = read("../../components/DailyDropSlate.tsx");
 const dashboardSrc = read("../../pages/dashboard.tsx");
 const enLocale = JSON.parse(read("../../locales/en.json")) as {
   retention: { dropCatalog: Record<string, string> };
+  worldRemainder: Record<string, string>;
 };
 
 function drop(over: Partial<DailyDropCatalogEntry> = {}): DailyDropCatalogEntry {
@@ -181,7 +182,8 @@ describe("the Treasury dock (source pins)", () => {
   it("honest states: failed load is a failed state, rows move only after the server confirms", () => {
     expect(catalogSrc).toContain("NativeErrorState");
     expect(catalogSrc).toContain("NativeLoadingState");
-    expect(catalogSrc).toContain("catalogue is unchanged");
+    /* Locale unit 52: the desk rides the slate's own catalog key. */
+    expect(catalogSrc).toContain('t("retention.dropCatalog.saveFailed")');
     /* applyDropArchive is called inside the toggle AFTER the await —
        pin that the setCatalog sits after the apiJson call. */
     const toggle = catalogSrc.slice(catalogSrc.indexOf("async function toggleArchive"));
@@ -190,7 +192,10 @@ describe("the Treasury dock (source pins)", () => {
   });
 
   it("the copy never promises the rotation changes — archiving tidies the member's own list", () => {
-    expect(catalogSrc).toContain("the shared daily rotation stays the same for everyone");
+    expect(catalogSrc).toContain('t("worldRemainder.ddcHeadline")');
+    expect(enLocale.worldRemainder.ddcHeadline).toContain(
+      "the shared daily rotation stays the same for everyone",
+    );
   });
 
   it("docked in the Treasury panel, directly under the day's drop card", () => {

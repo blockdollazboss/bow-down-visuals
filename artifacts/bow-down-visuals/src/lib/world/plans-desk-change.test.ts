@@ -267,17 +267,17 @@ describe("PlansDesk wiring — the change completes inside the desk", () => {
   it("confirm posts the change endpoint with the confirmed preview's tier", () => {
     expect(plansDesk).toContain('"/api/creator-tiers/change"');
     expect(plansDesk).toContain("body: { tier: changePreview.toTier }");
-    expect(plansDesk).toContain("planChangeOutcome(result)");
-    expect(plansDesk).toContain("checkoutFailureCopy(err)");
+    expect(plansDesk).toContain("planChangeOutcome(result, planStrings)");
+    expect(plansDesk).toContain("checkoutFailureCopy(err, checkoutStrings)");
   });
 
   it("the confirm panel renders the pinned lines in the sheet", () => {
     expect(plansDesk).toContain('data-testid="world-plans-change-confirm"');
     expect(plansDesk).toContain('data-testid="world-plans-change-apply"');
     expect(plansDesk).toContain('data-testid="world-plans-change-cancel"');
-    expect(plansDesk).toContain("planChangeChargeLine(changePreview)");
-    expect(plansDesk).toContain("planChangeStartLine(changePreview)");
-    expect(plansDesk).toContain("PLAN_CHANGE_CLEARS_CANCEL_LINE");
+    expect(plansDesk).toContain("planChangeChargeLine(changePreview, planStrings)");
+    expect(plansDesk).toContain("planChangeStartLine(changePreview, planStrings)");
+    expect(plansDesk).toContain('t("worldRemainder.plnClearsCancel")');
   });
 
   it("applyChange never leaves the World: no new tab, no hosted rail", () => {

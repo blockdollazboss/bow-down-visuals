@@ -140,20 +140,20 @@ export function DailyDropCatalog({
         prev ? { ...prev, drops: applyDropArchive(prev.drops, entry.key, !entry.archived) } : prev,
       );
     } catch {
-      setNote(t("worldRemainder.ddcSaveFailed"));
+      setNote(t("retention.dropCatalog.saveFailed"));
     } finally {
       setBusyKey(null);
     }
   }
 
   if (state === "loading") {
-    return <NativeLoadingState isLight={isLight} message={t("worldRemainder.ddcLoading")} />;
+    return <NativeLoadingState isLight={isLight} message={t("retention.dropCatalog.loading")} />;
   }
   if (state === "failed") {
     return (
       <NativeErrorState
         isLight={isLight}
-        title={t("worldRemainder.ddcLoadTitle")}
+        title={t("retention.dropCatalog.failedTitle")}
         message={t("worldRemainder.ddcLoadMessage")}
         onRetry={() => void load()}
       />
@@ -184,7 +184,7 @@ export function DailyDropCatalog({
                 data-testid={`world-daily-drop-use-${entry.key}`}
                 className={useBtn}
               >
-                {t("worldRemainder.ddcUse")} <ArrowRight className="h-3.5 w-3.5" />
+                {t("retention.dropCatalog.use")} <ArrowRight className="h-3.5 w-3.5" />
               </button>
             ) : (
               <a
@@ -194,7 +194,7 @@ export function DailyDropCatalog({
                 data-testid={`world-daily-drop-use-${entry.key}`}
                 className={useBtn}
               >
-                {t("worldRemainder.ddcUse")} <ArrowRight className="h-3.5 w-3.5" />
+                {t("retention.dropCatalog.use")} <ArrowRight className="h-3.5 w-3.5" />
               </a>
             );
           })()}
@@ -210,9 +210,9 @@ export function DailyDropCatalog({
             className={tidyBtn(isLight)}
           >
             {entry.archived ? (
-              <><ArchiveRestore className="h-3.5 w-3.5" /> {t("worldRemainder.ddcUnarchive")}</>
+              <><ArchiveRestore className="h-3.5 w-3.5" /> {t("retention.dropCatalog.unarchive")}</>
             ) : (
-              <><Archive className="h-3.5 w-3.5" /> {t("worldRemainder.ddcArchive")}</>
+              <><Archive className="h-3.5 w-3.5" /> {t("retention.dropCatalog.archive")}</>
             )}
           </button>
         </span>
@@ -224,7 +224,7 @@ export function DailyDropCatalog({
     <div className="space-y-4" data-testid="world-daily-drop-catalog">
       <NativeBoard
         isLight={isLight}
-        title={t("worldRemainder.ddcTitle")}
+        title={t("retention.dropCatalog.title")}
         headline={
           <p className={`px-1 text-xs ${muted}`}>
             {t("worldRemainder.ddcHeadline")}
@@ -236,8 +236,8 @@ export function DailyDropCatalog({
             isLight={isLight}
             message={
               catalog.drops.length === 0
-                ? t("worldRemainder.ddcEmptyNow")
-                : t("worldRemainder.ddcAllArchived")
+                ? t("retention.dropCatalog.emptyAll")
+                : t("retention.dropCatalog.emptyArchived")
             }
           />
         ) : (
@@ -248,7 +248,7 @@ export function DailyDropCatalog({
         <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
       )}
       {archived.length > 0 && (
-        <NativeBoard isLight={isLight} title={t("worldRemainder.ddcArchivedTitle")}>
+        <NativeBoard isLight={isLight} title={t("retention.dropCatalog.archivedTitle")}>
           {archived.map(row)}
         </NativeBoard>
       )}

@@ -18,6 +18,10 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+import { PACKS_TEST_MODE_NOTE } from "./money-desks";
+
+const remainder = (en as unknown as Record<string, Record<string, string>>).worldRemainder;
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const packs = read("../../components/world/native/PacksDesk.tsx");
@@ -32,7 +36,10 @@ describe("#61 packs desk contracts", () => {
     expect(packs).toContain('fetch("/api/create-checkout-session"');
     expect(packs).toContain("packCheckoutPayload(pack)");
     expect(packs).toContain("CREDIT_PACKS");
-    expect(packs).toContain("PACKS_TEST_MODE_NOTE");
+    /* Locale unit 52: the note rides the catalog; its en value IS
+       the lib constant, byte for byte. */
+    expect(packs).toContain('t("worldRemainder.pakTestModeNote")');
+    expect(remainder.pakTestModeNote).toBe(PACKS_TEST_MODE_NOTE);
     expect(packs).toContain('data-testid="world-treasury-packs"');
     /* The hosted page opens in a NEW TAB — the palace never moves. */
     expect(packs).toContain('window.open(url, "_blank", "noopener,noreferrer")');
@@ -57,9 +64,11 @@ describe("#61 packs desk contracts", () => {
     /* Every failure shape names itself in the desk's failed state:
        the transport failure via the shared checkout failure copy,
        and an OK answer with no usable secret as a failed start. */
-    expect(packs).toContain("checkoutFailureCopy(err)");
-    expect(packs).toContain("Checkout didn't start — nothing was charged. Try again in a minute.");
-    expect(packs).toContain("nothing was charged. Give it a moment and try again.");
+    expect(packs).toContain("checkoutFailureCopy(err, {");
+    expect(packs).toContain('t("worldRemainder.pakCheckoutDidntStart")');
+    expect(remainder.pakCheckoutDidntStart).toBe("Checkout didn't start — nothing was charged. Try again in a minute.");
+    expect(remainder.chkServerError).toContain("nothing was charged. Give it a moment and try again.");
+    expect(remainder.chkUnreachable).toContain("nothing was charged. Give it a moment and try again.");
   });
 
   it("every intent outcome returns inside the key-present branch, before the hosted call", () => {
